@@ -97,6 +97,28 @@ export function useStreak() {
         };
     });
 
+    /**
+     * Break the streak and save to memorial
+     */
+    const breakStreak = useCallback(() => {
+        setStreakData(prev => {
+            if (prev.currentStreak === 0) return prev;
+
+            const memorial = {
+                streak: prev.currentStreak,
+                startDate: prev.streakStartDate,
+                endDate: prev.lastStudyDate
+            };
+
+            return {
+                ...prev,
+                currentStreak: 0,
+                streakStartDate: null,
+                pastStreaks: [memorial, ...prev.pastStreaks].slice(0, 10) // Keep last 10
+            };
+        });
+    }, []);
+
     // Persist to localStorage
     useEffect(() => {
         try {
@@ -118,7 +140,7 @@ export function useStreak() {
         checkStreak();
         const interval = setInterval(checkStreak, 60000); // Check every minute
         return () => clearInterval(interval);
-    }, [streakData.lastStudyDate, streakData.currentStreak]);
+    }, [streakData.lastStudyDate, streakData.currentStreak, breakStreak]);
 
     /**
      * Increment the streak (call when user completes a study session)
@@ -151,28 +173,6 @@ export function useStreak() {
                 currentStreak: newStreak,
                 lastStudyDate: now,
                 longestStreak: Math.max(prev.longestStreak, newStreak)
-            };
-        });
-    }, []);
-
-    /**
-     * Break the streak and save to memorial
-     */
-    const breakStreak = useCallback(() => {
-        setStreakData(prev => {
-            if (prev.currentStreak === 0) return prev;
-
-            const memorial = {
-                streak: prev.currentStreak,
-                startDate: prev.streakStartDate,
-                endDate: prev.lastStudyDate
-            };
-
-            return {
-                ...prev,
-                currentStreak: 0,
-                streakStartDate: null,
-                pastStreaks: [memorial, ...prev.pastStreaks].slice(0, 10) // Keep last 10
             };
         });
     }, []);

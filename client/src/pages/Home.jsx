@@ -5,12 +5,12 @@ import {
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon, Ghost, Settings
 } from 'lucide-react';
 import { api } from '../api';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GhostPet from '../components/GhostPet';
 import GhostGallery from '../components/GhostGallery';
 import GhostCustomizer from '../components/GhostCustomizer';
-import { useStreakContext } from '../context/StreakContext';
+import { useStreakContext } from '../hooks/useStreakContext';
 
 export default function Home() {
     const toast = useToast();

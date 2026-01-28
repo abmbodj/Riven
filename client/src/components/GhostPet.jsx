@@ -40,13 +40,8 @@ export default function GhostPet({
     showInfo = true,
     onClick
 }) {
-    const [customization, setCustomization] = useState(loadCustomization);
+    const [customization] = useState(() => loadCustomization());
     const [floatOffset, setFloatOffset] = useState(0);
-    
-    // Load customization on mount
-    useEffect(() => {
-        setCustomization(loadCustomization());
-    }, []);
 
     // Floating animation
     useEffect(() => {

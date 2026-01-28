@@ -1,20 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Check, X, AlertCircle } from 'lucide-react';
+import React, { createContext, useState, useCallback } from 'react';
+import { Check, AlertCircle } from 'lucide-react';
 
-const ToastContext = createContext(null);
-
-export const useToast = () => {
-    const context = useContext(ToastContext);
-    if (!context) {
-        // Return no-op functions if used outside provider (prevents crashes)
-        return { 
-            show: () => {}, 
-            success: () => {}, 
-            error: () => {} 
-        };
-    }
-    return context;
-};
+export const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);

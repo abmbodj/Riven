@@ -1,15 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState, useCallback } from 'react';
 import { api } from './api';
 
-const ThemeContext = createContext();
+export const ThemeContext = createContext(null);
 
-export const useTheme = () => useContext(ThemeContext);
-
-export const ThemeProvider = ({ children }) => {
+export function ThemeProvider({ children }) {
     const [themes, setThemes] = useState([]);
     const [activeTheme, setActiveTheme] = useState(null);
 
-    const applyTheme = (theme) => {
+    const applyTheme = useCallback((theme) => {
+        if (!theme) return;
         const root = document.documentElement;
         root.style.setProperty('--bg-color', theme.bg_color);
         root.style.setProperty('--surface-color', theme.surface_color);
@@ -17,44 +16,45 @@ export const ThemeProvider = ({ children }) => {
         root.style.setProperty('--secondary-text-color', theme.secondary_text_color);
         root.style.setProperty('--border-color', theme.border_color);
         root.style.setProperty('--accent-color', theme.accent_color);
-    };
+    }, []);
 
-    const loadThemes = async () => {
-        try {
-            const data = await api.getThemes();
+    useEffect(() => {
+        let mounted = true;
+        api.getThemes().then(data => {
+            if (!mounted) return;
             setThemes(data);
             const active = data.find(t => t.is_active) || data[0];
             setActiveTheme(active);
             if (active) applyTheme(active);
-        } catch (err) {
+        }).catch(err => {
             console.error('Failed to load themes', err);
-        }
-    };
+        });
+        return () => { mounted = false; };
+    }, [applyTheme]);
 
-    const switchTheme = async (themeId) => {
+    const switchTheme = useCallback(async (themeId) => {
         try {
             await api.activateTheme(themeId);
-            const theme = themes.find(t => t.id === themeId);
-            setActiveTheme(theme);
-            applyTheme(theme);
+            setThemes(prev => {
+                const theme = prev.find(t => t.id === themeId);
+                setActiveTheme(theme);
+                applyTheme(theme);
+                return prev;
+            });
         } catch (err) {
             console.error('Failed to switch theme', err);
         }
-    };
+    }, [applyTheme]);
 
-    const addTheme = async (themeData) => {
+    const addTheme = useCallback(async (themeData) => {
         try {
             const newTheme = await api.createTheme(themeData);
-            setThemes([...themes, newTheme]);
+            setThemes(prev => [...prev, newTheme]);
             return newTheme;
         } catch (err) {
             console.error('Failed to add theme', err);
             throw err;
         }
-    };
-
-    useEffect(() => {
-        loadThemes();
     }, []);
 
     return (
@@ -62,4 +62,4 @@ export const ThemeProvider = ({ children }) => {
             {children}
         </ThemeContext.Provider>
     );
-};
+}

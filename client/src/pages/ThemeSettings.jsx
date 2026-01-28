@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useTheme } from '../ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { Check, Plus, X } from 'lucide-react';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 export default function ThemeSettings() {
     const { themes, activeTheme, switchTheme, addTheme } = useTheme();

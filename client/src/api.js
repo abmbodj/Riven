@@ -55,7 +55,7 @@ export const api = {
     // ============ THEMES ============
     getThemes: () => safeCall(() => db.getThemes()),
     activateTheme: (id) => safeCall(() => db.setActiveTheme(id)),
-    createTheme: async (themeData) => {
+    createTheme: async () => {
         console.warn('createTheme not implemented for offline mode');
         return null;
     },

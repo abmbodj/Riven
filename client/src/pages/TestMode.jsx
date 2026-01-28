@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api';
-import { useStreakContext } from '../context/StreakContext';
+import { useStreakContext } from '../hooks/useStreakContext';
 
 export default function TestMode() {
     const { id } = useParams();
@@ -16,18 +16,7 @@ export default function TestMode() {
     const [showFeedback, setShowFeedback] = useState(false);
     const { incrementStreak } = useStreakContext();
 
-    useEffect(() => {
-        api.getDeck(id).then(data => {
-            setCards(data.cards);
-            generateTest(data.cards);
-            setLoading(false);
-        }).catch(err => {
-            console.error('Failed to load deck:', err);
-            setLoading(false);
-        });
-    }, [id]);
-
-    const generateTest = (deckCards) => {
+    const generateTest = useCallback((deckCards) => {
         if (deckCards.length < 4) {
             setQuestions([]);
             return;
@@ -54,7 +43,17 @@ export default function TestMode() {
         setCurrentQIndex(0);
         setScore(0);
         setShowResult(false);
-    };
+    }, []);
+
+    useEffect(() => {
+        api.getDeck(id).then(data => {
+            setCards(data.cards);
+            generateTest(data.cards);
+            setLoading(false);
+        }).catch(() => {
+            setLoading(false);
+        });
+    }, [id, generateTest]);
 
     const handleAnswer = (selectedOption) => {
         if (showFeedback) return; // Prevent double-tap

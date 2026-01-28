@@ -48,7 +48,7 @@ export default function Layout({ children }) {
                 document.documentElement.style.setProperty('--border-color', targetTheme.border_color);
                 document.documentElement.style.setProperty('--accent-color', targetTheme.accent_color);
             }
-        } catch (err) {
+        } catch {
             console.error('Failed to toggle theme');
         }
     };

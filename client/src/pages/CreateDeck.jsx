@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Folder, Hash, ChevronDown, Check } from 'lucide-react';
 import { api } from '../api';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 export default function CreateDeck() {
     const [title, setTitle] = useState('');
@@ -13,7 +13,6 @@ export default function CreateDeck() {
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showFolderPicker, setShowFolderPicker] = useState(false);
-    const [showTagPicker, setShowTagPicker] = useState(false);
     const navigate = useNavigate();
     const toast = useToast();
 
@@ -42,7 +41,7 @@ export default function CreateDeck() {
             const newDeck = await api.createDeck(title, description, selectedFolder, selectedTags);
             toast.success('Deck created!');
             navigate(`/deck/${newDeck.id}`);
-        } catch (err) {
+        } catch {
             toast.error('Failed to create deck');
         } finally {
             setLoading(false);

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
-import { useStreakContext } from '../context/StreakContext';
+import { useStreakContext } from '../hooks/useStreakContext';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -14,9 +14,14 @@ export default function StudyMode() {
     const [spacedRepetitionMode, setSpacedRepetitionMode] = useState(false);
     const [cardsCorrect, setCardsCorrect] = useState(0);
     const [cardsStudied, setCardsStudied] = useState(0);
-    const startTime = useRef(Date.now());
+    const startTime = useRef(null);
     const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0 });
     const { incrementStreak } = useStreakContext();
+
+    // Initialize start time on mount
+    useEffect(() => {
+        startTime.current = Date.now();
+    }, []);
 
     // Keep ref in sync with state for cleanup
     useEffect(() => {

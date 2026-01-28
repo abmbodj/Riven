@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { api } from '../api';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function DeckView() {
@@ -29,15 +29,7 @@ export default function DeckView() {
     const [reorderMode, setReorderMode] = useState(false);
     const touchStartX = useRef(0);
 
-    useEffect(() => {
-        loadDeck();
-        Promise.all([api.getFolders(), api.getTags()]).then(([f, t]) => {
-            setFolders(f);
-            setTags(t);
-        });
-    }, [id]);
-
-    const loadDeck = () => {
+    const loadDeck = useCallback(() => {
         api.getDeck(id)
             .then(data => {
                 setDeck(data);
@@ -48,19 +40,26 @@ export default function DeckView() {
                     tagIds: data.tags?.map(t => t.id) || []
                 });
             })
-            .catch(err => {
-                console.error(err);
+            .catch(() => {
                 toast.error('Failed to load deck');
             })
             .finally(() => setLoading(false));
-    };
+    }, [id, toast]);
+
+    useEffect(() => {
+        loadDeck();
+        Promise.all([api.getFolders(), api.getTags()]).then(([f, t]) => {
+            setFolders(f);
+            setTags(t);
+        });
+    }, [loadDeck]);
 
     const loadStats = async () => {
         try {
             const data = await api.getDeckStats(id);
             setStats(data);
             setShowStats(true);
-        } catch (err) {
+        } catch {
             toast.error('Failed to load statistics');
         }
     };
@@ -70,7 +69,7 @@ export default function DeckView() {
             const newDeck = await api.duplicateDeck(id);
             toast.success('Deck duplicated!');
             navigate(`/deck/${newDeck.id}`);
-        } catch (err) {
+        } catch {
             toast.error('Failed to duplicate deck');
         }
     };
@@ -99,7 +98,7 @@ export default function DeckView() {
             
             toast.success(`Exported as ${format.toUpperCase()}`);
             setShowExportMenu(false);
-        } catch (err) {
+        } catch {
             toast.error('Failed to export deck');
         }
     };
@@ -121,7 +120,7 @@ export default function DeckView() {
         // Save to server
         try {
             await api.reorderCards(id, cards.map(c => c.id));
-        } catch (err) {
+        } catch {
             toast.error('Failed to reorder cards');
             loadDeck(); // Reload on error
         }
@@ -132,7 +131,7 @@ export default function DeckView() {
             await api.deleteDeck(id);
             toast.success('Deck deleted');
             navigate('/');
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete deck');
         }
     };
@@ -147,7 +146,7 @@ export default function DeckView() {
             setShowAddCard(false);
             toast.success('Card added');
             loadDeck();
-        } catch (err) {
+        } catch {
             toast.error('Failed to add card');
         }
     };
@@ -158,7 +157,7 @@ export default function DeckView() {
             toast.success('Card deleted');
             setSwipedCard(null);
             loadDeck();
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete card');
         }
     };
@@ -176,7 +175,7 @@ export default function DeckView() {
             setEditingCard(null);
             toast.success('Card saved');
             loadDeck();
-        } catch (err) {
+        } catch {
             toast.error('Failed to save card');
         }
     };
@@ -221,7 +220,7 @@ export default function DeckView() {
             setBulkText('');
             setShowBulkImport(false);
             loadDeck();
-        } catch (err) {
+        } catch {
             toast.error('Failed to import cards');
         }
     };
@@ -233,7 +232,7 @@ export default function DeckView() {
             setEditingDeck(false);
             toast.success('Deck saved');
             loadDeck();
-        } catch (err) {
+        } catch {
             toast.error('Failed to save deck');
         }
     };
