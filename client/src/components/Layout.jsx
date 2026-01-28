@@ -53,7 +53,7 @@ export default function Layout({ children }) {
             </header>
 
             {/* Main content - scrollable */}
-            <main className="flex-1 px-4 py-6 pb-32 overflow-y-auto">
+            <main className="flex-1 px-4 py-6 pb-36 overflow-y-auto overscroll-contain">
                 {children}
             </main>
 

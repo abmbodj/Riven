@@ -5,8 +5,16 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-            <div className="bg-claude-surface w-full max-w-sm rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onCancel?.();
+            }}
+        >
+            <div 
+                className="bg-claude-surface w-full max-w-sm rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-6 text-center">
                     {destructive && (
                         <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">

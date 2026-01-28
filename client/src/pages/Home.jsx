@@ -242,11 +242,24 @@ export default function Home() {
 
             {/* Folder Modal */}
             {showFolderModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
-                    <form onSubmit={handleCreateFolder} className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 safe-area-bottom">
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowFolderModal(false);
+                            setEditingFolder(null);
+                        }
+                    }}
+                >
+                    <form 
+                        onSubmit={handleCreateFolder} 
+                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-display font-bold">{editingFolder ? 'Edit Folder' : 'New Folder'}</h3>
-                            <button type="button" onClick={() => { setShowFolderModal(false); setEditingFolder(null); }} className="p-2">
+                            <button type="button" onClick={() => { setShowFolderModal(false); setEditingFolder(null); }} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
                                 <X className="w-6 h-6 text-claude-secondary" />
                             </button>
                         </div>
@@ -298,11 +311,21 @@ export default function Home() {
 
             {/* Tag Modal */}
             {showTagModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
-                    <form onSubmit={handleCreateTag} className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 safe-area-bottom">
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setShowTagModal(false);
+                    }}
+                >
+                    <form 
+                        onSubmit={handleCreateTag} 
+                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-display font-bold">New Tag</h3>
-                            <button type="button" onClick={() => setShowTagModal(false)} className="p-2">
+                            <button type="button" onClick={() => setShowTagModal(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
                                 <X className="w-6 h-6 text-claude-secondary" />
                             </button>
                         </div>

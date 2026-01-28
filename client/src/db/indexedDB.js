@@ -457,3 +457,19 @@ export async function setActiveTheme(id) {
     }
     return db.get('themes', Number(id));
 }
+
+export async function createTheme(themeData) {
+    const db = await getDB();
+    const theme = {
+        ...themeData,
+        is_active: 0,
+        created_at: new Date().toISOString()
+    };
+    const id = await db.add('themes', theme);
+    return { ...theme, id };
+}
+
+export async function deleteTheme(id) {
+    const db = await getDB();
+    await db.delete('themes', Number(id));
+}

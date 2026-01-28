@@ -68,7 +68,7 @@ export default function ThemeSettings() {
 
                 <button
                     onClick={() => setShowCreator(true)}
-                    className="border-2 border-dashed border-claude-border rounded-2xl p-6 w-full flex items-center justify-center gap-2 text-claude-secondary active:bg-claude-surface transition-all active:scale-95 mb-8"
+                    className="border-2 border-dashed border-claude-border rounded-2xl p-4 w-full flex items-center justify-center gap-2 text-claude-secondary active:bg-claude-surface transition-colors"
                 >
                     <Plus className="w-5 h-5" />
                     <span className="font-semibold">Create Custom</span>
@@ -76,11 +76,21 @@ export default function ThemeSettings() {
             </div>
 
             {showCreator && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end">
-                    <form onSubmit={handleCreate} className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 safe-area-bottom max-h-[85vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setShowCreator(false);
+                    }}
+                >
+                    <form 
+                        onSubmit={handleCreate} 
+                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center mb-6 sticky top-0 bg-claude-surface pt-1 -mt-1 z-10">
                             <h3 className="text-xl font-display font-bold">New Theme</h3>
-                            <button type="button" onClick={() => setShowCreator(false)} className="p-2">
+                            <button type="button" onClick={() => setShowCreator(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
                                 <X className="w-6 h-6 text-claude-secondary" />
                             </button>
                         </div>

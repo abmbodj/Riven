@@ -68,9 +68,15 @@ export default function PugCustomizer({
     const accessorySlots = ['head', 'face', 'body', 'trail'];
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 sm:p-4">
+        <div 
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 sm:p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose?.();
+            }}
+        >
             <div
                 className="w-full h-full sm:h-auto sm:max-w-3xl sm:max-h-[85vh] overflow-hidden sm:rounded-2xl flex flex-col bg-claude-surface text-claude-text"
+                onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 sm:p-6 border-b border-claude-border">

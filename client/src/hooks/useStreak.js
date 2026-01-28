@@ -12,7 +12,7 @@
  */
 
 /**
- * @typedef {'wisp' | 'orb' | 'small' | 'medium' | 'full'} PugStage
+ * @typedef {'wisp' | 'orb' | 'small' | 'medium' | 'full'} GhostStage
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -35,11 +35,11 @@ const getHoursRemaining = (lastStudyDate) => {
 };
 
 /**
- * Get pug stage based on streak days
+ * Get ghost stage based on streak days
  * @param {number} streak 
- * @returns {PugStage}
+ * @returns {GhostStage}
  */
-const getPugStage = (streak) => {
+const getGhostStage = (streak) => {
     if (streak <= 3) return 'wisp';
     if (streak <= 7) return 'orb';
     if (streak <= 14) return 'small';
@@ -54,9 +54,9 @@ const getPugStage = (streak) => {
  */
 const calculateStatus = (lastStudyDate) => {
     if (!lastStudyDate) return 'broken';
-
+    
     const hoursRemaining = getHoursRemaining(lastStudyDate);
-
+    
     if (hoursRemaining <= 0) return 'broken';
     if (hoursRemaining <= 24) return 'at-risk';
     return 'active';
@@ -154,7 +154,7 @@ export function useStreak() {
 
             const status = calculateStatus(prev.lastStudyDate);
             const now = new Date().toISOString();
-
+            
             // If streak was broken, start fresh
             if (status === 'broken' || prev.currentStreak === 0) {
                 return {
@@ -194,7 +194,7 @@ export function useStreak() {
         return {
             status: calculateStatus(streakData.lastStudyDate),
             hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
-            stage: getPugStage(streakData.currentStreak),
+            stage: getGhostStage(streakData.currentStreak),
             studiedToday: hasStudiedToday(streakData.lastStudyDate)
         };
     }, [streakData.lastStudyDate, streakData.currentStreak]);
@@ -205,7 +205,7 @@ export function useStreak() {
         lastStudyDate: streakData.lastStudyDate,
         pastStreaks: streakData.pastStreaks,
         streakStartDate: streakData.streakStartDate,
-        pugStage: getPugStage(streakData.currentStreak),
+        ghostStage: getGhostStage(streakData.currentStreak),
         status: calculateStatus(streakData.lastStudyDate),
         hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
         studiedToday: hasStudiedToday(streakData.lastStudyDate),
@@ -216,4 +216,4 @@ export function useStreak() {
     };
 }
 
-export { getPugStage, calculateStatus, getHoursRemaining };
+export { getGhostStage, calculateStatus, getHoursRemaining };

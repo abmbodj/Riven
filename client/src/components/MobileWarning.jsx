@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, X, Monitor } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
 
 export default function MobileWarning() {
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-        // Simple mobile detection
+    const [isVisible, setIsVisible] = useState(() => {
+        // Initialize state synchronously to avoid effect setState issues
+        if (typeof window === 'undefined') return false;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-
-        // Check if user has already dismissed the warning in this session
         const isDismissed = sessionStorage.getItem('mobile-warning-dismissed');
-
-        if (isMobile && !isDismissed) {
-            setIsVisible(true);
-        }
-    }, []);
+        return isMobile && !isDismissed;
+    });
 
     const handleDismiss = () => {
         setIsVisible(false);
