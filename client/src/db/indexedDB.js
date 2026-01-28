@@ -9,7 +9,7 @@ let initialized = false;
 async function getDB() {
     if (!dbPromise) {
         dbPromise = openDB(DB_NAME, DB_VERSION, {
-            upgrade(db, oldVersion, newVersion, transaction) {
+            upgrade(db) {
                 // Folders store
                 if (!db.objectStoreNames.contains('folders')) {
                     const folderStore = db.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
@@ -51,7 +51,7 @@ async function getDB() {
 
                 // Themes store
                 if (!db.objectStoreNames.contains('themes')) {
-                    const themeStore = db.createObjectStore('themes', { keyPath: 'id', autoIncrement: true });
+                    db.createObjectStore('themes', { keyPath: 'id', autoIncrement: true });
                 }
             }
         });
