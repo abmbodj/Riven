@@ -1,58 +1,109 @@
-import * as db from './db/indexedDB';
+import * as localDb from './db/indexedDB';
 
-// Wrapper to handle errors gracefully
-const safeCall = async (fn) => {
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+// Cache server availability
+let isServerAvailable = null;
+
+const checkServer = async () => {
+    if (isServerAvailable !== null) return isServerAvailable;
     try {
-        return await fn();
+        const response = await fetch(`${API_BASE_URL}/folders`, { method: 'HEAD' });
+        isServerAvailable = response.ok;
+    } catch {
+        isServerAvailable = false;
+    }
+    return isServerAvailable;
+};
+
+// Wrapper to handle errors and fallback to local DB
+const hybridCall = async (serverPath, localFn, method = 'GET', body = null) => {
+    const serverActive = await checkServer();
+
+    if (serverActive) {
+        try {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`${API_BASE_URL}${serverPath}`, options);
+            if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+            return await response.json();
+        } catch (error) {
+            console.warn(`Server call failed, falling back to local DB: ${error.message}`);
+        }
+    }
+
+    // Fallback to local IndexedDB
+    try {
+        return await localFn();
     } catch (error) {
-        console.error('Database operation failed:', error);
+        console.error('Local database operation failed:', error);
         throw error;
     }
 };
 
 export const api = {
     // ============ FOLDERS ============
-    getFolders: () => safeCall(() => db.getFolders()),
-    createFolder: (name, color, icon) => safeCall(() => db.createFolder(name, color, icon)),
-    updateFolder: (id, name, color, icon) => safeCall(() => db.updateFolder(id, name, color, icon)),
-    deleteFolder: (id) => safeCall(() => db.deleteFolder(id)),
+    getFolders: () => hybridCall('/folders', () => localDb.getFolders()),
+    createFolder: (name, color, icon) =>
+        hybridCall('/folders', () => localDb.createFolder(name, color, icon), 'POST', { name, color, icon }),
+    updateFolder: (id, name, color, icon) =>
+        hybridCall(`/folders/${id}`, () => localDb.updateFolder(id, name, color, icon), 'PUT', { name, color, icon }),
+    deleteFolder: (id) =>
+        hybridCall(`/folders/${id}`, () => localDb.deleteFolder(id), 'DELETE'),
 
     // ============ TAGS ============
-    getTags: () => safeCall(() => db.getTags()),
-    createTag: (name, color) => safeCall(() => db.createTag(name, color)),
-    deleteTag: (id) => safeCall(() => db.deleteTag(id)),
+    getTags: () => hybridCall('/tags', () => localDb.getTags()),
+    createTag: (name, color) =>
+        hybridCall('/tags', () => localDb.createTag(name, color), 'POST', { name, color }),
+    deleteTag: (id) =>
+        hybridCall(`/tags/${id}`, () => localDb.deleteTag(id), 'DELETE'),
 
     // ============ DECKS ============
-    getDecks: () => safeCall(() => db.getDecks()),
-    getDeck: (id) => safeCall(() => db.getDeck(id)),
-    createDeck: (title, description, folderId, tagIds) => safeCall(() => db.createDeck(title, description, folderId, tagIds || [])),
-    updateDeck: (id, title, description, folderId, tagIds) => safeCall(() => db.updateDeck(id, title, description, folderId, tagIds || [])),
-    deleteDeck: (id) => safeCall(() => db.deleteDeck(id)),
-    duplicateDeck: (id) => safeCall(() => db.duplicateDeck(id)),
-    exportDeck: (id, format) => safeCall(() => db.exportDeck(id, format)),
+    getDecks: () => hybridCall('/decks', () => localDb.getDecks()),
+    getDeck: (id) => hybridCall(`/decks/${id}`, () => localDb.getDeck(id)),
+    createDeck: (title, description, folderId, tagIds) =>
+        hybridCall('/decks', () => localDb.createDeck(title, description, folderId, tagIds || []), 'POST', { title, description, folder_id: folderId, tagIds }),
+    updateDeck: (id, title, description, folderId, tagIds) =>
+        hybridCall(`/decks/${id}`, () => localDb.updateDeck(id, title, description, folderId, tagIds || []), 'PUT', { title, description, folder_id: folderId, tagIds }),
+    deleteDeck: (id) =>
+        hybridCall(`/decks/${id}`, () => localDb.deleteDeck(id), 'DELETE'),
+    duplicateDeck: (id) =>
+        hybridCall(`/decks/${id}/duplicate`, () => localDb.duplicateDeck(id), 'POST'),
+    exportDeck: (id, format) =>
+        hybridCall(`/decks/${id}/export?format=${format}`, () => localDb.exportDeck(id, format)),
 
     moveDeck: async (id, folderId) => {
-        return safeCall(async () => {
-            const deck = await db.getDeck(id);
-            return db.updateDeck(id, deck.title, deck.description, folderId, deck.tags?.map(t => t.id) || []);
-        });
+        return hybridCall(`/decks/${id}/move`, async () => {
+            const deck = await localDb.getDeck(id);
+            return localDb.updateDeck(id, deck.title, deck.description, folderId, deck.tags?.map(t => t.id) || []);
+        }, 'PUT', { folder_id: folderId });
     },
 
     // ============ CARDS ============
-    addCard: (deckId, front, back) => safeCall(() => db.addCard(deckId, front, back)),
-    updateCard: (id, front, back) => safeCall(() => db.updateCard(id, front, back)),
-    deleteCard: (id) => safeCall(() => db.deleteCard(id)),
+    addCard: (deckId, front, back) =>
+        hybridCall(`/decks/${deckId}/cards`, () => localDb.addCard(deckId, front, back), 'POST', { front, back }),
+    updateCard: (id, front, back) =>
+        hybridCall(`/cards/${id}`, () => localDb.updateCard(id, front, back), 'PUT', { front, back }),
+    deleteCard: (id) =>
+        hybridCall(`/cards/${id}`, () => localDb.deleteCard(id), 'DELETE'),
 
     // ============ SPACED REPETITION ============
-    reviewCard: (id, correct) => safeCall(() => db.reviewCard(id, correct)),
-    reorderCards: (deckId, cardIds) => safeCall(() => db.reorderCards(deckId, cardIds)),
+    reviewCard: (id, correct) =>
+        hybridCall(`/cards/${id}/review`, () => localDb.reviewCard(id, correct), 'PUT', { correct }),
+    reorderCards: (deckId, cardIds) =>
+        hybridCall(`/decks/${deckId}/reorder`, () => localDb.reorderCards(deckId, cardIds), 'PUT', { cardIds }),
 
     // ============ STUDY SESSIONS ============
     saveStudySession: (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) =>
-        safeCall(() => db.saveStudySession(deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType)),
-    getDeckStats: (deckId) => safeCall(() => db.getDeckStats(deckId)),
+        hybridCall('/study-sessions', () => localDb.saveStudySession(deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType), 'POST', { deck_id: deckId, cards_studied: cardsStudied, cards_correct: cardsCorrect, duration_seconds: durationSeconds, session_type: sessionType }),
+    getDeckStats: (deckId) => hybridCall(`/decks/${deckId}/stats`, () => localDb.getDeckStats(deckId)),
 
     // ============ THEMES ============
-    getThemes: () => safeCall(() => db.getThemes()),
-    activateTheme: (id) => safeCall(() => db.setActiveTheme(id))
+    getThemes: () => hybridCall('/themes', () => localDb.getThemes()),
+    activateTheme: (id) =>
+        hybridCall(`/themes/${id}/activate`, () => localDb.setActiveTheme(id), 'PUT')
 };
