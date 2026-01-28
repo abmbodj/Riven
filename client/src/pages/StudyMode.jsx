@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCw, X, Info, Shuffle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle } from 'lucide-react';
 import { api } from '../api';
 
 export default function StudyMode() {
@@ -65,106 +65,123 @@ export default function StudyMode() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleNext, handlePrev, handleFlip]);
 
-    if (loading) return <div className="text-center py-20 animate-pulse text-claude-secondary">Preparing your session...</div>;
+    if (loading) return (
+        <div className="fixed inset-0 bg-claude-bg flex items-center justify-center">
+            <div className="animate-pulse text-claude-secondary">Loading...</div>
+        </div>
+    );
+    
     if (cards.length === 0) return (
-        <div className="text-center py-20">
-            <h2 className="text-2xl font-display font-bold mb-4">No cards found</h2>
-            <Link to={`/deck/${id}`} className="claude-button-primary">Return to Deck</Link>
+        <div className="fixed inset-0 bg-claude-bg flex flex-col items-center justify-center p-6 safe-area-top safe-area-bottom">
+            <div className="text-6xl mb-4">📚</div>
+            <h2 className="text-xl font-display font-bold mb-2 text-center">No Cards Yet</h2>
+            <p className="text-claude-secondary text-center mb-6">Add some cards to start studying</p>
+            <Link to={`/deck/${id}`} className="claude-button-primary px-6 py-3">Back to Deck</Link>
         </div>
     );
 
     const currentCard = cards[currentIndex];
     const progress = ((currentIndex + 1) / cards.length) * 100;
+    const isLastCard = currentIndex === cards.length - 1;
+
+    const handleRestart = () => {
+        setCurrentIndex(0);
+        setIsFlipped(false);
+    };
 
     return (
-        <div className="max-w-3xl mx-auto h-[calc(100vh-160px)] flex flex-col animate-in fade-in duration-700">
-            <div className="flex justify-between items-center mb-8">
-                <Link to={`/deck/${id}`} className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-claude-border shadow-sm group">
-                    <X className="w-6 h-6 text-claude-secondary group-hover:text-claude-text" />
+        <div className="fixed inset-0 bg-claude-bg flex flex-col safe-area-top safe-area-bottom">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 h-14 shrink-0">
+                <Link to={`/deck/${id}`} className="p-2 -ml-2 text-claude-secondary">
+                    <X className="w-6 h-6" />
                 </Link>
-                <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs font-bold uppercase tracking-widest text-claude-secondary">Session Progress</span>
-                    <div className="w-48 h-1.5 bg-claude-border rounded-full overflow-hidden">
+                <div className="flex-1 mx-4">
+                    <div className="h-1.5 bg-claude-border rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-claude-text transition-all duration-500 ease-out"
+                            className="h-full bg-claude-accent transition-all duration-300"
                             style={{ width: `${progress}%` }}
-                        ></div>
+                        />
                     </div>
-                    <span className="text-[10px] font-bold text-claude-secondary mt-1">{currentIndex + 1} of {cards.length}</span>
+                    <p className="text-center text-xs text-claude-secondary mt-1">{currentIndex + 1} / {cards.length}</p>
                 </div>
                 <button
                     onClick={handleShuffle}
-                    className={`p-2 rounded-full transition-colors border shadow-sm ${isShuffled ? 'bg-claude-text text-white border-claude-text' : 'hover:bg-white border-transparent hover:border-claude-border'}`}
-                    title="Shuffle cards"
+                    className={`p-2 -mr-2 ${isShuffled ? 'text-claude-accent' : 'text-claude-secondary'}`}
                 >
-                    <Shuffle className={`w-6 h-6 ${isShuffled ? '' : 'text-claude-secondary'}`} />
+                    <Shuffle className="w-6 h-6" />
                 </button>
             </div>
 
-            <div className="flex-1 flex flex-col justify-center perspective-1000">
+            {/* Card area */}
+            <div className="flex-1 flex items-center justify-center px-4 py-6">
                 <div
-                    className={`relative w-full aspect-[4/3] sm:aspect-[3/2] cursor-pointer transition-transform duration-700 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}
+                    className={`w-full max-w-sm aspect-[3/4] cursor-pointer perspective-1000`}
                     onClick={handleFlip}
                 >
-                    {/* Front */}
-                    <div className="absolute inset-0 bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.02)] border border-claude-border flex flex-col items-center justify-center p-12 backface-hidden">
-                        <div className="absolute top-8 left-8 flex items-center gap-2 text-claude-border">
-                            <Info className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Question</span>
+                    <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                        {/* Front */}
+                        <div className="absolute inset-0 bg-claude-surface rounded-3xl border border-claude-border flex flex-col items-center justify-center p-8 backface-hidden">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-4">Question</span>
+                            <p className="text-2xl font-display font-semibold text-center leading-tight">{currentCard.front}</p>
+                            <span className="absolute bottom-6 text-xs text-claude-secondary">Tap to flip</span>
                         </div>
-                        <div className="text-center max-w-lg">
-                            <p className="text-3xl sm:text-4xl font-display font-semibold text-claude-text leading-tight">{currentCard.front}</p>
-                        </div>
-                        <div className="absolute bottom-8 text-claude-secondary text-xs font-medium animate-bounce">
-                            Click to flip
-                        </div>
-                    </div>
 
-                    {/* Back */}
-                    <div className="absolute inset-0 bg-claude-text rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center p-12 backface-hidden rotate-y-180">
-                        <div className="absolute top-8 left-8 flex items-center gap-2 text-white/30">
-                            <Info className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Answer</span>
-                        </div>
-                        <div className="text-center max-w-lg">
-                            <p className="text-3xl sm:text-4xl font-display font-semibold text-white leading-tight">{currentCard.back}</p>
-                        </div>
-                        <div className="absolute bottom-8 text-white/40 text-xs font-medium">
-                            Click to flip back
+                        {/* Back */}
+                        <div className="absolute inset-0 bg-claude-accent rounded-3xl flex flex-col items-center justify-center p-8 backface-hidden rotate-y-180">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Answer</span>
+                            <p className="text-2xl font-display font-semibold text-white text-center leading-tight">{currentCard.back}</p>
+                            <span className="absolute bottom-6 text-xs text-white/50">Tap to flip back</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="mt-12 flex flex-col items-center gap-4">
-                <div className="flex items-center justify-center gap-6">
-                    <button
-                        onClick={handlePrev}
-                        disabled={currentIndex === 0}
-                        className="w-14 h-14 rounded-2xl bg-white border border-claude-border shadow-sm flex items-center justify-center text-claude-secondary disabled:opacity-30 hover:border-claude-text hover:text-claude-text transition-all active:scale-95"
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
+            {/* Navigation */}
+            <div className="px-4 pb-8 shrink-0">
+                {isLastCard && isFlipped ? (
+                    <div className="space-y-3 max-w-sm mx-auto">
+                        <p className="text-center text-claude-secondary text-sm mb-4">🎉 You've reviewed all cards!</p>
+                        <button
+                            onClick={handleRestart}
+                            className="w-full py-4 rounded-2xl bg-claude-accent text-white font-semibold active:scale-[0.98] transition-transform"
+                        >
+                            Study Again
+                        </button>
+                        <Link
+                            to={`/deck/${id}`}
+                            className="block w-full py-4 rounded-2xl bg-claude-surface border border-claude-border text-center font-semibold active:scale-[0.98] transition-transform"
+                        >
+                            Back to Deck
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center gap-4">
+                        <button
+                            onClick={handlePrev}
+                            disabled={currentIndex === 0}
+                            className="w-16 h-16 rounded-2xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform"
+                        >
+                            <ChevronLeft className="w-7 h-7" />
+                        </button>
 
-                    <button
-                        onClick={handleFlip}
-                        className="h-14 px-8 rounded-2xl bg-white border border-claude-border shadow-sm flex items-center gap-3 font-display font-bold text-claude-text hover:border-claude-text transition-all active:scale-95"
-                    >
-                        <RotateCw className={`w-5 h-5 transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''}`} />
-                        Reveal
-                    </button>
+                        <button
+                            onClick={handleFlip}
+                            className="h-16 px-8 rounded-2xl bg-claude-surface border border-claude-border flex items-center gap-3 font-semibold active:scale-95 transition-transform"
+                        >
+                            <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
+                            Flip
+                        </button>
 
-                    <button
-                        onClick={handleNext}
-                        disabled={currentIndex === cards.length - 1}
-                        className="w-14 h-14 rounded-2xl bg-white border border-claude-border shadow-sm flex items-center justify-center text-claude-secondary disabled:opacity-30 hover:border-claude-text hover:text-claude-text transition-all active:scale-95"
-                    >
-                        <ChevronRight className="w-6 h-6" />
-                    </button>
-                </div>
-                <p className="text-[10px] text-claude-secondary font-medium uppercase tracking-widest">
-                    Use ← → arrows to navigate • Space to flip
-                </p>
+                        <button
+                            onClick={handleNext}
+                            disabled={isLastCard}
+                            className="w-16 h-16 rounded-2xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform"
+                        >
+                            <ChevronRight className="w-7 h-7" />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
