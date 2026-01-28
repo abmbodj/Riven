@@ -34,8 +34,9 @@ export default function AdminPanel() {
     // Load users
     useEffect(() => {
         if (isAdmin) {
-            const loadData = () => {
-                setUsers(getAllUsers());
+            const loadData = async () => {
+                const usersData = await getAllUsers();
+                setUsers(usersData || []);
                 const streak = adminGetUserStreakData();
                 setStreakData(streak);
                 if (streak) {
@@ -54,7 +55,8 @@ export default function AdminPanel() {
         if (confirm(`Delete user "${username}"? This cannot be undone.`)) {
             try {
                 await adminDeleteUser(userId);
-                setUsers(getAllUsers());
+                const usersData = await getAllUsers();
+                setUsers(usersData || []);
                 setSelectedUser(null);
                 setAlert({ type: 'success', title: 'User Deleted', message: `${username} has been removed.` });
             } catch (err) {
@@ -67,7 +69,8 @@ export default function AdminPanel() {
     const handleUpdateUser = async (userId, updates) => {
         try {
             await adminUpdateUser(userId, updates);
-            setUsers(getAllUsers());
+            const usersData = await getAllUsers();
+            setUsers(usersData || []);
             setAlert({ type: 'success', title: 'Updated', message: 'User profile updated.' });
         } catch (err) {
             setAlert({ type: 'error', title: 'Error', message: err.message });

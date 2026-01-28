@@ -1015,6 +1015,125 @@ app.delete('/api/shared/:shareId', authMiddleware, (req, res) => {
     }
 });
 
+// ============ ADMIN ENDPOINTS ============
+
+// Admin middleware - requires admin role
+function adminMiddleware(req, res, next) {
+    if (!req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+}
+
+// Get all users (admin only)
+app.get('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
+    try {
+        const users = db.prepare(`
+            SELECT id, username, email, share_code, avatar, bio, streak_data, is_admin, created_at 
+            FROM users ORDER BY created_at DESC
+        `).all();
+        
+        res.json(users.map(u => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            shareCode: u.share_code,
+            avatar: u.avatar,
+            bio: u.bio || '',
+            streakData: JSON.parse(u.streak_data || '{}'),
+            isAdmin: u.is_admin === 1,
+            createdAt: u.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// Update user (admin only)
+app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+    const { id } = req.params;
+    const { username, email, bio, isAdmin } = req.body;
+    
+    try {
+        // Don't allow demoting yourself
+        if (parseInt(id) === req.user.id && isAdmin === false) {
+            return res.status(400).json({ error: 'Cannot remove your own admin status' });
+        }
+        
+        const stmt = db.prepare(`
+            UPDATE users SET 
+                username = COALESCE(?, username), 
+                email = COALESCE(?, email), 
+                bio = COALESCE(?, bio),
+                is_admin = COALESCE(?, is_admin)
+            WHERE id = ?
+        `);
+        stmt.run(username, email, bio, isAdmin ? 1 : 0, id);
+        
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            isAdmin: user.is_admin === 1
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+// Delete user (admin only)
+app.delete('/api/admin/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        // Don't allow deleting yourself
+        if (parseInt(id) === req.user.id) {
+            return res.status(400).json({ error: 'Cannot delete your own account' });
+        }
+        
+        const info = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+        if (info.changes === 0) return res.status(404).json({ error: 'User not found' });
+        
+        res.json({ message: 'User deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+// Get user stats (admin only)
+app.get('/api/admin/stats', authMiddleware, adminMiddleware, (req, res) => {
+    try {
+        const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+        const deckCount = db.prepare('SELECT COUNT(*) as count FROM decks').get().count;
+        const cardCount = db.prepare('SELECT COUNT(*) as count FROM cards').get().count;
+        const sharedCount = db.prepare('SELECT COUNT(*) as count FROM shared_decks').get().count;
+        
+        res.json({
+            users: userCount,
+            decks: deckCount,
+            cards: cardCount,
+            sharedDecks: sharedCount
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+// ============ HEALTH CHECK ============
+
+app.get('/api/health', (req, res) => {
+    try {
+        // Test database connection
+        db.prepare('SELECT 1').get();
+        res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    } catch (error) {
+        res.status(503).json({ status: 'error', message: 'Database unavailable' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

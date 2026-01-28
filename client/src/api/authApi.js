@@ -186,6 +186,13 @@ export const importSharedDeck = (shareId) => authFetch(`/shared/${shareId}/impor
 export const getMySharedDecks = () => authFetch('/my-shared-decks');
 export const unshareDeck = (shareId) => authFetch(`/shared/${shareId}`, { method: 'DELETE' });
 
+// ============ ADMIN ENDPOINTS ============
+
+export const adminGetAllUsers = () => authFetch('/admin/users');
+export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) });
+export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
+export const adminGetStats = () => authFetch('/admin/stats');
+
 export default {
     getToken,
     setToken,
@@ -227,4 +234,8 @@ export default {
     importSharedDeck,
     getMySharedDecks,
     unshareDeck,
+    adminGetAllUsers,
+    adminUpdateUser,
+    adminDeleteUser,
+    adminGetStats,
 };

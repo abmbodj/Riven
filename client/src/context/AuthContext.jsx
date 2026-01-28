@@ -1,7 +1,9 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as authApi from '../api/authApi';
+import { AuthContext } from './authContextDef';
 
-export const AuthContext = createContext(null);
+// Re-export for convenience
+export { AuthContext };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -15,7 +17,7 @@ export function AuthProvider({ children }) {
                 try {
                     const userData = await authApi.getMe();
                     setUser(userData);
-                } catch (_error) {
+                } catch {
                     // Token invalid or expired, clear it
                     authApi.setToken(null);
                 }
@@ -73,13 +75,13 @@ export function AuthProvider({ children }) {
     }, [user]);
 
     // Find user by share code
-    const findUserByShareCode = useCallback((_shareCode) => {
+    const findUserByShareCode = useCallback(() => {
         // TODO: Implement server endpoint for finding users by share code
         return null;
     }, []);
 
     // Share a deck
-    const shareDeck = useCallback(async (deckId, _deckData) => {
+    const shareDeck = useCallback(async (deckId) => {
         if (!user) throw new Error('Not logged in');
         if (user.isAdmin) return null;
 
@@ -123,32 +125,42 @@ export function AuthProvider({ children }) {
     }, [user]);
 
     // ==================== ADMIN FUNCTIONS ====================
-    // Note: Admin functions need server-side implementation for full functionality
 
     // Get all users (admin only)
-    const getAllUsers = useCallback(() => {
+    const getAllUsers = useCallback(async () => {
         if (!user?.isAdmin) return [];
-        // TODO: Implement admin API endpoint
-        return [];
+        try {
+            return await authApi.adminGetAllUsers();
+        } catch {
+            return [];
+        }
     }, [user]);
 
     // Update any user (admin only)
-    const adminUpdateUser = useCallback(async (_userId, _updates) => {
+    const adminUpdateUser = useCallback(async (userId, updates) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-        // TODO: Implement admin API endpoint
-        return null;
+        return await authApi.adminUpdateUser(userId, updates);
     }, [user]);
 
     // Delete any user (admin only)
-    const adminDeleteUser = useCallback(async (_userId) => {
+    const adminDeleteUser = useCallback(async (userId) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-        // TODO: Implement admin API endpoint
+        return await authApi.adminDeleteUser(userId);
     }, [user]);
 
-    // Get user's streak data (admin only)
+    // Get admin stats
+    const adminGetStats = useCallback(async () => {
+        if (!user?.isAdmin) return null;
+        try {
+            return await authApi.adminGetStats();
+        } catch {
+            return null;
+        }
+    }, [user]);
+
+    // Get user's streak data (admin only - from localStorage for now)
     const adminGetUserStreakData = useCallback(() => {
         if (!user?.isAdmin) return null;
-        // For admin, read from global localStorage
         try {
             const streakData = localStorage.getItem('ghost_streak_data');
             return streakData ? JSON.parse(streakData) : null;
@@ -186,6 +198,7 @@ export function AuthProvider({ children }) {
             getAllUsers,
             adminUpdateUser,
             adminDeleteUser,
+            adminGetStats,
             adminGetUserStreakData,
             adminUpdateStreakData
         }}>
