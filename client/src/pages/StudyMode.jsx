@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
+import { useStreakContext } from '../context/StreakContext';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -14,6 +15,7 @@ export default function StudyMode() {
     const [cardsCorrect, setCardsCorrect] = useState(0);
     const [cardsStudied, setCardsStudied] = useState(0);
     const startTime = useRef(Date.now());
+    const { incrementStreak } = useStreakContext();
 
     useEffect(() => {
         api.getDeck(id).then(data => {
@@ -34,9 +36,11 @@ export default function StudyMode() {
             if (cardsStudied > 0) {
                 const duration = Math.round((Date.now() - startTime.current) / 1000);
                 api.saveStudySession(id, cardsStudied, cardsCorrect, duration, 'study').catch(console.error);
+                // Increment streak when completing a study session
+                incrementStreak();
             }
         };
-    }, [id, cardsStudied, cardsCorrect]);
+    }, [id, cardsStudied, cardsCorrect, incrementStreak]);
 
     const handleKnew = async () => {
         if (!isFlipped) return;

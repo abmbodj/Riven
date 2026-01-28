@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api';
+import { useStreakContext } from '../context/StreakContext';
 
 export default function TestMode() {
     const { id } = useParams();
@@ -13,6 +14,7 @@ export default function TestMode() {
     const [loading, setLoading] = useState(true);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [showFeedback, setShowFeedback] = useState(false);
+    const { incrementStreak } = useStreakContext();
 
     useEffect(() => {
         api.getDeck(id).then(data => {
@@ -71,6 +73,8 @@ export default function TestMode() {
                 setCurrentQIndex(i => i + 1);
             } else {
                 setShowResult(true);
+                // Increment streak when completing a test
+                incrementStreak();
             }
         }, 1200);
     };

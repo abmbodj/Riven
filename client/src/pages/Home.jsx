@@ -2,11 +2,15 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { 
     Layers, ChevronRight, RefreshCw, Sparkles, Folder, 
-    X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon
+    X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon, Ghost, Settings
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
+import GhostPet from '../components/GhostPet';
+import GhostGallery from '../components/GhostGallery';
+import GhostCustomizer from '../components/GhostCustomizer';
+import { useStreakContext } from '../context/StreakContext';
 
 export default function Home() {
     const toast = useToast();
@@ -17,6 +21,11 @@ export default function Home() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    
+    // Ghost pet state
+    const streak = useStreakContext();
+    const [showGhostGallery, setShowGhostGallery] = useState(false);
+    const [showGhostCustomizer, setShowGhostCustomizer] = useState(false);
     
     // View state
     const [activeFolder, setActiveFolder] = useState(null);
@@ -331,6 +340,80 @@ export default function Home() {
 
             {/* Header */}
             <div className="px-4 mb-4">
+                {/* Ghost Pet Section */}
+                <div 
+                    className="mb-6 p-4 rounded-2xl flex items-center gap-4"
+                    style={{ backgroundColor: 'var(--card)' }}
+                >
+                    <div onClick={() => setShowGhostCustomizer(true)} className="cursor-pointer">
+                        <GhostPet 
+                            stage={streak.ghostStage}
+                            status={streak.status}
+                            streak={streak.currentStreak}
+                            size="sm"
+                            showInfo={false}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold" style={{ color: 'var(--card-foreground)' }}>
+                                {streak.currentStreak} day{streak.currentStreak !== 1 ? 's' : ''}
+                            </span>
+                            {streak.status === 'active' && <span>🔥</span>}
+                            {streak.status === 'at-risk' && <span>⚠️</span>}
+                            {streak.status === 'broken' && <span>💤</span>}
+                        </div>
+                        <p className="text-xs opacity-70" style={{ color: 'var(--muted-foreground)' }}>
+                            {streak.status === 'broken' 
+                                ? 'Study to revive your ghost!'
+                                : streak.status === 'at-risk'
+                                    ? `${Math.round(streak.hoursRemaining)}h left to maintain streak`
+                                    : streak.studiedToday 
+                                        ? 'Great job today!'
+                                        : 'Study to grow your ghost'}
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowGhostGallery(true)}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ backgroundColor: 'var(--muted)' }}
+                            title="View Gallery"
+                        >
+                            <Ghost className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+                        </button>
+                        <button
+                            onClick={() => setShowGhostCustomizer(true)}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ backgroundColor: 'var(--muted)' }}
+                            title="Customize Ghost"
+                        >
+                            <Settings className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Ghost Gallery Modal */}
+                {showGhostGallery && (
+                    <GhostGallery
+                        pastStreaks={streak.pastStreaks}
+                        longestStreak={streak.longestStreak}
+                        currentStreak={streak.currentStreak}
+                        onClose={() => setShowGhostGallery(false)}
+                    />
+                )}
+
+                {/* Ghost Customizer Modal */}
+                {showGhostCustomizer && (
+                    <GhostCustomizer
+                        longestStreak={streak.longestStreak}
+                        currentStreak={streak.currentStreak}
+                        ghostStage={streak.ghostStage}
+                        status={streak.status}
+                        onClose={() => setShowGhostCustomizer(false)}
+                    />
+                )}
+
                 <div className="flex items-center justify-between mb-4">
                     <h1 className="text-2xl font-display font-bold">Library</h1>
                     <button onClick={() => loadData(true)} disabled={refreshing} className="p-2 text-claude-secondary active:text-claude-text disabled:opacity-50">

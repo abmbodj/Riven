@@ -5,13 +5,16 @@ import App from './App.jsx'
 
 import { ThemeProvider } from './ThemeContext.jsx'
 import { ToastProvider } from './components/Toast.jsx'
+import { StreakProvider } from './context/StreakContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
+      <StreakProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </StreakProvider>
     </ThemeProvider>
   </StrictMode>,
 )
