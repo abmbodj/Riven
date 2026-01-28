@@ -15,7 +15,9 @@
  * @typedef {'wisp' | 'orb' | 'small' | 'medium' | 'full'} GhostStage
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import * as authApi from '../api/authApi';
 
 const STORAGE_KEY = 'riven_streak_data';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -79,6 +81,10 @@ const hasStudiedToday = (lastStudyDate) => {
  * @returns {Object}
  */
 export function useStreak() {
+    const authContext = useContext(AuthContext);
+    const user = authContext?.user;
+    const isLoggedIn = authContext?.isLoggedIn && !user?.isAdmin;
+
     const [streakData, setStreakData] = useState(() => {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
@@ -96,6 +102,20 @@ export function useStreak() {
             pastStreaks: []
         };
     });
+
+    // Sync streak data from server when user logs in
+    useEffect(() => {
+        if (isLoggedIn) {
+            authApi.getStreak()
+                .then(serverData => {
+                    if (serverData && (serverData.currentStreak || serverData.longestStreak || serverData.lastStudyDate)) {
+                        setStreakData(serverData);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+                    }
+                })
+                .catch(err => console.error('Failed to fetch streak from server:', err));
+        }
+    }, [isLoggedIn]);
 
     /**
      * Break the streak and save to memorial
@@ -119,14 +139,20 @@ export function useStreak() {
         });
     }, []);
 
-    // Persist to localStorage
+    // Persist to localStorage and sync to server
     useEffect(() => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(streakData));
+            // Sync to server if logged in
+            if (isLoggedIn) {
+                authApi.updateStreak(streakData).catch(err => 
+                    console.error('Failed to sync streak to server:', err)
+                );
+            }
         } catch (e) {
             console.error('Failed to save streak data:', e);
         }
-    }, [streakData]);
+    }, [streakData, isLoggedIn]);
 
     // Check for broken streak on mount and periodically
     useEffect(() => {

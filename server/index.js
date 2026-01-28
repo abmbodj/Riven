@@ -1,19 +1,298 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 
 const app = express();
 const PORT = 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'riven-flashcards-secret-key-2026';
 
 app.use(cors());
 app.use(express.json());
 
+// Generate share code
+function generateShareCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+}
+
+// Auth middleware
+function authMiddleware(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Invalid token' });
+    }
+}
+
+// Optional auth middleware (doesn't fail if no token)
+function optionalAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            req.user = decoded;
+        } catch (err) {
+            // Invalid token, but continue without user
+        }
+    }
+    next();
+}
+
+// ============ AUTH ============
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+    const { username, email, password } = req.body;
+    
+    if (!username || !email || !password) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        // Check if email exists
+        const existingEmail = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (existingEmail) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+
+        // Check if username exists
+        const existingUsername = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
+        if (existingUsername) {
+            return res.status(400).json({ error: 'Username already taken' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const shareCode = generateShareCode();
+
+        // Insert user
+        const stmt = db.prepare('INSERT INTO users (username, email, password, share_code) VALUES (?, ?, ?, ?)');
+        const info = stmt.run(username, email.toLowerCase(), hashedPassword, shareCode);
+
+        // Create default themes for user
+        const insertTheme = db.prepare('INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        insertTheme.run(info.lastInsertRowid, 'Claude Dark', '#1a1a18', '#242422', '#e8e8e3', '#a1a19a', '#3d3d3a', '#d97757', 1, 1);
+        insertTheme.run(info.lastInsertRowid, 'Claude Light', '#f9f7f2', '#ffffff', '#1d1d1b', '#6b6b6b', '#e5e2da', '#d97757', 0, 1);
+
+        // Create preset tags for user
+        const insertTag = db.prepare('INSERT INTO tags (user_id, name, color, is_preset) VALUES (?, ?, ?, 1)');
+        insertTag.run(info.lastInsertRowid, 'Language', '#3b82f6');
+        insertTag.run(info.lastInsertRowid, 'Science', '#22c55e');
+        insertTag.run(info.lastInsertRowid, 'Math', '#f59e0b');
+        insertTag.run(info.lastInsertRowid, 'History', '#8b5cf6');
+        insertTag.run(info.lastInsertRowid, 'Programming', '#06b6d4');
+        insertTag.run(info.lastInsertRowid, 'Medical', '#ef4444');
+        insertTag.run(info.lastInsertRowid, 'Business', '#ec4899');
+        insertTag.run(info.lastInsertRowid, 'Art', '#f97316');
+
+        // Generate token
+        const token = jwt.sign({ id: info.lastInsertRowid, email: email.toLowerCase() }, JWT_SECRET, { expiresIn: '30d' });
+
+        res.status(201).json({
+            token,
+            user: {
+                id: info.lastInsertRowid,
+                username,
+                email: email.toLowerCase(),
+                shareCode,
+                avatar: null,
+                bio: '',
+                streakData: {}
+            }
+        });
+    } catch (error) {
+        console.error('Register error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                shareCode: user.share_code,
+                avatar: user.avatar,
+                bio: user.bio || '',
+                streakData: JSON.parse(user.streak_data || '{}')
+            }
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get current user
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            shareCode: user.share_code,
+            avatar: user.avatar,
+            bio: user.bio || '',
+            streakData: JSON.parse(user.streak_data || '{}')
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update profile
+app.put('/api/auth/profile', authMiddleware, (req, res) => {
+    const { username, bio, avatar } = req.body;
+
+    try {
+        if (username) {
+            // Check if username is taken by another user
+            const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(username, req.user.id);
+            if (existing) {
+                return res.status(400).json({ error: 'Username already taken' });
+            }
+        }
+
+        const stmt = db.prepare('UPDATE users SET username = COALESCE(?, username), bio = COALESCE(?, bio), avatar = COALESCE(?, avatar) WHERE id = ?');
+        stmt.run(username, bio, avatar, req.user.id);
+
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            shareCode: user.share_code,
+            avatar: user.avatar,
+            bio: user.bio || '',
+            streakData: JSON.parse(user.streak_data || '{}')
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Change password
+app.put('/api/auth/password', authMiddleware, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const user = db.prepare('SELECT password FROM users WHERE id = ?').get(req.user.id);
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Current password is incorrect' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
+
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete account
+app.delete('/api/auth/account', authMiddleware, async (req, res) => {
+    const { password } = req.body;
+
+    try {
+        const user = db.prepare('SELECT password FROM users WHERE id = ?').get(req.user.id);
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Password is incorrect' });
+        }
+
+        db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+        res.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update streak data
+app.put('/api/auth/streak', authMiddleware, (req, res) => {
+    const { streakData } = req.body;
+
+    try {
+        db.prepare('UPDATE users SET streak_data = ? WHERE id = ?').run(JSON.stringify(streakData), req.user.id);
+        res.json({ message: 'Streak data saved' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get streak data
+app.get('/api/auth/streak', authMiddleware, (req, res) => {
+    try {
+        const user = db.prepare('SELECT streak_data FROM users WHERE id = ?').get(req.user.id);
+        res.json(JSON.parse(user.streak_data || '{}'));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ FOLDERS ============
 
 // Get all folders with deck counts
-app.get('/api/folders', (req, res) => {
+app.get('/api/folders', optionalAuth, (req, res) => {
     try {
-        const folders = db.prepare('SELECT * FROM folders ORDER BY created_at DESC').all();
+        const userId = req.user?.id || null;
+        const folders = db.prepare('SELECT * FROM folders WHERE user_id = ? OR (user_id IS NULL AND ? IS NULL) ORDER BY created_at DESC').all(userId, userId);
         const foldersWithCount = folders.map(folder => {
             const count = db.prepare('SELECT count(*) as count FROM decks WHERE folder_id = ?').get(folder.id).count;
             return { ...folder, deckCount: count };
@@ -25,13 +304,14 @@ app.get('/api/folders', (req, res) => {
 });
 
 // Create a folder
-app.post('/api/folders', (req, res) => {
+app.post('/api/folders', optionalAuth, (req, res) => {
     const { name, color, icon } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     
     try {
-        const stmt = db.prepare('INSERT INTO folders (name, color, icon) VALUES (?, ?, ?)');
-        const info = stmt.run(name, color || '#6366f1', icon || 'folder');
+        const userId = req.user?.id || null;
+        const stmt = db.prepare('INSERT INTO folders (user_id, name, color, icon) VALUES (?, ?, ?, ?)');
+        const info = stmt.run(userId, name, color || '#6366f1', icon || 'folder');
         res.status(201).json({ id: info.lastInsertRowid, name, color: color || '#6366f1', icon: icon || 'folder' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -70,9 +350,10 @@ app.delete('/api/folders/:id', (req, res) => {
 // ============ TAGS ============
 
 // Get all tags
-app.get('/api/tags', (req, res) => {
+app.get('/api/tags', optionalAuth, (req, res) => {
     try {
-        const tags = db.prepare('SELECT * FROM tags ORDER BY is_preset DESC, name ASC').all();
+        const userId = req.user?.id || null;
+        const tags = db.prepare('SELECT * FROM tags WHERE user_id = ? OR (user_id IS NULL AND ? IS NULL) ORDER BY is_preset DESC, name ASC').all(userId, userId);
         res.json(tags);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -80,13 +361,14 @@ app.get('/api/tags', (req, res) => {
 });
 
 // Create a tag
-app.post('/api/tags', (req, res) => {
+app.post('/api/tags', optionalAuth, (req, res) => {
     const { name, color } = req.body;
     if (!name || !color) return res.status(400).json({ error: 'Name and color are required' });
     
     try {
-        const stmt = db.prepare('INSERT INTO tags (name, color, is_preset) VALUES (?, ?, 0)');
-        const info = stmt.run(name, color);
+        const userId = req.user?.id || null;
+        const stmt = db.prepare('INSERT INTO tags (user_id, name, color, is_preset) VALUES (?, ?, ?, 0)');
+        const info = stmt.run(userId, name, color);
         res.status(201).json({ id: info.lastInsertRowid, name, color, is_preset: 0 });
     } catch (error) {
         if (error.message.includes('UNIQUE')) {
@@ -114,10 +396,11 @@ app.delete('/api/tags/:id', (req, res) => {
 // ============ DECKS ============
 
 // Get all decks with tags
-app.get('/api/decks', (req, res) => {
+app.get('/api/decks', optionalAuth, (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM decks ORDER BY created_at DESC');
-        const decks = stmt.all();
+        const userId = req.user?.id || null;
+        const stmt = db.prepare('SELECT * FROM decks WHERE user_id = ? OR (user_id IS NULL AND ? IS NULL) ORDER BY created_at DESC');
+        const decks = stmt.all(userId, userId);
         
         const decksWithDetails = decks.map(deck => {
             const countStmt = db.prepare('SELECT count(*) as count FROM cards WHERE deck_id = ?');
@@ -139,13 +422,14 @@ app.get('/api/decks', (req, res) => {
 });
 
 // Create a deck
-app.post('/api/decks', (req, res) => {
+app.post('/api/decks', optionalAuth, (req, res) => {
     const { title, description, folder_id, tagIds } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
-        const stmt = db.prepare('INSERT INTO decks (title, description, folder_id) VALUES (?, ?, ?)');
-        const info = stmt.run(title, description || '', folder_id || null);
+        const userId = req.user?.id || null;
+        const stmt = db.prepare('INSERT INTO decks (user_id, title, description, folder_id) VALUES (?, ?, ?, ?)');
+        const info = stmt.run(userId, title, description || '', folder_id || null);
         const deckId = info.lastInsertRowid;
         
         // Add tags
@@ -495,9 +779,10 @@ app.get('/api/decks/:id/export', (req, res) => {
 });
 
 // Get all themes
-app.get('/api/themes', (req, res) => {
+app.get('/api/themes', optionalAuth, (req, res) => {
     try {
-        const themes = db.prepare('SELECT * FROM themes').all();
+        const userId = req.user?.id || null;
+        const themes = db.prepare('SELECT * FROM themes WHERE user_id = ? OR (user_id IS NULL AND ? IS NULL)').all(userId, userId);
         res.json(themes);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -505,25 +790,156 @@ app.get('/api/themes', (req, res) => {
 });
 
 // Create a theme
-app.post('/api/themes', (req, res) => {
+app.post('/api/themes', optionalAuth, (req, res) => {
     const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
     try {
-        const stmt = db.prepare('INSERT INTO themes (name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        const info = stmt.run(name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color);
+        const userId = req.user?.id || null;
+        const stmt = db.prepare('INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        const info = stmt.run(userId, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color);
         res.status(201).json({ id: info.lastInsertRowid, ...req.body });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Set active theme
-app.put('/api/themes/:id/activate', (req, res) => {
+// Delete a theme
+app.delete('/api/themes/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
-        db.prepare('UPDATE themes SET is_active = 0').run();
+        const userId = req.user?.id || null;
+        // Don't allow deleting default themes
+        const theme = db.prepare('SELECT * FROM themes WHERE id = ?').get(id);
+        if (!theme) return res.status(404).json({ error: 'Theme not found' });
+        if (theme.is_default) return res.status(400).json({ error: 'Cannot delete default themes' });
+        if (theme.is_active) return res.status(400).json({ error: 'Cannot delete active theme' });
+        
+        const stmt = db.prepare('DELETE FROM themes WHERE id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL))');
+        const info = stmt.run(id, userId, userId);
+        if (info.changes === 0) return res.status(404).json({ error: 'Theme not found' });
+        res.json({ message: 'Theme deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Set active theme
+app.put('/api/themes/:id/activate', optionalAuth, (req, res) => {
+    const { id } = req.params;
+    try {
+        const userId = req.user?.id || null;
+        db.prepare('UPDATE themes SET is_active = 0 WHERE user_id = ? OR (user_id IS NULL AND ? IS NULL)').run(userId, userId);
         const info = db.prepare('UPDATE themes SET is_active = 1 WHERE id = ?').run(id);
         if (info.changes === 0) return res.status(404).json({ error: 'Theme not found' });
         res.json({ message: 'Theme activated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ DECK SHARING ============
+
+// Share a deck
+app.post('/api/decks/:id/share', authMiddleware, (req, res) => {
+    const { id } = req.params;
+    try {
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ? AND user_id = ?').get(id, req.user.id);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+
+        // Get cards
+        const cards = db.prepare('SELECT front, back, position FROM cards WHERE deck_id = ?').all(id);
+        
+        // Get tags
+        const tags = db.prepare(`
+            SELECT t.name FROM tags t
+            JOIN deck_tags dt ON t.id = dt.tag_id
+            WHERE dt.deck_id = ?
+        `).all(id);
+
+        const shareId = uuidv4().substring(0, 8).toUpperCase();
+        const deckData = JSON.stringify({
+            title: deck.title,
+            description: deck.description,
+            cards,
+            tags: tags.map(t => t.name)
+        });
+
+        const stmt = db.prepare('INSERT INTO shared_decks (share_id, user_id, deck_id, deck_data) VALUES (?, ?, ?, ?)');
+        stmt.run(shareId, req.user.id, id, deckData);
+
+        res.json({ shareId, shareUrl: `/shared/${shareId}` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get shared deck
+app.get('/api/shared/:shareId', (req, res) => {
+    const { shareId } = req.params;
+    try {
+        const shared = db.prepare('SELECT * FROM shared_decks WHERE share_id = ?').get(shareId);
+        if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
+
+        const owner = db.prepare('SELECT username, share_code FROM users WHERE id = ?').get(shared.user_id);
+
+        res.json({
+            ...JSON.parse(shared.deck_data),
+            shareId: shared.share_id,
+            sharedBy: owner?.username || 'Unknown',
+            sharedAt: shared.created_at
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Import shared deck
+app.post('/api/shared/:shareId/import', authMiddleware, (req, res) => {
+    const { shareId } = req.params;
+    try {
+        const shared = db.prepare('SELECT * FROM shared_decks WHERE share_id = ?').get(shareId);
+        if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
+
+        const deckData = JSON.parse(shared.deck_data);
+
+        // Create new deck for user
+        const deckStmt = db.prepare('INSERT INTO decks (user_id, title, description) VALUES (?, ?, ?)');
+        const deckInfo = deckStmt.run(req.user.id, deckData.title, deckData.description || '');
+        const newDeckId = deckInfo.lastInsertRowid;
+
+        // Add cards
+        const cardStmt = db.prepare('INSERT INTO cards (deck_id, front, back, position) VALUES (?, ?, ?, ?)');
+        deckData.cards.forEach((card, idx) => {
+            cardStmt.run(newDeckId, card.front, card.back, card.position || idx);
+        });
+
+        res.json({ deckId: newDeckId, message: 'Deck imported successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get user's shared decks
+app.get('/api/my-shared-decks', authMiddleware, (req, res) => {
+    try {
+        const shared = db.prepare('SELECT * FROM shared_decks WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
+        res.json(shared.map(s => ({
+            shareId: s.share_id,
+            deckId: s.deck_id,
+            ...JSON.parse(s.deck_data),
+            createdAt: s.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Unshare a deck
+app.delete('/api/shared/:shareId', authMiddleware, (req, res) => {
+    const { shareId } = req.params;
+    try {
+        const info = db.prepare('DELETE FROM shared_decks WHERE share_id = ? AND user_id = ?').run(shareId, req.user.id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Shared deck not found' });
+        res.json({ message: 'Deck unshared' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

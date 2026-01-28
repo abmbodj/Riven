@@ -1,98 +1,42 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useEffect } from 'react';
+import * as authApi from '../api/authApi';
 
 export const AuthContext = createContext(null);
 
-const AUTH_STORAGE_KEY = 'riven_auth';
-const USERS_STORAGE_KEY = 'riven_users';
 const ADMIN_CREDENTIALS = { email: 'admin@riven.app', password: 'RivenAdmin2026!' };
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(() => {
-        try {
-            const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-            if (stored) {
-                return JSON.parse(stored);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Check for existing token on mount
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = authApi.getToken();
+            if (token) {
+                try {
+                    const userData = await authApi.getMe();
+                    setUser(userData);
+                } catch (error) {
+                    console.error('Token validation failed:', error);
+                    authApi.setToken(null);
+                }
             }
-        } catch {
-            console.error('Failed to load auth');
-        }
-        return null;
-    });
-    // loading state for future async operations
-    const loading = false;
-
-    // Get all users (for local auth)
-    const getUsers = useCallback(() => {
-        try {
-            const stored = localStorage.getItem(USERS_STORAGE_KEY);
-            return stored ? JSON.parse(stored) : [];
-        } catch {
-            return [];
-        }
+            setLoading(false);
+        };
+        checkAuth();
     }, []);
-
-    // Save users
-    const saveUsers = useCallback((users) => {
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    }, []);
-
-    // Generate unique ID
-    const generateId = () => {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    };
-
-    // Generate share code
-    const generateShareCode = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = '';
-        for (let i = 0; i < 8; i++) {
-            code += chars[Math.floor(Math.random() * chars.length)];
-        }
-        return code;
-    };
 
     // Sign up
     const signUp = useCallback(async (username, email, password) => {
-        const users = getUsers();
-        
-        // Check if email already exists
-        if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-            throw new Error('Email already registered');
-        }
-
-        // Check if username already exists
-        if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-            throw new Error('Username already taken');
-        }
-
-        const newUser = {
-            id: generateId(),
-            username,
-            email: email.toLowerCase(),
-            password, // In production, this should be hashed!
-            shareCode: generateShareCode(),
-            createdAt: new Date().toISOString(),
-            avatar: null,
-            bio: '',
-            sharedDecks: [], // IDs of decks shared by this user
-            receivedDecks: [] // Shared decks received from others
-        };
-
-        users.push(newUser);
-        saveUsers(users);
-
-        // Auto login
-        const sessionUser = { ...newUser };
-        delete sessionUser.password;
-        setUser(sessionUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-
-        return sessionUser;
-    }, [getUsers, saveUsers]);
+        const userData = await authApi.register(username, email, password);
+        setUser(userData);
+        return userData;
+    }, []);
 
     // Sign in
     const signIn = useCallback(async (email, password) => {
-        // Check for admin login
+        // Check for admin login (local only)
         if (email.toLowerCase() === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
             const adminUser = {
                 id: 'admin',
@@ -103,268 +47,143 @@ export function AuthProvider({ children }) {
                 avatar: null,
                 bio: 'System Administrator',
                 isAdmin: true,
-                sharedDecks: [],
-                receivedDecks: []
             };
             setUser(adminUser);
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser));
             return adminUser;
         }
 
-        const users = getUsers();
-        const found = users.find(
-            u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-        );
-
-        if (!found) {
-            throw new Error('Invalid email or password');
-        }
-
-        const sessionUser = { ...found, isAdmin: false };
-        delete sessionUser.password;
-        setUser(sessionUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-
-        return sessionUser;
-    }, [getUsers]);
+        const userData = await authApi.login(email, password);
+        setUser(userData);
+        return userData;
+    }, []);
 
     // Sign out
     const signOut = useCallback(() => {
+        authApi.logout();
         setUser(null);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
     }, []);
 
     // Update profile
     const updateProfile = useCallback(async (updates) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) throw new Error('Cannot update admin profile');
 
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
-
-        // Check username uniqueness if changing
-        if (updates.username && updates.username !== user.username) {
-            if (users.some(u => u.id !== user.id && u.username.toLowerCase() === updates.username.toLowerCase())) {
-                throw new Error('Username already taken');
-            }
-        }
-
-        users[idx] = { ...users[idx], ...updates };
-        saveUsers(users);
-
-        const sessionUser = { ...users[idx] };
-        delete sessionUser.password;
-        setUser(sessionUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-
-        return sessionUser;
-    }, [user, getUsers, saveUsers]);
+        const updatedUser = await authApi.updateProfile(updates);
+        setUser(updatedUser);
+        return updatedUser;
+    }, [user]);
 
     // Change password
     const changePassword = useCallback(async (currentPassword, newPassword) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) throw new Error('Cannot change admin password');
 
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
-
-        if (users[idx].password !== currentPassword) {
-            throw new Error('Current password is incorrect');
-        }
-
-        users[idx].password = newPassword;
-        saveUsers(users);
-    }, [user, getUsers, saveUsers]);
+        await authApi.changePassword(currentPassword, newPassword);
+    }, [user]);
 
     // Delete account
     const deleteAccount = useCallback(async (password) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) throw new Error('Cannot delete admin account');
 
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
+        await authApi.deleteAccount(password);
+        setUser(null);
+    }, [user]);
 
-        if (users[idx].password !== password) {
-            throw new Error('Password is incorrect');
-        }
-
-        users.splice(idx, 1);
-        saveUsers(users);
-        signOut();
-    }, [user, getUsers, saveUsers, signOut]);
-
-    // Find user by share code
+    // Find user by share code (would need server endpoint)
     const findUserByShareCode = useCallback((shareCode) => {
-        const users = getUsers();
-        const found = users.find(u => u.shareCode === shareCode.toUpperCase());
-        if (!found) return null;
-        return {
-            id: found.id,
-            username: found.username,
-            avatar: found.avatar,
-            shareCode: found.shareCode
-        };
-    }, [getUsers]);
+        // This would need a server endpoint
+        console.warn('findUserByShareCode not yet implemented for server');
+        return null;
+    }, []);
 
-    // Share a deck with another user
+    // Share a deck
     const shareDeck = useCallback(async (deckId, deckData) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) return null;
 
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
-
-        const shareId = generateId();
-        const sharedDeck = {
-            shareId,
-            deckId,
-            deckData: JSON.parse(JSON.stringify(deckData)), // Clone deck data
-            sharedAt: new Date().toISOString(),
-            sharedBy: {
-                id: user.id,
-                username: user.username
-            }
-        };
-
-        if (!users[idx].sharedDecks) users[idx].sharedDecks = [];
-        users[idx].sharedDecks.push(sharedDeck);
-        saveUsers(users);
-
-        // Update session
-        const sessionUser = { ...users[idx] };
-        delete sessionUser.password;
-        setUser(sessionUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-
-        return shareId;
-    }, [user, getUsers, saveUsers]);
+        const result = await authApi.shareDeck(deckId);
+        return result.shareId;
+    }, [user]);
 
     // Get shared deck by shareId
-    const getSharedDeck = useCallback((shareId) => {
-        const users = getUsers();
-        for (const u of users) {
-            if (u.sharedDecks) {
-                const deck = u.sharedDecks.find(d => d.shareId === shareId);
-                if (deck) return deck;
-            }
+    const getSharedDeck = useCallback(async (shareId) => {
+        try {
+            return await authApi.getSharedDeck(shareId);
+        } catch {
+            return null;
         }
-        return null;
-    }, [getUsers]);
+    }, []);
 
     // Import shared deck
     const importSharedDeck = useCallback(async (shareId) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) throw new Error('Admin cannot import decks');
 
-        const sharedDeck = getSharedDeck(shareId);
-        if (!sharedDeck) throw new Error('Shared deck not found');
-
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
-
-        // Record that we received this deck
-        if (!users[idx].receivedDecks) users[idx].receivedDecks = [];
-        if (!users[idx].receivedDecks.includes(shareId)) {
-            users[idx].receivedDecks.push(shareId);
-            saveUsers(users);
-        }
-
-        return sharedDeck.deckData;
-    }, [user, getUsers, saveUsers, getSharedDeck]);
+        return await authApi.importSharedDeck(shareId);
+    }, [user]);
 
     // Unshare a deck
     const unshareDeck = useCallback(async (shareId) => {
         if (!user) throw new Error('Not logged in');
+        if (user.isAdmin) return;
 
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) throw new Error('User not found');
-
-        if (users[idx].sharedDecks) {
-            users[idx].sharedDecks = users[idx].sharedDecks.filter(d => d.shareId !== shareId);
-            saveUsers(users);
-
-            const sessionUser = { ...users[idx] };
-            delete sessionUser.password;
-            setUser(sessionUser);
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-        }
-    }, [user, getUsers, saveUsers]);
+        await authApi.unshareDeck(shareId);
+    }, [user]);
 
     // Get user's shared decks
-    const getMySharedDecks = useCallback(() => {
-        if (!user) return [];
-        return user.sharedDecks || [];
+    const getMySharedDecks = useCallback(async () => {
+        if (!user || user.isAdmin) return [];
+        try {
+            return await authApi.getMySharedDecks();
+        } catch {
+            return [];
+        }
     }, [user]);
 
     // ==================== ADMIN FUNCTIONS ====================
+    // Note: Admin functions need server-side implementation for full functionality
 
     // Get all users (admin only)
     const getAllUsers = useCallback(() => {
         if (!user?.isAdmin) return [];
-        return getUsers().map(u => {
-            const userCopy = { ...u };
-            delete userCopy.password;
-            return userCopy;
-        });
-    }, [user, getUsers]);
+        // Would need admin endpoint
+        console.warn('getAllUsers needs admin API endpoint');
+        return [];
+    }, [user]);
 
     // Update any user (admin only)
     const adminUpdateUser = useCallback(async (userId, updates) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-
-        const users = getUsers();
-        const idx = users.findIndex(u => u.id === userId);
-        if (idx === -1) throw new Error('User not found');
-
-        // Apply updates (but don't change password through this method)
-        const allowedUpdates = ['username', 'email', 'avatar', 'bio'];
-        allowedUpdates.forEach(key => {
-            if (updates[key] !== undefined) {
-                users[idx][key] = updates[key];
-            }
-        });
-
-        saveUsers(users);
-        return { ...users[idx], password: undefined };
-    }, [user, getUsers, saveUsers]);
+        // Would need admin endpoint
+        console.warn('adminUpdateUser needs admin API endpoint');
+        return null;
+    }, [user]);
 
     // Delete any user (admin only)
     const adminDeleteUser = useCallback(async (userId) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
+        // Would need admin endpoint
+        console.warn('adminDeleteUser needs admin API endpoint');
+    }, [user]);
 
-        const users = getUsers();
-        const filtered = users.filter(u => u.id !== userId);
-        saveUsers(filtered);
-    }, [user, getUsers, saveUsers]);
-
-    // Get user's streak data (admin only) - reads from localStorage
+    // Get user's streak data (admin only)
     const adminGetUserStreakData = useCallback(() => {
         if (!user?.isAdmin) return null;
-        
-        // Get streak data - streak is stored globally, not per-user in current implementation
-        // For admin purposes, we'll read the global streak storage
+        // For admin, read from global localStorage
         try {
             const streakData = localStorage.getItem('ghost_streak_data');
-            if (streakData) {
-                return JSON.parse(streakData);
-            }
+            return streakData ? JSON.parse(streakData) : null;
         } catch {
-            console.error('Failed to get streak data');
+            return null;
         }
-        return null;
     }, [user]);
 
     // Update streak data (admin only)
     const adminUpdateStreakData = useCallback((newStreakData) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-
-        try {
-            localStorage.setItem('ghost_streak_data', JSON.stringify(newStreakData));
-            return true;
-        } catch {
-            throw new Error('Failed to update streak data');
-        }
+        localStorage.setItem('ghost_streak_data', JSON.stringify(newStreakData));
+        return true;
     }, [user]);
 
     return (

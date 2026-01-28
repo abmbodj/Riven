@@ -5,14 +5,31 @@ const db = new Database('flashcards.db', { verbose: console.log });
 
 // Initialize database
 function initDb() {
+  // Users table
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      share_code TEXT UNIQUE,
+      avatar TEXT,
+      bio TEXT DEFAULT '',
+      streak_data TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
   // Folders table
   const createFoldersTable = `
     CREATE TABLE IF NOT EXISTS folders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       name TEXT NOT NULL,
       color TEXT DEFAULT '#6366f1',
       icon TEXT DEFAULT 'folder',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );
   `;
 
@@ -20,20 +37,24 @@ function initDb() {
   const createTagsTable = `
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      user_id INTEGER,
+      name TEXT NOT NULL,
       color TEXT NOT NULL,
       is_preset INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );
   `;
 
   const createDecksTable = `
     CREATE TABLE IF NOT EXISTS decks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       title TEXT NOT NULL,
       description TEXT,
       folder_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
       FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE SET NULL
     );
   `;
@@ -80,9 +101,11 @@ function initDb() {
     );
   `;
 
+  // Themes table - per user
   const createThemesTable = `
     CREATE TABLE IF NOT EXISTS themes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       name TEXT NOT NULL,
       bg_color TEXT NOT NULL,
       surface_color TEXT NOT NULL,
@@ -90,10 +113,26 @@ function initDb() {
       secondary_text_color TEXT NOT NULL,
       border_color TEXT NOT NULL,
       accent_color TEXT NOT NULL,
-      is_active INTEGER DEFAULT 0
+      is_active INTEGER DEFAULT 0,
+      is_default INTEGER DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );
   `;
 
+  // Shared decks table
+  const createSharedDecksTable = `
+    CREATE TABLE IF NOT EXISTS shared_decks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      share_id TEXT UNIQUE NOT NULL,
+      user_id INTEGER NOT NULL,
+      deck_id INTEGER NOT NULL,
+      deck_data TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+  `;
+
+  db.exec(createUsersTable);
   db.exec(createFoldersTable);
   db.exec(createTagsTable);
   db.exec(createDecksTable);
@@ -101,10 +140,28 @@ function initDb() {
   db.exec(createStudySessionsTable);
   db.exec(createDeckTagsTable);
   db.exec(createThemesTable);
+  db.exec(createSharedDecksTable);
 
   // Add folder_id column to existing decks table if it doesn't exist
   try {
     db.exec('ALTER TABLE decks ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL');
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Add user_id column to existing tables if they don't exist
+  const tablesToAddUserId = ['decks', 'folders', 'tags', 'themes'];
+  for (const table of tablesToAddUserId) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`);
+    } catch (e) {
+      // Column already exists
+    }
+  }
+
+  // Add is_default column to themes if it doesn't exist
+  try {
+    db.exec('ALTER TABLE themes ADD COLUMN is_default INTEGER DEFAULT 0');
   } catch (e) {
     // Column already exists
   }
