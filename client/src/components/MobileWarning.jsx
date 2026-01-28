@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, Smartphone } from 'lucide-react';
 
 export default function MobileWarning() {
     const [isVisible, setIsVisible] = useState(() => {
@@ -18,22 +18,36 @@ export default function MobileWarning() {
     if (!isVisible) return null;
 
     return (
-        <div className="bg-amber-500 text-white px-4 py-3 relative z-[100] animate-in slide-in-from-top duration-500">
-            <div className="max-w-5xl mx-auto flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                <div className="flex-1 pr-8">
-                    <p className="text-sm font-bold mb-0.5">Alpha Stage Notice</p>
-                    <p className="text-xs text-white/90 leading-relaxed">
-                        Riven is currently in Alpha. You may encounter bugs on mobile.
-                        Many features are currently optimized for <span className="font-bold underline">desktop use</span>.
-                    </p>
+        <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={handleDismiss}
+        >
+            <div 
+                className="w-full max-w-sm bg-claude-surface rounded-3xl border border-amber-500/30 p-6 animate-in zoom-in-95 duration-200"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Icon */}
+                <div className="flex justify-center mb-4">
+                    <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <Smartphone className="w-8 h-8 text-amber-500" />
+                    </div>
                 </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-display font-bold text-center mb-2">Alpha Stage Notice</h3>
+
+                {/* Message */}
+                <p className="text-claude-secondary text-center text-sm leading-relaxed mb-6">
+                    Riven is currently in Alpha. You may encounter bugs on mobile. 
+                    Many features are optimized for <span className="font-semibold text-amber-500">desktop use</span>.
+                </p>
+
+                {/* Action */}
                 <button
                     onClick={handleDismiss}
-                    className="absolute right-2 top-2 p-2 hover:bg-white/20 rounded-full transition-colors"
-                    aria-label="Dismiss warning"
+                    className="w-full py-4 rounded-xl font-semibold bg-amber-500 text-white active:scale-[0.97] transition-transform"
                 >
-                    <X className="w-4 h-4" />
+                    Got it!
                 </button>
             </div>
         </div>

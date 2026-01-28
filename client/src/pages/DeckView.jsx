@@ -1,14 +1,17 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, GripVertical, ChevronUp, ChevronDown, Share2 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
+import AlertModal from '../components/AlertModal';
 
 export default function DeckView() {
     const { id } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
+    const { isLoggedIn, shareDeck } = useAuth();
     const [deck, setDeck] = useState(null);
     const [folders, setFolders] = useState([]);
     const [tags, setTags] = useState([]);
@@ -27,6 +30,7 @@ export default function DeckView() {
     const [stats, setStats] = useState(null);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [reorderMode, setReorderMode] = useState(false);
+    const [shareAlert, setShareAlert] = useState({ show: false, link: null });
     const touchStartX = useRef(0);
 
     const loadDeck = useCallback(() => {
@@ -71,6 +75,29 @@ export default function DeckView() {
             navigate(`/deck/${newDeck.id}`);
         } catch {
             toast.error('Failed to duplicate deck');
+        }
+    };
+
+    const handleShareDeck = async () => {
+        if (!isLoggedIn) {
+            toast.error('Sign in to share decks');
+            navigate('/account');
+            return;
+        }
+        try {
+            const fullDeck = await api.getDeck(id);
+            const shareId = await shareDeck(id, fullDeck);
+            const link = `${window.location.origin}/shared?code=${shareId}`;
+            setShareAlert({ show: true, link });
+        } catch {
+            toast.error('Failed to share deck');
+        }
+    };
+
+    const copyShareLink = () => {
+        if (shareAlert.link) {
+            navigator.clipboard.writeText(shareAlert.link);
+            toast.success('Link copied!');
         }
     };
 
@@ -405,6 +432,13 @@ export default function DeckView() {
                             title="Duplicate"
                         >
                             <Copy className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={handleShareDeck}
+                            className="p-2 text-claude-secondary active:text-purple-500"
+                            title="Share"
+                        >
+                            <Share2 className="w-5 h-5" />
                         </button>
                         {!editingDeck && (
                             <button
@@ -772,6 +806,17 @@ export default function DeckView() {
                     </div>
                 )}
             </div>
+
+            {/* Share Alert */}
+            <AlertModal
+                isOpen={shareAlert.show}
+                onClose={() => setShareAlert({ show: false, link: null })}
+                title="Deck Shared!"
+                message={`Share this link with friends: ${shareAlert.link || ''}`}
+                type="success"
+                actionLabel="Copy Link"
+                onAction={copyShareLink}
+            />
         </div>
     );
 }

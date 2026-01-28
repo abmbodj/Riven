@@ -8,26 +8,33 @@ import StudyMode from './pages/StudyMode';
 import TestMode from './pages/TestMode';
 import ThemeSettings from './pages/ThemeSettings';
 import PetSettings from './pages/PetSettings';
+import Account from './pages/Account';
+import SharedDecks from './pages/SharedDecks';
 import NotFound from './pages/NotFound';
 import MobileWarning from './components/MobileWarning';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <BrowserRouter>
-      <MobileWarning />
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/create" element={<CreateDeck />} />
-          <Route path="/deck/:id" element={<DeckView />} />
-          <Route path="/deck/:id/study" element={<StudyMode />} />
-          <Route path="/deck/:id/test" element={<TestMode />} />
-          <Route path="/themes" element={<ThemeSettings />} />
-          <Route path="/pet" element={<PetSettings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <MobileWarning />
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/create" element={<CreateDeck />} />
+            <Route path="/deck/:id" element={<DeckView />} />
+            <Route path="/deck/:id/study" element={<StudyMode />} />
+            <Route path="/deck/:id/test" element={<TestMode />} />
+            <Route path="/themes" element={<ThemeSettings />} />
+            <Route path="/pet" element={<PetSettings />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/shared" element={<SharedDecks />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Layout>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
