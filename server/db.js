@@ -1,7 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database('flashcards.db', { verbose: console.log });
+// Remove verbose logging in production
+const db = new Database('flashcards.db');
 
 // Initialize database
 function initDb() {
@@ -16,6 +17,7 @@ function initDb() {
       avatar TEXT,
       bio TEXT DEFAULT '',
       streak_data TEXT DEFAULT '{}',
+      is_admin INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `;
@@ -192,7 +194,6 @@ function initDb() {
   // Seed preset tags if empty
   const tagCount = db.prepare('SELECT count(*) as count FROM tags').get();
   if (tagCount.count === 0) {
-    console.log('Seeding preset tags...');
     const insertTag = db.prepare('INSERT INTO tags (name, color, is_preset) VALUES (?, ?, 1)');
     insertTag.run('Language', '#3b82f6');
     insertTag.run('Science', '#22c55e');
@@ -207,7 +208,6 @@ function initDb() {
   // Seed default themes if empty
   const themeCount = db.prepare('SELECT count(*) as count FROM themes').get();
   if (themeCount.count === 0) {
-    console.log('Seeding themes...');
     const insertTheme = db.prepare('INSERT INTO themes (name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
 
     // Claude Dark
@@ -219,7 +219,6 @@ function initDb() {
   // Seed data if empty
   const deckCount = db.prepare('SELECT count(*) as count FROM decks').get();
   if (deckCount.count === 0) {
-    console.log('Seeding database...');
     const insertDeck = db.prepare('INSERT INTO decks (title, description) VALUES (?, ?)');
     const insertCard = db.prepare('INSERT INTO cards (deck_id, front, back) VALUES (?, ?, ?)');
 

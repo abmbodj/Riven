@@ -6,11 +6,36 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'riven-flashcards-secret-key-2026';
+const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+// JWT Secret - MUST be set via environment variable in production
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+    console.error('FATAL: JWT_SECRET environment variable is required in production');
+    process.exit(1);
+}
+const jwtSecret = JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+
+// CORS configuration - restrict to allowed origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc.) in dev
+        if (!origin && process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
 
 // Generate share code
 function generateShareCode() {
@@ -31,7 +56,7 @@ function authMiddleware(req, res, next) {
 
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, jwtSecret);
         req.user = decoded;
         next();
     } catch (err) {
@@ -45,7 +70,7 @@ function optionalAuth(req, res, next) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
         try {
-            const decoded = jwt.verify(token, JWT_SECRET);
+            const decoded = jwt.verify(token, jwtSecret);
             req.user = decoded;
         } catch (err) {
             // Invalid token, but continue without user
@@ -106,7 +131,7 @@ app.post('/api/auth/register', async (req, res) => {
         insertTag.run(info.lastInsertRowid, 'Art', '#f97316');
 
         // Generate token
-        const token = jwt.sign({ id: info.lastInsertRowid, email: email.toLowerCase() }, JWT_SECRET, { expiresIn: '30d' });
+        const token = jwt.sign({ id: info.lastInsertRowid, email: email.toLowerCase() }, jwtSecret, { expiresIn: '30d' });
 
         res.status(201).json({
             token,
@@ -121,8 +146,7 @@ app.post('/api/auth/register', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Register error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Registration failed' });
     }
 });
 
@@ -145,7 +169,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+        const token = jwt.sign({ id: user.id, email: user.email, isAdmin: user.is_admin === 1 }, jwtSecret, { expiresIn: '30d' });
 
         res.json({
             token,
@@ -156,12 +180,12 @@ app.post('/api/auth/login', async (req, res) => {
                 shareCode: user.share_code,
                 avatar: user.avatar,
                 bio: user.bio || '',
+                isAdmin: user.is_admin === 1,
                 streakData: JSON.parse(user.streak_data || '{}')
             }
         });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Login failed' });
     }
 });
 
@@ -319,15 +343,20 @@ app.post('/api/folders', optionalAuth, (req, res) => {
 });
 
 // Update a folder
-app.put('/api/folders/:id', (req, res) => {
+app.put('/api/folders/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { name, color, icon } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     
     try {
+        const userId = req.user?.id || null;
+        // Verify ownership
+        const folder = db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
+        if (!folder) return res.status(404).json({ error: 'Folder not found' });
+        if (folder.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
         const stmt = db.prepare('UPDATE folders SET name = ?, color = ?, icon = ? WHERE id = ?');
-        const info = stmt.run(name, color, icon, id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Folder not found' });
+        stmt.run(name, color, icon, id);
         res.json({ id, name, color, icon });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -335,12 +364,16 @@ app.put('/api/folders/:id', (req, res) => {
 });
 
 // Delete a folder
-app.delete('/api/folders/:id', (req, res) => {
+app.delete('/api/folders/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
-        const stmt = db.prepare('DELETE FROM folders WHERE id = ?');
-        const info = stmt.run(id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Folder not found' });
+        const userId = req.user?.id || null;
+        // Verify ownership
+        const folder = db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
+        if (!folder) return res.status(404).json({ error: 'Folder not found' });
+        if (folder.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
+        db.prepare('DELETE FROM folders WHERE id = ?').run(id);
         res.json({ message: 'Folder deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -379,11 +412,13 @@ app.post('/api/tags', optionalAuth, (req, res) => {
 });
 
 // Delete a tag (only custom tags)
-app.delete('/api/tags/:id', (req, res) => {
+app.delete('/api/tags/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
+        const userId = req.user?.id || null;
         const tag = db.prepare('SELECT * FROM tags WHERE id = ?').get(id);
         if (!tag) return res.status(404).json({ error: 'Tag not found' });
+        if (tag.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
         if (tag.is_preset) return res.status(400).json({ error: 'Cannot delete preset tags' });
         
         db.prepare('DELETE FROM tags WHERE id = ?').run(id);
@@ -469,15 +504,20 @@ app.get('/api/decks/:id', (req, res) => {
 });
 
 // Update a deck
-app.put('/api/decks/:id', (req, res) => {
+app.put('/api/decks/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { title, description, folder_id, tagIds } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
+        const userId = req.user?.id || null;
+        // Verify ownership
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
         const stmt = db.prepare('UPDATE decks SET title = ?, description = ?, folder_id = ? WHERE id = ?');
-        const info = stmt.run(title, description || '', folder_id || null, id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
+        stmt.run(title, description || '', folder_id || null, id);
         
         // Update tags if provided
         if (tagIds !== undefined) {
@@ -495,14 +535,19 @@ app.put('/api/decks/:id', (req, res) => {
 });
 
 // Move deck to folder
-app.put('/api/decks/:id/move', (req, res) => {
+app.put('/api/decks/:id/move', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { folder_id } = req.body;
     
     try {
+        const userId = req.user?.id || null;
+        // Verify ownership
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
         const stmt = db.prepare('UPDATE decks SET folder_id = ? WHERE id = ?');
-        const info = stmt.run(folder_id || null, id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
+        stmt.run(folder_id || null, id);
         res.json({ id, folder_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -510,12 +555,16 @@ app.put('/api/decks/:id/move', (req, res) => {
 });
 
 // Delete a deck
-app.delete('/api/decks/:id', (req, res) => {
+app.delete('/api/decks/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
-        const stmt = db.prepare('DELETE FROM decks WHERE id = ?');
-        const info = stmt.run(id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
+        const userId = req.user?.id || null;
+        // Verify ownership
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
+        db.prepare('DELETE FROM decks WHERE id = ?').run(id);
         res.json({ message: 'Deck deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -523,16 +572,18 @@ app.delete('/api/decks/:id', (req, res) => {
 });
 
 // Add a card to a deck
-app.post('/api/decks/:id/cards', (req, res) => {
+app.post('/api/decks/:id/cards', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { front, back } = req.body;
 
     if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
 
     try {
-        // Check if deck exists
-        const deck = db.prepare('SELECT id FROM decks WHERE id = ?').get(id);
+        const userId = req.user?.id || null;
+        // Check if deck exists and user owns it
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
         const stmt = db.prepare('INSERT INTO cards (deck_id, front, back) VALUES (?, ?, ?)');
         const info = stmt.run(id, front, back);
@@ -543,13 +594,19 @@ app.post('/api/decks/:id/cards', (req, res) => {
 });
 
 // Update a card
-app.put('/api/cards/:id', (req, res) => {
+app.put('/api/cards/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { front, back } = req.body;
 
     if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
 
     try {
+        const userId = req.user?.id || null;
+        // Get card and verify deck ownership
+        const card = db.prepare('SELECT c.*, d.user_id as deck_user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = ?').get(id);
+        if (!card) return res.status(404).json({ error: 'Card not found' });
+        if (card.deck_user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
         const stmt = db.prepare('UPDATE cards SET front = ?, back = ? WHERE id = ?');
         const info = stmt.run(front, back, id);
         if (info.changes === 0) return res.status(404).json({ error: 'Card not found' });
@@ -560,13 +617,16 @@ app.put('/api/cards/:id', (req, res) => {
 });
 
 // Update card difficulty (for spaced repetition)
-app.put('/api/cards/:id/review', (req, res) => {
+app.put('/api/cards/:id/review', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { correct, difficulty } = req.body;
 
     try {
-        const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+        const userId = req.user?.id || null;
+        // Get card and verify deck ownership
+        const card = db.prepare('SELECT c.*, d.user_id as deck_user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = ?').get(id);
         if (!card) return res.status(404).json({ error: 'Card not found' });
+        if (card.deck_user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
         const timesReviewed = (card.times_reviewed || 0) + 1;
         const timesCorrect = (card.times_correct || 0) + (correct ? 1 : 0);
@@ -601,7 +661,7 @@ app.put('/api/cards/:id/review', (req, res) => {
 });
 
 // Reorder cards in a deck
-app.put('/api/decks/:id/reorder', (req, res) => {
+app.put('/api/decks/:id/reorder', optionalAuth, (req, res) => {
     const { id } = req.params;
     const { cardIds } = req.body;
 
@@ -610,6 +670,12 @@ app.put('/api/decks/:id/reorder', (req, res) => {
     }
 
     try {
+        const userId = req.user?.id || null;
+        // Verify deck ownership
+        const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
         const updateStmt = db.prepare('UPDATE cards SET position = ? WHERE id = ? AND deck_id = ?');
         cardIds.forEach((cardId, index) => {
             updateStmt.run(index, cardId, id);
@@ -621,12 +687,16 @@ app.put('/api/decks/:id/reorder', (req, res) => {
 });
 
 // Delete a card
-app.delete('/api/cards/:id', (req, res) => {
+app.delete('/api/cards/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
-        const stmt = db.prepare('DELETE FROM cards WHERE id = ?');
-        const info = stmt.run(id);
-        if (info.changes === 0) return res.status(404).json({ error: 'Card not found' });
+        const userId = req.user?.id || null;
+        // Get card and verify deck ownership
+        const card = db.prepare('SELECT c.*, d.user_id as deck_user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = ?').get(id);
+        if (!card) return res.status(404).json({ error: 'Card not found' });
+        if (card.deck_user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        
+        db.prepare('DELETE FROM cards WHERE id = ?').run(id);
         res.json({ message: 'Card deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });

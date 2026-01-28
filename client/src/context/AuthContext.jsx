@@ -3,8 +3,6 @@ import * as authApi from '../api/authApi';
 
 export const AuthContext = createContext(null);
 
-const ADMIN_CREDENTIALS = { email: 'admin@riven.app', password: 'RivenAdmin2026!' };
-
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -17,8 +15,8 @@ export function AuthProvider({ children }) {
                 try {
                     const userData = await authApi.getMe();
                     setUser(userData);
-                } catch (error) {
-                    console.error('Token validation failed:', error);
+                } catch (_error) {
+                    // Token invalid or expired, clear it
                     authApi.setToken(null);
                 }
             }
@@ -34,24 +32,8 @@ export function AuthProvider({ children }) {
         return userData;
     }, []);
 
-    // Sign in
+    // Sign in - admin role is now handled server-side
     const signIn = useCallback(async (email, password) => {
-        // Check for admin login (local only)
-        if (email.toLowerCase() === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-            const adminUser = {
-                id: 'admin',
-                username: 'Admin',
-                email: ADMIN_CREDENTIALS.email,
-                shareCode: 'ADMIN000',
-                createdAt: new Date().toISOString(),
-                avatar: null,
-                bio: 'System Administrator',
-                isAdmin: true,
-            };
-            setUser(adminUser);
-            return adminUser;
-        }
-
         const userData = await authApi.login(email, password);
         setUser(userData);
         return userData;
@@ -90,15 +72,14 @@ export function AuthProvider({ children }) {
         setUser(null);
     }, [user]);
 
-    // Find user by share code (would need server endpoint)
-    const findUserByShareCode = useCallback((shareCode) => {
-        // This would need a server endpoint
-        console.warn('findUserByShareCode not yet implemented for server');
+    // Find user by share code
+    const findUserByShareCode = useCallback((_shareCode) => {
+        // TODO: Implement server endpoint for finding users by share code
         return null;
     }, []);
 
     // Share a deck
-    const shareDeck = useCallback(async (deckId, deckData) => {
+    const shareDeck = useCallback(async (deckId, _deckData) => {
         if (!user) throw new Error('Not logged in');
         if (user.isAdmin) return null;
 
@@ -147,24 +128,21 @@ export function AuthProvider({ children }) {
     // Get all users (admin only)
     const getAllUsers = useCallback(() => {
         if (!user?.isAdmin) return [];
-        // Would need admin endpoint
-        console.warn('getAllUsers needs admin API endpoint');
+        // TODO: Implement admin API endpoint
         return [];
     }, [user]);
 
     // Update any user (admin only)
-    const adminUpdateUser = useCallback(async (userId, updates) => {
+    const adminUpdateUser = useCallback(async (_userId, _updates) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-        // Would need admin endpoint
-        console.warn('adminUpdateUser needs admin API endpoint');
+        // TODO: Implement admin API endpoint
         return null;
     }, [user]);
 
     // Delete any user (admin only)
-    const adminDeleteUser = useCallback(async (userId) => {
+    const adminDeleteUser = useCallback(async (_userId) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-        // Would need admin endpoint
-        console.warn('adminDeleteUser needs admin API endpoint');
+        // TODO: Implement admin API endpoint
     }, [user]);
 
     // Get user's streak data (admin only)
