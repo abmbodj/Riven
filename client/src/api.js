@@ -31,6 +31,16 @@ export const api = {
         return res.json();
     },
 
+    updateDeck: async (id, title, description) => {
+        const res = await fetch(`${API_URL}/decks/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description }),
+        });
+        if (!res.ok) throw new Error('Failed to update deck');
+        return res.json();
+    },
+
     addCard: async (deckId, front, back) => {
         const res = await fetch(`${API_URL}/decks/${deckId}/cards`, {
             method: 'POST',

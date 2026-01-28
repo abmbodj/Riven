@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, MoreVertical } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check } from 'lucide-react';
 import { api } from '../api';
 
 export default function DeckView() {
@@ -10,6 +10,10 @@ export default function DeckView() {
     const [loading, setLoading] = useState(true);
     const [showAddCard, setShowAddCard] = useState(false);
     const [newCard, setNewCard] = useState({ front: '', back: '' });
+    const [editingCard, setEditingCard] = useState(null);
+    const [editCardData, setEditCardData] = useState({ front: '', back: '' });
+    const [editingDeck, setEditingDeck] = useState(false);
+    const [editDeckData, setEditDeckData] = useState({ title: '', description: '' });
 
     useEffect(() => {
         loadDeck();
@@ -17,7 +21,10 @@ export default function DeckView() {
 
     const loadDeck = () => {
         api.getDeck(id)
-            .then(setDeck)
+            .then(data => {
+                setDeck(data);
+                setEditDeckData({ title: data.title, description: data.description || '' });
+            })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
     };
@@ -46,6 +53,25 @@ export default function DeckView() {
         }
     };
 
+    const handleEditCard = (card) => {
+        setEditingCard(card.id);
+        setEditCardData({ front: card.front, back: card.back });
+    };
+
+    const handleSaveCard = async (cardId) => {
+        if (!editCardData.front || !editCardData.back) return;
+        await api.updateCard(cardId, editCardData.front, editCardData.back);
+        setEditingCard(null);
+        loadDeck();
+    };
+
+    const handleSaveDeck = async () => {
+        if (!editDeckData.title.trim()) return;
+        await api.updateDeck(id, editDeckData.title, editDeckData.description);
+        setEditingDeck(false);
+        loadDeck();
+    };
+
     if (loading) return <div className="text-center py-20 animate-pulse text-claude-secondary">Loading deck...</div>;
     if (!deck) return <div className="text-center py-20 text-claude-secondary">Deck not found</div>;
 
@@ -63,10 +89,48 @@ export default function DeckView() {
                             <span className="bg-claude-text text-white text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded">Deck</span>
                             <span className="text-claude-secondary text-sm font-medium">{deck.cards.length} cards</span>
                         </div>
-                        <h1 className="text-4xl font-display font-bold text-claude-text mb-3 leading-tight">{deck.title}</h1>
-                        <p className="text-claude-secondary text-lg max-w-2xl leading-relaxed">{deck.description || 'No description provided for this deck.'}</p>
+                        {editingDeck ? (
+                            <div className="space-y-3">
+                                <input
+                                    type="text"
+                                    value={editDeckData.title}
+                                    onChange={e => setEditDeckData({ ...editDeckData, title: e.target.value })}
+                                    className="w-full text-4xl font-display font-bold bg-claude-bg border border-claude-border rounded-xl px-4 py-2 outline-none focus:border-claude-text"
+                                    autoFocus
+                                />
+                                <textarea
+                                    value={editDeckData.description}
+                                    onChange={e => setEditDeckData({ ...editDeckData, description: e.target.value })}
+                                    className="w-full text-lg bg-claude-bg border border-claude-border rounded-xl px-4 py-2 outline-none focus:border-claude-text resize-none"
+                                    placeholder="Add a description..."
+                                    rows={2}
+                                />
+                                <div className="flex gap-2">
+                                    <button onClick={handleSaveDeck} className="claude-button-primary text-sm py-1.5 px-4 flex items-center gap-1">
+                                        <Check className="w-4 h-4" /> Save
+                                    </button>
+                                    <button onClick={() => setEditingDeck(false)} className="claude-button-secondary text-sm py-1.5 px-4">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <h1 className="text-4xl font-display font-bold text-claude-text mb-3 leading-tight">{deck.title}</h1>
+                                <p className="text-claude-secondary text-lg max-w-2xl leading-relaxed">{deck.description || 'No description provided for this deck.'}</p>
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
+                        {!editingDeck && (
+                            <button
+                                onClick={() => setEditingDeck(true)}
+                                className="p-2.5 rounded-xl border border-claude-border text-claude-secondary hover:text-claude-text hover:bg-claude-bg transition-all"
+                                title="Edit Deck"
+                            >
+                                <Pencil className="w-5 h-5" />
+                            </button>
+                        )}
                         <button
                             onClick={handleDeleteDeck}
                             className="p-2.5 rounded-xl border border-claude-border text-claude-secondary hover:text-red-500 hover:bg-red-50 transition-all"
@@ -158,23 +222,67 @@ export default function DeckView() {
                     <div key={card.id} className="claude-card p-6 flex justify-between items-start group hover:border-claude-text/10 transition-colors">
                         <div className="flex gap-6 w-full mr-4">
                             <span className="text-claude-border font-display font-bold text-xl">{String(idx + 1).padStart(2, '0')}</span>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                                <div>
-                                    <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Front</span>
-                                    <p className="text-claude-text font-medium leading-relaxed">{card.front}</p>
+                            {editingCard === card.id ? (
+                                <div className="flex-1 space-y-3">
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Front</span>
+                                        <textarea
+                                            value={editCardData.front}
+                                            onChange={e => setEditCardData({ ...editCardData, front: e.target.value })}
+                                            className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-text resize-none"
+                                            rows={2}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</span>
+                                        <textarea
+                                            value={editCardData.back}
+                                            onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
+                                            className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-text resize-none"
+                                            rows={2}
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary text-sm py-1 px-3 flex items-center gap-1">
+                                            <Check className="w-3 h-3" /> Save
+                                        </button>
+                                        <button onClick={() => setEditingCard(null)} className="claude-button-secondary text-sm py-1 px-3">
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="md:border-l md:border-claude-border/50 md:pl-8">
-                                    <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</span>
-                                    <p className="text-claude-secondary leading-relaxed">{card.back}</p>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                                    <div>
+                                        <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Front</span>
+                                        <p className="text-claude-text font-medium leading-relaxed">{card.front}</p>
+                                    </div>
+                                    <div className="md:border-l md:border-claude-border/50 md:pl-8">
+                                        <span className="block text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</span>
+                                        <p className="text-claude-secondary leading-relaxed">{card.back}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
-                        <button
-                            onClick={() => handleDeleteCard(card.id)}
-                            className="text-claude-border hover:text-red-500 transition-colors p-1"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        {editingCard !== card.id && (
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => handleEditCard(card)}
+                                    className="text-claude-border hover:text-claude-text transition-colors p-1"
+                                    title="Edit card"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteCard(card.id)}
+                                    className="text-claude-border hover:text-red-500 transition-colors p-1"
+                                    title="Delete card"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ))}
                 {deck.cards.length === 0 && !showAddCard && (

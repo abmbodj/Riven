@@ -57,6 +57,22 @@ app.get('/api/decks/:id', (req, res) => {
     }
 });
 
+// Update a deck
+app.put('/api/decks/:id', (req, res) => {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    try {
+        const stmt = db.prepare('UPDATE decks SET title = ?, description = ? WHERE id = ?');
+        const info = stmt.run(title, description || '', id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
+        res.json({ id, title, description });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Delete a deck
 app.delete('/api/decks/:id', (req, res) => {
     const { id } = req.params;
