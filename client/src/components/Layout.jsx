@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Zap, Palette, Home, Plus, WifiOff, Sun, Moon, Dog } from 'lucide-react';
+import { Layers, Palette, Home, Plus, WifiOff, Dog } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';
 
 export default function Layout({ children }) {
     const location = useLocation();
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
+    const isCreatePage = location.pathname === '/create';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
-    const { activeTheme, toggleTheme } = useContext(ThemeContext);
-    const isDarkMode = activeTheme?.name.toLowerCase().includes('dark');
+    useContext(ThemeContext); // Ensure theme is loaded
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
@@ -23,82 +23,65 @@ export default function Layout({ children }) {
         };
     }, []);
 
+    // Hide bottom nav on study/test and create pages for cleaner UX
+    const hideBottomNav = isStudyOrTest || isCreatePage;
+
     return (
         <div className="h-[100dvh] bg-claude-bg text-claude-text font-sans flex flex-col overflow-hidden">
             {/* Offline banner */}
             {isOffline && (
-                <div className="bg-orange-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top">
+                <div className="bg-orange-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top shrink-0">
                     <WifiOff className="w-4 h-4" />
-                    <span>You're offline</span>
+                    <span>You're offline - changes saved locally</span>
                 </div>
             )}
 
-            {/* Top header - hidden in study/test mode */}
-            {!isStudyOrTest && (
-                <header className={`bg-claude-bg/90 backdrop-blur-md sticky top-0 z-10 border-b border-claude-border/50 ${!isOffline ? 'safe-area-top' : ''}`}>
-                    <div className="px-4 h-14 flex items-center justify-between">
-                        <div className="w-10" /> {/* Spacer */}
-                        <Link to="/" className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-claude-text rounded-lg flex items-center justify-center">
-                                <Zap className="w-5 h-5 text-claude-bg fill-current" />
-                            </div>
-                            <span className="font-display font-bold text-xl tracking-tight">Riven</span>
-                        </Link>
-                        <button
-                            onClick={toggleTheme}
-                            className="w-10 h-10 flex items-center justify-center text-claude-secondary active:text-claude-text rounded-xl"
-                        >
-                            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
-                    </div>
-                </header>
-            )}
-
             {/* Main content - scrollable */}
-            <main className={`flex-1 px-4 py-6 overflow-y-auto overscroll-contain ${isStudyOrTest ? 'pb-6 safe-area-top' : 'pb-40'}`}>
-                {children}
+            <main className={`flex-1 overflow-y-auto overscroll-contain ${isStudyOrTest ? '' : 'px-4 py-4'} ${hideBottomNav ? 'pb-6' : 'pb-24'} ${!isOffline ? 'safe-area-top' : ''}`}>
+                <div className="animate-in fade-in duration-200">
+                    {children}
+                </div>
             </main>
 
-            {/* Bottom navigation - mobile style */}
-            {!isStudyOrTest && (
-                <nav className="fixed bottom-0 left-0 right-0 bg-claude-surface/95 backdrop-blur-md border-t border-claude-border safe-area-bottom z-20">
-                    <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+            {/* Bottom navigation - mobile-first PWA style */}
+            {!hideBottomNav && (
+                <nav className="fixed bottom-0 left-0 right-0 bg-claude-surface/98 backdrop-blur-lg border-t border-claude-border z-20 safe-area-bottom safe-area-left safe-area-right">
+                    <div className="flex items-stretch h-16 max-w-md mx-auto">
                         <Link
                             to="/"
-                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                         >
-                            <Home className="w-5 h-5" />
-                            <span className="text-[9px] font-bold uppercase tracking-wider">Library</span>
+                            <Home className="w-6 h-6" />
+                            <span className="text-[10px] font-semibold">Library</span>
                         </Link>
                         <Link
                             to="/pet"
-                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/pet' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/pet' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                         >
-                            <Dog className="w-5 h-5" />
-                            <span className="text-[9px] font-bold uppercase tracking-wider">Gmail</span>
+                            <Dog className="w-6 h-6" />
+                            <span className="text-[10px] font-semibold">Pet</span>
                         </Link>
                         <Link
                             to="/create"
-                            className="flex flex-col items-center gap-1 px-2 py-2 -mt-6"
+                            className="flex-1 flex items-center justify-center"
                         >
-                            <div className="w-12 h-12 bg-claude-accent rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                                <Plus className="w-6 h-6 text-white" />
+                            <div className="w-14 h-14 -mt-5 bg-claude-accent rounded-full flex items-center justify-center shadow-lg shadow-claude-accent/30 active:scale-95 transition-transform border-4 border-claude-bg">
+                                <Plus className="w-7 h-7 text-white" />
                             </div>
                         </Link>
                         <Link
                             to="/themes"
-                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                         >
-                            <Palette className="w-5 h-5" />
-                            <span className="text-[9px] font-bold uppercase tracking-wider">Themes</span>
+                            <Palette className="w-6 h-6" />
+                            <span className="text-[10px] font-semibold">Themes</span>
                         </Link>
                         <Link
                             to="/"
-                            onClick={(e) => { e.preventDefault(); toggleTheme?.(); }}
-                            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-claude-secondary active:text-claude-text"
+                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors text-claude-secondary active:text-claude-text`}
                         >
-                            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                            <span className="text-[9px] font-bold uppercase tracking-wider">Mode</span>
+                            <Layers className="w-6 h-6" />
+                            <span className="text-[10px] font-semibold">More</span>
                         </Link>
                     </div>
                 </nav>

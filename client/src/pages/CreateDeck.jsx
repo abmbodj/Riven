@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Folder, Hash, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Sparkles, Folder, Hash, ChevronDown, Check, X } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 
@@ -51,121 +51,123 @@ export default function CreateDeck() {
     const selectedFolderData = folders.find(f => f.id === selectedFolder);
 
     return (
-        <div className="animate-in fade-in duration-500">
-            <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-claude-secondary active:text-claude-text mb-6">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-            </Link>
-
-            <div className="mb-8">
-                <div className="w-12 h-12 bg-claude-accent text-white rounded-2xl flex items-center justify-center mb-4">
-                    <Sparkles className="w-6 h-6" />
+        <div className="min-h-full flex flex-col safe-area-top">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-claude-bg/95 backdrop-blur-md -mx-4 px-4 py-3 border-b border-claude-border/50">
+                <div className="flex items-center justify-between">
+                    <Link to="/" className="touch-target text-claude-secondary active:text-claude-text -ml-2">
+                        <X className="w-6 h-6" />
+                    </Link>
+                    <h1 className="font-display font-bold text-lg">New Deck</h1>
+                    <div className="w-10" />
                 </div>
-                <h1 className="text-2xl font-display font-bold mb-2">New Deck</h1>
-                <p className="text-claude-secondary text-sm">Give your deck a name to get started</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Title</label>
-                    <input
-                        type="text"
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        className="w-full px-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none transition-colors text-lg"
-                        placeholder="e.g., Spanish Basics"
-                        required
-                        autoFocus
-                    />
-                </div>
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col py-6">
+                <div className="flex-1 space-y-5">
+                    {/* Title - Most important, larger */}
+                    <div>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            className="w-full px-0 py-2 bg-transparent border-0 border-b-2 border-claude-border focus:border-claude-accent outline-none transition-colors text-2xl font-display font-bold placeholder:text-claude-secondary/50"
+                            placeholder="Deck name"
+                            required
+                            autoFocus
+                        />
+                    </div>
 
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Description (Optional)</label>
-                    <textarea
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        className="w-full px-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[100px] resize-none"
-                        placeholder="What will you learn?"
-                    />
-                </div>
+                    {/* Description */}
+                    <div>
+                        <textarea
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            className="w-full px-4 py-3 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[80px] resize-none text-sm"
+                            placeholder="Add a description (optional)"
+                        />
+                    </div>
 
-                {/* Folder Picker */}
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder (Optional)</label>
-                    <button
-                        type="button"
-                        onClick={() => setShowFolderPicker(!showFolderPicker)}
-                        className="w-full px-4 py-4 bg-claude-surface border border-claude-border rounded-xl flex items-center justify-between"
-                    >
-                        <div className="flex items-center gap-3">
-                            <Folder className="w-5 h-5" style={{ color: selectedFolderData?.color || 'var(--color-secondary)' }} />
-                            <span className={selectedFolder ? '' : 'text-claude-secondary'}>
-                                {selectedFolderData?.name || 'No folder'}
-                            </span>
-                        </div>
-                        <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showFolderPicker ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {showFolderPicker && (
-                        <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden">
-                            <button
-                                type="button"
-                                onClick={() => { setSelectedFolder(null); setShowFolderPicker(false); }}
-                                className={`w-full px-4 py-3 flex items-center gap-3 text-left ${!selectedFolder ? 'bg-claude-accent/10' : ''}`}
-                            >
-                                <Folder className="w-5 h-5 text-claude-secondary" />
-                                <span>No folder</span>
-                                {!selectedFolder && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                            </button>
-                            {folders.map(folder => (
+                    {/* Folder Picker */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder</label>
+                        <button
+                            type="button"
+                            onClick={() => setShowFolderPicker(!showFolderPicker)}
+                            className="w-full px-4 py-3.5 bg-claude-surface border border-claude-border rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Folder className="w-5 h-5" style={{ color: selectedFolderData?.color || 'var(--secondary-text-color)' }} />
+                                <span className={selectedFolder ? '' : 'text-claude-secondary'}>
+                                    {selectedFolderData?.name || 'None'}
+                                </span>
+                            </div>
+                            <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showFolderPicker ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showFolderPicker && (
+                            <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden">
                                 <button
-                                    key={folder.id}
                                     type="button"
-                                    onClick={() => { setSelectedFolder(folder.id); setShowFolderPicker(false); }}
-                                    className={`w-full px-4 py-3 flex items-center gap-3 text-left border-t border-claude-border ${selectedFolder === folder.id ? 'bg-claude-accent/10' : ''}`}
+                                    onClick={() => { setSelectedFolder(null); setShowFolderPicker(false); }}
+                                    className={`w-full px-4 py-3.5 flex items-center gap-3 text-left active:bg-claude-bg ${!selectedFolder ? 'bg-claude-accent/10' : ''}`}
                                 >
-                                    <Folder className="w-5 h-5" style={{ color: folder.color }} />
-                                    <span>{folder.name}</span>
-                                    {selectedFolder === folder.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
+                                    <Folder className="w-5 h-5 text-claude-secondary" />
+                                    <span>None</span>
+                                    {!selectedFolder && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
                                 </button>
-                            ))}
+                                {folders.map(folder => (
+                                    <button
+                                        key={folder.id}
+                                        type="button"
+                                        onClick={() => { setSelectedFolder(folder.id); setShowFolderPicker(false); }}
+                                        className={`w-full px-4 py-3.5 flex items-center gap-3 text-left border-t border-claude-border active:bg-claude-bg ${selectedFolder === folder.id ? 'bg-claude-accent/10' : ''}`}
+                                    >
+                                        <Folder className="w-5 h-5" style={{ color: folder.color }} />
+                                        <span>{folder.name}</span>
+                                        {selectedFolder === folder.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tags Picker */}
+                    {tags.length > 0 && (
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Tags</label>
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map(tag => (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => toggleTag(tag.id)}
+                                        className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-all active:scale-95 ${
+                                            selectedTags.includes(tag.id)
+                                                ? 'text-white shadow-md'
+                                                : 'bg-claude-surface border border-claude-border'
+                                        }`}
+                                        style={selectedTags.includes(tag.id) ? { backgroundColor: tag.color } : {}}
+                                    >
+                                        <Hash className="w-3.5 h-3.5" style={!selectedTags.includes(tag.id) ? { color: tag.color } : {}} />
+                                        {tag.name}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Tags Picker */}
-                <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Tags (Optional)</label>
-                    <div className="flex flex-wrap gap-2">
-                        {tags.map(tag => (
-                            <button
-                                key={tag.id}
-                                type="button"
-                                onClick={() => toggleTag(tag.id)}
-                                className={`px-3 py-2 rounded-full flex items-center gap-1.5 text-sm transition-colors ${
-                                    selectedTags.includes(tag.id)
-                                        ? 'text-white'
-                                        : 'bg-claude-surface border border-claude-border'
-                                }`}
-                                style={selectedTags.includes(tag.id) ? { backgroundColor: tag.color } : {}}
-                            >
-                                <Hash className="w-3.5 h-3.5" style={!selectedTags.includes(tag.id) ? { color: tag.color } : {}} />
-                                <span className="font-medium">{tag.name}</span>
-                            </button>
-                        ))}
-                        {tags.length === 0 && (
-                            <span className="text-claude-secondary text-sm">No tags available. Create tags from the Library.</span>
-                        )}
-                    </div>
+                {/* Sticky footer button */}
+                <div className="sticky bottom-0 pt-4 mt-6 -mx-4 px-4 pb-4 bg-gradient-to-t from-claude-bg via-claude-bg">
+                    <button
+                        type="submit"
+                        disabled={loading || !title.trim()}
+                        className="w-full claude-button-primary text-lg disabled:opacity-50 disabled:active:scale-100"
+                    >
+                        {loading ? 'Creating...' : 'Create Deck'}
+                    </button>
                 </div>
-
-                <button
-                    type="submit"
-                    disabled={loading || !title.trim()}
-                    className="w-full claude-button-primary py-4 text-lg disabled:opacity-50"
-                >
-                    {loading ? 'Creating...' : 'Create Deck'}
-                </button>
             </form>
         </div>
     );

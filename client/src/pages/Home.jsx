@@ -353,37 +353,38 @@ export default function Home() {
             )}
 
             {/* Header */}
-            <div className="px-4 mb-4">
+            <div className="mb-4">
                 <div className="flex items-center justify-between mb-4">
                     <h1 className="text-2xl font-display font-bold">Library</h1>
-                    <button onClick={() => loadData(true)} disabled={refreshing} className="p-2 text-claude-secondary active:text-claude-text disabled:opacity-50">
+                    <button 
+                        onClick={() => loadData(true)} 
+                        disabled={refreshing} 
+                        className="touch-target text-claude-secondary active:text-claude-text disabled:opacity-50"
+                    >
                         <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
 
                 {/* Search bar */}
-                <div className="relative mb-4">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
+                <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary pointer-events-none" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search decks..."
-                        className="w-full pl-12 pr-4 py-3 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
+                        className="w-full pl-12 pr-4 py-3.5 bg-claude-surface border border-claude-border rounded-2xl focus:border-claude-accent outline-none transition-colors"
                     />
                 </div>
             </div>
 
             {/* Folders Section */}
-            <div className="px-4 mb-6">
+            <div className="mb-5">
                 <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-bold uppercase tracking-widest text-claude-secondary">Folders</h2>
-                        <span className="text-[10px] text-claude-secondary hidden sm:inline">(hold to edit)</span>
-                    </div>
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">Folders</h2>
                     <button
                         onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }}
-                        className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform"
+                        className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform touch-target"
                     >
                         <Plus className="w-4 h-4" /> Add
                     </button>
@@ -391,7 +392,7 @@ export default function Home() {
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                     <button
                         onClick={() => setActiveFolder(null)}
-                        className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-colors ${activeFolder === null ? 'bg-claude-accent text-white' : 'bg-claude-surface border border-claude-border'}`}
+                        className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-all active:scale-95 ${activeFolder === null ? 'bg-claude-accent text-white shadow-md' : 'bg-claude-surface border border-claude-border'}`}
                     >
                         <Layers className="w-4 h-4" />
                         <span className="font-medium text-sm">All</span>
@@ -419,7 +420,7 @@ export default function Home() {
 
                     <button
                         onClick={() => setActiveFolder(activeFolder === 'unfiled' ? null : 'unfiled')}
-                        className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-colors ${activeFolder === 'unfiled' ? 'bg-claude-secondary text-white' : 'bg-claude-surface border border-claude-border text-claude-secondary'}`}
+                        className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-all active:scale-95 ${activeFolder === 'unfiled' ? 'bg-claude-secondary text-white' : 'bg-claude-surface border border-claude-border text-claude-secondary'}`}
                     >
                         <FolderOpen className="w-4 h-4" />
                         <span className="font-medium text-sm">Unfiled</span>
@@ -428,80 +429,80 @@ export default function Home() {
             </div>
 
             {/* Tags Section */}
-            <div className="px-4 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-claude-secondary">Tags</h2>
-                    <button
-                        onClick={() => setShowTagModal(true)}
-                        className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform"
-                    >
-                        <Plus className="w-4 h-4" /> Add
-                    </button>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                    {tags.map(tag => (
+            {tags.length > 0 && (
+                <div className="mb-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">Tags</h2>
                         <button
-                            key={tag.id}
-                            onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
-                            className={`shrink-0 px-3 py-2 rounded-full flex items-center gap-1.5 transition-all active:scale-95 text-sm ${activeTag === tag.id ? 'text-white shadow-sm' : 'bg-claude-surface border border-claude-border'}`}
-                            style={activeTag === tag.id ? { backgroundColor: tag.color } : {}}
+                            onClick={() => setShowTagModal(true)}
+                            className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform touch-target"
                         >
-                            <Hash className="w-3.5 h-3.5" style={activeTag !== tag.id ? { color: tag.color } : {}} />
-                            <span className="font-medium">{tag.name}</span>
+                            <Plus className="w-4 h-4" /> Add
                         </button>
-                    ))}
-                    {tags.length === 0 && <span className="text-claude-secondary text-sm">No tags yet</span>}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                        {tags.map(tag => (
+                            <button
+                                key={tag.id}
+                                onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
+                                className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-all active:scale-95 text-sm ${activeTag === tag.id ? 'text-white shadow-md' : 'bg-claude-surface border border-claude-border'}`}
+                                style={activeTag === tag.id ? { backgroundColor: tag.color } : {}}
+                            >
+                                <Hash className="w-3.5 h-3.5" style={activeTag !== tag.id ? { color: tag.color } : {}} />
+                                <span className="font-medium">{tag.name}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Active Filters */}
             {(activeFolder !== null || activeTag !== null || searchQuery) && (
-                <div className="px-4 mb-4 flex items-center gap-2 flex-wrap">
+                <div className="mb-4 flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-claude-secondary">Filters:</span>
                     {activeFolder !== null && (
-                        <span className="px-2 py-1 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1">
+                        <span className="px-3 py-1.5 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1.5 font-medium">
                             <Folder className="w-3 h-3" />
                             {activeFolder === 'unfiled' ? 'Unfiled' : folders.find(f => f.id === activeFolder)?.name}
-                            <button onClick={() => setActiveFolder(null)} className="ml-1"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setActiveFolder(null)} className="ml-1 p-0.5"><X className="w-3 h-3" /></button>
                         </span>
                     )}
                     {activeTag !== null && (
-                        <span className="px-2 py-1 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1">
+                        <span className="px-3 py-1.5 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1.5 font-medium">
                             <Hash className="w-3 h-3" />
                             {tags.find(t => t.id === activeTag)?.name}
-                            <button onClick={() => setActiveTag(null)} className="ml-1"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setActiveTag(null)} className="ml-1 p-0.5"><X className="w-3 h-3" /></button>
                         </span>
                     )}
                     {searchQuery && (
-                        <span className="px-2 py-1 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1">
+                        <span className="px-3 py-1.5 bg-claude-surface border border-claude-border rounded-full text-xs flex items-center gap-1.5 font-medium">
                             <Search className="w-3 h-3" />"{searchQuery}"
-                            <button onClick={() => setSearchQuery('')} className="ml-1"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setSearchQuery('')} className="ml-1 p-0.5"><X className="w-3 h-3" /></button>
                         </span>
                     )}
-                    <button onClick={() => { setActiveFolder(null); setActiveTag(null); setSearchQuery(''); }} className="text-xs text-claude-accent font-medium">
+                    <button onClick={() => { setActiveFolder(null); setActiveTag(null); setSearchQuery(''); }} className="text-xs text-claude-accent font-semibold ml-2">
                         Clear all
                     </button>
                 </div>
             )}
 
             {/* Decks List */}
-            <div className="px-4">
+            <div>
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-claude-secondary">
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">
                         Decks {filteredDecks.length !== decks.length && `(${filteredDecks.length})`}
                     </h2>
                     <div className="relative">
                         <button
                             onClick={() => setShowSortMenu(!showSortMenu)}
-                            className="flex items-center gap-1.5 text-claude-secondary text-sm"
+                            className="flex items-center gap-1.5 text-claude-secondary text-sm touch-target"
                         >
                             <SlidersHorizontal className="w-4 h-4" />
-                            <span className="hidden sm:inline">Sort</span>
                         </button>
                         {showSortMenu && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
-                                <div className="absolute right-0 top-full mt-2 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[140px]">
+                                <div className="absolute right-0 top-full mt-2 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[150px]">
                                     {[
                                         { id: 'newest', label: 'Newest', icon: Calendar },
                                         { id: 'oldest', label: 'Oldest', icon: Calendar },
@@ -511,7 +512,7 @@ export default function Home() {
                                         <button
                                             key={option.id}
                                             onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                            className={`w-full px-4 py-2.5 flex items-center gap-2 text-sm text-left ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : ''}`}
+                                            className={`w-full px-4 py-3 flex items-center gap-3 text-sm text-left active:bg-claude-bg ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : ''}`}
                                         >
                                             <option.icon className="w-4 h-4" />
                                             {option.label}
