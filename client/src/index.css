@@ -16,7 +16,9 @@
 }
 
 @layer base {
-  html, body {
+
+  html,
+  body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
   }
@@ -25,8 +27,6 @@
     background-color: var(--bg-color);
     color: var(--text-color);
     @apply font-sans antialiased transition-colors duration-300;
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
     min-height: 100dvh;
   }
 
@@ -40,7 +40,8 @@
   }
 
   /* Disable text selection on interactive elements for mobile */
-  button, a {
+  button,
+  a {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     user-select: none;

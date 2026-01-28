@@ -1,5 +1,5 @@
 /**
- * @typedef {Object} GhostType
+ * @typedef {Object} PugType
  * @property {string} id - Unique identifier
  * @property {string} name - Display name
  * @property {string} description - Personality description
@@ -19,44 +19,44 @@
  * @property {string} id - Unique identifier
  * @property {string} name - Display name
  * @property {number} unlockAt - Streak days required to unlock
- * @property {string} primary - Primary ghost color
- * @property {string} secondary - Secondary/glow color
+ * @property {string} primary - Primary pug color
+ * @property {string} secondary - Secondary/accent color
  * @property {string} accent - Accent color for accessories
  */
 
 /**
- * @typedef {Object} GhostCustomization
- * @property {string} ghostType - Selected ghost type id
+ * @typedef {Object} PugCustomization
+ * @property {string} pugType - Selected pug type id
  * @property {string} colorPalette - Selected color palette id
  * @property {string[]} accessories - Array of equipped accessory ids
  */
 
-const CUSTOMIZATION_STORAGE_KEY = 'riven_ghost_customization';
+const CUSTOMIZATION_STORAGE_KEY = 'riven_pug_customization';
 
-// Ghost personality types
-export const ghostTypes = [
+// Pug personality types
+export const pugTypes = [
     {
         id: 'bookworm',
-        name: 'Bookworm',
-        description: 'A studious ghost who loves knowledge. Appears focused and determined.',
+        name: 'Studious Gmail',
+        description: 'A focused pug who loves learning new tricks. Always has a treat in mind.',
         expression: 'focused'
     },
     {
         id: 'energetic',
-        name: 'Energetic',
-        description: 'A hyperactive ghost always ready to learn! Bounces with excitement.',
+        name: 'Zoomie Gmail',
+        description: 'A hyperactive pug always ready for a walk! Bounces with excitement.',
         expression: 'excited'
     },
     {
         id: 'sleepy',
-        name: 'Sleepy',
-        description: 'A drowsy ghost that powers through study sessions. Often yawns.',
+        name: 'Napping Gmail',
+        description: 'A drowsy pug that snores through study sessions. Often dreams of bacon.',
         expression: 'drowsy'
     },
     {
         id: 'curious',
-        name: 'Curious',
-        description: 'A wonder-filled ghost amazed by every flashcard. Wide-eyed and attentive.',
+        name: 'Sniffing Gmail',
+        description: 'A wonder-filled pug amazed by every new smell. Wide-eyed and attentive.',
         expression: 'wondering'
     }
 ];
@@ -66,22 +66,22 @@ export const accessories = [
     // Head items
     { id: 'wizard-hat', name: 'Wizard Hat', unlockAt: 7, slot: 'head', emoji: '🎩' },
     { id: 'graduation-cap', name: 'Graduation Cap', unlockAt: 30, slot: 'head', emoji: '🎓' },
-    { id: 'crown', name: 'Crown', unlockAt: 60, slot: 'head', emoji: '👑' },
-    { id: 'halo', name: 'Halo', unlockAt: 100, slot: 'head', emoji: '😇' },
-    
+    { id: 'crown', name: 'Royal Crown', unlockAt: 60, slot: 'head', emoji: '👑' },
+    { id: 'halo', name: 'Good Boy Halo', unlockAt: 100, slot: 'head', emoji: '😇' },
+
     // Face items
-    { id: 'glasses', name: 'Reading Glasses', unlockAt: 14, slot: 'face', emoji: '👓' },
-    { id: 'monocle', name: 'Monocle', unlockAt: 21, slot: 'face', emoji: '🧐' },
+    { id: 'glasses', name: 'Smarty Glasses', unlockAt: 14, slot: 'face', emoji: '👓' },
+    { id: 'monocle', name: 'Fancy Monocle', unlockAt: 21, slot: 'face', emoji: '🧐' },
     { id: 'sunglasses', name: 'Cool Shades', unlockAt: 45, slot: 'face', emoji: '😎' },
-    
+
     // Body items
-    { id: 'scarf', name: 'Cozy Scarf', unlockAt: 10, slot: 'body', emoji: '🧣' },
-    { id: 'bowtie', name: 'Bow Tie', unlockAt: 25, slot: 'body', emoji: '🎀' },
-    { id: 'cape', name: 'Hero Cape', unlockAt: 50, slot: 'body', emoji: '🦸' },
-    
+    { id: 'scarf', name: 'Winter Scarf', unlockAt: 10, slot: 'body', emoji: '🧣' },
+    { id: 'bowtie', name: 'Dapper Bowtie', unlockAt: 25, slot: 'body', emoji: '🎀' },
+    { id: 'cape', name: 'Super Pug Cape', unlockAt: 50, slot: 'body', emoji: '🦸' },
+
     // Trail effects
-    { id: 'sparkles', name: 'Sparkle Trail', unlockAt: 5, slot: 'trail', emoji: '✨' },
-    { id: 'hearts', name: 'Heart Trail', unlockAt: 15, slot: 'trail', emoji: '💕' },
+    { id: 'sparkles', name: 'Magic Sparkles', unlockAt: 5, slot: 'trail', emoji: '✨' },
+    { id: 'hearts', name: 'Love Trail', unlockAt: 15, slot: 'trail', emoji: '💕' },
     { id: 'stars', name: 'Star Trail', unlockAt: 35, slot: 'trail', emoji: '⭐' },
     { id: 'rainbow', name: 'Rainbow Trail', unlockAt: 75, slot: 'trail', emoji: '🌈' }
 ];
@@ -89,56 +89,56 @@ export const accessories = [
 // Color palettes with unlock requirements
 export const colorPalettes = [
     {
-        id: 'classic',
-        name: 'Classic Ghost',
+        id: 'fawn',
+        name: 'Classic Fawn',
         unlockAt: 0,
-        primary: '#E8E8FF',
-        secondary: '#B8B8FF',
-        accent: '#8888FF'
+        primary: '#E5C29F',
+        secondary: '#333333',
+        accent: '#8B4513'
     },
     {
-        id: 'mint',
-        name: 'Mint Spirit',
+        id: 'black',
+        name: 'Midnight Black',
         unlockAt: 3,
-        primary: '#E8FFF0',
-        secondary: '#A8E8C0',
-        accent: '#68C890'
+        primary: '#1A1A1A',
+        secondary: '#333333',
+        accent: '#555555'
     },
     {
-        id: 'sunset',
-        name: 'Sunset Specter',
+        id: 'apricot',
+        name: 'Apricot Dream',
         unlockAt: 10,
-        primary: '#FFE8E0',
-        secondary: '#FFB8A0',
-        accent: '#FF8870'
+        primary: '#FBCEB1',
+        secondary: '#4A3728',
+        accent: '#D2691E'
     },
     {
-        id: 'ocean',
-        name: 'Ocean Phantom',
+        id: 'silver',
+        name: 'Silver Mist',
         unlockAt: 20,
-        primary: '#E0F0FF',
-        secondary: '#88C8FF',
-        accent: '#4090FF'
+        primary: '#C0C0C0',
+        secondary: '#2F4F4F',
+        accent: '#708090'
     },
     {
-        id: 'lavender',
-        name: 'Lavender Dream',
+        id: 'chocolate',
+        name: 'Choco Pug',
         unlockAt: 30,
-        primary: '#F0E8FF',
-        secondary: '#D0B8FF',
-        accent: '#A078FF'
+        primary: '#7B3F00',
+        secondary: '#3D2B1F',
+        accent: '#A0522D'
     },
     {
         id: 'golden',
-        name: 'Golden Apparition',
+        name: 'Golden Retriever?',
         unlockAt: 50,
-        primary: '#FFF8E0',
-        secondary: '#FFE088',
-        accent: '#FFC030'
+        primary: '#FFD700',
+        secondary: '#B8860B',
+        accent: '#DAA520'
     },
     {
         id: 'cosmic',
-        name: 'Cosmic Entity',
+        name: 'Cosmic Gmail',
         unlockAt: 100,
         primary: '#1a1a2e',
         secondary: '#4a00e0',
@@ -195,16 +195,16 @@ export function getNextUnlock(longestStreak) {
     const nextAccessory = accessories
         .filter(a => a.unlockAt > longestStreak)
         .sort((a, b) => a.unlockAt - b.unlockAt)[0];
-    
+
     const nextPalette = colorPalettes
         .filter(p => p.unlockAt > longestStreak)
         .sort((a, b) => a.unlockAt - b.unlockAt)[0];
 
     if (!nextAccessory && !nextPalette) return null;
-    
+
     if (!nextAccessory) return { type: 'palette', item: nextPalette, daysAway: nextPalette.unlockAt - longestStreak };
     if (!nextPalette) return { type: 'accessory', item: nextAccessory, daysAway: nextAccessory.unlockAt - longestStreak };
-    
+
     if (nextAccessory.unlockAt <= nextPalette.unlockAt) {
         return { type: 'accessory', item: nextAccessory, daysAway: nextAccessory.unlockAt - longestStreak };
     }
@@ -213,7 +213,7 @@ export function getNextUnlock(longestStreak) {
 
 /**
  * Load saved customization from storage
- * @returns {GhostCustomization}
+ * @returns {PugCustomization}
  */
 export function loadCustomization() {
     try {
@@ -222,33 +222,33 @@ export function loadCustomization() {
             return JSON.parse(stored);
         }
     } catch (e) {
-        console.error('Failed to load ghost customization:', e);
+        console.error('Failed to load Gmail customization:', e);
     }
     return {
-        ghostType: 'bookworm',
-        colorPalette: 'classic',
+        pugType: 'bookworm',
+        colorPalette: 'fawn',
         accessories: []
     };
 }
 
 /**
  * Save customization to storage
- * @param {GhostCustomization} customization 
+ * @param {PugCustomization} customization 
  */
 export function saveCustomization(customization) {
     try {
         localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(customization));
     } catch (e) {
-        console.error('Failed to save ghost customization:', e);
+        console.error('Failed to save Gmail customization:', e);
     }
 }
 
 /**
  * Equip an accessory (validates against streak and slot limits)
- * @param {GhostCustomization} current 
+ * @param {PugCustomization} current 
  * @param {string} accessoryId 
  * @param {number} longestStreak 
- * @returns {GhostCustomization}
+ * @returns {PugCustomization}
  */
 export function equipAccessory(current, accessoryId, longestStreak) {
     if (!isAccessoryUnlocked(accessoryId, longestStreak)) {
@@ -272,9 +272,9 @@ export function equipAccessory(current, accessoryId, longestStreak) {
 
 /**
  * Unequip an accessory
- * @param {GhostCustomization} current 
+ * @param {PugCustomization} current 
  * @param {string} accessoryId 
- * @returns {GhostCustomization}
+ * @returns {PugCustomization}
  */
 export function unequipAccessory(current, accessoryId) {
     return {
@@ -284,24 +284,24 @@ export function unequipAccessory(current, accessoryId) {
 }
 
 /**
- * Set ghost type
- * @param {GhostCustomization} current 
- * @param {string} ghostTypeId 
- * @returns {GhostCustomization}
+ * Set pug type
+ * @param {PugCustomization} current 
+ * @param {string} pugTypeId 
+ * @returns {PugCustomization}
  */
-export function setGhostType(current, ghostTypeId) {
-    if (!ghostTypes.find(t => t.id === ghostTypeId)) {
+export function setPugType(current, pugTypeId) {
+    if (!pugTypes.find(t => t.id === pugTypeId)) {
         return current;
     }
-    return { ...current, ghostType: ghostTypeId };
+    return { ...current, pugType: pugTypeId };
 }
 
 /**
  * Set color palette (validates against streak)
- * @param {GhostCustomization} current 
+ * @param {PugCustomization} current 
  * @param {string} paletteId 
  * @param {number} longestStreak 
- * @returns {GhostCustomization}
+ * @returns {PugCustomization}
  */
 export function setColorPalette(current, paletteId, longestStreak) {
     if (!isPaletteUnlocked(paletteId, longestStreak)) {

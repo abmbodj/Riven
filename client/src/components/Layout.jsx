@@ -24,7 +24,7 @@ export default function Layout({ children }) {
     }, []);
 
     return (
-        <div className="min-h-[100dvh] bg-claude-bg text-claude-text font-sans flex flex-col">
+        <div className="h-[100dvh] bg-claude-bg text-claude-text font-sans flex flex-col overflow-hidden">
             {/* Offline banner */}
             {isOffline && (
                 <div className="bg-orange-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top">
