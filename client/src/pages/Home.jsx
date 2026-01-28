@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-    Layers, ChevronRight, RefreshCw, Sparkles, Folder, 
+import {
+    Layers, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon, Ghost, Settings
 } from 'lucide-react';
 import { api } from '../api';
@@ -21,31 +21,31 @@ export default function Home() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
-    
+
     // Ghost pet state
     const streak = useStreakContext();
     const [showGhostGallery, setShowGhostGallery] = useState(false);
     const [showGhostCustomizer, setShowGhostCustomizer] = useState(false);
-    
+
     // View state
     const [activeFolder, setActiveFolder] = useState(null);
     const [activeTag, setActiveTag] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('newest'); // newest, oldest, alphabetical, cards
     const [showSortMenu, setShowSortMenu] = useState(false);
-    
+
     // Modals
     const [showFolderModal, setShowFolderModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
     const [editingFolder, setEditingFolder] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, type: null, item: null });
-    
+
     // Form state
     const [newFolder, setNewFolder] = useState({ name: '', color: '#6366f1' });
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
 
     const folderColors = [
-        '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', 
+        '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
         '#f59e0b', '#22c55e', '#06b6d4', '#3b82f6'
     ];
 
@@ -61,7 +61,7 @@ export default function Home() {
             setFolders(foldersData);
             setTags(tagsData);
             setError(null);
-            
+
             if (decksData.length === 0 && foldersData.length === 0 && !localStorage.getItem('riven_onboarded')) {
                 setShowOnboarding(true);
             }
@@ -206,8 +206,8 @@ export default function Home() {
             <ConfirmModal
                 isOpen={deleteConfirm.show}
                 title={`Delete ${deleteConfirm.type}?`}
-                message={deleteConfirm.type === 'folder' 
-                    ? 'Decks inside will be moved to your library.' 
+                message={deleteConfirm.type === 'folder'
+                    ? 'Decks inside will be moved to your library.'
                     : 'This tag will be removed from all decks.'}
                 onConfirm={() => {
                     if (deleteConfirm.type === 'folder') handleDeleteFolder();
@@ -277,7 +277,7 @@ export default function Home() {
                                 </div>
                             </div>
                             {editingFolder && (
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => {
                                         setShowFolderModal(false);
@@ -341,12 +341,12 @@ export default function Home() {
             {/* Header */}
             <div className="px-4 mb-4">
                 {/* Ghost Pet Section */}
-                <div 
+                <div
                     className="mb-6 p-4 rounded-2xl flex items-center gap-4"
                     style={{ backgroundColor: 'var(--card)' }}
                 >
                     <div onClick={() => setShowGhostCustomizer(true)} className="cursor-pointer">
-                        <GhostPet 
+                        <GhostPet
                             stage={streak.ghostStage}
                             status={streak.status}
                             streak={streak.currentStreak}
@@ -364,11 +364,11 @@ export default function Home() {
                             {streak.status === 'broken' && <span>💤</span>}
                         </div>
                         <p className="text-xs opacity-70" style={{ color: 'var(--muted-foreground)' }}>
-                            {streak.status === 'broken' 
+                            {streak.status === 'broken'
                                 ? 'Study to revive your ghost!'
                                 : streak.status === 'at-risk'
                                     ? `${Math.round(streak.hoursRemaining)}h left to maintain streak`
-                                    : streak.studiedToday 
+                                    : streak.studiedToday
                                         ? 'Great job today!'
                                         : 'Study to grow your ghost'}
                         </p>
@@ -420,7 +420,7 @@ export default function Home() {
                         <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
-                
+
                 {/* Search bar */}
                 <div className="relative mb-4">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
@@ -441,7 +441,10 @@ export default function Home() {
                         <h2 className="text-sm font-bold uppercase tracking-widest text-claude-secondary">Folders</h2>
                         <span className="text-[10px] text-claude-secondary hidden sm:inline">(hold to edit)</span>
                     </div>
-                    <button onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }} className="text-claude-accent text-sm font-semibold flex items-center gap-1">
+                    <button
+                        onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }}
+                        className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform"
+                    >
                         <Plus className="w-4 h-4" /> Add
                     </button>
                 </div>
@@ -454,18 +457,18 @@ export default function Home() {
                         <span className="font-medium text-sm">All</span>
                         <span className="text-xs opacity-70">{decks.length}</span>
                     </button>
-                    
+
                     {folders.map(folder => (
                         <button
                             key={folder.id}
                             onClick={() => setActiveFolder(activeFolder === folder.id ? null : folder.id)}
-                            onContextMenu={(e) => {
+                            onDoubleClick={(e) => {
                                 e.preventDefault();
                                 setEditingFolder(folder);
                                 setNewFolder({ name: folder.name, color: folder.color });
                                 setShowFolderModal(true);
                             }}
-                            className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-colors ${activeFolder === folder.id ? 'text-white' : 'bg-claude-surface border border-claude-border'}`}
+                            className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-all active:scale-95 ${activeFolder === folder.id ? 'text-white shadow-md' : 'bg-claude-surface border border-claude-border'}`}
                             style={activeFolder === folder.id ? { backgroundColor: folder.color } : {}}
                         >
                             <Folder className="w-4 h-4" style={activeFolder !== folder.id ? { color: folder.color } : {}} />
@@ -473,7 +476,7 @@ export default function Home() {
                             <span className="text-xs opacity-70">{folder.deckCount}</span>
                         </button>
                     ))}
-                    
+
                     <button
                         onClick={() => setActiveFolder(activeFolder === 'unfiled' ? null : 'unfiled')}
                         className={`shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 transition-colors ${activeFolder === 'unfiled' ? 'bg-claude-secondary text-white' : 'bg-claude-surface border border-claude-border text-claude-secondary'}`}
@@ -488,7 +491,10 @@ export default function Home() {
             <div className="px-4 mb-6">
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-claude-secondary">Tags</h2>
-                    <button onClick={() => setShowTagModal(true)} className="text-claude-accent text-sm font-semibold flex items-center gap-1">
+                    <button
+                        onClick={() => setShowTagModal(true)}
+                        className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform"
+                    >
                         <Plus className="w-4 h-4" /> Add
                     </button>
                 </div>
@@ -497,7 +503,7 @@ export default function Home() {
                         <button
                             key={tag.id}
                             onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
-                            className={`shrink-0 px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors text-sm ${activeTag === tag.id ? 'text-white' : 'bg-claude-surface border border-claude-border'}`}
+                            className={`shrink-0 px-3 py-2 rounded-full flex items-center gap-1.5 transition-all active:scale-95 text-sm ${activeTag === tag.id ? 'text-white shadow-sm' : 'bg-claude-surface border border-claude-border'}`}
                             style={activeTag === tag.id ? { backgroundColor: tag.color } : {}}
                         >
                             <Hash className="w-3.5 h-3.5" style={activeTag !== tag.id ? { color: tag.color } : {}} />
@@ -545,7 +551,7 @@ export default function Home() {
                         Decks {filteredDecks.length !== decks.length && `(${filteredDecks.length})`}
                     </h2>
                     <div className="relative">
-                        <button 
+                        <button
                             onClick={() => setShowSortMenu(!showSortMenu)}
                             className="flex items-center gap-1.5 text-claude-secondary text-sm"
                         >
@@ -576,7 +582,7 @@ export default function Home() {
                         )}
                     </div>
                 </div>
-                
+
                 {filteredDecks.length === 0 ? (
                     <div className="text-center py-12 bg-claude-surface border border-claude-border rounded-2xl">
                         {decks.length === 0 ? (
@@ -598,7 +604,7 @@ export default function Home() {
                     <div className="space-y-3">
                         {filteredDecks.map(deck => (
                             <Link key={deck.id} to={`/deck/${deck.id}`} className="claude-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform">
-                                <div 
+                                <div
                                     className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                                     style={{ backgroundColor: deck.folder_id ? (folders.find(f => f.id === deck.folder_id)?.color || '#6366f1') + '20' : 'var(--color-surface)' }}
                                 >

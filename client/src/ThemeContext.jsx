@@ -57,8 +57,19 @@ export function ThemeProvider({ children }) {
         }
     }, []);
 
+    const toggleTheme = useCallback(async () => {
+        if (!themes.length || !activeTheme) return;
+        const isDark = activeTheme.name.toLowerCase().includes('dark');
+        const targetTheme = themes.find(t =>
+            isDark ? t.name.toLowerCase().includes('light') : t.name.toLowerCase().includes('dark')
+        );
+        if (targetTheme) {
+            await switchTheme(targetTheme.id);
+        }
+    }, [themes, activeTheme, switchTheme]);
+
     return (
-        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme }}>
+        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );

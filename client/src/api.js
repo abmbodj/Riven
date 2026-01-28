@@ -30,7 +30,7 @@ export const api = {
     deleteDeck: (id) => safeCall(() => db.deleteDeck(id)),
     duplicateDeck: (id) => safeCall(() => db.duplicateDeck(id)),
     exportDeck: (id, format) => safeCall(() => db.exportDeck(id, format)),
-    
+
     moveDeck: async (id, folderId) => {
         return safeCall(async () => {
             const deck = await db.getDeck(id);
@@ -48,15 +48,11 @@ export const api = {
     reorderCards: (deckId, cardIds) => safeCall(() => db.reorderCards(deckId, cardIds)),
 
     // ============ STUDY SESSIONS ============
-    saveStudySession: (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) => 
+    saveStudySession: (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) =>
         safeCall(() => db.saveStudySession(deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType)),
     getDeckStats: (deckId) => safeCall(() => db.getDeckStats(deckId)),
 
     // ============ THEMES ============
     getThemes: () => safeCall(() => db.getThemes()),
-    activateTheme: (id) => safeCall(() => db.setActiveTheme(id)),
-    createTheme: async () => {
-        console.warn('createTheme not implemented for offline mode');
-        return null;
-    },
+    activateTheme: (id) => safeCall(() => db.setActiveTheme(id))
 };

@@ -68,7 +68,7 @@ export default function ThemeSettings() {
 
                 <button
                     onClick={() => setShowCreator(true)}
-                    className="border-2 border-dashed border-claude-border rounded-2xl p-4 w-full flex items-center justify-center gap-2 text-claude-secondary active:bg-claude-surface transition-colors"
+                    className="border-2 border-dashed border-claude-border rounded-2xl p-6 w-full flex items-center justify-center gap-2 text-claude-secondary active:bg-claude-surface transition-all active:scale-95 mb-8"
                 >
                     <Plus className="w-5 h-5" />
                     <span className="font-semibold">Create Custom</span>
@@ -76,7 +76,7 @@ export default function ThemeSettings() {
             </div>
 
             {showCreator && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end">
                     <form onSubmit={handleCreate} className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 safe-area-bottom max-h-[85vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-display font-bold">New Theme</h3>

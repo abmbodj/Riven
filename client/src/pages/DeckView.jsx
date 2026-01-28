@@ -33,8 +33,8 @@ export default function DeckView() {
         api.getDeck(id)
             .then(data => {
                 setDeck(data);
-                setEditDeckData({ 
-                    title: data.title, 
+                setEditDeckData({
+                    title: data.title,
                     description: data.description || '',
                     folder_id: data.folder_id,
                     tagIds: data.tags?.map(t => t.id) || []
@@ -77,7 +77,7 @@ export default function DeckView() {
     const handleExport = async (format) => {
         try {
             const data = await api.exportDeck(id, format);
-            
+
             if (format === 'csv') {
                 const blob = new Blob([data], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
@@ -95,7 +95,7 @@ export default function DeckView() {
                 a.click();
                 URL.revokeObjectURL(url);
             }
-            
+
             toast.success(`Exported as ${format.toUpperCase()}`);
             setShowExportMenu(false);
         } catch {
@@ -107,16 +107,16 @@ export default function DeckView() {
         const cards = [...deck.cards];
         const idx = cards.findIndex(c => c.id === cardId);
         if (idx === -1) return;
-        
+
         const newIdx = direction === 'up' ? idx - 1 : idx + 1;
         if (newIdx < 0 || newIdx >= cards.length) return;
-        
+
         // Swap cards
         [cards[idx], cards[newIdx]] = [cards[newIdx], cards[idx]];
-        
+
         // Update positions locally
         setDeck({ ...deck, cards });
-        
+
         // Save to server
         try {
             await api.reorderCards(id, cards.map(c => c.id));
@@ -183,11 +183,11 @@ export default function DeckView() {
     const handleBulkImport = async (e) => {
         e.preventDefault();
         if (!bulkText.trim()) return;
-        
+
         // Parse the text - supports "front - back" or "front | back" or "front : back" per line
         const lines = bulkText.split('\n').filter(line => line.trim());
         const cards = [];
-        
+
         for (const line of lines) {
             // Try different separators
             let parts = null;
@@ -197,7 +197,7 @@ export default function DeckView() {
                     break;
                 }
             }
-            
+
             if (parts && parts.length >= 2) {
                 cards.push({
                     front: parts[0].trim(),
@@ -205,12 +205,12 @@ export default function DeckView() {
                 });
             }
         }
-        
+
         if (cards.length === 0) {
             toast.error('No valid cards found. Use "front - back" format.');
             return;
         }
-        
+
         try {
             // Add all cards
             for (const card of cards) {
@@ -256,7 +256,7 @@ export default function DeckView() {
     const handleTouchEnd = (cardId, e) => {
         const touchEndX = e.changedTouches[0].clientX;
         const diff = touchStartX.current - touchEndX;
-        
+
         if (diff > 80) {
             // Swiped left - show delete
             setSwipedCard(cardId);
@@ -284,8 +284,8 @@ export default function DeckView() {
             <ConfirmModal
                 isOpen={deleteConfirm.show}
                 title={deleteConfirm.type === 'deck' ? 'Delete Deck?' : 'Delete Card?'}
-                message={deleteConfirm.type === 'deck' 
-                    ? 'This will permanently delete the deck and all its cards.' 
+                message={deleteConfirm.type === 'deck'
+                    ? 'This will permanently delete the deck and all its cards.'
                     : 'This card will be permanently removed.'}
                 onConfirm={() => {
                     if (deleteConfirm.type === 'deck') {
@@ -308,7 +308,7 @@ export default function DeckView() {
                                 <X className="w-6 h-6 text-claude-secondary" />
                             </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-claude-bg rounded-xl p-4 text-center">
                                 <span className="text-2xl font-bold">{stats.total_sessions}</span>
@@ -366,7 +366,7 @@ export default function DeckView() {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={loadStats}
-                            className="p-2 text-claude-secondary active:text-claude-text"
+                            className="p-2 text-claude-secondary active:text-claude-text active:scale-95 transition-transform"
                             title="Statistics"
                         >
                             <BarChart3 className="w-5 h-5" />
@@ -374,7 +374,7 @@ export default function DeckView() {
                         <div className="relative">
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
-                                className="p-2 text-claude-secondary active:text-claude-text"
+                                className="p-2 text-claude-secondary active:text-claude-text active:scale-95 transition-transform"
                                 title="Export"
                             >
                                 <Download className="w-5 h-5" />
@@ -401,7 +401,7 @@ export default function DeckView() {
                         </div>
                         <button
                             onClick={handleDuplicate}
-                            className="p-2 text-claude-secondary active:text-claude-text"
+                            className="p-2 text-claude-secondary active:text-claude-text active:scale-95 transition-transform"
                             title="Duplicate"
                         >
                             <Copy className="w-5 h-5" />
@@ -409,14 +409,14 @@ export default function DeckView() {
                         {!editingDeck && (
                             <button
                                 onClick={() => setEditingDeck(true)}
-                                className="p-2 text-claude-secondary active:text-claude-text"
+                                className="p-2 text-claude-secondary active:text-claude-text active:scale-95 transition-transform"
                             >
                                 <Pencil className="w-5 h-5" />
                             </button>
                         )}
                         <button
                             onClick={() => setDeleteConfirm({ show: true, type: 'deck', id: id })}
-                            className="p-2 text-claude-secondary active:text-red-500"
+                            className="p-2 text-claude-secondary active:text-red-500 active:scale-95 transition-transform"
                         >
                             <Trash2 className="w-5 h-5" />
                         </button>
@@ -439,7 +439,7 @@ export default function DeckView() {
                             placeholder="Add a description..."
                             rows={2}
                         />
-                        
+
                         {/* Folder selector */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder</label>
@@ -499,7 +499,7 @@ export default function DeckView() {
                     <>
                         <h1 className="text-2xl font-display font-bold mb-1">{deck.title}</h1>
                         <p className="text-claude-secondary text-sm mb-3">{deck.description || 'No description'} · {deck.cards.length} cards</p>
-                        
+
                         {/* Folder & Tags display */}
                         <div className="flex items-center gap-2 flex-wrap">
                             {currentFolder && (
@@ -509,7 +509,7 @@ export default function DeckView() {
                                 </span>
                             )}
                             {deck.tags?.map(tag => (
-                                <span 
+                                <span
                                     key={tag.id}
                                     className="px-2.5 py-1 rounded-full text-xs font-medium text-white flex items-center gap-1"
                                     style={{ backgroundColor: tag.color }}
@@ -533,11 +533,10 @@ export default function DeckView() {
                             toast.error('Add some cards first');
                         }
                     }}
-                    className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${
-                        deck.cards.length > 0 
-                            ? 'bg-claude-accent text-white' 
-                            : 'bg-claude-accent/50 text-white/70'
-                    }`}
+                    className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length > 0
+                        ? 'bg-claude-accent text-white'
+                        : 'bg-claude-accent/50 text-white/70'
+                        }`}
                 >
                     <BookOpen className="w-5 h-5" />
                     <span className="font-semibold">Study</span>
@@ -550,11 +549,10 @@ export default function DeckView() {
                             toast.error('Need 4+ cards for test mode');
                         }
                     }}
-                    className={`flex-1 border p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${
-                        deck.cards.length >= 4 
-                            ? 'bg-claude-surface border-claude-border' 
-                            : 'bg-claude-surface/50 border-claude-border/50 text-claude-secondary'
-                    }`}
+                    className={`flex-1 border p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length >= 4
+                        ? 'bg-claude-surface border-claude-border'
+                        : 'bg-claude-surface/50 border-claude-border/50 text-claude-secondary'
+                        }`}
                 >
                     <Play className="w-5 h-5" />
                     <span className="font-semibold">Test</span>
@@ -562,24 +560,24 @@ export default function DeckView() {
             </div>
 
             {/* Cards header */}
-            <div className="px-4 flex items-center justify-between mb-4">
+            <div className="px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <h2 className="text-lg font-display font-bold">Cards</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <button
                         onClick={() => setReorderMode(!reorderMode)}
-                        className={`flex items-center gap-1.5 font-semibold text-sm ${reorderMode ? 'text-claude-accent' : 'text-claude-secondary'}`}
+                        className={`flex items-center gap-1.5 font-semibold text-sm active:scale-95 transition-transform px-2 py-1 ${reorderMode ? 'text-claude-accent' : 'text-claude-secondary'}`}
                     >
                         <GripVertical className="w-4 h-4" /> {reorderMode ? 'Done' : 'Reorder'}
                     </button>
                     <button
                         onClick={() => setShowBulkImport(true)}
-                        className="flex items-center gap-1.5 text-claude-secondary font-semibold text-sm"
+                        className="flex items-center gap-1.5 text-claude-secondary font-semibold text-sm active:scale-95 transition-transform px-2 py-1"
                     >
                         <FileText className="w-4 h-4" /> Import
                     </button>
                     <button
                         onClick={() => setShowAddCard(true)}
-                        className="flex items-center gap-1.5 text-claude-accent font-semibold text-sm"
+                        className="flex items-center gap-1.5 text-claude-accent font-semibold text-sm active:scale-95 transition-transform px-3 py-2 bg-claude-accent/10 rounded-lg"
                     >
                         <Plus className="w-4 h-4" /> Add
                     </button>
@@ -603,9 +601,9 @@ export default function DeckView() {
                             Paste multiple cards, one per line. Use <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">-</code> or <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">|</code> to separate front and back.
                         </p>
                         <div className="text-xs text-claude-secondary mb-3 bg-claude-bg rounded-lg p-3">
-                            <strong>Example:</strong><br/>
-                            hello - hola<br/>
-                            goodbye - adiós<br/>
+                            <strong>Example:</strong><br />
+                            hello - hola<br />
+                            goodbye - adiós<br />
                             thank you - gracias
                         </div>
                         <textarea
@@ -667,27 +665,26 @@ export default function DeckView() {
                     <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
                 )}
                 {deck.cards.map((card, idx) => (
-                    <div 
-                        key={card.id} 
+                    <div
+                        key={card.id}
                         className="relative overflow-hidden rounded-2xl"
                         onTouchStart={(e) => handleTouchStart(card.id, e)}
                         onTouchEnd={(e) => handleTouchEnd(card.id, e)}
                     >
                         {/* Delete button behind card */}
                         <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center">
-                            <button 
+                            <button
                                 onClick={() => setDeleteConfirm({ show: true, type: 'card', id: card.id })}
                                 className="p-3"
                             >
                                 <Trash2 className="w-6 h-6 text-white" />
                             </button>
                         </div>
-                        
+
                         {/* Card content */}
-                        <div 
-                            className={`claude-card p-4 transition-transform duration-200 ${
-                                swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
-                            }`}
+                        <div
+                            className={`claude-card p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
+                                }`}
                         >
                             {editingCard === card.id ? (
                                 <div className="space-y-3">
@@ -716,14 +713,14 @@ export default function DeckView() {
                             ) : reorderMode ? (
                                 <div className="flex items-center gap-3">
                                     <div className="flex flex-col gap-1">
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
                                             disabled={idx === 0}
                                             className="p-1 text-claude-secondary disabled:opacity-30"
                                         >
                                             <ChevronUp className="w-5 h-5" />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
                                             disabled={idx === deck.cards.length - 1}
                                             className="p-1 text-claude-secondary disabled:opacity-30"

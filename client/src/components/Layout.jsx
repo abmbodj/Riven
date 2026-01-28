@@ -1,57 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Zap, Palette, Home, Plus, WifiOff, Sun, Moon } from 'lucide-react';
-import { api } from '../api';
+import { ThemeContext } from '../ThemeContext';
 
 export default function Layout({ children }) {
     const location = useLocation();
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
-    const [isDarkMode, setIsDarkMode] = useState(true);
+    const { activeTheme, toggleTheme } = useContext(ThemeContext);
+    const isDarkMode = activeTheme?.name.toLowerCase().includes('dark');
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
         const handleOffline = () => setIsOffline(true);
-        
+
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
-        
-        // Check current theme
-        api.getThemes().then(themes => {
-            const activeTheme = themes.find(t => t.is_active);
-            if (activeTheme) {
-                setIsDarkMode(activeTheme.name.toLowerCase().includes('dark'));
-            }
-        }).catch(() => {});
-        
+
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
     }, []);
-
-    const toggleTheme = async () => {
-        try {
-            const themes = await api.getThemes();
-            const targetTheme = themes.find(t => 
-                isDarkMode ? t.name.toLowerCase().includes('light') : t.name.toLowerCase().includes('dark')
-            );
-            if (targetTheme) {
-                await api.activateTheme(targetTheme.id);
-                setIsDarkMode(!isDarkMode);
-                
-                // Apply theme colors
-                document.documentElement.style.setProperty('--bg-color', targetTheme.bg_color);
-                document.documentElement.style.setProperty('--surface-color', targetTheme.surface_color);
-                document.documentElement.style.setProperty('--text-color', targetTheme.text_color);
-                document.documentElement.style.setProperty('--secondary-text-color', targetTheme.secondary_text_color);
-                document.documentElement.style.setProperty('--border-color', targetTheme.border_color);
-                document.documentElement.style.setProperty('--accent-color', targetTheme.accent_color);
-            }
-        } catch {
-            console.error('Failed to toggle theme');
-        }
-    };
 
     return (
         <div className="min-h-[100dvh] bg-claude-bg text-claude-text font-sans flex flex-col">
@@ -73,7 +43,7 @@ export default function Layout({ children }) {
                         </div>
                         <span className="font-display font-bold text-xl tracking-tight">Riven</span>
                     </Link>
-                    <button 
+                    <button
                         onClick={toggleTheme}
                         className="w-10 h-10 flex items-center justify-center text-claude-secondary active:text-claude-text rounded-xl"
                     >
@@ -83,7 +53,7 @@ export default function Layout({ children }) {
             </header>
 
             {/* Main content - scrollable */}
-            <main className="flex-1 px-4 py-6 pb-24 overflow-y-auto">
+            <main className="flex-1 px-4 py-6 pb-32 overflow-y-auto">
                 {children}
             </main>
 
@@ -93,9 +63,8 @@ export default function Layout({ children }) {
                     <div className="flex items-center justify-around h-16 max-w-md mx-auto">
                         <Link
                             to="/"
-                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                                location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
-                            }`}
+                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
+                                }`}
                         >
                             <Home className="w-6 h-6" />
                             <span className="text-[10px] font-bold uppercase tracking-wider">Library</span>
@@ -110,9 +79,8 @@ export default function Layout({ children }) {
                         </Link>
                         <Link
                             to="/themes"
-                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                                location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
-                            }`}
+                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
+                                }`}
                         >
                             <Palette className="w-6 h-6" />
                             <span className="text-[10px] font-bold uppercase tracking-wider">Themes</span>
