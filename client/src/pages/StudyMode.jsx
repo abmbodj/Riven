@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
 
 export default function StudyMode() {
@@ -10,13 +10,69 @@ export default function StudyMode() {
     const [isFlipped, setIsFlipped] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isShuffled, setIsShuffled] = useState(false);
+    const [spacedRepetitionMode, setSpacedRepetitionMode] = useState(false);
+    const [cardsCorrect, setCardsCorrect] = useState(0);
+    const [cardsStudied, setCardsStudied] = useState(0);
+    const startTime = useRef(Date.now());
 
     useEffect(() => {
         api.getDeck(id).then(data => {
-            setCards(data.cards);
+            // Sort cards by next_review date for spaced repetition (due cards first)
+            const sortedCards = [...data.cards].sort((a, b) => {
+                if (!a.next_review) return -1;
+                if (!b.next_review) return 1;
+                return new Date(a.next_review) - new Date(b.next_review);
+            });
+            setCards(sortedCards);
             setLoading(false);
         });
     }, [id]);
+
+    // Save session when leaving
+    useEffect(() => {
+        return () => {
+            if (cardsStudied > 0) {
+                const duration = Math.round((Date.now() - startTime.current) / 1000);
+                api.saveStudySession(id, cardsStudied, cardsCorrect, duration, 'study').catch(console.error);
+            }
+        };
+    }, [id, cardsStudied, cardsCorrect]);
+
+    const handleKnew = async () => {
+        if (!isFlipped) return;
+        const card = cards[currentIndex];
+        setCardsStudied(c => c + 1);
+        setCardsCorrect(c => c + 1);
+        
+        if (spacedRepetitionMode) {
+            await api.reviewCard(card.id, true).catch(console.error);
+        }
+        
+        if (currentIndex < cards.length - 1) {
+            setIsFlipped(false);
+            setTimeout(() => setCurrentIndex(c => c + 1), 150);
+        } else {
+            // End of deck
+            setIsFlipped(false);
+        }
+    };
+
+    const handleDidntKnow = async () => {
+        if (!isFlipped) return;
+        const card = cards[currentIndex];
+        setCardsStudied(c => c + 1);
+        
+        if (spacedRepetitionMode) {
+            await api.reviewCard(card.id, false).catch(console.error);
+        }
+        
+        if (currentIndex < cards.length - 1) {
+            setIsFlipped(false);
+            setTimeout(() => setCurrentIndex(c => c + 1), 150);
+        } else {
+            setIsFlipped(false);
+        }
+    };
 
     const handleNext = useCallback(() => {
         if (currentIndex < cards.length - 1) {
@@ -121,6 +177,21 @@ export default function StudyMode() {
                 <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">→</kbd> Next</span>
             </div>
 
+            {/* Spaced Repetition Toggle */}
+            <div className="flex justify-center mb-2">
+                <button
+                    onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        spacedRepetitionMode 
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                            : 'bg-claude-surface border border-claude-border text-claude-secondary'
+                    }`}
+                >
+                    <Brain className="w-3.5 h-3.5" />
+                    Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
+                </button>
+            </div>
+
             {/* Card area */}
             <div className="flex-1 flex items-center justify-center px-4 py-6">
                 <div
@@ -132,6 +203,15 @@ export default function StudyMode() {
                         <div className="absolute inset-0 bg-claude-surface rounded-3xl border border-claude-border flex flex-col items-center justify-center p-8 backface-hidden">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-4">Question</span>
                             <p className="text-2xl font-display font-semibold text-center leading-tight">{currentCard.front}</p>
+                            {currentCard.difficulty > 0 && (
+                                <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded-full ${
+                                    currentCard.difficulty >= 4 ? 'bg-red-500/20 text-red-400' :
+                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-green-500/20 text-green-400'
+                                }`}>
+                                    {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
+                                </span>
+                            )}
                             <span className="absolute bottom-6 text-xs text-claude-secondary">Tap to flip</span>
                         </div>
 
@@ -149,7 +229,14 @@ export default function StudyMode() {
             <div className="px-4 pb-8 shrink-0">
                 {isLastCard && isFlipped ? (
                     <div className="space-y-3 max-w-sm mx-auto">
-                        <p className="text-center text-claude-secondary text-sm mb-4">🎉 You've reviewed all cards!</p>
+                        <div className="text-center mb-4">
+                            <p className="text-claude-secondary text-sm">🎉 You've reviewed all cards!</p>
+                            {cardsStudied > 0 && (
+                                <p className="text-xs text-claude-secondary mt-1">
+                                    Score: {cardsCorrect}/{cardsStudied} ({Math.round((cardsCorrect/cardsStudied)*100)}%)
+                                </p>
+                            )}
+                        </div>
                         <button
                             onClick={handleRestart}
                             className="w-full py-4 rounded-2xl bg-claude-accent text-white font-semibold active:scale-[0.98] transition-transform"
@@ -162,6 +249,23 @@ export default function StudyMode() {
                         >
                             Back to Deck
                         </Link>
+                    </div>
+                ) : spacedRepetitionMode && isFlipped ? (
+                    <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
+                        <button
+                            onClick={handleDidntKnow}
+                            className="flex-1 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 flex items-center justify-center gap-2 font-semibold active:scale-95 transition-transform"
+                        >
+                            <ThumbsDown className="w-5 h-5" />
+                            Didn't Know
+                        </button>
+                        <button
+                            onClick={handleKnew}
+                            className="flex-1 h-14 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 flex items-center justify-center gap-2 font-semibold active:scale-95 transition-transform"
+                        >
+                            <ThumbsUp className="w-5 h-5" />
+                            Knew It
+                        </button>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-4">

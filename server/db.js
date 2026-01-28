@@ -44,6 +44,26 @@ function initDb() {
       deck_id INTEGER NOT NULL,
       front TEXT NOT NULL,
       back TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      difficulty INTEGER DEFAULT 0,
+      times_reviewed INTEGER DEFAULT 0,
+      times_correct INTEGER DEFAULT 0,
+      last_reviewed DATETIME,
+      next_review DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (deck_id) REFERENCES decks (id) ON DELETE CASCADE
+    );
+  `;
+
+  // Study sessions table
+  const createStudySessionsTable = `
+    CREATE TABLE IF NOT EXISTS study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      deck_id INTEGER NOT NULL,
+      cards_studied INTEGER DEFAULT 0,
+      cards_correct INTEGER DEFAULT 0,
+      duration_seconds INTEGER DEFAULT 0,
+      session_type TEXT DEFAULT 'study',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (deck_id) REFERENCES decks (id) ON DELETE CASCADE
     );
@@ -78,6 +98,7 @@ function initDb() {
   db.exec(createTagsTable);
   db.exec(createDecksTable);
   db.exec(createCardsTable);
+  db.exec(createStudySessionsTable);
   db.exec(createDeckTagsTable);
   db.exec(createThemesTable);
 
@@ -86,6 +107,29 @@ function initDb() {
     db.exec('ALTER TABLE decks ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL');
   } catch (e) {
     // Column already exists
+  }
+
+  // Add last_studied column to decks table if it doesn't exist
+  try {
+    db.exec('ALTER TABLE decks ADD COLUMN last_studied DATETIME');
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Add spaced repetition columns to cards if they don't exist
+  const cardColumns = ['position', 'difficulty', 'times_reviewed', 'times_correct', 'last_reviewed', 'next_review'];
+  for (const col of cardColumns) {
+    try {
+      if (col === 'position') {
+        db.exec(`ALTER TABLE cards ADD COLUMN ${col} INTEGER DEFAULT 0`);
+      } else if (['difficulty', 'times_reviewed', 'times_correct'].includes(col)) {
+        db.exec(`ALTER TABLE cards ADD COLUMN ${col} INTEGER DEFAULT 0`);
+      } else {
+        db.exec(`ALTER TABLE cards ADD COLUMN ${col} DATETIME`);
+      }
+    } catch (e) {
+      // Column already exists
+    }
   }
 
   // Seed preset tags if empty

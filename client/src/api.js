@@ -140,6 +140,69 @@ export const api = {
         return res.json();
     },
 
+    // ============ SPACED REPETITION ============
+    reviewCard: async (id, correct, difficulty) => {
+        const res = await fetch(`${API_URL}/cards/${id}/review`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correct, difficulty }),
+        });
+        if (!res.ok) throw new Error('Failed to update card review');
+        return res.json();
+    },
+
+    reorderCards: async (deckId, cardIds) => {
+        const res = await fetch(`${API_URL}/decks/${deckId}/reorder`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardIds }),
+        });
+        if (!res.ok) throw new Error('Failed to reorder cards');
+        return res.json();
+    },
+
+    // ============ STUDY SESSIONS ============
+    saveStudySession: async (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType = 'study') => {
+        const res = await fetch(`${API_URL}/study-sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                deck_id: deckId, 
+                cards_studied: cardsStudied, 
+                cards_correct: cardsCorrect, 
+                duration_seconds: durationSeconds,
+                session_type: sessionType
+            }),
+        });
+        if (!res.ok) throw new Error('Failed to save study session');
+        return res.json();
+    },
+
+    getDeckStats: async (deckId) => {
+        const res = await fetch(`${API_URL}/decks/${deckId}/stats`);
+        if (!res.ok) throw new Error('Failed to fetch deck stats');
+        return res.json();
+    },
+
+    // ============ DECK OPERATIONS ============
+    duplicateDeck: async (id) => {
+        const res = await fetch(`${API_URL}/decks/${id}/duplicate`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to duplicate deck');
+        return res.json();
+    },
+
+    exportDeck: async (id, format = 'json') => {
+        const res = await fetch(`${API_URL}/decks/${id}/export?format=${format}`);
+        if (!res.ok) throw new Error('Failed to export deck');
+        if (format === 'csv') {
+            return res.text();
+        }
+        return res.json();
+    },
+
+    // ============ THEMES ============
     getThemes: async () => {
         const res = await fetch(`${API_URL}/themes`);
         if (!res.ok) throw new Error('Failed to fetch themes');

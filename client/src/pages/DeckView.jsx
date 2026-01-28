@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -23,6 +23,10 @@ export default function DeckView() {
     const [swipedCard, setSwipedCard] = useState(null);
     const [showBulkImport, setShowBulkImport] = useState(false);
     const [bulkText, setBulkText] = useState('');
+    const [showStats, setShowStats] = useState(false);
+    const [stats, setStats] = useState(null);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [reorderMode, setReorderMode] = useState(false);
     const touchStartX = useRef(0);
 
     useEffect(() => {
@@ -49,6 +53,78 @@ export default function DeckView() {
                 toast.error('Failed to load deck');
             })
             .finally(() => setLoading(false));
+    };
+
+    const loadStats = async () => {
+        try {
+            const data = await api.getDeckStats(id);
+            setStats(data);
+            setShowStats(true);
+        } catch (err) {
+            toast.error('Failed to load statistics');
+        }
+    };
+
+    const handleDuplicate = async () => {
+        try {
+            const newDeck = await api.duplicateDeck(id);
+            toast.success('Deck duplicated!');
+            navigate(`/deck/${newDeck.id}`);
+        } catch (err) {
+            toast.error('Failed to duplicate deck');
+        }
+    };
+
+    const handleExport = async (format) => {
+        try {
+            const data = await api.exportDeck(id, format);
+            
+            if (format === 'csv') {
+                const blob = new Blob([data], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${deck.title}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } else {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${deck.title}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            toast.success(`Exported as ${format.toUpperCase()}`);
+            setShowExportMenu(false);
+        } catch (err) {
+            toast.error('Failed to export deck');
+        }
+    };
+
+    const handleMoveCard = async (cardId, direction) => {
+        const cards = [...deck.cards];
+        const idx = cards.findIndex(c => c.id === cardId);
+        if (idx === -1) return;
+        
+        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= cards.length) return;
+        
+        // Swap cards
+        [cards[idx], cards[newIdx]] = [cards[newIdx], cards[idx]];
+        
+        // Update positions locally
+        setDeck({ ...deck, cards });
+        
+        // Save to server
+        try {
+            await api.reorderCards(id, cards.map(c => c.id));
+        } catch (err) {
+            toast.error('Failed to reorder cards');
+            loadDeck(); // Reload on error
+        }
     };
 
     const handleDeleteDeck = async () => {
@@ -223,13 +299,114 @@ export default function DeckView() {
                 onCancel={() => setDeleteConfirm({ show: false, type: null, id: null })}
             />
 
+            {/* Stats Modal */}
+            {showStats && stats && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-claude-surface w-full max-w-sm rounded-3xl p-6 animate-in zoom-in-95 duration-300">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-display font-bold">Statistics</h3>
+                            <button onClick={() => setShowStats(false)} className="p-2">
+                                <X className="w-6 h-6 text-claude-secondary" />
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="bg-claude-bg rounded-xl p-4 text-center">
+                                <span className="text-2xl font-bold">{stats.total_sessions}</span>
+                                <p className="text-xs text-claude-secondary mt-1">Sessions</p>
+                            </div>
+                            <div className="bg-claude-bg rounded-xl p-4 text-center">
+                                <span className="text-2xl font-bold">{stats.accuracy}%</span>
+                                <p className="text-xs text-claude-secondary mt-1">Accuracy</p>
+                            </div>
+                            <div className="bg-claude-bg rounded-xl p-4 text-center">
+                                <span className="text-2xl font-bold">{stats.total_cards_studied}</span>
+                                <p className="text-xs text-claude-secondary mt-1">Cards Studied</p>
+                            </div>
+                            <div className="bg-claude-bg rounded-xl p-4 text-center">
+                                <span className="text-2xl font-bold">{Math.round(stats.total_time_seconds / 60)}m</span>
+                                <p className="text-xs text-claude-secondary mt-1">Time Spent</p>
+                            </div>
+                        </div>
+
+                        {stats.difficulty_distribution && (
+                            <div className="mb-4">
+                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Card Difficulty</h4>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 bg-green-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-green-400">{stats.difficulty_distribution.easy}</span>
+                                        <p className="text-[10px] text-green-400">Easy</p>
+                                    </div>
+                                    <div className="flex-1 bg-yellow-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-yellow-400">{stats.difficulty_distribution.medium}</span>
+                                        <p className="text-[10px] text-yellow-400">Medium</p>
+                                    </div>
+                                    <div className="flex-1 bg-red-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-red-400">{stats.difficulty_distribution.hard}</span>
+                                        <p className="text-[10px] text-red-400">Hard</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {stats.last_studied && (
+                            <p className="text-xs text-claude-secondary text-center">
+                                Last studied: {new Date(stats.last_studied).toLocaleDateString()}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="px-4 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <Link to="/" className="p-2 -ml-2 text-claude-secondary active:text-claude-text">
                         <ArrowLeft className="w-6 h-6" />
                     </Link>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={loadStats}
+                            className="p-2 text-claude-secondary active:text-claude-text"
+                            title="Statistics"
+                        >
+                            <BarChart3 className="w-5 h-5" />
+                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                className="p-2 text-claude-secondary active:text-claude-text"
+                                title="Export"
+                            >
+                                <Download className="w-5 h-5" />
+                            </button>
+                            {showExportMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                                    <div className="absolute right-0 top-full mt-1 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[120px]">
+                                        <button
+                                            onClick={() => handleExport('json')}
+                                            className="w-full px-4 py-2.5 text-sm text-left hover:bg-claude-bg"
+                                        >
+                                            Export JSON
+                                        </button>
+                                        <button
+                                            onClick={() => handleExport('csv')}
+                                            className="w-full px-4 py-2.5 text-sm text-left hover:bg-claude-bg border-t border-claude-border"
+                                        >
+                                            Export CSV
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <button
+                            onClick={handleDuplicate}
+                            className="p-2 text-claude-secondary active:text-claude-text"
+                            title="Duplicate"
+                        >
+                            <Copy className="w-5 h-5" />
+                        </button>
                         {!editingDeck && (
                             <button
                                 onClick={() => setEditingDeck(true)}
@@ -390,6 +567,12 @@ export default function DeckView() {
                 <h2 className="text-lg font-display font-bold">Cards</h2>
                 <div className="flex items-center gap-3">
                     <button
+                        onClick={() => setReorderMode(!reorderMode)}
+                        className={`flex items-center gap-1.5 font-semibold text-sm ${reorderMode ? 'text-claude-accent' : 'text-claude-secondary'}`}
+                    >
+                        <GripVertical className="w-4 h-4" /> {reorderMode ? 'Done' : 'Reorder'}
+                    </button>
+                    <button
                         onClick={() => setShowBulkImport(true)}
                         className="flex items-center gap-1.5 text-claude-secondary font-semibold text-sm"
                     >
@@ -530,6 +713,31 @@ export default function DeckView() {
                                             Cancel
                                         </button>
                                     </div>
+                                </div>
+                            ) : reorderMode ? (
+                                <div className="flex items-center gap-3">
+                                    <div className="flex flex-col gap-1">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
+                                            disabled={idx === 0}
+                                            className="p-1 text-claude-secondary disabled:opacity-30"
+                                        >
+                                            <ChevronUp className="w-5 h-5" />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
+                                            disabled={idx === deck.cards.length - 1}
+                                            className="p-1 text-claude-secondary disabled:opacity-30"
+                                        >
+                                            <ChevronDown className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <span className="text-claude-border font-display font-bold text-sm">{idx + 1}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm mb-1">{card.front}</p>
+                                        <p className="text-claude-secondary text-sm">{card.back}</p>
+                                    </div>
+                                    <GripVertical className="w-5 h-5 text-claude-secondary shrink-0" />
                                 </div>
                             ) : (
                                 <div className="flex gap-3" onClick={() => handleEditCard(card)}>
