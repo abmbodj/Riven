@@ -15,7 +15,13 @@ export default function StudyMode() {
     const [cardsCorrect, setCardsCorrect] = useState(0);
     const [cardsStudied, setCardsStudied] = useState(0);
     const startTime = useRef(Date.now());
+    const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0 });
     const { incrementStreak } = useStreakContext();
+
+    // Keep ref in sync with state for cleanup
+    useEffect(() => {
+        sessionDataRef.current = { cardsStudied, cardsCorrect };
+    }, [cardsStudied, cardsCorrect]);
 
     useEffect(() => {
         api.getDeck(id).then(data => {
@@ -27,20 +33,25 @@ export default function StudyMode() {
             });
             setCards(sortedCards);
             setLoading(false);
+        }).catch(err => {
+            console.error('Failed to load deck:', err);
+            setLoading(false);
         });
     }, [id]);
 
-    // Save session when leaving
+    // Save session when leaving (using ref to avoid stale closure)
     useEffect(() => {
+        const currentId = id;
         return () => {
+            const { cardsStudied, cardsCorrect } = sessionDataRef.current;
             if (cardsStudied > 0) {
                 const duration = Math.round((Date.now() - startTime.current) / 1000);
-                api.saveStudySession(id, cardsStudied, cardsCorrect, duration, 'study').catch(console.error);
+                api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(console.error);
                 // Increment streak when completing a study session
                 incrementStreak();
             }
         };
-    }, [id, cardsStudied, cardsCorrect, incrementStreak]);
+    }, [id, incrementStreak]);
 
     const handleKnew = async () => {
         if (!isFlipped) return;
