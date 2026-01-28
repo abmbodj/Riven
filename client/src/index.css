@@ -161,4 +161,82 @@
   .page-exit {
     @apply animate-out fade-out slide-out-to-left-4 duration-150;
   }
+
+  /* Native button press states */
+  .native-press {
+    @apply active:scale-[0.96] active:opacity-80 transition-all duration-100 ease-out;
+  }
+
+  /* Smooth list item */
+  .list-item {
+    @apply px-4 py-4 active:bg-claude-surface/50 transition-colors duration-75;
+  }
+
+  /* iOS-style segmented control */
+  .segmented-control {
+    @apply flex bg-claude-surface rounded-xl p-1 gap-1;
+  }
+
+  .segmented-item {
+    @apply flex-1 py-2 px-4 rounded-lg text-sm font-medium text-center transition-all duration-150;
+  }
+
+  .segmented-item-active {
+    @apply bg-claude-accent text-white shadow-sm;
+  }
+
+  /* Native switch track */
+  .switch-track {
+    @apply relative w-12 h-7 rounded-full transition-colors duration-200 cursor-pointer;
+    background-color: var(--border-color);
+  }
+
+  .switch-track[data-checked="true"] {
+    background-color: var(--accent-color);
+  }
+
+  .switch-thumb {
+    @apply absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200;
+  }
+
+  .switch-track[data-checked="true"] .switch-thumb {
+    @apply translate-x-5;
+  }
+
+  /* Card with gesture hints */
+  .swipe-card {
+    @apply touch-pan-y;
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply w-14 h-14 rounded-full flex items-center justify-center shadow-lg;
+    @apply active:scale-90 transition-transform duration-100;
+    background-color: var(--accent-color);
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-claude-border animate-pulse rounded-lg;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 px-8 text-center;
+  }
+
+  /* Pill badge */
+  .pill {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  /* Divider */
+  .divider {
+    @apply h-px bg-claude-border;
+  }
+
+  /* Header blur effect for iOS-like sticky headers */
+  .header-blur {
+    @apply backdrop-blur-xl bg-claude-bg/80;
+  }
 }

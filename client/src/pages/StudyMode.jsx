@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
+import useHaptics from '../hooks/useHaptics';
+import useSwipeGesture from '../hooks/useSwipeGesture';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -17,6 +19,7 @@ export default function StudyMode() {
     const startTime = useRef(null);
     const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0 });
     const { incrementStreak } = useStreakContext();
+    const haptics = useHaptics();
 
     // Initialize start time on mount
     useEffect(() => {
@@ -96,27 +99,40 @@ export default function StudyMode() {
 
     const handleNext = useCallback(() => {
         if (currentIndex < cards.length - 1) {
+            haptics.light();
             setIsFlipped(false);
             setTimeout(() => setCurrentIndex(c => c + 1), 150);
         }
-    }, [currentIndex, cards.length]);
+    }, [currentIndex, cards.length, haptics]);
 
     const handlePrev = useCallback(() => {
         if (currentIndex > 0) {
+            haptics.light();
             setIsFlipped(false);
             setTimeout(() => setCurrentIndex(c => c - 1), 150);
         }
-    }, [currentIndex]);
+    }, [currentIndex, haptics]);
 
-    const handleFlip = useCallback(() => setIsFlipped(f => !f), []);
+    const handleFlip = useCallback(() => {
+        haptics.selection();
+        setIsFlipped(f => !f);
+    }, [haptics]);
 
     const handleShuffle = () => {
+        haptics.medium();
         const shuffled = [...cards].sort(() => Math.random() - 0.5);
         setCards(shuffled);
         setCurrentIndex(0);
         setIsFlipped(false);
         setIsShuffled(true);
     };
+
+    // Swipe gestures for card navigation
+    const swipeHandlers = useSwipeGesture({
+        onSwipeLeft: handleNext,
+        onSwipeRight: handlePrev,
+        threshold: 50
+    });
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -213,7 +229,7 @@ export default function StudyMode() {
             </div>
 
             {/* Card area */}
-            <div className="flex-1 flex items-center justify-center px-4 py-6">
+            <div className="flex-1 flex items-center justify-center px-4 py-6" {...swipeHandlers}>
                 <div
                     className={`w-full max-w-sm aspect-[3/4] cursor-pointer perspective-1000`}
                     onClick={handleFlip}

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
+import useHaptics from '../hooks/useHaptics';
 
 export default function TestMode() {
     const { id } = useParams();
@@ -15,6 +16,7 @@ export default function TestMode() {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [showFeedback, setShowFeedback] = useState(false);
     const { incrementStreak } = useStreakContext();
+    const haptics = useHaptics();
 
     const generateTest = useCallback((deckCards) => {
         if (deckCards.length < 4) {
@@ -63,7 +65,10 @@ export default function TestMode() {
         
         const isCorrect = selectedOption === questions[currentQIndex].correctAnswer;
         if (isCorrect) {
+            haptics.success();
             setScore(s => s + 1);
+        } else {
+            haptics.error();
         }
 
         // Show feedback for 1.2 seconds then move to next
