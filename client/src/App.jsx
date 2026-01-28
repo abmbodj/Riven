@@ -8,10 +8,12 @@ import StudyMode from './pages/StudyMode';
 import TestMode from './pages/TestMode';
 import ThemeSettings from './pages/ThemeSettings';
 import NotFound from './pages/NotFound';
+import MobileWarning from './components/MobileWarning';
 
 function App() {
   return (
     <BrowserRouter>
+      <MobileWarning />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
