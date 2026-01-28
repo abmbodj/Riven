@@ -4,6 +4,7 @@ export const AuthContext = createContext(null);
 
 const AUTH_STORAGE_KEY = 'riven_auth';
 const USERS_STORAGE_KEY = 'riven_users';
+const ADMIN_CREDENTIALS = { email: 'admin@riven.app', password: 'RivenAdmin2026!' };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => {
@@ -91,6 +92,25 @@ export function AuthProvider({ children }) {
 
     // Sign in
     const signIn = useCallback(async (email, password) => {
+        // Check for admin login
+        if (email.toLowerCase() === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+            const adminUser = {
+                id: 'admin',
+                username: 'Admin',
+                email: ADMIN_CREDENTIALS.email,
+                shareCode: 'ADMIN000',
+                createdAt: new Date().toISOString(),
+                avatar: null,
+                bio: 'System Administrator',
+                isAdmin: true,
+                sharedDecks: [],
+                receivedDecks: []
+            };
+            setUser(adminUser);
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser));
+            return adminUser;
+        }
+
         const users = getUsers();
         const found = users.find(
             u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
@@ -100,7 +120,7 @@ export function AuthProvider({ children }) {
             throw new Error('Invalid email or password');
         }
 
-        const sessionUser = { ...found };
+        const sessionUser = { ...found, isAdmin: false };
         delete sessionUser.password;
         setUser(sessionUser);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
@@ -277,11 +297,82 @@ export function AuthProvider({ children }) {
         return user.sharedDecks || [];
     }, [user]);
 
+    // ==================== ADMIN FUNCTIONS ====================
+
+    // Get all users (admin only)
+    const getAllUsers = useCallback(() => {
+        if (!user?.isAdmin) return [];
+        return getUsers().map(u => {
+            const userCopy = { ...u };
+            delete userCopy.password;
+            return userCopy;
+        });
+    }, [user, getUsers]);
+
+    // Update any user (admin only)
+    const adminUpdateUser = useCallback(async (userId, updates) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+
+        const users = getUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx === -1) throw new Error('User not found');
+
+        // Apply updates (but don't change password through this method)
+        const allowedUpdates = ['username', 'email', 'avatar', 'bio'];
+        allowedUpdates.forEach(key => {
+            if (updates[key] !== undefined) {
+                users[idx][key] = updates[key];
+            }
+        });
+
+        saveUsers(users);
+        return { ...users[idx], password: undefined };
+    }, [user, getUsers, saveUsers]);
+
+    // Delete any user (admin only)
+    const adminDeleteUser = useCallback(async (userId) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+
+        const users = getUsers();
+        const filtered = users.filter(u => u.id !== userId);
+        saveUsers(filtered);
+    }, [user, getUsers, saveUsers]);
+
+    // Get user's streak data (admin only) - reads from localStorage
+    const adminGetUserStreakData = useCallback(() => {
+        if (!user?.isAdmin) return null;
+        
+        // Get streak data - streak is stored globally, not per-user in current implementation
+        // For admin purposes, we'll read the global streak storage
+        try {
+            const streakData = localStorage.getItem('ghost_streak_data');
+            if (streakData) {
+                return JSON.parse(streakData);
+            }
+        } catch {
+            console.error('Failed to get streak data');
+        }
+        return null;
+    }, [user]);
+
+    // Update streak data (admin only)
+    const adminUpdateStreakData = useCallback((newStreakData) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+
+        try {
+            localStorage.setItem('ghost_streak_data', JSON.stringify(newStreakData));
+            return true;
+        } catch {
+            throw new Error('Failed to update streak data');
+        }
+    }, [user]);
+
     return (
         <AuthContext.Provider value={{
             user,
             loading,
             isLoggedIn: !!user,
+            isAdmin: user?.isAdmin || false,
             signUp,
             signIn,
             signOut,
@@ -293,7 +384,13 @@ export function AuthProvider({ children }) {
             getSharedDeck,
             importSharedDeck,
             unshareDeck,
-            getMySharedDecks
+            getMySharedDecks,
+            // Admin functions
+            getAllUsers,
+            adminUpdateUser,
+            adminDeleteUser,
+            adminGetUserStreakData,
+            adminUpdateStreakData
         }}>
             {children}
         </AuthContext.Provider>

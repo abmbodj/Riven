@@ -349,14 +349,30 @@ export default function Account() {
                 {/* Profile Card */}
                 <div className="bg-claude-surface border border-claude-border rounded-2xl p-6 mb-6">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-full bg-claude-accent/20 flex items-center justify-center">
-                            <User className="w-8 h-8 text-claude-accent" />
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${user?.isAdmin ? 'bg-gradient-to-br from-red-500 to-orange-500' : 'bg-claude-accent/20'}`}>
+                            {user?.isAdmin ? (
+                                <Shield className="w-8 h-8 text-white" />
+                            ) : (
+                                <User className="w-8 h-8 text-claude-accent" />
+                            )}
                         </div>
                         <div className="flex-1">
-                            <h2 className="text-xl font-bold">{user?.username}</h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-bold">{user?.username}</h2>
+                                {user?.isAdmin && (
+                                    <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ADMIN</span>
+                                )}
+                            </div>
                             <p className="text-sm text-claude-secondary">{user?.email}</p>
                         </div>
                     </div>
+
+                    {/* Admin Notice */}
+                    {user?.isAdmin && (
+                        <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
+                            <p className="text-sm text-red-400 font-medium">🛡️ Admin mode active - All Gmail perks unlocked</p>
+                        </div>
+                    )}
 
                     {/* Share Code */}
                     <div className="bg-claude-bg rounded-xl p-4 mt-4">

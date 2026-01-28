@@ -10,6 +10,7 @@ import ThemeSettings from './pages/ThemeSettings';
 import PetSettings from './pages/PetSettings';
 import Account from './pages/Account';
 import SharedDecks from './pages/SharedDecks';
+import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
 import MobileWarning from './components/MobileWarning';
 import { AuthProvider } from './context/AuthContext';
@@ -30,6 +31,7 @@ function App() {
             <Route path="/pet" element={<PetSettings />} />
             <Route path="/account" element={<Account />} />
             <Route path="/shared" element={<SharedDecks />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

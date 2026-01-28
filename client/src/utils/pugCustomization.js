@@ -150,9 +150,11 @@ export const colorPalettes = [
  * Check if an accessory is unlocked based on longest streak
  * @param {string} accessoryId 
  * @param {number} longestStreak 
+ * @param {boolean} isAdmin - Admin users have all items unlocked
  * @returns {boolean}
  */
-export function isAccessoryUnlocked(accessoryId, longestStreak) {
+export function isAccessoryUnlocked(accessoryId, longestStreak, isAdmin = false) {
+    if (isAdmin) return true;
     const accessory = accessories.find(a => a.id === accessoryId);
     return accessory ? longestStreak >= accessory.unlockAt : false;
 }
@@ -161,9 +163,11 @@ export function isAccessoryUnlocked(accessoryId, longestStreak) {
  * Check if a color palette is unlocked based on longest streak
  * @param {string} paletteId 
  * @param {number} longestStreak 
+ * @param {boolean} isAdmin - Admin users have all items unlocked
  * @returns {boolean}
  */
-export function isPaletteUnlocked(paletteId, longestStreak) {
+export function isPaletteUnlocked(paletteId, longestStreak, isAdmin = false) {
+    if (isAdmin) return true;
     const palette = colorPalettes.find(p => p.id === paletteId);
     return palette ? longestStreak >= palette.unlockAt : false;
 }
@@ -171,18 +175,22 @@ export function isPaletteUnlocked(paletteId, longestStreak) {
 /**
  * Get all unlocked accessories
  * @param {number} longestStreak 
+ * @param {boolean} isAdmin - Admin users have all items unlocked
  * @returns {Accessory[]}
  */
-export function getUnlockedAccessories(longestStreak) {
+export function getUnlockedAccessories(longestStreak, isAdmin = false) {
+    if (isAdmin) return accessories;
     return accessories.filter(a => longestStreak >= a.unlockAt);
 }
 
 /**
  * Get all unlocked color palettes
  * @param {number} longestStreak 
+ * @param {boolean} isAdmin - Admin users have all items unlocked
  * @returns {ColorPalette[]}
  */
-export function getUnlockedPalettes(longestStreak) {
+export function getUnlockedPalettes(longestStreak, isAdmin = false) {
+    if (isAdmin) return colorPalettes;
     return colorPalettes.filter(p => longestStreak >= p.unlockAt);
 }
 

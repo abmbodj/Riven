@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Palette, Sparkles, User, Lock, Check } from 'lucide-react';
 import PugPet from './PugPet';
+import { AuthContext } from '../context/AuthContext';
 import {
     pugTypes,
     accessories,
@@ -32,22 +33,26 @@ export default function PugCustomizer({
     status = 'active',
     onClose
 }) {
+    const { isAdmin } = useContext(AuthContext);
     const [customization, setCustomization] = useState(loadCustomization);
     const [activeTab, setActiveTab] = useState('type');
+
+    // Effective streak for admins (unlocks everything)
+    const effectiveStreak = isAdmin ? 999 : longestStreak;
 
     // Save whenever customization changes
     useEffect(() => {
         saveCustomization(customization);
     }, [customization]);
 
-    const nextUnlock = getNextUnlock(longestStreak);
+    const nextUnlock = isAdmin ? null : getNextUnlock(longestStreak);
 
     const handleTypeSelect = (typeId) => {
         setCustomization(prev => setPugType(prev, typeId));
     };
 
     const handlePaletteSelect = (paletteId) => {
-        setCustomization(prev => setColorPalette(prev, paletteId, longestStreak));
+        setCustomization(prev => setColorPalette(prev, paletteId, effectiveStreak));
     };
 
     const handleAccessoryToggle = (accessoryId) => {
@@ -55,7 +60,7 @@ export default function PugCustomizer({
         if (isEquipped) {
             setCustomization(prev => unequipAccessory(prev, accessoryId));
         } else {
-            setCustomization(prev => equipAccessory(prev, accessoryId, longestStreak));
+            setCustomization(prev => equipAccessory(prev, accessoryId, effectiveStreak));
         }
     };
 
@@ -174,7 +179,7 @@ export default function PugCustomizer({
                             {activeTab === 'colors' && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {colorPalettes.map(palette => {
-                                        const unlocked = isPaletteUnlocked(palette.id, longestStreak);
+                                        const unlocked = isPaletteUnlocked(palette.id, longestStreak, isAdmin);
                                         const selected = customization.colorPalette === palette.id;
 
                                         return (
@@ -238,7 +243,7 @@ export default function PugCustomizer({
                                             </h3>
                                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                                 {accessories.filter(a => a.slot === slot).map(accessory => {
-                                                    const unlocked = isAccessoryUnlocked(accessory.id, longestStreak);
+                                                    const unlocked = isAccessoryUnlocked(accessory.id, longestStreak, isAdmin);
                                                     const equipped = customization.accessories.includes(accessory.id);
 
                                                     return (
