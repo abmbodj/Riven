@@ -1,50 +1,61 @@
 import * as db from './db/indexedDB';
 
+// Wrapper to handle errors gracefully
+const safeCall = async (fn) => {
+    try {
+        return await fn();
+    } catch (error) {
+        console.error('Database operation failed:', error);
+        throw error;
+    }
+};
+
 export const api = {
     // ============ FOLDERS ============
-    getFolders: () => db.getFolders(),
-    createFolder: (name, color, icon) => db.createFolder(name, color, icon),
-    updateFolder: (id, name, color, icon) => db.updateFolder(id, name, color, icon),
-    deleteFolder: (id) => db.deleteFolder(id),
+    getFolders: () => safeCall(() => db.getFolders()),
+    createFolder: (name, color, icon) => safeCall(() => db.createFolder(name, color, icon)),
+    updateFolder: (id, name, color, icon) => safeCall(() => db.updateFolder(id, name, color, icon)),
+    deleteFolder: (id) => safeCall(() => db.deleteFolder(id)),
 
     // ============ TAGS ============
-    getTags: () => db.getTags(),
-    createTag: (name, color) => db.createTag(name, color),
-    deleteTag: (id) => db.deleteTag(id),
+    getTags: () => safeCall(() => db.getTags()),
+    createTag: (name, color) => safeCall(() => db.createTag(name, color)),
+    deleteTag: (id) => safeCall(() => db.deleteTag(id)),
 
     // ============ DECKS ============
-    getDecks: () => db.getDecks(),
-    getDeck: (id) => db.getDeck(id),
-    createDeck: (title, description, folderId, tagIds) => db.createDeck(title, description, folderId, tagIds || []),
-    updateDeck: (id, title, description, folderId, tagIds) => db.updateDeck(id, title, description, folderId, tagIds || []),
-    deleteDeck: (id) => db.deleteDeck(id),
-    duplicateDeck: (id) => db.duplicateDeck(id),
-    exportDeck: (id, format) => db.exportDeck(id, format),
+    getDecks: () => safeCall(() => db.getDecks()),
+    getDeck: (id) => safeCall(() => db.getDeck(id)),
+    createDeck: (title, description, folderId, tagIds) => safeCall(() => db.createDeck(title, description, folderId, tagIds || [])),
+    updateDeck: (id, title, description, folderId, tagIds) => safeCall(() => db.updateDeck(id, title, description, folderId, tagIds || [])),
+    deleteDeck: (id) => safeCall(() => db.deleteDeck(id)),
+    duplicateDeck: (id) => safeCall(() => db.duplicateDeck(id)),
+    exportDeck: (id, format) => safeCall(() => db.exportDeck(id, format)),
     
     moveDeck: async (id, folderId) => {
-        const deck = await db.getDeck(id);
-        return db.updateDeck(id, deck.title, deck.description, folderId, deck.tags?.map(t => t.id) || []);
+        return safeCall(async () => {
+            const deck = await db.getDeck(id);
+            return db.updateDeck(id, deck.title, deck.description, folderId, deck.tags?.map(t => t.id) || []);
+        });
     },
 
     // ============ CARDS ============
-    addCard: (deckId, front, back) => db.addCard(deckId, front, back),
-    updateCard: (id, front, back) => db.updateCard(id, front, back),
-    deleteCard: (id) => db.deleteCard(id),
+    addCard: (deckId, front, back) => safeCall(() => db.addCard(deckId, front, back)),
+    updateCard: (id, front, back) => safeCall(() => db.updateCard(id, front, back)),
+    deleteCard: (id) => safeCall(() => db.deleteCard(id)),
 
     // ============ SPACED REPETITION ============
-    reviewCard: (id, correct) => db.reviewCard(id, correct),
-    reorderCards: (deckId, cardIds) => db.reorderCards(deckId, cardIds),
+    reviewCard: (id, correct) => safeCall(() => db.reviewCard(id, correct)),
+    reorderCards: (deckId, cardIds) => safeCall(() => db.reorderCards(deckId, cardIds)),
 
     // ============ STUDY SESSIONS ============
     saveStudySession: (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) => 
-        db.saveStudySession(deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType),
-    getDeckStats: (deckId) => db.getDeckStats(deckId),
+        safeCall(() => db.saveStudySession(deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType)),
+    getDeckStats: (deckId) => safeCall(() => db.getDeckStats(deckId)),
 
     // ============ THEMES ============
-    getThemes: () => db.getThemes(),
-    activateTheme: (id) => db.setActiveTheme(id),
+    getThemes: () => safeCall(() => db.getThemes()),
+    activateTheme: (id) => safeCall(() => db.setActiveTheme(id)),
     createTheme: async (themeData) => {
-        // For IndexedDB we'd need to implement this, but themes are pre-set
         console.warn('createTheme not implemented for offline mode');
         return null;
     },

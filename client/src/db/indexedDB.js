@@ -4,6 +4,7 @@ const DB_NAME = 'riven-db';
 const DB_VERSION = 1;
 
 let dbPromise = null;
+let initialized = false;
 
 async function getDB() {
     if (!dbPromise) {
@@ -54,36 +55,46 @@ async function getDB() {
                 }
             }
         });
-
-        // Initialize default themes if needed
-        const db = await dbPromise;
-        const themeCount = await db.count('themes');
-        if (themeCount === 0) {
-            const defaultThemes = [
-                { name: 'Dark', bg_color: '#0a0a0b', surface_color: '#18181b', text_color: '#fafafa', secondary_text_color: '#a1a1aa', border_color: '#27272a', accent_color: '#6366f1', is_active: 1 },
-                { name: 'Light', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#18181b', secondary_text_color: '#71717a', border_color: '#e4e4e7', accent_color: '#6366f1', is_active: 0 },
-                { name: 'Ocean', bg_color: '#0c1929', surface_color: '#132f4c', text_color: '#e3f2fd', secondary_text_color: '#90caf9', border_color: '#1e4976', accent_color: '#42a5f5', is_active: 0 },
-                { name: 'Forest', bg_color: '#0d1f0d', surface_color: '#1a3a1a', text_color: '#e8f5e9', secondary_text_color: '#a5d6a7', border_color: '#2e5a2e', accent_color: '#66bb6a', is_active: 0 }
-            ];
-            for (const theme of defaultThemes) {
-                await db.add('themes', theme);
+    }
+    
+    const db = await dbPromise;
+    
+    // Initialize default data only once
+    if (!initialized) {
+        initialized = true;
+        try {
+            // Initialize default themes if needed
+            const themeCount = await db.count('themes');
+            if (themeCount === 0) {
+                const defaultThemes = [
+                    { name: 'Dark', bg_color: '#0a0a0b', surface_color: '#18181b', text_color: '#fafafa', secondary_text_color: '#a1a1aa', border_color: '#27272a', accent_color: '#6366f1', is_active: 1 },
+                    { name: 'Light', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#18181b', secondary_text_color: '#71717a', border_color: '#e4e4e7', accent_color: '#6366f1', is_active: 0 },
+                    { name: 'Ocean', bg_color: '#0c1929', surface_color: '#132f4c', text_color: '#e3f2fd', secondary_text_color: '#90caf9', border_color: '#1e4976', accent_color: '#42a5f5', is_active: 0 },
+                    { name: 'Forest', bg_color: '#0d1f0d', surface_color: '#1a3a1a', text_color: '#e8f5e9', secondary_text_color: '#a5d6a7', border_color: '#2e5a2e', accent_color: '#66bb6a', is_active: 0 }
+                ];
+                for (const theme of defaultThemes) {
+                    await db.add('themes', theme);
+                }
             }
-        }
 
-        // Initialize default tags if needed
-        const tagCount = await db.count('tags');
-        if (tagCount === 0) {
-            const defaultTags = [
-                { name: 'Important', color: '#ef4444', is_preset: 1, created_at: new Date().toISOString() },
-                { name: 'Review', color: '#f59e0b', is_preset: 1, created_at: new Date().toISOString() },
-                { name: 'Favorite', color: '#ec4899', is_preset: 1, created_at: new Date().toISOString() }
-            ];
-            for (const tag of defaultTags) {
-                await db.add('tags', tag);
+            // Initialize default tags if needed
+            const tagCount = await db.count('tags');
+            if (tagCount === 0) {
+                const defaultTags = [
+                    { name: 'Important', color: '#ef4444', is_preset: 1, created_at: new Date().toISOString() },
+                    { name: 'Review', color: '#f59e0b', is_preset: 1, created_at: new Date().toISOString() },
+                    { name: 'Favorite', color: '#ec4899', is_preset: 1, created_at: new Date().toISOString() }
+                ];
+                for (const tag of defaultTags) {
+                    await db.add('tags', tag);
+                }
             }
+        } catch (e) {
+            console.error('Error initializing default data:', e);
         }
     }
-    return dbPromise;
+    
+    return db;
 }
 
 // ============ FOLDERS ============
