@@ -6,13 +6,14 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
 
     return (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
+            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
             onClick={(e) => {
                 if (e.target === e.currentTarget) onCancel?.();
             }}
         >
             <div 
-                className="bg-claude-surface w-full max-w-sm rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+                className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-2xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-6 text-center">

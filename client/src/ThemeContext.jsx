@@ -57,8 +57,22 @@ export function ThemeProvider({ children }) {
         }
     }, []);
 
+    const deleteTheme = useCallback(async (themeId) => {
+        try {
+            // Don't allow deleting the active theme
+            if (activeTheme?.id === themeId) {
+                throw new Error('Cannot delete the active theme. Switch to another theme first.');
+            }
+            await api.deleteTheme(themeId);
+            setThemes(prev => prev.filter(t => t.id !== themeId));
+        } catch (err) {
+            console.error('Failed to delete theme', err);
+            throw err;
+        }
+    }, [activeTheme]);
+
     return (
-        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme }}>
+        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme, deleteTheme }}>
             {children}
         </ThemeContext.Provider>
     );

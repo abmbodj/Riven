@@ -142,8 +142,8 @@
 
   /* Native-feeling bottom sheet */
   .bottom-sheet {
-    @apply fixed inset-x-0 bottom-0 bg-claude-surface rounded-t-3xl z-50;
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    @apply fixed inset-x-0 bottom-0 bg-claude-surface rounded-t-3xl z-[60];
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 16px);
     max-height: 90vh;
     max-height: 90dvh;
   }

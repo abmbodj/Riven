@@ -486,8 +486,12 @@ export default function Account() {
 
             {/* Password Change Modal */}
             {showPasswordModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowPasswordModal(false)}>
-                    <div className="w-full max-w-sm bg-claude-surface rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" 
+                    style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                    onClick={() => setShowPasswordModal(false)}
+                >
+                    <div className="w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain bg-claude-surface rounded-2xl p-6" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-display font-bold mb-4">Change Password</h3>
                         <div className="space-y-4">
                             <input
@@ -532,8 +536,12 @@ export default function Account() {
 
             {/* Delete Account Confirmation */}
             {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm(false)}>
-                    <div className="w-full max-w-sm bg-claude-surface rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" 
+                    style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                    onClick={() => setShowDeleteConfirm(false)}
+                >
+                    <div className="w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain bg-claude-surface rounded-2xl p-6" onClick={e => e.stopPropagation()}>
                         <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                             <Trash2 className="w-8 h-8 text-red-500" />
                         </div>

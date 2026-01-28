@@ -35,11 +35,12 @@ export default function AlertModal({
 
     return (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
             onClick={onClose}
         >
             <div 
-                className={`w-full max-w-sm rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200`}
+                className={`w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200`}
                 style={{ backgroundColor: 'var(--surface-color)' }}
                 onClick={e => e.stopPropagation()}
             >

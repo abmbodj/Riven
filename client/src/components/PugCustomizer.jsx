@@ -74,13 +74,15 @@ export default function PugCustomizer({
 
     return (
         <div 
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 sm:p-4"
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-0 sm:p-4"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose?.();
             }}
         >
             <div
                 className="w-full h-full sm:h-auto sm:max-w-3xl sm:max-h-[85vh] overflow-hidden sm:rounded-2xl flex flex-col bg-claude-surface text-claude-text"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}

@@ -210,8 +210,11 @@ export default function Home() {
 
             {/* Onboarding modal */}
             {showOnboarding && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                    <div className="bg-claude-surface w-full max-w-sm rounded-3xl p-8 text-center animate-in zoom-in-95 duration-300">
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
+                    style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                >
+                    <div className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl p-8 text-center animate-in zoom-in-95 duration-300">
                         <div className="w-16 h-16 bg-claude-accent rounded-2xl flex items-center justify-center mx-auto mb-6">
                             <Sparkles className="w-8 h-8 text-white" />
                         </div>
@@ -234,7 +237,7 @@ export default function Home() {
             {/* Folder Modal */}
             {showFolderModal && (
                 <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             setShowFolderModal(false);
@@ -244,8 +247,8 @@ export default function Home() {
                 >
                     <form 
                         onSubmit={handleCreateFolder} 
-                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
@@ -303,15 +306,15 @@ export default function Home() {
             {/* Tag Modal */}
             {showTagModal && (
                 <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowTagModal(false);
                     }}
                 >
                     <form 
                         onSubmit={handleCreateTag} 
-                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">

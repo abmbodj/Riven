@@ -49,13 +49,15 @@ export default function PugGallery({ pastStreaks = [], longestStreak = 0, curren
 
     return (
         <div 
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 sm:p-4"
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-0 sm:p-4"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose?.();
             }}
         >
             <div
                 className="w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[85vh] overflow-y-auto rounded-none sm:rounded-2xl p-4 sm:p-8 bg-claude-surface text-claude-text custom-scrollbar overscroll-contain touch-pan-y"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}

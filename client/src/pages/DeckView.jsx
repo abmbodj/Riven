@@ -327,8 +327,11 @@ export default function DeckView() {
 
             {/* Stats Modal */}
             {showStats && stats && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-claude-surface w-full max-w-sm rounded-3xl p-6 animate-in zoom-in-95 duration-300">
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+                    style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                >
+                    <div className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl p-6 animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-display font-bold">Statistics</h3>
                             <button onClick={() => setShowStats(false)} className="p-2">
@@ -623,15 +626,15 @@ export default function DeckView() {
             {/* Bulk Import Modal */}
             {showBulkImport && (
                 <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowBulkImport(false);
                     }}
                 >
                     <form
                         onSubmit={handleBulkImport}
-                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] flex flex-col overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] flex flex-col overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -666,15 +669,15 @@ export default function DeckView() {
             {/* Add card modal */}
             {showAddCard && (
                 <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowAddCard(false);
                     }}
                 >
                     <form
                         onSubmit={handleAddCard}
-                        className="bg-claude-surface w-full p-6 pb-8 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
