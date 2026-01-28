@@ -11,13 +11,23 @@
   --secondary-text-color: #a1a19a;
   --border-color: #3d3d3a;
   --accent-color: #d97757;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @layer base {
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     background-color: var(--bg-color);
     color: var(--text-color);
     @apply font-sans antialiased transition-colors duration-300;
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    min-height: 100dvh;
   }
 
   h1,
@@ -27,6 +37,13 @@
   h5,
   h6 {
     @apply font-display font-semibold tracking-tight;
+  }
+
+  /* Disable text selection on interactive elements for mobile */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
   }
 }
 
@@ -47,22 +64,30 @@
     transform: rotateY(180deg);
   }
 
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   .claude-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
-    @apply rounded-2xl shadow-sm transition-all duration-300;
+    @apply rounded-2xl shadow-sm transition-all duration-200;
   }
 
   .claude-button-primary {
     background-color: var(--text-color);
     color: var(--bg-color);
-    @apply px-4 py-2 rounded-xl font-medium hover:bg-opacity-90 transition-all active:scale-[0.98];
+    @apply px-5 py-3 rounded-xl font-semibold active:scale-[0.98] transition-transform;
   }
 
   .claude-button-secondary {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
     color: var(--text-color);
-    @apply px-4 py-2 rounded-xl font-medium hover:bg-claude-bg transition-all active:scale-[0.98];
+    @apply px-5 py-3 rounded-xl font-semibold active:scale-[0.98] transition-transform;
   }
 }
