@@ -58,4 +58,28 @@ export const api = {
         if (!res.ok) throw new Error('Failed to delete card');
         return res.json();
     },
+
+    getThemes: async () => {
+        const res = await fetch(`${API_URL}/themes`);
+        if (!res.ok) throw new Error('Failed to fetch themes');
+        return res.json();
+    },
+
+    createTheme: async (themeData) => {
+        const res = await fetch(`${API_URL}/themes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(themeData),
+        });
+        if (!res.ok) throw new Error('Failed to create theme');
+        return res.json();
+    },
+
+    activateTheme: async (id) => {
+        const res = await fetch(`${API_URL}/themes/${id}/activate`, {
+            method: 'PUT',
+        });
+        if (!res.ok) throw new Error('Failed to activate theme');
+        return res.json();
+    },
 };

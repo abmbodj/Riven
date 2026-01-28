@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { Zap, Palette } from 'lucide-react';
 
 export default function Layout({ children }) {
     return (
@@ -9,12 +9,15 @@ export default function Layout({ children }) {
                 <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2.5 group">
                         <div className="w-8 h-8 bg-claude-text rounded-lg flex items-center justify-center group-hover:bg-claude-accent transition-colors duration-300">
-                            <Zap className="w-5 h-5 text-white fill-current" />
+                            <Zap className="w-5 h-5 text-claude-bg fill-current" />
                         </div>
-                        <span className="font-display font-bold text-xl tracking-tight">FlashZap</span>
+                        <span className="font-display font-bold text-xl tracking-tight">Riven</span>
                     </Link>
                     <nav className="flex items-center gap-6">
                         <Link to="/" className="text-sm font-medium text-claude-secondary hover:text-claude-text transition-colors">Library</Link>
+                        <Link to="/themes" className="p-2 text-claude-secondary hover:text-claude-text transition-colors" title="Theme Settings">
+                            <Palette className="w-5 h-5" />
+                        </Link>
                         <Link to="/create" className="claude-button-primary text-sm py-1.5 px-4">New Deck</Link>
                     </nav>
                 </div>

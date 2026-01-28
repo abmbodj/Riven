@@ -120,6 +120,41 @@ app.delete('/api/cards/:id', (req, res) => {
     }
 });
 
+// Get all themes
+app.get('/api/themes', (req, res) => {
+    try {
+        const themes = db.prepare('SELECT * FROM themes').all();
+        res.json(themes);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create a theme
+app.post('/api/themes', (req, res) => {
+    const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
+    try {
+        const stmt = db.prepare('INSERT INTO themes (name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        const info = stmt.run(name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color);
+        res.status(201).json({ id: info.lastInsertRowid, ...req.body });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Set active theme
+app.put('/api/themes/:id/activate', (req, res) => {
+    const { id } = req.params;
+    try {
+        db.prepare('UPDATE themes SET is_active = 0').run();
+        const info = db.prepare('UPDATE themes SET is_active = 1 WHERE id = ?').run(id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Theme not found' });
+        res.json({ message: 'Theme activated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
