@@ -7,6 +7,7 @@ import DeckView from './pages/DeckView';
 import StudyMode from './pages/StudyMode';
 import TestMode from './pages/TestMode';
 import ThemeSettings from './pages/ThemeSettings';
+import PetSettings from './pages/PetSettings';
 import NotFound from './pages/NotFound';
 import MobileWarning from './components/MobileWarning';
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="/deck/:id/study" element={<StudyMode />} />
           <Route path="/deck/:id/test" element={<TestMode />} />
           <Route path="/themes" element={<ThemeSettings />} />
+          <Route path="/pet" element={<PetSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>

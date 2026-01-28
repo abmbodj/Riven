@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Zap, Palette, Home, Plus, WifiOff, Sun, Moon } from 'lucide-react';
+import { Zap, Palette, Home, Plus, WifiOff, Sun, Moon, Dog } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';
 
 export default function Layout({ children }) {
@@ -33,57 +33,72 @@ export default function Layout({ children }) {
                 </div>
             )}
 
-            {/* Top header - simplified for mobile */}
-            <header className={`bg-claude-bg/90 backdrop-blur-md sticky top-0 z-10 border-b border-claude-border/50 ${!isOffline ? 'safe-area-top' : ''}`}>
-                <div className="px-4 h-14 flex items-center justify-between">
-                    <div className="w-10" /> {/* Spacer */}
-                    <Link to="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-claude-text rounded-lg flex items-center justify-center">
-                            <Zap className="w-5 h-5 text-claude-bg fill-current" />
-                        </div>
-                        <span className="font-display font-bold text-xl tracking-tight">Riven</span>
-                    </Link>
-                    <button
-                        onClick={toggleTheme}
-                        className="w-10 h-10 flex items-center justify-center text-claude-secondary active:text-claude-text rounded-xl"
-                    >
-                        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                    </button>
-                </div>
-            </header>
+            {/* Top header - hidden in study/test mode */}
+            {!isStudyOrTest && (
+                <header className={`bg-claude-bg/90 backdrop-blur-md sticky top-0 z-10 border-b border-claude-border/50 ${!isOffline ? 'safe-area-top' : ''}`}>
+                    <div className="px-4 h-14 flex items-center justify-between">
+                        <div className="w-10" /> {/* Spacer */}
+                        <Link to="/" className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-claude-text rounded-lg flex items-center justify-center">
+                                <Zap className="w-5 h-5 text-claude-bg fill-current" />
+                            </div>
+                            <span className="font-display font-bold text-xl tracking-tight">Riven</span>
+                        </Link>
+                        <button
+                            onClick={toggleTheme}
+                            className="w-10 h-10 flex items-center justify-center text-claude-secondary active:text-claude-text rounded-xl"
+                        >
+                            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        </button>
+                    </div>
+                </header>
+            )}
 
             {/* Main content - scrollable */}
-            <main className="flex-1 px-4 py-6 pb-36 overflow-y-auto overscroll-contain">
+            <main className={`flex-1 px-4 py-6 overflow-y-auto overscroll-contain ${isStudyOrTest ? 'pb-6 safe-area-top' : 'pb-40'}`}>
                 {children}
             </main>
 
             {/* Bottom navigation - mobile style */}
             {!isStudyOrTest && (
                 <nav className="fixed bottom-0 left-0 right-0 bg-claude-surface/95 backdrop-blur-md border-t border-claude-border safe-area-bottom z-20">
-                    <div className="flex items-center justify-around h-16 max-w-md mx-auto">
+                    <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
                         <Link
                             to="/"
-                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
-                                }`}
+                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                         >
-                            <Home className="w-6 h-6" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Library</span>
+                            <Home className="w-5 h-5" />
+                            <span className="text-[9px] font-bold uppercase tracking-wider">Library</span>
+                        </Link>
+                        <Link
+                            to="/pet"
+                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/pet' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                        >
+                            <Dog className="w-5 h-5" />
+                            <span className="text-[9px] font-bold uppercase tracking-wider">Gmail</span>
                         </Link>
                         <Link
                             to="/create"
-                            className="flex flex-col items-center gap-1 px-4 py-2 -mt-6"
+                            className="flex flex-col items-center gap-1 px-2 py-2 -mt-6"
                         >
-                            <div className="w-14 h-14 bg-claude-accent rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                                <Plus className="w-7 h-7 text-white" />
+                            <div className="w-12 h-12 bg-claude-accent rounded-2xl flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                                <Plus className="w-6 h-6 text-white" />
                             </div>
                         </Link>
                         <Link
                             to="/themes"
-                            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
-                                }`}
+                            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                         >
-                            <Palette className="w-6 h-6" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Themes</span>
+                            <Palette className="w-5 h-5" />
+                            <span className="text-[9px] font-bold uppercase tracking-wider">Themes</span>
+                        </Link>
+                        <Link
+                            to="/"
+                            onClick={(e) => { e.preventDefault(); toggleTheme?.(); }}
+                            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-claude-secondary active:text-claude-text"
+                        >
+                            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                            <span className="text-[9px] font-bold uppercase tracking-wider">Mode</span>
                         </Link>
                     </div>
                 </nav>

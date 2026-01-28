@@ -2,15 +2,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
-    X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon, Dog, Settings
+    X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
-import PugPet from '../components/PugPet';
-import PugGallery from '../components/PugGallery';
-import PugCustomizer from '../components/PugCustomizer';
-import { useStreakContext } from '../hooks/useStreakContext';
 
 export default function Home() {
     const toast = useToast();
@@ -21,11 +17,6 @@ export default function Home() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
-
-    // Pug pet state
-    const streak = useStreakContext();
-    const [showPugGallery, setShowPugGallery] = useState(false);
-    const [showPugCustomizer, setShowPugCustomizer] = useState(false);
 
     // View state
     const [activeFolder, setActiveFolder] = useState(null);
@@ -363,80 +354,6 @@ export default function Home() {
 
             {/* Header */}
             <div className="px-4 mb-4">
-                {/* Pug Pet Section */}
-                <div
-                    className="mb-6 p-4 rounded-2xl flex items-center gap-4"
-                    style={{ backgroundColor: 'var(--card)' }}
-                >
-                    <div onClick={() => setShowPugCustomizer(true)} className="cursor-pointer">
-                        <PugPet
-                            stage={streak.pugStage}
-                            status={streak.status}
-                            streak={streak.currentStreak}
-                            size="sm"
-                            showInfo={false}
-                        />
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold" style={{ color: 'var(--card-foreground)' }}>
-                                {streak.currentStreak} day{streak.currentStreak !== 1 ? 's' : ''}
-                            </span>
-                            {streak.status === 'active' && <span>🦴</span>}
-                            {streak.status === 'at-risk' && <span>🍖</span>}
-                            {streak.status === 'broken' && <span>😴</span>}
-                        </div>
-                        <p className="text-xs opacity-70" style={{ color: 'var(--muted-foreground)' }}>
-                            {streak.status === 'broken'
-                                ? 'Study to wake up Gmail!'
-                                : streak.status === 'at-risk'
-                                    ? `${Math.round(streak.hoursRemaining)}h left to feed Gmail`
-                                    : streak.studiedToday
-                                        ? 'Gmail is happy!'
-                                        : 'Study to grow Gmail'}
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setShowPugGallery(true)}
-                            className="p-2 rounded-lg transition-colors"
-                            style={{ backgroundColor: 'var(--muted)' }}
-                            title="View Gallery"
-                        >
-                            <Dog className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
-                        </button>
-                        <button
-                            onClick={() => setShowPugCustomizer(true)}
-                            className="p-2 rounded-lg transition-colors"
-                            style={{ backgroundColor: 'var(--muted)' }}
-                            title="Customize Gmail"
-                        >
-                            <Settings className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Pug Gallery Modal */}
-                {showPugGallery && (
-                    <PugGallery
-                        pastStreaks={streak.pastStreaks}
-                        longestStreak={streak.longestStreak}
-                        currentStreak={streak.currentStreak}
-                        onClose={() => setShowPugGallery(false)}
-                    />
-                )}
-
-                {/* Pug Customizer Modal */}
-                {showPugCustomizer && (
-                    <PugCustomizer
-                        longestStreak={streak.longestStreak}
-                        currentStreak={streak.currentStreak}
-                        pugStage={streak.pugStage}
-                        status={streak.status}
-                        onClose={() => setShowPugCustomizer(false)}
-                    />
-                )}
-
                 <div className="flex items-center justify-between mb-4">
                     <h1 className="text-2xl font-display font-bold">Library</h1>
                     <button onClick={() => loadData(true)} disabled={refreshing} className="p-2 text-claude-secondary active:text-claude-text disabled:opacity-50">
