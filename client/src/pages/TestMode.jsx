@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { RefreshCw, X, Trophy, Target } from 'lucide-react';
+import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api';
 
 export default function TestMode() {
@@ -11,6 +11,8 @@ export default function TestMode() {
     const [score, setScore] = useState(0);
     const [showResult, setShowResult] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [showFeedback, setShowFeedback] = useState(false);
 
     useEffect(() => {
         api.getDeck(id).then(data => {
@@ -50,15 +52,27 @@ export default function TestMode() {
     };
 
     const handleAnswer = (selectedOption) => {
-        if (selectedOption === questions[currentQIndex].correctAnswer) {
+        if (showFeedback) return; // Prevent double-tap
+        
+        setSelectedAnswer(selectedOption);
+        setShowFeedback(true);
+        
+        const isCorrect = selectedOption === questions[currentQIndex].correctAnswer;
+        if (isCorrect) {
             setScore(s => s + 1);
         }
 
-        if (currentQIndex < questions.length - 1) {
-            setCurrentQIndex(i => i + 1);
-        } else {
-            setShowResult(true);
-        }
+        // Show feedback for 1.2 seconds then move to next
+        setTimeout(() => {
+            setSelectedAnswer(null);
+            setShowFeedback(false);
+            
+            if (currentQIndex < questions.length - 1) {
+                setCurrentQIndex(i => i + 1);
+            } else {
+                setShowResult(true);
+            }
+        }, 1200);
     };
 
     if (loading) return (
@@ -151,20 +165,44 @@ export default function TestMode() {
 
             {/* Options */}
             <div className="flex-1 px-4 space-y-3 overflow-y-auto pb-8">
-                {currentQ.options.map((option, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => handleAnswer(option)}
-                        className="w-full text-left p-4 rounded-2xl border border-claude-border bg-claude-surface active:scale-[0.98] active:bg-claude-bg transition-all"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-full border border-claude-border flex items-center justify-center text-xs font-bold shrink-0">
-                                {String.fromCharCode(65 + idx)}
+                {currentQ.options.map((option, idx) => {
+                    const isSelected = selectedAnswer === option;
+                    const isCorrect = option === currentQ.correctAnswer;
+                    const showCorrect = showFeedback && isCorrect;
+                    const showWrong = showFeedback && isSelected && !isCorrect;
+                    
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => handleAnswer(option)}
+                            disabled={showFeedback}
+                            className={`w-full text-left p-4 rounded-2xl border transition-all ${
+                                showCorrect 
+                                    ? 'border-green-500 bg-green-500/10' 
+                                    : showWrong 
+                                        ? 'border-red-500 bg-red-500/10' 
+                                        : 'border-claude-border bg-claude-surface active:scale-[0.98] active:bg-claude-bg'
+                            } ${showFeedback && !isSelected && !isCorrect ? 'opacity-50' : ''}`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0 ${
+                                    showCorrect ? 'border-green-500 bg-green-500 text-white' : 
+                                    showWrong ? 'border-red-500 bg-red-500 text-white' : 
+                                    'border-claude-border'
+                                }`}>
+                                    {showCorrect ? <CheckCircle2 className="w-5 h-5" /> : 
+                                     showWrong ? <XCircle className="w-5 h-5" /> : 
+                                     String.fromCharCode(65 + idx)}
+                                </div>
+                                <span className={`font-medium flex-1 ${
+                                    showCorrect ? 'text-green-500' : showWrong ? 'text-red-500' : ''
+                                }`}>{option}</span>
+                                {showCorrect && <span className="text-xs text-green-500 font-semibold">Correct!</span>}
+                                {showWrong && <span className="text-xs text-red-500 font-semibold">Wrong</span>}
                             </div>
-                            <span className="font-medium">{option}</span>
-                        </div>
-                    </button>
-                ))}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

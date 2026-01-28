@@ -8,18 +8,131 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Get all decks
+// ============ FOLDERS ============
+
+// Get all folders with deck counts
+app.get('/api/folders', (req, res) => {
+    try {
+        const folders = db.prepare('SELECT * FROM folders ORDER BY created_at DESC').all();
+        const foldersWithCount = folders.map(folder => {
+            const count = db.prepare('SELECT count(*) as count FROM decks WHERE folder_id = ?').get(folder.id).count;
+            return { ...folder, deckCount: count };
+        });
+        res.json(foldersWithCount);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create a folder
+app.post('/api/folders', (req, res) => {
+    const { name, color, icon } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    
+    try {
+        const stmt = db.prepare('INSERT INTO folders (name, color, icon) VALUES (?, ?, ?)');
+        const info = stmt.run(name, color || '#6366f1', icon || 'folder');
+        res.status(201).json({ id: info.lastInsertRowid, name, color: color || '#6366f1', icon: icon || 'folder' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update a folder
+app.put('/api/folders/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, color, icon } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    
+    try {
+        const stmt = db.prepare('UPDATE folders SET name = ?, color = ?, icon = ? WHERE id = ?');
+        const info = stmt.run(name, color, icon, id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Folder not found' });
+        res.json({ id, name, color, icon });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a folder
+app.delete('/api/folders/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const stmt = db.prepare('DELETE FROM folders WHERE id = ?');
+        const info = stmt.run(id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Folder not found' });
+        res.json({ message: 'Folder deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ TAGS ============
+
+// Get all tags
+app.get('/api/tags', (req, res) => {
+    try {
+        const tags = db.prepare('SELECT * FROM tags ORDER BY is_preset DESC, name ASC').all();
+        res.json(tags);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create a tag
+app.post('/api/tags', (req, res) => {
+    const { name, color } = req.body;
+    if (!name || !color) return res.status(400).json({ error: 'Name and color are required' });
+    
+    try {
+        const stmt = db.prepare('INSERT INTO tags (name, color, is_preset) VALUES (?, ?, 0)');
+        const info = stmt.run(name, color);
+        res.status(201).json({ id: info.lastInsertRowid, name, color, is_preset: 0 });
+    } catch (error) {
+        if (error.message.includes('UNIQUE')) {
+            return res.status(400).json({ error: 'Tag already exists' });
+        }
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a tag (only custom tags)
+app.delete('/api/tags/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const tag = db.prepare('SELECT * FROM tags WHERE id = ?').get(id);
+        if (!tag) return res.status(404).json({ error: 'Tag not found' });
+        if (tag.is_preset) return res.status(400).json({ error: 'Cannot delete preset tags' });
+        
+        db.prepare('DELETE FROM tags WHERE id = ?').run(id);
+        res.json({ message: 'Tag deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ DECKS ============
+
+// Get all decks with tags
 app.get('/api/decks', (req, res) => {
     try {
         const stmt = db.prepare('SELECT * FROM decks ORDER BY created_at DESC');
         const decks = stmt.all();
-        // Get card count for each deck
-        const decksWithCount = decks.map(deck => {
+        
+        const decksWithDetails = decks.map(deck => {
             const countStmt = db.prepare('SELECT count(*) as count FROM cards WHERE deck_id = ?');
             const count = countStmt.get(deck.id).count;
-            return { ...deck, cardCount: count };
+            
+            // Get tags for this deck
+            const tags = db.prepare(`
+                SELECT t.* FROM tags t
+                JOIN deck_tags dt ON t.id = dt.tag_id
+                WHERE dt.deck_id = ?
+            `).all(deck.id);
+            
+            return { ...deck, cardCount: count, tags };
         });
-        res.json(decksWithCount);
+        res.json(decksWithDetails);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -27,19 +140,27 @@ app.get('/api/decks', (req, res) => {
 
 // Create a deck
 app.post('/api/decks', (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, folder_id, tagIds } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
-        const stmt = db.prepare('INSERT INTO decks (title, description) VALUES (?, ?)');
-        const info = stmt.run(title, description || '');
-        res.status(201).json({ id: info.lastInsertRowid, title, description });
+        const stmt = db.prepare('INSERT INTO decks (title, description, folder_id) VALUES (?, ?, ?)');
+        const info = stmt.run(title, description || '', folder_id || null);
+        const deckId = info.lastInsertRowid;
+        
+        // Add tags
+        if (tagIds && tagIds.length > 0) {
+            const insertTag = db.prepare('INSERT INTO deck_tags (deck_id, tag_id) VALUES (?, ?)');
+            tagIds.forEach(tagId => insertTag.run(deckId, tagId));
+        }
+        
+        res.status(201).json({ id: deckId, title, description, folder_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Get a single deck with cards
+// Get a single deck with cards and tags
 app.get('/api/decks/:id', (req, res) => {
     const { id } = req.params;
     try {
@@ -50,8 +171,14 @@ app.get('/api/decks/:id', (req, res) => {
 
         const cardsStmt = db.prepare('SELECT * FROM cards WHERE deck_id = ?');
         const cards = cardsStmt.all(id);
+        
+        const tags = db.prepare(`
+            SELECT t.* FROM tags t
+            JOIN deck_tags dt ON t.id = dt.tag_id
+            WHERE dt.deck_id = ?
+        `).all(id);
 
-        res.json({ ...deck, cards });
+        res.json({ ...deck, cards, tags });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -60,14 +187,39 @@ app.get('/api/decks/:id', (req, res) => {
 // Update a deck
 app.put('/api/decks/:id', (req, res) => {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description, folder_id, tagIds } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
-        const stmt = db.prepare('UPDATE decks SET title = ?, description = ? WHERE id = ?');
-        const info = stmt.run(title, description || '', id);
+        const stmt = db.prepare('UPDATE decks SET title = ?, description = ?, folder_id = ? WHERE id = ?');
+        const info = stmt.run(title, description || '', folder_id || null, id);
         if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
-        res.json({ id, title, description });
+        
+        // Update tags if provided
+        if (tagIds !== undefined) {
+            db.prepare('DELETE FROM deck_tags WHERE deck_id = ?').run(id);
+            if (tagIds.length > 0) {
+                const insertTag = db.prepare('INSERT INTO deck_tags (deck_id, tag_id) VALUES (?, ?)');
+                tagIds.forEach(tagId => insertTag.run(id, tagId));
+            }
+        }
+        
+        res.json({ id, title, description, folder_id });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Move deck to folder
+app.put('/api/decks/:id/move', (req, res) => {
+    const { id } = req.params;
+    const { folder_id } = req.body;
+    
+    try {
+        const stmt = db.prepare('UPDATE decks SET folder_id = ? WHERE id = ?');
+        const info = stmt.run(folder_id || null, id);
+        if (info.changes === 0) return res.status(404).json({ error: 'Deck not found' });
+        res.json({ id, folder_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

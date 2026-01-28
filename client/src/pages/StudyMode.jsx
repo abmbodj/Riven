@@ -108,9 +108,17 @@ export default function StudyMode() {
                 <button
                     onClick={handleShuffle}
                     className={`p-2 -mr-2 ${isShuffled ? 'text-claude-accent' : 'text-claude-secondary'}`}
+                    title="Shuffle cards"
                 >
                     <Shuffle className="w-6 h-6" />
                 </button>
+            </div>
+
+            {/* Keyboard hints - only show on desktop */}
+            <div className="hidden md:flex justify-center gap-4 text-[10px] text-claude-secondary px-4 py-1">
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">←</kbd> Previous</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">Space</kbd> Flip</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">→</kbd> Next</span>
             </div>
 
             {/* Card area */}

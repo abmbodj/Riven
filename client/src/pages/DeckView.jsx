@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -10,26 +10,39 @@ export default function DeckView() {
     const navigate = useNavigate();
     const toast = useToast();
     const [deck, setDeck] = useState(null);
+    const [folders, setFolders] = useState([]);
+    const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddCard, setShowAddCard] = useState(false);
     const [newCard, setNewCard] = useState({ front: '', back: '' });
     const [editingCard, setEditingCard] = useState(null);
     const [editCardData, setEditCardData] = useState({ front: '', back: '' });
     const [editingDeck, setEditingDeck] = useState(false);
-    const [editDeckData, setEditDeckData] = useState({ title: '', description: '' });
+    const [editDeckData, setEditDeckData] = useState({ title: '', description: '', folder_id: null, tagIds: [] });
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, type: null, id: null });
     const [swipedCard, setSwipedCard] = useState(null);
+    const [showBulkImport, setShowBulkImport] = useState(false);
+    const [bulkText, setBulkText] = useState('');
     const touchStartX = useRef(0);
 
     useEffect(() => {
         loadDeck();
+        Promise.all([api.getFolders(), api.getTags()]).then(([f, t]) => {
+            setFolders(f);
+            setTags(t);
+        });
     }, [id]);
 
     const loadDeck = () => {
         api.getDeck(id)
             .then(data => {
                 setDeck(data);
-                setEditDeckData({ title: data.title, description: data.description || '' });
+                setEditDeckData({ 
+                    title: data.title, 
+                    description: data.description || '',
+                    folder_id: data.folder_id,
+                    tagIds: data.tags?.map(t => t.id) || []
+                });
             })
             .catch(err => {
                 console.error(err);
@@ -92,10 +105,55 @@ export default function DeckView() {
         }
     };
 
+    const handleBulkImport = async (e) => {
+        e.preventDefault();
+        if (!bulkText.trim()) return;
+        
+        // Parse the text - supports "front - back" or "front | back" or "front : back" per line
+        const lines = bulkText.split('\n').filter(line => line.trim());
+        const cards = [];
+        
+        for (const line of lines) {
+            // Try different separators
+            let parts = null;
+            for (const sep of [' - ', ' | ', ' : ', '\t']) {
+                if (line.includes(sep)) {
+                    parts = line.split(sep);
+                    break;
+                }
+            }
+            
+            if (parts && parts.length >= 2) {
+                cards.push({
+                    front: parts[0].trim(),
+                    back: parts.slice(1).join(' ').trim()
+                });
+            }
+        }
+        
+        if (cards.length === 0) {
+            toast.error('No valid cards found. Use "front - back" format.');
+            return;
+        }
+        
+        try {
+            // Add all cards
+            for (const card of cards) {
+                await api.addCard(id, card.front, card.back);
+            }
+            toast.success(`Added ${cards.length} cards!`);
+            setBulkText('');
+            setShowBulkImport(false);
+            loadDeck();
+        } catch (err) {
+            toast.error('Failed to import cards');
+        }
+    };
+
     const handleSaveDeck = async () => {
         if (!editDeckData.title.trim()) return;
         try {
-            await api.updateDeck(id, editDeckData.title, editDeckData.description);
+            await api.updateDeck(id, editDeckData.title, editDeckData.description, editDeckData.folder_id, editDeckData.tagIds);
             setEditingDeck(false);
             toast.success('Deck saved');
             loadDeck();
@@ -103,6 +161,17 @@ export default function DeckView() {
             toast.error('Failed to save deck');
         }
     };
+
+    const toggleTag = (tagId) => {
+        setEditDeckData(prev => ({
+            ...prev,
+            tagIds: prev.tagIds.includes(tagId)
+                ? prev.tagIds.filter(id => id !== tagId)
+                : [...prev.tagIds, tagId]
+        }));
+    };
+
+    const currentFolder = folders.find(f => f.id === deck?.folder_id);
 
     // Swipe handlers for cards
     const handleTouchStart = (cardId, e) => {
@@ -194,6 +263,53 @@ export default function DeckView() {
                             placeholder="Add a description..."
                             rows={2}
                         />
+                        
+                        {/* Folder selector */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder</label>
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditDeckData({ ...editDeckData, folder_id: null })}
+                                    className={`px-3 py-2 rounded-lg text-sm ${!editDeckData.folder_id ? 'bg-claude-accent text-white' : 'bg-claude-bg border border-claude-border'}`}
+                                >
+                                    None
+                                </button>
+                                {folders.map(folder => (
+                                    <button
+                                        key={folder.id}
+                                        type="button"
+                                        onClick={() => setEditDeckData({ ...editDeckData, folder_id: folder.id })}
+                                        className={`px-3 py-2 rounded-lg text-sm flex items-center gap-1.5 ${editDeckData.folder_id === folder.id ? 'text-white' : 'bg-claude-bg border border-claude-border'}`}
+                                        style={editDeckData.folder_id === folder.id ? { backgroundColor: folder.color } : {}}
+                                    >
+                                        <Folder className="w-4 h-4" style={editDeckData.folder_id !== folder.id ? { color: folder.color } : {}} />
+                                        {folder.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tags selector */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Tags</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {tags.map(tag => (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => toggleTag(tag.id)}
+                                        className={`px-3 py-2 rounded-full text-sm flex items-center gap-1.5 ${editDeckData.tagIds.includes(tag.id) ? 'text-white' : 'bg-claude-bg border border-claude-border'}`}
+                                        style={editDeckData.tagIds.includes(tag.id) ? { backgroundColor: tag.color } : {}}
+                                    >
+                                        <Hash className="w-3.5 h-3.5" style={!editDeckData.tagIds.includes(tag.id) ? { color: tag.color } : {}} />
+                                        {tag.name}
+                                    </button>
+                                ))}
+                                {tags.length === 0 && <span className="text-claude-secondary text-sm">No tags available</span>}
+                            </div>
+                        </div>
+
                         <div className="flex gap-2">
                             <button onClick={handleSaveDeck} className="claude-button-primary flex-1 py-3 flex items-center justify-center gap-2">
                                 <Check className="w-4 h-4" /> Save
@@ -206,7 +322,27 @@ export default function DeckView() {
                 ) : (
                     <>
                         <h1 className="text-2xl font-display font-bold mb-1">{deck.title}</h1>
-                        <p className="text-claude-secondary text-sm">{deck.description || 'No description'} · {deck.cards.length} cards</p>
+                        <p className="text-claude-secondary text-sm mb-3">{deck.description || 'No description'} · {deck.cards.length} cards</p>
+                        
+                        {/* Folder & Tags display */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {currentFolder && (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-claude-surface border border-claude-border">
+                                    <Folder className="w-3.5 h-3.5" style={{ color: currentFolder.color }} />
+                                    {currentFolder.name}
+                                </span>
+                            )}
+                            {deck.tags?.map(tag => (
+                                <span 
+                                    key={tag.id}
+                                    className="px-2.5 py-1 rounded-full text-xs font-medium text-white flex items-center gap-1"
+                                    style={{ backgroundColor: tag.color }}
+                                >
+                                    <Hash className="w-3 h-3" />
+                                    {tag.name}
+                                </span>
+                            ))}
+                        </div>
                     </>
                 )}
             </div>
@@ -252,13 +388,57 @@ export default function DeckView() {
             {/* Cards header */}
             <div className="px-4 flex items-center justify-between mb-4">
                 <h2 className="text-lg font-display font-bold">Cards</h2>
-                <button
-                    onClick={() => setShowAddCard(true)}
-                    className="flex items-center gap-1.5 text-claude-accent font-semibold text-sm"
-                >
-                    <Plus className="w-4 h-4" /> Add
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowBulkImport(true)}
+                        className="flex items-center gap-1.5 text-claude-secondary font-semibold text-sm"
+                    >
+                        <FileText className="w-4 h-4" /> Import
+                    </button>
+                    <button
+                        onClick={() => setShowAddCard(true)}
+                        className="flex items-center gap-1.5 text-claude-accent font-semibold text-sm"
+                    >
+                        <Plus className="w-4 h-4" /> Add
+                    </button>
+                </div>
             </div>
+
+            {/* Bulk Import Modal */}
+            {showBulkImport && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
+                    <form
+                        onSubmit={handleBulkImport}
+                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 safe-area-bottom max-h-[80vh] flex flex-col"
+                    >
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-display font-bold">Import Cards</h3>
+                            <button type="button" onClick={() => setShowBulkImport(false)} className="p-2">
+                                <X className="w-6 h-6 text-claude-secondary" />
+                            </button>
+                        </div>
+                        <p className="text-claude-secondary text-sm mb-4">
+                            Paste multiple cards, one per line. Use <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">-</code> or <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">|</code> to separate front and back.
+                        </p>
+                        <div className="text-xs text-claude-secondary mb-3 bg-claude-bg rounded-lg p-3">
+                            <strong>Example:</strong><br/>
+                            hello - hola<br/>
+                            goodbye - adiós<br/>
+                            thank you - gracias
+                        </div>
+                        <textarea
+                            value={bulkText}
+                            onChange={e => setBulkText(e.target.value)}
+                            className="flex-1 min-h-[150px] px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none resize-none text-sm font-mono"
+                            placeholder="Paste your cards here..."
+                            autoFocus
+                        />
+                        <button type="submit" className="w-full claude-button-primary py-4 mt-4">
+                            Import Cards
+                        </button>
+                    </form>
+                </div>
+            )}
 
             {/* Add card modal */}
             {showAddCard && (
