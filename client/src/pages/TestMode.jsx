@@ -21,6 +21,9 @@ export default function TestMode() {
             setCards(data.cards);
             generateTest(data.cards);
             setLoading(false);
+        }).catch(err => {
+            console.error('Failed to load deck:', err);
+            setLoading(false);
         });
     }, [id]);
 

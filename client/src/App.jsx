@@ -7,6 +7,7 @@ import DeckView from './pages/DeckView';
 import StudyMode from './pages/StudyMode';
 import TestMode from './pages/TestMode';
 import ThemeSettings from './pages/ThemeSettings';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/deck/:id/study" element={<StudyMode />} />
           <Route path="/deck/:id/test" element={<TestMode />} />
           <Route path="/themes" element={<ThemeSettings />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
     </BrowserRouter>
