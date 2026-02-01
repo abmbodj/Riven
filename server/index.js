@@ -18,18 +18,21 @@ const jwtSecret = JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
 
 // CORS configuration - restrict to allowed origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',')
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://localhost:3000'];
+
+console.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: function(origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, etc.) in dev
-        if (!origin && process.env.NODE_ENV !== 'production') {
+        // Allow requests with no origin (health checks, mobile apps, curl, etc.)
+        if (!origin) {
             return callback(null, true);
         }
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.log('CORS blocked origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
