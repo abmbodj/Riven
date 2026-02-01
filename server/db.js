@@ -192,52 +192,8 @@ function initDb() {
     }
   }
 
-  // Seed preset tags if empty
-  const tagCount = db.prepare('SELECT count(*) as count FROM tags').get();
-  if (tagCount.count === 0) {
-    const insertTag = db.prepare('INSERT INTO tags (name, color, is_preset) VALUES (?, ?, 1)');
-    insertTag.run('Language', '#3b82f6');
-    insertTag.run('Science', '#22c55e');
-    insertTag.run('Math', '#f59e0b');
-    insertTag.run('History', '#8b5cf6');
-    insertTag.run('Programming', '#06b6d4');
-    insertTag.run('Medical', '#ef4444');
-    insertTag.run('Business', '#ec4899');
-    insertTag.run('Art', '#f97316');
-  }
-
-  // Seed default themes if empty
-  const themeCount = db.prepare('SELECT count(*) as count FROM themes').get();
-  if (themeCount.count === 0) {
-    const insertTheme = db.prepare('INSERT INTO themes (name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-
-    // Claude Dark
-    insertTheme.run('Claude Dark', '#1a1a18', '#242422', '#e8e8e3', '#a1a19a', '#3d3d3a', '#d97757', 1);
-    // Claude Light
-    insertTheme.run('Claude Light', '#f9f7f2', '#ffffff', '#1d1d1b', '#6b6b6b', '#e5e2da', '#d97757', 0);
-  }
-
-  // Seed data if empty
-  const deckCount = db.prepare('SELECT count(*) as count FROM decks').get();
-  if (deckCount.count === 0) {
-    const insertDeck = db.prepare('INSERT INTO decks (title, description) VALUES (?, ?)');
-    const insertCard = db.prepare('INSERT INTO cards (deck_id, front, back) VALUES (?, ?, ?)');
-
-    const info = insertDeck.run('Spanish Basics', 'Common Spanish words and phrases');
-    const deckId = info.lastInsertRowid;
-
-    insertCard.run(deckId, 'Hola', 'Hello');
-    insertCard.run(deckId, 'Adiós', 'Goodbye');
-    insertCard.run(deckId, 'Gracias', 'Thank you');
-    insertCard.run(deckId, 'Por favor', 'Please');
-    insertCard.run(deckId, 'Buenos días', 'Good morning');
-
-    const info2 = insertDeck.run('JavaScript Concepts', 'Core JS interview questions');
-    const deckId2 = info2.lastInsertRowid;
-    insertCard.run(deckId2, 'Closure', 'A function bundled together with its lexical environment.');
-    insertCard.run(deckId2, 'Hoisting', 'Variable and function declarations are moved to the top of their scope.');
-    insertCard.run(deckId2, 'Event Loop', 'Mechanism that handles asynchronous callbacks in Node.js and browsers.');
-  }
+  // Note: Tags and themes are created per-user during registration
+  // No global seed data needed - each user gets their own tags/themes on signup
 }
 
 initDb();

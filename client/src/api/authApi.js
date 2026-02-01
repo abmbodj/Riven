@@ -99,7 +99,7 @@ export const getStreak = async () => {
 export const updateStreak = async (streakData) => {
     return authFetch('/auth/streak', {
         method: 'PUT',
-        body: JSON.stringify(streakData),
+        body: JSON.stringify({ streakData }),
     });
 };
 
@@ -127,11 +127,11 @@ export const getDecks = () => authFetch('/decks');
 export const getDeck = (id) => authFetch(`/decks/${id}`);
 export const createDeck = (title, description, folderId, tagIds) => authFetch('/decks', {
     method: 'POST',
-    body: JSON.stringify({ title, description, folder_id: folderId, tag_ids: tagIds }),
+    body: JSON.stringify({ title, description, folder_id: folderId, tagIds }),
 });
 export const updateDeck = (id, title, description, folderId, tagIds) => authFetch(`/decks/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ title, description, folder_id: folderId, tag_ids: tagIds }),
+    body: JSON.stringify({ title, description, folder_id: folderId, tagIds }),
 });
 export const deleteDeck = (id) => authFetch(`/decks/${id}`, { method: 'DELETE' });
 export const duplicateDeck = (id) => authFetch(`/decks/${id}/duplicate`, { method: 'POST' });

@@ -6,7 +6,7 @@ import AlertModal from '../components/AlertModal';
 
 export default function AdminPanel() {
     const navigate = useNavigate();
-    const { lightHaptic, mediumHaptic } = useHaptics();
+    const haptics = useHaptics();
     const { 
         isAdmin, 
         getAllUsers, 
@@ -51,7 +51,7 @@ export default function AdminPanel() {
     }, [isAdmin, getAllUsers, adminGetUserStreakData]);
 
     const handleDeleteUser = async (userId, username) => {
-        mediumHaptic();
+        haptics.medium();
         if (confirm(`Delete user "${username}"? This cannot be undone.`)) {
             try {
                 await adminDeleteUser(userId);
@@ -78,7 +78,7 @@ export default function AdminPanel() {
     };
 
     const handleSaveStreak = () => {
-        mediumHaptic();
+        haptics.medium();
         try {
             const newData = {
                 ...streakData,
@@ -95,7 +95,7 @@ export default function AdminPanel() {
     };
 
     const handleResetStreak = () => {
-        mediumHaptic();
+        haptics.medium();
         if (confirm('Reset all streak data? This will set both current and longest streak to 0.')) {
             const newData = {
                 currentStreak: 0,
@@ -131,7 +131,7 @@ export default function AdminPanel() {
             {/* Tab Navigation */}
             <div className="flex border-b border-[var(--color-border)] bg-[var(--color-surface)]">
                 <button
-                    onClick={() => { lightHaptic(); setActiveTab('users'); }}
+                    onClick={() => { haptics.light(); setActiveTab('users'); }}
                     className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
                         activeTab === 'users' 
                             ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
@@ -141,7 +141,7 @@ export default function AdminPanel() {
                     👥 Users ({users.length})
                 </button>
                 <button
-                    onClick={() => { lightHaptic(); setActiveTab('gmail'); }}
+                    onClick={() => { haptics.light(); setActiveTab('gmail'); }}
                     className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
                         activeTab === 'gmail' 
                             ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
@@ -151,7 +151,7 @@ export default function AdminPanel() {
                     👻 Gmail Data
                 </button>
                 <button
-                    onClick={() => { lightHaptic(); setActiveTab('perks'); }}
+                    onClick={() => { haptics.light(); setActiveTab('perks'); }}
                     className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
                         activeTab === 'perks' 
                             ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
@@ -181,7 +181,7 @@ export default function AdminPanel() {
                             users.map(u => (
                                 <div
                                     key={u.id}
-                                    onClick={() => { lightHaptic(); setSelectedUser(selectedUser?.id === u.id ? null : u); }}
+                                    onClick={() => { haptics.light(); setSelectedUser(selectedUser?.id === u.id ? null : u); }}
                                     className={`p-4 rounded-xl border transition-all touch-target native-press ${
                                         selectedUser?.id === u.id 
                                             ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]' 
@@ -283,7 +283,7 @@ export default function AdminPanel() {
                                                     Save Changes
                                                 </button>
                                                 <button
-                                                    onClick={() => { lightHaptic(); setEditingStreak(false); }}
+                                                    onClick={() => { haptics.light(); setEditingStreak(false); }}
                                                     className="py-2 px-4 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg text-sm font-medium border border-[var(--color-border)] touch-target native-press"
                                                 >
                                                     Cancel
@@ -310,7 +310,7 @@ export default function AdminPanel() {
 
                                             <div className="flex gap-2">
                                                 <button
-                                                    onClick={() => { lightHaptic(); setEditingStreak(true); }}
+                                                    onClick={() => { haptics.light(); setEditingStreak(true); }}
                                                     className="flex-1 py-2 px-4 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium touch-target native-press"
                                                 >
                                                     Edit Streak

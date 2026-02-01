@@ -709,7 +709,7 @@ app.delete('/api/cards/:id', optionalAuth, (req, res) => {
 // ============ STUDY SESSIONS ============
 
 // Save a study session
-app.post('/api/study-sessions', (req, res) => {
+app.post('/api/study-sessions', optionalAuth, (req, res) => {
     const { deck_id, cards_studied, cards_correct, duration_seconds, session_type } = req.body;
 
     try {
@@ -777,16 +777,17 @@ app.get('/api/decks/:id/stats', (req, res) => {
 // ============ DECK OPERATIONS ============
 
 // Duplicate a deck
-app.post('/api/decks/:id/duplicate', (req, res) => {
+app.post('/api/decks/:id/duplicate', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
+        const userId = req.user?.id || null;
         // Get original deck
         const deck = db.prepare('SELECT * FROM decks WHERE id = ?').get(id);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
 
-        // Create new deck
-        const newDeckStmt = db.prepare('INSERT INTO decks (title, description, folder_id) VALUES (?, ?, ?)');
-        const newDeckInfo = newDeckStmt.run(`${deck.title} (Copy)`, deck.description, deck.folder_id);
+        // Create new deck with user_id
+        const newDeckStmt = db.prepare('INSERT INTO decks (user_id, title, description, folder_id) VALUES (?, ?, ?, ?)');
+        const newDeckInfo = newDeckStmt.run(userId, `${deck.title} (Copy)`, deck.description, deck.folder_id);
         const newDeckId = newDeckInfo.lastInsertRowid;
 
         // Copy cards
