@@ -192,7 +192,7 @@ export default function Home() {
     );
 
     return (
-        <div className="animate-in fade-in duration-500 -mx-4">
+        <div className="animate-in fade-in duration-500">
             {/* Delete confirmation modal */}
             <ConfirmModal
                 isOpen={deleteConfirm.show}

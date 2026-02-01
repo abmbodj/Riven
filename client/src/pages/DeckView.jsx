@@ -306,7 +306,7 @@ export default function DeckView() {
     if (!deck) return <div className="text-center py-20 text-claude-secondary">Deck not found</div>;
 
     return (
-        <div className="animate-in fade-in duration-500 -mx-4">
+        <div className="animate-in fade-in duration-500">
             {/* Delete confirmation modal */}
             <ConfirmModal
                 isOpen={deleteConfirm.show}

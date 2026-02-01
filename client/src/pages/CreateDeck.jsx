@@ -53,7 +53,7 @@ export default function CreateDeck() {
     return (
         <div className="min-h-full flex flex-col safe-area-top">
             {/* Sticky header */}
-            <div className="sticky top-0 z-10 bg-claude-bg/95 backdrop-blur-md -mx-4 px-4 py-3 border-b border-claude-border/50">
+            <div className="sticky top-0 z-10 bg-claude-bg/95 backdrop-blur-md py-3 border-b border-claude-border/50">
                 <div className="flex items-center justify-between">
                     <Link to="/" className="touch-target text-claude-secondary active:text-claude-text -ml-2">
                         <X className="w-6 h-6" />
@@ -159,7 +159,7 @@ export default function CreateDeck() {
                 </div>
 
                 {/* Sticky footer button */}
-                <div className="sticky bottom-0 pt-4 mt-6 -mx-4 px-4 pb-4 bg-gradient-to-t from-claude-bg via-claude-bg">
+                <div className="sticky bottom-0 pt-4 mt-6 pb-4 bg-gradient-to-t from-claude-bg via-claude-bg">
                     <button
                         type="submit"
                         disabled={loading || !title.trim()}
