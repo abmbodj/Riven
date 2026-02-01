@@ -313,6 +313,116 @@ app.get('/api/auth/streak', authMiddleware, (req, res) => {
     }
 });
 
+// Migrate guest data to account
+app.post('/api/auth/migrate-guest-data', authMiddleware, (req, res) => {
+    const { folders, tags, decks, cards, themes, studySessions, deckTags } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // Map old IDs to new IDs for relationships
+        const folderIdMap = {};
+        const tagIdMap = {};
+        const deckIdMap = {};
+
+        // Import folders
+        if (folders && folders.length > 0) {
+            const insertFolder = db.prepare('INSERT INTO folders (user_id, name, color, icon, created_at) VALUES (?, ?, ?, ?, ?)');
+            for (const folder of folders) {
+                const info = insertFolder.run(userId, folder.name, folder.color || '#6366f1', folder.icon || 'folder', folder.created_at || new Date().toISOString());
+                folderIdMap[folder.id] = info.lastInsertRowid;
+            }
+        }
+
+        // Import custom tags (skip presets since user already has them)
+        if (tags && tags.length > 0) {
+            const insertTag = db.prepare('INSERT INTO tags (user_id, name, color, is_preset, created_at) VALUES (?, ?, ?, 0, ?)');
+            const existingTags = db.prepare('SELECT name FROM tags WHERE user_id = ?').all(userId);
+            const existingNames = existingTags.map(t => t.name.toLowerCase());
+            
+            for (const tag of tags.filter(t => !t.is_preset)) {
+                if (!existingNames.includes(tag.name.toLowerCase())) {
+                    const info = insertTag.run(userId, tag.name, tag.color, tag.created_at || new Date().toISOString());
+                    tagIdMap[tag.id] = info.lastInsertRowid;
+                }
+            }
+        }
+
+        // Import decks
+        if (decks && decks.length > 0) {
+            const insertDeck = db.prepare('INSERT INTO decks (user_id, title, description, folder_id, created_at, last_studied) VALUES (?, ?, ?, ?, ?, ?)');
+            for (const deck of decks) {
+                const newFolderId = deck.folder_id ? folderIdMap[deck.folder_id] : null;
+                const info = insertDeck.run(userId, deck.title, deck.description || '', newFolderId, deck.created_at || new Date().toISOString(), deck.last_studied || null);
+                deckIdMap[deck.id] = info.lastInsertRowid;
+            }
+        }
+
+        // Import cards
+        if (cards && cards.length > 0) {
+            const insertCard = db.prepare('INSERT INTO cards (deck_id, front, back, position, difficulty, times_reviewed, times_correct, last_reviewed, next_review, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            for (const card of cards) {
+                const newDeckId = deckIdMap[card.deck_id];
+                if (newDeckId) {
+                    insertCard.run(
+                        newDeckId, 
+                        card.front, 
+                        card.back, 
+                        card.position || 0,
+                        card.difficulty || 0,
+                        card.times_reviewed || 0,
+                        card.times_correct || 0,
+                        card.last_reviewed || null,
+                        card.next_review || null,
+                        card.created_at || new Date().toISOString()
+                    );
+                }
+            }
+        }
+
+        // Import deck-tag relationships
+        if (deckTags && deckTags.length > 0) {
+            const insertDeckTag = db.prepare('INSERT OR IGNORE INTO deck_tags (deck_id, tag_id) VALUES (?, ?)');
+            for (const dt of deckTags) {
+                const newDeckId = deckIdMap[dt.deck_id];
+                const newTagId = tagIdMap[dt.tag_id];
+                if (newDeckId && newTagId) {
+                    insertDeckTag.run(newDeckId, newTagId);
+                }
+            }
+        }
+
+        // Import study sessions
+        if (studySessions && studySessions.length > 0) {
+            const insertSession = db.prepare('INSERT INTO study_sessions (deck_id, cards_studied, cards_correct, duration_seconds, session_type, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+            for (const session of studySessions) {
+                const newDeckId = deckIdMap[session.deck_id];
+                if (newDeckId) {
+                    insertSession.run(
+                        newDeckId,
+                        session.cards_studied || 0,
+                        session.cards_correct || 0,
+                        session.duration_seconds || 0,
+                        session.session_type || 'study',
+                        session.created_at || new Date().toISOString()
+                    );
+                }
+            }
+        }
+
+        res.json({ 
+            message: 'Guest data migrated successfully',
+            imported: {
+                folders: Object.keys(folderIdMap).length,
+                tags: Object.keys(tagIdMap).length,
+                decks: Object.keys(deckIdMap).length
+            }
+        });
+    } catch (error) {
+        console.error('Migration error:', error);
+        res.status(500).json({ error: 'Failed to migrate guest data' });
+    }
+});
+
 // ============ FOLDERS ============
 
 // Get all folders with deck counts

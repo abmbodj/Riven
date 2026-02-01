@@ -69,9 +69,16 @@ export default function Account() {
             return;
         }
         try {
-            await signUp(signupForm.username, signupForm.email, signupForm.password);
+            const result = await signUp(signupForm.username, signupForm.email, signupForm.password);
             haptics.success();
-            toast.success('Account created!');
+            
+            // Check if guest data was migrated
+            if (result.migration?.migrated) {
+                const { imported } = result.migration;
+                toast.success(`Account created! Imported ${imported?.decks || 0} decks from guest mode.`);
+            } else {
+                toast.success('Account created!');
+            }
             setView('profile');
         } catch (err) {
             haptics.error();

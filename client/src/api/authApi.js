@@ -186,6 +186,13 @@ export const importSharedDeck = (shareId) => authFetch(`/shared/${shareId}/impor
 export const getMySharedDecks = () => authFetch('/my-shared-decks');
 export const unshareDeck = (shareId) => authFetch(`/shared/${shareId}`, { method: 'DELETE' });
 
+// ============ GUEST DATA MIGRATION ============
+
+export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-data', {
+    method: 'POST',
+    body: JSON.stringify(guestData),
+});
+
 // ============ ADMIN ENDPOINTS ============
 
 export const adminGetAllUsers = () => authFetch('/admin/users');
@@ -234,6 +241,7 @@ export default {
     importSharedDeck,
     getMySharedDecks,
     unshareDeck,
+    migrateGuestData,
     adminGetAllUsers,
     adminUpdateUser,
     adminDeleteUser,

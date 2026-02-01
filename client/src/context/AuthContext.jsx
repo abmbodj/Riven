@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as authApi from '../api/authApi';
+import * as guestDb from '../db/indexedDB';
 import { AuthContext } from './authContextDef';
 
 // Re-export for convenience
@@ -27,12 +28,35 @@ export function AuthProvider({ children }) {
         checkAuth();
     }, []);
 
-    // Sign up
+    // Migrate guest data to server
+    const migrateGuestData = useCallback(async () => {
+        try {
+            const hasData = await guestDb.hasGuestData();
+            if (!hasData) return { migrated: false };
+
+            const guestData = await guestDb.exportAllGuestData();
+            const result = await authApi.migrateGuestData(guestData);
+            
+            // Clear local data after successful migration
+            await guestDb.clearAllGuestData();
+            
+            return { migrated: true, ...result };
+        } catch (error) {
+            console.error('Failed to migrate guest data:', error);
+            return { migrated: false, error: error.message };
+        }
+    }, []);
+
+    // Sign up - also migrates guest data
     const signUp = useCallback(async (username, email, password) => {
         const userData = await authApi.register(username, email, password);
         setUser(userData);
-        return userData;
-    }, []);
+        
+        // Migrate guest data after successful signup
+        const migrationResult = await migrateGuestData();
+        
+        return { ...userData, migration: migrationResult };
+    }, [migrateGuestData]);
 
     // Sign in - admin role is now handled server-side
     const signIn = useCallback(async (email, password) => {

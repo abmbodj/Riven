@@ -473,3 +473,53 @@ export async function deleteTheme(id) {
     const db = await getDB();
     await db.delete('themes', Number(id));
 }
+
+// ============ EXPORT ALL GUEST DATA ============
+export async function exportAllGuestData() {
+    const db = await getDB();
+    
+    const folders = await db.getAll('folders');
+    const tags = await db.getAll('tags');
+    const decks = await db.getAll('decks');
+    const cards = await db.getAll('cards');
+    const studySessions = await db.getAll('study_sessions');
+    const deckTags = await db.getAll('deck_tags');
+    const themes = await db.getAll('themes');
+
+    return {
+        folders,
+        tags,
+        decks,
+        cards,
+        studySessions,
+        deckTags,
+        themes
+    };
+}
+
+// Check if there's any guest data to migrate
+export async function hasGuestData() {
+    const db = await getDB();
+    const deckCount = await db.count('decks');
+    const folderCount = await db.count('folders');
+    return deckCount > 0 || folderCount > 0;
+}
+
+// Clear all guest data after successful migration
+export async function clearAllGuestData() {
+    const db = await getDB();
+    
+    // Clear all stores except themes (user might want to keep those)
+    const tx = db.transaction(['folders', 'tags', 'decks', 'cards', 'study_sessions', 'deck_tags'], 'readwrite');
+    await tx.objectStore('folders').clear();
+    await tx.objectStore('decks').clear();
+    await tx.objectStore('cards').clear();
+    await tx.objectStore('study_sessions').clear();
+    await tx.objectStore('deck_tags').clear();
+    // Keep preset tags, clear custom ones
+    const tags = await db.getAll('tags');
+    for (const tag of tags.filter(t => !t.is_preset)) {
+        await db.delete('tags', tag.id);
+    }
+    await tx.done;
+}
