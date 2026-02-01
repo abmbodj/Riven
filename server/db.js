@@ -1,8 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-// Remove verbose logging in production
-const db = new Database('flashcards.db');
+// Use absolute path for database to ensure it works on all platforms
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'flashcards.db');
+const db = new Database(dbPath);
 
 // Initialize database
 function initDb() {
