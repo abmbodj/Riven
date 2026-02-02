@@ -82,25 +82,6 @@ function optionalAuth(req, res, next) {
     next();
 }
 
-// ============ ADMIN (protected by secret) ============
-
-// View all users - protected by admin secret
-app.get('/api/admin/users', (req, res) => {
-    const secret = req.headers['x-admin-secret'];
-    if (secret !== process.env.ADMIN_SECRET) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-    
-    const users = db.prepare(`
-        SELECT id, username, email, created_at,
-        (SELECT COUNT(*) FROM decks WHERE user_id = users.id) as deck_count,
-        (SELECT COUNT(*) FROM cards WHERE deck_id IN (SELECT id FROM decks WHERE user_id = users.id)) as card_count
-        FROM users ORDER BY created_at DESC
-    `).all();
-    
-    res.json(users);
-});
-
 // ============ AUTH ============
 
 // Register
