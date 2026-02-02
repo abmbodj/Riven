@@ -1,6 +1,6 @@
-# ⚡ Riven (feat. Gmail the Pug 🐶)
+# ⚡ Riven
 
-A beautiful, minimal, and "local-first" flashcard app for mastering any subject. Featuring **Gmail the Pug**, your personal study companion who grows as you maintain your streak!
+A beautiful, minimal flashcard app for mastering any subject. Features **cross-device sync**, **offline support**, and a **streak system** with Gmail the Pug 🐶 as your study companion!
 
 Built entirely through **prompt engineering** — no manual coding required.
 
@@ -8,92 +8,129 @@ Built entirely through **prompt engineering** — no manual coding required.
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express)
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite)
-![IndexedDB](https://img.shields.io/badge/IndexedDB-Local-blue?logo=google-chrome)
+![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?logo=pwa)
+
+## 🌐 Live Demo
+
+- **App**: https://riven-virid.vercel.app
+- **API**: https://riven-wa9y.onrender.com
 
 ## ✨ Features
 
-- **🐶 Gmail the Pug** — Your study companion! Maintain your streak to see Gmail grow from a puppy to a king. Don't forget to study, or he'll fall asleep!
-- **🦴 Streak System** — Visual streak tracking with dog-themed rewards and customization.
-- **📚 Deck Management** — Create, organize, and tag flashcard decks with ease.
-- **🔄 Study Mode** — Flip through cards with smooth 3D animations and progress tracking.
-- **🧠 Spaced Repetition** — Built-in spaced repetition logic to help you focus on what you're actually forgetting.
-- **🎯 Test Mode** — Challenge yourself with auto-generated multiple-choice quizzes.
-- **🎨 Custom Themes** — Personalize your experience with a powerful theme engine. Create your own color schemes!
-- **💾 Hybrid Storage** — Works offline with **IndexedDB** and syncs with a **SQLite** backend when available.
-- **📤 Export/Import** — Export your decks as JSON or CSV for backup or sharing.
+- **🔐 Cross-Device Sync** — Sign up to access your flashcards from any device
+- **📱 PWA Support** — Install on iOS/Android for a native app experience
+- **🐶 Gmail the Pug** — Your study companion! Maintain your streak to see Gmail grow from a puppy to a king
+- **🦴 Streak System** — Visual streak tracking with dog-themed rewards
+- **📚 Deck Management** — Create, organize with folders, and tag flashcard decks
+- **🔄 Study Mode** — Flip through cards with smooth 3D animations
+- **🧠 Spaced Repetition** — Focus on cards you're actually forgetting
+- **🎯 Test Mode** — Auto-generated multiple-choice quizzes
+- **🎨 Custom Themes** — Multiple built-in themes or create your own
+- **💾 Offline Mode** — Works without internet using IndexedDB (guest data migrates on signup)
+- **📤 Export/Import** — Export decks as JSON or CSV
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 19, React Router 7, Vite, Tailwind CSS |
-| Local Storage | IndexedDB (idb) |
 | Backend | Express 5, Node.js |
 | Database | SQLite (better-sqlite3) |
-| Icons | Lucide React |
+| Auth | JWT (30-day tokens) |
+| Offline Storage | IndexedDB |
+| Hosting | Vercel (frontend), Render (backend) |
 
 ## 🚀 Getting Started
 
-Riven is designed to be flexible. You can run it as a standalone local app or with a backend server.
-
 ### Prerequisites
 
-- Node.js 18+ installed
+- Node.js 18+
 
-### Installation
+### Local Development
 
 ```bash
 # Clone the repository
 git clone https://github.com/abmbodj/Riven.git
 cd Riven
 
-# Install dependencies
+# Backend (Terminal 1)
+cd server
 npm install
+npm run dev          # Runs on http://localhost:3001
+
+# Frontend (Terminal 2)
+cd client
+npm install
+npm run dev          # Runs on http://localhost:5173
 ```
 
-### Running the App
+### Environment Variables
 
-#### 1. Local-Only Mode (No server needed)
-Just start the client. All data will be saved to your browser's IndexedDB.
-```bash
-npm run client
+**Client** (`client/.env`):
+```
+VITE_API_URL=http://localhost:3001/api
 ```
 
-#### 2. Full Stack Mode (With SQLite sync)
-Start both the client and the server.
-```bash
-npm start
+**Server** (`server/.env` or environment):
+```
+JWT_SECRET=your-secret-key
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
-### Access the App
+## 🚢 Deployment
 
-- **Frontend**: http://localhost:5173
-- **API**: http://localhost:3000
+### Backend (Render)
+
+1. Create a new Web Service on [Render](https://render.com)
+2. Connect your GitHub repo
+3. Set root directory: `server`
+4. Build command: `npm install`
+5. Start command: `npm start`
+6. Add environment variables:
+   - `JWT_SECRET` — Random secure string
+   - `ALLOWED_ORIGINS` — Your Vercel frontend URL
+
+### Frontend (Vercel)
+
+1. Import project on [Vercel](https://vercel.com)
+2. Set root directory: `client`
+3. Add environment variable:
+   - `VITE_API_URL` — Your Render backend URL + `/api`
+4. Deploy
 
 ## 📁 Project Structure
 
 ```
 Riven/
-├── client/                 # React frontend
+├── client/                 # React frontend (PWA)
 │   ├── src/
-│   │   ├── components/     # UI components (including Gmail the Pug!)
+│   │   ├── api/            # Server API calls
+│   │   ├── components/     # UI components
+│   │   ├── context/        # React contexts (Auth, Theme, Streak, Toast)
+│   │   ├── db/             # IndexedDB for offline/guest mode
 │   │   ├── pages/          # Route pages
-│   │   ├── db/             # IndexedDB logic
-│   │   └── api.js          # Hybrid API client
+│   │   └── api.js          # Hybrid API (server or IndexedDB)
 │   └── ...
-├── server/                 # Express backend
-│   ├── index.js            # API routes
-│   └── db.js               # SQLite setup
-└── package.json            # Root scripts
+├── server/
+│   ├── index.js            # Express API routes
+│   └── db.js               # SQLite database setup
+└── README.md
 ```
+
+## 🔑 Key Features Explained
+
+### Hybrid Storage
+- **Logged in**: Data syncs with SQLite backend
+- **Guest mode**: Data stored locally in IndexedDB
+- **On signup**: Guest data automatically migrates to your account
+
+### PWA Installation
+- **iOS**: Safari → Share → Add to Home Screen
+- **Android**: Chrome menu → Install app
 
 ## 🤖 Built with Prompt Engineering
 
-This entire project was created using **AI prompt engineering** — a fun experiment to see how far you can go by simply describing what you want to build.
-
-No manual coding. Just conversations with AI.
-
-From the complex SVG animations of **Gmail the Pug** to the hybrid storage logic, every line of code was generated through natural language prompts. It's a testament to how AI tools are changing the way we build software.
+This entire project was created using **AI prompt engineering**. From the SVG animations of Gmail the Pug to the hybrid storage logic, every line of code was generated through natural language prompts.
 
 ## 📝 License
 
@@ -102,5 +139,5 @@ MIT — Feel free to use, modify, and share!
 ---
 
 <p align="center">
-  Made with ⚡, AI, and 🦴 for Gmail
+  Made with ⚡ and AI
 </p>
