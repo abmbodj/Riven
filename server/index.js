@@ -3,6 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
@@ -15,6 +16,23 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
     process.exit(1);
 }
 const jwtSecret = JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+
+// Rate limiters
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts per window
+    message: { error: 'Too many attempts, please try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    message: { error: 'Too many requests, please slow down' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // CORS configuration - restrict to allowed origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -39,6 +57,9 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
 
 // Generate share code
 function generateShareCode() {
@@ -82,14 +103,31 @@ function optionalAuth(req, res, next) {
     next();
 }
 
+// Input validation helpers
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidUsername(username) {
+    return username.length >= 2 && username.length <= 30 && /^[a-zA-Z0-9_]+$/.test(username);
+}
+
 // ============ AUTH ============
 
-// Register
-app.post('/api/auth/register', async (req, res) => {
+// Register (with stricter rate limiting)
+app.post('/api/auth/register', authLimiter, async (req, res) => {
     const { username, email, password } = req.body;
     
     if (!username || !email || !password) {
         return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (!isValidUsername(username)) {
+        return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
     }
 
     if (password.length < 6) {
@@ -97,20 +135,20 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     try {
-        // Check if email exists
+        // Check if email or username exists (generic message to prevent enumeration)
         const existingEmail = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
         if (existingEmail) {
-            return res.status(400).json({ error: 'Email already registered' });
+            return res.status(400).json({ error: 'Account with this email or username already exists' });
         }
 
         // Check if username exists
         const existingUsername = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
         if (existingUsername) {
-            return res.status(400).json({ error: 'Username already taken' });
+            return res.status(400).json({ error: 'Account with this email or username already exists' });
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 12); // Increased cost factor
         const shareCode = generateShareCode();
 
         // Insert user
@@ -154,7 +192,8 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Login
-app.post('/api/auth/login', async (req, res) => {
+// Login (with stricter rate limiting)
+app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -592,14 +631,20 @@ app.post('/api/decks', optionalAuth, (req, res) => {
     }
 });
 
-// Get a single deck with cards and tags
-app.get('/api/decks/:id', (req, res) => {
+// Get a single deck with cards and tags (requires ownership)
+app.get('/api/decks/:id', optionalAuth, (req, res) => {
     const { id } = req.params;
     try {
+        const userId = req.user?.id || null;
         const deckStmt = db.prepare('SELECT * FROM decks WHERE id = ?');
         const deck = deckStmt.get(id);
 
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        
+        // Verify ownership
+        if (deck.user_id !== userId) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
 
         const cardsStmt = db.prepare('SELECT * FROM cards WHERE deck_id = ?');
         const cards = cardsStmt.all(id);
