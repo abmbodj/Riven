@@ -14,31 +14,37 @@ export default function CardImageUpload({ label, value, onChange, className = ''
     const [loading, setLoading] = useState(false);
 
     const compressImage = (file, maxWidth = 800, quality = 0.7) => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let { width, height } = img;
-                    
-                    // Scale down if needed
-                    if (width > maxWidth) {
-                        height = (height * maxWidth) / width;
-                        width = maxWidth;
+                    try {
+                        const canvas = document.createElement('canvas');
+                        let { width, height } = img;
+                        
+                        // Scale down if needed
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Convert to JPEG for better compression
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    } catch (err) {
+                        reject(err);
                     }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Convert to JPEG for better compression
-                    resolve(canvas.toDataURL('image/jpeg', quality));
                 };
+                img.onerror = reject;
                 img.src = e.target.result;
             };
+            reader.onerror = reject;
             reader.readAsDataURL(file);
         });
     };
@@ -49,11 +55,13 @@ export default function CardImageUpload({ label, value, onChange, className = ''
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
+            console.error('Invalid file type:', file.type);
             return;
         }
 
         // Max 5MB
         if (file.size > 5 * 1024 * 1024) {
+            console.error('File too large:', file.size);
             return;
         }
 
@@ -65,27 +73,32 @@ export default function CardImageUpload({ label, value, onChange, className = ''
             console.error('Failed to process image:', err);
         } finally {
             setLoading(false);
+            // Reset input so same file can be selected again
+            if (inputRef.current) {
+                inputRef.current.value = '';
+            }
         }
     };
 
     const handleRemove = (e) => {
+        e.preventDefault();
         e.stopPropagation();
         onChange(null);
-        if (inputRef.current) {
-            inputRef.current.value = '';
-        }
     };
 
     return (
         <div className={className}>
-            <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                {label}
-            </label>
+            {label && (
+                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">
+                    {label}
+                </label>
+            )}
             
             <input
                 ref={inputRef}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
             />
@@ -100,18 +113,20 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                     <button
                         type="button"
                         onClick={handleRemove}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors"
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white active:bg-red-600 transition-colors"
                     >
                         <X className="w-4 h-4" />
                     </button>
                 </div>
             ) : (
-                <button
-                    type="button"
-                    onClick={() => inputRef.current?.click()}
-                    disabled={loading}
-                    className="w-full h-20 border-2 border-dashed border-claude-border rounded-xl flex items-center justify-center gap-2 text-claude-secondary hover:border-claude-accent hover:text-claude-accent transition-colors disabled:opacity-50"
-                >
+                <label className="w-full h-20 border-2 border-dashed border-claude-border rounded-xl flex items-center justify-center gap-2 text-claude-secondary active:border-claude-accent active:text-claude-accent transition-colors cursor-pointer">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
                     {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
@@ -120,7 +135,7 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                             <span className="text-sm">Add Image</span>
                         </>
                     )}
-                </button>
+                </label>
             )}
         </div>
     );
