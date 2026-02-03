@@ -1,66 +1,90 @@
-import React, { useState } from 'react';
-import { Camera, X, Image, Link2, Check } from 'lucide-react';
-
-// Default avatar options
-const DEFAULT_AVATARS = [
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Midnight',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Bubba',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
-    'https://api.dicebear.com/7.x/avataaars/svg?seed=Willow',
-    'https://api.dicebear.com/7.x/bottts/svg?seed=Felix',
-    'https://api.dicebear.com/7.x/bottts/svg?seed=Aneka',
-    'https://api.dicebear.com/7.x/bottts/svg?seed=Midnight',
-    'https://api.dicebear.com/7.x/bottts/svg?seed=Lucky',
-];
-
-// Gradient backgrounds
-const GRADIENT_AVATARS = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-];
+import React, { useState, useRef } from 'react';
+import { Camera, X, Upload, Trash2 } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
-    const [tab, setTab] = useState('avatars'); // avatars, gradients, url
-    const [customUrl, setCustomUrl] = useState('');
-    const [previewUrl, setPreviewUrl] = useState('');
-    const [urlError, setUrlError] = useState('');
+    const [preview, setPreview] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const fileInputRef = useRef(null);
 
-    const handleUrlSubmit = () => {
-        if (!customUrl.trim()) {
-            setUrlError('Please enter a URL');
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            setError('Please select an image file');
             return;
         }
-        
-        // Basic URL validation
-        try {
-            new URL(customUrl);
-            onSelect(customUrl);
-        } catch {
-            setUrlError('Please enter a valid URL');
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            setError('Image must be less than 2MB');
+            return;
+        }
+
+        setError('');
+        setLoading(true);
+
+        // Convert to base64 data URL
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            // Resize image to max 256x256 for storage efficiency
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const maxSize = 256;
+                let { width, height } = img;
+
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convert to JPEG for smaller size (or PNG if transparent)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                setPreview(dataUrl);
+                setLoading(false);
+            };
+            img.onerror = () => {
+                setError('Failed to process image');
+                setLoading(false);
+            };
+            img.src = event.target.result;
+        };
+        reader.onerror = () => {
+            setError('Failed to read file');
+            setLoading(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleSave = () => {
+        if (preview) {
+            onSelect(preview);
         }
     };
 
-    const handleUrlPreview = (url) => {
-        setCustomUrl(url);
-        setUrlError('');
-        if (url.trim()) {
-            try {
-                new URL(url);
-                setPreviewUrl(url);
-            } catch {
-                setPreviewUrl('');
-            }
-        } else {
-            setPreviewUrl('');
-        }
+    const handleRemove = () => {
+        onSelect(null);
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
     };
 
     return (
@@ -74,157 +98,102 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
             >
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-claude-border shrink-0">
-                    <h3 className="text-lg font-display font-bold">Choose Avatar</h3>
-                    <button onClick={onClose} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
+                    <h3 className="text-lg font-display font-bold">Change Avatar</h3>
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 -mr-2 active:bg-claude-bg rounded-full transition-colors"
+                    >
                         <X className="w-5 h-5 text-claude-secondary" />
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-claude-border shrink-0">
-                    <button
-                        onClick={() => setTab('avatars')}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                            tab === 'avatars' ? 'text-claude-accent border-b-2 border-claude-accent' : 'text-claude-secondary'
-                        }`}
-                    >
-                        <Image className="w-4 h-4 inline mr-2" />
-                        Avatars
-                    </button>
-                    <button
-                        onClick={() => setTab('gradients')}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                            tab === 'gradients' ? 'text-claude-accent border-b-2 border-claude-accent' : 'text-claude-secondary'
-                        }`}
-                    >
-                        <Camera className="w-4 h-4 inline mr-2" />
-                        Colors
-                    </button>
-                    <button
-                        onClick={() => setTab('url')}
-                        className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                            tab === 'url' ? 'text-claude-accent border-b-2 border-claude-accent' : 'text-claude-secondary'
-                        }`}
-                    >
-                        <Link2 className="w-4 h-4 inline mr-2" />
-                        Custom URL
-                    </button>
-                </div>
-
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4">
-                    {tab === 'avatars' && (
-                        <div className="grid grid-cols-4 gap-3">
-                            {DEFAULT_AVATARS.map((url, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => onSelect(url)}
-                                    className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${
-                                        currentAvatar === url 
-                                            ? 'border-claude-accent scale-95' 
-                                            : 'border-transparent hover:border-claude-accent/50'
-                                    }`}
-                                >
-                                    <img src={url} alt="" className="w-full h-full object-cover bg-claude-bg" />
-                                    {currentAvatar === url && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                            <Check className="w-6 h-6 text-white" />
-                                        </div>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {tab === 'gradients' && (
-                        <div className="grid grid-cols-3 gap-3">
-                            {GRADIENT_AVATARS.map((gradient, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => onSelect(`gradient:${gradient}`)}
-                                    className={`aspect-square rounded-2xl border-2 transition-all ${
-                                        currentAvatar === `gradient:${gradient}` 
-                                            ? 'border-claude-accent scale-95' 
-                                            : 'border-transparent hover:border-claude-accent/50'
-                                    }`}
-                                    style={{ background: gradient }}
-                                >
-                                    {currentAvatar === `gradient:${gradient}` && (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <Check className="w-6 h-6 text-white drop-shadow-md" />
-                                        </div>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {tab === 'url' && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-claude-secondary">
-                                Enter a URL to any image or GIF you'd like to use as your avatar.
-                            </p>
-                            
-                            {/* Preview */}
-                            <div className="flex justify-center">
-                                <div className="w-24 h-24 rounded-full overflow-hidden bg-claude-bg border-2 border-claude-border">
-                                    {previewUrl ? (
-                                        <img 
-                                            src={previewUrl} 
-                                            alt="Preview" 
-                                            className="w-full h-full object-cover"
-                                            onError={() => {
-                                                setPreviewUrl('');
-                                                setUrlError('Could not load image');
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-claude-secondary">
-                                            <Camera className="w-8 h-8" />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <input
-                                    type="url"
-                                    value={customUrl}
-                                    onChange={e => handleUrlPreview(e.target.value)}
-                                    placeholder="https://example.com/avatar.gif"
-                                    className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                                />
-                                {urlError && (
-                                    <p className="text-red-500 text-sm mt-1">{urlError}</p>
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex flex-col items-center gap-6">
+                        {/* Preview */}
+                        <div className="relative">
+                            <div className="w-32 h-32 rounded-full overflow-hidden bg-claude-bg border-4 border-claude-border shadow-lg">
+                                {loading ? (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <LoadingSpinner size="md" />
+                                    </div>
+                                ) : preview ? (
+                                    <img 
+                                        src={preview} 
+                                        alt="Preview" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : currentAvatar && !currentAvatar.startsWith('gradient:') ? (
+                                    <img 
+                                        src={currentAvatar} 
+                                        alt="Current" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : currentAvatar?.startsWith('gradient:') ? (
+                                    <div 
+                                        className="w-full h-full"
+                                        style={{ background: currentAvatar.replace('gradient:', '') }}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-claude-secondary">
+                                        <Camera className="w-12 h-12" />
+                                    </div>
                                 )}
                             </div>
-                            
-                            <button
-                                onClick={handleUrlSubmit}
-                                disabled={!previewUrl}
-                                className="w-full py-3 bg-claude-accent text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Use This Avatar
-                            </button>
-                            
-                            <p className="text-xs text-claude-secondary text-center">
-                                Tip: You can use GIFs from Giphy, Tenor, or any image URL!
-                            </p>
                         </div>
-                    )}
+
+                        {/* Hidden file input */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                        />
+
+                        {/* Upload button */}
+                        <button
+                            onClick={triggerFileInput}
+                            disabled={loading}
+                            className="flex items-center gap-3 px-6 py-3 bg-claude-accent text-white rounded-xl font-semibold transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            <Upload className="w-5 h-5" />
+                            Choose Photo
+                        </button>
+
+                        {error && (
+                            <p className="text-red-500 text-sm text-center">{error}</p>
+                        )}
+
+                        <p className="text-xs text-claude-secondary text-center max-w-xs">
+                            Upload any image file (JPG, PNG, GIF). Max 2MB. Image will be resized to fit.
+                        </p>
+                    </div>
                 </div>
 
-                {/* Remove Avatar Option */}
-                {currentAvatar && tab !== 'url' && (
-                    <div className="p-4 border-t border-claude-border">
+                {/* Actions */}
+                <div className="p-4 border-t border-claude-border space-y-3">
+                    {preview && (
                         <button
-                            onClick={() => onSelect(null)}
-                            className="w-full py-3 text-red-500 font-medium"
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="w-full py-3 bg-claude-accent text-white rounded-xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
                         >
+                            Save Avatar
+                        </button>
+                    )}
+                    
+                    {currentAvatar && (
+                        <button
+                            onClick={handleRemove}
+                            disabled={loading}
+                            className="w-full py-3 text-red-500 font-medium flex items-center justify-center gap-2 active:bg-red-500/10 rounded-xl transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
                             Remove Avatar
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

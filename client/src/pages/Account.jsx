@@ -13,6 +13,7 @@ import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Avatar from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
+import LoadingSpinner from '../components/LoadingSpinner';
 import * as authApi from '../api/authApi';
 
 export default function Account() {
@@ -43,6 +44,10 @@ export default function Account() {
     const [editForm, setEditForm] = useState({ username: '', bio: '' });
     const [copied, setCopied] = useState(false);
 
+    // Loading states
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
     // Social stats
     const [friendCount, setFriendCount] = useState(0);
     const [unreadMessages, setUnreadMessages] = useState(0);
@@ -51,7 +56,10 @@ export default function Account() {
         let mounted = true;
         
         const loadStats = async () => {
-            if (!isLoggedIn) return;
+            if (!isLoggedIn) {
+                setLoading(false);
+                return;
+            }
             try {
                 const [friends, unread] = await Promise.all([
                     authApi.getFriends(),
@@ -63,6 +71,8 @@ export default function Account() {
                 }
             } catch {
                 // Failed to load social stats silently
+            } finally {
+                if (mounted) setLoading(false);
             }
         };
         
@@ -77,6 +87,7 @@ export default function Account() {
             setAlert({ show: true, title: 'Missing Fields', message: 'Please fill in all fields', type: 'warning' });
             return;
         }
+        setSaving(true);
         try {
             await signIn(loginForm.email, loginForm.password);
             haptics.success();
@@ -85,6 +96,8 @@ export default function Account() {
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Login Failed', message: err.message, type: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -102,6 +115,7 @@ export default function Account() {
             setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters', type: 'warning' });
             return;
         }
+        setSaving(true);
         try {
             const result = await signUp(signupForm.username, signupForm.email, signupForm.password);
             haptics.success();
@@ -116,10 +130,13 @@ export default function Account() {
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Signup Failed', message: err.message, type: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleAvatarSelect = async (avatarUrl) => {
+        setSaving(true);
         try {
             await updateProfile({ avatar: avatarUrl });
             haptics.success();
@@ -128,10 +145,13 @@ export default function Account() {
         } catch {
             haptics.error();
             toast.error('Failed to update avatar');
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleSaveProfile = async () => {
+        setSaving(true);
         try {
             await updateProfile({ username: editForm.username, bio: editForm.bio });
             haptics.success();
@@ -140,6 +160,8 @@ export default function Account() {
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Update Failed', message: err.message, type: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -152,6 +174,7 @@ export default function Account() {
             setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters', type: 'warning' });
             return;
         }
+        setSaving(true);
         try {
             await changePassword(passwordForm.current, passwordForm.new);
             haptics.success();
@@ -161,10 +184,13 @@ export default function Account() {
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Change Failed', message: err.message, type: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleDeleteAccount = async () => {
+        setSaving(true);
         try {
             await deleteAccount(deletePassword);
             haptics.medium();
@@ -173,6 +199,8 @@ export default function Account() {
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Delete Failed', message: err.message, type: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -244,9 +272,10 @@ export default function Account() {
 
                     <button
                         type="submit"
-                        className="w-full py-4 bg-claude-accent text-white rounded-xl font-semibold active:scale-[0.97] transition-transform"
+                        disabled={saving}
+                        className="w-full py-4 bg-claude-accent text-white rounded-xl font-semibold active:scale-[0.97] transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
                     >
-                        Sign In
+                        {saving ? <LoadingSpinner size="sm" /> : 'Sign In'}
                     </button>
                 </form>
 
@@ -344,9 +373,10 @@ export default function Account() {
 
                     <button
                         type="submit"
-                        className="w-full py-4 bg-green-500 text-white rounded-xl font-semibold active:scale-[0.97] transition-transform"
+                        disabled={saving}
+                        className="w-full py-4 bg-green-500 text-white rounded-xl font-semibold active:scale-[0.97] transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
                     >
-                        Create Account
+                        {saving ? <LoadingSpinner size="sm" /> : 'Create Account'}
                     </button>
                 </form>
 
@@ -368,9 +398,25 @@ export default function Account() {
         );
     }
 
+    // Loading state for profile
+    if (loading && isLoggedIn) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
     // Profile View (logged in) - Social Media Style
     return (
         <div className="animate-in fade-in duration-300 pb-24">
+            {/* Loading overlay for save operations */}
+            {saving && (
+                <div className="fixed inset-0 bg-claude-bg/60 backdrop-blur-sm z-[100] flex items-center justify-center">
+                    <LoadingSpinner size="lg" />
+                </div>
+            )}
+            
             {/* Profile Header - Social Media Style */}
             <div className="relative mb-6">
                 {/* Cover/Background */}
