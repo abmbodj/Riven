@@ -3,12 +3,15 @@ import { Link, useLocation } from 'react-router-dom';
 import { Palette, Home, Plus, WifiOff, Dog, User, Shield } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';
 import { AuthContext } from '../context/AuthContext';
+import { UIContext } from '../context/UIContext';
 
 export default function Layout({ children }) {
     const location = useLocation();
     const { isAdmin } = useContext(AuthContext);
+    const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
     const isCreatePage = location.pathname === '/create';
+    const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     useContext(ThemeContext); // Ensure theme is loaded
 
@@ -25,8 +28,8 @@ export default function Layout({ children }) {
         };
     }, []);
 
-    // Hide bottom nav on study/test and create pages for cleaner UX
-    const hideBottomNav = isStudyOrTest || isCreatePage;
+    // Hide bottom nav on study/test, create pages, messages chat, or when context says to hide
+    const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || hideNavFromContext;
 
     return (
         <div className="min-h-[100dvh] bg-claude-bg text-claude-text font-sans">

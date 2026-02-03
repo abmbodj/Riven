@@ -277,7 +277,7 @@ export default function Messages() {
             <form 
                 onSubmit={handleSendMessage}
                 className="fixed bottom-0 left-0 right-0 p-4 bg-claude-surface border-t border-claude-border z-[60]"
-                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 70px)' }}
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 16px)' }}
             >
                 <div className="max-w-lg mx-auto flex items-center gap-2">
                     <input

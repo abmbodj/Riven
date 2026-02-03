@@ -18,14 +18,16 @@ import NotFound from './pages/NotFound';
 import MobileWarning from './components/MobileWarning';
 import { AuthProvider } from './context/AuthContext';
 import { PetProvider } from './context/PetContext';
+import { UIProvider } from './context/UIContext';
 
 function App() {
   return (
     <AuthProvider>
       <PetProvider>
-        <BrowserRouter>
-          <MobileWarning />
-          <Layout>
+        <UIProvider>
+          <BrowserRouter>
+            <MobileWarning />
+            <Layout>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/create" element={<CreateDeck />} />
@@ -45,6 +47,7 @@ function App() {
             </Routes>
           </Layout>
         </BrowserRouter>
+        </UIProvider>
       </PetProvider>
     </AuthProvider>
   );

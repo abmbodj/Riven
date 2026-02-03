@@ -1,12 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Camera, X, Upload, Trash2 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
+import { UIContext } from '../context/UIContext';
 
 export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const fileInputRef = useRef(null);
+    const { hideNav, showBottomNav } = useContext(UIContext);
+
+    // Hide bottom nav when this component mounts
+    useEffect(() => {
+        hideNav();
+        return () => showBottomNav();
+    }, [hideNav, showBottomNav]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
@@ -174,7 +182,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                 {/* Actions */}
                 <div 
                     className="p-4 border-t border-claude-border space-y-3 shrink-0"
-                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 80px)' }}
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 16px)' }}
                 >
                     {preview && (
                         <button
