@@ -22,8 +22,8 @@ export default function GardenSettings() {
 
     return (
         <div className="animate-in fade-in duration-300 relative min-h-[calc(100dvh-180px)] overflow-hidden">
-            {/* Coming Soon Overlay - covers everything including bottom nav */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Coming Soon Overlay - leaves bottom nav accessible */}
+            <div className="fixed inset-0 bottom-[calc(64px+env(safe-area-inset-bottom,0px))] z-40 flex items-center justify-center">
                 <div className="absolute inset-0 bg-claude-bg/80 backdrop-blur-md" />
                 <div className="relative bg-claude-surface border border-claude-border rounded-3xl p-8 mx-4 text-center shadow-2xl">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">
