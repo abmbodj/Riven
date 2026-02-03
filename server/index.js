@@ -971,8 +971,8 @@ app.post('/api/decks/:id/duplicate', optionalAuth, async (req, res) => {
         const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [id]);
         for (const card of cards) {
             await db.execute(
-                'INSERT INTO cards (deck_id, front, back, position) VALUES ($1, $2, $3, $4)',
-                [newDeck.id, card.front, card.back, card.position]
+                'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6)',
+                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position]
             );
         }
 
@@ -1059,11 +1059,15 @@ app.put('/api/cards/:id/progress', optionalAuth, async (req, res) => {
     const { difficulty, times_reviewed, times_correct, last_reviewed, next_review } = req.body;
 
     try {
+        const userId = req.user?.id || null;
+        const card = await db.queryOne('SELECT c.*, d.user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = $1', [id]);
+        if (!card) return res.status(404).json({ error: 'Card not found' });
+        if (card.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
         const result = await db.queryOne(
             'UPDATE cards SET difficulty = COALESCE($1, difficulty), times_reviewed = COALESCE($2, times_reviewed), times_correct = COALESCE($3, times_correct), last_reviewed = COALESCE($4, last_reviewed), next_review = COALESCE($5, next_review) WHERE id = $6 RETURNING *',
             [difficulty, times_reviewed, times_correct, last_reviewed, next_review, id]
         );
-        if (!result) return res.status(404).json({ error: 'Card not found' });
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1099,6 +1103,12 @@ app.post('/api/study-sessions', optionalAuth, async (req, res) => {
     const { deck_id, cards_studied, cards_correct, duration_seconds, session_type } = req.body;
     
     try {
+        // Verify deck ownership
+        const userId = req.user?.id || null;
+        const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [deck_id]);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
         const result = await db.queryOne(
             'INSERT INTO study_sessions (deck_id, cards_studied, cards_correct, duration_seconds, session_type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [deck_id, cards_studied || 0, cards_correct || 0, duration_seconds || 0, session_type || 'study']

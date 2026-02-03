@@ -164,7 +164,7 @@ export const reviewCard = (id, correct) => authFetch(`/cards/${id}/review`, {
     body: JSON.stringify({ correct }),
 });
 
-export const reorderCards = (deckId, cardIds) => authFetch(`/decks/${deckId}/reorder`, {
+export const reorderCards = (deckId, cardIds) => authFetch(`/decks/${deckId}/cards/reorder`, {
     method: 'PUT',
     body: JSON.stringify({ cardIds }),
 });

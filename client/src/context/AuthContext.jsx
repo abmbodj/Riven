@@ -95,9 +95,14 @@ export function AuthProvider({ children }) {
     }, [user]);
 
     // Find user by share code
-    const findUserByShareCode = useCallback(() => {
-        // TODO: Implement server endpoint for finding users by share code
-        return null;
+    const findUserByShareCode = useCallback(async (shareCode) => {
+        if (!shareCode) return null;
+        try {
+            const results = await authApi.searchUsers(shareCode);
+            return results.find(u => u.shareCode?.toUpperCase() === shareCode.toUpperCase()) || null;
+        } catch {
+            return null;
+        }
     }, []);
 
     // Share a deck

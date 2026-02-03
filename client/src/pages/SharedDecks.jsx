@@ -91,7 +91,7 @@ export default function SharedDecks() {
 
         setLoading(true);
         try {
-            const sharedDeckData = getSharedDeck(shareId);
+            const sharedDeckData = await getSharedDeck(shareId);
             if (!sharedDeckData) {
                 throw new Error('Shared deck not found');
             }
@@ -118,9 +118,9 @@ export default function SharedDecks() {
                 []
             );
 
-            // Add all cards
+            // Add all cards (including images)
             for (const card of deckData.cards || []) {
-                await api.addCard(newDeck.id, card.front, card.back);
+                await api.addCard(newDeck.id, card.front, card.back, card.front_image, card.back_image);
             }
 
             haptics.success();
