@@ -1,6 +1,6 @@
 # ⚡ Riven
 
-A beautiful, minimal flashcard app for mastering any subject. Features **cross-device sync**, **offline support**, and a **streak system** with Gmail the Pug 🐶 as your study companion!
+A beautiful, minimal flashcard app for mastering any subject. Features **cross-device sync**, **offline support**, and a **streak system** with a beautiful garden 🌱 that grows with your dedication!
 
 Built entirely through **prompt engineering** — no manual coding required.
 
@@ -19,8 +19,8 @@ Built entirely through **prompt engineering** — no manual coding required.
 
 - **🔐 Cross-Device Sync** — Sign up to access your flashcards from any device
 - **📱 PWA Support** — Install on iOS/Android for a native app experience
-- **🐶 Gmail the Pug** — Your study companion! Maintain your streak to see Gmail grow
-- **🦴 Streak System** — Visual streak tracking with dog-themed rewards
+- **🌱 Streak Garden** — Watch your garden grow from bare soil to paradise as you maintain your streak
+- **🌸 Garden Customization** — Unlock themes, decorations, and special plants as rewards
 - **📚 Deck Management** — Create, organize with folders, and tag flashcard decks
 - **🔄 Study Mode** — Flip through cards with smooth 3D animations
 - **🧠 Spaced Repetition** — Focus on cards you're actually forgetting
@@ -145,7 +145,7 @@ Riven/
 
 ## 🤖 Built with Prompt Engineering
 
-This entire project was created using **AI prompt engineering**. From the SVG animations of Gmail the Pug to the database migrations, every line of code was generated through natural language prompts.
+This entire project was created using **AI prompt engineering**. From the SVG garden animations to the database migrations, every line of code was generated through natural language prompts.
 
 ## 📝 License
 

@@ -4,7 +4,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import MobileWarning from './components/MobileWarning';
 import { AuthProvider } from './context/AuthContext';
-import { PetProvider } from './context/PetContext';
+import { GardenProvider } from './context/GardenContext';
 import { UIProvider } from './context/UIContext';
 
 // Lazy load non-critical pages
@@ -13,7 +13,7 @@ const DeckView = lazy(() => import('./pages/DeckView'));
 const StudyMode = lazy(() => import('./pages/StudyMode'));
 const TestMode = lazy(() => import('./pages/TestMode'));
 const ThemeSettings = lazy(() => import('./pages/ThemeSettings'));
-const PetSettings = lazy(() => import('./pages/PetSettings'));
+const GardenSettings = lazy(() => import('./pages/GardenSettings'));
 const Account = lazy(() => import('./pages/Account'));
 const SharedDecks = lazy(() => import('./pages/SharedDecks'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
@@ -32,7 +32,7 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-      <PetProvider>
+      <GardenProvider>
         <UIProvider>
           <BrowserRouter>
             <MobileWarning />
@@ -45,7 +45,7 @@ function App() {
                 <Route path="/deck/:id/study" element={<StudyMode />} />
                 <Route path="/deck/:id/test" element={<TestMode />} />
                 <Route path="/themes" element={<ThemeSettings />} />
-                <Route path="/pet" element={<PetSettings />} />
+                <Route path="/garden" element={<GardenSettings />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/shared" element={<SharedDecks />} />
                 <Route path="/admin" element={<AdminPanel />} />
@@ -59,7 +59,7 @@ function App() {
           </Layout>
         </BrowserRouter>
         </UIProvider>
-      </PetProvider>
+      </GardenProvider>
     </AuthProvider>
   );
 }

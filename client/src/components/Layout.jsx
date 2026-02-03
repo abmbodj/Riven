@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Palette, Home, Plus, WifiOff, Dog, User } from 'lucide-react';
+import { Palette, Home, Plus, WifiOff, Sprout, User } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';
 import { UIContext } from '../context/UIContext';
 
@@ -65,11 +65,11 @@ export default function Layout({ children }) {
                                 <span className="text-[10px] font-semibold">Library</span>
                             </Link>
                             <Link
-                                to="/pet"
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/pet' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                to="/garden"
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/garden' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                             >
-                                <Dog className="w-6 h-6" />
-                                <span className="text-[10px] font-semibold">Pet</span>
+                                <Sprout className="w-6 h-6" />
+                                <span className="text-[10px] font-semibold">Garden</span>
                             </Link>
                             <Link
                                 to="/create"

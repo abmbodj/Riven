@@ -11,10 +11,6 @@
  * @typedef {'active' | 'at-risk' | 'broken'} StreakStatus
  */
 
-/**
- * @typedef {'wisp' | 'orb' | 'small' | 'medium' | 'full'} GhostStage
- */
-
 import { useState, useEffect, useCallback, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import * as authApi from '../api/authApi';
@@ -34,19 +30,6 @@ const getHoursRemaining = (lastStudyDate) => {
     const deadline = new Date(last.getTime() + (2 * MS_PER_DAY)); // 48 hours to maintain streak
     const now = new Date();
     return Math.max(0, (deadline.getTime() - now.getTime()) / MS_PER_HOUR);
-};
-
-/**
- * Get ghost stage based on streak days
- * @param {number} streak 
- * @returns {GhostStage}
- */
-const getGhostStage = (streak) => {
-    if (streak <= 3) return 'wisp';
-    if (streak <= 7) return 'orb';
-    if (streak <= 14) return 'small';
-    if (streak <= 30) return 'medium';
-    return 'full';
 };
 
 /**
@@ -218,7 +201,6 @@ export function useStreak() {
         return {
             status: calculateStatus(streakData.lastStudyDate),
             hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
-            stage: getGhostStage(streakData.currentStreak),
             studiedToday: hasStudiedToday(streakData.lastStudyDate)
         };
     }, [streakData.lastStudyDate, streakData.currentStreak]);
@@ -229,7 +211,6 @@ export function useStreak() {
         lastStudyDate: streakData.lastStudyDate,
         pastStreaks: streakData.pastStreaks,
         streakStartDate: streakData.streakStartDate,
-        ghostStage: getGhostStage(streakData.currentStreak),
         status: calculateStatus(streakData.lastStudyDate),
         hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
         studiedToday: hasStudiedToday(streakData.lastStudyDate),
@@ -240,4 +221,4 @@ export function useStreak() {
     };
 }
 
-export { getGhostStage, calculateStatus, getHoursRemaining };
+export { calculateStatus, getHoursRemaining };

@@ -302,11 +302,11 @@ app.get('/api/auth/streak', authMiddleware, async (req, res) => {
     }
 });
 
-// Pet customization endpoints
+// Garden customization endpoints (uses pet_customization column)
 app.get('/api/auth/pet', authMiddleware, async (req, res) => {
     try {
         const user = await db.queryOne('SELECT pet_customization FROM users WHERE id = $1', [req.user.id]);
-        const defaultCustomization = { pugType: 'bookworm', colorPalette: 'fawn', accessories: [] };
+        const defaultCustomization = { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
         res.json(user?.pet_customization ? JSON.parse(user.pet_customization) : defaultCustomization);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -317,7 +317,7 @@ app.put('/api/auth/pet', authMiddleware, async (req, res) => {
     const { customization } = req.body;
     try {
         await db.execute('UPDATE users SET pet_customization = $1 WHERE id = $2', [JSON.stringify(customization), req.user.id]);
-        res.json({ message: 'Pet customization saved', customization });
+        res.json({ message: 'Garden customization saved', customization });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
