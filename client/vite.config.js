@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'Riven - Flashcard Study App',
         short_name: 'Riven',
-        description: 'A beautiful flashcard app with spaced repetition and ghost pet streaks',
+        description: 'A beautiful flashcard app with spaced repetition and a streak garden that grows with you',
         theme_color: '#1a1a18',
         background_color: '#1a1a18',
         display: 'standalone',
