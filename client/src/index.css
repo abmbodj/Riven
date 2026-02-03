@@ -13,6 +13,19 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Fix for mobile viewport height issues */
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --app-height: 100vh;
+  }
+}
+
 @layer base {
 
   html,
@@ -20,6 +33,10 @@
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
+    height: 100%;
+    position: fixed;
+    width: 100%;
+    overflow: hidden;
   }
 
   html {
@@ -33,9 +50,16 @@
     background-color: var(--bg-color);
     color: var(--text-color);
     @apply font-sans antialiased transition-colors duration-200;
-    min-height: 100dvh;
+    min-height: var(--app-height);
     /* Prevent pull-to-refresh on PWA */
     overscroll-behavior-y: contain;
+  }
+
+  #root {
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   h1,

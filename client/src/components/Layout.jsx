@@ -30,14 +30,14 @@ export default function Layout({ children }) {
     const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || hideNavFromContext;
 
     return (
-        <div className="min-h-[100dvh] bg-claude-bg text-claude-text font-sans">
+        <div className="h-full flex flex-col bg-claude-bg text-claude-text font-sans">
             {/* Background pattern for desktop */}
             <div className="fixed inset-0 bg-claude-bg pointer-events-none">
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/[0.02] via-transparent to-claude-accent/[0.02]" />
             </div>
 
             {/* Main container - centered with max width */}
-            <div className="relative min-h-[100dvh] w-full max-w-lg mx-auto flex flex-col bg-claude-bg md:border-x md:border-claude-border/50 md:shadow-2xl md:shadow-black/20">
+            <div className="relative h-full w-full max-w-lg mx-auto flex flex-col bg-claude-bg md:border-x md:border-claude-border/50 md:shadow-2xl md:shadow-black/20">
                 {/* Offline banner */}
                 {isOffline && (
                     <div className="bg-orange-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top shrink-0">
@@ -47,7 +47,7 @@ export default function Layout({ children }) {
                 )}
 
                 {/* Main content - scrollable */}
-                <main className={`flex-1 overflow-y-auto overscroll-contain ${isStudyOrTest ? '' : 'px-4 py-4'} ${hideBottomNav ? 'pb-6' : 'pb-24'} ${!isOffline ? 'safe-area-top' : ''}`}>
+                <main className={`flex-1 overflow-y-auto overscroll-contain ${isStudyOrTest ? '' : 'px-4 py-4'} ${hideBottomNav ? 'pb-6' : 'pb-4'} ${!isOffline ? 'safe-area-top' : ''}`}>
                     <div className="animate-in fade-in duration-200">
                         {children}
                     </div>
@@ -55,7 +55,7 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation - mobile-first PWA style */}
                 {!hideBottomNav && (
-                    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-claude-surface/98 backdrop-blur-lg border-t border-claude-border md:border-x md:border-claude-border/50 z-20 safe-area-bottom">
+                    <nav className="shrink-0 w-full bg-claude-surface/98 backdrop-blur-lg border-t border-claude-border md:border-x md:border-claude-border/50 z-20 safe-area-bottom">
                         <div className="flex items-stretch h-16">
                             <Link
                                 to="/"
