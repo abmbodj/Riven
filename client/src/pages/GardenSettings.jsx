@@ -21,10 +21,10 @@ export default function GardenSettings() {
     const stage = getGardenStage(streak.currentStreak);
 
     return (
-        <div className="animate-in fade-in duration-300 relative">
-            {/* Coming Soon Overlay */}
-            <div className="absolute inset-0 z-50 flex items-center justify-center">
-                <div className="absolute inset-0 bg-claude-bg/60 backdrop-blur-md" />
+        <div className="animate-in fade-in duration-300 relative min-h-[calc(100dvh-180px)] overflow-hidden">
+            {/* Coming Soon Overlay - covers everything including bottom nav */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="absolute inset-0 bg-claude-bg/80 backdrop-blur-md" />
                 <div className="relative bg-claude-surface border border-claude-border rounded-3xl p-8 mx-4 text-center shadow-2xl">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">
                         <Sparkles className="w-8 h-8 text-green-500" />
