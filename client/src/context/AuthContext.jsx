@@ -200,6 +200,50 @@ export function AuthProvider({ children }) {
         return true;
     }, [user]);
 
+    // Get all global messages (admin only)
+    const adminGetMessages = useCallback(async () => {
+        if (!user?.isAdmin) return [];
+        try {
+            return await authApi.adminGetMessages();
+        } catch {
+            return [];
+        }
+    }, [user]);
+
+    // Create a global message (admin only)
+    const adminCreateMessage = useCallback(async (title, content, type, expiresAt) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+        return await authApi.adminCreateMessage(title, content, type, expiresAt);
+    }, [user]);
+
+    // Update a global message (admin only)
+    const adminUpdateMessage = useCallback(async (id, updates) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+        return await authApi.adminUpdateMessage(id, updates);
+    }, [user]);
+
+    // Delete a global message (admin only)
+    const adminDeleteMessage = useCallback(async (id) => {
+        if (!user?.isAdmin) throw new Error('Admin access required');
+        return await authApi.adminDeleteMessage(id);
+    }, [user]);
+
+    // Get active messages for current user
+    const getActiveMessages = useCallback(async () => {
+        if (!user) return [];
+        try {
+            return await authApi.getActiveMessages();
+        } catch {
+            return [];
+        }
+    }, [user]);
+
+    // Dismiss a message
+    const dismissMessage = useCallback(async (id) => {
+        if (!user) throw new Error('Not logged in');
+        return await authApi.dismissMessage(id);
+    }, [user]);
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -224,7 +268,14 @@ export function AuthProvider({ children }) {
             adminDeleteUser,
             adminGetStats,
             adminGetUserStreakData,
-            adminUpdateStreakData
+            adminUpdateStreakData,
+            adminGetMessages,
+            adminCreateMessage,
+            adminUpdateMessage,
+            adminDeleteMessage,
+            // User message functions
+            getActiveMessages,
+            dismissMessage
         }}>
             {children}
         </AuthContext.Provider>

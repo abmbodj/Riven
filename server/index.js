@@ -1049,15 +1049,179 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
         const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks');
         const cardCount = await db.queryOne('SELECT COUNT(*) as count FROM cards');
         const sharedCount = await db.queryOne('SELECT COUNT(*) as count FROM shared_decks');
+        const messageCount = await db.queryOne('SELECT COUNT(*) as count FROM global_messages WHERE is_active = 1');
+        
+        // Get recent signups (last 7 days)
+        const recentUsers = await db.queryOne(`
+            SELECT COUNT(*) as count FROM users 
+            WHERE created_at > NOW() - INTERVAL '7 days'
+        `);
+        
+        // Get study sessions in last 7 days
+        const recentSessions = await db.queryOne(`
+            SELECT COUNT(*) as count FROM study_sessions 
+            WHERE created_at > NOW() - INTERVAL '7 days'
+        `);
         
         res.json({
             users: parseInt(userCount.count),
             decks: parseInt(deckCount.count),
             cards: parseInt(cardCount.count),
-            sharedDecks: parseInt(sharedCount.count)
+            sharedDecks: parseInt(sharedCount.count),
+            activeMessages: parseInt(messageCount.count),
+            recentSignups: parseInt(recentUsers.count),
+            recentSessions: parseInt(recentSessions.count)
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+// ============ GLOBAL MESSAGES ============
+
+// Get all messages (admin)
+app.get('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const messages = await db.query(`
+            SELECT gm.*, u.username as created_by_username 
+            FROM global_messages gm 
+            LEFT JOIN users u ON gm.created_by = u.id 
+            ORDER BY gm.created_at DESC
+        `);
+        res.json(messages.map(m => ({
+            id: m.id,
+            title: m.title,
+            content: m.content,
+            type: m.type,
+            isActive: m.is_active === 1,
+            createdBy: m.created_by_username || 'System',
+            createdAt: m.created_at,
+            expiresAt: m.expires_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+});
+
+// Create a global message (admin)
+app.post('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res) => {
+    const { title, content, type, expiresAt } = req.body;
+    
+    if (!title || !content) {
+        return res.status(400).json({ error: 'Title and content are required' });
+    }
+    
+    if (title.length > 100) {
+        return res.status(400).json({ error: 'Title must be under 100 characters' });
+    }
+    
+    if (content.length > 1000) {
+        return res.status(400).json({ error: 'Content must be under 1000 characters' });
+    }
+    
+    const validTypes = ['info', 'warning', 'success', 'error'];
+    const messageType = validTypes.includes(type) ? type : 'info';
+    
+    try {
+        const result = await db.queryOne(
+            `INSERT INTO global_messages (title, content, type, created_by, expires_at) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [title, content, messageType, req.user.id, expiresAt || null]
+        );
+        
+        res.status(201).json({
+            id: result.id,
+            title: result.title,
+            content: result.content,
+            type: result.type,
+            isActive: result.is_active === 1,
+            createdAt: result.created_at,
+            expiresAt: result.expires_at
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create message' });
+    }
+});
+
+// Toggle message active status (admin)
+app.put('/api/admin/messages/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { isActive, title, content, type } = req.body;
+    
+    try {
+        await db.execute(
+            `UPDATE global_messages SET 
+                is_active = COALESCE($1, is_active),
+                title = COALESCE($2, title),
+                content = COALESCE($3, content),
+                type = COALESCE($4, type)
+             WHERE id = $5`,
+            [isActive !== undefined ? (isActive ? 1 : 0) : null, title, content, type, id]
+        );
+        
+        const message = await db.queryOne('SELECT * FROM global_messages WHERE id = $1', [id]);
+        if (!message) return res.status(404).json({ error: 'Message not found' });
+        
+        res.json({
+            id: message.id,
+            title: message.title,
+            content: message.content,
+            type: message.type,
+            isActive: message.is_active === 1
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update message' });
+    }
+});
+
+// Delete a global message (admin)
+app.delete('/api/admin/messages/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await db.execute('DELETE FROM global_messages WHERE id = $1', [id]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'Message not found' });
+        res.json({ message: 'Message deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
+// Get active messages for current user (non-dismissed, non-expired)
+app.get('/api/messages', authMiddleware, async (req, res) => {
+    try {
+        const messages = await db.query(`
+            SELECT gm.* FROM global_messages gm
+            WHERE gm.is_active = 1 
+            AND (gm.expires_at IS NULL OR gm.expires_at > NOW())
+            AND gm.id NOT IN (
+                SELECT message_id FROM user_dismissed_messages WHERE user_id = $1
+            )
+            ORDER BY gm.created_at DESC
+        `, [req.user.id]);
+        
+        res.json(messages.map(m => ({
+            id: m.id,
+            title: m.title,
+            content: m.content,
+            type: m.type,
+            createdAt: m.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+});
+
+// Dismiss a message (user)
+app.post('/api/messages/:id/dismiss', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.execute(
+            `INSERT INTO user_dismissed_messages (user_id, message_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [req.user.id, id]
+        );
+        res.json({ message: 'Message dismissed' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to dismiss message' });
     }
 });
 

@@ -1,414 +1,558 @@
-import { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { useHaptics } from '../hooks/useHaptics';
-import AlertModal from '../components/AlertModal';
+import { 
+    Shield, Users, Layers, CreditCard, Share2, MessageSquare,
+    ChevronRight, Plus, Trash2, ToggleLeft, ToggleRight,
+    AlertCircle, Info, CheckCircle, AlertTriangle, X, Send,
+    ArrowLeft, Activity, Clock
+} from 'lucide-react';
 
 export default function AdminPanel() {
     const navigate = useNavigate();
-    const haptics = useHaptics();
     const { 
         isAdmin, 
-        getAllUsers, 
-        adminUpdateUser, 
+        adminGetStats, 
+        getAllUsers,
         adminDeleteUser,
-        adminGetUserStreakData,
-        adminUpdateStreakData
+        adminGetMessages,
+        adminCreateMessage,
+        adminUpdateMessage,
+        adminDeleteMessage
     } = useContext(AuthContext);
-
+    
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [streakData, setStreakData] = useState(null);
-    const [editingStreak, setEditingStreak] = useState(false);
-    const [editedStreak, setEditedStreak] = useState({ currentStreak: 0, longestStreak: 0 });
-    const [alert, setAlert] = useState(null);
-    const [activeTab, setActiveTab] = useState('users');
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    
+    // Message form state
+    const [showMessageForm, setShowMessageForm] = useState(false);
+    const [messageForm, setMessageForm] = useState({
+        title: '',
+        content: '',
+        type: 'info'
+    });
+    const [formLoading, setFormLoading] = useState(false);
 
-    // Redirect non-admins
+    const loadData = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const [statsData, usersData, messagesData] = await Promise.all([
+                adminGetStats(),
+                getAllUsers(),
+                adminGetMessages()
+            ]);
+            setStats(statsData);
+            setUsers(usersData);
+            setMessages(messagesData);
+        } catch {
+            setError('Failed to load admin data');
+        } finally {
+            setLoading(false);
+        }
+    }, [adminGetStats, getAllUsers, adminGetMessages]);
+
     useEffect(() => {
         if (!isAdmin) {
             navigate('/');
+            return;
         }
-    }, [isAdmin, navigate]);
-
-    // Load users
-    useEffect(() => {
-        if (isAdmin) {
-            const loadData = async () => {
-                const usersData = await getAllUsers();
-                setUsers(usersData || []);
-                const streak = adminGetUserStreakData();
-                setStreakData(streak);
-                if (streak) {
-                    setEditedStreak({
-                        currentStreak: streak.currentStreak || 0,
-                        longestStreak: streak.longestStreak || 0
-                    });
-                }
-            };
-            loadData();
-        }
-    }, [isAdmin, getAllUsers, adminGetUserStreakData]);
+        loadData();
+    }, [isAdmin, navigate, loadData]);
 
     const handleDeleteUser = async (userId, username) => {
-        haptics.medium();
-        if (confirm(`Delete user "${username}"? This cannot be undone.`)) {
-            try {
-                await adminDeleteUser(userId);
-                const usersData = await getAllUsers();
-                setUsers(usersData || []);
-                setSelectedUser(null);
-                setAlert({ type: 'success', title: 'User Deleted', message: `${username} has been removed.` });
-            } catch (err) {
-                setAlert({ type: 'error', title: 'Error', message: err.message });
-            }
-        }
-    };
-
-    // eslint-disable-next-line no-unused-vars
-    const handleUpdateUser = async (userId, updates) => {
+        if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+        
         try {
-            await adminUpdateUser(userId, updates);
-            const usersData = await getAllUsers();
-            setUsers(usersData || []);
-            setAlert({ type: 'success', title: 'Updated', message: 'User profile updated.' });
-        } catch (err) {
-            setAlert({ type: 'error', title: 'Error', message: err.message });
+            await adminDeleteUser(userId);
+            setUsers(users.filter(u => u.id !== userId));
+            // Refresh stats after deletion
+            const newStats = await adminGetStats();
+            setStats(newStats);
+        } catch {
+            setError('Failed to delete user');
         }
     };
 
-    const handleSaveStreak = () => {
-        haptics.medium();
+    const handleCreateMessage = async (e) => {
+        e.preventDefault();
+        if (!messageForm.title.trim() || !messageForm.content.trim()) {
+            setError('Title and content are required');
+            return;
+        }
+        
+        setFormLoading(true);
         try {
-            const newData = {
-                ...streakData,
-                currentStreak: parseInt(editedStreak.currentStreak) || 0,
-                longestStreak: parseInt(editedStreak.longestStreak) || 0,
-            };
-            adminUpdateStreakData(newData);
-            setStreakData(newData);
-            setEditingStreak(false);
-            setAlert({ type: 'success', title: 'Streak Updated', message: 'Gmail streak data has been saved.' });
-        } catch (err) {
-            setAlert({ type: 'error', title: 'Error', message: err.message });
+            const newMessage = await adminCreateMessage(
+                messageForm.title.trim(),
+                messageForm.content.trim(),
+                messageForm.type
+            );
+            setMessages([newMessage, ...messages]);
+            setMessageForm({ title: '', content: '', type: 'info' });
+            setShowMessageForm(false);
+            // Refresh stats
+            const newStats = await adminGetStats();
+            setStats(newStats);
+        } catch {
+            setError('Failed to create message');
+        } finally {
+            setFormLoading(false);
         }
     };
 
-    const handleResetStreak = () => {
-        haptics.medium();
-        if (confirm('Reset all streak data? This will set both current and longest streak to 0.')) {
-            const newData = {
-                currentStreak: 0,
-                longestStreak: 0,
-                lastStudyDate: null,
-                ghostStage: 'baby',
-                customization: streakData?.customization || {}
-            };
-            adminUpdateStreakData(newData);
-            setStreakData(newData);
-            setEditedStreak({ currentStreak: 0, longestStreak: 0 });
-            setAlert({ type: 'success', title: 'Reset Complete', message: 'Streak data has been reset.' });
+    const handleToggleMessage = async (id, currentActive) => {
+        try {
+            await adminUpdateMessage(id, { isActive: !currentActive });
+            setMessages(messages.map(m => 
+                m.id === id ? { ...m, isActive: !currentActive } : m
+            ));
+        } catch {
+            setError('Failed to update message');
+        }
+    };
+
+    const handleDeleteMessage = async (id) => {
+        if (!confirm('Delete this message?')) return;
+        
+        try {
+            await adminDeleteMessage(id);
+            setMessages(messages.filter(m => m.id !== id));
+            // Refresh stats
+            const newStats = await adminGetStats();
+            setStats(newStats);
+        } catch {
+            setError('Failed to delete message');
+        }
+    };
+
+    const getTypeIcon = (type) => {
+        switch (type) {
+            case 'success': return <CheckCircle className="w-4 h-4 text-green-500" />;
+            case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+            case 'error': return <AlertCircle className="w-4 h-4 text-red-500" />;
+            default: return <Info className="w-4 h-4 text-blue-500" />;
+        }
+    };
+
+    const getTypeColor = (type) => {
+        switch (type) {
+            case 'success': return 'bg-green-500/10 border-green-500/30';
+            case 'warning': return 'bg-yellow-500/10 border-yellow-500/30';
+            case 'error': return 'bg-red-500/10 border-red-500/30';
+            default: return 'bg-blue-500/10 border-blue-500/30';
         }
     };
 
     if (!isAdmin) return null;
 
     return (
-        <div className="min-h-screen pb-24 bg-[var(--color-background)]">
+        <div className="space-y-4">
             {/* Header */}
-            <div className="sticky top-0 z-10 px-4 py-4 bg-[var(--color-surface)] border-b border-[var(--color-border)] safe-area-top">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-xl">
-                        🛡️
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="p-2 rounded-xl bg-claude-surface border border-claude-border hover:bg-claude-border/50 transition-colors"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-red-500" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--color-text)]">Admin Panel</h1>
-                        <p className="text-xs text-[var(--color-text-secondary)]">System Management</p>
+                        <h1 className="text-lg font-bold text-claude-text">Admin Panel</h1>
+                        <p className="text-xs text-claude-secondary">Manage your app</p>
                     </div>
                 </div>
             </div>
 
+            {/* Error Banner */}
+            {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-between">
+                    <span className="text-sm text-red-400">{error}</span>
+                    <button onClick={() => setError('')}>
+                        <X className="w-4 h-4 text-red-400" />
+                    </button>
+                </div>
+            )}
+
             {/* Tab Navigation */}
-            <div className="flex border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-                <button
-                    onClick={() => { haptics.light(); setActiveTab('users'); }}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
-                        activeTab === 'users' 
-                            ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
-                            : 'text-[var(--color-text-secondary)]'
-                    }`}
-                >
-                    👥 Users ({users.length})
-                </button>
-                <button
-                    onClick={() => { haptics.light(); setActiveTab('gmail'); }}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
-                        activeTab === 'gmail' 
-                            ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
-                            : 'text-[var(--color-text-secondary)]'
-                    }`}
-                >
-                    👻 Gmail Data
-                </button>
-                <button
-                    onClick={() => { haptics.light(); setActiveTab('perks'); }}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors touch-target ${
-                        activeTab === 'perks' 
-                            ? 'text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]' 
-                            : 'text-[var(--color-text-secondary)]'
-                    }`}
-                >
-                    ✨ Perks
-                </button>
+            <div className="flex gap-2 p-1 rounded-xl bg-claude-surface border border-claude-border">
+                {[
+                    { id: 'dashboard', label: 'Dashboard', icon: Activity },
+                    { id: 'users', label: 'Users', icon: Users },
+                    { id: 'messages', label: 'Messages', icon: MessageSquare }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            activeTab === tab.id 
+                                ? 'bg-claude-accent text-white' 
+                                : 'text-claude-secondary hover:text-claude-text'
+                        }`}
+                    >
+                        <tab.icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                ))}
             </div>
 
-            <div className="p-4">
-                {/* Users Tab */}
-                {activeTab === 'users' && (
-                    <div className="space-y-3">
-                        <div className="p-3 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                            <p className="text-sm text-[var(--color-text-secondary)]">
-                                Manage registered user accounts. Click a user to see details.
-                            </p>
-                        </div>
-
-                        {users.length === 0 ? (
-                            <div className="text-center py-12">
-                                <p className="text-4xl mb-2">👤</p>
-                                <p className="text-[var(--color-text-secondary)]">No registered users yet</p>
+            {loading ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : (
+                <>
+                    {/* Dashboard Tab */}
+                    {activeTab === 'dashboard' && stats && (
+                        <div className="space-y-4">
+                            {/* Main Stats Grid */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <StatCard 
+                                    icon={Users} 
+                                    label="Total Users" 
+                                    value={stats.users} 
+                                    color="blue"
+                                />
+                                <StatCard 
+                                    icon={CreditCard} 
+                                    label="Total Cards" 
+                                    value={stats.cards} 
+                                    color="purple"
+                                />
+                                <StatCard 
+                                    icon={Layers} 
+                                    label="Total Decks" 
+                                    value={stats.decks} 
+                                    color="green"
+                                />
+                                <StatCard 
+                                    icon={Share2} 
+                                    label="Shared Decks" 
+                                    value={stats.sharedDecks} 
+                                    color="orange"
+                                />
                             </div>
-                        ) : (
-                            users.map(u => (
-                                <div
-                                    key={u.id}
-                                    onClick={() => { haptics.light(); setSelectedUser(selectedUser?.id === u.id ? null : u); }}
-                                    className={`p-4 rounded-xl border transition-all touch-target native-press ${
-                                        selectedUser?.id === u.id 
-                                            ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]' 
-                                            : 'bg-[var(--color-surface)] border-[var(--color-border)]'
-                                    }`}
+
+                            {/* Recent Activity */}
+                            <div className="p-4 rounded-xl bg-claude-surface border border-claude-border">
+                                <h3 className="text-sm font-semibold text-claude-text mb-3 flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-claude-secondary" />
+                                    Last 7 Days
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 rounded-lg bg-claude-bg border border-claude-border/50">
+                                        <div className="text-2xl font-bold text-claude-accent">
+                                            {stats.recentSignups || 0}
+                                        </div>
+                                        <div className="text-xs text-claude-secondary">New Signups</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-claude-bg border border-claude-border/50">
+                                        <div className="text-2xl font-bold text-green-500">
+                                            {stats.recentSessions || 0}
+                                        </div>
+                                        <div className="text-xs text-claude-secondary">Study Sessions</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Active Messages Count */}
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                            <MessageSquare className="w-5 h-5 text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-claude-text">Active Broadcasts</div>
+                                            <div className="text-xs text-claude-secondary">Messages shown to users</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-3xl font-bold text-purple-400">
+                                        {stats.activeMessages || 0}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="space-y-2">
+                                <h3 className="text-sm font-semibold text-claude-secondary">Quick Actions</h3>
+                                <button
+                                    onClick={() => setActiveTab('messages')}
+                                    className="w-full p-3 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/50 transition-colors flex items-center justify-between group"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-white text-lg font-bold">
-                                            {u.avatar || u.username?.charAt(0).toUpperCase() || '?'}
+                                        <div className="w-8 h-8 rounded-lg bg-claude-accent/10 flex items-center justify-center">
+                                            <Send className="w-4 h-4 text-claude-accent" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-[var(--color-text)] truncate">{u.username}</p>
-                                            <p className="text-sm text-[var(--color-text-secondary)] truncate">{u.email}</p>
-                                        </div>
-                                        <div className="text-xs text-[var(--color-text-secondary)]">
-                                            {new Date(u.createdAt).toLocaleDateString()}
-                                        </div>
+                                        <span className="text-sm font-medium">Broadcast a Message</span>
                                     </div>
+                                    <ChevronRight className="w-4 h-4 text-claude-secondary group-hover:text-claude-accent transition-colors" />
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('users')}
+                                    className="w-full p-3 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/50 transition-colors flex items-center justify-between group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                            <Users className="w-4 h-4 text-blue-500" />
+                                        </div>
+                                        <span className="text-sm font-medium">Manage Users</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-claude-secondary group-hover:text-claude-accent transition-colors" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
-                                    {selectedUser?.id === u.id && (
-                                        <div className="mt-4 pt-4 border-t border-[var(--color-border)] space-y-3">
-                                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div>
-                                                    <span className="text-[var(--color-text-secondary)]">ID:</span>
-                                                    <p className="font-mono text-xs text-[var(--color-text)] truncate">{u.id}</p>
+                    {/* Users Tab */}
+                    {activeTab === 'users' && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm font-semibold text-claude-secondary">
+                                    {users.length} Users
+                                </h2>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                {users.map(user => (
+                                    <div 
+                                        key={user.id}
+                                        className="p-3 rounded-xl bg-claude-surface border border-claude-border"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                <div className="w-10 h-10 rounded-full bg-claude-accent/10 border border-claude-accent/30 flex items-center justify-center shrink-0">
+                                                    {user.avatar ? (
+                                                        <span className="text-lg">{user.avatar}</span>
+                                                    ) : (
+                                                        <span className="text-sm font-bold text-claude-accent">
+                                                            {user.username[0].toUpperCase()}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <div>
-                                                    <span className="text-[var(--color-text-secondary)]">Share Code:</span>
-                                                    <p className="font-mono text-[var(--color-text)]">{u.shareCode}</p>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-claude-text truncate">
+                                                            {user.username}
+                                                        </span>
+                                                        {user.isAdmin && (
+                                                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500/10 text-red-400 rounded">
+                                                                ADMIN
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-claude-secondary truncate">
+                                                        {user.email}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            {u.bio && (
-                                                <div className="text-sm">
-                                                    <span className="text-[var(--color-text-secondary)]">Bio:</span>
-                                                    <p className="text-[var(--color-text)]">{u.bio}</p>
-                                                </div>
+                                            {!user.isAdmin && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.id, user.username)}
+                                                    className="p-2 rounded-lg hover:bg-red-500/10 text-claude-secondary hover:text-red-400 transition-colors shrink-0"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             )}
-                                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div>
-                                                    <span className="text-[var(--color-text-secondary)]">Shared Decks:</span>
-                                                    <p className="text-[var(--color-text)]">{u.sharedDecks?.length || 0}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-[var(--color-text-secondary)]">Received:</span>
-                                                    <p className="text-[var(--color-text)]">{u.receivedDecks?.length || 0}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id, u.username); }}
-                                                className="w-full py-2 px-4 bg-red-500 text-white rounded-lg text-sm font-medium touch-target native-press"
-                                            >
-                                                Delete User
-                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-
-                {/* Gmail Data Tab */}
-                {activeTab === 'gmail' && (
-                    <div className="space-y-4">
-                        <div className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                            <h3 className="font-semibold text-[var(--color-text)] mb-3 flex items-center gap-2">
-                                👻 Gmail Streak Data
-                            </h3>
-
-                            {streakData ? (
-                                <div className="space-y-4">
-                                    {editingStreak ? (
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-sm text-[var(--color-text-secondary)]">Current Streak</label>
-                                                <input
-                                                    type="number"
-                                                    value={editedStreak.currentStreak}
-                                                    onChange={(e) => setEditedStreak(prev => ({ ...prev, currentStreak: e.target.value }))}
-                                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text)]"
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-sm text-[var(--color-text-secondary)]">Longest Streak</label>
-                                                <input
-                                                    type="number"
-                                                    value={editedStreak.longestStreak}
-                                                    onChange={(e) => setEditedStreak(prev => ({ ...prev, longestStreak: e.target.value }))}
-                                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text)]"
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={handleSaveStreak}
-                                                    className="flex-1 py-2 px-4 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium touch-target native-press"
-                                                >
-                                                    Save Changes
-                                                </button>
-                                                <button
-                                                    onClick={() => { haptics.light(); setEditingStreak(false); }}
-                                                    className="py-2 px-4 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg text-sm font-medium border border-[var(--color-border)] touch-target native-press"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
+                                        <div className="mt-2 flex items-center gap-3 text-xs text-claude-secondary">
+                                            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                                            {user.streakData?.currentStreak > 0 && (
+                                                <span className="text-orange-400">
+                                                    🔥 {user.streakData.currentStreak} streak
+                                                </span>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="p-3 bg-[var(--color-background)] rounded-lg text-center">
-                                                    <p className="text-2xl font-bold text-[var(--color-primary)]">{streakData.currentStreak || 0}</p>
-                                                    <p className="text-xs text-[var(--color-text-secondary)]">Current Streak</p>
-                                                </div>
-                                                <div className="p-3 bg-[var(--color-background)] rounded-lg text-center">
-                                                    <p className="text-2xl font-bold text-orange-500">{streakData.longestStreak || 0}</p>
-                                                    <p className="text-xs text-[var(--color-text-secondary)]">Longest Streak</p>
-                                                </div>
-                                            </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                                            <div className="text-sm text-[var(--color-text-secondary)] space-y-1">
-                                                <p>Ghost Stage: <span className="text-[var(--color-text)]">{streakData.ghostStage || 'baby'}</span></p>
-                                                <p>Last Study: <span className="text-[var(--color-text)]">{streakData.lastStudyDate || 'Never'}</span></p>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => { haptics.light(); setEditingStreak(true); }}
-                                                    className="flex-1 py-2 px-4 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium touch-target native-press"
-                                                >
-                                                    Edit Streak
-                                                </button>
-                                                <button
-                                                    onClick={handleResetStreak}
-                                                    className="py-2 px-4 bg-red-500 text-white rounded-lg text-sm font-medium touch-target native-press"
-                                                >
-                                                    Reset
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                    {/* Messages Tab */}
+                    {activeTab === 'messages' && (
+                        <div className="space-y-4">
+                            {/* Create Message Button / Form */}
+                            {!showMessageForm ? (
+                                <button
+                                    onClick={() => setShowMessageForm(true)}
+                                    className="w-full p-4 rounded-xl border-2 border-dashed border-claude-border hover:border-claude-accent/50 transition-colors flex items-center justify-center gap-2 text-claude-secondary hover:text-claude-accent"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    <span className="font-medium">Create Broadcast</span>
+                                </button>
                             ) : (
-                                <p className="text-[var(--color-text-secondary)] text-center py-4">
-                                    No streak data found. Start studying to create Gmail data!
-                                </p>
+                                <form onSubmit={handleCreateMessage} className="p-4 rounded-xl bg-claude-surface border border-claude-border space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-semibold text-claude-text">New Broadcast</h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowMessageForm(false);
+                                                setMessageForm({ title: '', content: '', type: 'info' });
+                                            }}
+                                            className="p-1 rounded hover:bg-claude-border/50"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs font-medium text-claude-secondary mb-1 block">Type</label>
+                                        <div className="flex gap-2">
+                                            {['info', 'success', 'warning', 'error'].map(type => (
+                                                <button
+                                                    key={type}
+                                                    type="button"
+                                                    onClick={() => setMessageForm({ ...messageForm, type })}
+                                                    className={`flex-1 p-2 rounded-lg text-xs font-medium capitalize transition-all ${
+                                                        messageForm.type === type
+                                                            ? getTypeColor(type) + ' border'
+                                                            : 'bg-claude-bg border border-claude-border hover:border-claude-accent/30'
+                                                    }`}
+                                                >
+                                                    {type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs font-medium text-claude-secondary mb-1 block">Title</label>
+                                        <input
+                                            type="text"
+                                            value={messageForm.title}
+                                            onChange={(e) => setMessageForm({ ...messageForm, title: e.target.value })}
+                                            placeholder="Message title..."
+                                            maxLength={100}
+                                            className="w-full px-3 py-2 rounded-lg bg-claude-bg border border-claude-border text-sm focus:border-claude-accent focus:outline-none"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs font-medium text-claude-secondary mb-1 block">Content</label>
+                                        <textarea
+                                            value={messageForm.content}
+                                            onChange={(e) => setMessageForm({ ...messageForm, content: e.target.value })}
+                                            placeholder="Write your message..."
+                                            maxLength={1000}
+                                            rows={3}
+                                            className="w-full px-3 py-2 rounded-lg bg-claude-bg border border-claude-border text-sm focus:border-claude-accent focus:outline-none resize-none"
+                                        />
+                                        <div className="text-xs text-claude-secondary text-right mt-1">
+                                            {messageForm.content.length}/1000
+                                        </div>
+                                    </div>
+                                    
+                                    <button
+                                        type="submit"
+                                        disabled={formLoading || !messageForm.title.trim() || !messageForm.content.trim()}
+                                        className="w-full py-2.5 rounded-lg bg-claude-accent text-white font-medium text-sm hover:bg-claude-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {formLoading ? (
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <>
+                                                <Send className="w-4 h-4" />
+                                                Broadcast Message
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
                             )}
-                        </div>
 
-                        <div className="p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30">
-                            <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                                ⚠️ Changes to streak data take effect immediately. Modifying the longest streak will affect which accessories are unlocked for all users.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Perks Tab */}
-                {activeTab === 'perks' && (
-                    <div className="space-y-4">
-                        <div className="p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30">
-                            <div className="text-center mb-4">
-                                <p className="text-4xl mb-2">👑</p>
-                                <h3 className="font-bold text-lg text-[var(--color-text)]">Admin Privileges Active</h3>
-                                <p className="text-sm text-[var(--color-text-secondary)]">All Gmail perks are unlocked!</p>
-                            </div>
-                        </div>
-
-                        <div className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                            <h4 className="font-semibold text-[var(--color-text)] mb-3">🎨 Unlocked Accessories</h4>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                {[
-                                    { name: 'Sparkles', days: 5 },
-                                    { name: 'Wizard Hat', days: 7 },
-                                    { name: 'Scarf', days: 10 },
-                                    { name: 'Glasses', days: 14 },
-                                    { name: 'Hearts', days: 15 },
-                                    { name: 'Monocle', days: 21 },
-                                    { name: 'Bowtie', days: 25 },
-                                    { name: 'Graduation Cap', days: 30 },
-                                    { name: 'Stars', days: 35 },
-                                    { name: 'Sunglasses', days: 45 },
-                                    { name: 'Cape', days: 50 },
-                                    { name: 'Crown', days: 60 },
-                                    { name: 'Rainbow', days: 75 },
-                                    { name: 'Halo', days: 100 },
-                                ].map(item => (
-                                    <div key={item.name} className="flex items-center gap-2 p-2 bg-[var(--color-background)] rounded-lg">
-                                        <span className="text-green-500">✓</span>
-                                        <span className="text-[var(--color-text)]">{item.name}</span>
-                                        <span className="text-xs text-[var(--color-text-secondary)] ml-auto">{item.days}d</span>
+                            {/* Messages List */}
+                            <div className="space-y-2">
+                                {messages.length === 0 ? (
+                                    <div className="text-center py-8 text-claude-secondary">
+                                        <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">No broadcasts yet</p>
                                     </div>
-                                ))}
+                                ) : (
+                                    messages.map(message => (
+                                        <div 
+                                            key={message.id}
+                                            className={`p-4 rounded-xl border ${getTypeColor(message.type)} ${
+                                                !message.isActive ? 'opacity-50' : ''
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                    {getTypeIcon(message.type)}
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <h4 className="font-medium text-claude-text">
+                                                                {message.title}
+                                                            </h4>
+                                                            {!message.isActive && (
+                                                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-claude-border text-claude-secondary rounded">
+                                                                    INACTIVE
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-claude-secondary mt-1">
+                                                            {message.content}
+                                                        </p>
+                                                        <div className="text-xs text-claude-secondary mt-2">
+                                                            By {message.createdBy} • {new Date(message.createdAt).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        onClick={() => handleToggleMessage(message.id, message.isActive)}
+                                                        className="p-2 rounded-lg hover:bg-claude-bg/50 text-claude-secondary hover:text-claude-text transition-colors"
+                                                        title={message.isActive ? 'Deactivate' : 'Activate'}
+                                                    >
+                                                        {message.isActive ? (
+                                                            <ToggleRight className="w-5 h-5 text-green-500" />
+                                                        ) : (
+                                                            <ToggleLeft className="w-5 h-5" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteMessage(message.id)}
+                                                        className="p-2 rounded-lg hover:bg-red-500/10 text-claude-secondary hover:text-red-400 transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
-
-                        <div className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                            <h4 className="font-semibold text-[var(--color-text)] mb-3">🎨 Unlocked Color Palettes</h4>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['Classic', 'Sunset', 'Ocean', 'Forest', 'Galaxy', 'Candy'].map(palette => (
-                                    <div key={palette} className="p-2 bg-[var(--color-background)] rounded-lg text-center">
-                                        <span className="text-green-500 text-xs">✓</span>
-                                        <p className="text-sm text-[var(--color-text)]">{palette}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="p-4 bg-green-500/10 rounded-xl border border-green-500/30">
-                            <p className="text-sm text-green-600 dark:text-green-400">
-                                ✅ As an admin, you can access all Gmail customization options regardless of streak progress. Enjoy your ghost pet!
-                            </p>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Alert Modal */}
-            {alert && (
-                <AlertModal
-                    type={alert.type}
-                    title={alert.title}
-                    message={alert.message}
-                    onClose={() => setAlert(null)}
-                />
+                    )}
+                </>
             )}
+        </div>
+    );
+}
+
+// Stat Card Component
+// eslint-disable-next-line no-unused-vars
+function StatCard({ icon: Icon, label, value, color }) {
+    const colorClasses = {
+        blue: 'bg-blue-500/10 border-blue-500/30 text-blue-500',
+        purple: 'bg-purple-500/10 border-purple-500/30 text-purple-500',
+        green: 'bg-green-500/10 border-green-500/30 text-green-500',
+        orange: 'bg-orange-500/10 border-orange-500/30 text-orange-500',
+    };
+
+    return (
+        <div className="p-4 rounded-xl bg-claude-surface border border-claude-border">
+            <div className={`w-10 h-10 rounded-xl ${colorClasses[color]} border flex items-center justify-center mb-3`}>
+                <Icon className="w-5 h-5" />
+            </div>
+            <div className="text-2xl font-bold text-claude-text">{value?.toLocaleString() || 0}</div>
+            <div className="text-xs text-claude-secondary">{label}</div>
         </div>
     );
 }

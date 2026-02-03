@@ -163,6 +163,30 @@ async function initDb() {
             )
         `);
 
+        // Global messages/announcements table (admin broadcasts)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS global_messages (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                type TEXT DEFAULT 'info',
+                is_active INTEGER DEFAULT 1,
+                created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )
+        `);
+
+        // Track which users have dismissed which messages
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_dismissed_messages (
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                message_id INTEGER NOT NULL REFERENCES global_messages(id) ON DELETE CASCADE,
+                dismissed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, message_id)
+            )
+        `);
+
         console.log('Database schema initialized');
     } catch (error) {
         console.error('Database initialization error:', error);

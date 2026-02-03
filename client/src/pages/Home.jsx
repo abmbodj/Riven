@@ -7,6 +7,7 @@ import {
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import GlobalMessages from '../components/GlobalMessages';
 
 export default function Home() {
     const toast = useToast();
@@ -193,6 +194,9 @@ export default function Home() {
 
     return (
         <div className="animate-in fade-in duration-500">
+            {/* Global broadcast messages */}
+            <GlobalMessages />
+
             {/* Delete confirmation modal */}
             <ConfirmModal
                 isOpen={deleteConfirm.show}

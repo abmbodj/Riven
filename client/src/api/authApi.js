@@ -200,6 +200,22 @@ export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${us
 export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
 export const adminGetStats = () => authFetch('/admin/stats');
 
+// Admin message functions
+export const adminGetMessages = () => authFetch('/admin/messages');
+export const adminCreateMessage = (title, content, type, expiresAt) => authFetch('/admin/messages', {
+    method: 'POST',
+    body: JSON.stringify({ title, content, type, expiresAt })
+});
+export const adminUpdateMessage = (id, updates) => authFetch(`/admin/messages/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+});
+export const adminDeleteMessage = (id) => authFetch(`/admin/messages/${id}`, { method: 'DELETE' });
+
+// User-facing message functions
+export const getActiveMessages = () => authFetch('/messages');
+export const dismissMessage = (id) => authFetch(`/messages/${id}/dismiss`, { method: 'POST' });
+
 export default {
     getToken,
     setToken,
@@ -246,4 +262,10 @@ export default {
     adminUpdateUser,
     adminDeleteUser,
     adminGetStats,
+    adminGetMessages,
+    adminCreateMessage,
+    adminUpdateMessage,
+    adminDeleteMessage,
+    getActiveMessages,
+    dismissMessage,
 };
