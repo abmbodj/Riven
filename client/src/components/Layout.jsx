@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Palette, Home, Plus, WifiOff, Dog, User, Shield } from 'lucide-react';
+import { Palette, Home, Plus, WifiOff, Dog, User } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';
-import { AuthContext } from '../context/AuthContext';
 import { UIContext } from '../context/UIContext';
 
 export default function Layout({ children }) {
     const location = useLocation();
-    const { isAdmin } = useContext(AuthContext);
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
     const isCreatePage = location.pathname === '/create';
@@ -88,23 +86,13 @@ export default function Layout({ children }) {
                                 <Palette className="w-6 h-6" />
                                 <span className="text-[10px] font-semibold">Themes</span>
                             </Link>
-                            {isAdmin ? (
-                                <Link
-                                    to="/admin"
-                                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/admin' ? 'text-red-500' : 'text-red-400 active:text-red-500'}`}
-                                >
-                                    <Shield className="w-6 h-6" />
-                                    <span className="text-[10px] font-semibold">Admin</span>
-                                </Link>
-                            ) : (
-                                <Link
-                                    to="/account"
-                                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/account' || location.pathname === '/shared' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
-                                >
-                                    <User className="w-6 h-6" />
-                                    <span className="text-[10px] font-semibold">Account</span>
-                                </Link>
-                            )}
+                            <Link
+                                to="/account"
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/account' || location.pathname === '/shared' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                            >
+                                <User className="w-6 h-6" />
+                                <span className="text-[10px] font-semibold">Account</span>
+                            </Link>
                         </div>
                     </nav>
                 )}

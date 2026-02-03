@@ -73,7 +73,6 @@ export function AuthProvider({ children }) {
     // Update profile
     const updateProfile = useCallback(async (updates) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) throw new Error('Cannot update admin profile');
 
         const updatedUser = await authApi.updateProfile(updates);
         setUser(updatedUser);
@@ -83,7 +82,6 @@ export function AuthProvider({ children }) {
     // Change password
     const changePassword = useCallback(async (currentPassword, newPassword) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) throw new Error('Cannot change admin password');
 
         await authApi.changePassword(currentPassword, newPassword);
     }, [user]);
@@ -91,7 +89,6 @@ export function AuthProvider({ children }) {
     // Delete account
     const deleteAccount = useCallback(async (password) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) throw new Error('Cannot delete admin account');
 
         await authApi.deleteAccount(password);
         setUser(null);
