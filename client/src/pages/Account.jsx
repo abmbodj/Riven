@@ -212,6 +212,9 @@ export default function Account() {
         setLoginForm({ email: '', password: '' });
     };
 
+    // Shared decks state
+    const [sharedDecks, setSharedDecks] = useState([]);
+
     const copyShareCode = () => {
         if (user?.shareCode) {
             navigator.clipboard.writeText(user.shareCode);
@@ -221,7 +224,13 @@ export default function Account() {
         }
     };
 
-    const sharedDecks = getMySharedDecks();
+    // Load shared decks
+    React.useEffect(() => {
+        if (isLoggedIn) {
+            getMySharedDecks().then(setSharedDecks).catch(() => setSharedDecks([]));
+        }
+    }, [isLoggedIn, getMySharedDecks]);
+
     const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
     // Login View

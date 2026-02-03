@@ -28,11 +28,19 @@ export default function SharedDecks() {
     const [importedDeck, setImportedDeck] = useState(null);
     const [alert, setAlert] = useState({ show: false, title: '', message: '', type: 'info' });
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, shareId: null });
+    const [sharedDecks, setSharedDecks] = useState([]);
 
     // Load user's decks for sharing
     React.useEffect(() => {
         api.getDecks().then(setDecks).catch(() => {});
     }, []);
+
+    // Load user's shared decks
+    React.useEffect(() => {
+        if (isLoggedIn) {
+            getMySharedDecks().then(setSharedDecks).catch(() => setSharedDecks([]));
+        }
+    }, [isLoggedIn, getMySharedDecks]);
 
     // Check URL for share code
     React.useEffect(() => {
@@ -42,8 +50,6 @@ export default function SharedDecks() {
             setView('import');
         }
     }, [searchParams]);
-
-    const sharedDecks = getMySharedDecks();
 
     const handleShareDeck = async () => {
         if (!isLoggedIn) {
