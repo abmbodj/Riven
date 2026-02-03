@@ -1,19 +1,14 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { Palette, Sparkles, User, Lock, Check } from 'lucide-react';
 import PugPet from './PugPet';
 import { AuthContext } from '../context/AuthContext';
+import { PetContext } from '../context/PetContext';
 import {
     pugTypes,
     accessories,
     colorPalettes,
-    loadCustomization,
-    saveCustomization,
     isAccessoryUnlocked,
     isPaletteUnlocked,
-    equipAccessory,
-    unequipAccessory,
-    setPugType,
-    setColorPalette,
     getNextUnlock
 } from '../utils/pugCustomization';
 
@@ -34,33 +29,27 @@ export default function PugCustomizer({
     onClose
 }) {
     const { isAdmin } = useContext(AuthContext);
-    const [customization, setCustomization] = useState(loadCustomization);
+    const { customization, setPugType, setColorPalette, toggleAccessory } = useContext(PetContext);
     const [activeTab, setActiveTab] = useState('type');
 
     // Effective streak for admins (unlocks everything)
     const effectiveStreak = isAdmin ? 999 : longestStreak;
 
-    // Save whenever customization changes
-    useEffect(() => {
-        saveCustomization(customization);
-    }, [customization]);
-
     const nextUnlock = isAdmin ? null : getNextUnlock(longestStreak);
 
     const handleTypeSelect = (typeId) => {
-        setCustomization(prev => setPugType(prev, typeId));
+        setPugType(typeId);
     };
 
     const handlePaletteSelect = (paletteId) => {
-        setCustomization(prev => setColorPalette(prev, paletteId, effectiveStreak));
+        if (isPaletteUnlocked(paletteId, effectiveStreak)) {
+            setColorPalette(paletteId);
+        }
     };
 
     const handleAccessoryToggle = (accessoryId) => {
-        const isEquipped = customization.accessories.includes(accessoryId);
-        if (isEquipped) {
-            setCustomization(prev => unequipAccessory(prev, accessoryId));
-        } else {
-            setCustomization(prev => equipAccessory(prev, accessoryId, effectiveStreak));
+        if (isAccessoryUnlocked(accessoryId, effectiveStreak) || customization.accessories.includes(accessoryId)) {
+            toggleAccessory(accessoryId);
         }
     };
 

@@ -172,7 +172,10 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                 </div>
 
                 {/* Actions */}
-                <div className="p-4 pb-8 border-t border-claude-border space-y-3">
+                <div 
+                    className="p-4 border-t border-claude-border space-y-3 shrink-0"
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 80px)' }}
+                >
                     {preview && (
                         <button
                             onClick={handleSave}

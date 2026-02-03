@@ -53,10 +53,16 @@ async function initDb() {
                 avatar TEXT,
                 bio TEXT DEFAULT '',
                 streak_data TEXT DEFAULT '{}',
+                pet_customization TEXT DEFAULT '{}',
                 is_admin INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        
+        // Add pet_customization column if it doesn't exist (migration)
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS pet_customization TEXT DEFAULT '{}'
+        `).catch(() => {});
 
         // Folders table
         await client.query(`

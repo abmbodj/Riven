@@ -103,6 +103,19 @@ export const updateStreak = async (streakData) => {
     });
 };
 
+// ============ PET CUSTOMIZATION ============
+
+export const getPetCustomization = async () => {
+    return authFetch('/auth/pet');
+};
+
+export const updatePetCustomization = async (customization) => {
+    return authFetch('/auth/pet', {
+        method: 'PUT',
+        body: JSON.stringify({ customization }),
+    });
+};
+
 // ============ DATA ENDPOINTS (with auth) ============
 
 export const getFolders = () => authFetch('/folders');
@@ -261,6 +274,8 @@ export default {
     deleteAccount,
     getStreak,
     updateStreak,
+    getPetCustomization,
+    updatePetCustomization,
     getFolders,
     createFolder,
     updateFolder,

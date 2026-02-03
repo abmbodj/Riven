@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { loadCustomization, colorPalettes, pugTypes, accessories } from '../utils/pugCustomization';
+import { useState, useEffect, useContext } from 'react';
+import { PetContext } from '../context/PetContext';
+import { colorPalettes, pugTypes, accessories } from '../utils/pugCustomization';
 
 /**
  * @typedef {Object} PugPetProps
@@ -40,7 +41,10 @@ export default function PugPet({
     showInfo = true,
     onClick
 }) {
-    const [customization] = useState(() => loadCustomization());
+    // Use context for live updates
+    const petContext = useContext(PetContext);
+    const customization = petContext?.customization || { pugType: 'bookworm', colorPalette: 'fawn', accessories: [] };
+    
     const [bounceOffset, setBounceOffset] = useState(0);
 
     // Bouncing animation (pugs don't float, they bounce!)
@@ -77,13 +81,12 @@ export default function PugPet({
         const baseOpacity = status === 'broken' ? 0.6 : 1;
 
         return (
-            <svg viewBox="0 0 120 144" width={width} height={height}>
-                <defs>
-                    <filter id="pug-shadow">
-                        <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.2" />
-                    </filter>
-                </defs>
-
+            <svg 
+                viewBox="0 0 120 144" 
+                width={width} 
+                height={height}
+                style={{ overflow: 'visible', background: 'transparent' }}
+            >
                 <g transform={`translate(60, ${110 + bounceOffset})`} opacity={baseOpacity}>
                     {/* Shadow on ground */}
                     <ellipse cx="0" cy="15" rx={30 * pugScale} ry={8 * pugScale} fill="black" opacity={0.1} />
