@@ -5,7 +5,8 @@ import {
     Users, Layers, CreditCard, Share2, MessageSquare,
     Plus, Trash2, Power, AlertCircle, Info, CheckCircle, 
     AlertTriangle, X, Send, BarChart3, TrendingUp, 
-    Megaphone, UserCircle, Calendar, Zap, Database
+    Megaphone, UserCircle, Calendar, Zap, Database,
+    User, Mail, Key, Shield, ExternalLink
 } from 'lucide-react';
 
 // Supabase brand green
@@ -14,6 +15,7 @@ const SUPA_GREEN = '#3ECF8E';
 export default function AdminPanel() {
     const navigate = useNavigate();
     const { 
+        user,
         isAdmin, 
         adminGetStats, 
         getAllUsers,
@@ -129,7 +131,8 @@ export default function AdminPanel() {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: BarChart3 },
         { id: 'users', label: 'Users', icon: Users },
-        { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone }
+        { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone },
+        { id: 'account', label: 'Account', icon: User }
     ];
 
     return (
@@ -483,6 +486,89 @@ export default function AdminPanel() {
                                         ))
                                     )}
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Account Tab */}
+                        {activeTab === 'account' && user && (
+                            <div className="space-y-4">
+                                {/* Profile Card */}
+                                <div className="bg-[#232323] rounded-lg border border-[#2E2E2E] overflow-hidden">
+                                    <div className="p-6 flex flex-col items-center text-center border-b border-[#2E2E2E]">
+                                        <div 
+                                            className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold mb-4"
+                                            style={{ backgroundColor: 'rgba(62, 207, 142, 0.15)', color: SUPA_GREEN }}
+                                        >
+                                            {user.avatar || user.username?.[0]?.toUpperCase() || 'A'}
+                                        </div>
+                                        <h2 className="text-lg font-semibold text-white">{user.username}</h2>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span 
+                                                className="px-2 py-0.5 text-xs font-bold rounded"
+                                                style={{ backgroundColor: 'rgba(62, 207, 142, 0.15)', color: SUPA_GREEN }}
+                                            >
+                                                <Shield className="w-3 h-3 inline mr-1" />
+                                                ADMIN
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Account Details */}
+                                    <div className="divide-y divide-[#2E2E2E]">
+                                        <div className="px-4 py-3 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-md bg-[#2E2E2E] flex items-center justify-center">
+                                                <Mail className="w-4 h-4 text-[#8F8F8F]" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs text-[#5F5F5F]">Email</p>
+                                                <p className="text-sm text-white truncate">{user.email}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="px-4 py-3 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-md bg-[#2E2E2E] flex items-center justify-center">
+                                                <Key className="w-4 h-4 text-[#8F8F8F]" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs text-[#5F5F5F]">Share Code</p>
+                                                <p className="text-sm text-white font-mono">{user.shareCode || 'Not set'}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="px-4 py-3 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-md bg-[#2E2E2E] flex items-center justify-center">
+                                                <Calendar className="w-4 h-4 text-[#8F8F8F]" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs text-[#5F5F5F]">Member Since</p>
+                                                <p className="text-sm text-white">
+                                                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
+                                                        year: 'numeric',
+                                                        month: 'long',
+                                                        day: 'numeric'
+                                                    }) : 'Unknown'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Quick Link to Full Account Page */}
+                                <button
+                                    onClick={() => navigate('/account')}
+                                    className="w-full p-4 rounded-lg bg-[#232323] border border-[#2E2E2E] hover:border-[#3ECF8E]/50 transition-colors flex items-center justify-between group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-md bg-[#2E2E2E] flex items-center justify-center">
+                                            <ExternalLink className="w-4 h-4 text-[#8F8F8F]" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-medium text-white">Full Account Settings</p>
+                                            <p className="text-xs text-[#5F5F5F]">Edit profile, change password, manage data</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[#8F8F8F] group-hover:text-[#3ECF8E] transition-colors">→</span>
+                                </button>
                             </div>
                         )}
                     </>
