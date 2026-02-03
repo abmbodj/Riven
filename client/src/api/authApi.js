@@ -197,6 +197,35 @@ export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-da
     body: JSON.stringify(guestData),
 });
 
+// ============ SOCIAL / FRIENDS ============
+
+export const searchUsers = (query) => authFetch(`/users/search?q=${encodeURIComponent(query)}`);
+export const getUserProfile = (userId) => authFetch(`/users/${userId}`);
+export const getFriends = () => authFetch('/friends');
+export const sendFriendRequest = (userId) => authFetch('/friends/request', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+});
+export const acceptFriendRequest = (userId) => authFetch('/friends/accept', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+});
+export const removeFriend = (userId) => authFetch(`/friends/${userId}`, { method: 'DELETE' });
+
+// ============ DIRECT MESSAGES ============
+
+export const getConversations = () => authFetch('/messages/conversations');
+export const getMessages = (userId, limit, before) => {
+    let url = `/messages/${userId}?limit=${limit || 50}`;
+    if (before) url += `&before=${encodeURIComponent(before)}`;
+    return authFetch(url);
+};
+export const sendMessage = (receiverId, content, messageType = 'text', deckData = null) => authFetch('/messages', {
+    method: 'POST',
+    body: JSON.stringify({ receiverId, content, messageType, deckData }),
+});
+export const getUnreadCount = () => authFetch('/messages/unread/count');
+
 // ============ ADMIN ENDPOINTS ============
 
 export const adminGetAllUsers = () => authFetch('/admin/users');
@@ -263,6 +292,16 @@ export default {
     getMySharedDecks,
     unshareDeck,
     migrateGuestData,
+    searchUsers,
+    getUserProfile,
+    getFriends,
+    sendFriendRequest,
+    acceptFriendRequest,
+    removeFriend,
+    getConversations,
+    getMessages,
+    sendMessage,
+    getUnreadCount,
     adminGetAllUsers,
     adminUpdateUser,
     adminDeleteUser,

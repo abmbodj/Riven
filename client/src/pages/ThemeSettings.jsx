@@ -496,7 +496,7 @@ export default function ThemeSettings() {
 }
 
 // Theme Card Component for Default Themes
-function ThemeCard({ theme, isActive, onSelect, icon: Icon }) {
+function ThemeCard({ theme, isActive, onSelect }) {
     return (
         <button
             onClick={onSelect}
@@ -514,7 +514,7 @@ function ThemeCard({ theme, isActive, onSelect, icon: Icon }) {
                         border: `2px solid ${theme.border_color}`
                     }}
                 >
-                    <Icon className="w-5 h-5" style={{ color: theme.text_color }} />
+                    <span className="text-sm font-bold" style={{ color: theme.text_color }}>A</span>
                 </div>
                 {isActive && (
                     <div className="w-6 h-6 bg-claude-accent rounded-full flex items-center justify-center">

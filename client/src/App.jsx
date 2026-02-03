@@ -11,6 +11,9 @@ import PetSettings from './pages/PetSettings';
 import Account from './pages/Account';
 import SharedDecks from './pages/SharedDecks';
 import AdminPanel from './pages/AdminPanel';
+import Friends from './pages/Friends';
+import Messages from './pages/Messages';
+import UserProfile from './pages/UserProfile';
 import NotFound from './pages/NotFound';
 import MobileWarning from './components/MobileWarning';
 import { AuthProvider } from './context/AuthContext';
@@ -32,6 +35,10 @@ function App() {
             <Route path="/account" element={<Account />} />
             <Route path="/shared" element={<SharedDecks />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/friends" element={<Friends />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages/:userId" element={<Messages />} />
+            <Route path="/profile/:userId" element={<UserProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

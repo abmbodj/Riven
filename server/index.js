@@ -394,6 +394,299 @@ app.post('/api/auth/migrate-guest-data', authMiddleware, async (req, res) => {
     }
 });
 
+// ============ SOCIAL / FRIENDS ============
+
+// Search users by username or share code
+app.get('/api/users/search', authMiddleware, async (req, res) => {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json([]);
+    
+    try {
+        const users = await db.query(
+            `SELECT id, username, avatar, bio, share_code FROM users 
+             WHERE id != $1 AND (LOWER(username) LIKE LOWER($2) OR UPPER(share_code) = UPPER($3))
+             LIMIT 20`,
+            [req.user.id, `%${q}%`, q]
+        );
+        res.json(users.map(u => ({
+            id: u.id, username: u.username, avatar: u.avatar, bio: u.bio, shareCode: u.share_code
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get user profile by ID
+app.get('/api/users/:id', authMiddleware, async (req, res) => {
+    try {
+        const user = await db.queryOne(
+            'SELECT id, username, avatar, bio, share_code, created_at FROM users WHERE id = $1',
+            [req.params.id]
+        );
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        // Check friendship status
+        const friendship = await db.queryOne(
+            `SELECT * FROM friendships 
+             WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
+            [req.user.id, req.params.id]
+        );
+        
+        // Count public stats
+        const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [req.params.id]);
+        
+        res.json({
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar,
+            bio: user.bio,
+            shareCode: user.share_code,
+            createdAt: user.created_at,
+            deckCount: parseInt(deckCount.count),
+            friendshipStatus: friendship ? friendship.status : null,
+            friendshipDirection: friendship ? (friendship.user_id === req.user.id ? 'outgoing' : 'incoming') : null
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get friends list
+app.get('/api/friends', authMiddleware, async (req, res) => {
+    try {
+        const friends = await db.query(
+            `SELECT u.id, u.username, u.avatar, u.bio, f.status, f.user_id as requester_id, f.created_at
+             FROM friendships f
+             JOIN users u ON (CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END) = u.id
+             WHERE (f.user_id = $1 OR f.friend_id = $1)
+             ORDER BY f.created_at DESC`,
+            [req.user.id]
+        );
+        
+        res.json(friends.map(f => ({
+            id: f.id,
+            username: f.username,
+            avatar: f.avatar,
+            bio: f.bio,
+            status: f.status,
+            isOutgoing: f.requester_id === req.user.id,
+            createdAt: f.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Send friend request
+app.post('/api/friends/request', authMiddleware, async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+    if (userId === req.user.id) return res.status(400).json({ error: 'Cannot friend yourself' });
+    
+    try {
+        // Check if user exists
+        const targetUser = await db.queryOne('SELECT id, username FROM users WHERE id = $1', [userId]);
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+        
+        // Check existing friendship
+        const existing = await db.queryOne(
+            `SELECT * FROM friendships 
+             WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
+            [req.user.id, userId]
+        );
+        
+        if (existing) {
+            if (existing.status === 'accepted') return res.status(400).json({ error: 'Already friends' });
+            if (existing.status === 'pending') return res.status(400).json({ error: 'Friend request already pending' });
+        }
+        
+        await db.execute(
+            'INSERT INTO friendships (user_id, friend_id, status) VALUES ($1, $2, $3)',
+            [req.user.id, userId, 'pending']
+        );
+        
+        res.json({ message: 'Friend request sent', username: targetUser.username });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Accept friend request
+app.post('/api/friends/accept', authMiddleware, async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+    
+    try {
+        const friendship = await db.queryOne(
+            `SELECT * FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = 'pending'`,
+            [userId, req.user.id]
+        );
+        
+        if (!friendship) return res.status(404).json({ error: 'No pending request found' });
+        
+        await db.execute(
+            `UPDATE friendships SET status = 'accepted' WHERE user_id = $1 AND friend_id = $2`,
+            [userId, req.user.id]
+        );
+        
+        res.json({ message: 'Friend request accepted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Decline/remove friend
+app.delete('/api/friends/:userId', authMiddleware, async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        await db.execute(
+            `DELETE FROM friendships 
+             WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
+            [req.user.id, userId]
+        );
+        
+        res.json({ message: 'Friend removed' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ MESSAGES ============
+
+// Get conversations (list of users you have messages with)
+app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
+    try {
+        const conversations = await db.query(
+            `SELECT DISTINCT ON (other_user_id) 
+                other_user_id,
+                u.username,
+                u.avatar,
+                m.content as last_message,
+                m.message_type as last_message_type,
+                m.created_at as last_message_at,
+                m.sender_id,
+                (SELECT COUNT(*) FROM messages WHERE sender_id = other_user_id AND receiver_id = $1 AND is_read = 0) as unread_count
+             FROM (
+                SELECT 
+                    CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as other_user_id,
+                    id
+                FROM messages
+                WHERE sender_id = $1 OR receiver_id = $1
+             ) sub
+             JOIN messages m ON m.id = sub.id
+             JOIN users u ON u.id = sub.other_user_id
+             ORDER BY other_user_id, m.created_at DESC`,
+            [req.user.id]
+        );
+        
+        res.json(conversations.map(c => ({
+            userId: c.other_user_id,
+            username: c.username,
+            avatar: c.avatar,
+            lastMessage: c.last_message,
+            lastMessageType: c.last_message_type,
+            lastMessageAt: c.last_message_at,
+            isOwnMessage: c.sender_id === req.user.id,
+            unreadCount: parseInt(c.unread_count)
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get messages with a specific user
+app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
+    const { userId } = req.params;
+    const { limit = 50, before } = req.query;
+    
+    try {
+        let query = `
+            SELECT m.*, u.username as sender_username, u.avatar as sender_avatar
+            FROM messages m
+            JOIN users u ON u.id = m.sender_id
+            WHERE (m.sender_id = $1 AND m.receiver_id = $2) OR (m.sender_id = $2 AND m.receiver_id = $1)
+        `;
+        const params = [req.user.id, userId];
+        
+        if (before) {
+            query += ` AND m.created_at < $3`;
+            params.push(before);
+        }
+        
+        query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+        params.push(parseInt(limit));
+        
+        const messages = await db.query(query, params);
+        
+        // Mark as read
+        await db.execute(
+            `UPDATE messages SET is_read = 1 WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0`,
+            [userId, req.user.id]
+        );
+        
+        res.json(messages.reverse().map(m => ({
+            id: m.id,
+            senderId: m.sender_id,
+            senderUsername: m.sender_username,
+            senderAvatar: m.sender_avatar,
+            content: m.content,
+            messageType: m.message_type,
+            deckData: m.deck_data ? JSON.parse(m.deck_data) : null,
+            isRead: m.is_read === 1,
+            createdAt: m.created_at,
+            isMine: m.sender_id === req.user.id
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Send a message
+app.post('/api/messages', authMiddleware, async (req, res) => {
+    const { receiverId, content, messageType = 'text', deckData } = req.body;
+    
+    if (!receiverId) return res.status(400).json({ error: 'Receiver ID is required' });
+    if (!content && messageType === 'text') return res.status(400).json({ error: 'Message content is required' });
+    
+    try {
+        // Verify receiver exists
+        const receiver = await db.queryOne('SELECT id FROM users WHERE id = $1', [receiverId]);
+        if (!receiver) return res.status(404).json({ error: 'User not found' });
+        
+        const message = await db.queryOne(
+            `INSERT INTO messages (sender_id, receiver_id, content, message_type, deck_data) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.user.id, receiverId, content, messageType, deckData ? JSON.stringify(deckData) : null]
+        );
+        
+        res.json({
+            id: message.id,
+            senderId: message.sender_id,
+            content: message.content,
+            messageType: message.message_type,
+            deckData: message.deck_data ? JSON.parse(message.deck_data) : null,
+            createdAt: message.created_at,
+            isMine: true
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get unread message count
+app.get('/api/messages/unread/count', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.queryOne(
+            'SELECT COUNT(*) as count FROM messages WHERE receiver_id = $1 AND is_read = 0',
+            [req.user.id]
+        );
+        res.json({ count: parseInt(result.count) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ FOLDERS ============
 
 app.get('/api/folders', optionalAuth, async (req, res) => {
