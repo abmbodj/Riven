@@ -1112,21 +1112,36 @@ app.get('/api/decks/:id/stats', optionalAuth, async (req, res) => {
     const { id } = req.params;
     
     try {
-        const sessions = await db.query('SELECT * FROM study_sessions WHERE deck_id = $1', [id]);
+        const sessions = await db.query(
+            'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC', 
+            [id]
+        );
         const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [id]);
         
         const totalStudied = sessions.reduce((sum, s) => sum + (s.cards_studied || 0), 0);
         const totalCorrect = sessions.reduce((sum, s) => sum + (s.cards_correct || 0), 0);
         const totalTime = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
         
+        // Calculate card difficulty distribution based on times_correct
+        const cardsByDifficulty = {
+            new: cards.filter(c => (c.times_correct || 0) === 0 && (c.times_studied || 0) === 0).length,
+            learning: cards.filter(c => (c.times_studied || 0) > 0 && (c.times_correct || 0) < 2).length,
+            familiar: cards.filter(c => (c.times_correct || 0) >= 2 && (c.times_correct || 0) < 5).length,
+            mastered: cards.filter(c => (c.times_correct || 0) >= 5).length
+        };
+        
         res.json({
             totalSessions: sessions.length,
             totalCardsStudied: totalStudied,
+            totalStudied, // alias for compatibility
             totalCorrect,
             accuracy: totalStudied > 0 ? Math.round((totalCorrect / totalStudied) * 100) : 0,
             totalTimeSeconds: totalTime,
+            totalTime, // alias for compatibility
             cardCount: cards.length,
-            masteredCount: cards.filter(c => (c.times_correct || 0) >= 3).length
+            masteredCount: cardsByDifficulty.mastered,
+            cardsByDifficulty,
+            recentSessions: sessions.slice(0, 10)
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

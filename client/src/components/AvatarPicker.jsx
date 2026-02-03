@@ -172,7 +172,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                 </div>
 
                 {/* Actions */}
-                <div className="p-4 border-t border-claude-border space-y-3">
+                <div className="p-4 pb-8 border-t border-claude-border space-y-3">
                     {preview && (
                         <button
                             onClick={handleSave}

@@ -329,59 +329,99 @@ export default function DeckView() {
             {showStats && stats && (
                 <div 
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-                    style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                    onClick={() => setShowStats(false)}
                 >
-                    <div className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl p-6 animate-in zoom-in-95 duration-300">
+                    <div 
+                        className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl p-6 animate-in zoom-in-95 duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-display font-bold">Statistics</h3>
-                            <button onClick={() => setShowStats(false)} className="p-2">
+                            <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
                                 <X className="w-6 h-6 text-claude-secondary" />
                             </button>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.total_sessions}</span>
+                                <span className="text-2xl font-bold">{stats.totalSessions || 0}</span>
                                 <p className="text-xs text-claude-secondary mt-1">Sessions</p>
                             </div>
                             <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.accuracy}%</span>
+                                <span className="text-2xl font-bold">{stats.accuracy || 0}%</span>
                                 <p className="text-xs text-claude-secondary mt-1">Accuracy</p>
                             </div>
                             <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.total_cards_studied}</span>
+                                <span className="text-2xl font-bold">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
                                 <p className="text-xs text-claude-secondary mt-1">Cards Studied</p>
                             </div>
                             <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{Math.round(stats.total_time_seconds / 60)}m</span>
+                                <span className="text-2xl font-bold">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
                                 <p className="text-xs text-claude-secondary mt-1">Time Spent</p>
                             </div>
                         </div>
 
-                        {stats.difficulty_distribution && (
+                        {stats.cardsByDifficulty && (
                             <div className="mb-4">
-                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Card Difficulty</h4>
+                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Card Progress</h4>
                                 <div className="flex gap-2">
-                                    <div className="flex-1 bg-green-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-green-400">{stats.difficulty_distribution.easy}</span>
-                                        <p className="text-[10px] text-green-400">Easy</p>
+                                    <div className="flex-1 bg-blue-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-blue-400">{stats.cardsByDifficulty.new || 0}</span>
+                                        <p className="text-[10px] text-blue-400">New</p>
                                     </div>
                                     <div className="flex-1 bg-yellow-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-yellow-400">{stats.difficulty_distribution.medium}</span>
-                                        <p className="text-[10px] text-yellow-400">Medium</p>
+                                        <span className="text-lg font-bold text-yellow-400">{stats.cardsByDifficulty.learning || 0}</span>
+                                        <p className="text-[10px] text-yellow-400">Learning</p>
                                     </div>
-                                    <div className="flex-1 bg-red-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-red-400">{stats.difficulty_distribution.hard}</span>
-                                        <p className="text-[10px] text-red-400">Hard</p>
+                                    <div className="flex-1 bg-green-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-green-400">{stats.cardsByDifficulty.familiar || 0}</span>
+                                        <p className="text-[10px] text-green-400">Familiar</p>
+                                    </div>
+                                    <div className="flex-1 bg-purple-500/20 rounded-lg p-2 text-center">
+                                        <span className="text-lg font-bold text-purple-400">{stats.cardsByDifficulty.mastered || 0}</span>
+                                        <p className="text-[10px] text-purple-400">Mastered</p>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {stats.last_studied && (
-                            <p className="text-xs text-claude-secondary text-center">
-                                Last studied: {new Date(stats.last_studied).toLocaleDateString()}
-                            </p>
+                        {/* Show mastered count from server if available */}
+                        {stats.masteredCount !== undefined && !stats.cardsByDifficulty && (
+                            <div className="mb-4">
+                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Progress</h4>
+                                <div className="bg-claude-bg rounded-xl p-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-claude-secondary">Mastered Cards</span>
+                                        <span className="text-lg font-bold text-green-400">{stats.masteredCount} / {stats.cardCount || 0}</span>
+                                    </div>
+                                    {stats.cardCount > 0 && (
+                                        <div className="mt-2 h-2 bg-claude-border rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-green-500 rounded-full transition-all"
+                                                style={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {stats.recentSessions && stats.recentSessions.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Recent Sessions</h4>
+                                <div className="space-y-2">
+                                    {stats.recentSessions.slice(0, 5).map((session, i) => (
+                                        <div key={i} className="bg-claude-bg rounded-lg p-3 flex justify-between items-center">
+                                            <span className="text-xs text-claude-secondary">
+                                                {new Date(session.created_at).toLocaleDateString()}
+                                            </span>
+                                            <span className="text-sm font-medium">
+                                                {session.cards_correct}/{session.cards_studied} correct
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
