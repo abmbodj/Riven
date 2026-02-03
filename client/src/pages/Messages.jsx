@@ -33,7 +33,7 @@ export default function Messages() {
             const data = await authApi.getConversations();
             setConversations(data);
         } catch {
-            console.error('Failed to load conversations');
+            // Failed to load conversations silently
         }
     }, []);
 

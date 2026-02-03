@@ -61,8 +61,8 @@ export default function Account() {
                     setFriendCount(friends.filter(f => f.status === 'accepted').length);
                     setUnreadMessages(unread.count);
                 }
-            } catch (error) {
-                console.error('Failed to load social stats:', error);
+            } catch {
+                // Failed to load social stats silently
             }
         };
         

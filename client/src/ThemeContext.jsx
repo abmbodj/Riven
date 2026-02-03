@@ -26,8 +26,8 @@ export function ThemeProvider({ children }) {
             const active = data.find(t => t.is_active) || data[0];
             setActiveTheme(active);
             if (active) applyTheme(active);
-        }).catch(err => {
-            console.error('Failed to load themes', err);
+        }).catch(() => {
+            // Failed to load themes silently
         });
         return () => { mounted = false; };
     }, [applyTheme]);
@@ -41,50 +41,35 @@ export function ThemeProvider({ children }) {
                 applyTheme(theme);
                 return prev;
             });
-        } catch (err) {
-            console.error('Failed to switch theme', err);
+        } catch {
+            // Failed to switch theme silently
         }
     }, [applyTheme]);
 
     const addTheme = useCallback(async (themeData) => {
-        try {
-            const newTheme = await api.createTheme(themeData);
-            setThemes(prev => [...prev, newTheme]);
-            return newTheme;
-        } catch (err) {
-            console.error('Failed to add theme', err);
-            throw err;
-        }
+        const newTheme = await api.createTheme(themeData);
+        setThemes(prev => [...prev, newTheme]);
+        return newTheme;
     }, []);
 
     const updateTheme = useCallback(async (themeId, themeData) => {
-        try {
-            const updatedTheme = await api.updateTheme(themeId, themeData);
-            setThemes(prev => prev.map(t => t.id === themeId ? updatedTheme : t));
-            // If this is the active theme, re-apply it
-            if (activeTheme?.id === themeId) {
-                setActiveTheme(updatedTheme);
-                applyTheme(updatedTheme);
-            }
-            return updatedTheme;
-        } catch (err) {
-            console.error('Failed to update theme', err);
-            throw err;
+        const updatedTheme = await api.updateTheme(themeId, themeData);
+        setThemes(prev => prev.map(t => t.id === themeId ? updatedTheme : t));
+        // If this is the active theme, re-apply it
+        if (activeTheme?.id === themeId) {
+            setActiveTheme(updatedTheme);
+            applyTheme(updatedTheme);
         }
+        return updatedTheme;
     }, [activeTheme, applyTheme]);
 
     const deleteTheme = useCallback(async (themeId) => {
-        try {
-            // Don't allow deleting the active theme
-            if (activeTheme?.id === themeId) {
-                throw new Error('Cannot delete the active theme. Switch to another theme first.');
-            }
-            await api.deleteTheme(themeId);
-            setThemes(prev => prev.filter(t => t.id !== themeId));
-        } catch (err) {
-            console.error('Failed to delete theme', err);
-            throw err;
+        // Don't allow deleting the active theme
+        if (activeTheme?.id === themeId) {
+            throw new Error('Cannot delete the active theme. Switch to another theme first.');
         }
+        await api.deleteTheme(themeId);
+        setThemes(prev => prev.filter(t => t.id !== themeId));
     }, [activeTheme]);
 
     return (

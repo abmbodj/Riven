@@ -11,8 +11,8 @@ export default function GlobalMessages() {
         try {
             const data = await getActiveMessages();
             setMessages(data || []);
-        } catch (err) {
-            console.error('Failed to load messages:', err);
+        } catch {
+            // Failed to load messages silently
         } finally {
             setLoading(false);
         }
@@ -31,8 +31,8 @@ export default function GlobalMessages() {
         try {
             await dismissMessage(id);
             setMessages(messages.filter(m => m.id !== id));
-        } catch (err) {
-            console.error('Failed to dismiss message:', err);
+        } catch {
+            // Failed to dismiss message silently
         }
     };
 

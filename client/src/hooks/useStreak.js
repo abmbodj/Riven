@@ -91,8 +91,8 @@ export function useStreak() {
             if (stored) {
                 return JSON.parse(stored);
             }
-        } catch (e) {
-            console.error('Failed to load streak data:', e);
+        } catch {
+            // Failed to load streak data
         }
         return {
             currentStreak: 0,
@@ -113,7 +113,7 @@ export function useStreak() {
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
                     }
                 })
-                .catch(err => console.error('Failed to fetch streak from server:', err));
+                .catch(() => {});
         }
     }, [isLoggedIn]);
 
@@ -145,12 +145,10 @@ export function useStreak() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(streakData));
             // Sync to server if logged in
             if (isLoggedIn) {
-                authApi.updateStreak(streakData).catch(err => 
-                    console.error('Failed to sync streak to server:', err)
-                );
+                authApi.updateStreak(streakData).catch(() => {});
             }
-        } catch (e) {
-            console.error('Failed to save streak data:', e);
+        } catch {
+            // Failed to save streak data
         }
     }, [streakData, isLoggedIn]);
 

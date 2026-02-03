@@ -166,7 +166,6 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {} }
         });
     } catch (error) {
-        console.error('Registration error:', error);
         res.status(500).json({ error: 'Registration failed' });
     }
 });
@@ -200,7 +199,6 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -389,7 +387,6 @@ app.post('/api/auth/migrate-guest-data', authMiddleware, async (req, res) => {
             imported: { folders: Object.keys(folderIdMap).length, tags: Object.keys(tagIdMap).length, decks: Object.keys(deckIdMap).length }
         });
     } catch (error) {
-        console.error('Migration error:', error);
         res.status(500).json({ error: 'Failed to migrate guest data' });
     }
 });
@@ -1561,5 +1558,5 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    // Server started on PORT
 });

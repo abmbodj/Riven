@@ -89,8 +89,8 @@ async function getDB() {
                     await db.add('tags', tag);
                 }
             }
-        } catch (e) {
-            console.error('Error initializing default data:', e);
+        } catch {
+            // Error initializing default data silently
         }
     }
     
@@ -472,6 +472,15 @@ export async function createTheme(themeData) {
 export async function deleteTheme(id) {
     const db = await getDB();
     await db.delete('themes', Number(id));
+}
+
+export async function updateTheme(id, themeData) {
+    const db = await getDB();
+    const theme = await db.get('themes', Number(id));
+    if (!theme) throw new Error('Theme not found');
+    const updated = { ...theme, ...themeData };
+    await db.put('themes', updated);
+    return updated;
 }
 
 // ============ EXPORT ALL GUEST DATA ============

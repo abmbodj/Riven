@@ -185,10 +185,10 @@ export const deleteTheme = (id) => authFetch(`/themes/${id}`, { method: 'DELETE'
 // ============ SHARING ENDPOINTS ============
 
 export const shareDeck = (deckId) => authFetch(`/decks/${deckId}/share`, { method: 'POST' });
-export const getSharedDeck = (shareId) => authFetch(`/shared/${shareId}`);
-export const importSharedDeck = (shareId) => authFetch(`/shared/${shareId}/import`, { method: 'POST' });
-export const getMySharedDecks = () => authFetch('/my-shared-decks');
-export const unshareDeck = (shareId) => authFetch(`/shared/${shareId}`, { method: 'DELETE' });
+export const getSharedDeck = (shareId) => authFetch(`/share/${shareId}`);
+export const importSharedDeck = (shareId) => authFetch(`/share/${shareId}/import`, { method: 'POST' });
+export const getMySharedDecks = () => authFetch('/my-shares');
+export const unshareDeck = (shareId) => authFetch(`/share/${shareId}`, { method: 'DELETE' });
 
 // ============ GUEST DATA MIGRATION ============
 

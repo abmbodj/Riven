@@ -41,8 +41,7 @@ export default function StudyMode() {
             });
             setCards(sortedCards);
             setLoading(false);
-        }).catch(err => {
-            console.error('Failed to load deck:', err);
+        }).catch(() => {
             setLoading(false);
         });
     }, [id]);
@@ -54,7 +53,7 @@ export default function StudyMode() {
             const { cardsStudied, cardsCorrect } = sessionDataRef.current;
             if (cardsStudied > 0) {
                 const duration = Math.round((Date.now() - startTime.current) / 1000);
-                api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(console.error);
+                api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(() => {});
                 // Increment streak when completing a study session
                 incrementStreak();
             }
@@ -68,7 +67,7 @@ export default function StudyMode() {
         setCardsCorrect(c => c + 1);
         
         if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, true).catch(console.error);
+            await api.reviewCard(card.id, true).catch(() => {});
         }
         
         if (currentIndex < cards.length - 1) {
@@ -86,7 +85,7 @@ export default function StudyMode() {
         setCardsStudied(c => c + 1);
         
         if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, false).catch(console.error);
+            await api.reviewCard(card.id, false).catch(() => {});
         }
         
         if (currentIndex < cards.length - 1) {

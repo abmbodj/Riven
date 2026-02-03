@@ -229,8 +229,8 @@ export function loadCustomization() {
         if (stored) {
             return JSON.parse(stored);
         }
-    } catch (e) {
-        console.error('Failed to load Gmail customization:', e);
+    } catch {
+        // Failed to load customization
     }
     return {
         pugType: 'bookworm',
@@ -246,8 +246,8 @@ export function loadCustomization() {
 export function saveCustomization(customization) {
     try {
         localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(customization));
-    } catch (e) {
-        console.error('Failed to save Gmail customization:', e);
+    } catch {
+        // Failed to save customization
     }
 }
 

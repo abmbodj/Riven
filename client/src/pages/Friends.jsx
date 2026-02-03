@@ -27,8 +27,8 @@ export default function Friends() {
         try {
             const data = await authApi.getFriends();
             setFriends(data);
-        } catch (err) {
-            console.error('Failed to load friends:', err);
+        } catch {
+            // Failed to load friends silently
         } finally {
             setLoading(false);
         }
@@ -49,8 +49,8 @@ export default function Friends() {
                 try {
                     const results = await authApi.searchUsers(searchQuery);
                     setSearchResults(results);
-                } catch (err) {
-                    console.error('Search failed:', err);
+                } catch {
+                    // Search failed silently
                 } finally {
                     setSearching(false);
                 }

@@ -42,7 +42,6 @@ export function AuthProvider({ children }) {
             
             return { migrated: true, ...result };
         } catch (error) {
-            console.error('Failed to migrate guest data:', error);
             return { migrated: false, error: error.message };
         }
     }, []);

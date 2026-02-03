@@ -4,15 +4,8 @@ import * as serverApi from './api/authApi';
 // Check if user is logged in (has valid token)
 const isLoggedIn = () => !!serverApi.getToken();
 
-// Wrapper to handle errors gracefully
-const safeCall = async (fn) => {
-    try {
-        return await fn();
-    } catch (error) {
-        console.error('Database operation failed:', error);
-        throw error;
-    }
-};
+// Wrapper for API calls (can be extended for retry logic or error handling)
+const safeCall = async (fn) => fn();
 
 // Hybrid API - uses server when logged in, IndexedDB otherwise
 export const api = {

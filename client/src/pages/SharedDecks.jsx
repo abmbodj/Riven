@@ -31,7 +31,7 @@ export default function SharedDecks() {
 
     // Load user's decks for sharing
     React.useEffect(() => {
-        api.getDecks().then(setDecks).catch(console.error);
+        api.getDecks().then(setDecks).catch(() => {});
     }, []);
 
     // Check URL for share code
