@@ -98,7 +98,6 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                 ref={inputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
             />
@@ -123,7 +122,6 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                     <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         onChange={handleFileChange}
                         className="hidden"
                     />
