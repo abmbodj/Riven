@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Palette, Clock, Trophy } from 'lucide-react';
+import { Settings, Palette, Clock, Trophy, Sparkles } from 'lucide-react';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import GardenCustomizer from '../components/GardenCustomizer';
@@ -21,7 +21,21 @@ export default function GardenSettings() {
     const stage = getGardenStage(streak.currentStreak);
 
     return (
-        <div className="animate-in fade-in duration-300">
+        <div className="animate-in fade-in duration-300 relative">
+            {/* Coming Soon Overlay */}
+            <div className="absolute inset-0 z-50 flex items-center justify-center">
+                <div className="absolute inset-0 bg-claude-bg/60 backdrop-blur-md" />
+                <div className="relative bg-claude-surface border border-claude-border rounded-3xl p-8 mx-4 text-center shadow-2xl">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">
+                        <Sparkles className="w-8 h-8 text-green-500" />
+                    </div>
+                    <h2 className="text-2xl font-display font-bold mb-2">Coming Soon</h2>
+                    <p className="text-claude-secondary text-sm max-w-xs">
+                        The Garden feature is being cultivated. Check back soon to grow your study streak garden!
+                    </p>
+                    <div className="mt-6 text-xs text-claude-secondary/60">🌱 Growing something special...</div>
+                </div>
+            </div>
             {/* Header */}
             <div className="text-center mb-6">
                 <h1 className="text-2xl font-display font-bold mb-1">My Garden</h1>
