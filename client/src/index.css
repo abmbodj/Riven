@@ -28,38 +28,28 @@
 
 @layer base {
 
-  html,
-  body {
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x pan-y;
-    height: 100%;
-    position: fixed;
-    width: 100%;
-    overflow: hidden;
-  }
-
   html {
     /* Prevent iOS text size adjust */
     -webkit-text-size-adjust: 100%;
     /* Smooth scrolling */
     scroll-behavior: smooth;
+    height: 100%;
   }
 
   body {
     background-color: var(--bg-color);
     color: var(--text-color);
     @apply font-sans antialiased transition-colors duration-200;
-    min-height: var(--app-height);
+    min-height: 100%;
+    min-height: 100dvh;
     /* Prevent pull-to-refresh on PWA */
     overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   #root {
-    height: 100%;
-    overflow: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
+    min-height: 100%;
+    min-height: 100dvh;
   }
 
   /* Body scroll lock for modals */
