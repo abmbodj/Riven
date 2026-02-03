@@ -175,6 +175,10 @@ export const createTheme = (themeData) => authFetch('/themes', {
     method: 'POST',
     body: JSON.stringify(themeData),
 });
+export const updateTheme = (id, themeData) => authFetch(`/themes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(themeData),
+});
 export const activateTheme = (id) => authFetch(`/themes/${id}/activate`, { method: 'PUT' });
 export const deleteTheme = (id) => authFetch(`/themes/${id}`, { method: 'DELETE' });
 
@@ -250,6 +254,7 @@ export default {
     getDeckStats,
     getThemes,
     createTheme,
+    updateTheme,
     activateTheme,
     deleteTheme,
     shareDeck,

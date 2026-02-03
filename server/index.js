@@ -888,6 +888,35 @@ app.delete('/api/themes/:id', optionalAuth, async (req, res) => {
     }
 });
 
+app.put('/api/themes/:id', optionalAuth, async (req, res) => {
+    const { id } = req.params;
+    const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
+    
+    try {
+        const userId = req.user?.id || null;
+        const theme = await db.queryOne('SELECT * FROM themes WHERE id = $1', [id]);
+        if (!theme) return res.status(404).json({ error: 'Theme not found' });
+        if (theme.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+        if (theme.is_default) return res.status(400).json({ error: 'Cannot edit default themes' });
+
+        const result = await db.queryOne(
+            `UPDATE themes SET 
+                name = COALESCE($1, name),
+                bg_color = COALESCE($2, bg_color),
+                surface_color = COALESCE($3, surface_color),
+                text_color = COALESCE($4, text_color),
+                secondary_text_color = COALESCE($5, secondary_text_color),
+                border_color = COALESCE($6, border_color),
+                accent_color = COALESCE($7, accent_color)
+            WHERE id = $8 RETURNING *`,
+            [name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, id]
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.put('/api/themes/:id/activate', optionalAuth, async (req, res) => {
     const { id } = req.params;
     try {

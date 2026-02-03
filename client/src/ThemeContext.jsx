@@ -57,6 +57,22 @@ export function ThemeProvider({ children }) {
         }
     }, []);
 
+    const updateTheme = useCallback(async (themeId, themeData) => {
+        try {
+            const updatedTheme = await api.updateTheme(themeId, themeData);
+            setThemes(prev => prev.map(t => t.id === themeId ? updatedTheme : t));
+            // If this is the active theme, re-apply it
+            if (activeTheme?.id === themeId) {
+                setActiveTheme(updatedTheme);
+                applyTheme(updatedTheme);
+            }
+            return updatedTheme;
+        } catch (err) {
+            console.error('Failed to update theme', err);
+            throw err;
+        }
+    }, [activeTheme, applyTheme]);
+
     const deleteTheme = useCallback(async (themeId) => {
         try {
             // Don't allow deleting the active theme
@@ -72,7 +88,7 @@ export function ThemeProvider({ children }) {
     }, [activeTheme]);
 
     return (
-        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme, deleteTheme }}>
+        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme }}>
             {children}
         </ThemeContext.Provider>
     );
