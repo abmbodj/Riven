@@ -7,7 +7,7 @@ Built entirely through **prompt engineering** — no manual coding required.
 ![Made with AI](https://img.shields.io/badge/Made%20with-AI%20Prompt%20Engineering-blueviolet)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express)
-![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?logo=postgresql)
 ![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?logo=pwa)
 
 ## 🌐 Live Demo
@@ -19,14 +19,14 @@ Built entirely through **prompt engineering** — no manual coding required.
 
 - **🔐 Cross-Device Sync** — Sign up to access your flashcards from any device
 - **📱 PWA Support** — Install on iOS/Android for a native app experience
-- **🐶 Gmail the Pug** — Your study companion! Maintain your streak to see Gmail grow from a puppy to a king
+- **🐶 Gmail the Pug** — Your study companion! Maintain your streak to see Gmail grow
 - **🦴 Streak System** — Visual streak tracking with dog-themed rewards
 - **📚 Deck Management** — Create, organize with folders, and tag flashcard decks
 - **🔄 Study Mode** — Flip through cards with smooth 3D animations
 - **🧠 Spaced Repetition** — Focus on cards you're actually forgetting
 - **🎯 Test Mode** — Auto-generated multiple-choice quizzes
 - **🎨 Custom Themes** — Multiple built-in themes or create your own
-- **💾 Offline Mode** — Works without internet using IndexedDB (guest data migrates on signup)
+- **💾 Offline Mode** — Works without internet using IndexedDB
 - **📤 Export/Import** — Export decks as JSON or CSV
 
 ## 🛠️ Tech Stack
@@ -35,16 +35,26 @@ Built entirely through **prompt engineering** — no manual coding required.
 |-------|------------|
 | Frontend | React 19, React Router 7, Vite, Tailwind CSS |
 | Backend | Express 5, Node.js |
-| Database | SQLite (better-sqlite3) |
-| Auth | JWT (30-day tokens) |
+| Database | PostgreSQL (Supabase) |
+| Auth | JWT (30-day tokens), bcrypt |
 | Offline Storage | IndexedDB |
 | Hosting | Vercel (frontend), Render (backend) |
+
+## 🔒 Security Features
+
+- **Rate Limiting** — 10 auth attempts/15min, 100 API requests/min
+- **Password Hashing** — bcrypt with cost factor 12
+- **Input Validation** — Email format, username rules
+- **Parameterized Queries** — SQL injection protection
+- **CORS Whitelist** — Origin-based access control
+- **JWT Authentication** — Secure token-based auth
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
+- PostgreSQL database (or free [Supabase](https://supabase.com) account)
 
 ### Local Development
 
@@ -56,47 +66,52 @@ cd Riven
 # Backend (Terminal 1)
 cd server
 npm install
-npm run dev          # Runs on http://localhost:3001
+DATABASE_URL="your-postgres-url" JWT_SECRET="dev-secret" npm run dev
 
 # Frontend (Terminal 2)
 cd client
 npm install
-npm run dev          # Runs on http://localhost:5173
+npm run dev
 ```
 
 ### Environment Variables
 
-**Client** (`client/.env`):
+**Server** (required):
 ```
-VITE_API_URL=http://localhost:3001/api
+DATABASE_URL=postgresql://user:pass@host:port/db
+JWT_SECRET=your-random-secret-key
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
-**Server** (`server/.env` or environment):
+**Client** (`client/.env`):
 ```
-JWT_SECRET=your-secret-key
-ALLOWED_ORIGINS=http://localhost:5173
+VITE_API_URL=http://localhost:3000/api
 ```
 
 ## 🚢 Deployment
 
+### Database (Supabase)
+
+1. Create account at [supabase.com](https://supabase.com)
+2. Create new project
+3. Go to **Settings → Database → Connection Pooling**
+4. Copy the **Transaction** mode URI
+
 ### Backend (Render)
 
-1. Create a new Web Service on [Render](https://render.com)
-2. Connect your GitHub repo
-3. Set root directory: `server`
-4. Build command: `npm install`
-5. Start command: `npm start`
-6. Add environment variables:
+1. Create Web Service on [render.com](https://render.com)
+2. Connect GitHub repo, set root: `server`
+3. Build: `npm install` | Start: `npm start`
+4. Add environment variables:
+   - `DATABASE_URL` — Supabase connection string
    - `JWT_SECRET` — Random secure string
-   - `ALLOWED_ORIGINS` — Your Vercel frontend URL
+   - `ALLOWED_ORIGINS` — Your Vercel URL
 
 ### Frontend (Vercel)
 
-1. Import project on [Vercel](https://vercel.com)
+1. Import project on [vercel.com](https://vercel.com)
 2. Set root directory: `client`
-3. Add environment variable:
-   - `VITE_API_URL` — Your Render backend URL + `/api`
-4. Deploy
+3. Add: `VITE_API_URL` = Your Render URL + `/api`
 
 ## 📁 Project Structure
 
@@ -112,15 +127,15 @@ Riven/
 │   │   └── api.js          # Hybrid API (server or IndexedDB)
 │   └── ...
 ├── server/
-│   ├── index.js            # Express API routes
-│   └── db.js               # SQLite database setup
+│   ├── index.js            # Express API routes (async PostgreSQL)
+│   └── db.js               # PostgreSQL connection pool
 └── README.md
 ```
 
 ## 🔑 Key Features Explained
 
 ### Hybrid Storage
-- **Logged in**: Data syncs with SQLite backend
+- **Logged in**: Data syncs with PostgreSQL backend
 - **Guest mode**: Data stored locally in IndexedDB
 - **On signup**: Guest data automatically migrates to your account
 
@@ -130,7 +145,7 @@ Riven/
 
 ## 🤖 Built with Prompt Engineering
 
-This entire project was created using **AI prompt engineering**. From the SVG animations of Gmail the Pug to the hybrid storage logic, every line of code was generated through natural language prompts.
+This entire project was created using **AI prompt engineering**. From the SVG animations of Gmail the Pug to the database migrations, every line of code was generated through natural language prompts.
 
 ## 📝 License
 
