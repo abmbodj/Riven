@@ -88,4 +88,19 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    // Optimize chunk splitting for faster initial load
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core vendor chunk - loads immediately
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // UI library chunk - loads with first page
+          'vendor-ui': ['lucide-react'],
+        }
+      }
+    },
+    // Increase chunk size warning limit since we're code splitting
+    chunkSizeWarningLimit: 600,
+  },
 })
