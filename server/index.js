@@ -213,7 +213,8 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 
         res.json({
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
-            avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}')
+            avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
+            isAdmin: user.is_admin === 1, createdAt: user.created_at
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -237,7 +238,8 @@ app.put('/api/auth/profile', authMiddleware, async (req, res) => {
         const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
         res.json({
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
-            avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}')
+            avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
+            isAdmin: user.is_admin === 1, createdAt: user.created_at
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
