@@ -62,6 +62,21 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Body scroll lock for modals */
+  body.modal-open {
+    overflow: hidden !important;
+  }
+
+  body.modal-open #root {
+    overflow: hidden !important;
+  }
+
+  /* Prevent rubber-banding on iOS */
+  .no-bounce {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
   h1,
   h2,
   h3,
@@ -160,14 +175,40 @@
   /* PWA touch target minimum 44x44 */
   .touch-target {
     @apply min-w-[44px] min-h-[44px] flex items-center justify-center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on drag */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Hardware acceleration for smooth animations */
+  .gpu-accelerate {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  /* Momentum scrolling container */
+  .scroll-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
   }
 
   /* Native-feeling bottom sheet */
   .bottom-sheet {
     @apply fixed inset-x-0 bottom-0 bg-claude-surface rounded-t-3xl z-[60];
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 16px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     max-height: 90vh;
     max-height: 90dvh;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Pull indicator for sheets */
@@ -260,5 +301,47 @@
   /* Header blur effect for iOS-like sticky headers */
   .header-blur {
     @apply backdrop-blur-xl bg-claude-bg/80;
+  }
+
+  /* Full screen page for study/test modes */
+  .fullscreen-page {
+    position: fixed;
+    inset: 0;
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    overflow: hidden;
+  }
+
+  /* Modal overlay with proper backdrop */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: env(safe-area-inset-top, 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
+    overscroll-behavior: contain;
+  }
+
+  /* Prevent iOS bounce on modal content */
+  .modal-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px);
+  }
+
+  /* Prevent double-tap zoom on buttons */
+  .tap-action {
+    touch-action: manipulation;
   }
 }

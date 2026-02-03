@@ -34,7 +34,32 @@
     <title>Riven</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Initial loading state shown before React hydrates -->
+      <div id="initial-loader" style="
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #1a1a18;
+        z-index: 9999;
+      ">
+        <div style="
+          width: 40px;
+          height: 40px;
+          border: 3px solid #3d3d3a;
+          border-top-color: #d97757;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        "></div>
+      </div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

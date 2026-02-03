@@ -1,19 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 export default function ConfirmModal({ isOpen, title, message, confirmText = 'Delete', cancelText = 'Cancel', onConfirm, onCancel, destructive = true }) {
+    // Lock body scroll when modal is open
+    useBodyScrollLock(isOpen);
+
+    // Close on escape key
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') onCancel?.();
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isOpen, onCancel]);
+
     if (!isOpen) return null;
 
     return (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
-            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+            className="modal-overlay"
             onClick={(e) => {
                 if (e.target === e.currentTarget) onCancel?.();
             }}
         >
             <div 
-                className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-2xl animate-in zoom-in-95 duration-200"
+                className="bg-claude-surface w-full max-w-sm rounded-2xl animate-in zoom-in-95 duration-200 modal-content"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-6 text-center">
@@ -28,13 +41,13 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
                 <div className="flex border-t border-claude-border">
                     <button
                         onClick={onCancel}
-                        className="flex-1 py-4 font-semibold text-claude-secondary active:bg-claude-bg transition-colors border-r border-claude-border"
+                        className="flex-1 py-4 font-semibold text-claude-secondary active:bg-claude-bg transition-colors border-r border-claude-border tap-action touch-target"
                     >
                         {cancelText}
                     </button>
                     <button
                         onClick={onConfirm}
-                        className={`flex-1 py-4 font-semibold active:bg-claude-bg transition-colors ${
+                        className={`flex-1 py-4 font-semibold active:bg-claude-bg transition-colors tap-action touch-target ${
                             destructive ? 'text-red-500' : 'text-claude-accent'
                         }`}
                     >

@@ -157,13 +157,13 @@ export default function StudyMode() {
     }, [handleNext, handlePrev, handleFlip]);
 
     if (loading) return (
-        <div className="fixed inset-0 bg-claude-bg flex items-center justify-center">
+        <div className="fullscreen-page items-center justify-center">
             <div className="animate-pulse text-claude-secondary">Loading...</div>
         </div>
     );
     
     if (cards.length === 0) return (
-        <div className="fixed inset-0 bg-claude-bg flex flex-col items-center justify-center p-6 safe-area-top safe-area-bottom">
+        <div className="fullscreen-page items-center justify-center p-6">
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-xl font-display font-bold mb-2 text-center">No Cards Yet</h2>
             <p className="text-claude-secondary text-center mb-6">Add some cards to start studying</p>
@@ -181,10 +181,10 @@ export default function StudyMode() {
     };
 
     return (
-        <div className="fixed inset-0 bg-claude-bg flex flex-col safe-area-top safe-area-bottom">
+        <div className="fullscreen-page">
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 shrink-0">
-                <Link to={`/deck/${id}`} className="p-2 -ml-2 text-claude-secondary">
+                <Link to={`/deck/${id}`} className="touch-target -ml-2 text-claude-secondary tap-action">
                     <X className="w-6 h-6" />
                 </Link>
                 <div className="flex-1 mx-4">

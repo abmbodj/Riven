@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertCircle, CheckCircle, Info, X, AlertTriangle } from 'lucide-react';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 export default function AlertModal({ 
     isOpen, 
@@ -10,6 +11,19 @@ export default function AlertModal({
     actionLabel,
     onAction
 }) {
+    // Lock body scroll when modal is open
+    useBodyScrollLock(isOpen);
+
+    // Close on escape key
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') onClose?.();
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     const icons = {
@@ -35,19 +49,18 @@ export default function AlertModal({
 
     return (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200"
-            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+            className="modal-overlay animate-in fade-in duration-200"
             onClick={onClose}
         >
             <div 
-                className={`w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200`}
+                className={`relative w-full max-w-sm rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200 modal-content`}
                 style={{ backgroundColor: 'var(--surface-color)' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Close button */}
                 <button 
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 text-claude-secondary hover:text-claude-text transition-colors"
+                    className="absolute top-4 right-4 touch-target text-claude-secondary hover:text-claude-text transition-colors tap-action"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -74,14 +87,14 @@ export default function AlertModal({
                     {actionLabel && onAction && (
                         <button
                             onClick={onAction}
-                            className={`w-full py-4 rounded-xl font-semibold ${buttonColors[type]} active:scale-[0.97] transition-transform`}
+                            className={`w-full py-4 rounded-xl font-semibold ${buttonColors[type]} active:scale-[0.97] transition-transform tap-action touch-target`}
                         >
                             {actionLabel}
                         </button>
                     )}
                     <button
                         onClick={onClose}
-                        className="w-full py-4 rounded-xl font-semibold bg-claude-surface border border-claude-border active:scale-[0.97] transition-transform"
+                        className="w-full py-4 rounded-xl font-semibold bg-claude-surface border border-claude-border active:scale-[0.97] transition-transform tap-action touch-target"
                     >
                         {actionLabel ? 'Cancel' : 'OK'}
                     </button>

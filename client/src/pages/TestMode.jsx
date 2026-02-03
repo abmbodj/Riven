@@ -87,14 +87,14 @@ export default function TestMode() {
     };
 
     if (loading) return (
-        <div className="fixed inset-0 bg-claude-bg flex items-center justify-center">
+        <div className="fullscreen-page items-center justify-center">
             <div className="animate-pulse text-claude-secondary">Loading...</div>
         </div>
     );
 
     if (cards.length < 4) {
         return (
-            <div className="fixed inset-0 bg-claude-bg flex flex-col items-center justify-center p-6 safe-area-top safe-area-bottom">
+            <div className="fullscreen-page items-center justify-center p-6">
                 <div className="text-6xl mb-4">🎯</div>
                 <h2 className="text-xl font-display font-bold mb-2 text-center">Need More Cards</h2>
                 <p className="text-claude-secondary text-center mb-6">Add at least 4 cards to take a quiz</p>
@@ -106,7 +106,7 @@ export default function TestMode() {
     if (showResult) {
         const percentage = Math.round((score / questions.length) * 100);
         return (
-            <div className="fixed inset-0 bg-claude-bg flex flex-col items-center justify-center px-4 safe-area-top safe-area-bottom">
+            <div className="fullscreen-page items-center justify-center px-4">
                 <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 ${percentage >= 70 ? 'bg-green-500/20' : 'bg-orange-500/20'}`}>
                     {percentage >= 70 ? (
                         <Trophy className="w-10 h-10 text-green-500" />
@@ -148,10 +148,10 @@ export default function TestMode() {
     const progress = ((currentQIndex) / questions.length) * 100;
 
     return (
-        <div className="fixed inset-0 bg-claude-bg flex flex-col safe-area-top safe-area-bottom">
+        <div className="fullscreen-page">
             {/* Header */}
             <div className="flex items-center px-4 h-14 shrink-0">
-                <Link to={`/deck/${id}`} className="p-2 -ml-2 text-claude-secondary">
+                <Link to={`/deck/${id}`} className="touch-target -ml-2 text-claude-secondary tap-action">
                     <X className="w-6 h-6" />
                 </Link>
                 <div className="flex-1 mx-4">

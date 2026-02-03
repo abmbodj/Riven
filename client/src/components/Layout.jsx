@@ -59,36 +59,36 @@ export default function Layout({ children }) {
                         <div className="flex items-stretch h-16">
                             <Link
                                 to="/"
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${location.pathname === '/' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                             >
                                 <Home className="w-6 h-6" />
                                 <span className="text-[10px] font-semibold">Library</span>
                             </Link>
                             <Link
                                 to="/garden"
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/garden' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${location.pathname === '/garden' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                             >
                                 <Sprout className="w-6 h-6" />
                                 <span className="text-[10px] font-semibold">Garden</span>
                             </Link>
                             <Link
                                 to="/create"
-                                className="flex-1 flex items-center justify-center"
+                                className="flex-1 flex items-center justify-center tap-action"
                             >
-                                <div className="w-14 h-14 -mt-5 bg-claude-accent rounded-full flex items-center justify-center shadow-lg shadow-claude-accent/30 active:scale-95 transition-transform border-4 border-claude-bg">
+                                <div className="w-14 h-14 -mt-5 bg-claude-accent rounded-full flex items-center justify-center shadow-lg shadow-claude-accent/30 active:scale-95 transition-transform border-4 border-claude-bg gpu-accelerate">
                                     <Plus className="w-7 h-7 text-white" />
                                 </div>
                             </Link>
                             <Link
                                 to="/themes"
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${location.pathname === '/themes' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                             >
                                 <Palette className="w-6 h-6" />
                                 <span className="text-[10px] font-semibold">Themes</span>
                             </Link>
                             <Link
                                 to="/account"
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${location.pathname === '/account' || location.pathname === '/shared' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${location.pathname === '/account' || location.pathname === '/shared' ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                             >
                                 <User className="w-6 h-6" />
                                 <span className="text-[10px] font-semibold">Account</span>
