@@ -106,8 +106,8 @@ async function initDb() {
             CREATE TABLE IF NOT EXISTS cards (
                 id SERIAL PRIMARY KEY,
                 deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
-                front TEXT NOT NULL,
-                back TEXT NOT NULL,
+                front TEXT DEFAULT '',
+                back TEXT DEFAULT '',
                 front_image TEXT,
                 back_image TEXT,
                 position INTEGER DEFAULT 0,
@@ -126,6 +126,14 @@ async function initDb() {
         `).catch(() => {});
         await client.query(`
             ALTER TABLE cards ADD COLUMN IF NOT EXISTS back_image TEXT
+        `).catch(() => {});
+        
+        // Allow null text when image exists (migration)
+        await client.query(`
+            ALTER TABLE cards ALTER COLUMN front DROP NOT NULL
+        `).catch(() => {});
+        await client.query(`
+            ALTER TABLE cards ALTER COLUMN back DROP NOT NULL
         `).catch(() => {});
 
         // Study sessions table

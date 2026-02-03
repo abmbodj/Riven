@@ -166,7 +166,8 @@ export default function DeckView() {
 
     const handleAddCard = async (e) => {
         e.preventDefault();
-        if (!newCard.front || !newCard.back) return;
+        // Require either front text or front image, and back text or back image
+        if ((!newCard.front && !newCard.front_image) || (!newCard.back && !newCard.back_image)) return;
 
         try {
             await api.addCard(id, newCard.front, newCard.back, newCard.front_image, newCard.back_image);
@@ -197,7 +198,8 @@ export default function DeckView() {
     };
 
     const handleSaveCard = async (cardId) => {
-        if (!editCardData.front || !editCardData.back) return;
+        // Require either front text or front image, and back text or back image
+        if ((!editCardData.front && !editCardData.front_image) || (!editCardData.back && !editCardData.back_image)) return;
         try {
             await api.updateCard(cardId, editCardData.front, editCardData.back, editCardData.front_image, editCardData.back_image);
             setEditingCard(null);

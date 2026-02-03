@@ -992,7 +992,10 @@ app.post('/api/decks/:id/duplicate', optionalAuth, async (req, res) => {
 app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const { front, back, front_image, back_image } = req.body;
-    if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
+    // Require either text or image for both front and back
+    if ((!front && !front_image) || (!back && !back_image)) {
+        return res.status(400).json({ error: 'Front and back content (text or image) are required' });
+    }
 
     try {
         const userId = req.user?.id || null;
@@ -1014,7 +1017,10 @@ app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
 app.put('/api/cards/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const { front, back, front_image, back_image } = req.body;
-    if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
+    // Require either text or image for both front and back
+    if ((!front && !front_image) || (!back && !back_image)) {
+        return res.status(400).json({ error: 'Front and back content (text or image) are required' });
+    }
 
     try {
         const userId = req.user?.id || null;
