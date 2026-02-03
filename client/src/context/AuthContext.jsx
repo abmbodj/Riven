@@ -103,9 +103,11 @@ export function AuthProvider({ children }) {
     // Share a deck
     const shareDeck = useCallback(async (deckId) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) return null;
 
         const result = await authApi.shareDeck(deckId);
+        if (!result || !result.shareId) {
+            throw new Error('Failed to generate share link');
+        }
         return result.shareId;
     }, [user]);
 
@@ -121,7 +123,6 @@ export function AuthProvider({ children }) {
     // Import shared deck
     const importSharedDeck = useCallback(async (shareId) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) throw new Error('Admin cannot import decks');
 
         return await authApi.importSharedDeck(shareId);
     }, [user]);
@@ -129,14 +130,13 @@ export function AuthProvider({ children }) {
     // Unshare a deck
     const unshareDeck = useCallback(async (shareId) => {
         if (!user) throw new Error('Not logged in');
-        if (user.isAdmin) return;
 
         await authApi.unshareDeck(shareId);
     }, [user]);
 
     // Get user's shared decks
     const getMySharedDecks = useCallback(async () => {
-        if (!user || user.isAdmin) return [];
+        if (!user) return [];
         try {
             return await authApi.getMySharedDecks();
         } catch {

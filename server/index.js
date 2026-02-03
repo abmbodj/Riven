@@ -1278,7 +1278,7 @@ app.post('/api/decks/:id/share', authMiddleware, async (req, res) => {
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1 AND user_id = $2', [id, req.user.id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
 
-        const cards = await db.query('SELECT front, back, position FROM cards WHERE deck_id = $1 ORDER BY position', [id]);
+        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1 ORDER BY position', [id]);
         const deckData = JSON.stringify({ title: deck.title, description: deck.description, cards });
 
         const shareId = uuidv4().slice(0, 8);
@@ -1289,6 +1289,7 @@ app.post('/api/decks/:id/share', authMiddleware, async (req, res) => {
 
         res.json({ shareId, shareUrl: `/share/${shareId}` });
     } catch (error) {
+        console.error('Share deck error:', error);
         res.status(500).json({ error: error.message });
     }
 });

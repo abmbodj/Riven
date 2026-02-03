@@ -66,7 +66,7 @@ const hasStudiedToday = (lastStudyDate) => {
 export function useStreak() {
     const authContext = useContext(AuthContext);
     const user = authContext?.user;
-    const isLoggedIn = authContext?.isLoggedIn && !user?.isAdmin;
+    const isLoggedIn = authContext?.isLoggedIn;
 
     const [streakData, setStreakData] = useState(() => {
         try {

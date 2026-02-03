@@ -302,7 +302,7 @@ export default function AdminPanel() {
                                                                 color: user.isAdmin ? SUPA_GREEN : '#8F8F8F'
                                                             }}
                                                         >
-                                                            {user.avatar || user.username[0].toUpperCase()}
+                                                            {user.username[0].toUpperCase()}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-2 flex-wrap">
