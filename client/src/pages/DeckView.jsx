@@ -6,6 +6,7 @@ import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
 import AlertModal from '../components/AlertModal';
+import CardImageUpload from '../components/CardImageUpload';
 
 export default function DeckView() {
     const { id } = useParams();
@@ -17,9 +18,9 @@ export default function DeckView() {
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddCard, setShowAddCard] = useState(false);
-    const [newCard, setNewCard] = useState({ front: '', back: '' });
+    const [newCard, setNewCard] = useState({ front: '', back: '', front_image: null, back_image: null });
     const [editingCard, setEditingCard] = useState(null);
-    const [editCardData, setEditCardData] = useState({ front: '', back: '' });
+    const [editCardData, setEditCardData] = useState({ front: '', back: '', front_image: null, back_image: null });
     const [editingDeck, setEditingDeck] = useState(false);
     const [editDeckData, setEditDeckData] = useState({ title: '', description: '', folder_id: null, tagIds: [] });
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, type: null, id: null });
@@ -168,8 +169,8 @@ export default function DeckView() {
         if (!newCard.front || !newCard.back) return;
 
         try {
-            await api.addCard(id, newCard.front, newCard.back);
-            setNewCard({ front: '', back: '' });
+            await api.addCard(id, newCard.front, newCard.back, newCard.front_image, newCard.back_image);
+            setNewCard({ front: '', back: '', front_image: null, back_image: null });
             setShowAddCard(false);
             toast.success('Card added');
             loadDeck();
@@ -191,14 +192,14 @@ export default function DeckView() {
 
     const handleEditCard = (card) => {
         setEditingCard(card.id);
-        setEditCardData({ front: card.front, back: card.back });
+        setEditCardData({ front: card.front, back: card.back, front_image: card.front_image || null, back_image: card.back_image || null });
         setSwipedCard(null);
     };
 
     const handleSaveCard = async (cardId) => {
         if (!editCardData.front || !editCardData.back) return;
         try {
-            await api.updateCard(cardId, editCardData.front, editCardData.back);
+            await api.updateCard(cardId, editCardData.front, editCardData.back, editCardData.front_image, editCardData.back_image);
             setEditingCard(null);
             toast.success('Card saved');
             loadDeck();
@@ -736,6 +737,12 @@ export default function DeckView() {
                                     className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
                                     autoFocus
                                 />
+                                <CardImageUpload
+                                    label="Front Image (optional)"
+                                    value={newCard.front_image}
+                                    onChange={(img) => setNewCard({ ...newCard, front_image: img })}
+                                    className="mt-3"
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</label>
@@ -744,6 +751,12 @@ export default function DeckView() {
                                     value={newCard.back}
                                     onChange={e => setNewCard({ ...newCard, back: e.target.value })}
                                     className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
+                                />
+                                <CardImageUpload
+                                    label="Back Image (optional)"
+                                    value={newCard.back_image}
+                                    onChange={(img) => setNewCard({ ...newCard, back_image: img })}
+                                    className="mt-3"
                                 />
                             </div>
                             <button type="submit" className="w-full claude-button-primary py-4">Add Card</button>
@@ -789,11 +802,21 @@ export default function DeckView() {
                                         rows={2}
                                         autoFocus
                                     />
+                                    <CardImageUpload
+                                        label="Front Image"
+                                        value={editCardData.front_image}
+                                        onChange={(img) => setEditCardData({ ...editCardData, front_image: img })}
+                                    />
                                     <textarea
                                         value={editCardData.back}
                                         onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
                                         className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-accent resize-none text-sm"
                                         rows={2}
+                                    />
+                                    <CardImageUpload
+                                        label="Back Image"
+                                        value={editCardData.back_image}
+                                        onChange={(img) => setEditCardData({ ...editCardData, back_image: img })}
                                     />
                                     <div className="flex gap-2">
                                         <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-2 text-sm">
@@ -833,7 +856,12 @@ export default function DeckView() {
                                 <div className="flex gap-3" onClick={() => handleEditCard(card)}>
                                     <span className="text-claude-border font-display font-bold text-sm mt-0.5">{idx + 1}</span>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm mb-1">{card.front}</p>
+                                        <p className="font-medium text-sm mb-1">
+                                            {card.front}
+                                            {(card.front_image || card.back_image) && (
+                                                <span className="ml-2 text-xs text-claude-accent">📷</span>
+                                            )}
+                                        </p>
                                         <p className="text-claude-secondary text-sm">{card.back}</p>
                                     </div>
                                     <Pencil className="w-4 h-4 text-claude-secondary shrink-0 mt-1" />

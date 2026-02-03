@@ -108,6 +108,8 @@ async function initDb() {
                 deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
                 front TEXT NOT NULL,
                 back TEXT NOT NULL,
+                front_image TEXT,
+                back_image TEXT,
                 position INTEGER DEFAULT 0,
                 difficulty INTEGER DEFAULT 0,
                 times_reviewed INTEGER DEFAULT 0,
@@ -117,6 +119,14 @@ async function initDb() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Add card image columns if they don't exist (migration)
+        await client.query(`
+            ALTER TABLE cards ADD COLUMN IF NOT EXISTS front_image TEXT
+        `).catch(() => {});
+        await client.query(`
+            ALTER TABLE cards ADD COLUMN IF NOT EXISTS back_image TEXT
+        `).catch(() => {});
 
         // Study sessions table
         await client.query(`

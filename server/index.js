@@ -991,7 +991,7 @@ app.post('/api/decks/:id/duplicate', optionalAuth, async (req, res) => {
 
 app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const { front, back } = req.body;
+    const { front, back, front_image, back_image } = req.body;
     if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
 
     try {
@@ -1002,8 +1002,8 @@ app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
 
         const maxPos = await db.queryOne('SELECT COALESCE(MAX(position), -1) as max FROM cards WHERE deck_id = $1', [id]);
         const result = await db.queryOne(
-            'INSERT INTO cards (deck_id, front, back, position) VALUES ($1, $2, $3, $4) RETURNING *',
-            [id, front, back, (maxPos.max || 0) + 1]
+            'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [id, front, back, front_image || null, back_image || null, (maxPos.max || 0) + 1]
         );
         res.status(201).json(result);
     } catch (error) {
@@ -1013,7 +1013,7 @@ app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
 
 app.put('/api/cards/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const { front, back } = req.body;
+    const { front, back, front_image, back_image } = req.body;
     if (!front || !back) return res.status(400).json({ error: 'Front and back are required' });
 
     try {
@@ -1022,7 +1022,10 @@ app.put('/api/cards/:id', optionalAuth, async (req, res) => {
         if (!card) return res.status(404).json({ error: 'Card not found' });
         if (card.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const result = await db.queryOne('UPDATE cards SET front = $1, back = $2 WHERE id = $3 RETURNING *', [front, back, id]);
+        const result = await db.queryOne(
+            'UPDATE cards SET front = $1, back = $2, front_image = $3, back_image = $4 WHERE id = $5 RETURNING *', 
+            [front, back, front_image !== undefined ? front_image : card.front_image, back_image !== undefined ? back_image : card.back_image, id]
+        );
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });

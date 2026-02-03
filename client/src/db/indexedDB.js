@@ -320,7 +320,7 @@ export async function exportDeck(id, format = 'json') {
 }
 
 // ============ CARDS ============
-export async function addCard(deck_id, front, back) {
+export async function addCard(deck_id, front, back, front_image = null, back_image = null) {
     const db = await getDB();
     const cards = await db.getAll('cards');
     const deckCards = cards.filter(c => c.deck_id === Number(deck_id));
@@ -330,6 +330,8 @@ export async function addCard(deck_id, front, back) {
         deck_id: Number(deck_id),
         front,
         back,
+        front_image,
+        back_image,
         position: maxPosition + 1,
         difficulty: 0,
         times_reviewed: 0,
@@ -342,11 +344,17 @@ export async function addCard(deck_id, front, back) {
     return { id, ...card };
 }
 
-export async function updateCard(id, front, back) {
+export async function updateCard(id, front, back, front_image, back_image) {
     const db = await getDB();
     const card = await db.get('cards', Number(id));
     if (!card) throw new Error('Card not found');
-    const updated = { ...card, front, back };
+    const updated = { 
+        ...card, 
+        front, 
+        back,
+        front_image: front_image !== undefined ? front_image : card.front_image,
+        back_image: back_image !== undefined ? back_image : card.back_image
+    };
     await db.put('cards', updated);
     return updated;
 }

@@ -149,13 +149,13 @@ export const updateDeck = (id, title, description, folderId, tagIds) => authFetc
 export const deleteDeck = (id) => authFetch(`/decks/${id}`, { method: 'DELETE' });
 export const duplicateDeck = (id) => authFetch(`/decks/${id}/duplicate`, { method: 'POST' });
 
-export const addCard = (deckId, front, back) => authFetch(`/decks/${deckId}/cards`, {
+export const addCard = (deckId, front, back, front_image = null, back_image = null) => authFetch(`/decks/${deckId}/cards`, {
     method: 'POST',
-    body: JSON.stringify({ front, back }),
+    body: JSON.stringify({ front, back, front_image, back_image }),
 });
-export const updateCard = (id, front, back) => authFetch(`/cards/${id}`, {
+export const updateCard = (id, front, back, front_image, back_image) => authFetch(`/cards/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ front, back }),
+    body: JSON.stringify({ front, back, front_image, back_image }),
 });
 export const deleteCard = (id) => authFetch(`/cards/${id}`, { method: 'DELETE' });
 

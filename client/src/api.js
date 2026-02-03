@@ -67,12 +67,12 @@ export const api = {
     },
 
     // ============ CARDS ============
-    addCard: (deckId, front, back) => isLoggedIn()
-        ? safeCall(() => serverApi.addCard(deckId, front, back))
-        : safeCall(() => db.addCard(deckId, front, back)),
-    updateCard: (id, front, back) => isLoggedIn()
-        ? safeCall(() => serverApi.updateCard(id, front, back))
-        : safeCall(() => db.updateCard(id, front, back)),
+    addCard: (deckId, front, back, front_image, back_image) => isLoggedIn()
+        ? safeCall(() => serverApi.addCard(deckId, front, back, front_image, back_image))
+        : safeCall(() => db.addCard(deckId, front, back, front_image, back_image)),
+    updateCard: (id, front, back, front_image, back_image) => isLoggedIn()
+        ? safeCall(() => serverApi.updateCard(id, front, back, front_image, back_image))
+        : safeCall(() => db.updateCard(id, front, back, front_image, back_image)),
     deleteCard: (id) => isLoggedIn()
         ? safeCall(() => serverApi.deleteCard(id))
         : safeCall(() => db.deleteCard(id)),

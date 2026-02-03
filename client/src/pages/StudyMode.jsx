@@ -235,9 +235,16 @@ export default function StudyMode() {
                 >
                     <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
                         {/* Front */}
-                        <div className="absolute inset-0 bg-claude-surface rounded-3xl border border-claude-border flex flex-col items-center justify-center p-8 backface-hidden">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-4">Question</span>
-                            <p className="text-2xl font-display font-semibold text-center leading-tight">{currentCard.front}</p>
+                        <div className="absolute inset-0 bg-claude-surface rounded-3xl border border-claude-border flex flex-col items-center justify-center p-6 backface-hidden overflow-hidden">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-3">Question</span>
+                            {currentCard.front_image && (
+                                <img 
+                                    src={currentCard.front_image} 
+                                    alt="Card front" 
+                                    className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
+                                />
+                            )}
+                            <p className={`font-display font-semibold text-center leading-tight ${currentCard.front_image ? 'text-lg' : 'text-2xl'}`}>{currentCard.front}</p>
                             {currentCard.difficulty > 0 && (
                                 <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded-full ${
                                     currentCard.difficulty >= 4 ? 'bg-red-500/20 text-red-400' :
@@ -247,14 +254,21 @@ export default function StudyMode() {
                                     {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
                                 </span>
                             )}
-                            <span className="absolute bottom-6 text-xs text-claude-secondary">Tap to flip</span>
+                            <span className="absolute bottom-4 text-xs text-claude-secondary">Tap to flip</span>
                         </div>
 
                         {/* Back */}
-                        <div className="absolute inset-0 bg-claude-accent rounded-3xl flex flex-col items-center justify-center p-8 backface-hidden rotate-y-180">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Answer</span>
-                            <p className="text-2xl font-display font-semibold text-white text-center leading-tight">{currentCard.back}</p>
-                            <span className="absolute bottom-6 text-xs text-white/50">Tap to flip back</span>
+                        <div className="absolute inset-0 bg-claude-accent rounded-3xl flex flex-col items-center justify-center p-6 backface-hidden rotate-y-180 overflow-hidden">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Answer</span>
+                            {currentCard.back_image && (
+                                <img 
+                                    src={currentCard.back_image} 
+                                    alt="Card back" 
+                                    className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
+                                />
+                            )}
+                            <p className={`font-display font-semibold text-white text-center leading-tight ${currentCard.back_image ? 'text-lg' : 'text-2xl'}`}>{currentCard.back}</p>
+                            <span className="absolute bottom-4 text-xs text-white/50">Tap to flip back</span>
                         </div>
                     </div>
                 </div>

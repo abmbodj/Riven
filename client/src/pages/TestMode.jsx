@@ -170,7 +170,14 @@ export default function TestMode() {
             <div className="px-4 py-6">
                 <div className="bg-claude-surface border border-claude-border rounded-2xl p-6">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-3 block">What is:</span>
-                    <h3 className="text-2xl font-display font-bold">{currentQ.card.front}</h3>
+                    {currentQ.card.front_image && (
+                        <img 
+                            src={currentQ.card.front_image} 
+                            alt="Question" 
+                            className="max-h-40 max-w-full object-contain rounded-xl mb-4 mx-auto"
+                        />
+                    )}
+                    <h3 className={`font-display font-bold ${currentQ.card.front_image ? 'text-xl' : 'text-2xl'}`}>{currentQ.card.front}</h3>
                 </div>
             </div>
 
