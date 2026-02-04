@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2 } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
