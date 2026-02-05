@@ -22,6 +22,7 @@ export default function SharedDecks() {
     const [shareCode, setShareCode] = useState(searchParams.get('code') || '');
     const [copied, setCopied] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [unsharing, setUnsharing] = useState(false);
     const [decks, setDecks] = useState([]);
     const [selectedDeck, setSelectedDeck] = useState(null);
     const [generatedLink, setGeneratedLink] = useState(null);
@@ -138,17 +139,21 @@ export default function SharedDecks() {
     };
 
     const handleUnshareDeck = async (shareId) => {
+        if (unsharing) return; // Prevent double-clicks
+        
+        setUnsharing(true);
         try {
             await unshareDeck(shareId);
             haptics.medium();
             toast.success('Deck unshared');
-            setDeleteConfirm({ show: false, shareId: null });
             // Reload shared decks list
             const updatedDecks = await getMySharedDecks();
             setSharedDecks(updatedDecks);
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Error', message: err.message, type: 'error' });
+            toast.error(err.message || 'Failed to unshare deck');
+        } finally {
+            setUnsharing(false);
             setDeleteConfirm({ show: false, shareId: null });
         }
     };
