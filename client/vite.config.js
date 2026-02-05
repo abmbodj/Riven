@@ -90,6 +90,14 @@ export default defineConfig({
   ],
   build: {
     // Optimize chunk splitting for faster initial load
+    cssCodeSplit: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
@@ -97,6 +105,8 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           // UI library chunk - loads with first page
           'vendor-ui': ['lucide-react'],
+          // Database chunk - loads when needed
+          'vendor-db': ['idb']
         }
       }
     },

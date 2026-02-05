@@ -107,6 +107,8 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                     <img 
                         src={value} 
                         alt="Card preview" 
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-32 object-contain bg-black/20"
                     />
                     <button

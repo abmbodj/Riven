@@ -240,7 +240,9 @@ export default function StudyMode() {
                             {currentCard.front_image && (
                                 <img 
                                     src={currentCard.front_image} 
-                                    alt="Card front" 
+                                    alt="Card front"
+                                    loading="lazy"
+                                    decoding="async"
                                     className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
                                 />
                             )}
@@ -263,7 +265,9 @@ export default function StudyMode() {
                             {currentCard.back_image && (
                                 <img 
                                     src={currentCard.back_image} 
-                                    alt="Card back" 
+                                    alt="Card back"
+                                    loading="lazy"
+                                    decoding="async"
                                     className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
                                 />
                             )}

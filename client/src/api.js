@@ -1,5 +1,6 @@
 import * as db from './db/indexedDB';
 import * as serverApi from './api/authApi';
+import { cache } from './utils/cache';
 
 // Check if user is logged in (has valid token)
 const isLoggedIn = () => !!serverApi.getToken();
@@ -7,32 +8,59 @@ const isLoggedIn = () => !!serverApi.getToken();
 // Wrapper for API calls (can be extended for retry logic or error handling)
 const safeCall = async (fn) => fn();
 
+// Cache keys helper
+const cacheKey = (resource, id = '') => `${resource}${id ? `:${id}` : ''}`;
+const CACHE_TTL = {
+    short: 10000,   // 10s - for frequently changing data
+    medium: 60000,  // 60s - for semi-static data (tags, folders)
+    long: 300000    // 5m - for rarely changing data
+};
+
 // Hybrid API - uses server when logged in, IndexedDB otherwise
 export const api = {
     // ============ FOLDERS ============
-    getFolders: () => isLoggedIn() 
-        ? safeCall(() => serverApi.getFolders())
-        : safeCall(() => db.getFolders()),
-    createFolder: (name, color, icon) => isLoggedIn()
-        ? safeCall(() => serverApi.createFolder(name, color, icon))
-        : safeCall(() => db.createFolder(name, color, icon)),
-    updateFolder: (id, name, color, icon) => isLoggedIn()
-        ? safeCall(() => serverApi.updateFolder(id, name, color, icon))
-        : safeCall(() => db.updateFolder(id, name, color, icon)),
-    deleteFolder: (id) => isLoggedIn()
-        ? safeCall(() => serverApi.deleteFolder(id))
-        : safeCall(() => db.deleteFolder(id)),
+    getFolders: () => cache.wrap(
+        cacheKey('folders'),
+        () => isLoggedIn() ? serverApi.getFolders() : db.getFolders(),
+        CACHE_TTL.medium
+    ),
+    createFolder: async (name, color, icon) => {
+        cache.delete(cacheKey('folders'));
+        return isLoggedIn()
+            ? safeCall(() => serverApi.createFolder(name, color, icon))
+            : safeCall(() => db.createFolder(name, color, icon));
+    },
+    updateFolder: async (id, name, color, icon) => {
+        cache.delete(cacheKey('folders'));
+        return isLoggedIn()
+            ? safeCall(() => serverApi.updateFolder(id, name, color, icon))
+            : safeCall(() => db.updateFolder(id, name, color, icon));
+    },
+    deleteFolder: async (id) => {
+        cache.delete(cacheKey('folders'));
+        return isLoggedIn()
+            ? safeCall(() => serverApi.deleteFolder(id))
+            : safeCall(() => db.deleteFolder(id));
+    },
 
     // ============ TAGS ============
-    getTags: () => isLoggedIn()
-        ? safeCall(() => serverApi.getTags())
-        : safeCall(() => db.getTags()),
-    createTag: (name, color) => isLoggedIn()
-        ? safeCall(() => serverApi.createTag(name, color))
-        : safeCall(() => db.createTag(name, color)),
-    deleteTag: (id) => isLoggedIn()
-        ? safeCall(() => serverApi.deleteTag(id))
-        : safeCall(() => db.deleteTag(id)),
+    getTags: () => cache.wrap(
+        cacheKey('tags'),
+        () => isLoggedIn() ? serverApi.getTags() : db.getTags(),
+        CACHE_TTL.medium
+    ),
+    createTag: async (name, color) => {
+        cache.delete(cacheKey('tags'));
+        return isLoggedIn()
+            ? safeCall(() => serverApi.createTag(name, color))
+            : safeCall(() => db.createTag(name, color));
+    },
+    deleteTag: async (id) => {
+        cache.delete(cacheKey('tags'));
+        return isLoggedIn()
+            ? safeCall(() => serverApi.deleteTag(id))
+            : safeCall(() => db.deleteTag(id));
+    },
 
     // ============ DECKS ============
     getDecks: () => isLoggedIn()

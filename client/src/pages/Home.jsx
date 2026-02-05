@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
@@ -8,6 +8,41 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
+
+// Memoized deck card component to prevent re-renders
+const DeckCard = memo(({ deck, folders }) => {
+    const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
+    const folderColor = folder?.color || '#6366f1';
+    
+    return (
+        <Link to={`/deck/${deck.id}`} className="claude-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform">
+            <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: deck.folder_id ? folderColor + '20' : 'var(--color-surface)' }}
+            >
+                <Layers className="w-6 h-6" style={{ color: deck.folder_id ? folderColor : 'var(--color-accent)' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <h3 className="font-semibold truncate">{deck.title}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-claude-secondary text-sm">{deck.cardCount} cards</span>
+                    {deck.tags?.length > 0 && (
+                        <div className="flex items-center gap-1">
+                            {deck.tags.slice(0, 2).map(tag => (
+                                <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: tag.color }}>
+                                    {tag.name}
+                                </span>
+                            ))}
+                            {deck.tags.length > 2 && <span className="text-xs text-claude-secondary">+{deck.tags.length - 2}</span>}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-claude-secondary shrink-0" />
+        </Link>
+    );
+});
+DeckCard.displayName = 'DeckCard';
 
 export default function Home() {
     const toast = useToast();
@@ -551,31 +586,7 @@ export default function Home() {
                 ) : (
                     <div className="space-y-3">
                         {filteredDecks.map(deck => (
-                            <Link key={deck.id} to={`/deck/${deck.id}`} className="claude-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform">
-                                <div
-                                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                                    style={{ backgroundColor: deck.folder_id ? (folders.find(f => f.id === deck.folder_id)?.color || '#6366f1') + '20' : 'var(--color-surface)' }}
-                                >
-                                    <Layers className="w-6 h-6" style={{ color: deck.folder_id ? folders.find(f => f.id === deck.folder_id)?.color : 'var(--color-accent)' }} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold truncate">{deck.title}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-claude-secondary text-sm">{deck.cardCount} cards</span>
-                                        {deck.tags?.length > 0 && (
-                                            <div className="flex items-center gap-1">
-                                                {deck.tags.slice(0, 2).map(tag => (
-                                                    <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: tag.color }}>
-                                                        {tag.name}
-                                                    </span>
-                                                ))}
-                                                {deck.tags.length > 2 && <span className="text-xs text-claude-secondary">+{deck.tags.length - 2}</span>}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-claude-secondary shrink-0" />
-                            </Link>
+                            <DeckCard key={deck.id} deck={deck} folders={folders} />
                         ))}
                     </div>
                 )}

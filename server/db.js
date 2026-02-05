@@ -238,6 +238,41 @@ async function initDb() {
         `);
 
         // Database schema initialized successfully
+        
+        // Create indexes for performance optimization
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards(deck_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_cards_next_review ON cards(next_review) WHERE next_review IS NOT NULL
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_decks_user_id ON decks(user_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_decks_folder_id ON decks(folder_id) WHERE folder_id IS NOT NULL
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_deck_tags_deck_id ON deck_tags(deck_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_deck_tags_tag_id ON deck_tags(tag_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_study_sessions_deck_id ON study_sessions(deck_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_folders_user_id ON folders(user_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_shared_decks_user_id ON shared_decks(user_id)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_shared_decks_share_id ON shared_decks(share_id)
+        `);
     } catch (error) {
         console.error('Database initialization error:', error);
         throw error;
