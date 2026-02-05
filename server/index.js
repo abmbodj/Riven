@@ -1307,11 +1307,24 @@ app.post('/api/decks/:id/share', authMiddleware, async (req, res) => {
 app.get('/api/share/:shareId', async (req, res) => {
     const { shareId } = req.params;
     try {
-        const shared = await db.queryOne('SELECT * FROM shared_decks WHERE share_id = $1', [shareId]);
+        const shared = await db.queryOne(
+            `SELECT sd.*, u.username, u.avatar 
+             FROM shared_decks sd 
+             JOIN users u ON sd.user_id = u.id 
+             WHERE sd.share_id = $1`, 
+            [shareId]
+        );
         if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
 
-        const deckData = JSON.parse(shared.deck_data);
-        res.json({ ...deckData, shareId, createdAt: shared.created_at });
+        res.json({ 
+            shareId: shared.share_id,
+            deckData: JSON.parse(shared.deck_data),
+            sharedAt: shared.created_at,
+            sharedBy: {
+                username: shared.username,
+                avatar: shared.avatar
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -1331,8 +1344,8 @@ app.post('/api/share/:shareId/import', authMiddleware, async (req, res) => {
 
         for (const card of deckData.cards || []) {
             await db.execute(
-                'INSERT INTO cards (deck_id, front, back, position) VALUES ($1, $2, $3, $4)',
-                [newDeck.id, card.front, card.back, card.position || 0]
+                'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6)',
+                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position || 0]
             );
         }
 
