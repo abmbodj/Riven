@@ -69,6 +69,9 @@ export default function SharedDecks() {
             setGeneratedLink(link);
             haptics.success();
             toast.success('Deck shared!');
+            // Reload shared decks list
+            const updatedDecks = await getMySharedDecks();
+            setSharedDecks(updatedDecks);
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Share Failed', message: err.message, type: 'error' });
@@ -140,9 +143,13 @@ export default function SharedDecks() {
             haptics.medium();
             toast.success('Deck unshared');
             setDeleteConfirm({ show: false, shareId: null });
+            // Reload shared decks list
+            const updatedDecks = await getMySharedDecks();
+            setSharedDecks(updatedDecks);
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Error', message: err.message, type: 'error' });
+            setDeleteConfirm({ show: false, shareId: null });
         }
     };
 
