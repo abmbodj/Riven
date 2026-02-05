@@ -1345,7 +1345,12 @@ app.post('/api/share/:shareId/import', authMiddleware, async (req, res) => {
 app.get('/api/my-shares', authMiddleware, async (req, res) => {
     try {
         const shared = await db.query('SELECT * FROM shared_decks WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
-        res.json(shared.map(s => ({ ...s, deckData: JSON.parse(s.deck_data) })));
+        res.json(shared.map(s => ({ 
+            shareId: s.share_id,
+            deckData: JSON.parse(s.deck_data),
+            sharedAt: s.created_at,
+            userId: s.user_id
+        })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
