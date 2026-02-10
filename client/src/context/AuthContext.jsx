@@ -8,24 +8,16 @@ export { AuthContext };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
 
-    // Check for existing token on mount
+    // Check for existing token on mount (non-blocking)
     useEffect(() => {
-        const checkAuth = async () => {
-            const token = authApi.getToken();
-            if (token) {
-                try {
-                    const userData = await authApi.getMe();
-                    setUser(userData);
-                } catch {
-                    // Token invalid or expired, clear it
-                    authApi.setToken(null);
-                }
-            }
-            setLoading(false);
-        };
-        checkAuth();
+        const token = authApi.getToken();
+        if (token) {
+            // Fetch user data in background, don't block UI
+            authApi.getMe()
+                .then(setUser)
+                .catch(() => authApi.setToken(null));
+        }
     }, []);
 
     // Migrate guest data to server

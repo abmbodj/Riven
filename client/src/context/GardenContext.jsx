@@ -27,7 +27,7 @@ export function GardenProvider({ children }) {
     const syncedRef = useRef(false);
     const prevLoggedInRef = useRef(isLoggedIn);
 
-    // Sync from server when logged in
+    // Sync from server when logged in (deferred)
     useEffect(() => {
         // Reset sync flag on logout
         if (prevLoggedInRef.current && !isLoggedIn) {
@@ -37,26 +37,22 @@ export function GardenProvider({ children }) {
 
         if (isLoggedIn && !syncedRef.current) {
             syncedRef.current = true;
-            // Use a flag to track if component is still mounted
-            let isMounted = true;
             
-            const syncFromServer = async () => {
-                try {
-                    const serverData = await authApi.getPetCustomization();
-                    if (isMounted && serverData && (serverData.gardenTheme || serverData.decorations)) {
-                        setCustomization(serverData);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-                    }
-                } catch {
-                    // Failed to fetch, use local
-                }
-            };
-            
-            syncFromServer();
-            
-            return () => {
-                isMounted = false;
-            };
+            // Defer garden sync to avoid blocking initial load
+            const timeoutId = setTimeout(() => {
+                authApi.getPetCustomization()
+                    .then(serverData => {
+                        if (serverData && (serverData.gardenTheme || serverData.decorations)) {
+                            setCustomization(serverData);
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+                        }
+                    })
+                    .catch(() => {
+                        // Failed to fetch, use local
+                    });
+            }, 500); // Wait 500ms after login before syncing
+
+            return () => clearTimeout(timeoutId);
         }
     }, [isLoggedIn]);
 

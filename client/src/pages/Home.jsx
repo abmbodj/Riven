@@ -78,12 +78,15 @@ export default function Home() {
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
+        
         try {
+            // Load all data in parallel for speed
             const [decksData, foldersData, tagsData] = await Promise.all([
                 api.getDecks(),
                 api.getFolders(),
                 api.getTags()
             ]);
+            
             setDecks(decksData);
             setFolders(foldersData);
             setTags(tagsData);

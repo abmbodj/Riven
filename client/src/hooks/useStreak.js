@@ -86,17 +86,22 @@ export function useStreak() {
         };
     });
 
-    // Sync streak data from server when user logs in
+    // Sync streak data from server when user logs in (deferred)
     useEffect(() => {
         if (isLoggedIn) {
-            authApi.getStreak()
-                .then(serverData => {
-                    if (serverData && (serverData.currentStreak || serverData.longestStreak || serverData.lastStudyDate)) {
-                        setStreakData(serverData);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-                    }
-                })
-                .catch(() => {});
+            // Defer streak sync to avoid blocking initial load
+            const timeoutId = setTimeout(() => {
+                authApi.getStreak()
+                    .then(serverData => {
+                        if (serverData && (serverData.currentStreak || serverData.longestStreak || serverData.lastStudyDate)) {
+                            setStreakData(serverData);
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+                        }
+                    })
+                    .catch(() => {});
+            }, 300); // Wait 300ms after login
+
+            return () => clearTimeout(timeoutId);
         }
     }, [isLoggedIn]);
 
