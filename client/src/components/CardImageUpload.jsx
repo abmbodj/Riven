@@ -22,19 +22,19 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                     try {
                         const canvas = document.createElement('canvas');
                         let { width, height } = img;
-                        
+
                         // Scale down if needed
                         if (width > maxWidth) {
                             height = (height * maxWidth) / width;
                             width = maxWidth;
                         }
-                        
+
                         canvas.width = width;
                         canvas.height = height;
-                        
+
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        
+
                         // Convert to JPEG for better compression
                         resolve(canvas.toDataURL('image/jpeg', quality));
                     } catch (err) {
@@ -55,13 +55,13 @@ export default function CardImageUpload({ label, value, onChange, className = ''
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            console.error('Invalid file type:', file.type);
+            // Invalid file type
             return;
         }
 
         // Max 5MB
         if (file.size > 5 * 1024 * 1024) {
-            console.error('File too large:', file.size);
+            // File too large (max 5MB)
             return;
         }
 
@@ -70,7 +70,7 @@ export default function CardImageUpload({ label, value, onChange, className = ''
             const compressed = await compressImage(file);
             onChange(compressed);
         } catch (err) {
-            console.error('Failed to process image:', err);
+            // Failed to process image
         } finally {
             setLoading(false);
             // Reset input so same file can be selected again
@@ -93,7 +93,7 @@ export default function CardImageUpload({ label, value, onChange, className = ''
                     {label}
                 </label>
             )}
-            
+
             <input
                 ref={inputRef}
                 type="file"
@@ -104,9 +104,9 @@ export default function CardImageUpload({ label, value, onChange, className = ''
 
             {value ? (
                 <div className="relative rounded-xl overflow-hidden bg-claude-bg border border-claude-border">
-                    <img 
-                        src={value} 
-                        alt="Card preview" 
+                    <img
+                        src={value}
+                        alt="Card preview"
                         loading="lazy"
                         decoding="async"
                         className="w-full h-32 object-contain bg-black/20"

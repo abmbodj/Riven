@@ -35,12 +35,12 @@ const apiLimiter = rateLimit({
 });
 
 // CORS
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://localhost:3000'];
 
 app.use(cors({
-    origin: function(origin, callback) {
+    origin: function (origin, callback) {
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
@@ -87,7 +87,7 @@ function optionalAuth(req, res, next) {
         try {
             const decoded = jwt.verify(token, jwtSecret);
             req.user = decoded;
-        } catch (err) {}
+        } catch (err) { }
     }
     next();
 }
@@ -106,7 +106,7 @@ function isValidUsername(username) {
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
     const { username, email, password } = req.body;
-    
+
     if (!username || !email || !password) {
         return res.status(400).json({ error: 'All fields are required' });
     }
@@ -346,7 +346,7 @@ app.post('/api/auth/migrate-guest-data', authMiddleware, async (req, res) => {
         if (tags?.length > 0) {
             const existingTags = await db.query('SELECT name FROM tags WHERE user_id = $1', [userId]);
             const existingNames = existingTags.map(t => t.name.toLowerCase());
-            
+
             for (const tag of tags.filter(t => !t.is_preset)) {
                 if (!existingNames.includes(tag.name.toLowerCase())) {
                     const result = await db.queryOne(
@@ -403,7 +403,7 @@ app.post('/api/auth/migrate-guest-data', authMiddleware, async (req, res) => {
             }
         }
 
-        res.json({ 
+        res.json({
             message: 'Guest data migrated successfully',
             imported: { folders: Object.keys(folderIdMap).length, tags: Object.keys(tagIdMap).length, decks: Object.keys(deckIdMap).length }
         });
@@ -418,7 +418,7 @@ app.post('/api/auth/migrate-guest-data', authMiddleware, async (req, res) => {
 app.get('/api/users/search', authMiddleware, async (req, res) => {
     const { q } = req.query;
     if (!q || q.length < 2) return res.json([]);
-    
+
     try {
         const users = await db.query(
             `SELECT id, username, avatar, bio, share_code FROM users 
@@ -442,17 +442,17 @@ app.get('/api/users/:id', authMiddleware, async (req, res) => {
             [req.params.id]
         );
         if (!user) return res.status(404).json({ error: 'User not found' });
-        
+
         // Check friendship status
         const friendship = await db.queryOne(
             `SELECT * FROM friendships 
              WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
             [req.user.id, req.params.id]
         );
-        
+
         // Count public stats
         const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [req.params.id]);
-        
+
         res.json({
             id: user.id,
             username: user.username,
@@ -480,7 +480,7 @@ app.get('/api/friends', authMiddleware, async (req, res) => {
              ORDER BY f.created_at DESC`,
             [req.user.id]
         );
-        
+
         res.json(friends.map(f => ({
             id: f.id,
             username: f.username,
@@ -500,29 +500,29 @@ app.post('/api/friends/request', authMiddleware, async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'User ID is required' });
     if (userId === req.user.id) return res.status(400).json({ error: 'Cannot friend yourself' });
-    
+
     try {
         // Check if user exists
         const targetUser = await db.queryOne('SELECT id, username FROM users WHERE id = $1', [userId]);
         if (!targetUser) return res.status(404).json({ error: 'User not found' });
-        
+
         // Check existing friendship
         const existing = await db.queryOne(
             `SELECT * FROM friendships 
              WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
             [req.user.id, userId]
         );
-        
+
         if (existing) {
             if (existing.status === 'accepted') return res.status(400).json({ error: 'Already friends' });
             if (existing.status === 'pending') return res.status(400).json({ error: 'Friend request already pending' });
         }
-        
+
         await db.execute(
             'INSERT INTO friendships (user_id, friend_id, status) VALUES ($1, $2, $3)',
             [req.user.id, userId, 'pending']
         );
-        
+
         res.json({ message: 'Friend request sent', username: targetUser.username });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -533,20 +533,20 @@ app.post('/api/friends/request', authMiddleware, async (req, res) => {
 app.post('/api/friends/accept', authMiddleware, async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'User ID is required' });
-    
+
     try {
         const friendship = await db.queryOne(
             `SELECT * FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = 'pending'`,
             [userId, req.user.id]
         );
-        
+
         if (!friendship) return res.status(404).json({ error: 'No pending request found' });
-        
+
         await db.execute(
             `UPDATE friendships SET status = 'accepted' WHERE user_id = $1 AND friend_id = $2`,
             [userId, req.user.id]
         );
-        
+
         res.json({ message: 'Friend request accepted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -556,14 +556,14 @@ app.post('/api/friends/accept', authMiddleware, async (req, res) => {
 // Decline/remove friend
 app.delete('/api/friends/:userId', authMiddleware, async (req, res) => {
     const { userId } = req.params;
-    
+
     try {
         await db.execute(
             `DELETE FROM friendships 
              WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
             [req.user.id, userId]
         );
-        
+
         res.json({ message: 'Friend removed' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -597,7 +597,7 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
              ORDER BY other_user_id, m.created_at DESC`,
             [req.user.id]
         );
-        
+
         res.json(conversations.map(c => ({
             userId: c.other_user_id,
             username: c.username,
@@ -617,7 +617,7 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
 app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
     const { userId } = req.params;
     const { limit = 50, before } = req.query;
-    
+
     try {
         let query = `
             SELECT m.*, u.username as sender_username, u.avatar as sender_avatar
@@ -626,23 +626,23 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
             WHERE (m.sender_id = $1 AND m.receiver_id = $2) OR (m.sender_id = $2 AND m.receiver_id = $1)
         `;
         const params = [req.user.id, userId];
-        
+
         if (before) {
             query += ` AND m.created_at < $3`;
             params.push(before);
         }
-        
+
         query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
         params.push(parseInt(limit));
-        
+
         const messages = await db.query(query, params);
-        
+
         // Mark as read
         await db.execute(
             `UPDATE messages SET is_read = 1 WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0`,
             [userId, req.user.id]
         );
-        
+
         res.json(messages.reverse().map(m => ({
             id: m.id,
             senderId: m.sender_id,
@@ -663,21 +663,21 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
 // Send a message
 app.post('/api/messages', authMiddleware, async (req, res) => {
     const { receiverId, content, messageType = 'text', deckData } = req.body;
-    
+
     if (!receiverId) return res.status(400).json({ error: 'Receiver ID is required' });
-    if (!content && messageType === 'text') return res.status(400).json({ error: 'Message content is required' });
-    
+    if (!content) return res.status(400).json({ error: 'Message content is required' });
+
     try {
         // Verify receiver exists
         const receiver = await db.queryOne('SELECT id FROM users WHERE id = $1', [receiverId]);
         if (!receiver) return res.status(404).json({ error: 'User not found' });
-        
+
         const message = await db.queryOne(
             `INSERT INTO messages (sender_id, receiver_id, content, message_type, deck_data) 
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [req.user.id, receiverId, content, messageType, deckData ? JSON.stringify(deckData) : null]
         );
-        
+
         res.json({
             id: message.id,
             senderId: message.sender_id,
@@ -710,10 +710,10 @@ app.get('/api/messages/unread/count', authMiddleware, async (req, res) => {
 app.get('/api/folders', optionalAuth, async (req, res) => {
     try {
         const userId = req.user?.id || null;
-        const folders = userId 
+        const folders = userId
             ? await db.query('SELECT * FROM folders WHERE user_id = $1 ORDER BY created_at DESC', [userId])
             : await db.query('SELECT * FROM folders WHERE user_id IS NULL ORDER BY created_at DESC');
-        
+
         const foldersWithCount = await Promise.all(folders.map(async folder => {
             const count = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE folder_id = $1', [folder.id]);
             return { ...folder, deckCount: parseInt(count.count) };
@@ -727,7 +727,7 @@ app.get('/api/folders', optionalAuth, async (req, res) => {
 app.post('/api/folders', optionalAuth, async (req, res) => {
     const { name, color, icon } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-    
+
     try {
         const userId = req.user?.id || null;
         const result = await db.queryOne(
@@ -743,7 +743,7 @@ app.post('/api/folders', optionalAuth, async (req, res) => {
 app.put('/api/folders/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const { name, color, icon } = req.body;
-    
+
     try {
         const userId = req.user?.id || null;
         const folder = await db.queryOne('SELECT * FROM folders WHERE id = $1', [id]);
@@ -793,7 +793,7 @@ app.get('/api/tags', optionalAuth, async (req, res) => {
 app.post('/api/tags', optionalAuth, async (req, res) => {
     const { name, color } = req.body;
     if (!name || !color) return res.status(400).json({ error: 'Name and color are required' });
-    
+
     try {
         const userId = req.user?.id || null;
         const result = await db.queryOne(
@@ -817,7 +817,7 @@ app.delete('/api/tags/:id', optionalAuth, async (req, res) => {
         if (!tag) return res.status(404).json({ error: 'Tag not found' });
         if (tag.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
         if (tag.is_preset) return res.status(400).json({ error: 'Cannot delete preset tags' });
-        
+
         await db.execute('DELETE FROM tags WHERE id = $1', [id]);
         res.json({ message: 'Tag deleted' });
     } catch (error) {
@@ -833,7 +833,7 @@ app.get('/api/decks', optionalAuth, async (req, res) => {
         const decks = userId
             ? await db.query('SELECT * FROM decks WHERE user_id = $1 ORDER BY created_at DESC', [userId])
             : await db.query('SELECT * FROM decks WHERE user_id IS NULL ORDER BY created_at DESC');
-        
+
         const decksWithDetails = await Promise.all(decks.map(async deck => {
             const count = await db.queryOne('SELECT COUNT(*) as count FROM cards WHERE deck_id = $1', [deck.id]);
             const tags = await db.query(
@@ -859,13 +859,13 @@ app.post('/api/decks', optionalAuth, async (req, res) => {
             [userId, title, description || '', folder_id || null]
         );
         const deckId = result.id;
-        
+
         if (tagIds?.length > 0) {
             for (const tagId of tagIds) {
                 await db.execute('INSERT INTO deck_tags (deck_id, tag_id) VALUES ($1, $2)', [deckId, tagId]);
             }
         }
-        
+
         res.status(201).json({ id: deckId, title, description, folder_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -901,12 +901,12 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
-        
+
         await db.execute(
             'UPDATE decks SET title = $1, description = $2, folder_id = $3 WHERE id = $4',
             [title, description || '', folder_id || null, id]
         );
-        
+
         if (tagIds !== undefined) {
             await db.execute('DELETE FROM deck_tags WHERE deck_id = $1', [id]);
             if (tagIds.length > 0) {
@@ -915,7 +915,7 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
                 }
             }
         }
-        
+
         res.json({ id, title, description, folder_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -925,13 +925,13 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
 app.put('/api/decks/:id/move', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const { folder_id } = req.body;
-    
+
     try {
         const userId = req.user?.id || null;
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
-        
+
         await db.execute('UPDATE decks SET folder_id = $1 WHERE id = $2', [folder_id || null, id]);
         res.json({ id, folder_id });
     } catch (error) {
@@ -946,7 +946,7 @@ app.delete('/api/decks/:id', optionalAuth, async (req, res) => {
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
-        
+
         await db.execute('DELETE FROM decks WHERE id = $1', [id]);
         res.json({ message: 'Deck deleted' });
     } catch (error) {
@@ -1029,7 +1029,7 @@ app.put('/api/cards/:id', optionalAuth, async (req, res) => {
         if (card.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
         const result = await db.queryOne(
-            'UPDATE cards SET front = $1, back = $2, front_image = $3, back_image = $4 WHERE id = $5 RETURNING *', 
+            'UPDATE cards SET front = $1, back = $2, front_image = $3, back_image = $4 WHERE id = $5 RETURNING *',
             [front, back, front_image !== undefined ? front_image : card.front_image, back_image !== undefined ? back_image : card.back_image, id]
         );
         res.json(result);
@@ -1097,11 +1097,43 @@ app.put('/api/decks/:id/cards/reorder', optionalAuth, async (req, res) => {
     }
 });
 
+// Review card (spaced repetition)
+app.put('/api/cards/:id/review', optionalAuth, async (req, res) => {
+    const { id } = req.params;
+    const { correct } = req.body;
+
+    try {
+        const userId = req.user?.id || null;
+        const card = await db.queryOne('SELECT c.*, d.user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = $1', [id]);
+        if (!card) return res.status(404).json({ error: 'Card not found' });
+        if (card.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
+        let newDifficulty = card.difficulty || 0;
+        if (correct) {
+            newDifficulty = Math.min(5, newDifficulty + 1);
+        } else {
+            newDifficulty = Math.max(0, newDifficulty - 1);
+        }
+
+        const intervals = [1, 3, 7, 14, 30, 60];
+        const nextReview = new Date();
+        nextReview.setDate(nextReview.getDate() + intervals[newDifficulty]);
+
+        const result = await db.queryOne(
+            'UPDATE cards SET difficulty = $1, times_reviewed = times_reviewed + 1, times_correct = times_correct + $2, last_reviewed = NOW(), next_review = $3 WHERE id = $4 RETURNING *',
+            [newDifficulty, correct ? 1 : 0, nextReview.toISOString(), id]
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ STUDY SESSIONS ============
 
 app.post('/api/study-sessions', optionalAuth, async (req, res) => {
     const { deck_id, cards_studied, cards_correct, duration_seconds, session_type } = req.body;
-    
+
     try {
         // Verify deck ownership
         const userId = req.user?.id || null;
@@ -1123,7 +1155,7 @@ app.post('/api/study-sessions', optionalAuth, async (req, res) => {
 
 app.get('/api/study-sessions', optionalAuth, async (req, res) => {
     const { deck_id, limit = 10 } = req.query;
-    
+
     try {
         let sessions;
         if (deck_id) {
@@ -1150,26 +1182,26 @@ app.get('/api/study-sessions', optionalAuth, async (req, res) => {
 
 app.get('/api/decks/:id/stats', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    
+
     try {
         const sessions = await db.query(
-            'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC', 
+            'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC',
             [id]
         );
         const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [id]);
-        
+
         const totalStudied = sessions.reduce((sum, s) => sum + (s.cards_studied || 0), 0);
         const totalCorrect = sessions.reduce((sum, s) => sum + (s.cards_correct || 0), 0);
         const totalTime = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-        
+
         // Calculate card difficulty distribution based on times_correct
         const cardsByDifficulty = {
-            new: cards.filter(c => (c.times_correct || 0) === 0 && (c.times_studied || 0) === 0).length,
-            learning: cards.filter(c => (c.times_studied || 0) > 0 && (c.times_correct || 0) < 2).length,
+            new: cards.filter(c => (c.times_correct || 0) === 0 && (c.times_reviewed || 0) === 0).length,
+            learning: cards.filter(c => (c.times_reviewed || 0) > 0 && (c.times_correct || 0) < 2).length,
             familiar: cards.filter(c => (c.times_correct || 0) >= 2 && (c.times_correct || 0) < 5).length,
             mastered: cards.filter(c => (c.times_correct || 0) >= 5).length
         };
-        
+
         res.json({
             totalSessions: sessions.length,
             totalCardsStudied: totalStudied,
@@ -1204,7 +1236,7 @@ app.get('/api/themes', optionalAuth, async (req, res) => {
 
 app.post('/api/themes', optionalAuth, async (req, res) => {
     const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
-    
+
     try {
         const userId = req.user?.id || null;
         const result = await db.queryOne(
@@ -1236,7 +1268,7 @@ app.delete('/api/themes/:id', optionalAuth, async (req, res) => {
 app.put('/api/themes/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
-    
+
     try {
         const userId = req.user?.id || null;
         const theme = await db.queryOne('SELECT * FROM themes WHERE id = $1', [id]);
@@ -1266,13 +1298,13 @@ app.put('/api/themes/:id/activate', optionalAuth, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
-        
+
         if (userId) {
             await db.execute('UPDATE themes SET is_active = 0 WHERE user_id = $1', [userId]);
         } else {
             await db.execute('UPDATE themes SET is_active = 0 WHERE user_id IS NULL');
         }
-        
+
         await db.execute('UPDATE themes SET is_active = 1 WHERE id = $1', [id]);
         res.json({ message: 'Theme activated' });
     } catch (error) {
@@ -1299,7 +1331,7 @@ app.post('/api/decks/:id/share', authMiddleware, async (req, res) => {
 
         res.json({ shareId, shareUrl: `/share/${shareId}` });
     } catch (error) {
-        console.error('Share deck error:', error);
+
         res.status(500).json({ error: error.message });
     }
 });
@@ -1311,12 +1343,12 @@ app.get('/api/share/:shareId', async (req, res) => {
             `SELECT sd.*, u.username, u.avatar 
              FROM shared_decks sd 
              JOIN users u ON sd.user_id = u.id 
-             WHERE sd.share_id = $1`, 
+             WHERE sd.share_id = $1`,
             [shareId]
         );
         if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
 
-        res.json({ 
+        res.json({
             shareId: shared.share_id,
             deckData: JSON.parse(shared.deck_data),
             sharedAt: shared.created_at,
@@ -1358,7 +1390,7 @@ app.post('/api/share/:shareId/import', authMiddleware, async (req, res) => {
 app.get('/api/my-shares', authMiddleware, async (req, res) => {
     try {
         const shared = await db.query('SELECT * FROM shared_decks WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
-        res.json(shared.map(s => ({ 
+        res.json(shared.map(s => ({
             shareId: s.share_id,
             deckData: JSON.parse(s.deck_data),
             sharedAt: s.created_at,
@@ -1403,20 +1435,20 @@ app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) =>
 app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
     const { id } = req.params;
     const { username, email, bio, isAdmin } = req.body;
-    
+
     try {
         if (parseInt(id) === req.user.id && isAdmin === false) {
             return res.status(400).json({ error: 'Cannot remove your own admin status' });
         }
-        
+
         await db.execute(
             'UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email), bio = COALESCE($3, bio), is_admin = COALESCE($4, is_admin) WHERE id = $5',
             [username, email, bio, isAdmin ? 1 : 0, id]
         );
-        
+
         const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
         if (!user) return res.status(404).json({ error: 'User not found' });
-        
+
         res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.is_admin === 1 });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update user' });
@@ -1429,7 +1461,7 @@ app.delete('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, 
         if (parseInt(id) === req.user.id) {
             return res.status(400).json({ error: 'Cannot delete your own account' });
         }
-        
+
         const result = await db.execute('DELETE FROM users WHERE id = $1', [id]);
         if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
         res.json({ message: 'User deleted' });
@@ -1445,19 +1477,19 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
         const cardCount = await db.queryOne('SELECT COUNT(*) as count FROM cards');
         const sharedCount = await db.queryOne('SELECT COUNT(*) as count FROM shared_decks');
         const messageCount = await db.queryOne('SELECT COUNT(*) as count FROM global_messages WHERE is_active = 1');
-        
+
         // Get recent signups (last 7 days)
         const recentUsers = await db.queryOne(`
             SELECT COUNT(*) as count FROM users 
             WHERE created_at > NOW() - INTERVAL '7 days'
         `);
-        
+
         // Get study sessions in last 7 days
         const recentSessions = await db.queryOne(`
             SELECT COUNT(*) as count FROM study_sessions 
             WHERE created_at > NOW() - INTERVAL '7 days'
         `);
-        
+
         res.json({
             users: parseInt(userCount.count),
             decks: parseInt(deckCount.count),
@@ -1501,29 +1533,29 @@ app.get('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res)
 // Create a global message (admin)
 app.post('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res) => {
     const { title, content, type, expiresAt } = req.body;
-    
+
     if (!title || !content) {
         return res.status(400).json({ error: 'Title and content are required' });
     }
-    
+
     if (title.length > 100) {
         return res.status(400).json({ error: 'Title must be under 100 characters' });
     }
-    
+
     if (content.length > 1000) {
         return res.status(400).json({ error: 'Content must be under 1000 characters' });
     }
-    
+
     const validTypes = ['info', 'warning', 'success', 'error'];
     const messageType = validTypes.includes(type) ? type : 'info';
-    
+
     try {
         const result = await db.queryOne(
             `INSERT INTO global_messages (title, content, type, created_by, expires_at) 
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [title, content, messageType, req.user.id, expiresAt || null]
         );
-        
+
         res.status(201).json({
             id: result.id,
             title: result.title,
@@ -1542,7 +1574,7 @@ app.post('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res
 app.put('/api/admin/messages/:id', authMiddleware, adminMiddleware, async (req, res) => {
     const { id } = req.params;
     const { isActive, title, content, type } = req.body;
-    
+
     try {
         await db.execute(
             `UPDATE global_messages SET 
@@ -1553,10 +1585,10 @@ app.put('/api/admin/messages/:id', authMiddleware, adminMiddleware, async (req, 
              WHERE id = $5`,
             [isActive !== undefined ? (isActive ? 1 : 0) : null, title, content, type, id]
         );
-        
+
         const message = await db.queryOne('SELECT * FROM global_messages WHERE id = $1', [id]);
         if (!message) return res.status(404).json({ error: 'Message not found' });
-        
+
         res.json({
             id: message.id,
             title: message.title,
@@ -1593,7 +1625,7 @@ app.get('/api/messages', authMiddleware, async (req, res) => {
             )
             ORDER BY gm.created_at DESC
         `, [req.user.id]);
-        
+
         res.json(messages.map(m => ({
             id: m.id,
             title: m.title,

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
@@ -6,6 +6,8 @@ import MobileWarning from './components/MobileWarning';
 import { AuthProvider } from './context/AuthContext';
 import { GardenProvider } from './context/GardenContext';
 import { UIProvider } from './context/UIContext';
+import { ThemeProvider } from './ThemeContext.jsx';
+import { StreakProvider } from './context/StreakContext.jsx';
 
 // Lazy load non-critical pages
 const CreateDeck = lazy(() => import('./pages/CreateDeck'));
@@ -32,34 +34,39 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-      <GardenProvider>
-        <UIProvider>
-          <BrowserRouter>
-            <MobileWarning />
-            <Layout>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/create" element={<CreateDeck />} />
-                <Route path="/deck/:id" element={<DeckView />} />
-                <Route path="/deck/:id/study" element={<StudyMode />} />
-                <Route path="/deck/:id/test" element={<TestMode />} />
-                <Route path="/themes" element={<ThemeSettings />} />
-                <Route path="/garden" element={<GardenSettings />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/shared" element={<SharedDecks />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/friends" element={<Friends />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/messages/:userId" element={<Messages />} />
-                <Route path="/profile/:userId" element={<UserProfile />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </Layout>
-        </BrowserRouter>
-        </UIProvider>
-      </GardenProvider>
+      <ThemeProvider>
+        <StreakProvider>
+          <GardenProvider>
+            <UIProvider>
+              <BrowserRouter>
+                <MobileWarning />
+                <Layout>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/create" element={<CreateDeck />} />
+                      <Route path="/deck/:id" element={<DeckView />} />
+                      <Route path="/deck/:id/study" element={<StudyMode />} />
+                      <Route path="/deck/:id/test" element={<TestMode />} />
+                      <Route path="/themes" element={<ThemeSettings />} />
+                      <Route path="/garden" element={<GardenSettings />} />
+                      <Route path="/account" element={<Account />} />
+                      <Route path="/shared" element={<SharedDecks />} />
+                      <Route path="/share/:shareId" element={<SharedDecks />} />
+                      <Route path="/admin" element={<AdminPanel />} />
+                      <Route path="/friends" element={<Friends />} />
+                      <Route path="/messages" element={<Messages />} />
+                      <Route path="/messages/:userId" element={<Messages />} />
+                      <Route path="/profile/:userId" element={<UserProfile />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </Layout>
+              </BrowserRouter>
+            </UIProvider>
+          </GardenProvider>
+        </StreakProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

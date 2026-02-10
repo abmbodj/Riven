@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Palette, Home, Plus, WifiOff, Sprout, User } from 'lucide-react';
 import { ThemeContext } from '../ThemeContext';

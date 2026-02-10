@@ -8,6 +8,7 @@ export { AuthContext };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     // Check for existing token on mount (non-blocking)
     useEffect(() => {
@@ -16,7 +17,10 @@ export function AuthProvider({ children }) {
             // Fetch user data in background, don't block UI
             authApi.getMe()
                 .then(setUser)
-                .catch(() => authApi.setToken(null));
+                .catch(() => authApi.setToken(null))
+                .finally(() => setLoading(false));
+        } else {
+            setLoading(false);
         }
     }, []);
 
@@ -28,10 +32,10 @@ export function AuthProvider({ children }) {
 
             const guestData = await guestDb.exportAllGuestData();
             const result = await authApi.migrateGuestData(guestData);
-            
+
             // Clear local data after successful migration
             await guestDb.clearAllGuestData();
-            
+
             return { migrated: true, ...result };
         } catch (error) {
             return { migrated: false, error: error.message };
@@ -42,10 +46,10 @@ export function AuthProvider({ children }) {
     const signUp = useCallback(async (username, email, password) => {
         const userData = await authApi.register(username, email, password);
         setUser(userData);
-        
+
         // Migrate guest data after successful signup
         const migrationResult = await migrateGuestData();
-        
+
         return { ...userData, migration: migrationResult };
     }, [migrateGuestData]);
 
@@ -179,7 +183,7 @@ export function AuthProvider({ children }) {
     const adminGetUserStreakData = useCallback(() => {
         if (!user?.isAdmin) return null;
         try {
-            const streakData = localStorage.getItem('ghost_streak_data');
+            const streakData = localStorage.getItem('riven_streak_data');
             return streakData ? JSON.parse(streakData) : null;
         } catch {
             return null;
@@ -189,7 +193,7 @@ export function AuthProvider({ children }) {
     // Update streak data (admin only)
     const adminUpdateStreakData = useCallback((newStreakData) => {
         if (!user?.isAdmin) throw new Error('Admin access required');
-        localStorage.setItem('ghost_streak_data', JSON.stringify(newStreakData));
+        localStorage.setItem('riven_streak_data', JSON.stringify(newStreakData));
         return true;
     }, [user]);
 

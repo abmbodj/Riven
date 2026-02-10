@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useEffect, useState, useCallback } from 'react';
 import { api } from './api';
 
 export const ThemeContext = createContext(null);

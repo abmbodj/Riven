@@ -56,9 +56,9 @@ async function getDB() {
             }
         });
     }
-    
+
     const db = await dbPromise;
-    
+
     // Initialize default data only once
     if (!initialized) {
         initialized = true;
@@ -93,7 +93,7 @@ async function getDB() {
             // Error initializing default data silently
         }
     }
-    
+
     return db;
 }
 
@@ -159,7 +159,7 @@ export async function deleteTag(id) {
     const db = await getDB();
     const tag = await db.get('tags', id);
     if (tag?.is_preset) throw new Error('Cannot delete preset tags');
-    
+
     // Remove from deck_tags
     const deckTags = await db.getAll('deck_tags');
     for (const dt of deckTags.filter(dt => dt.tag_id === id)) {
@@ -175,7 +175,7 @@ export async function getDecks() {
     const cards = await db.getAll('cards');
     const deckTags = await db.getAll('deck_tags');
     const tags = await db.getAll('tags');
-    
+
     return decks.map(deck => {
         const deckTagIds = deckTags.filter(dt => dt.deck_id === deck.id).map(dt => dt.tag_id);
         return {
@@ -190,14 +190,14 @@ export async function getDeck(id) {
     const db = await getDB();
     const deck = await db.get('decks', Number(id));
     if (!deck) throw new Error('Deck not found');
-    
+
     const cards = await db.getAll('cards');
     const deckCards = cards.filter(c => c.deck_id === Number(id)).sort((a, b) => (a.position || 0) - (b.position || 0));
-    
+
     const deckTags = await db.getAll('deck_tags');
     const tags = await db.getAll('tags');
     const deckTagIds = deckTags.filter(dt => dt.deck_id === Number(id)).map(dt => dt.tag_id);
-    
+
     return {
         ...deck,
         cards: deckCards,
@@ -207,20 +207,20 @@ export async function getDeck(id) {
 
 export async function createDeck(title, description = '', folder_id = null, tagIds = []) {
     const db = await getDB();
-    const deck = { 
-        title, 
-        description, 
-        folder_id, 
+    const deck = {
+        title,
+        description,
+        folder_id,
         created_at: new Date().toISOString(),
         last_studied: null
     };
     const id = await db.add('decks', deck);
-    
+
     // Add tags
     for (const tagId of tagIds) {
         await db.add('deck_tags', { deck_id: id, tag_id: tagId });
     }
-    
+
     return { id, ...deck, cardCount: 0, tags: [] };
 }
 
@@ -228,10 +228,10 @@ export async function updateDeck(id, title, description, folder_id, tagIds = [])
     const db = await getDB();
     const deck = await db.get('decks', Number(id));
     if (!deck) throw new Error('Deck not found');
-    
+
     const updated = { ...deck, title, description, folder_id };
     await db.put('decks', updated);
-    
+
     // Update tags
     const existingDeckTags = await db.getAll('deck_tags');
     for (const dt of existingDeckTags.filter(dt => dt.deck_id === Number(id))) {
@@ -240,31 +240,31 @@ export async function updateDeck(id, title, description, folder_id, tagIds = [])
     for (const tagId of tagIds) {
         await db.add('deck_tags', { deck_id: Number(id), tag_id: tagId });
     }
-    
+
     return updated;
 }
 
 export async function deleteDeck(id) {
     const db = await getDB();
-    
+
     // Delete cards
     const cards = await db.getAll('cards');
     for (const card of cards.filter(c => c.deck_id === Number(id))) {
         await db.delete('cards', card.id);
     }
-    
+
     // Delete deck_tags
     const deckTags = await db.getAll('deck_tags');
     for (const dt of deckTags.filter(dt => dt.deck_id === Number(id))) {
         await db.delete('deck_tags', [dt.deck_id, dt.tag_id]);
     }
-    
+
     // Delete study sessions
     const sessions = await db.getAll('study_sessions');
     for (const session of sessions.filter(s => s.deck_id === Number(id))) {
         await db.delete('study_sessions', session.id);
     }
-    
+
     await db.delete('decks', Number(id));
 }
 
@@ -272,7 +272,7 @@ export async function duplicateDeck(id) {
     const db = await getDB();
     const original = await getDeck(id);
     if (!original) throw new Error('Deck not found');
-    
+
     // Create new deck
     const newDeck = {
         title: `${original.title} (Copy)`,
@@ -282,7 +282,7 @@ export async function duplicateDeck(id) {
         last_studied: null
     };
     const newId = await db.add('decks', newDeck);
-    
+
     // Copy cards
     for (const card of original.cards) {
         await db.add('cards', {
@@ -298,12 +298,12 @@ export async function duplicateDeck(id) {
             created_at: new Date().toISOString()
         });
     }
-    
+
     // Copy tags
     for (const tag of original.tags) {
         await db.add('deck_tags', { deck_id: newId, tag_id: tag.id });
     }
-    
+
     return { id: newId, ...newDeck };
 }
 
@@ -325,7 +325,7 @@ export async function addCard(deck_id, front, back, front_image = null, back_ima
     const cards = await db.getAll('cards');
     const deckCards = cards.filter(c => c.deck_id === Number(deck_id));
     const maxPosition = deckCards.length > 0 ? Math.max(...deckCards.map(c => c.position || 0)) : -1;
-    
+
     const card = {
         deck_id: Number(deck_id),
         front,
@@ -348,9 +348,9 @@ export async function updateCard(id, front, back, front_image, back_image) {
     const db = await getDB();
     const card = await db.get('cards', Number(id));
     if (!card) throw new Error('Card not found');
-    const updated = { 
-        ...card, 
-        front, 
+    const updated = {
+        ...card,
+        front,
         back,
         front_image: front_image !== undefined ? front_image : card.front_image,
         back_image: back_image !== undefined ? back_image : card.back_image
@@ -368,18 +368,18 @@ export async function reviewCard(id, correct) {
     const db = await getDB();
     const card = await db.get('cards', Number(id));
     if (!card) throw new Error('Card not found');
-    
+
     let newDifficulty = card.difficulty || 0;
     if (correct) {
         newDifficulty = Math.min(5, newDifficulty + 1);
     } else {
         newDifficulty = Math.max(0, newDifficulty - 1);
     }
-    
+
     const intervals = [1, 3, 7, 14, 30, 60];
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + intervals[newDifficulty]);
-    
+
     const updated = {
         ...card,
         difficulty: newDifficulty,
@@ -414,13 +414,13 @@ export async function saveStudySession(deck_id, cards_studied, cards_correct, du
         created_at: new Date().toISOString()
     };
     const id = await db.add('study_sessions', session);
-    
+
     // Update deck last_studied
     const deck = await db.get('decks', Number(deck_id));
     if (deck) {
         await db.put('decks', { ...deck, last_studied: new Date().toISOString() });
     }
-    
+
     return { id, ...session };
 }
 
@@ -430,11 +430,11 @@ export async function getDeckStats(deck_id) {
     const deckSessions = sessions.filter(s => s.deck_id === Number(deck_id));
     const cards = await db.getAll('cards');
     const deckCards = cards.filter(c => c.deck_id === Number(deck_id));
-    
+
     const totalStudied = deckSessions.reduce((sum, s) => sum + s.cards_studied, 0);
     const totalCorrect = deckSessions.reduce((sum, s) => sum + s.cards_correct, 0);
     const totalTime = deckSessions.reduce((sum, s) => sum + s.duration_seconds, 0);
-    
+
     return {
         totalSessions: deckSessions.length,
         totalStudied,
@@ -494,7 +494,7 @@ export async function updateTheme(id, themeData) {
 // ============ EXPORT ALL GUEST DATA ============
 export async function exportAllGuestData() {
     const db = await getDB();
-    
+
     const folders = await db.getAll('folders');
     const tags = await db.getAll('tags');
     const decks = await db.getAll('decks');
@@ -525,7 +525,7 @@ export async function hasGuestData() {
 // Clear all guest data after successful migration
 export async function clearAllGuestData() {
     const db = await getDB();
-    
+
     // Clear all stores except themes (user might want to keep those)
     const tx = db.transaction(['folders', 'tags', 'decks', 'cards', 'study_sessions', 'deck_tags'], 'readwrite');
     await tx.objectStore('folders').clear();
@@ -534,9 +534,10 @@ export async function clearAllGuestData() {
     await tx.objectStore('study_sessions').clear();
     await tx.objectStore('deck_tags').clear();
     // Keep preset tags, clear custom ones
-    const tags = await db.getAll('tags');
+    const tagsStore = tx.objectStore('tags');
+    const tags = await tagsStore.getAll();
     for (const tag of tags.filter(t => !t.is_preset)) {
-        await db.delete('tags', tag.id);
+        await tagsStore.delete(tag.id);
     }
     await tx.done;
 }
