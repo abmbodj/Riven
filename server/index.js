@@ -710,15 +710,19 @@ app.get('/api/messages/unread/count', authMiddleware, async (req, res) => {
 app.get('/api/folders', optionalAuth, async (req, res) => {
     try {
         const userId = req.user?.id || null;
-        const folders = userId
-            ? await db.query('SELECT * FROM folders WHERE user_id = $1 ORDER BY created_at DESC', [userId])
-            : await db.query('SELECT * FROM folders WHERE user_id IS NULL ORDER BY created_at DESC');
+        const userFilter = userId ? 'f.user_id = $1' : 'f.user_id IS NULL';
+        const params = userId ? [userId] : [];
 
-        const foldersWithCount = await Promise.all(folders.map(async folder => {
-            const count = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE folder_id = $1', [folder.id]);
-            return { ...folder, deckCount: parseInt(count.count) };
-        }));
-        res.json(foldersWithCount);
+        // Single query: folders with deck counts via LEFT JOIN
+        const folders = await db.query(
+            `SELECT f.*, COALESCE(d.count, 0)::int AS "deckCount"
+             FROM folders f
+             LEFT JOIN (SELECT folder_id, COUNT(*) AS count FROM decks GROUP BY folder_id) d ON d.folder_id = f.id
+             WHERE ${userFilter}
+             ORDER BY f.created_at DESC`,
+            params
+        );
+        res.json(folders);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -830,19 +834,39 @@ app.delete('/api/tags/:id', optionalAuth, async (req, res) => {
 app.get('/api/decks', optionalAuth, async (req, res) => {
     try {
         const userId = req.user?.id || null;
-        const decks = userId
-            ? await db.query('SELECT * FROM decks WHERE user_id = $1 ORDER BY created_at DESC', [userId])
-            : await db.query('SELECT * FROM decks WHERE user_id IS NULL ORDER BY created_at DESC');
+        const userFilter = userId ? 'user_id = $1' : 'user_id IS NULL';
+        const params = userId ? [userId] : [];
 
-        const decksWithDetails = await Promise.all(decks.map(async deck => {
-            const count = await db.queryOne('SELECT COUNT(*) as count FROM cards WHERE deck_id = $1', [deck.id]);
-            const tags = await db.query(
-                'SELECT t.* FROM tags t JOIN deck_tags dt ON t.id = dt.tag_id WHERE dt.deck_id = $1',
-                [deck.id]
-            );
-            return { ...deck, cardCount: parseInt(count.count), tags };
-        }));
-        res.json(decksWithDetails);
+        // Single query: get decks with card counts
+        const decks = await db.query(
+            `SELECT d.*, COALESCE(c.count, 0)::int AS "cardCount"
+             FROM decks d
+             LEFT JOIN (SELECT deck_id, COUNT(*) AS count FROM cards GROUP BY deck_id) c ON c.deck_id = d.id
+             WHERE d.${userFilter}
+             ORDER BY d.created_at DESC`,
+            params
+        );
+
+        if (decks.length === 0) return res.json([]);
+
+        // Single query: get all tags for all decks at once
+        const deckIds = decks.map(d => d.id);
+        const tagRows = await db.query(
+            `SELECT dt.deck_id, t.* FROM tags t
+             JOIN deck_tags dt ON t.id = dt.tag_id
+             WHERE dt.deck_id = ANY($1)`,
+            [deckIds]
+        );
+
+        // Group tags by deck_id
+        const tagsByDeck = {};
+        for (const row of tagRows) {
+            const did = row.deck_id;
+            if (!tagsByDeck[did]) tagsByDeck[did] = [];
+            tagsByDeck[did].push({ id: row.id, name: row.name, color: row.color, is_preset: row.is_preset, user_id: row.user_id });
+        }
+
+        res.json(decks.map(d => ({ ...d, tags: tagsByDeck[d.id] || [] })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
