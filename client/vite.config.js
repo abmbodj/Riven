@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['logo.png', 'mask-icon.svg'],
       manifest: {
         name: 'Riven - Flashcard Study App',
         short_name: 'Riven',
@@ -23,17 +23,17 @@ export default defineConfig({
         prefer_related_applications: false,
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'logo.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'logo.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'logo.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
@@ -45,7 +45,7 @@ export default defineConfig({
             short_name: 'Create',
             description: 'Create a new flashcard deck',
             url: '/create',
-            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+            icons: [{ src: 'logo.png', sizes: '192x192' }]
           }
         ]
       },
