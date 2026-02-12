@@ -2,9 +2,6 @@
 
 A beautiful, minimal flashcard app for mastering any subject. Features **cross-device sync**, **offline support**, and a **streak system** with a beautiful garden 🌱 that grows with your dedication!
 
-Built entirely through **prompt engineering** — no manual coding required.
-
-![Made with AI](https://img.shields.io/badge/Made%20with-AI%20Prompt%20Engineering-blueviolet)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?logo=postgresql)
@@ -142,10 +139,6 @@ Riven/
 ### PWA Installation
 - **iOS**: Safari → Share → Add to Home Screen
 - **Android**: Chrome menu → Install app
-
-## 🤖 Built with Prompt Engineering
-
-This entire project was created using **AI prompt engineering**. From the SVG garden animations to the database migrations, every line of code was generated through natural language prompts.
 
 ## 📝 License
 
