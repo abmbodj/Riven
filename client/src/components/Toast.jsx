@@ -1,17 +1,22 @@
-import React, { createContext, useState, useCallback } from 'react';
-import { Check, AlertCircle } from 'lucide-react';
+import React, { createContext, useState, useCallback, useRef } from 'react';
+import { Check, AlertCircle, X } from 'lucide-react';
 
 export const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
+    const idCounter = useRef(0);
+
+    const dismiss = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
 
     const show = useCallback((message, type = 'success') => {
-        const id = Date.now();
+        const id = ++idCounter.current;
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
-        }, 2500);
+        }, 3500);
     }, []);
 
     const success = useCallback((message) => show(message, 'success'), [show]);
@@ -20,7 +25,12 @@ export function ToastProvider({ children }) {
     return (
         <ToastContext.Provider value={{ show, success, error }}>
             {children}
-            <div className="fixed top-16 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="fixed top-16 left-4 right-4 z-50 flex flex-col gap-2"
+            >
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
@@ -35,7 +45,14 @@ export function ToastProvider({ children }) {
                         ) : (
                             <AlertCircle className="w-5 h-5 shrink-0" />
                         )}
-                        <span className="font-medium text-sm">{toast.message}</span>
+                        <span className="font-medium text-sm flex-1">{toast.message}</span>
+                        <button
+                            onClick={() => dismiss(toast.id)}
+                            className="min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 -mr-2 rounded-lg active:opacity-70 transition-opacity"
+                            aria-label="Dismiss notification"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
                     </div>
                 ))}
             </div>

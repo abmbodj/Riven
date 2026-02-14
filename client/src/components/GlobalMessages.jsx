@@ -11,8 +11,8 @@ export default function GlobalMessages() {
         try {
             const data = await getActiveMessages();
             setMessages(data || []);
-        } catch {
-            // Failed to load messages silently
+        } catch (err) {
+            console.warn('Failed to load messages:', err)
         } finally {
             setLoading(false);
         }
@@ -31,8 +31,8 @@ export default function GlobalMessages() {
         try {
             await dismissMessage(id);
             setMessages(messages.filter(m => m.id !== id));
-        } catch {
-            // Failed to dismiss message silently
+        } catch (err) {
+            console.warn('Failed to dismiss message:', err)
         }
     };
 
@@ -68,7 +68,7 @@ export default function GlobalMessages() {
     if (loading || messages.length === 0) return null;
 
     return (
-        <div className="space-y-2 mb-4">
+        <div role="region" aria-live="polite" aria-label="System messages" className="space-y-2 mb-4">
             {messages.map(message => {
                 const styles = getTypeStyles(message.type);
                 return (
@@ -88,7 +88,8 @@ export default function GlobalMessages() {
                             </div>
                             <button
                                 onClick={() => handleDismiss(message.id)}
-                                className="p-1 rounded-lg hover:bg-claude-border/30 text-claude-secondary hover:text-claude-text transition-colors shrink-0"
+                                aria-label="Dismiss message"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-claude-border/30 text-claude-secondary hover:text-claude-text transition-colors shrink-0"
                             >
                                 <X className="w-4 h-4" />
                             </button>

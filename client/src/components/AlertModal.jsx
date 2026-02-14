@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle, Info, X, AlertTriangle } from 'lucide-react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
@@ -14,6 +14,8 @@ export default function AlertModal({
     // Lock body scroll when modal is open
     useBodyScrollLock(isOpen);
 
+    const dialogRef = useRef(null);
+
     // Close on escape key
     useEffect(() => {
         if (!isOpen) return;
@@ -23,6 +25,36 @@ export default function AlertModal({
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
+
+    // Focus trap: move focus into dialog on open and trap it
+    useEffect(() => {
+        if (!isOpen || !dialogRef.current) return;
+        const dialog = dialogRef.current;
+        const previouslyFocused = document.activeElement;
+        const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        const focusableEls = dialog.querySelectorAll(focusableSelector);
+        if (focusableEls.length) focusableEls[0].focus();
+
+        const handleTab = (e) => {
+            if (e.key !== 'Tab') return;
+            const focusable = dialog.querySelectorAll(focusableSelector);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        };
+        dialog.addEventListener('keydown', handleTab);
+        return () => {
+            dialog.removeEventListener('keydown', handleTab);
+            if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+        };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -53,6 +85,10 @@ export default function AlertModal({
             onClick={onClose}
         >
             <div 
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="alert-modal-title"
                 className={`relative w-full max-w-sm rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200 modal-content`}
                 style={{ backgroundColor: 'var(--surface-color)' }}
                 onClick={e => e.stopPropagation()}
@@ -74,7 +110,7 @@ export default function AlertModal({
 
                 {/* Title */}
                 {title && (
-                    <h3 className="text-xl font-display font-bold text-center mb-2">{title}</h3>
+                    <h3 id="alert-modal-title" className="text-xl font-display font-bold text-center mb-2">{title}</h3>
                 )}
 
                 {/* Message */}

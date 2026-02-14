@@ -73,6 +73,11 @@ export default function PullToRefresh({ onRefresh, children, disabled = false })
                 </div>
             </div>
 
+            {/* Accessible status for screen readers */}
+            <div className="sr-only" role="status" aria-live="polite">
+                {isRefreshing ? 'Refreshing content…' : pullDistance >= THRESHOLD ? 'Release to refresh' : ''}
+            </div>
+
             {/* Content with pull transform */}
             <div
                 className="transition-transform duration-200"

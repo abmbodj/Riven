@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import MobileWarning from './components/MobileWarning';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 import { GardenProvider } from './context/GardenContext';
 import { UIProvider } from './context/UIContext';
@@ -26,7 +27,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Simple loading fallback
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
+  <div role="status" aria-label="Loading page" className="flex items-center justify-center min-h-[50vh]">
     <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
   </div>
 );
@@ -41,6 +42,7 @@ function App() {
               <BrowserRouter>
                 <MobileWarning />
                 <Layout>
+                  <ErrorBoundary>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/" element={<Home />} />
@@ -61,6 +63,7 @@ function App() {
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
+                  </ErrorBoundary>
                 </Layout>
               </BrowserRouter>
             </UIProvider>

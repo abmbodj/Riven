@@ -9,7 +9,7 @@ export default function LoadingSpinner({ size = 'md', className = '' }) {
     };
 
     return (
-        <div className={`flex items-center justify-center ${className}`}>
+        <div role="status" aria-label="Loading" className={`flex items-center justify-center ${className}`}>
             <div className={`${sizeClasses[size]} animate-spin`}>
                 <svg
                     className="w-full h-full text-claude-accent"
@@ -39,7 +39,7 @@ export default function LoadingSpinner({ size = 'md', className = '' }) {
 // Full page loading overlay
 export function LoadingOverlay({ message = 'Loading...' }) {
     return (
-        <div className="fixed inset-0 bg-claude-bg/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
+        <div role="status" aria-label={message} className="fixed inset-0 bg-claude-bg/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
             <LoadingSpinner size="xl" />
             <p className="text-claude-secondary text-sm">{message}</p>
         </div>

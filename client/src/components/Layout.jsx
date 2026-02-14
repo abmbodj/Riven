@@ -46,6 +46,8 @@ export default function Layout({ children }) {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
+                            role="alert"
+                            aria-live="polite"
                             className="sticky top-0 z-30 bg-yellow-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top overflow-hidden"
                         >
                             <WifiOff className="w-4 h-4" />
@@ -68,7 +70,7 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
-                    <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-claude-surface/95 backdrop-blur-xl border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 safe-area-bottom">
+                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-claude-surface/95 backdrop-blur-xl border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 safe-area-bottom">
                         <div className="flex items-stretch h-16">
                             {navItems.map((item) => {
                                 if (item.isFab) {
