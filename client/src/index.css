@@ -3,12 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --bg-color: #1a1a18;
-  --surface-color: #242422;
-  --text-color: #e8e8e3;
-  --secondary-text-color: #a1a19a;
-  --border-color: #3d3d3a;
-  --accent-color: #d97757;
+  --bg-color: #1C1917;
+  --surface-color: #292524;
+  --text-color: #F5F0EB;
+  --secondary-text-color: #A8A29E;
+  --border-color: #44403C;
+  --accent-color: #52B788;
+  --botanical-forest: #2D6A4F;
+  --botanical-sepia: #8B7355;
+  --botanical-parchment: #F5F0EB;
+  --botanical-ink: #1C1917;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -39,12 +43,38 @@
   body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    @apply font-sans antialiased transition-colors duration-200;
+    @apply font-sans antialiased;
     min-height: 100%;
     min-height: 100dvh;
-    /* Prevent pull-to-refresh on PWA */
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* Gradient mesh background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(82, 183, 136, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(45, 106, 79, 0.04) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 90%, rgba(139, 115, 85, 0.03) 0%, transparent 45%);
   }
 
   #root {
@@ -90,7 +120,9 @@
   }
 
   /* Prevent zoom on input focus (iOS) */
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-size: 16px !important;
   }
 
@@ -333,5 +365,61 @@
   /* Prevent double-tap zoom on buttons */
   .tap-action {
     touch-action: manipulation;
+  }
+
+  /* Botanical card with paper grain */
+  .botanical-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    @apply rounded-xl;
+    box-shadow: 0 2px 16px rgba(45, 106, 79, 0.08), 0 1px 4px rgba(0, 0, 0, 0.12);
+    position: relative;
+  }
+
+  .botanical-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.02;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+}
+
+/* Botanical keyframes */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gentlePulse {
+
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes inkReveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
   }
 }

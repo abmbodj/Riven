@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Settings, Palette, Clock, Trophy, Sparkles } from 'lucide-react';
+import { Palette, Clock, Trophy } from 'lucide-react';
+import { motion } from 'motion/react';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import GardenCustomizer from '../components/GardenCustomizer';
@@ -17,114 +18,132 @@ export default function GardenSettings() {
     const streak = useStreak();
     const [showGallery, setShowGallery] = useState(false);
     const [showCustomizer, setShowCustomizer] = useState(false);
-    
+
     const stage = getGardenStage(streak.currentStreak);
 
     return (
-        <div className="animate-in fade-in duration-300 relative min-h-[calc(100dvh-180px)] overflow-hidden">
-            {/* Coming Soon Overlay - leaves bottom nav accessible */}
-            <div className="fixed inset-0 bottom-[calc(64px+env(safe-area-inset-bottom,0px))] z-40 flex items-center justify-center">
-                <div className="absolute inset-0 bg-claude-bg/80 backdrop-blur-md" />
-                <div className="relative bg-claude-surface border border-claude-border rounded-3xl p-8 mx-4 text-center shadow-2xl">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">
-                        <Sparkles className="w-8 h-8 text-green-500" />
-                    </div>
-                    <h2 className="text-2xl font-display font-bold mb-2">Coming Soon</h2>
-                    <p className="text-claude-secondary text-sm max-w-xs">
-                        The Garden feature is being cultivated. Check back soon to grow your study streak garden!
-                    </p>
-                    <div className="mt-6 text-xs text-claude-secondary/60">🌱 Growing something special...</div>
-                </div>
-            </div>
+        <div className="relative min-h-[calc(100dvh-180px)]">
             {/* Header */}
             <div className="text-center mb-6">
-                <h1 className="text-2xl font-display font-bold mb-1">My Garden</h1>
-                <p className="text-sm text-claude-secondary">{getStatusMessage(streak)}</p>
+                <h1 className="text-2xl font-display font-bold italic mb-1">My Garden</h1>
+                <p className="text-xs font-mono text-botanical-sepia tracking-wide">{getStatusMessage(streak)}</p>
             </div>
 
-            {/* Garden Preview */}
-            <div className="flex flex-col items-center mb-8">
-                <div className="relative">
+            {/* Garden Preview with gradient backdrop */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                className="flex flex-col items-center mb-8"
+            >
+                <div
+                    className="relative rounded-2xl p-6 w-full flex flex-col items-center"
+                    style={{
+                        background: 'linear-gradient(180deg, rgba(45,106,79,0.1) 0%, rgba(82,183,136,0.04) 60%, transparent 100%)',
+                        border: '1px solid rgba(82,183,136,0.08)',
+                    }}
+                >
+                    {/* Corner marks */}
+                    <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/15" />
+                    <div className="absolute top-3 right-3 w-3 h-3 border-t border-r border-claude-accent/15" />
+                    <div className="absolute bottom-3 left-3 w-3 h-3 border-b border-l border-claude-accent/15" />
+                    <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/15" />
+
                     <Garden
                         streak={streak.currentStreak}
                         status={streak.status}
                         size="xl"
                         showInfo={true}
                     />
-                </div>
-                
-                {/* Stage Name */}
-                <div className="mt-4 text-center">
-                    <div className="text-lg font-semibold">{stage.name}</div>
-                    <div className="text-sm text-claude-secondary">{stage.description}</div>
-                </div>
-            </div>
 
-            {/* Stats Cards */}
+                    <div className="mt-4 text-center">
+                        <div className="font-display text-lg font-semibold italic">{stage.name}</div>
+                        <div className="text-sm text-claude-secondary">{stage.description}</div>
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Stats Cards — asymmetric heights */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-claude-surface border border-claude-border rounded-2xl p-4 text-center">
-                    <div className="text-3xl font-bold text-green-500">{streak.currentStreak}</div>
-                    <div className="text-xs text-claude-secondary uppercase tracking-wider mt-1">Current Streak</div>
-                </div>
-                <div className="bg-claude-surface border border-claude-border rounded-2xl p-4 text-center">
-                    <div className="text-3xl font-bold text-yellow-500">{streak.longestStreak}</div>
-                    <div className="text-xs text-claude-secondary uppercase tracking-wider mt-1">Best Streak</div>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="botanical-card p-5 text-center"
+                >
+                    <div className="text-3xl font-display font-bold text-claude-accent">{streak.currentStreak}</div>
+                    <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Current Streak</div>
+                </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="botanical-card p-5 pt-7 text-center"
+                >
+                    <div className="text-3xl font-display font-bold text-yellow-500">{streak.longestStreak}</div>
+                    <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Best Streak</div>
+                    <div className="text-[9px] font-mono text-claude-secondary/50 mt-2">Personal Record</div>
+                </motion.div>
             </div>
 
             {/* Time Status */}
             {streak.status !== 'broken' && (
-                <div className="bg-claude-surface border border-claude-border rounded-2xl p-4 mb-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="botanical-card p-4 mb-6"
+                >
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            streak.status === 'at-risk' ? 'bg-orange-500/20' : 'bg-green-500/20'
-                        }`}>
-                            <Clock className={`w-5 h-5 ${
-                                streak.status === 'at-risk' ? 'text-orange-500' : 'text-green-500'
-                            }`} />
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${streak.status === 'at-risk' ? 'bg-yellow-500/12' : 'bg-claude-accent/12'
+                            }`}>
+                            <Clock className={`w-4 h-4 ${streak.status === 'at-risk' ? 'text-yellow-500' : 'text-claude-accent'
+                                }`} />
                         </div>
                         <div className="flex-1">
-                            <div className="font-semibold">
-                                {streak.studiedToday ? 'Studied Today ✓' : 'Garden Needs Care'}
+                            <div className="font-display font-semibold text-sm">
+                                {streak.studiedToday ? 'Studied Today \u2713' : 'Garden Needs Care'}
                             </div>
-                            <div className="text-sm text-claude-secondary">
-                                {streak.hoursRemaining > 0 
+                            <div className="text-xs text-claude-secondary font-mono">
+                                {streak.hoursRemaining > 0
                                     ? `${Math.round(streak.hoursRemaining)}h until garden wilts`
                                     : 'Study now to keep growing!'
                                 }
                             </div>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             )}
 
             {/* Action Buttons */}
             <div className="space-y-3 mb-24">
-                <button
+                <motion.button
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowCustomizer(true)}
-                    className="w-full p-4 bg-claude-surface border border-claude-border rounded-2xl flex items-center gap-4 active:scale-[0.98] transition-transform"
+                    className="w-full p-4 botanical-card flex items-center gap-4"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                        <Palette className="w-6 h-6 text-green-500" />
+                    <div className="w-10 h-10 rounded-lg bg-claude-accent/12 flex items-center justify-center">
+                        <Palette className="w-5 h-5 text-claude-accent" />
                     </div>
                     <div className="flex-1 text-left">
-                        <div className="font-semibold">Customize Garden</div>
-                        <div className="text-sm text-claude-secondary">Change theme, add decorations & plants</div>
+                        <div className="font-display font-semibold text-sm">Customize Garden</div>
+                        <div className="text-xs text-claude-secondary">Change theme, add decorations & plants</div>
                     </div>
-                </button>
+                </motion.button>
 
-                <button
+                <motion.button
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowGallery(true)}
-                    className="w-full p-4 bg-claude-surface border border-claude-border rounded-2xl flex items-center gap-4 active:scale-[0.98] transition-transform"
+                    className="w-full p-4 botanical-card flex items-center gap-4"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                        <Trophy className="w-6 h-6 text-yellow-500" />
+                    <div className="w-10 h-10 rounded-lg bg-yellow-500/12 flex items-center justify-center">
+                        <Trophy className="w-5 h-5 text-yellow-500" />
                     </div>
                     <div className="flex-1 text-left">
-                        <div className="font-semibold">Garden Memories</div>
-                        <div className="text-sm text-claude-secondary">View your past gardens & achievements</div>
+                        <div className="font-display font-semibold text-sm">Garden Memories</div>
+                        <div className="text-xs text-claude-secondary">View your past gardens & achievements</div>
                     </div>
-                </button>
+                </motion.button>
             </div>
 
             {/* Modals */}

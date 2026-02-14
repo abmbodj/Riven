@@ -4,45 +4,106 @@ import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
+import Garden from '../components/Garden';
+import { useStreak } from '../hooks/useStreak';
+import { getGardenStage } from '../utils/gardenCustomization';
 
-// Memoized deck card component to prevent re-renders
-const DeckCard = memo(({ deck, folders }) => {
+// Memoized deck card with botanical styling
+const DeckCard = memo(({ deck, folders, index }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
-    const folderColor = folder?.color || '#6366f1';
-    
+    const folderColor = folder?.color || '#52B788';
+
     return (
-        <Link to={`/deck/${deck.id}`} className="claude-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform">
-            <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: deck.folder_id ? folderColor + '20' : 'var(--color-surface)' }}
-            >
-                <Layers className="w-6 h-6" style={{ color: deck.folder_id ? folderColor : 'var(--color-accent)' }} />
-            </div>
-            <div className="flex-1 min-w-0">
-                <h3 className="font-semibold truncate">{deck.title}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="text-claude-secondary text-sm">{deck.cardCount} cards</span>
-                    {deck.tags?.length > 0 && (
-                        <div className="flex items-center gap-1">
-                            {deck.tags.slice(0, 2).map(tag => (
-                                <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: tag.color }}>
-                                    {tag.name}
-                                </span>
-                            ))}
-                            {deck.tags.length > 2 && <span className="text-xs text-claude-secondary">+{deck.tags.length - 2}</span>}
-                        </div>
-                    )}
+        <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.04, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+        >
+            <Link to={`/deck/${deck.id}`} className="botanical-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform block">
+                <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: deck.folder_id ? folderColor + '12' : 'rgba(82,183,136,0.08)' }}
+                >
+                    <Layers className="w-5 h-5" style={{ color: deck.folder_id ? folderColor : 'var(--accent-color)' }} />
                 </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-claude-secondary shrink-0" />
-        </Link>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-display font-semibold truncate">{deck.title}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-botanical-sepia text-xs font-mono">{deck.cardCount} cards</span>
+                        {deck.tags?.length > 0 && (
+                            <div className="flex items-center gap-1">
+                                {deck.tags.slice(0, 2).map(tag => (
+                                    <span key={tag.id} className="px-1.5 py-0.5 rounded text-[10px] font-mono text-white/90" style={{ backgroundColor: tag.color }}>
+                                        {tag.name}
+                                    </span>
+                                ))}
+                                {deck.tags.length > 2 && <span className="text-[10px] text-claude-secondary">+{deck.tags.length - 2}</span>}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-claude-secondary/40 shrink-0" />
+            </Link>
+        </motion.div>
     );
 });
 DeckCard.displayName = 'DeckCard';
+
+// Garden hero — overlaps into header area
+const GardenHero = memo(() => {
+    const streak = useStreak();
+    const stage = getGardenStage(streak.currentStreak);
+
+    return (
+        <Link to="/garden" className="block mb-2 -mx-4 px-4">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                className="relative rounded-2xl overflow-hidden p-5"
+                style={{
+                    background: 'linear-gradient(145deg, rgba(45,106,79,0.14) 0%, rgba(82,183,136,0.06) 60%, transparent 100%)',
+                    border: '1px solid rgba(82,183,136,0.1)',
+                }}
+            >
+                {/* Decorative corner marks */}
+                <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/20 rounded-tl" />
+                <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/20 rounded-br" />
+
+                <div className="flex items-center gap-5">
+                    <div className="shrink-0">
+                        <Garden
+                            streak={streak.currentStreak}
+                            status={streak.status}
+                            size="sm"
+                            showInfo={false}
+                        />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-botanical-sepia mb-1">Your Garden</p>
+                        <h2 className="font-display text-lg font-bold italic leading-tight mb-0.5">{stage.name}</h2>
+                        <p className="text-xs text-claude-secondary line-clamp-1">{stage.description}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                            <span className="font-mono text-xs text-claude-accent">{streak.currentStreak}d streak</span>
+                            {streak.status === 'at-risk' && (
+                                <span className="font-mono text-[10px] text-yellow-500">⚠ {Math.round(streak.hoursRemaining)}h left</span>
+                            )}
+                            {streak.studiedToday && (
+                                <span className="font-mono text-[10px] text-claude-accent/60">✓ today</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        </Link>
+    );
+});
+GardenHero.displayName = 'GardenHero';
 
 export default function Home() {
     const toast = useToast();
@@ -78,7 +139,7 @@ export default function Home() {
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
-        
+
         try {
             // Load all data in parallel for speed
             const [decksData, foldersData, tagsData] = await Promise.all([
@@ -86,7 +147,7 @@ export default function Home() {
                 api.getFolders(),
                 api.getTags()
             ]);
-            
+
             setDecks(decksData);
             setFolders(foldersData);
             setTags(tagsData);
@@ -231,7 +292,7 @@ export default function Home() {
     );
 
     return (
-        <div className="animate-in fade-in duration-500">
+        <div>
             {/* Global broadcast messages */}
             <GlobalMessages />
 
@@ -252,7 +313,7 @@ export default function Home() {
 
             {/* Onboarding modal */}
             {showOnboarding && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
                     style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                 >
@@ -278,7 +339,7 @@ export default function Home() {
 
             {/* Folder Modal */}
             {showFolderModal && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
@@ -287,8 +348,8 @@ export default function Home() {
                         }
                     }}
                 >
-                    <form 
-                        onSubmit={handleCreateFolder} 
+                    <form
+                        onSubmit={handleCreateFolder}
                         className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
                         style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
@@ -347,14 +408,14 @@ export default function Home() {
 
             {/* Tag Modal */}
             {showTagModal && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowTagModal(false);
                     }}
                 >
-                    <form 
-                        onSubmit={handleCreateTag} 
+                    <form
+                        onSubmit={handleCreateTag}
                         className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
                         style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
                         onClick={(e) => e.stopPropagation()}
@@ -397,13 +458,16 @@ export default function Home() {
                 </div>
             )}
 
+            {/* Garden Hero — overlapping into header */}
+            <GardenHero />
+
             {/* Header */}
             <div className="mb-4">
                 <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-display font-bold">Library</h1>
-                    <button 
-                        onClick={() => loadData(true)} 
-                        disabled={refreshing} 
+                    <h1 className="text-2xl font-display font-bold italic">Library</h1>
+                    <button
+                        onClick={() => loadData(true)}
+                        disabled={refreshing}
                         className="touch-target text-claude-secondary active:text-claude-text disabled:opacity-50"
                     >
                         <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -418,7 +482,7 @@ export default function Home() {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search decks..."
-                        className="w-full pl-12 pr-4 py-3.5 bg-claude-surface border border-claude-border rounded-2xl focus:border-claude-accent outline-none transition-colors"
+                        className="w-full pl-12 pr-4 py-3 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none transition-colors font-sans text-sm"
                     />
                 </div>
             </div>
@@ -426,7 +490,7 @@ export default function Home() {
             {/* Folders Section */}
             <div className="mb-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">Folders</h2>
+                    <h2 className="text-[10px] font-mono font-medium uppercase tracking-[0.15em] text-botanical-sepia">Folders</h2>
                     <button
                         onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }}
                         className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform touch-target"
@@ -477,7 +541,7 @@ export default function Home() {
             {tags.length > 0 && (
                 <div className="mb-5">
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">Tags</h2>
+                        <h2 className="text-[10px] font-mono font-medium uppercase tracking-[0.15em] text-botanical-sepia">Tags</h2>
                         <button
                             onClick={() => setShowTagModal(true)}
                             className="text-claude-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform touch-target"
@@ -534,7 +598,7 @@ export default function Home() {
             {/* Decks List */}
             <div>
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary">
+                    <h2 className="text-[10px] font-mono font-medium uppercase tracking-[0.15em] text-botanical-sepia">
                         Decks {filteredDecks.length !== decks.length && `(${filteredDecks.length})`}
                     </h2>
                     <div className="relative">
@@ -588,8 +652,8 @@ export default function Home() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredDecks.map(deck => (
-                            <DeckCard key={deck.id} deck={deck} folders={folders} />
+                        {filteredDecks.map((deck, i) => (
+                            <DeckCard key={deck.id} deck={deck} folders={folders} index={i} />
                         ))}
                     </div>
                 )}

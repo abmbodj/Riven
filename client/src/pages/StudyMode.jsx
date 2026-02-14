@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
@@ -53,7 +54,7 @@ export default function StudyMode() {
             const { cardsStudied, cardsCorrect } = sessionDataRef.current;
             if (cardsStudied > 0) {
                 const duration = Math.round((Date.now() - startTime.current) / 1000);
-                api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(() => {});
+                api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(() => { });
                 // Increment streak when completing a study session
                 incrementStreak();
             }
@@ -65,11 +66,11 @@ export default function StudyMode() {
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
         setCardsCorrect(c => c + 1);
-        
+
         if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, true).catch(() => {});
+            await api.reviewCard(card.id, true).catch(() => { });
         }
-        
+
         if (currentIndex < cards.length - 1) {
             setIsFlipped(false);
             setTimeout(() => setCurrentIndex(c => c + 1), 150);
@@ -83,11 +84,11 @@ export default function StudyMode() {
         if (!isFlipped) return;
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
-        
+
         if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, false).catch(() => {});
+            await api.reviewCard(card.id, false).catch(() => { });
         }
-        
+
         if (currentIndex < cards.length - 1) {
             setIsFlipped(false);
             setTimeout(() => setCurrentIndex(c => c + 1), 150);
@@ -137,7 +138,7 @@ export default function StudyMode() {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
             switch (e.key) {
                 case 'ArrowRight':
                     handleNext();
@@ -161,7 +162,7 @@ export default function StudyMode() {
             <div className="animate-pulse text-claude-secondary">Loading...</div>
         </div>
     );
-    
+
     if (cards.length === 0) return (
         <div className="fullscreen-page items-center justify-center p-6">
             <div className="text-6xl mb-4">📚</div>
@@ -185,28 +186,30 @@ export default function StudyMode() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 shrink-0">
                 <Link to={`/deck/${id}`} className="touch-target -ml-2 text-claude-secondary tap-action">
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5" />
                 </Link>
                 <div className="flex-1 mx-4">
-                    <div className="h-1.5 bg-claude-border rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-claude-accent transition-all duration-300"
-                            style={{ width: `${progress}%` }}
+                    <div className="h-1 bg-claude-border rounded-full overflow-hidden">
+                        <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: 'linear-gradient(90deg, var(--botanical-forest), var(--accent-color))' }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                         />
                     </div>
-                    <p className="text-center text-xs text-claude-secondary mt-1">{currentIndex + 1} / {cards.length}</p>
+                    <p className="text-center text-[10px] font-mono text-botanical-sepia mt-1.5 tracking-wide">{currentIndex + 1} / {cards.length}</p>
                 </div>
                 <button
                     onClick={handleShuffle}
                     className={`p-2 -mr-2 ${isShuffled ? 'text-claude-accent' : 'text-claude-secondary'}`}
                     title="Shuffle cards"
                 >
-                    <Shuffle className="w-6 h-6" />
+                    <Shuffle className="w-5 h-5" />
                 </button>
             </div>
 
             {/* Keyboard hints - only show on desktop */}
-            <div className="hidden md:flex justify-center gap-4 text-[10px] text-claude-secondary px-4 py-1">
+            <div className="hidden md:flex justify-center gap-4 text-[10px] font-mono text-claude-secondary px-4 py-1">
                 <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">←</kbd> Previous</span>
                 <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">Space</kbd> Flip</span>
                 <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">→</kbd> Next</span>
@@ -214,137 +217,208 @@ export default function StudyMode() {
 
             {/* Spaced Repetition Toggle */}
             <div className="flex justify-center mb-2">
-                <button
+                <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        spacedRepetitionMode 
-                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors ${spacedRepetitionMode
+                            ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
                             : 'bg-claude-surface border border-claude-border text-claude-secondary'
-                    }`}
+                        }`}
                 >
                     <Brain className="w-3.5 h-3.5" />
                     Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
-                </button>
+                </motion.button>
             </div>
 
             {/* Card area */}
-            <div className="flex-1 flex items-center justify-center px-4 py-6" {...swipeHandlers}>
+            <div className="flex-1 flex items-center justify-center px-4 py-4" {...swipeHandlers}>
                 <div
-                    className={`w-full max-w-sm aspect-[3/4] cursor-pointer perspective-1000`}
+                    className="w-full max-w-sm aspect-[3/4] cursor-pointer"
+                    style={{ perspective: '1200px' }}
                     onClick={handleFlip}
                 >
-                    <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-                        {/* Front */}
-                        <div className="absolute inset-0 bg-claude-surface rounded-3xl border border-claude-border flex flex-col items-center justify-center p-6 backface-hidden overflow-hidden">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-3">Question</span>
+                    <motion.div
+                        className="relative w-full h-full"
+                        style={{ transformStyle: 'preserve-3d' }}
+                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                    >
+                        {/* Front — warm surface with paper grain */}
+                        <div
+                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                            style={{
+                                backfaceVisibility: 'hidden',
+                                background: 'linear-gradient(165deg, var(--surface-color) 0%, #1f1c1a 100%)',
+                                border: '1px solid var(--border-color)',
+                                boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+                            }}
+                        >
+                            {/* Paper grain overlay */}
+                            <div
+                                className="absolute inset-0 pointer-events-none opacity-[0.015]"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                    backgroundSize: '128px 128px',
+                                }}
+                            />
+                            {/* Decorative corner marks */}
+                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border/50" />
+                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border/50" />
+                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border/50" />
+                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
+
+                            {/* Rotated label */}
+                            <span
+                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
+                                style={{ transform: 'rotate(-2deg)' }}
+                            >
+                                Question
+                            </span>
                             {currentCard.front_image && (
-                                <img 
-                                    src={currentCard.front_image} 
+                                <img
+                                    src={currentCard.front_image}
                                     alt="Card front"
                                     loading="lazy"
                                     decoding="async"
-                                    className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
+                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                 />
                             )}
-                            <p className={`font-display font-semibold text-center leading-tight ${currentCard.front_image ? 'text-lg' : 'text-2xl'}`}>{currentCard.front}</p>
+                            <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
                             {currentCard.difficulty > 0 && (
-                                <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded-full ${
-                                    currentCard.difficulty >= 4 ? 'bg-red-500/20 text-red-400' :
-                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/20 text-yellow-400' :
-                                    'bg-green-500/20 text-green-400'
-                                }`}>
+                                <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
+                                        currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
+                                            'bg-green-500/15 text-green-400'
+                                    }`}>
                                     {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
                                 </span>
                             )}
-                            <span className="absolute bottom-4 text-xs text-claude-secondary">Tap to flip</span>
+                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap to reveal</span>
                         </div>
 
-                        {/* Back */}
-                        <div className="absolute inset-0 bg-claude-accent rounded-3xl flex flex-col items-center justify-center p-6 backface-hidden rotate-y-180 overflow-hidden">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Answer</span>
+                        {/* Back — forest green with dramatic shadow */}
+                        <div
+                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                            style={{
+                                backfaceVisibility: 'hidden',
+                                transform: 'rotateY(180deg)',
+                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #1a4535 100%)',
+                                border: '1px solid rgba(82,183,136,0.25)',
+                                boxShadow: '0 8px 32px rgba(45,106,79,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                            }}
+                        >
+                            {/* Paper grain overlay */}
+                            <div
+                                className="absolute inset-0 pointer-events-none opacity-[0.02]"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                    backgroundSize: '128px 128px',
+                                }}
+                            />
+                            {/* Decorative corner marks */}
+                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
+                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
+                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
+                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+
+                            <span
+                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
+                                style={{ transform: 'rotate(-2deg)' }}
+                            >
+                                Answer
+                            </span>
                             {currentCard.back_image && (
-                                <img 
-                                    src={currentCard.back_image} 
+                                <img
+                                    src={currentCard.back_image}
                                     alt="Card back"
                                     loading="lazy"
                                     decoding="async"
-                                    className="max-h-[40%] max-w-full object-contain rounded-xl mb-3"
+                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                 />
                             )}
-                            <p className={`font-display font-semibold text-white text-center leading-tight ${currentCard.back_image ? 'text-lg' : 'text-2xl'}`}>{currentCard.back}</p>
-                            <span className="absolute bottom-4 text-xs text-white/50">Tap to flip back</span>
+                            <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
+                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap to flip back</span>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
             {/* Navigation */}
             <div className="px-4 pb-8 shrink-0">
                 {isLastCard && isFlipped ? (
-                    <div className="space-y-3 max-w-sm mx-auto">
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-3 max-w-sm mx-auto"
+                    >
                         <div className="text-center mb-4">
-                            <p className="text-claude-secondary text-sm">🎉 You've reviewed all cards!</p>
+                            <p className="font-display text-lg font-semibold italic">Session complete</p>
                             {cardsStudied > 0 && (
-                                <p className="text-xs text-claude-secondary mt-1">
-                                    Score: {cardsCorrect}/{cardsStudied} ({Math.round((cardsCorrect/cardsStudied)*100)}%)
+                                <p className="text-xs font-mono text-botanical-sepia mt-1">
+                                    {cardsCorrect}/{cardsStudied} correct · {Math.round((cardsCorrect / cardsStudied) * 100)}%
                                 </p>
                             )}
                         </div>
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.97 }}
                             onClick={handleRestart}
-                            className="w-full py-4 rounded-2xl bg-claude-accent text-white font-semibold active:scale-[0.98] transition-transform"
+                            className="w-full py-4 rounded-xl bg-claude-accent text-white font-display font-semibold"
                         >
                             Study Again
-                        </button>
+                        </motion.button>
                         <Link
                             to={`/deck/${id}`}
-                            className="block w-full py-4 rounded-2xl bg-claude-surface border border-claude-border text-center font-semibold active:scale-[0.98] transition-transform"
+                            className="block w-full py-4 rounded-xl bg-claude-surface border border-claude-border text-center font-display font-semibold active:scale-[0.98] transition-transform"
                         >
                             Back to Deck
                         </Link>
-                    </div>
+                    </motion.div>
                 ) : spacedRepetitionMode && isFlipped ? (
                     <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.93 }}
                             onClick={handleDidntKnow}
-                            className="flex-1 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 flex items-center justify-center gap-2 font-semibold active:scale-95 transition-transform"
+                            className="flex-1 h-14 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 flex items-center justify-center gap-2 font-display font-semibold"
                         >
                             <ThumbsDown className="w-5 h-5" />
                             Didn't Know
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                            whileTap={{ scale: 0.93 }}
                             onClick={handleKnew}
-                            className="flex-1 h-14 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 flex items-center justify-center gap-2 font-semibold active:scale-95 transition-transform"
+                            className="flex-1 h-14 rounded-xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center gap-2 font-display font-semibold"
                         >
                             <ThumbsUp className="w-5 h-5" />
                             Knew It
-                        </button>
+                        </motion.button>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-4">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
                             onClick={handlePrev}
                             disabled={currentIndex === 0}
-                            className="w-16 h-16 rounded-2xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform"
+                            className="w-14 h-14 rounded-xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30"
                         >
-                            <ChevronLeft className="w-7 h-7" />
-                        </button>
+                            <ChevronLeft className="w-6 h-6" />
+                        </motion.button>
 
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
                             onClick={handleFlip}
-                            className="h-16 px-8 rounded-2xl bg-claude-surface border border-claude-border flex items-center gap-3 font-semibold active:scale-95 transition-transform"
+                            className="h-14 px-8 rounded-xl bg-claude-surface border border-claude-border flex items-center gap-3 font-display font-semibold"
                         >
                             <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
                             Flip
-                        </button>
+                        </motion.button>
 
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
                             onClick={handleNext}
                             disabled={isLastCard}
-                            className="w-16 h-16 rounded-2xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform"
+                            className="w-14 h-14 rounded-xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30"
                         >
-                            <ChevronRight className="w-7 h-7" />
-                        </button>
+                            <ChevronRight className="w-6 h-6" />
+                        </motion.button>
                     </div>
                 )}
             </div>
