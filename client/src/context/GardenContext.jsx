@@ -55,47 +55,56 @@ export function GardenProvider({ children }) {
     }, [isLoggedIn]);
 
     const setGardenTheme = useCallback((gardenTheme) => {
-        const newCustomization = { ...customization, gardenTheme };
-        updateCustomization(newCustomization);
-    }, [customization, updateCustomization]);
+        setCustomization(prev => {
+            const newCustomization = { ...prev, gardenTheme };
+            updateCustomization(newCustomization);
+            return newCustomization;
+        });
+    }, [updateCustomization]);
 
     const toggleDecoration = useCallback((decorationId) => {
-        const isEquipped = customization.decorations?.includes(decorationId);
-        let newDecorations;
+        setCustomization(prev => {
+            const isEquipped = prev.decorations?.includes(decorationId);
+            let newDecorations;
 
-        if (isEquipped) {
-            newDecorations = customization.decorations.filter(id => id !== decorationId);
-        } else {
-            const newDec = decorations.find(d => d.id === decorationId);
-            const slot = newDec?.slot;
-            newDecorations = (customization.decorations || []).filter(id => {
-                const dec = decorations.find(d => d.id === id);
-                return dec && dec.slot !== slot;
-            });
-            newDecorations.push(decorationId);
-        }
+            if (isEquipped) {
+                newDecorations = prev.decorations.filter(id => id !== decorationId);
+            } else {
+                const newDec = decorations.find(d => d.id === decorationId);
+                const slot = newDec?.slot;
+                newDecorations = (prev.decorations || []).filter(id => {
+                    const dec = decorations.find(d => d.id === id);
+                    return dec && dec.slot !== slot;
+                });
+                newDecorations.push(decorationId);
+            }
 
-        const newCustomization = { ...customization, decorations: newDecorations };
-        updateCustomization(newCustomization);
-    }, [customization, updateCustomization]);
+            const newCustomization = { ...prev, decorations: newDecorations };
+            updateCustomization(newCustomization);
+            return newCustomization;
+        });
+    }, [updateCustomization]);
 
     const togglePlant = useCallback((plantId) => {
-        const isEquipped = customization.specialPlants?.includes(plantId);
-        let newPlants;
+        setCustomization(prev => {
+            const isEquipped = prev.specialPlants?.includes(plantId);
+            let newPlants;
 
-        if (isEquipped) {
-            newPlants = customization.specialPlants.filter(id => id !== plantId);
-        } else {
-            newPlants = [...(customization.specialPlants || [])];
-            if (newPlants.length >= 3) {
-                newPlants.shift();
+            if (isEquipped) {
+                newPlants = prev.specialPlants.filter(id => id !== plantId);
+            } else {
+                newPlants = [...(prev.specialPlants || [])];
+                if (newPlants.length >= 3) {
+                    newPlants.shift();
+                }
+                newPlants.push(plantId);
             }
-            newPlants.push(plantId);
-        }
 
-        const newCustomization = { ...customization, specialPlants: newPlants };
-        updateCustomization(newCustomization);
-    }, [customization, updateCustomization]);
+            const newCustomization = { ...prev, specialPlants: newPlants };
+            updateCustomization(newCustomization);
+            return newCustomization;
+        });
+    }, [updateCustomization]);
 
     return (
         <GardenContext.Provider value={{

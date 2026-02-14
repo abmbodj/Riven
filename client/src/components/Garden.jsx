@@ -14,6 +14,48 @@ const sizeMap = {
     xl: { width: 320, height: 320 }
 };
 
+// Module-level CSS — injected once, shared across all Garden instances
+const gardenStyles = `
+    @keyframes garden-pulse-warning {
+        0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 180, 100, 0.6)); }
+        50% { filter: drop-shadow(0 0 20px rgba(255, 150, 50, 0.8)); }
+    }
+    .garden-sway {
+        animation: garden-sway-anim 3s ease-in-out infinite;
+        transform-origin: center bottom;
+    }
+    @keyframes garden-sway-anim {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
+    }
+    .garden-float {
+        animation: garden-float-anim 2.5s ease-in-out infinite;
+    }
+    @keyframes garden-float-anim {
+        0%, 100% { transform: translateX(0) translateY(0); }
+        25% { transform: translateX(5px) translateY(-3px); }
+        75% { transform: translateX(-5px) translateY(2px); }
+    }
+    .garden-cloud {
+        animation: garden-cloud-drift 12s linear infinite;
+    }
+    @keyframes garden-cloud-drift {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(15px); }
+    }
+`;
+
+// Inject styles once into head
+if (typeof document !== 'undefined') {
+    const existingStyle = document.getElementById('garden-component-styles');
+    if (!existingStyle) {
+        const styleEl = document.createElement('style');
+        styleEl.id = 'garden-component-styles';
+        styleEl.textContent = gardenStyles;
+        document.head.appendChild(styleEl);
+    }
+}
+
 // ─── SVG Decoration Renderers ───────────────────────────────
 // Each returns an SVG <g> element positioned at x,y
 
@@ -938,35 +980,6 @@ export default function Garden({
                 animation: status === 'at-risk' ? 'garden-pulse-warning 2s ease-in-out infinite' : undefined
             }}
         >
-            <style>{`
-                @keyframes garden-pulse-warning {
-                    0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 180, 100, 0.6)); }
-                    50% { filter: drop-shadow(0 0 20px rgba(255, 150, 50, 0.8)); }
-                }
-                .garden-sway {
-                    animation: garden-sway-anim 3s ease-in-out infinite;
-                    transform-origin: center bottom;
-                }
-                @keyframes garden-sway-anim {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-2px); }
-                }
-                .garden-float {
-                    animation: garden-float-anim 2.5s ease-in-out infinite;
-                }
-                @keyframes garden-float-anim {
-                    0%, 100% { transform: translateX(0) translateY(0); }
-                    25% { transform: translateX(5px) translateY(-3px); }
-                    75% { transform: translateX(-5px) translateY(2px); }
-                }
-                .garden-cloud {
-                    animation: garden-cloud-drift 12s linear infinite;
-                }
-                @keyframes garden-cloud-drift {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(15px); }
-                }
-            `}</style>
 
             {renderGarden()}
 
