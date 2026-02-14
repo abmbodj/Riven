@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
@@ -12,6 +12,7 @@ import GlobalMessages from '../components/GlobalMessages';
 import Garden from '../components/Garden';
 import { useStreak } from '../hooks/useStreak';
 import { getGardenStage } from '../utils/gardenCustomization';
+import { AuthContext } from '../context/AuthContext';
 
 const FOLDER_COLORS = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -68,8 +69,12 @@ DeckCard.displayName = 'DeckCard';
 
 // Garden hero — overlaps into header area
 const GardenHero = memo(() => {
+    const { isLoggedIn } = useContext(AuthContext);
     const streak = useStreak();
     const stage = getGardenStage(streak.currentStreak);
+
+    // Don't show garden hero when not logged in
+    if (!isLoggedIn) return null;
 
     return (
         <Link to="/garden" className="block mb-2 -mx-4 px-4">
