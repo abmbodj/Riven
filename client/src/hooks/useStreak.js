@@ -11,37 +11,38 @@
  * @typedef {'active' | 'at-risk' | 'broken'} StreakStatus
  */
 
-import { useState, useEffect, useCallback, useContext, useMemo } from 'react';
+import { useState, useEffect, useCallback, useContext, useMemo, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import * as authApi from '../api/authApi';
 
-const STORAGE_KEY = 'riven_streak_data';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
 
+const emptyStreak = {
+    currentStreak: 0,
+    longestStreak: 0,
+    lastStudyDate: null,
+    streakStartDate: null,
+    pastStreaks: []
+};
+
 /**
  * Calculate hours remaining until streak breaks
- * @param {string|null} lastStudyDate 
- * @returns {number}
  */
 const getHoursRemaining = (lastStudyDate) => {
     if (!lastStudyDate) return 0;
     const last = new Date(lastStudyDate);
-    const deadline = new Date(last.getTime() + (2 * MS_PER_DAY)); // 48 hours to maintain streak
+    const deadline = new Date(last.getTime() + (2 * MS_PER_DAY));
     const now = new Date();
     return Math.max(0, (deadline.getTime() - now.getTime()) / MS_PER_HOUR);
 };
 
 /**
  * Get streak status
- * @param {string|null} lastStudyDate 
- * @returns {StreakStatus}
  */
 const calculateStatus = (lastStudyDate) => {
     if (!lastStudyDate) return 'broken';
-    
     const hoursRemaining = getHoursRemaining(lastStudyDate);
-    
     if (hoursRemaining <= 0) return 'broken';
     if (hoursRemaining <= 24) return 'at-risk';
     return 'active';
@@ -49,8 +50,6 @@ const calculateStatus = (lastStudyDate) => {
 
 /**
  * Check if user studied today
- * @param {string|null} lastStudyDate 
- * @returns {boolean}
  */
 const hasStudiedToday = (lastStudyDate) => {
     if (!lastStudyDate) return false;
@@ -60,48 +59,48 @@ const hasStudiedToday = (lastStudyDate) => {
 };
 
 /**
- * Custom hook for managing study streak
- * @returns {Object}
+ * Custom hook for managing study streak — server-only (requires auth)
  */
 export function useStreak() {
     const authContext = useContext(AuthContext);
-    const user = authContext?.user;
     const isLoggedIn = authContext?.isLoggedIn;
 
-    const [streakData, setStreakData] = useState(() => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                return JSON.parse(stored);
-            }
-        } catch {
-            // Failed to load streak data
-        }
-        return {
-            currentStreak: 0,
-            longestStreak: 0,
-            lastStudyDate: null,
-            streakStartDate: null,
-            pastStreaks: []
-        };
-    });
+    const [streakData, setStreakData] = useState(emptyStreak);
+    const [loaded, setLoaded] = useState(false);
+    const syncedRef = useRef(false);
 
-    // Sync streak data from server when user logs in (deferred)
+    // Fetch streak data from server when logged in
     useEffect(() => {
-        if (isLoggedIn) {
-            // Defer streak sync to avoid blocking initial load
-            const timeoutId = setTimeout(() => {
-                authApi.getStreak()
-                    .then(serverData => {
-                        if (serverData && (serverData.currentStreak || serverData.longestStreak || serverData.lastStudyDate)) {
-                            setStreakData(serverData);
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-                        }
-                    })
-                    .catch(() => {});
-            }, 300); // Wait 300ms after login
+        if (!isLoggedIn) {
+            setStreakData(emptyStreak);
+            setLoaded(true);
+            syncedRef.current = false;
+            return;
+        }
 
-            return () => clearTimeout(timeoutId);
+        if (syncedRef.current) return;
+        syncedRef.current = true;
+
+        authApi.getStreak()
+            .then(serverData => {
+                if (serverData && (serverData.currentStreak !== undefined || serverData.longestStreak || serverData.lastStudyDate)) {
+                    setStreakData({
+                        currentStreak: serverData.currentStreak || 0,
+                        longestStreak: serverData.longestStreak || 0,
+                        lastStudyDate: serverData.lastStudyDate || null,
+                        streakStartDate: serverData.streakStartDate || null,
+                        pastStreaks: serverData.pastStreaks || []
+                    });
+                }
+            })
+            .catch(() => { })
+            .finally(() => setLoaded(true));
+    }, [isLoggedIn]);
+
+    // Persist to server helper
+    const saveToServer = useCallback((data) => {
+        if (isLoggedIn) {
+            authApi.updateStreak(data).catch(() => { });
         }
     }, [isLoggedIn]);
 
@@ -118,30 +117,21 @@ export function useStreak() {
                 endDate: prev.lastStudyDate
             };
 
-            return {
+            const updated = {
                 ...prev,
                 currentStreak: 0,
                 streakStartDate: null,
-                pastStreaks: [memorial, ...prev.pastStreaks].slice(0, 10) // Keep last 10
+                pastStreaks: [memorial, ...prev.pastStreaks].slice(0, 10)
             };
+            saveToServer(updated);
+            return updated;
         });
-    }, []);
-
-    // Persist to localStorage and sync to server
-    useEffect(() => {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(streakData));
-            // Sync to server if logged in
-            if (isLoggedIn) {
-                authApi.updateStreak(streakData).catch(() => {});
-            }
-        } catch {
-            // Failed to save streak data
-        }
-    }, [streakData, isLoggedIn]);
+    }, [saveToServer]);
 
     // Check for broken streak on mount and periodically
     useEffect(() => {
+        if (!isLoggedIn || !loaded) return;
+
         const checkStreak = () => {
             const status = calculateStatus(streakData.lastStudyDate);
             if (status === 'broken' && streakData.currentStreak > 0) {
@@ -150,57 +140,58 @@ export function useStreak() {
         };
 
         checkStreak();
-        const interval = setInterval(checkStreak, 60000); // Check every minute
+        const interval = setInterval(checkStreak, 60000);
         return () => clearInterval(interval);
-    }, [streakData.lastStudyDate, streakData.currentStreak, breakStreak]);
+    }, [streakData.lastStudyDate, streakData.currentStreak, breakStreak, isLoggedIn, loaded]);
 
     /**
      * Increment the streak (call when user completes a study session)
      */
     const incrementStreak = useCallback(() => {
+        if (!isLoggedIn) return;
+
         setStreakData(prev => {
-            // Don't increment if already studied today
             if (hasStudiedToday(prev.lastStudyDate)) {
-                return { ...prev, lastStudyDate: new Date().toISOString() };
+                const updated = { ...prev, lastStudyDate: new Date().toISOString() };
+                saveToServer(updated);
+                return updated;
             }
 
             const status = calculateStatus(prev.lastStudyDate);
             const now = new Date().toISOString();
-            
-            // If streak was broken, start fresh
+
+            let updated;
             if (status === 'broken' || prev.currentStreak === 0) {
-                return {
+                updated = {
                     ...prev,
                     currentStreak: 1,
                     lastStudyDate: now,
                     streakStartDate: now,
                     longestStreak: Math.max(prev.longestStreak, 1)
                 };
+            } else {
+                const newStreak = prev.currentStreak + 1;
+                updated = {
+                    ...prev,
+                    currentStreak: newStreak,
+                    lastStudyDate: now,
+                    longestStreak: Math.max(prev.longestStreak, newStreak)
+                };
             }
 
-            // Continue streak
-            const newStreak = prev.currentStreak + 1;
-            return {
-                ...prev,
-                currentStreak: newStreak,
-                lastStudyDate: now,
-                longestStreak: Math.max(prev.longestStreak, newStreak)
-            };
+            saveToServer(updated);
+            return updated;
         });
-    }, []);
+    }, [isLoggedIn, saveToServer]);
 
     /**
-     * Reset all streak data (for testing)
+     * Reset all streak data
      */
     const resetStreak = useCallback(() => {
-        setStreakData({
-            currentStreak: 0,
-            longestStreak: 0,
-            lastStudyDate: null,
-            streakStartDate: null,
-            pastStreaks: []
-        });
-    }, []);
+        if (!isLoggedIn) return;
+        setStreakData(emptyStreak);
+        saveToServer(emptyStreak);
+    }, [isLoggedIn, saveToServer]);
 
     const getStreakStatus = useCallback(() => {
         return {
@@ -208,7 +199,7 @@ export function useStreak() {
             hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
             studiedToday: hasStudiedToday(streakData.lastStudyDate)
         };
-    }, [streakData.lastStudyDate, streakData.currentStreak]);
+    }, [streakData.lastStudyDate]);
 
     return useMemo(() => ({
         currentStreak: streakData.currentStreak,
@@ -219,11 +210,12 @@ export function useStreak() {
         status: calculateStatus(streakData.lastStudyDate),
         hoursRemaining: getHoursRemaining(streakData.lastStudyDate),
         studiedToday: hasStudiedToday(streakData.lastStudyDate),
+        loaded,
         incrementStreak,
         breakStreak,
         resetStreak,
         getStreakStatus
-    }), [streakData, incrementStreak, breakStreak, resetStreak, getStreakStatus]);
+    }), [streakData, loaded, incrementStreak, breakStreak, resetStreak, getStreakStatus]);
 }
 
 export { calculateStatus, getHoursRemaining };

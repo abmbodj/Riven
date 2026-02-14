@@ -3,8 +3,6 @@
  * Your garden grows from a small patch to Eden as you maintain your streak!
  */
 
-const CUSTOMIZATION_STORAGE_KEY = 'riven_garden_customization';
-
 // Garden stages based on streak
 export const gardenStages = [
     { minDays: 0, name: 'Barren Plot', description: 'A small patch of dirt waiting for seeds' },
@@ -79,25 +77,25 @@ export const decorations = [
     { id: 'ladybug', name: 'Ladybug', unlockAt: 5, slot: 'ground', emoji: '🐞' },
     { id: 'mushroom', name: 'Mushroom', unlockAt: 7, slot: 'ground', emoji: '🍄' },
     { id: 'bee', name: 'Busy Bee', unlockAt: 10, slot: 'air', emoji: '🐝' },
-    
+
     // Medium decorations
     { id: 'birdhouse', name: 'Birdhouse', unlockAt: 14, slot: 'structure', emoji: '🏠' },
     { id: 'lantern', name: 'Garden Lantern', unlockAt: 21, slot: 'structure', emoji: '🏮' },
     { id: 'gnome', name: 'Garden Gnome', unlockAt: 25, slot: 'ground', emoji: '🧙' },
     { id: 'bird', name: 'Songbird', unlockAt: 30, slot: 'air', emoji: '🐦' },
-    
+
     // Larger decorations
     { id: 'fountain', name: 'Fountain', unlockAt: 45, slot: 'structure', emoji: '⛲' },
     { id: 'bench', name: 'Garden Bench', unlockAt: 50, slot: 'structure', emoji: '🪑' },
     { id: 'windchime', name: 'Wind Chimes', unlockAt: 60, slot: 'air', emoji: '🎐' },
     { id: 'statue', name: 'Angel Statue', unlockAt: 75, slot: 'structure', emoji: '👼' },
-    
+
     // Rare decorations
     { id: 'rainbow', name: 'Rainbow', unlockAt: 100, slot: 'sky', emoji: '🌈' },
     { id: 'fireflies', name: 'Fireflies', unlockAt: 150, slot: 'air', emoji: '✨' },
     { id: 'pond', name: 'Koi Pond', unlockAt: 200, slot: 'structure', emoji: '🐟' },
     { id: 'treehouse', name: 'Treehouse', unlockAt: 365, slot: 'structure', emoji: '🌳' },
-    
+
     // Legendary
     { id: 'aurora', name: 'Aurora Lights', unlockAt: 500, slot: 'sky', emoji: '🌌' },
     { id: 'unicorn', name: 'Unicorn', unlockAt: 1000, slot: 'ground', emoji: '🦄' }
@@ -186,36 +184,6 @@ export const getNextUnlock = (currentStreak) => {
     };
 };
 
-/**
- * Load customization from localStorage
- */
-export const loadCustomization = () => {
-    try {
-        const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    } catch {
-        // Failed to load
-    }
-    return {
-        gardenTheme: 'cottage',
-        decorations: [],
-        specialPlants: []
-    };
-};
-
-/**
- * Save customization to localStorage
- */
-export const saveCustomization = (customization) => {
-    try {
-        localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(customization));
-    } catch {
-        // Failed to save
-    }
-};
-
 export default {
     gardenStages,
     gardenThemes,
@@ -226,7 +194,5 @@ export default {
     isDecorationUnlocked,
     isThemeUnlocked,
     isPlantUnlocked,
-    getNextUnlock,
-    loadCustomization,
-    saveCustomization
+    getNextUnlock
 };

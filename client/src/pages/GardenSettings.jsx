@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Palette, Clock, Trophy } from 'lucide-react';
+import { useState, useContext } from 'react';
+import { Palette, Clock, Trophy, Sprout, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
+import { AuthContext } from '../context/AuthContext';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import GardenCustomizer from '../components/GardenCustomizer';
 import { useStreak } from '../hooks/useStreak';
 import { getGardenStage } from '../utils/gardenCustomization';
+import { useNavigate } from 'react-router-dom';
 
 const getStatusMessage = (streak) => {
     if (streak.status === 'broken') return 'Study to revive your garden!';
@@ -14,12 +16,74 @@ const getStatusMessage = (streak) => {
     return 'Study to grow your garden';
 };
 
+// Generate last 7 days for the mini activity heatmap
+const getLast7Days = (lastStudyDate, currentStreak) => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dayLabel = d.toLocaleDateString('en-US', { weekday: 'narrow' });
+        // Simple heuristic: if streak covers this day, mark as active
+        const isActive = currentStreak > i;
+        days.push({ label: dayLabel, active: isActive, isToday: i === 0 });
+    }
+    return days;
+};
+
 export default function GardenSettings() {
+    const { isLoggedIn } = useContext(AuthContext);
+    const navigate = useNavigate();
     const streak = useStreak();
     const [showGallery, setShowGallery] = useState(false);
     const [showCustomizer, setShowCustomizer] = useState(false);
 
+    // Auth gate — require sign-in
+    if (!isLoggedIn) {
+        return (
+            <div className="relative min-h-[calc(100dvh-180px)] flex flex-col items-center justify-center px-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="text-center max-w-sm mx-auto"
+                >
+                    {/* Garden illustration */}
+                    <div
+                        className="w-24 h-24 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(45,106,79,0.15) 0%, rgba(82,183,136,0.08) 100%)',
+                            border: '1px solid rgba(82,183,136,0.12)',
+                        }}
+                    >
+                        <Sprout className="w-10 h-10 text-claude-accent" />
+                    </div>
+
+                    <h1 className="text-2xl font-display font-bold italic mb-2">Streak Garden</h1>
+                    <p className="text-sm text-claude-secondary mb-8 leading-relaxed">
+                        Grow a living garden that evolves with your study streak.
+                        Sign in to track your progress and customize your garden.
+                    </p>
+
+                    <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => navigate('/account')}
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-display font-semibold text-sm transition-colors"
+                        style={{
+                            background: 'var(--accent-color)',
+                            color: 'var(--bg-color)',
+                        }}
+                    >
+                        <LogIn className="w-4 h-4" />
+                        Sign In to Start
+                    </motion.button>
+                </motion.div>
+            </div>
+        );
+    }
+
     const stage = getGardenStage(streak.currentStreak);
+    const weekDays = getLast7Days(streak.lastStudyDate, streak.currentStreak);
 
     return (
         <div className="relative min-h-[calc(100dvh-180px)]">
@@ -29,12 +93,12 @@ export default function GardenSettings() {
                 <p className="text-xs font-mono text-botanical-sepia tracking-wide">{getStatusMessage(streak)}</p>
             </div>
 
-            {/* Garden Preview with gradient backdrop */}
+            {/* Garden Preview */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="flex flex-col items-center mb-8"
+                className="flex flex-col items-center mb-6"
             >
                 <div
                     className="relative rounded-2xl p-6 w-full flex flex-col items-center"
@@ -63,7 +127,34 @@ export default function GardenSettings() {
                 </div>
             </motion.div>
 
-            {/* Stats Cards — asymmetric heights */}
+            {/* 7-Day Activity Bar */}
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="botanical-card p-4 mb-6"
+            >
+                <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mb-3">This Week</div>
+                <div className="flex items-center justify-between gap-1">
+                    {weekDays.map((day, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                            <div
+                                className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-mono transition-colors ${day.active
+                                        ? 'bg-claude-accent/20 text-claude-accent'
+                                        : 'bg-claude-bg text-claude-secondary/40'
+                                    } ${day.isToday ? 'ring-1 ring-claude-accent/30' : ''}`}
+                            >
+                                {day.active ? '✓' : ''}
+                            </div>
+                            <span className={`text-[9px] font-mono ${day.isToday ? 'text-claude-accent font-bold' : 'text-claude-secondary/60'}`}>
+                                {day.label}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </motion.div>
+
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-3 mb-6">
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
@@ -102,7 +193,7 @@ export default function GardenSettings() {
                         </div>
                         <div className="flex-1">
                             <div className="font-display font-semibold text-sm">
-                                {streak.studiedToday ? 'Studied Today \u2713' : 'Garden Needs Care'}
+                                {streak.studiedToday ? 'Studied Today ✓' : 'Garden Needs Care'}
                             </div>
                             <div className="text-xs text-claude-secondary font-mono">
                                 {streak.hoursRemaining > 0
