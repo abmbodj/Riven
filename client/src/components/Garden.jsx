@@ -179,23 +179,28 @@ const renderLantern = (x, y) => (
 
 const renderGnome = (x, y) => (
     <g transform={`translate(${x}, ${y})`}>
-        {/* Body */}
-        <ellipse cx="0" cy="0" rx="7" ry="9" fill="#4CAF50" />
-        {/* Belt */}
-        <rect x="-7" y="-2" width="14" height="3" fill="#795548" />
-        <circle cx="0" cy="-0.5" r="1.5" fill="#FFC107" />
-        {/* Beard */}
-        <path d="M-5,-4 Q0,5 5,-4" fill="#ECEFF1" />
-        {/* Head */}
-        <circle cx="0" cy="-9" r="5" fill="#FFCCBC" />
-        {/* Eyes */}
-        <circle cx="-2" cy="-10" r="0.8" fill="#2D2D2D" />
-        <circle cx="2" cy="-10" r="0.8" fill="#2D2D2D" />
-        {/* Nose */}
-        <circle cx="0" cy="-8" r="1.5" fill="#FFAB91" />
-        {/* Hat */}
-        <polygon points="-6,-12 0,-24 6,-12" fill="#F44336" />
-        <circle cx="0" cy="-24" r="1.5" fill="#FFEB3B" />
+        {/* Boots */}
+        <path d="M-6,0 L-8,3 L-3,3 Z" fill="#333" />
+        <path d="M6,0 L8,3 L3,3 Z" fill="#333" />
+
+        {/* Robe/Body */}
+        <path d="M-6,0 Q-8,-10 0,-12 Q8,-10 6,0 Z" fill="#1E88E5" />
+        <path d="M-6,-2 Q0,-5 6,-2" stroke="#212121" strokeWidth="1.5" fill="none" /> {/* Belt */}
+        <circle cx="0" cy="-3.5" r="1" fill="#FFD700" /> {/* Buckle */}
+
+        {/* Beard (White fluffy) */}
+        <path d="M-5,-9 Q-6,-4 -2,-2 Q0,0 2,-2 Q6,-4 5,-9 Q0,-7 -5,-9" fill="#F5F5F5" />
+
+        {/* Face */}
+        <circle cx="0" cy="-10" r="3.5" fill="#FFCCBC" />
+        <circle cx="0" cy="-9" r="1.2" fill="#FFA590" /> {/* Nose */}
+
+        {/* Hat (Tall conical red) */}
+        <path d="M-4,-11 Q-6,-11 -5,-12 L0,-24 L5,-12 Q6,-11 4,-11 Z" fill="#D32F2F" />
+        <path d="M-5,-12 L5,-12" stroke="#B71C1C" strokeWidth="0.5" opacity="0.3" /> {/* Hat shading */}
+
+        {/* Shadow */}
+        <ellipse cx="0" cy="3" rx="5" ry="1.5" fill="black" opacity="0.15" />
     </g>
 );
 
@@ -219,22 +224,37 @@ const renderBird = (x, y, color = '#42A5F5', delay = 0) => (
 
 const renderFountain = (x, y) => (
     <g transform={`translate(${x}, ${y})`}>
-        {/* Base */}
-        <ellipse cx="0" cy="5" rx="15" ry="4" fill="#78909C" />
-        <rect x="-14" y="-2" width="28" height="8" rx="3" fill="#90A4AE" />
-        {/* Bowl */}
-        <path d="M-10,-2 Q-10,-8 0,-8 Q10,-8 10,-2" fill="#B0BEC5" />
-        {/* Pillar */}
-        <rect x="-2" y="-15" width="4" height="10" fill="#B0BEC5" rx="1" />
-        {/* Water streams */}
-        <path d="M0,-15 Q-5,-10 -7,-5" fill="none" stroke="#64B5F6" strokeWidth="1.5" opacity={0.6}>
-            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="1.5s" repeatCount="indefinite" />
+        {/* Lower Base */}
+        <ellipse cx="0" cy="5" rx="16" ry="5" fill="#546E7A" />
+        <path d="M-14,0 L-14,5 Q0,12 14,5 L14,0 Q0,8 -14,0" fill="#78909C" />
+
+        {/* Middle Pillar */}
+        <rect x="-3" y="-15" width="6" height="15" fill="#90A4AE" />
+
+        {/* Upper Bowl */}
+        <ellipse cx="0" cy="-15" rx="10" ry="3" fill="#B0BEC5" />
+        <path d="M-10,-15 Q0,-10 10,-15 L10,-18 Q0,-12 -10,-18 Z" fill="#CFD8DC" />
+
+        {/* Water Pool in Bowl */}
+        <ellipse cx="0" cy="-17" rx="8" ry="1.5" fill="#4FC3F7" opacity="0.8" />
+
+        {/* Cascading Water */}
+        <path d="M-8,-17 Q-12,-10 -9,-2" stroke="#4FC3F7" strokeWidth="2" opacity="0.6" fill="none">
+            <animate attributeName="stroke-dasharray" values="5,2;2,5" dur="1s" repeatCount="indefinite" />
         </path>
-        <path d="M0,-15 Q5,-10 7,-5" fill="none" stroke="#64B5F6" strokeWidth="1.5" opacity={0.6}>
-            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="1.5s" repeatCount="indefinite" begin="0.3s" />
+        <path d="M8,-17 Q12,-10 9,-2" stroke="#4FC3F7" strokeWidth="2" opacity="0.6" fill="none">
+            <animate attributeName="stroke-dasharray" values="2,5;5,2" dur="1s" repeatCount="indefinite" />
         </path>
-        {/* Water surface */}
-        <ellipse cx="0" cy="-4" rx="8" ry="2" fill="#64B5F6" opacity={0.3} />
+
+        {/* Center Jet */}
+        <path d="M0,-17 L0,-25" stroke="#81D4FA" strokeWidth="2" opacity="0.8">
+            <animate attributeName="y2" values="-25;-28;-25" dur="0.5s" repeatCount="indefinite" />
+        </path>
+
+        {/* Water Ripples Base */}
+        <ellipse cx="0" cy="0" rx="12" ry="3" fill="#81D4FA" opacity="0.3">
+            <animate attributeName="rx" values="10;13;10" dur="2s" repeatCount="indefinite" />
+        </ellipse>
     </g>
 );
 
@@ -353,28 +373,47 @@ const renderPond = (x, y) => (
 
 const renderTreehouse = (x, y) => (
     <g transform={`translate(${x}, ${y})`}>
-        {/* Tree trunk */}
-        <rect x="-4" y="-5" width="8" height="35" rx="3" fill="#6D4C41" />
+        {/* Trunk with texture */}
+        <path d="M-6,-5 Q-8,15 -7,35 L7,35 Q8,15 6,-5" fill="#5D4037" />
+        <path d="M-4,0 Q-5,10 -4,20 M2,5 Q1,15 2,25" stroke="#4E342E" strokeWidth="1" opacity="0.5" fill="none" />
+
+        {/* Rope Ladder */}
+        <g transform="translate(12, -5)">
+            <line x1="0" y1="0" x2="4" y2="25" stroke="#795548" strokeWidth="1.5" />
+            <line x1="12" y1="0" x2="8" y2="25" stroke="#795548" strokeWidth="1.5" />
+            {[0, 5, 10, 15, 20].map((dy, i) => (
+                <line key={i} x1={1 + dy * 0.1} y1={dy} x2={11 - dy * 0.1} y2={dy} stroke="#8D6E63" strokeWidth="1.5" strokeLinecap="round" />
+            ))}
+        </g>
+
+        {/* Platform shadow */}
+        <rect x="-18" y="-6" width="36" height="6" rx="2" fill="#3E2723" opacity="0.3" />
         {/* Platform */}
-        <rect x="-16" y="-8" width="32" height="4" rx="1" fill="#8D6E63" />
-        {/* Walls */}
-        <rect x="-14" y="-22" width="28" height="15" rx="2" fill="#A1887F" />
-        {/* Roof */}
-        <polygon points="-16,-22 0,-32 16,-22" fill="#5D4037" />
-        {/* Window */}
-        <rect x="-4" y="-19" width="8" height="7" rx="1" fill="#FFE082" />
-        <line x1="0" y1="-19" x2="0" y2="-12" stroke="#8D6E63" strokeWidth="1" />
-        <line x1="-4" y1="-15.5" x2="4" y2="-15.5" stroke="#8D6E63" strokeWidth="1" />
-        {/* Leaves */}
-        <ellipse cx="-18" cy="-20" rx="10" ry="8" fill="#388E3C" />
-        <ellipse cx="18" cy="-18" rx="10" ry="8" fill="#43A047" />
-        <ellipse cx="0" cy="-35" rx="12" ry="8" fill="#2E7D32" />
-        {/* Ladder */}
-        <line x1="10" y1="-5" x2="14" y2="20" stroke="#795548" strokeWidth="1.5" />
-        <line x1="14" y1="-5" x2="18" y2="20" stroke="#795548" strokeWidth="1.5" />
-        {[0, 5, 10, 15, 20].map((dy, i) => (
-            <line key={i} x1={10 + dy * 0.16} y1={-5 + dy} x2={14 + dy * 0.16} y2={-5 + dy} stroke="#795548" strokeWidth="1" />
-        ))}
+        <rect x="-20" y="-10" width="40" height="5" rx="2" fill="#8D6E63" stroke="#5D4037" strokeWidth="0.5" />
+
+        {/* House */}
+        <path d="M-15,-10 L-15,-25 L0,-38 L15,-25 L15,-10 Z" fill="#A1887F" stroke="#5D4037" strokeWidth="0.5" />
+        {/* Wood planks on house */}
+        <path d="M-15,-20 H15 M-15,-15 H15" stroke="#8D6E63" strokeWidth="0.5" opacity="0.5" />
+
+        {/* Roof with overhang */}
+        <path d="M-18,-24 L0,-40 L18,-24 L16,-22 L0,-36 L-16,-22 Z" fill="#5D4037" />
+
+        {/* Window with light */}
+        <rect x="-5" y="-22" width="10" height="10" rx="2" fill="#FFECB3" stroke="#5D4037" strokeWidth="1" />
+        <line x1="0" y1="-22" x2="0" y2="-12" stroke="#5D4037" strokeWidth="1" />
+        <line x1="-5" y1="-17" x2="5" y2="-17" stroke="#5D4037" strokeWidth="1" />
+
+        {/* Canopy / Leaves */}
+        <g opacity="0.95">
+            <circle cx="-15" cy="-30" r="12" fill="#2E7D32" />
+            <circle cx="15" cy="-28" r="11" fill="#388E3C" />
+            <circle cx="0" cy="-42" r="14" fill="#43A047" />
+            {/* Highlights on leaves */}
+            <circle cx="-18" cy="-34" r="4" fill="#66BB6A" opacity="0.5" />
+            <circle cx="12" cy="-32" r="3" fill="#66BB6A" opacity="0.5" />
+            <circle cx="-3" cy="-46" r="5" fill="#66BB6A" opacity="0.5" />
+        </g>
     </g>
 );
 
@@ -676,33 +715,37 @@ const plantRenderers = {
 // ─── Decoration placement positions ─────────────────────────
 
 const slotPositions = {
-    air: [
-        { x: 25, y: 40 },
-        { x: 55, y: 30 },
-        { x: 130, y: 45 },
-    ],
-    ground: [
-        { x: 20, y: 115 },
-        { x: 70, y: 120 },
-        { x: 130, y: 118 },
-    ],
-    structure: [
-        { x: 40, y: 90 },
-        { x: 120, y: 88 },
-    ],
+    // Air items float in the sky area
     sky: [
-        { x: 80, y: 25 },
-        { x: 60, y: 15 },
+        { x: 30, y: 35, scale: 0.9 },
+        { x: 80, y: 25, scale: 0.8 },
+        { x: 130, y: 30, scale: 0.9 },
+    ],
+    // High floating items
+    air: [
+        { x: 20, y: 50, scale: 0.9 },
+        { x: 140, y: 45, scale: 0.9 },
+        { x: 80, y: 60, scale: 1 },
+    ],
+    // Large structures sit further back on the hill
+    structure: [
+        { x: 40, y: 85, scale: 0.9 },
+        { x: 120, y: 82, scale: 0.9 },
+    ],
+    // Ground items sit in the mid-to-foreground
+    ground: [
+        { x: 25, y: 110, scale: 1.1 },
+        { x: 60, y: 115, scale: 1.2 },
+        { x: 100, y: 115, scale: 1.2 },
+        { x: 135, y: 110, scale: 1.1 },
     ],
 };
 
 const plantPositions = [
-    { x: 50, y: 98 },
-    { x: 90, y: 95 },
-    { x: 115, y: 98 },
+    { x: 45, y: 95, scale: 1 },
+    { x: 80, y: 98, scale: 1.1 },
+    { x: 115, y: 95, scale: 1 },
 ];
-
-// ─── Main Component ─────────────────────────────────────────
 
 export default function Garden({
     streak = 0,
@@ -717,16 +760,7 @@ export default function Garden({
 
     const { width, height } = sizeMap[size] || sizeMap.md;
     const stageIndex = getStageIndex(streak);
-
     const theme = gardenThemes.find(t => t.id === customization.gardenTheme) || gardenThemes[1];
-
-    const equippedDecorations = (customization.decorations || [])
-        .map(id => decorations.find(d => d.id === id))
-        .filter(Boolean);
-
-    const equippedPlants = (customization.specialPlants || [])
-        .map(id => specialPlants.find(p => p.id === id))
-        .filter(Boolean);
 
     const getStageText = () => {
         const stages = [
@@ -746,253 +780,246 @@ export default function Garden({
         }
     };
 
-    const baseOpacity = status === 'broken' ? 0.5 : 1;
-    const groundY = 100;
+    const baseOpacity = status === 'broken' ? 0.6 : 1;
 
+    // Unique IDs for gradients
     const skyId = `sky-${uniqueId}`;
     const groundId = `gnd-${uniqueId}`;
-    const glowId = `glow-${uniqueId}`;
+    const hillId = `hill-${uniqueId}`;
+    const sunGlowId = `sun-${uniqueId}`;
 
-    const renderGarden = () => (
-        <svg
-            viewBox="0 0 160 160"
-            width={width}
-            height={height}
-            style={{ overflow: 'visible', background: 'transparent' }}
-        >
-            <defs>
-                <linearGradient id={skyId} x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor={stageIndex >= 7 ? '#FFE4B5' : stageIndex >= 5 ? '#87CEEB' : '#B0C4DE'} />
-                    <stop offset="100%" stopColor={stageIndex >= 7 ? '#FFDAB9' : '#E0F0FF'} />
-                </linearGradient>
-                <linearGradient id={groundId} x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor={theme.groundColor} />
-                    <stop offset="100%" stopColor={theme.accentColor} />
-                </linearGradient>
-                {stageIndex >= 9 && (
-                    <radialGradient id={glowId} cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#FFD700" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="#FFD700" stopOpacity="0" />
-                    </radialGradient>
-                )}
-            </defs>
+    // ─── Scene Composition System ───────────────────────────────
+    // We collect all items to be rendered, then sort by Y (depth) to handle occlusion correctly
 
-            {/* Sky */}
-            <rect x="0" y="0" width="160" height={groundY} rx="8" fill={`url(#${skyId})`} opacity={baseOpacity} />
+    // ─── Scene Composition System ───────────────────────────────
+    // We collect all items to be rendered, then sort by Y (depth) to handle occlusion correctly
 
-            {/* Sun/Moon */}
-            {stageIndex >= 3 && (
-                <>
-                    <circle
-                        cx="130"
-                        cy="30"
-                        r={8 + stageIndex}
-                        fill={customization.gardenTheme === 'moonlight' ? '#F5F5F5' : '#FFD700'}
-                        opacity={0.7}
-                    />
-                    {stageIndex >= 5 && (
-                        <circle
-                            cx="130"
-                            cy="30"
-                            r={12 + stageIndex}
-                            fill={customization.gardenTheme === 'moonlight' ? '#F5F5F5' : '#FFD700'}
-                            opacity={0.15}
-                        />
-                    )}
-                </>
-            )}
+    // Calculate equipped items from context
+    const equippedDecorations = (customization.decorations || [])
+        .map(id => decorations.find(d => d.id === id))
+        .filter(Boolean);
 
-            {/* Clouds */}
-            {stageIndex >= 5 && (
-                <g className="garden-cloud">
-                    <ellipse cx="30" cy="25" rx="15" ry="8" fill="white" opacity={0.6} />
-                    <ellipse cx="45" cy="22" rx="12" ry="7" fill="white" opacity={0.6} />
-                    <ellipse cx="110" cy="35" rx="10" ry="5" fill="white" opacity={0.4} />
-                </g>
-            )}
+    const equippedPlants = (customization.specialPlants || [])
+        .map(id => specialPlants.find(p => p.id === id))
+        .filter(Boolean);
 
-            {/* Sky decorations (SVG art) */}
-            {equippedDecorations.filter(d => d.slot === 'sky').map((dec, i) => {
-                const pos = slotPositions.sky[i] || { x: 80, y: 20 };
-                const renderer = decorationRenderers[dec.id];
-                return renderer ? <g key={dec.id}>{renderer(pos.x, pos.y)}</g> : null;
-            })}
+    const sceneObjects = [];
 
-            {/* Ground */}
-            <rect x="0" y={groundY} width="160" height="60" fill={`url(#${groundId})`} opacity={baseOpacity} />
+    // Helper to add object
+    const addObject = (renderFn, x, y, zIndex = 0, scale = 1, key) => {
+        sceneObjects.push({
+            render: renderFn,
+            x,
+            y,
+            z: y + zIndex, // Y determines base depth, zIndex fine-tunes it
+            scale,
+            key
+        });
+    };
 
-            {/* Ground texture lines */}
-            {stageIndex >= 2 && (
-                <g opacity={0.15}>
-                    <line x1="10" y1={groundY + 15} x2="40" y2={groundY + 15} stroke="#000" strokeWidth="0.5" />
-                    <line x1="80" y1={groundY + 25} x2="120" y2={groundY + 25} stroke="#000" strokeWidth="0.5" />
-                    <line x1="50" y1={groundY + 40} x2="90" y2={groundY + 40} stroke="#000" strokeWidth="0.5" />
-                </g>
-            )}
+    // 1. Add Stage-Specific Flora (Procedural generation based on streak)
+    if (stageIndex >= 1) {
+        // Random-looking but deterministic positions based on index
+        const floraCount = Math.min(stageIndex * 3, 15);
+        for (let i = 0; i < floraCount; i++) {
+            // Distribute across the width, favoring the center slightly
+            const spread = 140;
+            const x = 10 + (i * (spread / floraCount)) + (i % 2 === 0 ? 5 : -5);
+            // Y follows the curve of the hill slightly (hill is arched)
+            const hillOffset = Math.sin((x / 160) * Math.PI) * 15;
+            const y = 110 - hillOffset + (i % 3) * 5;
 
-            {/* Fence */}
-            {stageIndex >= 4 && (
-                <g opacity={baseOpacity}>
-                    {[0, 20, 40, 60, 80, 100, 120, 140].map(x => (
-                        <rect key={x} x={x + 5} y={groundY - 15} width="3" height="20" fill="#8B4513" rx="1" />
-                    ))}
-                    <rect x="0" y={groundY - 10} width="160" height="3" fill="#A0522D" rx="1" />
-                    <rect x="0" y={groundY - 5} width="160" height="2" fill="#A0522D" rx="1" opacity={0.6} />
-                </g>
-            )}
+            let type = 'sprout';
+            if (stageIndex >= 3) type = 'sapling';
+            if (stageIndex >= 5 && i % 2 === 0) type = 'flower';
+            if (stageIndex >= 7 && i % 5 === 0) type = 'bush';
+            if (stageIndex >= 9 && i % 7 === 0) type = 'magic';
 
-            {/* Garden content */}
-            <g className={status !== 'broken' ? 'garden-sway' : ''} opacity={baseOpacity}>
-                {/* Stage 0: Bare ground */}
-                {stageIndex === 0 && (
-                    <>
-                        <ellipse cx="40" cy={groundY + 20} rx="15" ry="5" fill="#5D4037" opacity={0.5} />
-                        <ellipse cx="100" cy={groundY + 30} rx="20" ry="6" fill="#5D4037" opacity={0.5} />
-                        <ellipse cx="75" cy={groundY + 15} rx="8" ry="3" fill="#5D4037" opacity={0.3} />
-                    </>
-                )}
+            // Custom renderer for procedural flora
+            const renderFlora = (gx, gy) => {
+                const s = 0.8 + (i % 4) * 0.1; // Varied sizes
+                return (
+                    <g transform={`translate(${gx}, ${gy}) scale(${s})`}>
+                        {/* Shadow */}
+                        <ellipse cx="0" cy="2" rx="4" ry="1.5" fill="black" opacity="0.1" />
 
-                {/* Stage 1-2: Sprouts */}
-                {stageIndex >= 1 && stageIndex < 3 && (
-                    <>
-                        {[30, 60, 90, 120].map((x, i) => (
-                            <g key={i}>
-                                <line x1={x} y1={groundY} x2={x} y2={groundY - 8 - i * 2} stroke="#228B22" strokeWidth="2" />
-                                <ellipse cx={x} cy={groundY - 10 - i * 2} rx="3" ry="2" fill="#32CD32" />
+                        {type === 'sprout' && (
+                            <g>
+                                <path d="M0,0 Q2,-5 5,-8" stroke="#4CAF50" strokeWidth="1.5" fill="none" />
+                                <ellipse cx="5" cy="-8" rx="2" ry="1" fill="#66BB6A" transform="rotate(-15)" />
                             </g>
-                        ))}
-                    </>
-                )}
-
-                {/* Stage 3-4: Young plants */}
-                {stageIndex >= 3 && stageIndex < 5 && (
-                    <>
-                        {[25, 55, 85, 115, 140].map((x, i) => (
-                            <g key={i} transform={`translate(${x}, ${groundY})`}>
-                                <line x1="0" y1="0" x2="0" y2={-20 - i * 3} stroke="#228B22" strokeWidth="2" />
-                                <ellipse cx="-5" cy={-15 - i * 2} rx="6" ry="4" fill="#32CD32" />
-                                <ellipse cx="5" cy={-18 - i * 2} rx="5" ry="3" fill="#3CB371" />
-                                <ellipse cx="0" cy={-22 - i * 3} rx="4" ry="3" fill="#2E8B57" />
+                        )}
+                        {type === 'sapling' && (
+                            <g>
+                                <path d="M0,0 Q-2,-8 0,-15" stroke="#388E3C" strokeWidth="2" fill="none" />
+                                <path d="M0,-5 Q5,-10 8,-12" stroke="#4CAF50" strokeWidth="1" fill="none" />
+                                <ellipse cx="0" cy="-15" rx="3" ry="4" fill="#66BB6A" />
+                                <ellipse cx="8" cy="-12" rx="2" ry="1" fill="#81C784" />
                             </g>
-                        ))}
-                    </>
-                )}
-
-                {/* Stage 5-6: Blooming flowers */}
-                {stageIndex >= 5 && stageIndex < 7 && (
-                    <>
-                        {[20, 45, 70, 95, 120, 145].map((x, i) => (
-                            <g key={i} transform={`translate(${x}, ${groundY})`}>
-                                <line x1="0" y1="0" x2="0" y2={-30 - i * 4} stroke="#228B22" strokeWidth="2" />
-                                {[-8, 0, 8].map((lx, j) => (
-                                    <ellipse key={j} cx={lx} cy={-20 - i * 2} rx="5" ry="3" fill="#32CD32" />
-                                ))}
-                                <circle cx="0" cy={-32 - i * 4} r={6 + (i % 2)} fill={theme.flowerColors[i % theme.flowerColors.length]} />
-                                <circle cx="0" cy={-32 - i * 4} r="3" fill="#FFD700" />
+                        )}
+                        {type === 'flower' && (
+                            <g>
+                                <line x1="0" y1="0" x2="0" y2="-12" stroke="#2E7D32" strokeWidth="1.5" />
+                                <circle cx="0" cy="-12" r="3" fill={theme.flowerColors[i % theme.flowerColors.length]} />
+                                <circle cx="0" cy="-12" r="1" fill="#FFC107" />
                             </g>
-                        ))}
-                    </>
-                )}
-
-                {/* Stage 7+: Full garden with trees */}
-                {stageIndex >= 7 && (
-                    <>
-                        <ellipse cx="30" cy={groundY - 10} rx="25" ry="15" fill="#228B22" />
-                        <ellipse cx="130" cy={groundY - 8} rx="22" ry="12" fill="#2E8B57" />
-                        <g transform={`translate(80, ${groundY})`}>
-                            <rect x="-5" y="-60" width="10" height="60" fill="#8B4513" rx="2" />
-                            <ellipse cx="0" cy="-70" rx="30" ry="25" fill="#228B22" />
-                            <ellipse cx="-15" cy="-55" rx="15" ry="12" fill="#32CD32" />
-                            <ellipse cx="15" cy="-55" rx="15" ry="12" fill="#2E8B57" />
-                        </g>
-                        {[15, 35, 55, 105, 125, 145].map((x, i) => (
-                            <g key={i} transform={`translate(${x}, ${groundY})`}>
-                                <line x1="0" y1="0" x2="0" y2="-20" stroke="#228B22" strokeWidth="2" />
-                                <circle cx="0" cy="-22" r="5" fill={theme.flowerColors[i % theme.flowerColors.length]} />
-                                <circle cx="0" cy="-22" r="2" fill="#FFD700" />
+                        )}
+                        {type === 'bush' && (
+                            <g>
+                                <circle cx="-5" cy="-5" r="6" fill="#2E7D32" />
+                                <circle cx="5" cy="-6" r="5" fill="#388E3C" />
+                                <circle cx="0" cy="-8" r="7" fill="#43A047" />
+                                {i % 3 === 0 && <circle cx="2" cy="-9" r="1.5" fill="#E91E63" />}
+                                {i % 3 === 1 && <circle cx="-4" cy="-6" r="1.5" fill="#E91E63" />}
                             </g>
-                        ))}
-                    </>
-                )}
-
-                {/* Stage 9+: Eden features */}
-                {stageIndex >= 9 && (
-                    <>
-                        <circle cx="80" cy={groundY - 30} r="50" fill={`url(#${glowId})`} />
-                        <path
-                            d="M 5 80 Q 20 90, 40 95 T 80 100"
-                            fill="none"
-                            stroke="#87CEEB"
-                            strokeWidth="4"
-                            opacity={0.7}
-                            strokeLinecap="round"
-                        />
-                        {[25, 135].map((x, i) => (
-                            <g key={i}>
-                                <circle cx={x} cy={groundY - 15} r="10" fill="#FFD700" opacity={0.2}>
-                                    <animate attributeName="opacity" values="0.1;0.3;0.1" dur="3s" repeatCount="indefinite" />
+                        )}
+                        {type === 'magic' && (
+                            <g>
+                                <line x1="0" y1="0" x2="0" y2="-15" stroke="#7B1FA2" strokeWidth="1.5" />
+                                <path d="M0,-15 L-3,-22 L0,-20 L3,-22 Z" fill="#E040FB">
+                                    <animate attributeName="fill" values="#E040FB;#7C4DFF;#E040FB" dur="2s" repeatCount="indefinite" />
+                                </path>
+                                <circle cx="0" cy="-25" r="1" fill="white" opacity="0.8">
+                                    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
                                 </circle>
-                                <circle cx={x} cy={groundY - 15} r="5" fill="#FFD700" />
                             </g>
-                        ))}
-                    </>
-                )}
-            </g>
+                        )}
+                    </g>
+                );
+            };
 
-            {/* Air decorations (SVG art) */}
-            {equippedDecorations.filter(d => d.slot === 'air').map((dec, i) => {
-                const pos = slotPositions.air[i] || { x: 30 + i * 40, y: 40 };
-                const renderer = decorationRenderers[dec.id];
-                return renderer ? <g key={dec.id}>{renderer(pos.x, pos.y)}</g> : null;
-            })}
+            addObject(renderFlora, x, y, 0, 1, `flora-${i}`);
+        }
+    }
 
-            {/* Ground decorations (SVG art) */}
-            {equippedDecorations.filter(d => d.slot === 'ground').map((dec, i) => {
-                const pos = slotPositions.ground[i] || { x: 20 + i * 35, y: 115 };
-                const renderer = decorationRenderers[dec.id];
-                return renderer ? <g key={dec.id}>{renderer(pos.x, pos.y)}</g> : null;
-            })}
+    // 2. Add Equipped Items
+    // Special Plants
+    equippedPlants.forEach((plant, i) => {
+        const slot = plantPositions[i];
+        if (slot && plantRenderers[plant.id]) {
+            addObject((x, y) => (
+                <g transform={`translate(${x}, ${y})`}>
+                    <ellipse cx="0" cy="2" rx="8" ry="3" fill="black" opacity="0.15" />
+                    {plantRenderers[plant.id](0, 0)}
+                </g>
+            ), slot.x, slot.y, 5, slot.scale, `plant-${plant.id}`); // Higher Z bias for plants
+        }
+    });
 
-            {/* Structure decorations (SVG art) */}
-            {equippedDecorations.filter(d => d.slot === 'structure').map((dec, i) => {
-                const pos = slotPositions.structure[i] || { x: 40 + i * 50, y: 90 };
-                const renderer = decorationRenderers[dec.id];
-                return renderer ? <g key={dec.id}>{renderer(pos.x, pos.y)}</g> : null;
-            })}
+    // Decorations
+    equippedDecorations.forEach((dec, i) => {
+        let pool = slotPositions[dec.slot];
+        if (!pool) return;
 
-            {/* Special plants (SVG art) */}
-            {equippedPlants.map((plant, i) => {
-                const pos = plantPositions[i] || { x: 60 + i * 25, y: 98 };
-                const renderer = plantRenderers[plant.id];
-                return renderer ? <g key={plant.id}>{renderer(pos.x, pos.y)}</g> : null;
-            })}
-        </svg>
-    );
+        // Find a slot: simplest is array index mapping, but we can search for empty spots 
+        // For now, map index % pool length to avoid crashing if user has too many items
+        const slot = pool[i % pool.length];
+
+        if (decorationRenderers[dec.id]) {
+            // Apply render
+            const isFlying = dec.slot === 'sky' || dec.slot === 'air';
+            const shadowOpacity = isFlying ? 0 : 0.2;
+
+            addObject((x, y) => (
+                <g transform={`translate(${x}, ${y})`}>
+                    {!isFlying && <ellipse cx="0" cy="2" rx="10" ry="3" fill="black" opacity={shadowOpacity} />}
+                    {decorationRenderers[dec.id](0, 0)}
+                </g>
+            ), slot.x, slot.y, isFlying ? 1000 : 0, slot.scale, `dec-${dec.id}`);
+        }
+    });
+
+    // ─── Rendering ──────────────────────────────────────────────
 
     return (
         <div
-            className={`garden-container flex flex-col items-center ${onClick ? 'cursor-pointer' : ''}`}
+            className={`garden-container flex flex-col items-center select-none ${onClick ? 'cursor-pointer' : ''}`}
             onClick={onClick}
             style={{
-                filter: status === 'at-risk' ? 'drop-shadow(0 0 15px rgba(255, 180, 100, 0.6))' :
-                    status === 'active' ? 'drop-shadow(0 0 15px rgba(100, 200, 100, 0.4))' :
-                        'drop-shadow(0 0 10px rgba(150, 150, 150, 0.2))',
-                animation: status === 'at-risk' ? 'garden-pulse-warning 2s ease-in-out infinite' : undefined
+                filter: status === 'at-risk' ? 'drop-shadow(0 0 15px rgba(255, 180, 100, 0.6))' : 'none',
+                WebkitFilter: status === 'at-risk' ? 'drop-shadow(0 0 15px rgba(255, 180, 100, 0.6))' : 'none',
             }}
         >
+            <svg
+                viewBox="0 0 160 160"
+                width={width}
+                height={height}
+                style={{ overflow: 'hidden', borderRadius: '12px', background: theme.skyColor || '#E0F7FA' }}
+            >
+                <defs>
+                    <linearGradient id={skyId} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={stageIndex >= 9 ? '#1a237e' : stageIndex >= 6 ? '#29B6F6' : '#81D4FA'} />
+                        <stop offset="100%" stopColor={stageIndex >= 9 ? '#4a148c' : '#E1F5FE'} />
+                    </linearGradient>
+                    <linearGradient id={hillId} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={theme.groundColor} stopOpacity="0.8" />
+                        <stop offset="100%" stopColor={theme.accentColor} stopOpacity="0.9" />
+                    </linearGradient>
+                    <radialGradient id={sunGlowId} cx="0" cy="0" r="1">
+                        <stop offset="0%" stopColor="#FFF9C4" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#FFF9C4" stopOpacity="0" />
+                    </radialGradient>
+                    {/* Soft Vignette */}
+                    <radialGradient id={`vignette-${uniqueId}`} cx="50%" cy="50%" r="70%">
+                        <stop offset="60%" stopColor="black" stopOpacity="0" />
+                        <stop offset="100%" stopColor="black" stopOpacity="0.2" />
+                    </radialGradient>
+                </defs>
 
-            {renderGarden()}
+                {/* 1. Sky Background */}
+                <rect x="0" y="0" width="160" height="160" fill={`url(#${skyId})`} />
+
+                {/* 2. Celestial Bodies */}
+                {stageIndex >= 3 && (
+                    <g transform="translate(130, 30)">
+                        <circle r="12" fill={customization.gardenTheme === 'moonlight' ? '#F5F5F5' : '#FFD54F'} />
+                        {/* Glow */}
+                        <circle r="25" fill={`url(#${sunGlowId})`} />
+                    </g>
+                )}
+
+                {/* 3. Background Hills (Parallax-ready) */}
+                <path
+                    d="M-20,120 Q40,90 80,110 T180,100 V160 H-20 Z"
+                    fill={theme.groundColor}
+                    opacity="0.6" // Darker/faded for distance
+                />
+
+                {/* 4. Main Hill (Ground) */}
+                <path
+                    d="M-10,160 L-10,115 Q80,85 170,115 L170,160 Z"
+                    fill={`url(#${hillId})`}
+                />
+
+                {/* 5. Sorted Scene Objects (The Magic) */}
+                {sceneObjects
+                    .sort((a, b) => a.z - b.z) // Render back-to-front
+                    .map(obj => (
+                        <g key={obj.key} transform={`scale(${obj.scale})`} style={{ transformOrigin: `${obj.x}px ${obj.y}px` }}>
+                            {obj.render(obj.x, obj.y)}
+                        </g>
+                    ))
+                }
+
+                {/* 6. Atmosphere / Overlay */}
+                <rect x="0" y="0" width="160" height="160" fill={`url(#vignette-${uniqueId})`} style={{ pointerEvents: 'none' }} />
+
+                {/* 7. Status Overlay (Wilting) */}
+                {status !== 'active' && (
+                    <rect x="0" y="0" width="160" height="160" fill={status === 'broken' ? '#4a3b32' : '#ff9800'} opacity={0.15} style={{ pointerEvents: 'none' }} />
+                )}
+
+            </svg>
 
             {showInfo && (
-                <div className="text-center mt-2">
-                    <div className="text-lg font-display font-bold text-claude-text">
+                <div className="text-center mt-3 z-10 relative">
+                    <div className="text-xl font-serif italic text-claude-text flex items-center justify-center gap-2">
                         {streak} day{streak !== 1 ? 's' : ''}
+                        {status === 'active' && <span className="text-xs not-italic bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-200">Active</span>}
                     </div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary">
+
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-claude-secondary mt-1 font-medium">
                         {getStageText()}
-                    </div>
-                    <div className="text-xs font-medium mt-1" style={{ color: status === 'at-risk' ? '#FF8C00' : 'var(--secondary-text-color)' }}>
-                        {getStatusText()}
                     </div>
                 </div>
             )}
