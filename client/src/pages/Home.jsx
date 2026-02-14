@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
@@ -12,6 +12,18 @@ import GlobalMessages from '../components/GlobalMessages';
 import Garden from '../components/Garden';
 import { useStreak } from '../hooks/useStreak';
 import { getGardenStage } from '../utils/gardenCustomization';
+
+const FOLDER_COLORS = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+    '#f59e0b', '#22c55e', '#06b6d4', '#3b82f6'
+];
+
+const SORT_OPTIONS = [
+    { id: 'newest', label: 'Newest', icon: Calendar },
+    { id: 'oldest', label: 'Oldest', icon: Calendar },
+    { id: 'alphabetical', label: 'A-Z', icon: ArrowDownAZ },
+    { id: 'cards', label: 'Most Cards', icon: HashIcon },
+];
 
 // Memoized deck card with botanical styling
 const DeckCard = memo(({ deck, folders, index }) => {
@@ -132,10 +144,7 @@ export default function Home() {
     const [newFolder, setNewFolder] = useState({ name: '', color: '#6366f1' });
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
 
-    const folderColors = [
-        '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-        '#f59e0b', '#22c55e', '#06b6d4', '#3b82f6'
-    ];
+    const folderColors = FOLDER_COLORS;
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -174,7 +183,7 @@ export default function Home() {
     };
 
     // Filter and sort decks
-    const filteredDecks = decks
+    const filteredDecks = useMemo(() => decks
         .filter(deck => {
             if (activeFolder !== null) {
                 if (activeFolder === 'unfiled' && deck.folder_id !== null) return false;
@@ -201,7 +210,7 @@ export default function Home() {
                 default:
                     return new Date(b.created_at) - new Date(a.created_at);
             }
-        });
+        }), [decks, activeFolder, activeTag, searchQuery, sortBy]);
 
     // Folder actions
     const handleCreateFolder = async (e) => {
@@ -612,12 +621,7 @@ export default function Home() {
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
                                 <div className="absolute right-0 top-full mt-2 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[150px]">
-                                    {[
-                                        { id: 'newest', label: 'Newest', icon: Calendar },
-                                        { id: 'oldest', label: 'Oldest', icon: Calendar },
-                                        { id: 'alphabetical', label: 'A-Z', icon: ArrowDownAZ },
-                                        { id: 'cards', label: 'Most Cards', icon: HashIcon },
-                                    ].map(option => (
+                                    {SORT_OPTIONS.map(option => (
                                         <button
                                             key={option.id}
                                             onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}

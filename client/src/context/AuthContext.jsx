@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import * as authApi from '../api/authApi';
 import * as guestDb from '../db/indexedDB';
 import { AuthContext } from './authContextDef';
@@ -241,39 +241,48 @@ export function AuthProvider({ children }) {
         return await authApi.dismissMessage(id);
     }, [user]);
 
+    const contextValue = useMemo(() => ({
+        user,
+        loading,
+        isLoggedIn: !!user,
+        isAdmin: user?.isAdmin || false,
+        signUp,
+        signIn,
+        signOut,
+        updateProfile,
+        changePassword,
+        deleteAccount,
+        findUserByShareCode,
+        shareDeck,
+        getSharedDeck,
+        importSharedDeck,
+        unshareDeck,
+        getMySharedDecks,
+        // Admin functions
+        getAllUsers,
+        adminUpdateUser,
+        adminDeleteUser,
+        adminGetStats,
+        adminGetUserStreakData,
+        adminUpdateStreakData,
+        adminGetMessages,
+        adminCreateMessage,
+        adminUpdateMessage,
+        adminDeleteMessage,
+        // User message functions
+        getActiveMessages,
+        dismissMessage
+    }), [
+        user, loading, signUp, signIn, signOut, updateProfile, changePassword,
+        deleteAccount, findUserByShareCode, shareDeck, getSharedDeck, importSharedDeck,
+        unshareDeck, getMySharedDecks, getAllUsers, adminUpdateUser, adminDeleteUser,
+        adminGetStats, adminGetUserStreakData, adminUpdateStreakData, adminGetMessages,
+        adminCreateMessage, adminUpdateMessage, adminDeleteMessage, getActiveMessages,
+        dismissMessage
+    ]);
+
     return (
-        <AuthContext.Provider value={{
-            user,
-            loading,
-            isLoggedIn: !!user,
-            isAdmin: user?.isAdmin || false,
-            signUp,
-            signIn,
-            signOut,
-            updateProfile,
-            changePassword,
-            deleteAccount,
-            findUserByShareCode,
-            shareDeck,
-            getSharedDeck,
-            importSharedDeck,
-            unshareDeck,
-            getMySharedDecks,
-            // Admin functions
-            getAllUsers,
-            adminUpdateUser,
-            adminDeleteUser,
-            adminGetStats,
-            adminGetUserStreakData,
-            adminUpdateStreakData,
-            adminGetMessages,
-            adminCreateMessage,
-            adminUpdateMessage,
-            adminDeleteMessage,
-            // User message functions
-            getActiveMessages,
-            dismissMessage
-        }}>
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );

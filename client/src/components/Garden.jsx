@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useContext } from 'react';
 import { GardenContext } from '../context/GardenContext';
 import { gardenThemes, getStageIndex, decorations, specialPlants } from '../utils/gardenCustomization';
 
@@ -24,7 +24,6 @@ export default function Garden({
     const gardenContext = useContext(GardenContext);
     const customization = gardenContext?.customization || { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
     
-    const [swayOffset, setSwayOffset] = useState(0);
     const { width, height } = sizeMap[size] || sizeMap.md;
     const stageIndex = getStageIndex(streak);
     
@@ -40,17 +39,6 @@ export default function Garden({
     const equippedPlants = (customization.specialPlants || [])
         .map(id => specialPlants.find(p => p.id === id))
         .filter(Boolean);
-
-    // Gentle swaying animation for plants
-    useEffect(() => {
-        if (status === 'broken') return;
-        
-        const interval = setInterval(() => {
-            setSwayOffset(Math.sin(Date.now() / 1000) * 2);
-        }, 50);
-        
-        return () => clearInterval(interval);
-    }, [status]);
 
     const getStageText = () => {
         const stages = [
@@ -143,7 +131,7 @@ export default function Garden({
                 )}
                 
                 {/* Garden content based on stage */}
-                <g transform={`translate(0, ${swayOffset})`} opacity={baseOpacity}>
+                <g className={status !== 'broken' ? 'garden-sway' : ''} opacity={baseOpacity}>
                     {/* Stage 0: Bare ground with a few dirt patches */}
                     {stageIndex === 0 && (
                         <>
@@ -246,11 +234,12 @@ export default function Garden({
                 {equippedDecorations.filter(d => d.slot === 'air').map((dec, i) => (
                     <text 
                         key={dec.id} 
-                        x={30 + i * 40 + Math.sin(Date.now() / 500 + i) * 10} 
+                        x={30 + i * 40} 
                         y={50 + i * 15} 
                         fontSize={16} 
                         textAnchor="middle"
-                        style={{ transition: 'transform 0.5s' }}
+                        className="garden-float"
+                        style={{ animationDelay: `${i * -0.7}s` }}
                     >
                         {dec.emoji}
                     </text>
@@ -313,6 +302,21 @@ export default function Garden({
                 @keyframes pulse-warning {
                     0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 180, 100, 0.6)); }
                     50% { filter: drop-shadow(0 0 20px rgba(255, 150, 50, 0.8)); }
+                }
+                .garden-sway {
+                    animation: garden-sway-anim 2s ease-in-out infinite;
+                    transform-origin: center bottom;
+                }
+                @keyframes garden-sway-anim {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-2px); }
+                }
+                .garden-float {
+                    animation: garden-float-anim 2s ease-in-out infinite;
+                }
+                @keyframes garden-float-anim {
+                    0%, 100% { transform: translateX(0); }
+                    50% { transform: translateX(10px); }
                 }
             `}</style>
 

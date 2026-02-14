@@ -11,7 +11,7 @@
  * @typedef {'active' | 'at-risk' | 'broken'} StreakStatus
  */
 
-import { useState, useEffect, useCallback, useContext } from 'react';
+import { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import * as authApi from '../api/authApi';
 
@@ -210,7 +210,7 @@ export function useStreak() {
         };
     }, [streakData.lastStudyDate, streakData.currentStreak]);
 
-    return {
+    return useMemo(() => ({
         currentStreak: streakData.currentStreak,
         longestStreak: streakData.longestStreak,
         lastStudyDate: streakData.lastStudyDate,
@@ -223,7 +223,7 @@ export function useStreak() {
         breakStreak,
         resetStreak,
         getStreakStatus
-    };
+    }), [streakData, incrementStreak, breakStreak, resetStreak, getStreakStatus]);
 }
 
 export { calculateStatus, getHoursRemaining };

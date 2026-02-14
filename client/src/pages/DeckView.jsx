@@ -242,10 +242,8 @@ export default function DeckView() {
         }
         
         try {
-            // Add all cards
-            for (const card of cards) {
-                await api.addCard(id, card.front, card.back);
-            }
+            // Add all cards in parallel
+            await Promise.all(cards.map(card => api.addCard(id, card.front, card.back)));
             toast.success(`Added ${cards.length} cards!`);
             setBulkText('');
             setShowBulkImport(false);
