@@ -52,8 +52,8 @@ export default function GardenSettings() {
                     <div
                         className="w-24 h-24 mx-auto mb-6 rounded-2xl flex items-center justify-center"
                         style={{
-                            background: 'linear-gradient(135deg, rgba(45,106,79,0.15) 0%, rgba(82,183,136,0.08) 100%)',
-                            border: '1px solid rgba(82,183,136,0.12)',
+                            background: 'linear-gradient(135deg, rgba(122,158,114,0.15) 0%, rgba(122,158,114,0.08) 100%)',
+                            border: '1px solid rgba(122,158,114,0.12)',
                         }}
                     >
                         <Sprout className="w-10 h-10 text-claude-accent" />
@@ -103,8 +103,8 @@ export default function GardenSettings() {
                 <div
                     className="relative rounded-2xl p-6 w-full flex flex-col items-center"
                     style={{
-                        background: 'linear-gradient(180deg, rgba(45,106,79,0.1) 0%, rgba(82,183,136,0.04) 60%, transparent 100%)',
-                        border: '1px solid rgba(82,183,136,0.08)',
+                        background: 'linear-gradient(180deg, rgba(122,158,114,0.1) 0%, rgba(122,158,114,0.04) 60%, transparent 100%)',
+                        border: '1px solid rgba(122,158,114,0.08)',
                     }}
                 >
                     {/* Corner marks */}
@@ -140,8 +140,8 @@ export default function GardenSettings() {
                         <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
                             <div
                                 className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-mono transition-colors ${day.active
-                                        ? 'bg-claude-accent/20 text-claude-accent'
-                                        : 'bg-claude-bg text-claude-secondary/40'
+                                    ? 'bg-claude-accent/20 text-claude-accent'
+                                    : 'bg-claude-bg text-claude-secondary/40'
                                     } ${day.isToday ? 'ring-1 ring-claude-accent/30' : ''}`}
                             >
                                 {day.active ? '✓' : ''}

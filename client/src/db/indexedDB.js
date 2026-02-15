@@ -67,8 +67,8 @@ async function getDB() {
             const themeCount = await db.count('themes');
             if (themeCount === 0) {
                 const defaultThemes = [
-                    { name: 'Dark', bg_color: '#0a0a0b', surface_color: '#18181b', text_color: '#fafafa', secondary_text_color: '#a1a1aa', border_color: '#27272a', accent_color: '#6366f1', is_active: 1, is_default: 1 },
-                    { name: 'Light', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#18181b', secondary_text_color: '#71717a', border_color: '#e4e4e7', accent_color: '#6366f1', is_active: 0, is_default: 1 },
+                    { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', is_active: 1, is_default: 1 },
+                    { name: 'Light', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#18181b', secondary_text_color: '#71717a', border_color: '#e4e4e7', accent_color: '#deb96a', is_active: 0, is_default: 1 },
                     { name: 'Ocean', bg_color: '#0c1929', surface_color: '#132f4c', text_color: '#e3f2fd', secondary_text_color: '#90caf9', border_color: '#1e4976', accent_color: '#42a5f5', is_active: 0, is_default: 1 },
                     { name: 'Forest', bg_color: '#0d1f0d', surface_color: '#1a3a1a', text_color: '#e8f5e9', secondary_text_color: '#a5d6a7', border_color: '#2e5a2e', accent_color: '#66bb6a', is_active: 0, is_default: 1 }
                 ];
@@ -76,11 +76,24 @@ async function getDB() {
                     await db.add('themes', theme);
                 }
             } else {
-                // Migration: tag existing default themes with is_default flag
-                const DEFAULT_NAMES = ['Dark', 'Light', 'Ocean', 'Forest'];
+                // Migration: update default themes
+                const DEFAULT_NAMES = ['Dark', 'Riven', 'Light', 'Ocean', 'Forest'];
                 const existingThemes = await db.getAll('themes');
                 for (const theme of existingThemes) {
-                    if (DEFAULT_NAMES.includes(theme.name) && !theme.is_default) {
+                    // Migrate old "Dark" theme to new "Riven" palette
+                    if (theme.name === 'Dark' && theme.is_default) {
+                        await db.put('themes', {
+                            ...theme,
+                            name: 'Riven',
+                            bg_color: '#162a31',
+                            surface_color: '#1e3840',
+                            text_color: '#e4ddd0',
+                            secondary_text_color: '#8fa6a8',
+                            border_color: '#233e46',
+                            accent_color: '#deb96a',
+                            is_default: 1
+                        });
+                    } else if (DEFAULT_NAMES.includes(theme.name) && !theme.is_default) {
                         await db.put('themes', { ...theme, is_default: 1 });
                     }
                 }

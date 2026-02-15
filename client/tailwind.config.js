@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Source Serif 4"', 'Georgia', 'Cambria', 'serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['"Space Grotesk"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
@@ -28,9 +28,9 @@ export default {
         }
       },
       boxShadow: {
-        'botanical': '0 2px 16px rgba(45,106,79,0.12), 0 1px 4px rgba(0,0,0,0.15)',
-        'botanical-lg': '0 8px 32px rgba(45,106,79,0.18), 0 2px 8px rgba(0,0,0,0.2)',
-        'botanical-glow': '0 0 24px rgba(82,183,136,0.15)',
+        'botanical': '0 2px 16px rgba(34,83,96,0.15), 0 1px 4px rgba(0,0,0,0.15)',
+        'botanical-lg': '0 8px 32px rgba(34,83,96,0.20), 0 2px 8px rgba(0,0,0,0.2)',
+        'botanical-glow': '0 0 24px rgba(222,185,106,0.20)',
       },
     },
   },

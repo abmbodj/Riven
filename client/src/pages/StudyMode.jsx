@@ -221,8 +221,8 @@ export default function StudyMode() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors ${spacedRepetitionMode
-                            ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
-                            : 'bg-claude-surface border border-claude-border text-claude-secondary'
+                        ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
+                        : 'bg-claude-surface border border-claude-border text-claude-secondary'
                         }`}
                 >
                     <Brain className="w-3.5 h-3.5" />
@@ -248,7 +248,7 @@ export default function StudyMode() {
                             className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
                             style={{
                                 backfaceVisibility: 'hidden',
-                                background: 'linear-gradient(165deg, var(--surface-color) 0%, #1f1c1a 100%)',
+                                background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
                                 border: '1px solid var(--border-color)',
                                 boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
                             }}
@@ -286,8 +286,8 @@ export default function StudyMode() {
                             <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
                             {currentCard.difficulty > 0 && (
                                 <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
-                                        currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
-                                            'bg-green-500/15 text-green-400'
+                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
+                                        'bg-green-500/15 text-green-400'
                                     }`}>
                                     {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
                                 </span>
@@ -301,9 +301,9 @@ export default function StudyMode() {
                             style={{
                                 backfaceVisibility: 'hidden',
                                 transform: 'rotateY(180deg)',
-                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #1a4535 100%)',
-                                border: '1px solid rgba(82,183,136,0.25)',
-                                boxShadow: '0 8px 32px rgba(45,106,79,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
+                                border: '1px solid rgba(122,158,114,0.25)',
+                                boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
                             }}
                         >
                             {/* Paper grain overlay */}
@@ -361,7 +361,8 @@ export default function StudyMode() {
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={handleRestart}
-                            className="w-full py-4 rounded-xl bg-claude-accent text-white font-display font-semibold"
+                            className="w-full py-4 rounded-xl bg-claude-accent font-display font-semibold"
+                            style={{ color: 'var(--bg-color)' }}
                         >
                             Study Again
                         </motion.button>

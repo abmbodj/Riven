@@ -122,8 +122,8 @@ export default function GardenGallery({ pastStreaks = [], longestStreak = 0, cur
                                 <div
                                     className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center"
                                     style={{
-                                        background: 'linear-gradient(135deg, rgba(45,106,79,0.12) 0%, rgba(82,183,136,0.06) 100%)',
-                                        border: '1px solid rgba(82,183,136,0.1)',
+                                        background: 'linear-gradient(135deg, rgba(122,158,114,0.12) 0%, rgba(122,158,114,0.06) 100%)',
+                                        border: '1px solid rgba(122,158,114,0.12)',
                                     }}
                                 >
                                     <span className="text-3xl">🌱</span>
@@ -147,8 +147,8 @@ export default function GardenGallery({ pastStreaks = [], longestStreak = 0, cur
                                             transition={{ delay: index * 0.05 }}
                                             onClick={() => setSelectedStreak(selectedStreak === index ? null : index)}
                                             className={`w-full p-4 rounded-xl border-2 text-left transition-all ${isRecord
-                                                    ? 'border-yellow-500/50 bg-yellow-500/5'
-                                                    : 'border-claude-border active:border-claude-secondary'
+                                                ? 'border-yellow-500/50 bg-yellow-500/5'
+                                                : 'border-claude-border active:border-claude-secondary'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">

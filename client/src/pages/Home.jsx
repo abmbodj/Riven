@@ -29,7 +29,7 @@ const SORT_OPTIONS = [
 // Memoized deck card with botanical styling
 const DeckCard = memo(({ deck, folders, index }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
-    const folderColor = folder?.color || '#52B788';
+    const folderColor = folder?.color || '#7a9e72';
 
     return (
         <motion.div
@@ -40,7 +40,7 @@ const DeckCard = memo(({ deck, folders, index }) => {
             <Link to={`/deck/${deck.id}`} className="botanical-card p-4 flex items-center gap-4 active:scale-[0.98] transition-transform block">
                 <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: deck.folder_id ? folderColor + '12' : 'rgba(82,183,136,0.08)' }}
+                    style={{ backgroundColor: deck.folder_id ? folderColor + '12' : 'rgba(122,158,114,0.10)' }}
                 >
                     <Layers className="w-5 h-5" style={{ color: deck.folder_id ? folderColor : 'var(--accent-color)' }} />
                 </div>
@@ -84,8 +84,8 @@ const GardenHero = memo(() => {
                 transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
                 className="relative rounded-2xl overflow-hidden p-5"
                 style={{
-                    background: 'linear-gradient(145deg, rgba(45,106,79,0.14) 0%, rgba(82,183,136,0.06) 60%, transparent 100%)',
-                    border: '1px solid rgba(82,183,136,0.1)',
+                    background: 'linear-gradient(145deg, rgba(122,158,114,0.12) 0%, rgba(222,185,106,0.04) 60%, transparent 100%)',
+                    border: '1px solid rgba(122,158,114,0.15)',
                 }}
             >
                 {/* Decorative corner marks */}

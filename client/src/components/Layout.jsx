@@ -70,7 +70,7 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
-                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-claude-surface/95 backdrop-blur-xl border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 safe-area-bottom">
+                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 safe-area-bottom" style={{ backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', background: 'rgba(22, 42, 49, 0.92)' }}>
                         <div className="flex items-stretch h-16">
                             {navItems.map((item) => {
                                 if (item.isFab) {
@@ -79,7 +79,8 @@ export default function Layout({ children }) {
                                             <motion.div
                                                 whileHover={{ scale: 1.05 }}
                                                 whileTap={{ scale: 0.9 }}
-                                                className="w-12 h-12 -mt-4 bg-claude-accent rounded-full flex items-center justify-center shadow-botanical-glow border-[3px] border-claude-bg"
+                                                className="w-12 h-12 -mt-4 rounded-full flex items-center justify-center shadow-botanical-glow border-[3px] border-claude-bg"
+                                                style={{ backgroundColor: 'var(--botanical-forest)' }}
                                             >
                                                 <Sprout className="w-6 h-6 text-white" />
                                             </motion.div>

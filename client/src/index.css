@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --bg-color: #1C1917;
-  --surface-color: #292524;
-  --text-color: #F5F0EB;
-  --secondary-text-color: #A8A29E;
-  --border-color: #44403C;
-  --accent-color: #52B788;
-  --botanical-forest: #2D6A4F;
-  --botanical-sepia: #8B7355;
-  --botanical-parchment: #F5F0EB;
-  --botanical-ink: #1C1917;
+  --bg-color: #162a31;
+  --surface-color: #1e3840;
+  --text-color: #e4ddd0;
+  --secondary-text-color: #8fa6a8;
+  --border-color: #233e46;
+  --accent-color: #deb96a;
+  --botanical-forest: #7a9e72;
+  --botanical-sepia: #8fa6a8;
+  --botanical-parchment: #e4ddd0;
+  --botanical-ink: #162a31;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -49,6 +49,7 @@
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     position: relative;
+    line-height: 1.6;
   }
 
   /* Noise texture overlay */
@@ -58,10 +59,11 @@
     inset: 0;
     z-index: 9998;
     pointer-events: none;
-    opacity: 0.035;
+    opacity: 0.03;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 256px 256px;
+    mix-blend-mode: overlay;
   }
 
   /* Gradient mesh background */
@@ -72,9 +74,9 @@
     z-index: -1;
     pointer-events: none;
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(82, 183, 136, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(45, 106, 79, 0.04) 0%, transparent 40%),
-      radial-gradient(ellipse at 50% 90%, rgba(139, 115, 85, 0.03) 0%, transparent 45%);
+      radial-gradient(ellipse at 20% 50%, rgba(222, 185, 106, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(122, 158, 114, 0.05) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 90%, rgba(212, 136, 90, 0.03) 0%, transparent 45%);
   }
 
   #root {
@@ -103,7 +105,16 @@
   h4,
   h5,
   h6 {
-    @apply font-display font-semibold tracking-tight;
+    @apply font-display tracking-tight;
+    font-weight: 400;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+
+  /* Text selection */
+  ::selection {
+    background: rgba(222, 185, 106, 0.3);
+    color: var(--text-color);
   }
 
   /* Disable text selection on interactive elements for mobile */
@@ -128,17 +139,21 @@
 
   /* Custom scrollbar for webkit */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--bg-color);
   }
 
   ::-webkit-scrollbar-thumb {
     background: var(--border-color);
-    border-radius: 4px;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
   }
 }
 
@@ -182,16 +197,26 @@
   }
 
   .claude-button-primary {
-    background-color: var(--text-color);
-    color: var(--bg-color);
+    background-color: var(--accent-color);
+    color: #162a31;
     @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] active:opacity-90 transition-all duration-150 min-h-[52px] flex items-center justify-center;
+    box-shadow: 0 4px 24px rgba(222, 185, 106, 0.2), 0 0 0 1px rgba(222, 185, 106, 0.08);
+  }
+
+  .claude-button-primary:hover {
+    background-color: #c9a24e;
   }
 
   .claude-button-secondary {
-    background-color: var(--surface-color);
+    background-color: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-color);
-    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] active:bg-claude-bg transition-all duration-150 min-h-[52px] flex items-center justify-center;
+    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] transition-all duration-150 min-h-[52px] flex items-center justify-center;
+  }
+
+  .claude-button-secondary:hover {
+    border-color: #345560;
+    background-color: var(--surface-color);
   }
 
   /* PWA touch target minimum 44x44 */
@@ -268,6 +293,7 @@
 
   .segmented-item-active {
     @apply bg-claude-accent text-white shadow-sm;
+    color: #162a31;
   }
 
   /* Native switch track */
@@ -297,7 +323,7 @@
   .fab {
     @apply w-14 h-14 rounded-full flex items-center justify-center shadow-lg;
     @apply active:scale-90 transition-transform duration-100;
-    background-color: var(--accent-color);
+    background-color: var(--botanical-forest);
   }
 
   /* Skeleton loading */
@@ -322,7 +348,9 @@
 
   /* Header blur effect for iOS-like sticky headers */
   .header-blur {
-    @apply backdrop-blur-xl bg-claude-bg/80;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(22, 42, 49, 0.82);
   }
 
   /* Full screen page for study/test modes */
@@ -367,29 +395,24 @@
     touch-action: manipulation;
   }
 
-  /* Botanical card with paper grain */
+  /* Botanical card with glassmorphic feel */
   .botanical-card {
-    background-color: var(--surface-color);
+    background: rgba(30, 56, 64, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-color);
     @apply rounded-xl;
-    box-shadow: 0 2px 16px rgba(45, 106, 79, 0.08), 0 1px 4px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 16px rgba(34, 83, 96, 0.12), 0 1px 4px rgba(0, 0, 0, 0.12);
     position: relative;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s, background 0.35s;
   }
 
-  .botanical-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 0.02;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 128px 128px;
+  .botanical-card:hover {
+    border-color: var(--accent-color);
   }
 }
 
-/* Botanical keyframes */
+/* Keyframes */
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
