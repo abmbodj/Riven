@@ -143,11 +143,11 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         // Create default themes
         await db.execute(
             'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-            [userId, 'Claude Dark', '#1a1a18', '#242422', '#e8e8e3', '#a1a19a', '#3d3d3a', '#d97757', 1, 1]
+            [userId, 'Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 1, 1]
         );
         await db.execute(
             'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-            [userId, 'Claude Light', '#f9f7f2', '#ffffff', '#1d1d1b', '#6b6b6b', '#e5e2da', '#d97757', 0, 1]
+            [userId, 'Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 0, 1]
         );
 
         // Create preset tags
@@ -1249,9 +1249,32 @@ app.get('/api/decks/:id/stats', optionalAuth, async (req, res) => {
 app.get('/api/themes', optionalAuth, async (req, res) => {
     try {
         const userId = req.user?.id || null;
-        const themes = userId
+        let themes = userId
             ? await db.query('SELECT * FROM themes WHERE user_id = $1', [userId])
             : await db.query('SELECT * FROM themes WHERE user_id IS NULL');
+
+        // Auto-migrate old "Claude Dark"/"Claude Light" themes to new Riven palette
+        if (userId) {
+            for (const theme of themes) {
+                if (theme.is_default && (theme.name === 'Claude Dark' || (theme.name === 'Dark' && theme.bg_color === '#0a0a0b'))) {
+                    await db.execute(
+                        `UPDATE themes SET name = 'Riven', bg_color = '#162a31', surface_color = '#1e3840', text_color = '#e4ddd0', secondary_text_color = '#8fa6a8', border_color = '#233e46', accent_color = '#deb96a' WHERE id = $1`,
+                        [theme.id]
+                    );
+                } else if (theme.is_default && theme.name === 'Claude Light') {
+                    await db.execute(
+                        `UPDATE themes SET name = 'Riven Light', bg_color = '#f5f0e8', surface_color = '#ffffff', text_color = '#1e3840', secondary_text_color = '#6b7d7f', border_color = '#ddd5c8', accent_color = '#deb96a' WHERE id = $1`,
+                        [theme.id]
+                    );
+                }
+            }
+            // Re-fetch after migration
+            const migrated = themes.some(t => t.is_default && (t.name === 'Claude Dark' || t.name === 'Claude Light' || (t.name === 'Dark' && t.bg_color === '#0a0a0b')));
+            if (migrated) {
+                themes = await db.query('SELECT * FROM themes WHERE user_id = $1', [userId]);
+            }
+        }
+
         res.json(themes);
     } catch (error) {
         res.status(500).json({ error: error.message });
