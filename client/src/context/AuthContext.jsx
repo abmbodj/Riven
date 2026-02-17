@@ -54,10 +54,15 @@ export function AuthProvider({ children }) {
     }, [migrateGuestData]);
 
     // Sign in - admin role is now handled server-side
+    // Sign in - admin role is now handled server-side
     const signIn = useCallback(async (email, password) => {
-        const userData = await authApi.login(email, password);
-        setUser(userData);
-        return userData;
+        const data = await authApi.login(email, password);
+        if (data.user) {
+            setUser(data.user);
+            return data.user;
+        }
+        // Return data (containing require2FA) if user is not present
+        return data;
     }, []);
 
     // Sign out

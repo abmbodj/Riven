@@ -56,8 +56,10 @@ export const login = async (email, password) => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-    setToken(data.token);
-    return data.user;
+    if (data.token) {
+        setToken(data.token);
+    }
+    return data;
 };
 
 export const logout = () => {

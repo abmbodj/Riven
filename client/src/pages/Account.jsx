@@ -133,7 +133,7 @@ export default function Account() {
             // If `authApi.login` returns `user`, `AuthProvider` sets user.
             // If 2FA is required, `authApi.login` might fail or return partial?
 
-            const result = await authApi.login(loginForm.email, loginForm.password);
+            const result = await signIn(loginForm.email, loginForm.password);
 
             if (result.require2FA) {
                 setTempToken(result.tempToken);
@@ -141,6 +141,36 @@ export default function Account() {
                 setView('2fa_login');
                 setSaving(false);
                 return;
+            }
+
+            // Success - context is already updated by signIn
+            setLoginForm({ email: '', password: '' });
+
+            // Check if admin/owner to direct appropriately if needed, or just staying on profile
+            // The view state will auto-update because isLoggedIn changes?
+            // Account.jsx: const [view, setView] = useState(() => isLoggedIn ? 'profile' : 'login');
+            // But view is state, it won't auto-change unless we effect it.
+            // But we have an effect:
+            /* 
+            useEffect(() => {
+                if (isLoggedIn && (view === 'login' || view === 'signup')) {
+                     setView('profile');
+                }
+            }, [isLoggedIn]);
+            */
+            // I need to check if that effect exists. 
+            // The file view showed lines 1-100, and 90 was `}, [isLoggedIn]);`. 
+            // Let's check line 30: `const [view, setView] = useState(() => isLoggedIn ? 'profile' : 'login');`
+            // And lines 63-90 load stats on isLoggedIn.
+            // It seems we might need to manually set view to 'profile' if successful.
+
+            setView('profile');
+            setSaving(false);
+
+            toast.success('Welcome back!');
+            haptics.success();
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
             }
 
             // If success, we need to update context. 
