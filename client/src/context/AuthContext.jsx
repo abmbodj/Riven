@@ -55,8 +55,10 @@ export function AuthProvider({ children }) {
 
     // Sign in - admin role is now handled server-side
     // Sign in - admin role is now handled server-side
+    // Sign in - admin role is now handled server-side
     const signIn = useCallback(async (email, password) => {
         const data = await authApi.login(email, password);
+        // authApi.login returns the whole response object now
         if (data.user) {
             setUser(data.user);
             return data.user;

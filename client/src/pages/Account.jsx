@@ -23,11 +23,12 @@ export default function Account() {
     const haptics = useHaptics();
     const {
         user, isLoggedIn, isAdmin, isOwner, role, signUp, signIn, signOut,
-        updateProfile, changePassword, deleteAccount, getMySharedDecks
+        updateProfile, changePassword, deleteAccount, getMySharedDecks,
+        loading: authLoading // renamed to avoid conflict with local loading
     } = useAuth();
 
     // View state - initialize based on login status
-    const [view, setView] = useState(() => isLoggedIn ? 'profile' : 'login');
+    const [view, setView] = useState('login');
     const [showPassword, setShowPassword] = useState(false);
 
     // Form state
@@ -60,6 +61,23 @@ export default function Account() {
     const [friendCount, setFriendCount] = useState(0);
     const [unreadMessages, setUnreadMessages] = useState(0);
 
+    // Sync view with auth state
+    useEffect(() => {
+        if (!authLoading) {
+            if (isLoggedIn) {
+                if (view === 'login' || view === 'signup') {
+                    setView('profile');
+                }
+            } else {
+                // If logged out, ensure we are on login or signup (unless showing some other public view?)
+                // Actually, if we are on 'profile' but logged out, switch to 'login'
+                if (view === 'profile' || view === '2fa_login') {
+                    setView('login');
+                }
+            }
+        }
+    }, [isLoggedIn, authLoading, view]);
+
     useEffect(() => {
         let mounted = true;
 
@@ -84,10 +102,20 @@ export default function Account() {
             }
         };
 
-        loadStats();
+        if (!authLoading) {
+            loadStats();
+        }
 
         return () => { mounted = false; };
-    }, [isLoggedIn]);
+    }, [isLoggedIn, authLoading]);
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
 
     const handleLogin = async (e) => {
         e.preventDefault();
