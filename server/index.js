@@ -64,7 +64,10 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false,
+}));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
