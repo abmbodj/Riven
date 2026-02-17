@@ -1537,6 +1537,36 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
             WHERE created_at > NOW() - INTERVAL '7 days'
         `);
 
+        // Daily Activity (Last 7 Days)
+        const dailyActivity = await db.query(`
+            SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count
+            FROM study_sessions
+            WHERE created_at > NOW() - INTERVAL '7 days'
+            GROUP BY date
+            ORDER BY date ASC
+        `);
+
+        // Fill in missing days for the last 7 days
+        const filledDailyActivity = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const found = dailyActivity.find(a => a.date === dateStr);
+            filledDailyActivity.push({ date: dateStr, count: found ? parseInt(found.count) : 0 });
+        }
+
+        // Top Decks (by study session count)
+        const topDecks = await db.query(`
+            SELECT d.title, u.username as creator, COUNT(ss.id) as session_count
+            FROM study_sessions ss
+            JOIN decks d ON ss.deck_id = d.id
+            LEFT JOIN users u ON d.user_id = u.id
+            GROUP BY d.id, d.title, u.username
+            ORDER BY session_count DESC
+            LIMIT 5
+        `);
+
         res.json({
             users: parseInt(userCount.count),
             decks: parseInt(deckCount.count),
@@ -1544,9 +1574,16 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
             sharedDecks: parseInt(sharedCount.count),
             activeMessages: parseInt(messageCount.count),
             recentSignups: parseInt(recentUsers.count),
-            recentSessions: parseInt(recentSessions.count)
+            recentSessions: parseInt(recentSessions.count),
+            dailyActivity: filledDailyActivity,
+            topDecks: topDecks.map(d => ({
+                title: d.title,
+                creator: d.creator || 'Unknown',
+                sessions: parseInt(d.session_count)
+            }))
         });
     } catch (error) {
+        console.error('Admin stats error:', error);
         res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
