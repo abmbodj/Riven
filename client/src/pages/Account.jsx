@@ -135,7 +135,8 @@ export default function Account() {
 
             const result = await signIn(loginForm.email, loginForm.password);
 
-            if (result.require2FA) {
+            // Check if 2FA is required (using optional chaining for safety)
+            if (result?.require2FA) {
                 setTempToken(result.tempToken);
                 setTwoFACode('');
                 setView('2fa_login');
@@ -211,7 +212,8 @@ export default function Account() {
             // 3. If success (no 2FA), `signIn` using context (redundant call, but consistent).
 
             const res = await authApi.login(loginForm.email, loginForm.password);
-            if (res.require2FA) {
+            // Check if 2FA is required (using optional chaining for safety)
+            if (res?.require2FA) {
                 setTempToken(res.tempToken);
                 setView('2fa_login');
                 haptics.selection();
@@ -229,7 +231,9 @@ export default function Account() {
             setView('profile');
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Login Failed', message: err.message, type: 'error' });
+            // Ensure we always have a valid error message
+            const errorMessage = err?.message || 'An unexpected error occurred. Please try again.';
+            setAlert({ show: true, title: 'Login Failed', message: errorMessage, type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -328,7 +332,8 @@ export default function Account() {
             setView('profile');
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Signup Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'An unexpected error occurred. Please try again.';
+            setAlert({ show: true, title: 'Signup Failed', message: errorMessage, type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -358,7 +363,8 @@ export default function Account() {
             setShowEditProfile(false);
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Update Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to update profile. Please try again.';
+            setAlert({ show: true, title: 'Update Failed', message: errorMessage, type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -382,7 +388,8 @@ export default function Account() {
             setPasswordForm({ current: '', new: '', confirm: '' });
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Change Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to change password. Please try again.';
+            setAlert({ show: true, title: 'Change Failed', message: errorMessage, type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -397,7 +404,8 @@ export default function Account() {
             navigate('/');
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Delete Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to delete account. Please try again.';
+            setAlert({ show: true, title: 'Delete Failed', message: errorMessage, type: 'error' });
         } finally {
             setSaving(false);
         }

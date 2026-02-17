@@ -75,7 +75,8 @@ export default function SharedDecks() {
             setSharedDecks(updatedDecks);
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Share Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to share deck. Please try again.';
+            setAlert({ show: true, title: 'Share Failed', message: errorMessage, type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -102,7 +103,8 @@ export default function SharedDecks() {
             setImportedDeck(sharedDeckData);
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Import Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to import deck. Please try again.';
+            setAlert({ show: true, title: 'Import Failed', message: errorMessage, type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -132,7 +134,8 @@ export default function SharedDecks() {
             navigate(`/deck/${newDeck.id}`);
         } catch (err) {
             haptics.error();
-            setAlert({ show: true, title: 'Import Failed', message: err.message, type: 'error' });
+            const errorMessage = err?.message || 'Failed to import deck. Please try again.';
+            setAlert({ show: true, title: 'Import Failed', message: errorMessage, type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -151,7 +154,8 @@ export default function SharedDecks() {
             setSharedDecks(updatedDecks);
         } catch (err) {
             haptics.error();
-            toast.error(err.message || 'Failed to unshare deck');
+            const errorMessage = err?.message || 'Failed to unshare deck';
+            toast.error(errorMessage);
         } finally {
             setUnsharing(false);
             setDeleteConfirm({ show: false, shareId: null });

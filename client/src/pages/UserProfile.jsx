@@ -52,7 +52,8 @@ export default function UserProfile() {
             toast.success('Friend request sent');
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to send friend request';
+            toast.error(errorMessage);
         } finally {
             setActionLoading(false);
         }
@@ -67,7 +68,8 @@ export default function UserProfile() {
             toast.success(`You're now friends with ${profile.username}`);
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to accept friend request';
+            toast.error(errorMessage);
         } finally {
             setActionLoading(false);
         }
@@ -82,7 +84,8 @@ export default function UserProfile() {
             toast.success('Friend removed');
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to remove friend';
+            toast.error(errorMessage);
         } finally {
             setActionLoading(false);
         }

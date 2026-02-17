@@ -171,7 +171,8 @@ export default function Home() {
                 setShowOnboarding(true);
             }
         } catch (err) {
-            setError(err.message);
+            const errorMessage = err?.message || 'Failed to load data';
+            setError(errorMessage);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -234,7 +235,8 @@ export default function Home() {
             setNewFolder({ name: '', color: '#6366f1' });
             loadData();
         } catch (err) {
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to save folder';
+            toast.error(errorMessage);
         }
     };
 
@@ -245,7 +247,8 @@ export default function Home() {
             if (activeFolder === deleteConfirm.item.id) setActiveFolder(null);
             loadData();
         } catch (err) {
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to delete folder';
+            toast.error(errorMessage);
         }
     };
 
@@ -260,7 +263,8 @@ export default function Home() {
             setNewTag({ name: '', color: '#3b82f6' });
             loadData();
         } catch (err) {
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to create tag';
+            toast.error(errorMessage);
         }
     };
 
@@ -271,7 +275,8 @@ export default function Home() {
             if (activeTag === deleteConfirm.item.id) setActiveTag(null);
             loadData();
         } catch (err) {
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to delete tag';
+            toast.error(errorMessage);
         }
     };
 

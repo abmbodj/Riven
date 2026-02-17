@@ -103,7 +103,8 @@ export default function ThemeSettings() {
             setDeleteConfirm({ show: false, theme: null });
         } catch (err) {
             haptics.error();
-            toast.error(err.message || 'Failed to delete theme');
+            const errorMessage = err?.message || 'Failed to delete theme';
+            toast.error(errorMessage);
         }
     };
 
@@ -128,7 +129,8 @@ export default function ThemeSettings() {
             setEditingTheme(null);
         } catch (err) {
             haptics.error();
-            toast.error(err.message || 'Failed to save theme');
+            const errorMessage = err?.message || 'Failed to save theme';
+            toast.error(errorMessage);
         }
     };
 

@@ -56,9 +56,13 @@ export const login = async (email, password) => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-    if (data.token) {
+    
+    // Only set token if 2FA is not required
+    if (data.token && !data.require2FA) {
         setToken(data.token);
     }
+    
+    // Return the full data object (which may contain require2FA, tempToken, or user)
     return data;
 };
 

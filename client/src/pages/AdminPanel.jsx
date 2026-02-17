@@ -475,7 +475,8 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
             await onRoleChange(userId, newRole);
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole, isAdmin: newRole === 'admin', isOwner: false } : u));
         } catch (err) {
-            alert(err.message || 'Failed to change role');
+            const errorMessage = err?.message || 'Failed to change role';
+            alert(errorMessage);
         } finally {
             setChangingRole(null);
         }

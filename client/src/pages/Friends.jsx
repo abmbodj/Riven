@@ -73,7 +73,8 @@ export default function Friends() {
             loadFriends();
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to send friend request';
+            toast.error(errorMessage);
         }
     };
 
@@ -85,7 +86,8 @@ export default function Friends() {
             loadFriends();
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to accept friend request';
+            toast.error(errorMessage);
         }
     };
 
@@ -97,7 +99,8 @@ export default function Friends() {
             loadFriends();
         } catch (err) {
             haptics.error();
-            toast.error(err.message);
+            const errorMessage = err?.message || 'Failed to remove friend';
+            toast.error(errorMessage);
         }
     };
 
