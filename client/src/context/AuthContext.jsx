@@ -17,7 +17,10 @@ export function AuthProvider({ children }) {
             // Fetch user data in background, don't block UI
             authApi.getMe()
                 .then(setUser)
-                .catch(() => authApi.setToken(null))
+                .catch(() => {
+                    authApi.setToken(null);
+                    setUser(null);
+                })
                 .finally(() => setLoading(false));
         } else {
             setLoading(false);

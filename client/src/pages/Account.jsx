@@ -194,69 +194,11 @@ export default function Account() {
             // It seems we might need to manually set view to 'profile' if successful.
 
             setView('profile');
-            setSaving(false);
-
             toast.success('Welcome back!');
             haptics.success();
-            if (window.navigator && window.navigator.vibrate) {
+            if (window.navigator?.vibrate) {
                 window.navigator.vibrate(50);
             }
-
-            // If success, we need to update context. 
-            // But `signIn` from context does `setUser`.
-            // So I should call `signIn` ONLY if no 2FA or after 2FA.
-
-            // Refactor: use authApi.login here directly for first step?
-            // Then call signIn with token? No, signIn usually does the API call.
-
-            // Let's stick to using `signIn` from context, but I need to update `AuthProvider` to handle 2FA response.
-            // OR I can use `api.login` here, and if full success, call a new context method `setSession(user, token)`.
-            // But `AuthProvider` usually manages this.
-
-            // Simpler: Use `authApi.login` here. 
-            // If 2FA required -> show 2FA UI.
-            // If success -> call `signIn` (which calls API again? No that's bad).
-            // Need `AuthProvider` to expose `setAuth(user, token)` or similar.
-            // The `AuthProvider` likely has `setUser(user)`.
-
-            // Let's check `AuthContext.jsx` usage in `Account.jsx`:
-            // `const { signIn ... } = useAuth();`
-
-            // I'll implement `handleLogin` to use `authApi.login` directly to check 2FA.
-            // If normal login, I call `signIn` (which repeats the call... redundant but safe).
-            // OR I update `AuthProvider`? Updating `AuthProvider` is cleaner.
-
-            // Let's stick to modifying Account.jsx for now and maybe `signIn` handles 2FA by throwing/returning?
-            // I'll try to use `authApi.login` and if 2FA needed, handle it.
-            // If success, I need to tell AuthProvider.
-
-            // Let's assume I update `AuthContext` to support 2FA or just manually reload?
-            // `window.location.reload()` is valid for "Hard Refresh" after manual token set.
-            // But `useAuth` usually has `checkUser` or `refresh`.
-
-            // Plan:
-            // 1. Call `authApi.login`.
-            // 2. If `require2FA`, show UI.
-            // 3. If success (no 2FA), `signIn` using context (redundant call, but consistent).
-
-            const res = await authApi.login(loginForm.email, loginForm.password);
-            // Check if 2FA is required (using optional chaining for safety)
-            if (res?.require2FA) {
-                setTempToken(res.tempToken);
-                setView('2fa_login');
-                haptics.selection();
-                return;
-            }
-            // If we got here, we have a user and token is set in localStorage by authApi.login.
-            // We just need to update Context.
-            // `signIn` from context is the best way to ensure everything is synced.
-            // But it will call API again.
-            // That's acceptable for now.
-
-            await signIn(loginForm.email, loginForm.password);
-            haptics.success();
-            toast.success('Welcome back!');
-            setView('profile');
         } catch (err) {
             haptics.error();
             // Ensure we always have a valid error message

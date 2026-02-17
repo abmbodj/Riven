@@ -235,10 +235,11 @@ app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
         const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
 
         // Set httpOnly cookie (secure in production)
+        // Use 'lax' in dev so cookies work when client (e.g. 5173) and server (3000) are different ports
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
         });
 
@@ -278,10 +279,11 @@ app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
         const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
 
         // Set httpOnly cookie (secure in production)
+        // Use 'lax' in dev so cookies work when client (e.g. 5173) and server (3000) are different ports
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
         });
 
@@ -382,7 +384,7 @@ app.post('/api/auth/2fa/login', speedLimiter, authLimiter, async (req, res) => {
             res.cookie('token', newToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
+                sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
             });
 
@@ -409,7 +411,7 @@ app.post('/api/auth/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
     });
     res.json({ message: 'Logged out successfully' });
 });

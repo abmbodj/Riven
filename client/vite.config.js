@@ -113,4 +113,13 @@ export default defineConfig({
     // Increase chunk size warning limit since we're code splitting
     chunkSizeWarningLimit: 600,
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })
