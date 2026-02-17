@@ -529,11 +529,7 @@ export default function Account() {
 
                         <div className="relative z-10 w-full max-w-sm mx-auto">
                             {/* Mobile Header */}
-                            {/* Mobile Header - Simplified */}
-                            <div className="md:hidden mb-8 flex flex-col items-center">
-                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
-                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
-                            </div>
+
 
                             <Link to="/" className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-6 transition-colors group">
                                 <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
@@ -688,11 +684,7 @@ export default function Account() {
                         <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-botanical-forest/10 rounded-full blur-[80px] md:hidden" />
 
                         <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Mobile Header - Simplified */}
-                            <div className="md:hidden mb-8 flex flex-col items-center">
-                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
-                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
-                            </div>
+
 
                             <button
                                 onClick={() => setView('login')}
@@ -856,11 +848,7 @@ export default function Account() {
                         </div>
 
                         <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Mobile Header - Simplified */}
-                            <div className="md:hidden mb-8 flex flex-col items-center">
-                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
-                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
-                            </div>
+
 
                             <button onClick={() => setView('login')} className="inline-flex items-center gap-2 text-sm text-claude-secondary hover:text-claude-accent mb-6 transition-colors group p-2 -ml-2">
                                 <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
