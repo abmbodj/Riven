@@ -263,11 +263,32 @@ export const adminDeleteMessage = (id) => authFetch(`/admin/messages/${id}`, { m
 export const getActiveMessages = () => authFetch('/messages');
 export const dismissMessage = (id) => authFetch(`/messages/${id}/dismiss`, { method: 'POST' });
 
+// ============ 2FA ENDPOINTS ============
+
+export const setup2FA = () => authFetch('/auth/2fa/setup', { method: 'POST' });
+export const verify2FA = (token) => authFetch('/auth/2fa/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token })
+});
+export const disable2FA = (password) => authFetch('/auth/2fa/disable', {
+    method: 'POST',
+    body: JSON.stringify({ password })
+});
+export const login2FA = async (tempToken, token) => {
+    const data = await authFetch('/auth/2fa/login', {
+        method: 'POST',
+        body: JSON.stringify({ tempToken, token })
+    });
+    setToken(data.token);
+    return data.user;
+};
+
 export default {
     getToken,
     setToken,
     register,
     login,
+    login2FA, // Export this
     logout,
     getMe,
     updateProfile,
@@ -277,6 +298,9 @@ export default {
     updateStreak,
     getPetCustomization,
     updatePetCustomization,
+    setup2FA, // Export
+    verify2FA, // Export
+    disable2FA, // Export
     getFolders,
     createFolder,
     updateFolder,

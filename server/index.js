@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
@@ -172,10 +174,10 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
         res.status(201).json({
             token,
-            user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false }
+            user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
         });
     } catch (error) {
-        res.status(500).json({ error: 'Registration failed' });
+        res.status(500).json({ error: 'Verification failed' });
     }
 });
 
@@ -197,6 +199,12 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
+        // Check 2FA
+        if (user.two_fa_enabled) {
+            const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending' }, jwtSecret, { expiresIn: '5m' });
+            return res.json({ require2FA: true, tempToken });
+        }
+
         const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
         const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
 
@@ -207,11 +215,107 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
                 avatar: user.avatar, bio: user.bio || '', role: userRole,
                 isAdmin: userRole === 'admin' || userRole === 'owner',
                 isOwner: userRole === 'owner',
-                streakData: JSON.parse(user.streak_data || '{}')
+                streakData: JSON.parse(user.streak_data || '{}'),
+                twoFAEnabled: !!user.two_fa_enabled
             }
         });
     } catch (error) {
         res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// 2FA Setup
+app.post('/api/auth/2fa/setup', authMiddleware, async (req, res) => {
+    try {
+        const secret = speakeasy.generateSecret({ length: 20, name: `Riven (${req.user.email})` });
+        await db.execute('UPDATE users SET two_fa_secret = $1 WHERE id = $2', [secret.base32, req.user.id]);
+
+        QRCode.toDataURL(secret.otpauth_url, (err, data_url) => {
+            if (err) return res.status(500).json({ error: 'Error generating QR code' });
+            res.json({ secret: secret.base32, qrCode: data_url });
+        });
+    } catch (error) {
+        console.error('Setup Error:', error);
+        res.status(500).json({ error: '2FA setup failed', details: error.toString() });
+    }
+});
+
+// 2FA Verify (Enable)
+app.post('/api/auth/2fa/verify', authMiddleware, async (req, res) => {
+    const { token } = req.body;
+    try {
+        const user = await db.queryOne('SELECT two_fa_secret FROM users WHERE id = $1', [req.user.id]);
+        if (!user || !user.two_fa_secret) return res.status(400).json({ error: '2FA not initialized' });
+
+        const verified = speakeasy.totp.verify({
+            secret: user.two_fa_secret,
+            encoding: 'base32',
+            token
+        });
+
+        if (verified) {
+            await db.execute('UPDATE users SET two_fa_enabled = TRUE WHERE id = $1', [req.user.id]);
+            res.json({ message: '2FA enabled successfully' });
+        } else {
+            res.status(400).json({ error: 'Invalid token' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: '2FA verification failed' });
+    }
+});
+
+// 2FA Disable
+app.post('/api/auth/2fa/disable', authMiddleware, async (req, res) => {
+    const { password } = req.body;
+    try {
+        const user = await db.queryOne('SELECT password FROM users WHERE id = $1', [req.user.id]);
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ error: 'Invalid password' });
+
+        await db.execute('UPDATE users SET two_fa_enabled = FALSE, two_fa_secret = NULL WHERE id = $1', [req.user.id]);
+        res.json({ message: '2FA disabled successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to disable 2FA' });
+    }
+});
+
+// 2FA Login Step 2
+app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
+    const { tempToken, token } = req.body;
+    if (!tempToken || !token) return res.status(400).json({ error: 'Missing token' });
+
+    try {
+        const decoded = jwt.verify(tempToken, jwtSecret);
+        if (decoded.type !== '2fa_pending') return res.status(401).json({ error: 'Invalid session' });
+
+        const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [decoded.id]);
+        if (!user) return res.status(401).json({ error: 'User not found' });
+
+        const verified = speakeasy.totp.verify({
+            secret: user.two_fa_secret,
+            encoding: 'base32',
+            token
+        });
+
+        if (verified) {
+            const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+            const newToken = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+            res.json({
+                token: newToken,
+                user: {
+                    id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
+                    avatar: user.avatar, bio: user.bio || '', role: userRole,
+                    isAdmin: userRole === 'admin' || userRole === 'owner',
+                    isOwner: userRole === 'owner',
+                    streakData: JSON.parse(user.streak_data || '{}'),
+                    twoFAEnabled: !!user.two_fa_enabled
+                }
+            });
+        } else {
+            res.status(400).json({ error: 'Invalid 2FA code' });
+        }
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid or expired session' });
     }
 });
 
@@ -226,7 +330,8 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
             avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
             role: userRole, isAdmin: userRole === 'admin' || userRole === 'owner',
-            isOwner: userRole === 'owner', createdAt: user.created_at
+            isOwner: userRole === 'owner', createdAt: user.created_at,
+            twoFAEnabled: !!user.two_fa_enabled
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1664,8 +1769,7 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
             }))
         });
     } catch (error) {
-        console.error('Admin stats error:', error);
-        res.status(500).json({ error: 'Failed to fetch stats' });
+        res.status(500).json({ error: 'Registration failed' });
     }
 });
 
@@ -1828,6 +1932,10 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    // Server started on PORT
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
