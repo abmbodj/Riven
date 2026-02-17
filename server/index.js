@@ -28,7 +28,7 @@ const jwtSecret = JWT_SECRET;
 // Rate limiters
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5, // Reduced from 10
+    max: 100, // Relaxed from 5 to 100 for dev
     message: { error: 'Too many attempts, please try again later' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -36,7 +36,7 @@ const authLimiter = rateLimit({
 
 const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000,
-    delayAfter: 3,
+    delayAfter: 20, // Relaxed from 3
     delayMs: (hits) => hits * 100
 });
 
