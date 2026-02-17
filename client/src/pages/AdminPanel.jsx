@@ -29,9 +29,11 @@ export default function AdminPanel() {
     const {
         user,
         isAdmin,
+        isOwner,
         adminGetStats,
         getAllUsers,
         adminDeleteUser,
+        adminUpdateUserRole,
         adminGetMessages,
         adminCreateMessage,
         adminUpdateMessage,
@@ -242,7 +244,7 @@ export default function AdminPanel() {
                             )}
 
                             {activeTab === 'users' && (
-                                <UsersTab users={users} onDelete={handleDeleteUser} />
+                                <UsersTab users={users} setUsers={setUsers} onDelete={handleDeleteUser} isOwner={isOwner} onRoleChange={adminUpdateUserRole} />
                             )}
 
                             {activeTab === 'broadcasts' && (
@@ -464,44 +466,85 @@ function ActivityChart({ data }) {
     );
 }
 
-function UsersTab({ users, onDelete }) {
+function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
+    const [changingRole, setChangingRole] = React.useState(null);
+
+    const handleRoleChange = async (userId, newRole) => {
+        setChangingRole(userId);
+        try {
+            await onRoleChange(userId, newRole);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole, isAdmin: newRole === 'admin', isOwner: false } : u));
+        } catch (err) {
+            alert(err.message || 'Failed to change role');
+        } finally {
+            setChangingRole(null);
+        }
+    };
+
     return (
         <div className="rounded-2xl bg-white/5 border border-white/5 overflow-hidden">
             <div className="px-4 py-3 border-b border-white/5 bg-white/5 text-xs font-semibold text-white/50 uppercase tracking-widest">
                 Registered Users
             </div>
             <div className="divide-y divide-white/5">
-                {users.map(user => (
-                    <div key={user.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white">
-                                {user.avatar || user.username[0].toUpperCase()}
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-medium text-white flex items-center gap-2">
-                                    {user.username}
-                                    {user.isAdmin && (
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#3ECF8E]/20 text-[#3ECF8E]">ADMIN</span>
+                {users.map(u => {
+                    const role = u.role || (u.isAdmin ? 'admin' : 'user');
+                    const roleBadge = {
+                        owner: { label: 'OWNER', color: '#F59E0B' },
+                        admin: { label: 'ADMIN', color: '#3ECF8E' },
+                        user: { label: 'USER', color: '#6B7280' }
+                    }[role] || { label: 'USER', color: '#6B7280' };
+
+                    return (
+                        <div key={u.id} className="p-4 hover:bg-white/5 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white shrink-0">
+                                        {u.avatar || u.username[0].toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                                            <span className="truncate">{u.username}</span>
+                                            <span
+                                                className="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
+                                                style={{ backgroundColor: `${roleBadge.color}20`, color: roleBadge.color }}
+                                            >
+                                                {roleBadge.label}
+                                            </span>
+                                        </h4>
+                                        <p className="text-xs text-white/40 truncate">{u.email}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="hidden sm:block text-xs text-white/30 font-mono">
+                                        {new Date(u.createdAt).toLocaleDateString()}
+                                    </span>
+                                    {/* Owner controls: promote/demote */}
+                                    {isOwner && role !== 'owner' && (
+                                        <button
+                                            disabled={changingRole === u.id}
+                                            onClick={() => handleRoleChange(u.id, role === 'admin' ? 'user' : 'admin')}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${role === 'admin'
+                                                    ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                                                    : 'bg-[#3ECF8E]/10 text-[#3ECF8E] hover:bg-[#3ECF8E]/20'
+                                                }`}
+                                        >
+                                            {changingRole === u.id ? '...' : role === 'admin' ? 'Demote' : 'Promote'}
+                                        </button>
                                     )}
-                                </h4>
-                                <p className="text-xs text-white/40">{user.email}</p>
+                                    {role !== 'owner' && (
+                                        <button
+                                            onClick={() => onDelete(u.id, u.username)}
+                                            className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="hidden sm:block text-xs text-white/30 font-mono">
-                                {new Date(user.createdAt).toLocaleDateString()}
-                            </span>
-                            {!user.isAdmin && (
-                                <button
-                                    onClick={() => onDelete(user.id, user.username)}
-                                    className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -547,8 +590,8 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                                             type="button"
                                             onClick={() => setForm({ ...form, type })}
                                             className={`flex-1 py-2 rounded-lg text-xs font-medium capitalize border transition-all ${form.type === type
-                                                    ? `border-[${COLORS[type]}] bg-[${COLORS[type]}]/10 text-white`
-                                                    : 'border-transparent bg-white/5 text-white/40 hover:bg-white/10'
+                                                ? `border-[${COLORS[type]}] bg-[${COLORS[type]}]/10 text-white`
+                                                : 'border-transparent bg-white/5 text-white/40 hover:bg-white/10'
                                                 }`}
                                             // Handle dynamic colors for style prop if needed
                                             style={form.type === type ? { borderColor: COLORS[type], color: COLORS[type] } : {}}

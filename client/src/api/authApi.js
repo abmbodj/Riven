@@ -169,7 +169,7 @@ export const reorderCards = (deckId, cardIds) => authFetch(`/decks/${deckId}/car
     body: JSON.stringify({ cardIds }),
 });
 
-export const saveStudySession = (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) => 
+export const saveStudySession = (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) =>
     authFetch(`/study-sessions`, {
         method: 'POST',
         body: JSON.stringify({
@@ -245,6 +245,7 @@ export const adminGetAllUsers = () => authFetch('/admin/users');
 export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) });
 export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
 export const adminGetStats = () => authFetch('/admin/stats');
+export const adminUpdateUserRole = (userId, role) => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
 
 // Admin message functions
 export const adminGetMessages = () => authFetch('/admin/messages');
@@ -321,6 +322,7 @@ export default {
     adminUpdateUser,
     adminDeleteUser,
     adminGetStats,
+    adminUpdateUserRole,
     adminGetMessages,
     adminCreateMessage,
     adminUpdateMessage,

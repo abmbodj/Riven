@@ -64,7 +64,7 @@ function generateShareCode() {
 }
 
 // Auth middleware
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'No token provided' });
@@ -73,6 +73,15 @@ function authMiddleware(req, res, next) {
     try {
         const decoded = jwt.verify(token, jwtSecret);
         req.user = decoded;
+        // Ensure role is always set (backward compat for old JWTs without role)
+        if (!req.user.role) {
+            const dbUser = await db.queryOne('SELECT role, is_admin FROM users WHERE id = $1', [req.user.id]);
+            if (dbUser) {
+                req.user.role = dbUser.role || (dbUser.is_admin === 1 ? 'admin' : 'user');
+            } else {
+                req.user.role = 'user';
+            }
+        }
         next();
     } catch (err) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -159,11 +168,11 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, name, color]);
         }
 
-        const token = jwt.sign({ id: userId, email: email.toLowerCase() }, jwtSecret, { expiresIn: '30d' });
+        const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
 
         res.status(201).json({
             token,
-            user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {} }
+            user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false }
         });
     } catch (error) {
         res.status(500).json({ error: 'Registration failed' });
@@ -188,13 +197,16 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        const token = jwt.sign({ id: user.id, email: user.email, isAdmin: user.is_admin === 1 }, jwtSecret, { expiresIn: '30d' });
+        const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+        const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
 
         res.json({
             token,
             user: {
                 id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
-                avatar: user.avatar, bio: user.bio || '', isAdmin: user.is_admin === 1,
+                avatar: user.avatar, bio: user.bio || '', role: userRole,
+                isAdmin: userRole === 'admin' || userRole === 'owner',
+                isOwner: userRole === 'owner',
                 streakData: JSON.parse(user.streak_data || '{}')
             }
         });
@@ -209,10 +221,12 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
         const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
+        const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
         res.json({
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
             avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
-            isAdmin: user.is_admin === 1, createdAt: user.created_at
+            role: userRole, isAdmin: userRole === 'admin' || userRole === 'owner',
+            isOwner: userRole === 'owner', createdAt: user.created_at
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -234,10 +248,12 @@ app.put('/api/auth/profile', authMiddleware, async (req, res) => {
         );
 
         const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
+        const updatedRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
         res.json({
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
             avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
-            isAdmin: user.is_admin === 1, createdAt: user.created_at
+            role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
+            isOwner: updatedRole === 'owner', createdAt: user.created_at
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1462,41 +1478,81 @@ app.delete('/api/share/:shareId', authMiddleware, async (req, res) => {
 // ============ ADMIN ============
 
 function adminMiddleware(req, res, next) {
-    if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin access required' });
+    const role = req.user?.role;
+    if (role !== 'admin' && role !== 'owner') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+}
+
+function ownerMiddleware(req, res, next) {
+    if (req.user?.role !== 'owner') {
+        return res.status(403).json({ error: 'Owner access required' });
+    }
     next();
 }
 
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
     try {
-        const users = await db.query('SELECT id, username, email, share_code, avatar, bio, streak_data, is_admin, created_at FROM users ORDER BY created_at DESC');
-        res.json(users.map(u => ({
-            id: u.id, username: u.username, email: u.email, shareCode: u.share_code,
-            avatar: u.avatar, bio: u.bio || '', streakData: JSON.parse(u.streak_data || '{}'),
-            isAdmin: u.is_admin === 1, createdAt: u.created_at
-        })));
+        const users = await db.query('SELECT id, username, email, share_code, avatar, bio, streak_data, is_admin, role, created_at FROM users ORDER BY created_at DESC');
+        res.json(users.map(u => {
+            const r = u.role || (u.is_admin === 1 ? 'admin' : 'user');
+            return {
+                id: u.id, username: u.username, email: u.email, shareCode: u.share_code,
+                avatar: u.avatar, bio: u.bio || '', streakData: JSON.parse(u.streak_data || '{}'),
+                role: r, isAdmin: r === 'admin' || r === 'owner', isOwner: r === 'owner',
+                createdAt: u.created_at
+            };
+        }));
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
 
-app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+// Change a user's role (Owner only)
+app.put('/api/admin/users/:id/role', authMiddleware, ownerMiddleware, async (req, res) => {
     const { id } = req.params;
-    const { username, email, bio, isAdmin } = req.body;
+    const { role } = req.body;
+
+    if (!['user', 'admin'].includes(role)) {
+        return res.status(400).json({ error: 'Role must be "user" or "admin"' });
+    }
 
     try {
-        if (parseInt(id) === req.user.id && isAdmin === false) {
-            return res.status(400).json({ error: 'Cannot remove your own admin status' });
+        const target = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
+        if (!target) return res.status(404).json({ error: 'User not found' });
+
+        if (target.role === 'owner') {
+            return res.status(400).json({ error: 'Cannot change the owner\'s role' });
+        }
+        if (parseInt(id) === req.user.id) {
+            return res.status(400).json({ error: 'Cannot change your own role' });
         }
 
+        const isAdminVal = role === 'admin' ? 1 : 0;
+        await db.execute('UPDATE users SET role = $1, is_admin = $2 WHERE id = $3', [role, isAdminVal, id]);
+
+        res.json({ id: target.id, username: target.username, role, isAdmin: role === 'admin' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update user role' });
+    }
+});
+
+app.put('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { username, email, bio } = req.body;
+
+    try {
         await db.execute(
-            'UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email), bio = COALESCE($3, bio), is_admin = COALESCE($4, is_admin) WHERE id = $5',
-            [username, email, bio, isAdmin ? 1 : 0, id]
+            'UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email), bio = COALESCE($3, bio) WHERE id = $4',
+            [username, email, bio, id]
         );
 
         const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
         if (!user) return res.status(404).json({ error: 'User not found' });
+        const r = user.role || (user.is_admin === 1 ? 'admin' : 'user');
 
-        res.json({ id: user.id, username: user.username, email: user.email, isAdmin: user.is_admin === 1 });
+        res.json({ id: user.id, username: user.username, email: user.email, role: r, isAdmin: r === 'admin' || r === 'owner' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update user' });
     }
@@ -1509,8 +1565,18 @@ app.delete('/api/admin/users/:id', authMiddleware, adminMiddleware, async (req, 
             return res.status(400).json({ error: 'Cannot delete your own account' });
         }
 
-        const result = await db.execute('DELETE FROM users WHERE id = $1', [id]);
-        if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+        // Check if target user is an owner — prevent deletion
+        const target = await db.queryOne('SELECT role FROM users WHERE id = $1', [id]);
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        if (target.role === 'owner') {
+            return res.status(400).json({ error: 'Cannot delete the owner account' });
+        }
+        // Only owners can delete admins
+        if ((target.role === 'admin') && req.user.role !== 'owner') {
+            return res.status(403).json({ error: 'Only owners can delete admin accounts' });
+        }
+
+        await db.execute('DELETE FROM users WHERE id = $1', [id]);
         res.json({ message: 'User deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete user' });

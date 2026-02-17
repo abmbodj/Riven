@@ -20,19 +20,19 @@ const db = {
         const result = await pool.query(text, params);
         return result.rows;
     },
-    
+
     // Execute a query and return first row
     queryOne: async (text, params) => {
         const result = await pool.query(text, params);
         return result.rows[0];
     },
-    
+
     // Execute a query and return the result (for INSERT/UPDATE/DELETE)
     execute: async (text, params) => {
         const result = await pool.query(text, params);
         return result;
     },
-    
+
     // Get the pool for transactions
     pool
 };
@@ -40,7 +40,7 @@ const db = {
 // Initialize database schema
 async function initDb() {
     const client = await pool.connect();
-    
+
     try {
         // Users table
         await client.query(`
@@ -58,11 +58,31 @@ async function initDb() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        
+
         // Add pet_customization column if it doesn't exist (migration)
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS pet_customization TEXT DEFAULT '{}'
-        `).catch(() => {});
+        `).catch(() => { });
+
+        // Add role column (migration: user | admin | owner)
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'
+        `).catch(() => { });
+
+        // Migrate: promote existing is_admin=1 users to 'admin' role if still 'user'
+        await client.query(`
+            UPDATE users SET role = 'admin' WHERE is_admin = 1 AND role = 'user'
+        `).catch(() => { });
+
+        // Auto-promote the first admin to 'owner' if no owner exists yet
+        const ownerExists = await client.query(`SELECT id FROM users WHERE role = 'owner' LIMIT 1`);
+        if (ownerExists.rows.length === 0) {
+            await client.query(`
+                UPDATE users SET role = 'owner' WHERE id = (
+                    SELECT id FROM users WHERE is_admin = 1 ORDER BY id ASC LIMIT 1
+                )
+            `).catch(() => { });
+        }
 
         // Folders table
         await client.query(`
@@ -123,18 +143,18 @@ async function initDb() {
         // Add card image columns if they don't exist (migration)
         await client.query(`
             ALTER TABLE cards ADD COLUMN IF NOT EXISTS front_image TEXT
-        `).catch(() => {});
+        `).catch(() => { });
         await client.query(`
             ALTER TABLE cards ADD COLUMN IF NOT EXISTS back_image TEXT
-        `).catch(() => {});
-        
+        `).catch(() => { });
+
         // Allow null text when image exists (migration)
         await client.query(`
             ALTER TABLE cards ALTER COLUMN front DROP NOT NULL
-        `).catch(() => {});
+        `).catch(() => { });
         await client.query(`
             ALTER TABLE cards ALTER COLUMN back DROP NOT NULL
-        `).catch(() => {});
+        `).catch(() => { });
 
         // Study sessions table
         await client.query(`
@@ -238,7 +258,7 @@ async function initDb() {
         `);
 
         // Database schema initialized successfully
-        
+
         // Create indexes for performance optimization
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards(deck_id)

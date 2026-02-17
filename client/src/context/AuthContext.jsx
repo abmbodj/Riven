@@ -149,7 +149,7 @@ export function AuthProvider({ children }) {
 
     // Get all users (admin only)
     const getAllUsers = useCallback(async () => {
-        if (!user?.isAdmin) return [];
+        if (!user?.isAdmin && !user?.isOwner) return [];
         try {
             return await authApi.adminGetAllUsers();
         } catch {
@@ -171,12 +171,18 @@ export function AuthProvider({ children }) {
 
     // Get admin stats
     const adminGetStats = useCallback(async () => {
-        if (!user?.isAdmin) return null;
+        if (!user?.isAdmin && !user?.isOwner) return null;
         try {
             return await authApi.adminGetStats();
         } catch {
             return null;
         }
+    }, [user]);
+
+    // Update a user's role (owner only)
+    const adminUpdateUserRole = useCallback(async (userId, role) => {
+        if (!user?.isOwner) throw new Error('Owner access required');
+        return await authApi.adminUpdateUserRole(userId, role);
     }, [user]);
 
     // Get user's streak data (admin only - from localStorage for now)
@@ -245,7 +251,9 @@ export function AuthProvider({ children }) {
         user,
         loading,
         isLoggedIn: !!user,
-        isAdmin: user?.isAdmin || false,
+        isAdmin: user?.isAdmin || user?.isOwner || false,
+        isOwner: user?.isOwner || false,
+        role: user?.role || 'user',
         signUp,
         signIn,
         signOut,
@@ -263,6 +271,7 @@ export function AuthProvider({ children }) {
         adminUpdateUser,
         adminDeleteUser,
         adminGetStats,
+        adminUpdateUserRole,
         adminGetUserStreakData,
         adminUpdateStreakData,
         adminGetMessages,
@@ -276,7 +285,7 @@ export function AuthProvider({ children }) {
         user, loading, signUp, signIn, signOut, updateProfile, changePassword,
         deleteAccount, findUserByShareCode, shareDeck, getSharedDeck, importSharedDeck,
         unshareDeck, getMySharedDecks, getAllUsers, adminUpdateUser, adminDeleteUser,
-        adminGetStats, adminGetUserStreakData, adminUpdateStreakData, adminGetMessages,
+        adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData, adminGetMessages,
         adminCreateMessage, adminUpdateMessage, adminDeleteMessage, getActiveMessages,
         dismissMessage
     ]);
