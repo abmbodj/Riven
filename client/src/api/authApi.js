@@ -1,6 +1,13 @@
 // Authentication API - communicates with server for cross-device sync
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Helper functions for local auth state (flag for AuthContext to know if it should try fetching user)
+export const getToken = () => localStorage.getItem('riven_auth_token');
+export const setToken = (token) => {
+    if (token) localStorage.setItem('riven_auth_token', token);
+    else localStorage.removeItem('riven_auth_token');
+};
+
 // Fetch wrapper with credentials (httpOnly cookies sent automatically)
 const authFetch = async (endpoint, options = {}) => {
     const headers = {
@@ -31,6 +38,7 @@ export const register = async (username, email, password) => {
         body: JSON.stringify({ username, email, password }),
     });
     // Token is now set as httpOnly cookie by server
+    setToken('logged_in'); // Set local flag
     return data.user;
 };
 
@@ -40,15 +48,22 @@ export const login = async (email, password) => {
         body: JSON.stringify({ email, password }),
     });
     // Token is now set as httpOnly cookie by server (if 2FA not required)
+    if (data.user) {
+        setToken('logged_in'); // Set local flag if login successful
+    }
     // Return the full data object (which may contain require2FA, tempToken, or user)
     return data;
 };
 
 export const logout = async () => {
     // Call server to clear httpOnly cookie
-    await authFetch('/auth/logout', {
-        method: 'POST',
-    });
+    try {
+        await authFetch('/auth/logout', {
+            method: 'POST',
+        });
+    } finally {
+        setToken(null);
+    }
 };
 
 export const getMe = async () => {
@@ -267,7 +282,7 @@ export const login2FA = async (tempToken, token) => {
         method: 'POST',
         body: JSON.stringify({ tempToken, token })
     });
-    setToken(data.token);
+    setToken('logged_in');
     return data.user;
 };
 
