@@ -11,8 +11,8 @@ const PasswordStrengthMeter = ({ password }) => {
             case 0: return '#ef4444'; // red
             case 1: return '#ef4444'; // red
             case 2: return '#f59e0b'; // orange
-            case 3: return '#84cc16'; // lime
-            case 4: return '#22c55e'; // green
+            case 3: return '#7a9e72'; // botanical forest
+            case 4: return '#deb96a'; // accent gold
             default: return '#e4e4e7';
         }
     };

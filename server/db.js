@@ -9,14 +9,16 @@ if (global.__TEST_DB_MOCK__) {
     // PostgreSQL connection (Supabase)
     const connectionString = process.env.DATABASE_URL;
 
+
     if (!connectionString && process.env.NODE_ENV !== 'test') {
         console.error('FATAL: DATABASE_URL environment variable is required');
         process.exit(1);
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const pool = new Pool({
         connectionString: connectionString || 'postgres://test', // Fallback for test env if not set
-        ssl: { rejectUnauthorized: false }
+        ssl: isProduction || process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
     });
 
     // Helper to create a clean interface

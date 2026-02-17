@@ -440,105 +440,143 @@ export default function Account() {
 
     const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-    // Login View - Editorial Brutalism Design
+    // Login View - Botanical Journal Design
     if (view === 'login') {
         return (
-            <div className="fixed inset-0 bg-slate-900 overflow-hidden">
-                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[60%_40%]">
-                    {/* Left Side - Knowledge Laboratory */}
-                    <div className="relative bg-slate-900 p-8 md:p-16 overflow-hidden hidden md:flex flex-col justify-between">
-                        {/* Overlapping Knowledge Cards - Brutalist Aesthetic */}
-                        <div className="absolute top-20 left-12 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform -rotate-6 transition-transform hover:rotate-0 hover:scale-105">
-                            <div className="p-6">
-                                <div className="text-xs font-mono text-violet-400 mb-2">MEMORY.FRAGMENT</div>
-                                <div className="text-sm text-slate-300 leading-relaxed">Knowledge is not accumulated—it is constructed through active retrieval</div>
+            <div className="fixed inset-0 bg-botanical-ink overflow-hidden flex">
+                {/* Background Textures */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
+                </div>
+
+                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[55%_45%] z-10">
+                    {/* Left Side - Botanical Study */}
+                    <div className="relative hidden md:flex flex-col justify-between p-12 lg:p-16 overflow-hidden">
+                        {/* Ambient Glows */}
+                        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-botanical-forest/20 rounded-full blur-[120px]" />
+                        <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] bg-claude-accent/10 rounded-full blur-[100px]" />
+
+                        {/* Brand Mark */}
+                        <div className="relative z-10">
+                            <div className="inline-flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5">
+                                    <div className="w-1 h-1 bg-claude-accent rounded-full" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-xl tracking-widest uppercase">Riven</span>
                             </div>
+                            <h1 className="text-5xl lg:text-7xl font-display font-light text-claude-parchment leading-tight">
+                                Cultivate your <br />
+                                <span className="text-claude-accent italic">knowledge</span>
+                            </h1>
                         </div>
-                        <div className="absolute top-32 left-32 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform rotate-3 transition-transform hover:rotate-0 hover:scale-105">
-                            <div className="p-6">
-                                <div className="text-xs font-mono text-violet-400 mb-2">LEARNING.PROTOCOL</div>
-                                <div className="text-sm text-slate-300 leading-relaxed">Spaced repetition transforms short-term into long-term memory</div>
+
+                        {/* Botanical Cards / Specimen View */}
+                        <div className="relative z-10 flex-1 flex items-center justify-center my-8">
+                            <div className="relative w-full max-w-md aspect-[4/3]">
+                                {/* Card 1 */}
+                                <div className="absolute top-0 right-0 w-[240px] aspect-[3/4] glass-panel rounded-lg transform rotate-6 border border-white/10 shadow-2xl p-4 flex flex-col items-center">
+                                    <div className="w-full h-[60%] bg-botanical-forest/10 rounded border border-white/5 mb-4 relative overflow-hidden">
+                                        <div className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(circle at 50% 50%, #fff 1px, transparent 1px) 0 0/10px 10px' }}></div>
+                                    </div>
+                                    <div className="w-full space-y-2">
+                                        <div className="h-1 w-12 bg-claude-accent/40 rounded-full"></div>
+                                        <div className="h-1 w-full bg-white/10 rounded-full"></div>
+                                        <div className="h-1 w-2/3 bg-white/10 rounded-full"></div>
+                                    </div>
+                                </div>
+                                {/* Card 2 (Center) */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] aspect-[3/4] botanical-card transform -rotate-2 border border-claude-accent/20 shadow-2xl p-6 flex flex-col">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="text-xs font-mono text-claude-accent/80">FIG 1.0</span>
+                                        <div className="w-2 h-2 rounded-full bg-botanical-forest/50"></div>
+                                    </div>
+                                    <div className="flex-1 border border-dashed border-claude-border/30 rounded flex items-center justify-center p-4">
+                                        <div className="text-center">
+                                            <div className="text-2xl font-display text-claude-parchment mb-2">Active Recall</div>
+                                            <div className="text-[10px] text-claude-secondary uppercase tracking-widest">Memory Protocol</div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex justify-between items-end">
+                                        <div className="text-[10px] font-mono text-claude-secondary">
+                                            RETENTION<br />
+                                            <span className="text-claude-parchment text-lg">98%</span>
+                                        </div>
+                                        <div className="h-8 w-8 rounded-full border border-claude-border flex items-center justify-center">
+                                            <ArrowLeft className="w-3 h-3 text-claude-accent rotate-[135deg]" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Brand Mark - Top */}
-                        <div>
-                            <div className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none">
-                                RIVEN
-                            </div>
-                            <div className="text-slate-500 font-mono text-xs mt-2 tracking-wider">
-                                LEARNING.LABORATORY.V2
-                            </div>
-                        </div>
-
-                        {/* Stats Grid - Bottom */}
-                        <div className="grid grid-cols-3 gap-4 max-w-md">
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">2M+</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Cards Created</div>
-                            </div>
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">98%</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Retention</div>
-                            </div>
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">50K+</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Learners</div>
-                            </div>
+                        {/* Footer Citation */}
+                        <div className="relative z-10 glass-panel border-l-2 border-claude-accent/50 pl-4 py-2 max-w-xs backdrop-blur-sm">
+                            <p className="font-display italic text-claude-parchment/90 text-lg">
+                                "Nature builds from the root up. Knowledge grows the same way."
+                            </p>
                         </div>
                     </div>
 
-                    {/* Right Side - Authentication Form */}
-                    <div className="relative bg-white p-8 md:p-16 flex flex-col justify-center overflow-y-auto">
-                        <div className="w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Back Button */}
-                            <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-8 font-mono">
-                                ← BROWSE
-                            </Link>
+                    {/* Right Side - Form */}
+                    <div className="relative w-full flex flex-col justify-center p-6 md:p-16 lg:p-24 shadow-2xl overflow-hidden min-h-screen md:min-h-0 bg-botanical-ink md:bg-surface-color/50 md:backdrop-blur-xl border-l border-white/5">
+                        {/* Mobile Background Texture */}
+                        <div className="absolute inset-0 md:hidden opacity-[0.03] pointer-events-none z-0"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
+                        </div>
 
-                            {/* Header */}
-                            <div className="mb-12">
-                                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
-                                    SIGN IN
-                                </h1>
-                                <p className="text-slate-600 font-mono text-sm">
-                                    Access your knowledge base
-                                </p>
+                        {/* Mobile Ambient Glow */}
+                        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[40%] bg-claude-accent/5 rounded-full blur-[80px] md:hidden" />
+
+                        <div className="relative z-10 w-full max-w-sm mx-auto">
+                            {/* Mobile Header */}
+                            <div className="md:hidden mb-10 flex flex-col items-center text-center">
+                                <div className="w-16 h-16 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-4 shadow-[0_0_15px_rgba(222,185,106,0.1)]">
+                                    <div className="w-1.5 h-1.5 bg-claude-accent rounded-full" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-xl tracking-[0.2em] uppercase">Riven</span>
+                                <div className="h-[1px] w-12 bg-gradient-to-r from-transparent via-claude-accent/50 to-transparent mt-4"></div>
                             </div>
 
-                            {/* Form - Brutalist Minimal */}
+                            <Link to="/" className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group">
+                                <span className="w-6 h-[1px] bg-claude-secondary group-hover:bg-claude-accent transition-colors"></span>
+                                RETURN TO ARCHIVE
+                            </Link>
+
+                            <div className="mb-10">
+                                <h2 className="text-3xl font-display text-claude-parchment mb-3">Welcome Back</h2>
+                                <p className="text-claude-secondary font-light">Enter your credentials to access the garden.</p>
+                            </div>
+
                             <form onSubmit={handleLogin} className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Email Address
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                                     <input
                                         type="email"
                                         value={loginForm.email}
                                         onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
-                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
-                                        placeholder="you@example.com"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        placeholder="researcher@institute.edu"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Password
-                                    </label>
-                                    <div className="relative">
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center px-1">
+                                        <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest">Password</label>
+                                    </div>
+                                    <div className="relative group">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
                                             value={loginForm.password}
                                             onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-                                            className="w-full px-0 py-3 pr-10 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                             placeholder="••••••••"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors"
                                         >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                 </div>
@@ -546,21 +584,27 @@ export default function Account() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="w-full mt-8 py-4 bg-slate-900 text-white font-bold uppercase tracking-wider text-sm hover:bg-violet-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-4 shadow-[0_4px_20px_rgba(222,185,106,0.15)]"
                                 >
-                                    {saving ? 'AUTHENTICATING...' : 'SIGN IN →'}
+                                    {saving ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <LoadingSpinner size="sm" color="text-botanical-ink" />
+                                            <span>Validating...</span>
+                                        </span>
+                                    ) : (
+                                        'Access Journal'
+                                    )}
                                 </button>
                             </form>
 
-                            {/* Footer */}
-                            <div className="mt-8 pt-8 border-t border-slate-200">
-                                <p className="text-sm text-slate-600 font-mono">
-                                    New to Riven?{' '}
+                            <div className="mt-12 text-center">
+                                <p className="text-sm text-claude-secondary">
+                                    New researcher?{' '}
                                     <button
                                         onClick={() => setView('signup')}
-                                        className="text-violet-500 font-bold hover:text-violet-600 underline decoration-2 underline-offset-4"
+                                        className="text-claude-parchment hover:text-claude-accent font-medium transition-colors border-b border-transparent hover:border-claude-accent ml-1"
                                     >
-                                        Create Account
+                                        Request Access
                                     </button>
                                 </p>
                             </div>
@@ -579,135 +623,145 @@ export default function Account() {
         );
     }
 
-    // Signup View - Editorial Brutalism Design
+    // Signup View - Botanical Journal Design
     if (view === 'signup') {
         return (
-            <div className="fixed inset-0 bg-slate-900 overflow-hidden">
-                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[60%_40%]">
-                    {/* Left Side - Knowledge Laboratory */}
-                    <div className="relative bg-slate-900 p-8 md:p-16 overflow-hidden hidden md:flex flex-col justify-between">
-                        {/* Overlapping Knowledge Cards - Brutalist Aesthetic */}
-                        <div className="absolute top-20 left-12 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform -rotate-6 transition-transform hover:rotate-0 hover:scale-105">
-                            <div className="p-6">
-                                <div className="text-xs font-mono text-violet-400 mb-2">MEMORY.FRAGMENT</div>
-                                <div className="text-sm text-slate-300 leading-relaxed">Knowledge is not accumulated—it is constructed through active retrieval</div>
+            <div className="fixed inset-0 bg-botanical-ink overflow-hidden flex">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
+                </div>
+
+                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[55%_45%] z-10">
+                    {/* Left Side - Botanical Study (Identical to Login) */}
+                    <div className="relative hidden md:flex flex-col justify-between p-12 lg:p-16 overflow-hidden">
+                        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-botanical-forest/20 rounded-full blur-[120px]" />
+                        <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] bg-claude-accent/10 rounded-full blur-[100px]" />
+
+                        <div className="relative z-10">
+                            <div className="inline-flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5">
+                                    <div className="w-1 h-1 bg-claude-accent rounded-full" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-xl tracking-widest uppercase">Riven</span>
                             </div>
+                            <h1 className="text-5xl lg:text-7xl font-display font-light text-claude-parchment leading-tight">
+                                Begin your <br />
+                                <span className="text-claude-accent italic">observation</span>
+                            </h1>
                         </div>
-                        <div className="absolute top-32 left-32 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform rotate-3 transition-transform hover:rotate-0 hover:scale-105">
-                            <div className="p-6">
-                                <div className="text-xs font-mono text-violet-400 mb-2">LEARNING.PROTOCOL</div>
-                                <div className="text-sm text-slate-300 leading-relaxed">Spaced repetition transforms short-term into long-term memory</div>
+
+                        <div className="relative z-10 flex-1 flex items-center justify-center my-8">
+                            {/* Decorative Element - maybe a different card arrangement for signup */}
+                            <div className="relative w-full max-w-md aspect-[4/3] flex items-center justify-center">
+                                <div className="w-[300px] h-[400px] botanical-card border border-white/10 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-botanical-forest/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                                    <div className="w-20 h-20 rounded-full border border-claude-accent/30 flex items-center justify-center mb-6 relative">
+                                        <div className="absolute inset-2 border border-claude-accent/10 rounded-full"></div>
+                                        <UserPlus className="w-8 h-8 text-claude-parchment" />
+                                    </div>
+                                    <h3 className="text-xl font-display text-claude-parchment mb-2">New Subject</h3>
+                                    <p className="text-sm text-claude-secondary font-light leading-relaxed">
+                                        "Observation varies the subject; reflection transforms it."
+                                    </p>
+                                    <div className="mt-8 flex gap-2">
+                                        <div className="w-1 h-1 rounded-full bg-claude-accent"></div>
+                                        <div className="w-1 h-1 rounded-full bg-white/20"></div>
+                                        <div className="w-1 h-1 rounded-full bg-white/20"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Brand Mark - Top */}
-                        <div>
-                            <div className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none">
-                                RIVEN
-                            </div>
-                            <div className="text-slate-500 font-mono text-xs mt-2 tracking-wider">
-                                LEARNING.LABORATORY.V2
-                            </div>
-                        </div>
-
-                        {/* Stats Grid - Bottom */}
-                        <div className="grid grid-cols-3 gap-4 max-w-md">
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">2M+</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Cards Created</div>
-                            </div>
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">98%</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Retention</div>
-                            </div>
-                            <div className="border-l-2 border-violet-500 pl-4">
-                                <div className="text-2xl font-bold text-white">50K+</div>
-                                <div className="text-xs text-slate-500 uppercase tracking-wider">Learners</div>
-                            </div>
+                        <div className="relative z-10 glass-panel border-l-2 border-claude-accent/50 pl-4 py-2 max-w-xs backdrop-blur-sm">
+                            <p className="font-display italic text-claude-parchment/90 text-lg">
+                                "The roots of education are bitter, but the fruit is sweet."
+                            </p>
                         </div>
                     </div>
 
-                    {/* Right Side - Authentication Form */}
-                    <div className="relative bg-white p-8 md:p-16 flex flex-col justify-center overflow-y-auto">
-                        <div className="w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Back Button */}
-                            <button
-                                onClick={() => setView('login')}
-                                className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-8 font-mono"
-                            >
-                                ← BACK
-                            </button>
+                    {/* Right Side - Form */}
+                    <div className="relative w-full flex flex-col justify-center p-6 md:p-16 lg:p-24 shadow-2xl overflow-hidden min-h-screen md:min-h-0 bg-botanical-ink md:bg-surface-color/50 md:backdrop-blur-xl border-l border-white/5">
+                        {/* Mobile Background Texture */}
+                        <div className="absolute inset-0 md:hidden opacity-[0.03] pointer-events-none z-0"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
+                        </div>
 
-                            {/* Header */}
-                            <div className="mb-12">
-                                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
-                                    CREATE ACCOUNT
-                                </h1>
-                                <p className="text-slate-600 font-mono text-sm">
-                                    Join the learning revolution
-                                </p>
+                        {/* Mobile Ambient Glow */}
+                        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-botanical-forest/10 rounded-full blur-[80px] md:hidden" />
+
+                        <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
+                            {/* Mobile Header */}
+                            <div className="md:hidden mb-8 flex flex-col items-center text-center">
+                                <div className="w-12 h-12 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-3">
+                                    <div className="w-1 h-1 bg-claude-accent rounded-full" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-lg tracking-[0.2em] uppercase">Riven</span>
                             </div>
 
-                            {/* Form - Brutalist Minimal */}
-                            <form onSubmit={handleSignup} className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Username
-                                    </label>
+                            <button
+                                onClick={() => setView('login')}
+                                className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group"
+                            >
+                                <span className="w-6 h-[1px] bg-claude-secondary group-hover:bg-claude-accent transition-colors"></span>
+                                BACK TO LOGIN
+                            </button>
+
+                            <div className="mb-8">
+                                <h2 className="text-3xl font-display text-claude-parchment mb-3">Initialize Profile</h2>
+                                <p className="text-claude-secondary font-light">Create your credentials to begin collecting.</p>
+                            </div>
+
+                            <form onSubmit={handleSignup} className="space-y-5">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Username</label>
                                     <input
                                         type="text"
                                         value={signupForm.username}
                                         onChange={e => setSignupForm({ ...signupForm, username: e.target.value })}
-                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
-                                        placeholder="your_username"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        placeholder="naturalist_01"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Email Address
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                                     <input
                                         type="email"
                                         value={signupForm.email}
                                         onChange={e => setSignupForm({ ...signupForm, email: e.target.value })}
-                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="you@example.com"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Password
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Password</label>
                                     <div className="relative">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
                                             value={signupForm.password}
                                             onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
-                                            className="w-full px-0 py-3 pr-10 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                             placeholder="••••••••"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors"
                                         >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                     <PasswordStrengthMeter password={signupForm.password} />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
-                                        Confirm Password
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Confirm Password</label>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         value={signupForm.confirmPassword}
                                         onChange={e => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -715,19 +769,25 @@ export default function Account() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="w-full mt-8 py-4 bg-violet-500 text-white font-bold uppercase tracking-wider text-sm hover:bg-slate-900 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-botanical-forest text-white font-semibold py-4 rounded-lg hover:bg-opacity-90 active:scale-[0.98] transition-all duration-200 mt-6 shadow-[0_4px_20px_rgba(122,158,114,0.2)]"
                                 >
-                                    {saving ? 'CREATING ACCOUNT...' : 'BEGIN LEARNING →'}
+                                    {saving ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <LoadingSpinner size="sm" color="text-white" />
+                                            <span>Creating...</span>
+                                        </span>
+                                    ) : (
+                                        'Start Collection'
+                                    )}
                                 </button>
                             </form>
 
-                            {/* Footer */}
-                            <div className="mt-8 pt-8 border-t border-slate-200">
-                                <p className="text-sm text-slate-600 font-mono">
+                            <div className="mt-8 text-center border-t border-white/5 pt-6">
+                                <p className="text-sm text-claude-secondary">
                                     Already have an account?{' '}
                                     <button
                                         onClick={() => setView('login')}
-                                        className="text-violet-500 font-bold hover:text-violet-600 underline decoration-2 underline-offset-4"
+                                        className="text-claude-parchment hover:text-claude-accent font-medium transition-colors border-b border-transparent hover:border-claude-accent ml-1"
                                     >
                                         Sign In
                                     </button>
@@ -748,44 +808,104 @@ export default function Account() {
         );
     }
 
-    // 2FA Login View
+    // 2FA Login View - Botanical Journal Design
     if (view === '2fa_login') {
         return (
-            <div className="animate-in fade-in duration-300">
-                <div className="mb-8">
-                    <button onClick={() => setView('login')} className="flex items-center gap-2 text-claude-secondary mb-4">
-                        <ArrowLeft className="w-5 h-5" />
-                        Back
-                    </button>
-                    <h1 className="text-2xl font-display font-bold mb-1">Two-Factor Auth</h1>
-                    <p className="text-claude-secondary">Enter the code from your app</p>
+            <div className="fixed inset-0 bg-botanical-ink overflow-hidden flex">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
                 </div>
 
-                <div className="flex justify-center mb-8">
-                    <div className="w-20 h-20 rounded-3xl bg-claude-accent/20 flex items-center justify-center">
-                        <ShieldCheck className="w-10 h-10 text-claude-accent" />
+                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[55%_45%] z-10">
+                    {/* Left Side - Botanical Study (Identical to others) */}
+                    <div className="relative hidden md:flex flex-col justify-between p-12 lg:p-16 overflow-hidden">
+                        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-botanical-forest/20 rounded-full blur-[120px]" />
+                        <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] bg-claude-accent/10 rounded-full blur-[100px]" />
+
+                        <div className="relative z-10">
+                            <div className="inline-flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5">
+                                    <div className="w-1 h-1 bg-claude-accent rounded-full" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-xl tracking-widest uppercase">Riven</span>
+                            </div>
+                            <h1 className="text-5xl lg:text-7xl font-display font-light text-claude-parchment leading-tight">
+                                Secure your <br />
+                                <span className="text-claude-accent italic">findings</span>
+                            </h1>
+                        </div>
+
+                        <div className="relative z-10 flex-1 flex items-center justify-center my-8">
+                            <div className="relative w-full max-w-md aspect-[4/3] flex items-center justify-center">
+                                <div className="w-[300px] h-[300px] rounded-full border border-claude-accent/20 flex items-center justify-center relative animate-[spin_10s_linear_infinite]">
+                                    <div className="absolute inset-2 border border-dashed border-claude-accent/10 rounded-full"></div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <ShieldCheck className="w-24 h-24 text-claude-accent/80" strokeWidth={1} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="relative z-10 glass-panel border-l-2 border-claude-accent/50 pl-4 py-2 max-w-xs backdrop-blur-sm">
+                            <p className="font-display italic text-claude-parchment/90 text-lg">
+                                "Protection of data is the preservation of history."
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Right Side - Form */}
+                    <div className="relative w-full flex flex-col justify-center p-6 md:p-16 lg:p-24 shadow-2xl overflow-hidden min-h-screen md:min-h-0 bg-botanical-ink md:bg-surface-color/50 md:backdrop-blur-xl border-l border-white/5">
+                        <div className="absolute inset-0 md:hidden opacity-[0.03] pointer-events-none z-0"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }}>
+                        </div>
+
+                        <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
+                            {/* Mobile Header */}
+                            <div className="md:hidden mb-8 flex flex-col items-center text-center">
+                                <div className="w-12 h-12 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-3">
+                                    <ShieldCheck className="w-5 h-5 text-claude-accent" />
+                                </div>
+                                <span className="text-claude-parchment font-display text-lg tracking-[0.2em] uppercase">Riven</span>
+                            </div>
+
+                            <button onClick={() => setView('login')} className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group">
+                                <ArrowLeft className="w-4 h-4" />
+                                BACK TO LOGIN
+                            </button>
+
+                            <div className="mb-10">
+                                <h1 className="text-3xl font-display text-claude-parchment mb-3">Two-Factor Auth</h1>
+                                <p className="text-claude-secondary font-light">Enter the code from your authenticator app.</p>
+                            </div>
+
+                            <div className="flex justify-center mb-10">
+                                <div className="w-24 h-24 rounded-full bg-claude-accent/10 border border-claude-accent/30 flex items-center justify-center shadow-[0_0_30px_rgba(222,185,106,0.1)]">
+                                    <ShieldCheck className="w-10 h-10 text-claude-accent" />
+                                </div>
+                            </div>
+
+                            <form onSubmit={handle2FALogin} className="space-y-6">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="000 000"
+                                        maxLength={6}
+                                        value={twoFACode}
+                                        onChange={e => setTwoFACode(e.target.value.replace(/\D/g, ''))}
+                                        className="w-full text-center text-3xl tracking-[0.5em] py-5 bg-black/20 border border-white/10 rounded-xl text-claude-accent focus:border-claude-accent/60 outline-none font-mono placeholder:text-white/10 transition-all duration-300"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={saving || twoFACode.length !== 6}
+                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 shadow-[0_4px_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:shadow-none"
+                                >
+                                    {saving ? <LoadingSpinner size="sm" color="text-botanical-ink" /> : 'Verify Identity'}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-
-                <form onSubmit={handle2FALogin} className="space-y-4">
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="000 000"
-                            maxLength={6}
-                            value={twoFACode}
-                            onChange={e => setTwoFACode(e.target.value.replace(/\D/g, ''))}
-                            className="w-full text-center text-2xl tracking-[0.5em] py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none font-mono"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={saving || twoFACode.length !== 6}
-                        className="w-full py-4 bg-claude-accent text-white rounded-xl font-semibold active:scale-[0.97] transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                        {saving ? <LoadingSpinner size="sm" /> : 'Verify'}
-                    </button>
-                </form>
             </div>
         );
     }
