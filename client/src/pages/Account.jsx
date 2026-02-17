@@ -172,33 +172,14 @@ export default function Account() {
                 return;
             }
 
-            // Success - context is already updated by signIn
-            setLoginForm({ email: '', password: '' });
-
-            // Check if admin/owner to direct appropriately if needed, or just staying on profile
-            // The view state will auto-update because isLoggedIn changes?
-            // Account.jsx: const [view, setView] = useState(() => isLoggedIn ? 'profile' : 'login');
-            // But view is state, it won't auto-change unless we effect it.
-            // But we have an effect:
-            /* 
-            useEffect(() => {
-                if (isLoggedIn && (view === 'login' || view === 'signup')) {
-                     setView('profile');
-                }
-            }, [isLoggedIn]);
-            */
-            // I need to check if that effect exists. 
-            // The file view showed lines 1-100, and 90 was `}, [isLoggedIn]);`. 
-            // Let's check line 30: `const [view, setView] = useState(() => isLoggedIn ? 'profile' : 'login');`
-            // And lines 63-90 load stats on isLoggedIn.
-            // It seems we might need to manually set view to 'profile' if successful.
-
-            setView('profile');
+            // Success - context is updated by signIn. Reload to avoid React state timing issues
+            // (same approach as 2FA login - ensures cookie is used and we get a clean state)
             toast.success('Welcome back!');
             haptics.success();
             if (window.navigator?.vibrate) {
                 window.navigator.vibrate(50);
             }
+            window.location.reload();
         } catch (err) {
             haptics.error();
             // Ensure we always have a valid error message
