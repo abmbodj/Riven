@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-    ArrowLeft, Search, UserPlus, UserMinus, Check, X, 
+import {
+    ArrowLeft, Search, UserPlus, UserMinus, Check, X,
     MessageCircle, Users, Clock, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -67,7 +67,7 @@ export default function Friends() {
         try {
             const result = await authApi.sendFriendRequest(userId);
             toast.success(`Friend request sent to ${result.username}`);
-            setSearchResults(prev => prev.map(u => 
+            setSearchResults(prev => prev.map(u =>
                 u.id === userId ? { ...u, requestSent: true } : u
             ));
             loadFriends();
@@ -116,22 +116,20 @@ export default function Friends() {
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
                 <button
                     onClick={() => setTab('friends')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                        tab === 'friends' 
-                            ? 'bg-claude-accent text-white' 
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'friends'
+                            ? 'bg-claude-accent text-white'
                             : 'bg-claude-surface text-claude-secondary'
-                    }`}
+                        }`}
                 >
                     <Users className="w-4 h-4 inline mr-1.5" />
                     Friends ({acceptedFriends.length})
                 </button>
                 <button
                     onClick={() => setTab('requests')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative ${
-                        tab === 'requests' 
-                            ? 'bg-claude-accent text-white' 
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative ${tab === 'requests'
+                            ? 'bg-claude-accent text-white'
                             : 'bg-claude-surface text-claude-secondary'
-                    }`}
+                        }`}
                 >
                     <Clock className="w-4 h-4 inline mr-1.5" />
                     Requests
@@ -143,11 +141,10 @@ export default function Friends() {
                 </button>
                 <button
                     onClick={() => setTab('search')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                        tab === 'search' 
-                            ? 'bg-claude-accent text-white' 
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'search'
+                            ? 'bg-claude-accent text-white'
                             : 'bg-claude-surface text-claude-secondary'
-                    }`}
+                        }`}
                 >
                     <Search className="w-4 h-4 inline mr-1.5" />
                     Find
@@ -169,7 +166,7 @@ export default function Friends() {
                         <p className="text-sm text-claude-secondary mb-4">
                             Search for users to add them as friends
                         </p>
-                        <button 
+                        <button
                             onClick={() => setTab('search')}
                             className="px-6 py-2 bg-claude-accent text-white rounded-full font-medium"
                         >
@@ -187,7 +184,14 @@ export default function Friends() {
                                     <Avatar src={friend.avatar} size="lg" />
                                 </Link>
                                 <Link to={`/profile/${friend.id}`} className="flex-1 min-w-0">
-                                    <p className="font-semibold truncate">{friend.username}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-semibold truncate">{friend.username}</p>
+                                        {friend.isOwner ? (
+                                            <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
+                                        ) : friend.isAdmin ? (
+                                            <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                        ) : null}
+                                    </div>
                                     {friend.bio && (
                                         <p className="text-sm text-claude-secondary truncate">{friend.bio}</p>
                                     )}
@@ -231,7 +235,14 @@ export default function Friends() {
                                             <Avatar src={req.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{req.username}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold truncate">{req.username}</p>
+                                                {req.isOwner ? (
+                                                    <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
+                                                ) : req.isAdmin ? (
+                                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                                ) : null}
+                                            </div>
                                             <p className="text-sm text-claude-secondary">Wants to be friends</p>
                                         </Link>
                                         <div className="flex gap-2">
@@ -270,7 +281,14 @@ export default function Friends() {
                                             <Avatar src={req.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{req.username}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold truncate">{req.username}</p>
+                                                {req.isOwner ? (
+                                                    <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
+                                                ) : req.isAdmin ? (
+                                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                                ) : null}
+                                            </div>
                                             <p className="text-sm text-claude-secondary">Request pending</p>
                                         </Link>
                                         <button
@@ -333,7 +351,7 @@ export default function Friends() {
                                 const existingFriend = friends.find(f => f.id === user.id);
                                 const isFriend = existingFriend?.status === 'accepted';
                                 const isPending = existingFriend?.status === 'pending';
-                                
+
                                 return (
                                     <div
                                         key={user.id}
@@ -343,7 +361,14 @@ export default function Friends() {
                                             <Avatar src={user.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${user.id}`} className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{user.username}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold truncate">{user.username}</p>
+                                                {user.isOwner ? (
+                                                    <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
+                                                ) : user.isAdmin ? (
+                                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                                ) : null}
+                                            </div>
                                             {user.bio && (
                                                 <p className="text-sm text-claude-secondary truncate">{user.bio}</p>
                                             )}

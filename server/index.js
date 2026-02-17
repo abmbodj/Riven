@@ -437,14 +437,18 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
 
     try {
         const users = await db.query(
-            `SELECT id, username, avatar, bio, share_code FROM users 
+            `SELECT id, username, avatar, bio, share_code, role, is_admin FROM users 
              WHERE id != $1 AND (LOWER(username) LIKE LOWER($2) OR UPPER(share_code) = UPPER($3))
              LIMIT 20`,
             [req.user.id, `%${q}%`, q]
         );
-        res.json(users.map(u => ({
-            id: u.id, username: u.username, avatar: u.avatar, bio: u.bio, shareCode: u.share_code
-        })));
+        res.json(users.map(u => {
+            const r = u.role || (u.is_admin === 1 ? 'admin' : 'user');
+            return {
+                id: u.id, username: u.username, avatar: u.avatar, bio: u.bio, shareCode: u.share_code,
+                role: r, isAdmin: r === 'admin' || r === 'owner', isOwner: r === 'owner'
+            };
+        }));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -454,10 +458,12 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
 app.get('/api/users/:id', authMiddleware, async (req, res) => {
     try {
         const user = await db.queryOne(
-            'SELECT id, username, avatar, bio, share_code, created_at FROM users WHERE id = $1',
+            'SELECT id, username, avatar, bio, share_code, role, is_admin, created_at FROM users WHERE id = $1',
             [req.params.id]
         );
         if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
 
         // Check friendship status
         const friendship = await db.queryOne(
@@ -476,6 +482,9 @@ app.get('/api/users/:id', authMiddleware, async (req, res) => {
             bio: user.bio,
             shareCode: user.share_code,
             createdAt: user.created_at,
+            role: userRole,
+            isAdmin: userRole === 'admin' || userRole === 'owner',
+            isOwner: userRole === 'owner',
             deckCount: parseInt(deckCount.count),
             friendshipStatus: friendship ? friendship.status : null,
             friendshipDirection: friendship ? (friendship.user_id === req.user.id ? 'outgoing' : 'incoming') : null
@@ -489,7 +498,7 @@ app.get('/api/users/:id', authMiddleware, async (req, res) => {
 app.get('/api/friends', authMiddleware, async (req, res) => {
     try {
         const friends = await db.query(
-            `SELECT u.id, u.username, u.avatar, u.bio, f.status, f.user_id as requester_id, f.created_at
+            `SELECT u.id, u.username, u.avatar, u.bio, u.role, u.is_admin, f.status, f.user_id as requester_id, f.created_at
              FROM friendships f
              JOIN users u ON (CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END) = u.id
              WHERE (f.user_id = $1 OR f.friend_id = $1)
@@ -497,15 +506,21 @@ app.get('/api/friends', authMiddleware, async (req, res) => {
             [req.user.id]
         );
 
-        res.json(friends.map(f => ({
-            id: f.id,
-            username: f.username,
-            avatar: f.avatar,
-            bio: f.bio,
-            status: f.status,
-            isOutgoing: f.requester_id === req.user.id,
-            createdAt: f.created_at
-        })));
+        res.json(friends.map(f => {
+            const r = f.role || (f.is_admin === 1 ? 'admin' : 'user');
+            return {
+                id: f.id,
+                username: f.username,
+                avatar: f.avatar,
+                bio: f.bio,
+                status: f.status,
+                role: r,
+                isAdmin: r === 'admin' || r === 'owner',
+                isOwner: r === 'owner',
+                isOutgoing: f.requester_id === req.user.id,
+                createdAt: f.created_at
+            };
+        }));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

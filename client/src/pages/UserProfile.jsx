@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
     Clock, Layers, Calendar, Copy, Share2
 } from 'lucide-react';
@@ -98,9 +98,9 @@ export default function UserProfile() {
     };
 
     const formatDate = (date) => {
-        return new Date(date).toLocaleDateString(undefined, { 
-            month: 'long', 
-            year: 'numeric' 
+        return new Date(date).toLocaleDateString(undefined, {
+            month: 'long',
+            year: 'numeric'
         });
     };
 
@@ -134,10 +134,16 @@ export default function UserProfile() {
                 <h1 className="text-xl font-display font-bold">Profile</h1>
             </div>
 
-            {/* Profile Header */}
             <div className="flex flex-col items-center mb-6">
                 <Avatar src={profile.avatar} size="3xl" className="mb-4" />
-                <h2 className="text-2xl font-bold mb-1">{profile.username}</h2>
+                <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-2xl font-bold">{profile.username}</h2>
+                    {profile.isOwner ? (
+                        <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full">OWNER</span>
+                    ) : profile.isAdmin ? (
+                        <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">ADMIN</span>
+                    ) : null}
+                </div>
                 {profile.bio && (
                     <p className="text-claude-secondary text-center max-w-xs">{profile.bio}</p>
                 )}

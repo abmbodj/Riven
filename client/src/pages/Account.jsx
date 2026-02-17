@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
+import {
     User, Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn, UserPlus,
     Settings, Share2, Copy, Check, LogOut, Trash2, ChevronRight,
     Shield, Camera, MessageCircle, Users, Layers, Calendar,
@@ -20,9 +20,9 @@ export default function Account() {
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
-    const { 
-        user, isLoggedIn, signUp, signIn, signOut, 
-        updateProfile, changePassword, deleteAccount, getMySharedDecks 
+    const {
+        user, isLoggedIn, isAdmin, isOwner, role, signUp, signIn, signOut,
+        updateProfile, changePassword, deleteAccount, getMySharedDecks
     } = useAuth();
 
     // View state - initialize based on login status
@@ -54,7 +54,7 @@ export default function Account() {
 
     useEffect(() => {
         let mounted = true;
-        
+
         const loadStats = async () => {
             if (!isLoggedIn) {
                 setLoading(false);
@@ -75,9 +75,9 @@ export default function Account() {
                 if (mounted) setLoading(false);
             }
         };
-        
+
         loadStats();
-        
+
         return () => { mounted = false; };
     }, [isLoggedIn]);
 
@@ -119,7 +119,7 @@ export default function Account() {
         try {
             const result = await signUp(signupForm.username, signupForm.email, signupForm.password);
             haptics.success();
-            
+
             if (result.migration?.migrated) {
                 const { imported } = result.migration;
                 toast.success(`Account created! Imported ${imported?.decks || 0} decks from guest mode.`);
@@ -425,15 +425,15 @@ export default function Account() {
                     <LoadingSpinner size="lg" />
                 </div>
             )}
-            
+
             {/* Profile Header - Social Media Style */}
             <div className="relative mb-6">
                 {/* Cover/Background */}
                 <div className="h-24 bg-gradient-to-r from-claude-accent/30 to-purple-500/30 rounded-2xl" />
-                
+
                 {/* Avatar - overlapping cover */}
                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-                    <button 
+                    <button
                         onClick={() => setShowAvatarPicker(true)}
                         className="relative group"
                     >
@@ -441,8 +441,8 @@ export default function Account() {
                         <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-active:opacity-100 transition-opacity flex items-center justify-center">
                             <Camera className="w-8 h-8 text-white" />
                         </div>
-                        {user?.isAdmin && (
-                            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center border-2 border-claude-bg">
+                        {isAdmin && (
+                            <div className={`absolute -bottom-1 -right-1 w-8 h-8 ${isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg`}>
                                 <Shield className="w-4 h-4 text-white" />
                             </div>
                         )}
@@ -462,13 +462,15 @@ export default function Account() {
             <div className="text-center mt-14 mb-6">
                 <div className="flex items-center justify-center gap-2 mb-1">
                     <h1 className="text-2xl font-bold">{user?.username}</h1>
-                    {user?.isAdmin && (
+                    {isOwner ? (
+                        <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">OWNER</span>
+                    ) : isAdmin ? (
                         <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ADMIN</span>
-                    )}
+                    ) : null}
                 </div>
                 <p className="text-claude-secondary text-sm mb-2">{user?.email}</p>
                 {user?.bio && <p className="text-sm max-w-xs mx-auto">{user.bio}</p>}
-                
+
                 {/* Edit Profile Button */}
                 <button
                     onClick={() => {
@@ -590,16 +592,16 @@ export default function Account() {
                     </div>
                     <ChevronRight className="w-5 h-5 text-claude-secondary" />
                 </button>
-                {user?.isAdmin && (
+                {isAdmin && (
                     <Link
                         to="/admin"
                         className="flex items-center justify-between p-4 active:bg-claude-bg transition-colors border-b border-claude-border"
                     >
                         <div className="flex items-center gap-3">
-                            <Shield className="w-5 h-5 text-red-500" />
-                            <span className="text-red-500 font-medium">Admin Panel</span>
+                            <Shield className={`w-5 h-5 ${isOwner ? 'text-amber-500' : 'text-red-500'}`} />
+                            <span className={`${isOwner ? 'text-amber-500' : 'text-red-500'} font-medium`}>Admin Panel</span>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-red-500" />
+                        <ChevronRight className={`w-5 h-5 ${isOwner ? 'text-amber-500' : 'text-red-500'}`} />
                     </Link>
                 )}
                 <button
@@ -633,11 +635,11 @@ export default function Account() {
 
             {/* Edit Profile Modal */}
             {showEditProfile && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
                     onClick={() => setShowEditProfile(false)}
                 >
-                    <div 
+                    <div
                         className="w-full max-w-sm bg-claude-surface rounded-2xl p-6"
                         onClick={e => e.stopPropagation()}
                     >
@@ -682,11 +684,11 @@ export default function Account() {
 
             {/* Password Change Modal */}
             {showPasswordModal && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
                     onClick={() => setShowPasswordModal(false)}
                 >
-                    <div 
+                    <div
                         className="w-full max-w-sm bg-claude-surface rounded-2xl p-6"
                         onClick={e => e.stopPropagation()}
                     >
@@ -734,11 +736,11 @@ export default function Account() {
 
             {/* Delete Account Confirmation */}
             {showDeleteConfirm && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
                     onClick={() => setShowDeleteConfirm(false)}
                 >
-                    <div 
+                    <div
                         className="w-full max-w-sm bg-claude-surface rounded-2xl p-6"
                         onClick={e => e.stopPropagation()}
                     >
