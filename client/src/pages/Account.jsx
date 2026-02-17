@@ -440,71 +440,133 @@ export default function Account() {
 
     const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-    // Login View
+    // Login View - Editorial Brutalism Design
     if (view === 'login') {
         return (
-            <div className="animate-in fade-in duration-300">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-display font-bold mb-1">Welcome Back</h1>
-                    <p className="text-claude-secondary">Sign in to sync your decks</p>
-                </div>
+            <div className="fixed inset-0 bg-slate-900 overflow-hidden">
+                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[60%_40%]">
+                    {/* Left Side - Knowledge Laboratory */}
+                    <div className="relative bg-slate-900 p-8 md:p-16 overflow-hidden hidden md:flex flex-col justify-between">
+                        {/* Overlapping Knowledge Cards - Brutalist Aesthetic */}
+                        <div className="absolute top-20 left-12 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform -rotate-6 transition-transform hover:rotate-0 hover:scale-105">
+                            <div className="p-6">
+                                <div className="text-xs font-mono text-violet-400 mb-2">MEMORY.FRAGMENT</div>
+                                <div className="text-sm text-slate-300 leading-relaxed">Knowledge is not accumulated—it is constructed through active retrieval</div>
+                            </div>
+                        </div>
+                        <div className="absolute top-32 left-32 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform rotate-3 transition-transform hover:rotate-0 hover:scale-105">
+                            <div className="p-6">
+                                <div className="text-xs font-mono text-violet-400 mb-2">LEARNING.PROTOCOL</div>
+                                <div className="text-sm text-slate-300 leading-relaxed">Spaced repetition transforms short-term into long-term memory</div>
+                            </div>
+                        </div>
 
-                {/* Icon */}
-                <div className="flex justify-center mb-8">
-                    <div className="w-20 h-20 rounded-3xl bg-claude-accent/20 flex items-center justify-center">
-                        <LogIn className="w-10 h-10 text-claude-accent" />
+                        {/* Brand Mark - Top */}
+                        <div>
+                            <div className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none">
+                                RIVEN
+                            </div>
+                            <div className="text-slate-500 font-mono text-xs mt-2 tracking-wider">
+                                LEARNING.LABORATORY.V2
+                            </div>
+                        </div>
+
+                        {/* Stats Grid - Bottom */}
+                        <div className="grid grid-cols-3 gap-4 max-w-md">
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">2M+</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Cards Created</div>
+                            </div>
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">98%</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Retention</div>
+                            </div>
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">50K+</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Learners</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side - Authentication Form */}
+                    <div className="relative bg-white p-8 md:p-16 flex flex-col justify-center overflow-y-auto">
+                        <div className="w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
+                            {/* Back Button */}
+                            <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-8 font-mono">
+                                ← BROWSE
+                            </Link>
+
+                            {/* Header */}
+                            <div className="mb-12">
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
+                                    SIGN IN
+                                </h1>
+                                <p className="text-slate-600 font-mono text-sm">
+                                    Access your knowledge base
+                                </p>
+                            </div>
+
+                            {/* Form - Brutalist Minimal */}
+                            <form onSubmit={handleLogin} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={loginForm.email}
+                                        onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        placeholder="you@example.com"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={loginForm.password}
+                                            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                                            className="w-full px-0 py-3 pr-10 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                            placeholder="••••••••"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="w-full mt-8 py-4 bg-slate-900 text-white font-bold uppercase tracking-wider text-sm hover:bg-violet-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {saving ? 'AUTHENTICATING...' : 'SIGN IN →'}
+                                </button>
+                            </form>
+
+                            {/* Footer */}
+                            <div className="mt-8 pt-8 border-t border-slate-200">
+                                <p className="text-sm text-slate-600 font-mono">
+                                    New to Riven?{' '}
+                                    <button
+                                        onClick={() => setView('signup')}
+                                        className="text-violet-500 font-bold hover:text-violet-600 underline decoration-2 underline-offset-4"
+                                    >
+                                        Create Account
+                                    </button>
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                {/* Form */}
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type="email"
-                            placeholder="Email"
-                            value={loginForm.email}
-                            onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                    </div>
-                    <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Password"
-                            value={loginForm.password}
-                            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-                            className="w-full pl-12 pr-12 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-claude-secondary"
-                        >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="w-full py-4 bg-claude-accent text-white rounded-xl font-semibold active:scale-[0.97] transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                        {saving ? <LoadingSpinner size="sm" /> : 'Sign In'}
-                    </button>
-                </form>
-
-                <p className="text-center text-claude-secondary mt-6">
-                    Don't have an account?{' '}
-                    <button onClick={() => setView('signup')} className="text-claude-accent font-semibold">
-                        Sign Up
-                    </button>
-                </p>
-
-                <Link to="/" className="block text-center text-claude-secondary text-sm mt-4 underline">
-                    Continue without account
-                </Link>
 
                 <AlertModal
                     isOpen={alert.show}
@@ -517,92 +579,163 @@ export default function Account() {
         );
     }
 
-    // Signup View
+    // Signup View - Editorial Brutalism Design
     if (view === 'signup') {
         return (
-            <div className="animate-in fade-in duration-300">
-                <div className="mb-8">
-                    <button onClick={() => setView('login')} className="flex items-center gap-2 text-claude-secondary mb-4">
-                        <ArrowLeft className="w-5 h-5" />
-                        Back
-                    </button>
-                    <h1 className="text-2xl font-display font-bold mb-1">Create Account</h1>
-                    <p className="text-claude-secondary">Join the learning community</p>
+            <div className="fixed inset-0 bg-slate-900 overflow-hidden">
+                <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-[60%_40%]">
+                    {/* Left Side - Knowledge Laboratory */}
+                    <div className="relative bg-slate-900 p-8 md:p-16 overflow-hidden hidden md:flex flex-col justify-between">
+                        {/* Overlapping Knowledge Cards - Brutalist Aesthetic */}
+                        <div className="absolute top-20 left-12 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform -rotate-6 transition-transform hover:rotate-0 hover:scale-105">
+                            <div className="p-6">
+                                <div className="text-xs font-mono text-violet-400 mb-2">MEMORY.FRAGMENT</div>
+                                <div className="text-sm text-slate-300 leading-relaxed">Knowledge is not accumulated—it is constructed through active retrieval</div>
+                            </div>
+                        </div>
+                        <div className="absolute top-32 left-32 w-64 h-40 bg-violet-500/10 border-2 border-violet-500/30 backdrop-blur-sm transform rotate-3 transition-transform hover:rotate-0 hover:scale-105">
+                            <div className="p-6">
+                                <div className="text-xs font-mono text-violet-400 mb-2">LEARNING.PROTOCOL</div>
+                                <div className="text-sm text-slate-300 leading-relaxed">Spaced repetition transforms short-term into long-term memory</div>
+                            </div>
+                        </div>
+
+                        {/* Brand Mark - Top */}
+                        <div>
+                            <div className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none">
+                                RIVEN
+                            </div>
+                            <div className="text-slate-500 font-mono text-xs mt-2 tracking-wider">
+                                LEARNING.LABORATORY.V2
+                            </div>
+                        </div>
+
+                        {/* Stats Grid - Bottom */}
+                        <div className="grid grid-cols-3 gap-4 max-w-md">
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">2M+</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Cards Created</div>
+                            </div>
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">98%</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Retention</div>
+                            </div>
+                            <div className="border-l-2 border-violet-500 pl-4">
+                                <div className="text-2xl font-bold text-white">50K+</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-wider">Learners</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side - Authentication Form */}
+                    <div className="relative bg-white p-8 md:p-16 flex flex-col justify-center overflow-y-auto">
+                        <div className="w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
+                            {/* Back Button */}
+                            <button
+                                onClick={() => setView('login')}
+                                className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-8 font-mono"
+                            >
+                                ← BACK
+                            </button>
+
+                            {/* Header */}
+                            <div className="mb-12">
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
+                                    CREATE ACCOUNT
+                                </h1>
+                                <p className="text-slate-600 font-mono text-sm">
+                                    Join the learning revolution
+                                </p>
+                            </div>
+
+                            {/* Form - Brutalist Minimal */}
+                            <form onSubmit={handleSignup} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Username
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={signupForm.username}
+                                        onChange={e => setSignupForm({ ...signupForm, username: e.target.value })}
+                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        placeholder="your_username"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={signupForm.email}
+                                        onChange={e => setSignupForm({ ...signupForm, email: e.target.value })}
+                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        placeholder="you@example.com"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={signupForm.password}
+                                            onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
+                                            className="w-full px-0 py-3 pr-10 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                            placeholder="••••••••"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                    <PasswordStrengthMeter password={signupForm.password} />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-500">
+                                        Confirm Password
+                                    </label>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={signupForm.confirmPassword}
+                                        onChange={e => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
+                                        className="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-200 focus:border-violet-500 outline-none text-slate-900 placeholder:text-slate-400 transition-colors"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="w-full mt-8 py-4 bg-violet-500 text-white font-bold uppercase tracking-wider text-sm hover:bg-slate-900 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {saving ? 'CREATING ACCOUNT...' : 'BEGIN LEARNING →'}
+                                </button>
+                            </form>
+
+                            {/* Footer */}
+                            <div className="mt-8 pt-8 border-t border-slate-200">
+                                <p className="text-sm text-slate-600 font-mono">
+                                    Already have an account?{' '}
+                                    <button
+                                        onClick={() => setView('login')}
+                                        className="text-violet-500 font-bold hover:text-violet-600 underline decoration-2 underline-offset-4"
+                                    >
+                                        Sign In
+                                    </button>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                {/* Icon */}
-                <div className="flex justify-center mb-8">
-                    <div className="w-20 h-20 rounded-3xl bg-green-500/20 flex items-center justify-center">
-                        <UserPlus className="w-10 h-10 text-green-500" />
-                    </div>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={handleSignup} className="space-y-4">
-                    <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type="text"
-                            placeholder="Username"
-                            value={signupForm.username}
-                            onChange={e => setSignupForm({ ...signupForm, username: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                    </div>
-                    <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type="email"
-                            placeholder="Email"
-                            value={signupForm.email}
-                            onChange={e => setSignupForm({ ...signupForm, email: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                    </div>
-                    <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Password"
-                            value={signupForm.password}
-                            onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
-                            className="w-full pl-12 pr-12 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-claude-secondary"
-                        >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                    </div>
-                    <PasswordStrengthMeter password={signupForm.password} />
-                    <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Confirm Password"
-                            value={signupForm.confirmPassword}
-                            onChange={e => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="w-full py-4 bg-green-500 text-white rounded-xl font-semibold active:scale-[0.97] transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                        {saving ? <LoadingSpinner size="sm" /> : 'Create Account'}
-                    </button>
-                </form>
-
-                <p className="text-center text-claude-secondary mt-6">
-                    Already have an account?{' '}
-                    <button onClick={() => setView('login')} className="text-claude-accent font-semibold">
-                        Sign In
-                    </button>
-                </p>
 
                 <AlertModal
                     isOpen={alert.show}
