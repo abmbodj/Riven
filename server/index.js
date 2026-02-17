@@ -8,6 +8,9 @@ const { v4: uuidv4 } = require('uuid');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const slowDown = require('express-slow-down');
+const xss = require('xss');
 const db = require('./db');
 
 const app = express();
@@ -25,10 +28,16 @@ const jwtSecret = JWT_SECRET;
 // Rate limiters
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 5, // Reduced from 10
     message: { error: 'Too many attempts, please try again later' },
     standardHeaders: true,
     legacyHeaders: false,
+});
+
+const speedLimiter = slowDown({
+    windowMs: 15 * 60 * 1000,
+    delayAfter: 3,
+    delayMs: (hits) => hits * 100
 });
 
 const apiLimiter = rateLimit({
@@ -55,8 +64,36 @@ app.use(cors({
     },
     credentials: true
 }));
+app.use(helmet());
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
+
+// Input sanitization middleware
+app.use((req, res, next) => {
+    if (req.body) {
+        for (const key in req.body) {
+            if (typeof req.body[key] === 'string') {
+                req.body[key] = xss(req.body[key]);
+            }
+        }
+    }
+    if (req.query) {
+        for (const key in req.query) {
+            if (typeof req.query[key] === 'string') {
+                req.query[key] = xss(req.query[key]);
+            }
+        }
+    }
+    if (req.params) {
+        for (const key in req.params) {
+            if (typeof req.params[key] === 'string') {
+                req.params[key] = xss(req.params[key]);
+            }
+        }
+    }
+    next();
+});
+
 app.use('/api/', apiLimiter);
 
 // Generate share code
@@ -73,18 +110,18 @@ function generateShareCode() {
 async function authMiddleware(req, res, next) {
     // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
     let token = req.cookies.token;
-    
+
     if (!token) {
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             token = authHeader.split(' ')[1];
         }
     }
-    
+
     if (!token) {
         return res.status(401).json({ error: 'No token provided' });
     }
-    
+
     try {
         const decoded = jwt.verify(token, jwtSecret);
         req.user = decoded;
@@ -107,14 +144,14 @@ async function authMiddleware(req, res, next) {
 function optionalAuth(req, res, next) {
     // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
     let token = req.cookies.token;
-    
+
     if (!token) {
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             token = authHeader.split(' ')[1];
         }
     }
-    
+
     if (token) {
         try {
             const decoded = jwt.verify(token, jwtSecret);
@@ -136,7 +173,8 @@ function isValidUsername(username) {
 // ============ AUTH ============
 
 // Register
-app.post('/api/auth/register', authLimiter, async (req, res) => {
+// Register
+app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
@@ -210,7 +248,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 });
 
 // Login
-app.post('/api/auth/login', authLimiter, async (req, res) => {
+app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
@@ -315,7 +353,8 @@ app.post('/api/auth/2fa/disable', authMiddleware, async (req, res) => {
 });
 
 // 2FA Login Step 2
-app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
+// 2FA Login Step 2
+app.post('/api/auth/2fa/login', speedLimiter, authLimiter, async (req, res) => {
     const { tempToken, token } = req.body;
     if (!tempToken || !token) return res.status(400).json({ error: 'Missing token' });
 
@@ -335,7 +374,7 @@ app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
         if (verified) {
             const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
             const newToken = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
-            
+
             // Set httpOnly cookie (secure in production)
             res.cookie('token', newToken, {
                 httpOnly: true,
@@ -343,7 +382,7 @@ app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
                 sameSite: 'strict',
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
             });
-            
+
             res.json({
                 user: {
                     id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
