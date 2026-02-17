@@ -1,151 +1,238 @@
-# ⚡ Riven
+# Riven
 
-A beautiful, minimal flashcard app for mastering any subject. Features **cross-device sync**, **offline support**, and a **streak system** with a beautiful garden 🌱 that grows with your dedication!
+Riven is a feature-rich, full-stack flashcard and study application designed to help users learn efficiently. It combines powerful study tools like spaced repetition and deck organization with social features, gamification (streaks, pets), and a highly customizable UI.
 
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
-![Express](https://img.shields.io/badge/Express-5-000000?logo=express)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?logo=postgresql)
-![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?logo=pwa)
+## Key Features
 
-## 🌐 Live Demo
+- **Advanced Card Management**: Create decks, folders, and tags. Support for image-based cards (front/back).
+- **Smart Study Modes**: Track study sessions, duration, and accuracy.
+- **Social Learning**: Friend system, direct messaging, and ability to share decks via unique codes.
+- **Gamification**: Maintain daily streaks and customize a virtual pet with accessories.
+- **Customizable UI**: Fully themable interface with user-defined colors and "Botanical Journal" aesthetic.
+- **Role-Based Access**: Granular permissions including User, Admin, and Owner roles.
+- **Security**: 2FA support using authenticator apps.
 
-- **App**: https://riven-virid.vercel.app
-- **API**: https://riven-wa9y.onrender.com
+## Tech Stack
 
-## ✨ Features
+- **Language**: JavaScript (Node.js)
+- **Frontend**: React 19 (Vite), Tailwind CSS, Framer Motion, Lucide React
+- **Backend**: Express.js
+- **Database**: PostgreSQL (via `pg` driver)
+- **Authentication**: JWT (JSON Web Tokens) + Bcrypt
+- **Testing**: Vitest (Unit & Integration)
+- **Deployment**: Vercel (Monorepo structure)
 
-- **🔐 Cross-Device Sync** — Sign up to access your flashcards from any device
-- **📱 PWA Support** — Install on iOS/Android for a native app experience
-- **🌱 Streak Garden** — Watch your garden grow from bare soil to paradise as you maintain your streak
-- **🌸 Garden Customization** — Unlock themes, decorations, and special plants as rewards
-- **📚 Deck Management** — Create, organize with folders, and tag flashcard decks
-- **🔄 Study Mode** — Flip through cards with smooth 3D animations
-- **🧠 Spaced Repetition** — Focus on cards you're actually forgetting
-- **🎯 Test Mode** — Auto-generated multiple-choice quizzes
-- **🎨 Custom Themes** — Multiple built-in themes or create your own
-- **💾 Offline Mode** — Works without internet using IndexedDB
-- **📤 Export/Import** — Export decks as JSON or CSV
+## Prerequisites
 
-## 🛠️ Tech Stack
+Before starting, ensure you have the following installed:
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, React Router 7, Vite, Tailwind CSS |
-| Backend | Express 5, Node.js |
-| Database | PostgreSQL (Supabase) |
-| Auth | JWT (30-day tokens), bcrypt |
-| Offline Storage | IndexedDB |
-| Hosting | Vercel (frontend), Render (backend) |
+- **Node.js** 20 or higher
+- **PostgreSQL** 15 or higher (or a cloud provider like Supabase/Railway)
+- **npm** (comes with Node.js)
 
-## 🔒 Security Features
+## Getting Started
 
-- **Rate Limiting** — 10 auth attempts/15min, 100 API requests/min
-- **Password Hashing** — bcrypt with cost factor 12
-- **Input Validation** — Email format, username rules
-- **Parameterized Queries** — SQL injection protection
-- **CORS Whitelist** — Origin-based access control
-- **JWT Authentication** — Secure token-based auth
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database (or free [Supabase](https://supabase.com) account)
-
-### Local Development
+### 1. Clone the Repository
 
 ```bash
-# Clone the repository
-git clone https://github.com/abmbodj/Riven.git
-cd Riven
+git clone https://github.com/yourusername/riven.git
+cd riven
+```
 
-# Backend (Terminal 1)
+### 2. Install Dependencies
+
+You need to install dependencies for both the root, server, and client.
+
+```bash
+# Install root dependencies (concurrently)
+npm install
+
+# Install server dependencies
 cd server
 npm install
-DATABASE_URL="your-postgres-url" JWT_SECRET="dev-secret" npm run dev
 
-# Frontend (Terminal 2)
-cd client
+# Install client dependencies
+cd ../client
 npm install
-npm run dev
+cd ..
 ```
 
-### Environment Variables
+### 3. Environment Setup
 
-**Server** (required):
-```
-DATABASE_URL=postgresql://user:pass@host:port/db
-JWT_SECRET=your-random-secret-key
-ALLOWED_ORIGINS=http://localhost:5173
-```
+#### Server Configuration
+Create a `.env` file in the `server/` directory:
 
-**Client** (`client/.env`):
-```
-VITE_API_URL=http://localhost:3000/api
+```bash
+cp server/.env.example server/.env
 ```
 
-## 🚢 Deployment
+Update `server/.env` with your credentials:
 
-### Database (Supabase)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/riven` |
+| `JWT_SECRET` | Secret key for signing tokens | `openssl rand -base64 32` output |
+| `PORT` | API Server port | `3000` |
+| `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:5173,http://localhost:3000` |
 
-1. Create account at [supabase.com](https://supabase.com)
-2. Create new project
-3. Go to **Settings → Database → Connection Pooling**
-4. Copy the **Transaction** mode URI
+#### Client Configuration
+Create a `.env` file in the `client/` directory:
 
-### Backend (Render)
+```bash
+cp client/.env.example client/.env
+```
 
-1. Create Web Service on [render.com](https://render.com)
-2. Connect GitHub repo, set root: `server`
-3. Build: `npm install` | Start: `npm start`
-4. Add environment variables:
-   - `DATABASE_URL` — Supabase connection string
-   - `JWT_SECRET` — Random secure string
-   - `ALLOWED_ORIGINS` — Your Vercel URL
+Update `client/.env`:
 
-### Frontend (Vercel)
+| Variable | Description | Default (Dev) |
+|----------|-------------|---------------|
+| `VITE_API_URL` | Backend API URL | `http://localhost:3000/api` |
 
-1. Import project on [vercel.com](https://vercel.com)
-2. Set root directory: `client`
-3. Add: `VITE_API_URL` = Your Render URL + `/api`
+### 4. Database Setup
 
-## 📁 Project Structure
+Riven handles database initialization automatically. When the server starts, it checks for the existence of tables and creates them if missing (including seeding initial roles).
+
+Ensure your PostgreSQL server is running and the database (e.g., `riven`) exists:
+
+```bash
+createdb riven
+```
+
+### 5. Start Development Server
+
+From the project root, run:
+
+```bash
+npm start
+```
+
+This uses `concurrently` to launch:
+- **Server**: `http://localhost:3000`
+- **Client**: `http://localhost:5173` (Vite)
+
+## Architecture
+
+### Directory Structure
 
 ```
-Riven/
-├── client/                 # React frontend (PWA)
+riven/
+├── client/                 # React Frontend
 │   ├── src/
-│   │   ├── api/            # Server API calls
-│   │   ├── components/     # UI components
-│   │   ├── context/        # React contexts (Auth, Theme, Streak, Toast)
-│   │   ├── db/             # IndexedDB for offline/guest mode
-│   │   ├── pages/          # Route pages
-│   │   └── api.js          # Hybrid API (server or IndexedDB)
-│   └── ...
-├── server/
-│   ├── index.js            # Express API routes (async PostgreSQL)
-│   └── db.js               # PostgreSQL connection pool
-└── README.md
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Route components
+│   │   └── ...
+│   ├── public/             # Static assets
+│   ├── vite.config.js      # Vite configuration
+│   └── tailwind.config.js  # Tailwind configuration
+├── server/                 # Express Backend
+│   ├── db.js               # Database connection & schema init
+│   ├── index.js            # Main application entry point
+│   ├── test/               # Backend tests
+│   └── package.json
+├── package.json            # Root scripts
+└── vercel.json             # Vercel deployment config
 ```
 
-## 🔑 Key Features Explained
+### Request Lifecycle
 
-### Hybrid Storage
-- **Logged in**: Data syncs with PostgreSQL backend
-- **Guest mode**: Data stored locally in IndexedDB
-- **On signup**: Guest data automatically migrates to your account
+1.  **Client**: User interacts with React UI.
+2.  **API Call**: Frontend makes request to `VITE_API_URL` (e.g., `/api/login`).
+3.  **Server**: Express receives request, parses JSON body/cookies.
+4.  **Database**: `db.js` executes SQL query via `pg` pool.
+5.  **Response**: Server returns JSON data to Client.
 
-### PWA Installation
-- **iOS**: Safari → Share → Add to Home Screen
-- **Android**: Chrome menu → Install app
+### Database Schema
 
-## 📝 License
+Key tables include:
+- `users`: Stores profile, auth info, and customization settings.
+- `decks` / `cards`: Core study content.
+- `study_sessions`: Analytics data.
+- `messages` / `friendships`: Social features.
 
-MIT — Feel free to use, modify, and share!
+Database migrations are currently handled via auto-run SQL checks in `db.js`.
 
----
+## Environment Variables
 
-<p align="center">
-  Made with ⚡ and AI
-</p>
+### Server (`server/.env`)
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `DATABASE_URL` | Yes | Postgres connection string. |
+| `JWT_SECRET` | Yes | Key for signing/verifying JWTs. |
+| `PORT` | No | Port to listen on (default: `3000`). |
+| `NODE_ENV` | No | `development` or `production`. |
+| `ALLOWED_ORIGINS`| No | Comma-separated list of allowed CORS origins. |
+
+### Client (`client/.env`)
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `VITE_API_URL` | Yes | URL of the backend API. |
+
+## Available Scripts
+
+From the root directory:
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Runs both client and server in parallel (Development mode). |
+| `npm run server` | Runs only the server (dev mode with nodemon). |
+| `npm run client` | Runs only the client (dev mode with Vite). |
+
+## Testing
+
+Testing is implemented using **Vitest**.
+
+### Server Tests
+```bash
+cd server
+npm test
+```
+
+### Client Tests
+```bash
+cd client
+npm test
+```
+
+## Deployment
+
+### Vercel (Recommended)
+
+This repository is configured for monorepo deployment on Vercel.
+
+1.  Push code to GitHub.
+2.  Import project into Vercel.
+3.  **Root Directory**: Leave as `./`.
+4.  **Framework Preset**: Vite (for Client).
+5.  **Environment Variables**: Add all variables from `server/.env` and `client/.env` to the Vercel project settings.
+    *   Note: For `VITE_API_URL`, use `/api` if deployed on the same domain or the full URL.
+6.  `vercel.json` at the root handles routing `/api/*` requests to the server and other requests to the client.
+
+**Configuration (`vercel.json`):**
+```json
+{
+  "builds": [
+    { "src": "server/index.js", "use": "@vercel/node" },
+    { "src": "client/package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/server/index.js" },
+    { "src": "/(.*)", "dest": "/client/$1" }
+  ]
+}
+```
+
+## Troubleshooting
+
+### Connection Refused (PostgreSQL)
+**Error**: `connect ECONNREFUSED 127.0.0.1:5432`
+**Solution**: Ensure PostgreSQL service is running. If using Docker, check container status.
+
+### JWT Error
+**Error**: `JsonWebTokenError: invalid signature`
+**Solution**: Ensure `JWT_SECRET` in `.env` matches the one used to generate the token (or just restart auth flow after changing secret).
+
+### Client Build Failures
+**Error**: `Command not found: vite`
+**Solution**: Ensure you ran `npm install` inside the `client/` directory.
