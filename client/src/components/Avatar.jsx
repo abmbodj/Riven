@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from 'lucide-react';
 
 export default function Avatar({ src, size = 'md', className = '' }) {
+    const [imageError, setImageError] = useState(false);
+
     const sizeClasses = {
         xs: 'w-8 h-8',
         sm: 'w-10 h-10',
@@ -26,7 +28,8 @@ export default function Avatar({ src, size = 'md', className = '' }) {
     const isGradient = src?.startsWith('gradient:');
     const gradient = isGradient ? src.replace('gradient:', '') : null;
 
-    if (!src) {
+    // Show fallback if no src, image error, or gradient
+    if (!src || imageError) {
         return (
             <div className={`${sizeClasses[size]} rounded-full bg-claude-accent/20 flex items-center justify-center shrink-0 ${className}`}>
                 <User className={`${iconSizes[size]} text-claude-accent`} />
@@ -48,10 +51,7 @@ export default function Avatar({ src, size = 'md', className = '' }) {
             src={src} 
             alt="" 
             className={`${sizeClasses[size]} rounded-full object-cover bg-claude-bg shrink-0 ${className}`}
-            onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = `<div class="${sizeClasses[size]} rounded-full bg-claude-accent/20 flex items-center justify-center"><svg class="${iconSizes[size]} text-claude-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
-            }}
+            onError={() => setImageError(true)}
         />
     );
 }

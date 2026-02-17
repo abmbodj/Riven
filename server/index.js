@@ -1,6 +1,7 @@
 require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -12,13 +13,14 @@ const db = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// JWT Secret
+// JWT Secret - REQUIRED in all environments
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-    console.error('FATAL: JWT_SECRET environment variable is required in production');
+if (!JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is required');
+    console.error('Generate a secure secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
     process.exit(1);
 }
-const jwtSecret = JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+const jwtSecret = JWT_SECRET;
 
 // Rate limiters
 const authLimiter = rateLimit({
@@ -53,6 +55,7 @@ app.use(cors({
     },
     credentials: true
 }));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/', apiLimiter);
 
@@ -68,11 +71,20 @@ function generateShareCode() {
 
 // Auth middleware
 async function authMiddleware(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
+    let token = req.cookies.token;
+    
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+    }
+    
+    if (!token) {
         return res.status(401).json({ error: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
+    
     try {
         const decoded = jwt.verify(token, jwtSecret);
         req.user = decoded;
@@ -93,9 +105,17 @@ async function authMiddleware(req, res, next) {
 
 // Optional auth middleware
 function optionalAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
+    // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
+    let token = req.cookies.token;
+    
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+    }
+    
+    if (token) {
         try {
             const decoded = jwt.verify(token, jwtSecret);
             req.user = decoded;
@@ -173,8 +193,15 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
         const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
 
+        // Set httpOnly cookie (secure in production)
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
         res.status(201).json({
-            token,
             user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
         });
     } catch (error) {
@@ -209,8 +236,15 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
         const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
 
+        // Set httpOnly cookie (secure in production)
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
         res.json({
-            token,
             user: {
                 id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '', role: userRole,
@@ -301,8 +335,16 @@ app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
         if (verified) {
             const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
             const newToken = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+            
+            // Set httpOnly cookie (secure in production)
+            res.cookie('token', newToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+            
             res.json({
-                token: newToken,
                 user: {
                     id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
                     avatar: user.avatar, bio: user.bio || '', role: userRole,
@@ -318,6 +360,16 @@ app.post('/api/auth/2fa/login', authLimiter, async (req, res) => {
     } catch (error) {
         res.status(401).json({ error: 'Invalid or expired session' });
     }
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+    });
+    res.json({ message: 'Logged out successfully' });
 });
 
 // Get current user

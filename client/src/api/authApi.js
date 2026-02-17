@@ -1,34 +1,17 @@
 // Authentication API - communicates with server for cross-device sync
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const TOKEN_KEY = 'riven_auth_token';
 
-// Get stored token
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-
-// Store token
-export const setToken = (token) => {
-    if (token) {
-        localStorage.setItem(TOKEN_KEY, token);
-    } else {
-        localStorage.removeItem(TOKEN_KEY);
-    }
-};
-
-// Fetch wrapper with auth headers
+// Fetch wrapper with credentials (httpOnly cookies sent automatically)
 const authFetch = async (endpoint, options = {}) => {
-    const token = getToken();
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
     };
 
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // Send httpOnly cookies with requests
     });
 
     const data = await response.json();
@@ -47,7 +30,7 @@ export const register = async (username, email, password) => {
         method: 'POST',
         body: JSON.stringify({ username, email, password }),
     });
-    setToken(data.token);
+    // Token is now set as httpOnly cookie by server
     return data.user;
 };
 
@@ -56,18 +39,16 @@ export const login = async (email, password) => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-    
-    // Only set token if 2FA is not required
-    if (data.token && !data.require2FA) {
-        setToken(data.token);
-    }
-    
+    // Token is now set as httpOnly cookie by server (if 2FA not required)
     // Return the full data object (which may contain require2FA, tempToken, or user)
     return data;
 };
 
-export const logout = () => {
-    setToken(null);
+export const logout = async () => {
+    // Call server to clear httpOnly cookie
+    await authFetch('/auth/logout', {
+        method: 'POST',
+    });
 };
 
 export const getMe = async () => {
@@ -93,7 +74,8 @@ export const deleteAccount = async (password) => {
         method: 'DELETE',
         body: JSON.stringify({ password }),
     });
-    setToken(null);
+    // Clear httpOnly cookie
+    await logout();
 };
 
 // ============ STREAK ENDPOINTS ============
