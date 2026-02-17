@@ -32,6 +32,18 @@
 
 @layer base {
 
+  /* Reduced motion support - CRITICAL accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   html {
     /* Prevent iOS text size adjust */
     -webkit-text-size-adjust: 100%;
@@ -97,6 +109,15 @@
   .no-bounce {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: auto;
+  }
+
+  /* Focus states - CRITICAL for keyboard accessibility */
+  .focus-ring {
+    @apply outline-none;
+  }
+
+  .focus-ring:focus-visible {
+    @apply ring-2 ring-offset-1 ring-botanical-forest ring-offset-claude-bg;
   }
 
   h1,
