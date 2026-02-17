@@ -529,37 +529,35 @@ export default function Account() {
 
                         <div className="relative z-10 w-full max-w-sm mx-auto">
                             {/* Mobile Header */}
-                            <div className="md:hidden mb-10 flex flex-col items-center text-center">
-                                <div className="w-16 h-16 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-4 shadow-[0_0_15px_rgba(222,185,106,0.1)]">
-                                    <div className="w-1.5 h-1.5 bg-claude-accent rounded-full" />
-                                </div>
-                                <span className="text-claude-parchment font-display text-xl tracking-[0.2em] uppercase">Riven</span>
-                                <div className="h-[1px] w-12 bg-gradient-to-r from-transparent via-claude-accent/50 to-transparent mt-4"></div>
+                            {/* Mobile Header - Simplified */}
+                            <div className="md:hidden mb-8 flex flex-col items-center">
+                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
+                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
                             </div>
 
-                            <Link to="/" className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group">
-                                <span className="w-6 h-[1px] bg-claude-secondary group-hover:bg-claude-accent transition-colors"></span>
+                            <Link to="/" className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-6 transition-colors group">
+                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
                                 RETURN TO ARCHIVE
                             </Link>
 
-                            <div className="mb-10">
-                                <h2 className="text-3xl font-display text-claude-parchment mb-3">Welcome Back</h2>
-                                <p className="text-claude-secondary font-light">Enter your credentials to access the garden.</p>
+                            <div className="mb-8">
+                                <h2 className="text-3xl font-display text-claude-parchment mb-2 font-light">Login</h2>
+                                <p className="text-claude-secondary font-light text-sm">Enter your credentials to access the journal.</p>
                             </div>
 
                             <form onSubmit={handleLogin} className="space-y-6">
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                                     <input
                                         type="email"
                                         value={loginForm.email}
                                         onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="researcher@institute.edu"
                                     />
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <div className="flex justify-between items-center px-1">
                                         <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest">Password</label>
                                     </div>
@@ -568,13 +566,13 @@ export default function Account() {
                                             type={showPassword ? 'text' : 'password'}
                                             value={loginForm.password}
                                             onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                             placeholder="••••••••"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors"
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors p-2"
                                         >
                                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
@@ -584,7 +582,7 @@ export default function Account() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-4 shadow-[0_4px_20px_rgba(222,185,106,0.15)]"
+                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 md:py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm"
                                 >
                                     {saving ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -592,21 +590,21 @@ export default function Account() {
                                             <span>Validating...</span>
                                         </span>
                                     ) : (
-                                        'Access Journal'
+                                        'Login'
                                     )}
                                 </button>
                             </form>
 
-                            <div className="mt-12 text-center">
-                                <p className="text-sm text-claude-secondary">
-                                    New researcher?{' '}
-                                    <button
-                                        onClick={() => setView('signup')}
-                                        className="text-claude-parchment hover:text-claude-accent font-medium transition-colors border-b border-transparent hover:border-claude-accent ml-1"
-                                    >
-                                        Request Access
-                                    </button>
+                            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
+                                <p className="text-sm text-claude-secondary text-center">
+                                    No profile recorded?
                                 </p>
+                                <button
+                                    onClick={() => setView('signup')}
+                                    className="w-full py-3 border border-claude-accent/30 rounded-lg text-claude-accent font-display tracking-wider text-xs uppercase hover:bg-claude-accent/5 transition-colors active:scale-[0.98]"
+                                >
+                                    Create account
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -690,64 +688,62 @@ export default function Account() {
                         <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-botanical-forest/10 rounded-full blur-[80px] md:hidden" />
 
                         <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Mobile Header */}
-                            <div className="md:hidden mb-8 flex flex-col items-center text-center">
-                                <div className="w-12 h-12 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-3">
-                                    <div className="w-1 h-1 bg-claude-accent rounded-full" />
-                                </div>
-                                <span className="text-claude-parchment font-display text-lg tracking-[0.2em] uppercase">Riven</span>
+                            {/* Mobile Header - Simplified */}
+                            <div className="md:hidden mb-8 flex flex-col items-center">
+                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
+                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
                             </div>
 
                             <button
                                 onClick={() => setView('login')}
-                                className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group"
+                                className="inline-flex items-center gap-2 text-sm text-claude-secondary hover:text-claude-accent mb-6 transition-colors group p-2 -ml-2"
                             >
-                                <span className="w-6 h-[1px] bg-claude-secondary group-hover:bg-claude-accent transition-colors"></span>
-                                BACK TO LOGIN
+                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+                                RETURN TO LOGIN
                             </button>
 
                             <div className="mb-8">
-                                <h2 className="text-3xl font-display text-claude-parchment mb-3">Initialize Profile</h2>
-                                <p className="text-claude-secondary font-light">Create your credentials to begin collecting.</p>
+                                <h2 className="text-3xl font-display text-claude-parchment mb-2 font-light">Create account</h2>
+                                <p className="text-claude-secondary font-light text-sm">Join the archives to begin your collection.</p>
                             </div>
 
                             <form onSubmit={handleSignup} className="space-y-5">
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Username</label>
                                     <input
                                         type="text"
                                         value={signupForm.username}
                                         onChange={e => setSignupForm({ ...signupForm, username: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="naturalist_01"
                                     />
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                                     <input
                                         type="email"
                                         value={signupForm.email}
                                         onChange={e => setSignupForm({ ...signupForm, email: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="you@example.com"
                                     />
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Password</label>
                                     <div className="relative">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
                                             value={signupForm.password}
                                             onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                             placeholder="••••••••"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors"
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors p-2"
                                         >
                                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
@@ -755,13 +751,13 @@ export default function Account() {
                                     <PasswordStrengthMeter password={signupForm.password} />
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Confirm Password</label>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         value={signupForm.confirmPassword}
                                         onChange={e => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -769,7 +765,7 @@ export default function Account() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="w-full bg-botanical-forest text-white font-semibold py-4 rounded-lg hover:bg-opacity-90 active:scale-[0.98] transition-all duration-200 mt-6 shadow-[0_4px_20px_rgba(122,158,114,0.2)]"
+                                    className="w-full bg-botanical-forest text-white font-semibold py-4 rounded-lg hover:bg-opacity-90 active:scale-[0.98] transition-all duration-200 mt-6 shadow-[0_4px_20px_rgba(122,158,114,0.2)] min-h-[56px] flex items-center justify-center"
                                 >
                                     {saving ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -777,21 +773,21 @@ export default function Account() {
                                             <span>Creating...</span>
                                         </span>
                                     ) : (
-                                        'Start Collection'
+                                        'Create account'
                                     )}
                                 </button>
                             </form>
 
-                            <div className="mt-8 text-center border-t border-white/5 pt-6">
-                                <p className="text-sm text-claude-secondary">
-                                    Already have an account?{' '}
-                                    <button
-                                        onClick={() => setView('login')}
-                                        className="text-claude-parchment hover:text-claude-accent font-medium transition-colors border-b border-transparent hover:border-claude-accent ml-1"
-                                    >
-                                        Sign In
-                                    </button>
+                            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
+                                <p className="text-sm text-claude-secondary text-center">
+                                    Already recorded?
                                 </p>
+                                <button
+                                    onClick={() => setView('login')}
+                                    className="w-full py-3 border border-claude-accent/30 rounded-lg text-claude-accent font-display tracking-wider text-xs uppercase hover:bg-claude-accent/5 transition-colors active:scale-[0.98]"
+                                >
+                                    Login
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -860,17 +856,15 @@ export default function Account() {
                         </div>
 
                         <div className="relative z-10 w-full max-w-sm mx-auto animate-in slide-in-from-right duration-500">
-                            {/* Mobile Header */}
-                            <div className="md:hidden mb-8 flex flex-col items-center text-center">
-                                <div className="w-12 h-12 border border-claude-accent/30 rounded-full flex items-center justify-center backdrop-blur-md bg-white/5 mb-3">
-                                    <ShieldCheck className="w-5 h-5 text-claude-accent" />
-                                </div>
-                                <span className="text-claude-parchment font-display text-lg tracking-[0.2em] uppercase">Riven</span>
+                            {/* Mobile Header - Simplified */}
+                            <div className="md:hidden mb-8 flex flex-col items-center">
+                                <span className="text-claude-parchment font-display text-2xl tracking-[0.3em] uppercase opacity-90">Riven</span>
+                                <div className="h-[1px] w-8 bg-claude-accent/40 mt-3"></div>
                             </div>
 
-                            <button onClick={() => setView('login')} className="inline-flex items-center gap-2 text-xs text-claude-secondary hover:text-claude-accent mb-8 transition-colors group">
-                                <ArrowLeft className="w-4 h-4" />
-                                BACK TO LOGIN
+                            <button onClick={() => setView('login')} className="inline-flex items-center gap-2 text-sm text-claude-secondary hover:text-claude-accent mb-6 transition-colors group p-2 -ml-2">
+                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+                                RETURN TO LOGIN
                             </button>
 
                             <div className="mb-10">
@@ -898,7 +892,7 @@ export default function Account() {
                                 <button
                                     type="submit"
                                     disabled={saving || twoFACode.length !== 6}
-                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 shadow-[0_4px_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:shadow-none"
+                                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 shadow-[0_4px_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:shadow-none min-h-[56px] flex items-center justify-center"
                                 >
                                     {saving ? <LoadingSpinner size="sm" color="text-botanical-ink" /> : 'Verify Identity'}
                                 </button>
