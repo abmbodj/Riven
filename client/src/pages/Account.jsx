@@ -22,7 +22,7 @@ export default function Account() {
     const toast = useToast();
     const haptics = useHaptics();
     const {
-        user, isLoggedIn, isAdmin, isOwner, role, signUp, signIn, signOut,
+        user, isLoggedIn, isAdmin, isOwner, role, signUp, signIn, signInWith2FA, signOut,
         updateProfile, changePassword, deleteAccount, getMySharedDecks,
         loading: authLoading // renamed to avoid conflict with local loading
     } = useAuth();
@@ -125,45 +125,9 @@ export default function Account() {
         }
         setSaving(true);
         try {
-            // Check if 2FA is required (this needs authApi.login to return special object or throw)
-            // But standard SignIn uses context. We need to modify Context or handle it here?
-            // AuthContext.signIn calls api.login.
-            // If API returns require2FA, useAuth should probably handle it or throw special error?
-            // Let's assume signIn returns user, or throws. 
-            // We need to check useAuth implementation.
-            // If I modify authApi.login to return { require2FA, tempToken } or user,
-            // Then AuthContext needs to handle it.
-            // Let's modify handleLogin to use authApi directly? No, useAuth updates state.
-
-            // Actually, best to update AuthContext to handle 2FA step?
-            // Or just handle it here by catching a specific error or checking return?
-            // The authApi.login returns data.user.
-            // If server returns { require2FA: true }, authApi.login should return that?
-            // Let's check authApi.js login again.
-            // It returns data.user.
-
-            // If I modify authApi.js to return full data if 2FA?
-            // Currently authApi.js: 
-            /*
-            const data = await authFetch('/auth/login', ...);
-            setToken(data.token);
-            return data.user;
-            */
-            // If data has require2FA, setToken(undefined) probably?
-            // I should update authApi.js login to handle this.
-
-            // For now, I'll assume I update authApi.js or handle it here.
-            // Since I can't easily see AuthContext right now without another tool call (I saw it earlier but didn't modify it).
-            // Account.jsx calls `signIn`.
-
-            // I'll update Account.jsx assuming `signIn` updates.
-            // Wait, `AuthProvider` `signIn` calls `authApi.login`.
-            // If `authApi.login` returns `user`, `AuthProvider` sets user.
-            // If 2FA is required, `authApi.login` might fail or return partial?
-
             const result = await signIn(loginForm.email, loginForm.password);
 
-            // Check if 2FA is required (using optional chaining for safety)
+            // Check if 2FA is required
             if (result?.require2FA) {
                 setTempToken(result.tempToken);
                 setTwoFACode('');
@@ -172,7 +136,8 @@ export default function Account() {
                 return;
             }
 
-            // Success - context is updated by signIn, view syncs via useEffect
+            // Success - explicitly switch to profile view
+            setView('profile');
             setLoginForm({ email: '', password: '' });
             toast.success('Welcome back!');
             haptics.success();
@@ -193,12 +158,10 @@ export default function Account() {
         e.preventDefault();
         setSaving(true);
         try {
-            const user = await authApi.login2FA(tempToken, twoFACode);
-            // Token is set by authApi.
-            // We need to update context. `signIn` won't work easily here as it expects email/pass.
-            // We need `updateUser` or similar in context, or just `window.location.reload()`.
-            // Reloading is a safe fallback to re-init auth state from token.
-            window.location.reload();
+            await signInWith2FA(tempToken, twoFACode);
+            setView('profile');
+            toast.success('Welcome back!');
+            haptics.success();
         } catch (err) {
             haptics.error();
             setAlert({ show: true, title: 'Verification Failed', message: 'Invalid code', type: 'error' });

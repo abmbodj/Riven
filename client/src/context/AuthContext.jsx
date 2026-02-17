@@ -70,6 +70,13 @@ export function AuthProvider({ children }) {
         return data;
     }, []);
 
+    // Sign in with 2FA - sets user from 2FA login response
+    const signInWith2FA = useCallback(async (tempToken, code) => {
+        const userData = await authApi.login2FA(tempToken, code);
+        setUser(userData);
+        return userData;
+    }, []);
+
     // Sign out
     const signOut = useCallback(() => {
         authApi.logout();
@@ -266,6 +273,7 @@ export function AuthProvider({ children }) {
         role: user?.role || 'user',
         signUp,
         signIn,
+        signInWith2FA,
         signOut,
         updateProfile,
         changePassword,
@@ -292,7 +300,7 @@ export function AuthProvider({ children }) {
         getActiveMessages,
         dismissMessage
     }), [
-        user, loading, signUp, signIn, signOut, updateProfile, changePassword,
+        user, loading, signUp, signIn, signInWith2FA, signOut, updateProfile, changePassword,
         deleteAccount, findUserByShareCode, shareDeck, getSharedDeck, importSharedDeck,
         unshareDeck, getMySharedDecks, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData, adminGetMessages,
