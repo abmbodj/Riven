@@ -172,14 +172,13 @@ export default function Account() {
                 return;
             }
 
-            // Success - context is updated by signIn. Reload to avoid React state timing issues
-            // (same approach as 2FA login - ensures cookie is used and we get a clean state)
+            // Success - context is updated by signIn, view syncs via useEffect
+            setLoginForm({ email: '', password: '' });
             toast.success('Welcome back!');
             haptics.success();
             if (window.navigator?.vibrate) {
                 window.navigator.vibrate(50);
             }
-            window.location.reload();
         } catch (err) {
             haptics.error();
             // Ensure we always have a valid error message

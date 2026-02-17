@@ -69,7 +69,8 @@ export const logout = async () => {
 };
 
 export const getMe = async () => {
-    return authFetch('/auth/me');
+    const data = await authFetch('/auth/me');
+    return data.user;
 };
 
 export const updateProfile = async (updates) => {
