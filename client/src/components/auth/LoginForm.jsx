@@ -60,6 +60,9 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                     <input
                         type="email"
+                        name="email"
+                        id="email"
+                        autoComplete="username"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
@@ -74,6 +77,9 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
                     <div className="relative group">
                         <input
                             type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            id="password"
+                            autoComplete="current-password"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
                             className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"

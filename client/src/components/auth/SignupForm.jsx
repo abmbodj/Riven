@@ -68,6 +68,9 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Username</label>
                     <input
                         type="text"
+                        name="username"
+                        id="username"
+                        autoComplete="username"
                         value={form.username}
                         onChange={e => setForm({ ...form, username: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
@@ -79,6 +82,9 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
                     <input
                         type="email"
+                        name="email"
+                        id="email"
+                        autoComplete="email"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
@@ -91,6 +97,9 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     <div className="relative">
                         <input
                             type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            id="password"
+                            autoComplete="new-password"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
                             className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
@@ -111,6 +120,9 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Confirm Password</label>
                     <input
                         type={showPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        id="confirmPassword"
+                        autoComplete="new-password"
                         value={form.confirmPassword}
                         onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
