@@ -16,6 +16,10 @@ const db = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust the first proxy (Render/Vercel load balancer)
+// Required for successful rate limiting behind a proxy
+app.set('trust proxy', 1);
+
 // JWT Secret - REQUIRED in all environments
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
