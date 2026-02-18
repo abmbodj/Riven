@@ -17,9 +17,14 @@ export function AuthProvider({ children }) {
             // Fetch user data in background, don't block UI
             authApi.getMe()
                 .then(setUser)
-                .catch(() => {
-                    authApi.setToken(null);
-                    setUser(null);
+                .catch((err) => {
+                    console.error('[AuthContext] Session check failed', err);
+                    // Only clear token if explicitly unauthorized
+                    // If it's a network error (500, offline), keep the token
+                    if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
+                        authApi.setToken(null);
+                        setUser(null);
+                    }
                 })
                 .finally(() => setLoading(false));
         } else {

@@ -31,8 +31,15 @@ export function GardenProvider({ children }) {
             const timeoutId = setTimeout(() => {
                 authApi.getPetCustomization()
                     .then(serverData => {
-                        if (serverData && (serverData.gardenTheme || serverData.decorations)) {
-                            setCustomization(serverData);
+                        if (serverData) {
+                            setCustomization(prev => ({
+                                ...defaultCustomization, // Ensure defaults
+                                ...prev,
+                                ...serverData, // Override with server data
+                                // Ensure arrays are actually arrays
+                                decorations: Array.isArray(serverData.decorations) ? serverData.decorations : [],
+                                specialPlants: Array.isArray(serverData.specialPlants) ? serverData.specialPlants : []
+                            }));
                         }
                     })
                     .catch(() => { });
@@ -64,15 +71,16 @@ export function GardenProvider({ children }) {
 
     const toggleDecoration = useCallback((decorationId) => {
         setCustomization(prev => {
-            const isEquipped = prev.decorations?.includes(decorationId);
+            const currentDecs = Array.isArray(prev.decorations) ? prev.decorations : [];
+            const isEquipped = currentDecs.includes(decorationId);
             let newDecorations;
 
             if (isEquipped) {
-                newDecorations = prev.decorations.filter(id => id !== decorationId);
+                newDecorations = currentDecs.filter(id => id !== decorationId);
             } else {
                 const newDec = decorations.find(d => d.id === decorationId);
                 const slot = newDec?.slot;
-                newDecorations = (prev.decorations || []).filter(id => {
+                newDecorations = currentDecs.filter(id => {
                     const dec = decorations.find(d => d.id === id);
                     return dec && dec.slot !== slot;
                 });
@@ -87,13 +95,14 @@ export function GardenProvider({ children }) {
 
     const togglePlant = useCallback((plantId) => {
         setCustomization(prev => {
-            const isEquipped = prev.specialPlants?.includes(plantId);
+            const currentPlants = Array.isArray(prev.specialPlants) ? prev.specialPlants : [];
+            const isEquipped = currentPlants.includes(plantId);
             let newPlants;
 
             if (isEquipped) {
-                newPlants = prev.specialPlants.filter(id => id !== plantId);
+                newPlants = currentPlants.filter(id => id !== plantId);
             } else {
-                newPlants = [...(prev.specialPlants || [])];
+                newPlants = [...currentPlants];
                 if (newPlants.length >= 3) {
                     newPlants.shift();
                 }

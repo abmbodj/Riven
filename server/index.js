@@ -440,9 +440,20 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+
+        // Ensure robust defaults for potential missing data
+        let streakData = {};
+        try {
+            streakData = user.streak_data ? JSON.parse(user.streak_data) : {};
+        } catch (e) { console.error('Error parsing streak_data', e); }
+
+        const petCustomization = user.pet_customization ? JSON.parse(user.pet_customization) : { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
+
         res.json({
             id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
-            avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
+            avatar: user.avatar, bio: user.bio || '',
+            streakData,
+            petCustomization,
             role: userRole, isAdmin: userRole === 'admin' || userRole === 'owner',
             isOwner: userRole === 'owner', createdAt: user.created_at,
             twoFAEnabled: !!user.two_fa_enabled
