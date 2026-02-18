@@ -51,6 +51,28 @@ const authFetch = async (endpoint, options = {}) => {
     }
 };
 
+
+// Helper for safe data fetching (swallows errors, returns consistent defaults)
+const safeFetchArray = async (promise) => {
+    try {
+        const data = await promise;
+        return Array.isArray(data) ? data : [];
+    } catch (err) {
+        console.warn('[authApi] Safe fetch failed (returning []):', err);
+        return [];
+    }
+};
+
+const safeFetchObject = async (promise, defaultVal = {}) => {
+    try {
+        const data = await promise;
+        return data || defaultVal;
+    } catch (err) {
+        console.warn('[authApi] Safe fetch failed (returning default):', err);
+        return defaultVal;
+    }
+};
+
 // ============ AUTH ENDPOINTS ============
 
 export const register = async (username, email, password) => {
@@ -123,7 +145,7 @@ export const deleteAccount = async (password) => {
 // ============ STREAK ENDPOINTS ============
 
 export const getStreak = async () => {
-    return authFetch('/auth/streak');
+    return safeFetchObject(authFetch('/auth/streak'), {});
 };
 
 export const updateStreak = async (streakData) => {
@@ -136,7 +158,7 @@ export const updateStreak = async (streakData) => {
 // ============ PET CUSTOMIZATION ============
 
 export const getPetCustomization = async () => {
-    return authFetch('/auth/pet');
+    return safeFetchObject(authFetch('/auth/pet'), { decorations: [], specialPlants: [] });
 };
 
 export const updatePetCustomization = async (customization) => {
@@ -148,7 +170,7 @@ export const updatePetCustomization = async (customization) => {
 
 // ============ DATA ENDPOINTS (with auth) ============
 
-export const getFolders = () => authFetch('/folders');
+export const getFolders = () => safeFetchArray(authFetch('/folders'));
 export const createFolder = (name, color, icon) => authFetch('/folders', {
     method: 'POST',
     body: JSON.stringify({ name, color, icon }),
@@ -159,14 +181,14 @@ export const updateFolder = (id, name, color, icon) => authFetch(`/folders/${id}
 });
 export const deleteFolder = (id) => authFetch(`/folders/${id}`, { method: 'DELETE' });
 
-export const getTags = () => authFetch('/tags');
+export const getTags = () => safeFetchArray(authFetch('/tags'));
 export const createTag = (name, color) => authFetch('/tags', {
     method: 'POST',
     body: JSON.stringify({ name, color }),
 });
 export const deleteTag = (id) => authFetch(`/tags/${id}`, { method: 'DELETE' });
 
-export const getDecks = () => authFetch('/decks');
+export const getDecks = () => safeFetchArray(authFetch('/decks'));
 export const getDeck = (id) => authFetch(`/decks/${id}`);
 export const createDeck = (title, description, folderId, tagIds) => authFetch('/decks', {
     method: 'POST',
@@ -211,9 +233,9 @@ export const saveStudySession = (deckId, cardsStudied, cardsCorrect, durationSec
         }),
     });
 
-export const getDeckStats = (deckId) => authFetch(`/decks/${deckId}/stats`);
+export const getDeckStats = (deckId) => safeFetchObject(authFetch(`/decks/${deckId}/stats`), {});
 
-export const getThemes = () => authFetch('/themes');
+export const getThemes = () => safeFetchArray(authFetch('/themes'));
 export const createTheme = (themeData) => authFetch('/themes', {
     method: 'POST',
     body: JSON.stringify(themeData),
@@ -230,7 +252,7 @@ export const deleteTheme = (id) => authFetch(`/themes/${id}`, { method: 'DELETE'
 export const shareDeck = (deckId) => authFetch(`/decks/${deckId}/share`, { method: 'POST' });
 export const getSharedDeck = (shareId) => authFetch(`/share/${shareId}`);
 export const importSharedDeck = (shareId) => authFetch(`/share/${shareId}/import`, { method: 'POST' });
-export const getMySharedDecks = () => authFetch('/my-shares');
+export const getMySharedDecks = () => safeFetchArray(authFetch('/my-shares'));
 export const unshareDeck = (shareId) => authFetch(`/share/${shareId}`, { method: 'DELETE' });
 
 // ============ GUEST DATA MIGRATION ============
@@ -242,9 +264,9 @@ export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-da
 
 // ============ SOCIAL / FRIENDS ============
 
-export const searchUsers = (query) => authFetch(`/users/search?q=${encodeURIComponent(query)}`);
+export const searchUsers = (query) => safeFetchArray(authFetch(`/users/search?q=${encodeURIComponent(query)}`));
 export const getUserProfile = (userId) => authFetch(`/users/${userId}`);
-export const getFriends = () => authFetch('/friends');
+export const getFriends = () => safeFetchArray(authFetch('/friends'));
 export const sendFriendRequest = (userId) => authFetch('/friends/request', {
     method: 'POST',
     body: JSON.stringify({ userId }),
@@ -257,28 +279,28 @@ export const removeFriend = (userId) => authFetch(`/friends/${userId}`, { method
 
 // ============ DIRECT MESSAGES ============
 
-export const getConversations = () => authFetch('/messages/conversations');
+export const getConversations = () => safeFetchArray(authFetch('/messages/conversations'));
 export const getMessages = (userId, limit, before) => {
     let url = `/messages/${userId}?limit=${limit || 50}`;
     if (before) url += `&before=${encodeURIComponent(before)}`;
-    return authFetch(url);
+    return safeFetchArray(authFetch(url));
 };
 export const sendMessage = (receiverId, content, messageType = 'text', deckData = null) => authFetch('/messages', {
     method: 'POST',
     body: JSON.stringify({ receiverId, content, messageType, deckData }),
 });
-export const getUnreadCount = () => authFetch('/messages/unread/count');
+export const getUnreadCount = () => safeFetchObject(authFetch('/messages/unread/count'), { count: 0 });
 
 // ============ ADMIN ENDPOINTS ============
 
-export const adminGetAllUsers = () => authFetch('/admin/users');
+export const adminGetAllUsers = () => safeFetchArray(authFetch('/admin/users'));
 export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) });
 export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
-export const adminGetStats = () => authFetch('/admin/stats');
+export const adminGetStats = () => safeFetchObject(authFetch('/admin/stats'));
 export const adminUpdateUserRole = (userId, role) => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
 
 // Admin message functions
-export const adminGetMessages = () => authFetch('/admin/messages');
+export const adminGetMessages = () => safeFetchArray(authFetch('/admin/messages'));
 export const adminCreateMessage = (title, content, type, expiresAt) => authFetch('/admin/messages', {
     method: 'POST',
     body: JSON.stringify({ title, content, type, expiresAt })
@@ -290,7 +312,7 @@ export const adminUpdateMessage = (id, updates) => authFetch(`/admin/messages/${
 export const adminDeleteMessage = (id) => authFetch(`/admin/messages/${id}`, { method: 'DELETE' });
 
 // User-facing message functions
-export const getActiveMessages = () => authFetch('/messages');
+export const getActiveMessages = () => safeFetchArray(authFetch('/messages'));
 export const dismissMessage = (id) => authFetch(`/messages/${id}/dismiss`, { method: 'POST' });
 
 // ============ 2FA ENDPOINTS ============
@@ -320,7 +342,7 @@ export default {
     setToken,
     register,
     login,
-    login2FA, // Export this
+    login2FA,
     logout,
     getMe,
     updateProfile,
@@ -330,9 +352,9 @@ export default {
     updateStreak,
     getPetCustomization,
     updatePetCustomization,
-    setup2FA, // Export
-    verify2FA, // Export
-    disable2FA, // Export
+    setup2FA,
+    verify2FA,
+    disable2FA,
     getFolders,
     createFolder,
     updateFolder,
