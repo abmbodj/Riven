@@ -14,7 +14,6 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const token = authApi.getToken();
         if (token) {
-            // Fetch user data in background, don't block UI
             authApi.getMe()
                 .then(setUser)
                 .catch((err) => {

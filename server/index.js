@@ -259,6 +259,7 @@ app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
         });
 
         res.status(201).json({
+            token,
             user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
         });
     } catch (error) {
@@ -304,6 +305,8 @@ app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
         });
 
         res.json({
+            token,
+            require2FA: false,
             user: {
                 id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '', role: userRole,

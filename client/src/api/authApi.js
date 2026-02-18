@@ -10,13 +10,18 @@ export const setToken = (token) => {
     else localStorage.removeItem('riven_auth_token');
 };
 
-// Fetch wrapper with credentials (httpOnly cookies sent automatically)
+// Fetch wrapper with dual auth (Cookie + Header)
 const authFetch = async (endpoint, options = {}) => {
+    const token = getToken();
     console.log(`[authApi] Fetching ${endpoint}`, options);
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
     };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
 
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -46,8 +51,10 @@ export const register = async (username, email, password) => {
         method: 'POST',
         body: JSON.stringify({ username, email, password }),
     });
-    // Token is now set as httpOnly cookie by server
-    setToken('logged_in'); // Set local flag
+    // Token is set as httpOnly cookie AND returned in body
+    if (data.token) {
+        setToken(data.token);
+    }
     return data.user;
 };
 
@@ -58,11 +65,13 @@ export const login = async (email, password) => {
         body: JSON.stringify({ email, password }),
     });
     console.log('[authApi] login response', data);
-    // Token is now set as httpOnly cookie by server (if 2FA not required)
-    if (data.user) {
-        setToken('logged_in'); // Set local flag if login successful
+    // Token is now set as httpOnly cookie by server AND returned in body
+    if (data.token) {
+        setToken(data.token); // Save token for mobile/fallback
+    } else if (data.user) {
+        setToken('logged_in'); // Fallback if no token returned (shouldn't happen now)
     }
-    // Return the full data object (which may contain require2FA, tempToken, or user)
+    // Return the full data object
     return data;
 };
 
@@ -289,11 +298,13 @@ export const disable2FA = (password) => authFetch('/auth/2fa/disable', {
     body: JSON.stringify({ password })
 });
 export const login2FA = async (tempToken, token) => {
-    const data = await authFetch('/auth/2fa/login', {
+    const data = await authFetch('/auth/login/2fa', {
         method: 'POST',
         body: JSON.stringify({ tempToken, token })
     });
-    setToken('logged_in');
+    if (data.token) {
+        setToken(data.token);
+    }
     return data.user;
 };
 
