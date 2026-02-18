@@ -16,22 +16,35 @@ const Messages = lazy(() => import('../pages/Messages.jsx'));
 const UserProfile = lazy(() => import('../pages/UserProfile.jsx'));
 const NotFound = lazy(() => import('../pages/NotFound.jsx'));
 
+
+import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
+
 export const routesConfig = [
+  // Public Routes
   { path: '/', element: <Home /> },
-  { path: '/create', element: <CreateDeck /> },
-  { path: '/deck/:id', element: <DeckView /> },
-  { path: '/deck/:id/study', element: <StudyMode /> },
-  { path: '/deck/:id/test', element: <TestMode /> },
-  { path: '/themes', element: <ThemeSettings /> },
-  { path: '/garden', element: <GardenSettings /> },
   { path: '/account', element: <Account /> },
-  { path: '/shared', element: <SharedDecks /> },
-  { path: '/share/:shareId', element: <SharedDecks /> },
-  { path: '/admin', element: <AdminPanel /> },
-  { path: '/friends', element: <Friends /> },
-  { path: '/messages', element: <Messages /> },
-  { path: '/messages/:userId', element: <Messages /> },
-  { path: '/profile/:userId', element: <UserProfile /> },
+
+  // Protected Routes
+  {
+    element: <ProtectedRoute />,
+    children: [
+      { path: '/create', element: <CreateDeck /> },
+      { path: '/deck/:id', element: <DeckView /> },
+      { path: '/deck/:id/study', element: <StudyMode /> },
+      { path: '/deck/:id/test', element: <TestMode /> },
+      { path: '/themes', element: <ThemeSettings /> },
+      { path: '/garden', element: <GardenSettings /> },
+      { path: '/shared', element: <SharedDecks /> },
+      { path: '/share/:shareId', element: <SharedDecks /> },
+      { path: '/admin', element: <AdminPanel /> },
+      { path: '/friends', element: <Friends /> },
+      { path: '/messages', element: <Messages /> },
+      { path: '/messages/:userId', element: <Messages /> },
+      { path: '/profile/:userId', element: <UserProfile /> },
+    ],
+  },
+
+  // Catch-all
   { path: '*', element: <NotFound /> },
 ];
 
