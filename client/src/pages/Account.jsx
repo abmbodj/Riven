@@ -95,7 +95,8 @@ export default function Account() {
                     setFriendCount(friends.filter(f => f.status === 'accepted').length);
                     setUnreadMessages(unread.count);
                 }
-            } catch {
+            } catch (err) {
+                console.warn('[Account] Failed to load stats:', err);
                 // Failed to load social stats silently
             } finally {
                 if (mounted) setLoading(false);
@@ -355,7 +356,18 @@ export default function Account() {
     // Load shared decks
     React.useEffect(() => {
         if (isLoggedIn) {
-            getMySharedDecks().then(setSharedDecks).catch(() => setSharedDecks([]));
+            getMySharedDecks()
+                .then(data => {
+                    if (Array.isArray(data)) setSharedDecks(data);
+                    else {
+                        console.warn('[Account] Shared decks is not an array:', data);
+                        setSharedDecks([]);
+                    }
+                })
+                .catch(err => {
+                    console.error('[Account] Failed to load shared decks:', err);
+                    setSharedDecks([]);
+                });
         }
     }, [isLoggedIn, getMySharedDecks]);
 
@@ -897,7 +909,7 @@ export default function Account() {
                     <p className="text-xs text-claude-secondary uppercase tracking-wider">Friends</p>
                 </Link>
                 <div className="text-center">
-                    <p className="text-2xl font-bold">{sharedDecks.length}</p>
+                    <p className="text-2xl font-bold">{sharedDecks?.length || 0}</p>
                     <p className="text-xs text-claude-secondary uppercase tracking-wider">Shared</p>
                 </div>
                 <div className="text-center">
@@ -970,7 +982,7 @@ export default function Account() {
                         <span>Shared Decks</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-claude-secondary">{sharedDecks.length}</span>
+                        <span className="text-sm text-claude-secondary">{sharedDecks?.length || 0}</span>
                         <ChevronRight className="w-5 h-5 text-claude-secondary" />
                     </div>
                 </Link>
