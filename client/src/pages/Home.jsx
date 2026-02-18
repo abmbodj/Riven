@@ -153,14 +153,22 @@ export default function Home() {
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
+        console.log('[Home] loadData called', { isRefresh });
 
         try {
             // Load all data in parallel for speed
+            console.log('[Home] Fetching decks, folders, tags...');
             const [decksData, foldersData, tagsData] = await Promise.all([
                 api.getDecks(),
                 api.getFolders(),
                 api.getTags()
             ]);
+
+            console.log('[Home] Data loaded:', {
+                decks: decksData?.length,
+                folders: foldersData?.length,
+                tags: tagsData?.length
+            });
 
             setDecks(decksData);
             setFolders(foldersData);
@@ -168,9 +176,11 @@ export default function Home() {
             setError(null);
 
             if (decksData.length === 0 && foldersData.length === 0 && !localStorage.getItem('riven_onboarded')) {
+                console.log('[Home] Showing onboarding');
                 setShowOnboarding(true);
             }
         } catch (err) {
+            console.error('[Home] Failed to load data:', err);
             const errorMessage = err?.message || 'Failed to load data';
             setError(errorMessage);
         } finally {

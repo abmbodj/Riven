@@ -60,14 +60,24 @@ export function AuthProvider({ children }) {
     // Sign in - admin role is now handled server-side
     // Sign in - admin role is now handled server-side
     const signIn = useCallback(async (email, password) => {
-        const data = await authApi.login(email, password);
-        // authApi.login returns the whole response object now
-        if (data.user) {
-            setUser(data.user);
-            return data.user;
+        console.log('[AuthContext] signIn called', { email });
+        try {
+            const data = await authApi.login(email, password);
+            console.log('[AuthContext] login API success', data);
+
+            // authApi.login returns the whole response object now
+            if (data.user) {
+                console.log('[AuthContext] Setting user', data.user);
+                setUser(data.user);
+                return data.user;
+            }
+            // Return data (containing require2FA) if user is not present
+            console.log('[AuthContext] Login requires further action (e.g. 2FA)', data);
+            return data;
+        } catch (error) {
+            console.error('[AuthContext] signIn error', error);
+            throw error;
         }
-        // Return data (containing require2FA) if user is not present
-        return data;
     }, []);
 
     // Sign in with 2FA - sets user from 2FA login response

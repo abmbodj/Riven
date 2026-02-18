@@ -159,7 +159,12 @@ function optionalAuth(req, res, next) {
         try {
             const decoded = jwt.verify(token, jwtSecret);
             req.user = decoded;
-        } catch (err) { }
+            // console.log('[Auth] optionalAuth verified token for user:', decoded.id);
+        } catch (err) {
+            console.error('[Auth] optionalAuth token verification failed:', err.message);
+        }
+    } else {
+        // console.log('[Auth] optionalAuth: No token found');
     }
     next();
 }
@@ -282,6 +287,7 @@ app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
 
         // Set httpOnly cookie (secure in production)
         const isProd = process.env.NODE_ENV === 'production';
+        console.log(`[Auth] Login successful for ${email}:`, { isProd, userRole });
         res.cookie('token', token, {
             httpOnly: true,
             secure: isProd,
@@ -1074,6 +1080,7 @@ app.get('/api/decks', optionalAuth, async (req, res) => {
         const params = userId ? [userId] : [];
 
         // Single query: get decks with card counts
+        console.log('[Decks] Fetching decks for user:', userId ? `ID ${userId}` : 'Public (NULL)');
         const decks = await db.query(
             `SELECT d.*, COALESCE(c.count, 0)::int AS "cardCount"
              FROM decks d

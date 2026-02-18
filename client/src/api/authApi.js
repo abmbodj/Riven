@@ -12,24 +12,31 @@ export const setToken = (token) => {
 
 // Fetch wrapper with credentials (httpOnly cookies sent automatically)
 const authFetch = async (endpoint, options = {}) => {
+    console.log(`[authApi] Fetching ${endpoint}`, options);
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
     };
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers,
-        credentials: 'include', // Send httpOnly cookies with requests
-    });
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+            credentials: 'include', // Send httpOnly cookies with requests
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
+        if (!response.ok) {
+            console.error(`[authApi] Error ${endpoint}:`, data);
+            throw new Error(data.error || 'Request failed');
+        }
+
+        return data;
+    } catch (error) {
+        console.error(`[authApi] Network/Parse error ${endpoint}:`, error);
+        throw error;
     }
-
-    return data;
 };
 
 // ============ AUTH ENDPOINTS ============
@@ -45,10 +52,12 @@ export const register = async (username, email, password) => {
 };
 
 export const login = async (email, password) => {
+    console.log('[authApi] login called', { email });
     const data = await authFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
+    console.log('[authApi] login response', data);
     // Token is now set as httpOnly cookie by server (if 2FA not required)
     if (data.user) {
         setToken('logged_in'); // Set local flag if login successful

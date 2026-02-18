@@ -119,16 +119,22 @@ export default function Account() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        console.log('[Account] handleLogin started', { email: loginForm.email });
+
         if (!loginForm.email || !loginForm.password) {
+            console.warn('[Account] Missing fields');
             setAlert({ show: true, title: 'Missing Fields', message: 'Please fill in all fields', type: 'warning' });
             return;
         }
         setSaving(true);
         try {
+            console.log('[Account] Calling signIn...');
             const result = await signIn(loginForm.email, loginForm.password);
+            console.log('[Account] signIn result:', result);
 
             // Check if 2FA is required
             if (result?.require2FA) {
+                console.log('[Account] 2FA required');
                 setTempToken(result.tempToken);
                 setTwoFACode('');
                 setView('2fa_login');
@@ -137,6 +143,7 @@ export default function Account() {
             }
 
             // Success - explicitly switch to profile view
+            console.log('[Account] Login success, switching to profile view');
             setView('profile');
             setLoginForm({ email: '', password: '' });
             toast.success('Welcome back!');
@@ -145,6 +152,7 @@ export default function Account() {
                 window.navigator.vibrate(50);
             }
         } catch (err) {
+            console.error('[Account] Login error:', err);
             haptics.error();
             // Ensure we always have a valid error message
             const errorMessage = err?.message || 'An unexpected error occurred. Please try again.';
