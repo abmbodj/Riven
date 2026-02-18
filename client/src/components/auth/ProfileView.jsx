@@ -105,10 +105,20 @@ const ProfileView = () => {
                 <p className="text-claude-secondary text-sm mb-2">{user?.email}</p>
                 {user?.bio && <p className="text-sm max-w-xs mx-auto">{user.bio}</p>}
 
-                {/* Edit Profile (Coming Soon / Simplified) */}
-                <div className="mt-3 inline-flex items-center gap-2 text-xs text-claude-secondary">
-                    {/* Placeholder for future actions */}
-                </div>
+                {/* Stats Grid */}
+                {!stats.loading && (
+                    <div className="flex items-center justify-center gap-6 mt-6">
+                        <div className="text-center">
+                            <div className="text-lg font-bold text-claude-accent">{stats.friends}</div>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">Friends</div>
+                        </div>
+                        <div className="w-px h-8 bg-white/10" />
+                        <div className="text-center">
+                            <div className="text-lg font-bold text-claude-accent">{stats.unread}</div>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-claude-secondary">Messages</div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Simple Actions List */}
