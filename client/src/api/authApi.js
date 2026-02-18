@@ -1,7 +1,14 @@
 // Authentication API - communicates with server for cross-device sync
 // Use '/api' in dev so Vite proxy keeps requests same-origin (cookies work).
 // Set VITE_API_URL for production or when server is on a different host.
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+let API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+// Remove trailing slash if present to avoid double slashes
+if (API_BASE.endsWith('/')) {
+    API_BASE = API_BASE.slice(0, -1);
+}
+
+console.log('[authApi] INITIALIZED. Using API_BASE:', API_BASE);
 
 // Helper functions for local auth state (flag for AuthContext to know if it should try fetching user)
 export const getToken = () => localStorage.getItem('riven_auth_token');
