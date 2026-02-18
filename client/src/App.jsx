@@ -1,76 +1,30 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout';
-import Home from './pages/Home';
 import MobileWarning from './components/MobileWarning';
 import ErrorBoundary from './components/ErrorBoundary';
-import { AuthProvider } from './context/AuthContext';
-import { GardenProvider } from './context/GardenContext';
-import { UIProvider } from './context/UIContext';
-import { ThemeProvider } from './ThemeContext.jsx';
-import { StreakProvider } from './context/StreakContext.jsx';
-
-// Lazy load non-critical pages
-const CreateDeck = lazy(() => import('./pages/CreateDeck'));
-const DeckView = lazy(() => import('./pages/DeckView'));
-const StudyMode = lazy(() => import('./pages/StudyMode'));
-const TestMode = lazy(() => import('./pages/TestMode'));
-const ThemeSettings = lazy(() => import('./pages/ThemeSettings'));
-const GardenSettings = lazy(() => import('./pages/GardenSettings'));
-const Account = lazy(() => import('./pages/Account'));
-const SharedDecks = lazy(() => import('./pages/SharedDecks'));
-const AdminPanel = lazy(() => import('./pages/AdminPanel'));
-const Friends = lazy(() => import('./pages/Friends'));
-const Messages = lazy(() => import('./pages/Messages'));
-const UserProfile = lazy(() => import('./pages/UserProfile'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-
-// Simple loading fallback
-const PageLoader = () => (
-  <div role="status" aria-label="Loading page" className="flex items-center justify-center min-h-[50vh]">
-    <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+import { AppProviders } from './AppProviders.jsx';
+import { RootLayout } from './components/layout/RootLayout.jsx';
+import { routesConfig } from './routes/config.jsx';
+import { PageLoader } from './components/ui/PageLoader.jsx';
 
 function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <StreakProvider>
-          <GardenProvider>
-            <UIProvider>
-              <BrowserRouter>
-                <MobileWarning />
-                <Layout>
-                  <ErrorBoundary>
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/create" element={<CreateDeck />} />
-                      <Route path="/deck/:id" element={<DeckView />} />
-                      <Route path="/deck/:id/study" element={<StudyMode />} />
-                      <Route path="/deck/:id/test" element={<TestMode />} />
-                      <Route path="/themes" element={<ThemeSettings />} />
-                      <Route path="/garden" element={<GardenSettings />} />
-                      <Route path="/account" element={<Account />} />
-                      <Route path="/shared" element={<SharedDecks />} />
-                      <Route path="/share/:shareId" element={<SharedDecks />} />
-                      <Route path="/admin" element={<AdminPanel />} />
-                      <Route path="/friends" element={<Friends />} />
-                      <Route path="/messages" element={<Messages />} />
-                      <Route path="/messages/:userId" element={<Messages />} />
-                      <Route path="/profile/:userId" element={<UserProfile />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                  </ErrorBoundary>
-                </Layout>
-              </BrowserRouter>
-            </UIProvider>
-          </GardenProvider>
-        </StreakProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <AppProviders>
+      <BrowserRouter>
+        <MobileWarning />
+        <RootLayout>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {routesConfig.map((route) => (
+                  <Route key={route.path} path={route.path} element={route.element} />
+                ))}
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </RootLayout>
+      </BrowserRouter>
+    </AppProviders>
   );
 }
 

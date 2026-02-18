@@ -1,5 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertCircle, CheckCircle, Info, X, AlertTriangle } from 'lucide-react';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Info from 'lucide-react/dist/esm/icons/info';
+import X from 'lucide-react/dist/esm/icons/x';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 export default function AlertModal({ 

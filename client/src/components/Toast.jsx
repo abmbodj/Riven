@@ -1,5 +1,7 @@
 import React, { createContext, useState, useCallback, useRef } from 'react';
-import { Check, AlertCircle, X } from 'lucide-react';
+import Check from 'lucide-react/dist/esm/icons/check';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import X from 'lucide-react/dist/esm/icons/x';
 
 export const ToastContext = createContext(null);
 

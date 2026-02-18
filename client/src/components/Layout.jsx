@@ -1,6 +1,10 @@
 import { useState, useEffect, useContext, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Palette, Home, WifiOff, Sprout, User } from 'lucide-react';
+import Palette from 'lucide-react/dist/esm/icons/palette';
+import Home from 'lucide-react/dist/esm/icons/home';
+import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
+import Sprout from 'lucide-react/dist/esm/icons/sprout';
+import User from 'lucide-react/dist/esm/icons/user';
 import { motion, AnimatePresence } from 'motion/react';
 import { ThemeContext } from '../ThemeContext';
 import { UIContext } from '../context/UIContext';

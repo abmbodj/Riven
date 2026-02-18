@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { X, Smartphone, Share, PlusSquare, ChevronRight } from 'lucide-react';
+import X from 'lucide-react/dist/esm/icons/x';
+import Smartphone from 'lucide-react/dist/esm/icons/smartphone';
+import Share from 'lucide-react/dist/esm/icons/share';
+import PlusSquare from 'lucide-react/dist/esm/icons/plus-square';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 
 export default function MobileWarning() {
     const [isVisible, setIsVisible] = useState(() => {

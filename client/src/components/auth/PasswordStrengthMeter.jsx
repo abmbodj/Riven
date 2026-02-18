@@ -1,9 +1,32 @@
-import React from 'react';
-import zxcvbn from 'zxcvbn';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 
 const PasswordStrengthMeter = ({ password }) => {
-    const result = zxcvbn(password || '');
+    const [zxcvbnFn, setZxcvbnFn] = useState(null);
+
+    useEffect(() => {
+        if (!password || zxcvbnFn) return;
+        let cancelled = false;
+
+        import('zxcvbn')
+            .then((mod) => {
+                const fn = mod?.default || mod;
+                if (!cancelled) setZxcvbnFn(() => fn);
+            })
+            .catch(() => {
+                if (!cancelled) setZxcvbnFn(() => null);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [password, zxcvbnFn]);
+
+    const result = useMemo(() => {
+        if (!zxcvbnFn) return { score: 0, feedback: {} };
+        return zxcvbnFn(password || '');
+    }, [password, zxcvbnFn]);
+
     const score = result.score; // 0-4
 
     const getColor = () => {
@@ -44,7 +67,7 @@ const PasswordStrengthMeter = ({ password }) => {
                     <span className="text-xs text-claude-secondary font-mono">
                         {getLabel()}
                     </span>
-                    {result.feedback.warning && (
+                    {!!result.feedback?.warning && (
                         <span className="text-[10px] text-red-400">
                             {result.feedback.warning}
                         </span>
