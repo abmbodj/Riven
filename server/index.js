@@ -55,10 +55,18 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 app.use(cors({
     origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, or same-origin in some cases)
         if (!origin) return callback(null, true);
+
+        // In development, allow any origin (e.g. mobile devices on LAN)
+        if (process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.error('[CORS] Blocked request from origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
