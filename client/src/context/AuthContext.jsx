@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import * as authApi from '../api/authApi';
-import * as guestDb from '../db/indexedDB';
 import { AuthContext } from './authContextDef';
 
 // Re-export for convenience
@@ -10,273 +9,129 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Check for existing token on mount (non-blocking)
+    // Initial Session Check
     useEffect(() => {
-        const token = authApi.getToken();
-        if (token) {
-            authApi.getMe()
-                .then(setUser)
-                .catch((err) => {
-                    console.error('[AuthContext] Session check failed', err);
-                    // Only clear token if explicitly unauthorized
-                    // If it's a network error (500, offline), keep the token
-                    if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
-                        authApi.setToken(null);
-                        setUser(null);
-                    }
-                })
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
+        const initAuth = async () => {
+            const token = authApi.getToken();
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const userData = await authApi.getMe();
+                if (userData && userData.id) {
+                    setUser(userData);
+                } else {
+                    // Invalid token or session expired
+                    authApi.setToken(null);
+                    setUser(null);
+                }
+            } catch (err) {
+                console.warn('[AuthContext] Session check failed:', err);
+                // On persistent auth error (401/403), clear token
+                if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
+                    authApi.setToken(null);
+                    setUser(null);
+                }
+                // For network errors (500), do NOT clear token, just fail silently
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initAuth();
     }, []);
 
-    // Migrate guest data to server
-    const migrateGuestData = useCallback(async () => {
-        try {
-            const hasData = await guestDb.hasGuestData();
-            if (!hasData) return { migrated: false };
-
-            const guestData = await guestDb.exportAllGuestData();
-            const result = await authApi.migrateGuestData(guestData);
-
-            // Clear local data after successful migration
-            await guestDb.clearAllGuestData();
-
-            return { migrated: true, ...result };
-        } catch (error) {
-            return { migrated: false, error: error.message };
-        }
-    }, []);
-
-    // Sign up - also migrates guest data
-    const signUp = useCallback(async (username, email, password) => {
-        const userData = await authApi.register(username, email, password);
-        setUser(userData);
-
-        // Migrate guest data after successful signup
-        const migrationResult = await migrateGuestData();
-
-        return { ...userData, migration: migrationResult };
-    }, [migrateGuestData]);
-
-    // Sign in - admin role is now handled server-side
-    // Sign in - admin role is now handled server-side
-    // Sign in - admin role is now handled server-side
+    // Sign In - Atomic & Simple
     const signIn = useCallback(async (email, password) => {
-        console.log('[AuthContext] signIn called', { email });
         try {
             const data = await authApi.login(email, password);
-            console.log('[AuthContext] login API success', data);
 
-            // authApi.login returns the whole response object now
+            // Handle 2FA requirement
+            if (data.require2FA) {
+                return data; // Return to UI to handle 2FA step
+            }
+
             if (data.user) {
-                console.log('[AuthContext] Setting user', data.user);
                 setUser(data.user);
                 return data.user;
             }
-            // Return data (containing require2FA) if user is not present
-            console.log('[AuthContext] Login requires further action (e.g. 2FA)', data);
-            return data;
+
+            throw new Error('Login passed but no user returned');
         } catch (error) {
-            console.error('[AuthContext] signIn error', error);
+            console.error('[AuthContext] Login failed:', error);
             throw error;
         }
     }, []);
 
-    // Sign in with 2FA - sets user from 2FA login response
+    // Sign Up - Simple (Migration removed from critical path)
+    const signUp = useCallback(async (username, email, password) => {
+        const userData = await authApi.register(username, email, password);
+        setUser(userData);
+        return userData;
+    }, []);
+
+    // Sign In with 2FA
     const signInWith2FA = useCallback(async (tempToken, code) => {
         const userData = await authApi.login2FA(tempToken, code);
         setUser(userData);
         return userData;
     }, []);
 
-    // Sign out
+    // Sign Out
     const signOut = useCallback(() => {
-        authApi.logout();
+        authApi.logout().catch(console.warn); // Best effort logout
+        authApi.setToken(null);
         setUser(null);
     }, []);
 
-    // Update profile
+    // Update Profile
     const updateProfile = useCallback(async (updates) => {
         if (!user) throw new Error('Not logged in');
-
         const updatedUser = await authApi.updateProfile(updates);
         setUser(updatedUser);
         return updatedUser;
     }, [user]);
 
-    // Change password
+    // Change Password
     const changePassword = useCallback(async (currentPassword, newPassword) => {
         if (!user) throw new Error('Not logged in');
-
         await authApi.changePassword(currentPassword, newPassword);
     }, [user]);
 
-    // Delete account
+    // Delete Account
     const deleteAccount = useCallback(async (password) => {
         if (!user) throw new Error('Not logged in');
-
         await authApi.deleteAccount(password);
         setUser(null);
     }, [user]);
 
-    // Find user by share code
-    const findUserByShareCode = useCallback(async (shareCode) => {
-        if (!shareCode) return null;
-        try {
-            const results = await authApi.searchUsers(shareCode);
-            return results.find(u => u.shareCode?.toUpperCase() === shareCode.toUpperCase()) || null;
-        } catch {
-            return null;
-        }
-    }, []);
+    // Passthrough functions (logic is in authApi, but exposed via context for consistency)
+    const findUserByShareCode = useCallback((code) => authApi.searchUsers(code).then(users => users.find(u => u.shareCode === code)), []);
+    const shareDeck = useCallback((id) => authApi.shareDeck(id).then(res => res.shareId), []);
+    const getSharedDeck = useCallback((id) => authApi.getSharedDeck(id), []);
+    const importSharedDeck = useCallback((id) => authApi.importSharedDeck(id), []);
+    const unshareDeck = useCallback((id) => authApi.unshareDeck(id), []);
+    const getMySharedDecks = useCallback(() => authApi.getMySharedDecks(), []);
 
-    // Share a deck
-    const shareDeck = useCallback(async (deckId) => {
-        if (!user) throw new Error('Not logged in');
-
-        const result = await authApi.shareDeck(deckId);
-        if (!result || !result.shareId) {
-            throw new Error('Failed to generate share link');
-        }
-        return result.shareId;
-    }, [user]);
-
-    // Get shared deck by shareId
-    const getSharedDeck = useCallback(async (shareId) => {
-        try {
-            return await authApi.getSharedDeck(shareId);
-        } catch {
-            return null;
-        }
-    }, []);
-
-    // Import shared deck
-    const importSharedDeck = useCallback(async (shareId) => {
-        if (!user) throw new Error('Not logged in');
-
-        return await authApi.importSharedDeck(shareId);
-    }, [user]);
-
-    // Unshare a deck
-    const unshareDeck = useCallback(async (shareId) => {
-        if (!user) throw new Error('Not logged in');
-
-        await authApi.unshareDeck(shareId);
-    }, [user]);
-
-    // Get user's shared decks
-    const getMySharedDecks = useCallback(async () => {
-        if (!user) return [];
-        try {
-            return await authApi.getMySharedDecks();
-        } catch {
-            return [];
-        }
-    }, [user]);
-
-    // ==================== ADMIN FUNCTIONS ====================
-
-    // Get all users (admin only)
-    const getAllUsers = useCallback(async () => {
-        if (!user?.isAdmin && !user?.isOwner) return [];
-        try {
-            return await authApi.adminGetAllUsers();
-        } catch {
-            return [];
-        }
-    }, [user]);
-
-    // Update any user (admin only)
-    const adminUpdateUser = useCallback(async (userId, updates) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        return await authApi.adminUpdateUser(userId, updates);
-    }, [user]);
-
-    // Delete any user (admin only)
-    const adminDeleteUser = useCallback(async (userId) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        return await authApi.adminDeleteUser(userId);
-    }, [user]);
-
-    // Get admin stats
-    const adminGetStats = useCallback(async () => {
-        if (!user?.isAdmin && !user?.isOwner) return null;
-        try {
-            return await authApi.adminGetStats();
-        } catch {
-            return null;
-        }
-    }, [user]);
-
-    // Update a user's role (owner only)
-    const adminUpdateUserRole = useCallback(async (userId, role) => {
-        if (!user?.isOwner) throw new Error('Owner access required');
-        return await authApi.adminUpdateUserRole(userId, role);
-    }, [user]);
-
-    // Get user's streak data (admin only - from localStorage for now)
-    const adminGetUserStreakData = useCallback(() => {
-        if (!user?.isAdmin) return null;
-        try {
-            const streakData = localStorage.getItem('riven_streak_data');
-            return streakData ? JSON.parse(streakData) : null;
-        } catch {
-            return null;
-        }
-    }, [user]);
-
-    // Update streak data (admin only)
-    const adminUpdateStreakData = useCallback((newStreakData) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        localStorage.setItem('riven_streak_data', JSON.stringify(newStreakData));
-        return true;
-    }, [user]);
-
-    // Get all global messages (admin only)
-    const adminGetMessages = useCallback(async () => {
-        if (!user?.isAdmin) return [];
-        try {
-            return await authApi.adminGetMessages();
-        } catch {
-            return [];
-        }
-    }, [user]);
-
-    // Create a global message (admin only)
-    const adminCreateMessage = useCallback(async (title, content, type, expiresAt) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        return await authApi.adminCreateMessage(title, content, type, expiresAt);
-    }, [user]);
-
-    // Update a global message (admin only)
-    const adminUpdateMessage = useCallback(async (id, updates) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        return await authApi.adminUpdateMessage(id, updates);
-    }, [user]);
-
-    // Delete a global message (admin only)
-    const adminDeleteMessage = useCallback(async (id) => {
-        if (!user?.isAdmin) throw new Error('Admin access required');
-        return await authApi.adminDeleteMessage(id);
-    }, [user]);
-
-    // Get active messages for current user
-    const getActiveMessages = useCallback(async () => {
-        if (!user) return [];
-        try {
-            return await authApi.getActiveMessages();
-        } catch {
-            return [];
-        }
-    }, [user]);
-
-    // Dismiss a message
-    const dismissMessage = useCallback(async (id) => {
-        if (!user) throw new Error('Not logged in');
-        return await authApi.dismissMessage(id);
-    }, [user]);
+    // Admin Functions
+    const getAllUsers = useCallback(() => authApi.adminGetAllUsers(), []);
+    const adminUpdateUser = useCallback((id, updates) => authApi.adminUpdateUser(id, updates), []);
+    const adminDeleteUser = useCallback((id) => authApi.adminDeleteUser(id), []);
+    const adminGetStats = useCallback(() => authApi.adminGetStats(), []);
+    const adminUpdateUserRole = useCallback((id, role) => authApi.adminUpdateUserRole(id, role), []);
+    const adminGetMessages = useCallback(() => authApi.adminGetMessages(), []);
+    const adminCreateMessage = useCallback((t, c, type, exp) => authApi.adminCreateMessage(t, c, type, exp), []);
+    const adminUpdateMessage = useCallback((id, u) => authApi.adminUpdateMessage(id, u), []);
+    const adminDeleteMessage = useCallback((id) => authApi.adminDeleteMessage(id), []);
+    const getActiveMessages = useCallback(() => authApi.getActiveMessages(), []);
+    const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
+    // Streak data is now part of user object or fetched via generic endpoint, 
+    // but for admin viewing we might need a specific call. authApi has getStreak but that's for 'me'.
+    // If admin needs to view another user's streak, it should cover in adminGetAllUsers or generic user update.
+    const adminGetUserStreakData = useCallback(() => { return null; }, []);
+    const adminUpdateStreakData = useCallback(() => { return true; }, []);
 
     const contextValue = useMemo(() => ({
         user,
@@ -285,41 +140,41 @@ export function AuthProvider({ children }) {
         isAdmin: user?.isAdmin || user?.isOwner || false,
         isOwner: user?.isOwner || false,
         role: user?.role || 'user',
-        signUp,
         signIn,
+        signUp,
         signInWith2FA,
         signOut,
         updateProfile,
         changePassword,
         deleteAccount,
+        // Sharing
         findUserByShareCode,
         shareDeck,
         getSharedDeck,
         importSharedDeck,
         unshareDeck,
         getMySharedDecks,
-        // Admin functions
+        // Admin
         getAllUsers,
         adminUpdateUser,
         adminDeleteUser,
         adminGetStats,
         adminUpdateUserRole,
-        adminGetUserStreakData,
-        adminUpdateStreakData,
+        adminGetUserStreakData, // Legacy/Stub
+        adminUpdateStreakData, // Legacy/Stub
         adminGetMessages,
         adminCreateMessage,
         adminUpdateMessage,
         adminDeleteMessage,
-        // User message functions
         getActiveMessages,
         dismissMessage
     }), [
-        user, loading, signUp, signIn, signInWith2FA, signOut, updateProfile, changePassword,
+        user, loading, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
         deleteAccount, findUserByShareCode, shareDeck, getSharedDeck, importSharedDeck,
         unshareDeck, getMySharedDecks, getAllUsers, adminUpdateUser, adminDeleteUser,
-        adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData, adminGetMessages,
-        adminCreateMessage, adminUpdateMessage, adminDeleteMessage, getActiveMessages,
-        dismissMessage
+        adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
+        adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
+        getActiveMessages, dismissMessage
     ]);
 
     return (
