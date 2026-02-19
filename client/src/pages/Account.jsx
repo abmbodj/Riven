@@ -4,21 +4,24 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import LoginForm from '../components/auth/LoginForm';
 import SignupForm from '../components/auth/SignupForm';
 import ProfileView from '../components/auth/ProfileView';
+import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 
 // Simple orchestrator component
 // No complex logic, just state switching
 export default function Account() {
     const { isLoggedIn, loading } = useAuth();
-    const [authView, setAuthView] = useState('login'); // 'login' or 'signup'
+    const [authView, setAuthView] = useState('login'); // 'login', 'signup', or '2fa'
+    const [tempToken, setTempToken] = useState(null);
 
     // Reset view when auth state changes
     useEffect(() => {
         if (isLoggedIn) {
             setAuthView('profile'); // Not strictly needed but keeps state clean
-        } else {
+            setTempToken(null);
+        } else if (!tempToken) {
             setAuthView('login');
         }
-    }, [isLoggedIn]);
+    }, [isLoggedIn, tempToken]);
 
     // Show loading spinner while checking session
     if (loading) {
@@ -32,6 +35,17 @@ export default function Account() {
     // If logged in, show profile
     if (isLoggedIn) {
         return <ProfileView />;
+    }
+
+    // Handle 2FA View
+    if (tempToken) {
+        return (
+            <TwoFAChallenge
+                tempToken={tempToken}
+                onBack={() => setTempToken(null)}
+                onLoginSuccess={() => setTempToken(null)}
+            />
+        );
     }
 
     // If logged out, show Login or Signup
@@ -51,9 +65,9 @@ export default function Account() {
         <LoginForm
             onSwitchToSignup={() => setAuthView('signup')}
             onLoginSuccess={(result) => {
-                // If 2FA needed, we could handle it here, 
-                // but for now let's assume AuthContext updates user or we handle 2FA in LoginForm
-                // (The provided LoginForm communicates success via prop, we just need to wait for context update)
+                if (result?.require2FA) {
+                    setTempToken(result.tempToken);
+                }
             }}
         />
     );

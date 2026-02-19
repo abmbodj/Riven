@@ -327,7 +327,7 @@ export const disable2FA = (password) => authFetch('/auth/2fa/disable', {
     body: JSON.stringify({ password })
 });
 export const login2FA = async (tempToken, token) => {
-    const data = await authFetch('/auth/login/2fa', {
+    const data = await authFetch('/auth/2fa/login', {
         method: 'POST',
         body: JSON.stringify({ tempToken, token })
     });

@@ -310,7 +310,8 @@ module.exports = function registerAuthRoutes({
                 id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
                 role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
-                isOwner: updatedRole === 'owner', createdAt: user.created_at
+                isOwner: updatedRole === 'owner', createdAt: user.created_at,
+                twoFAEnabled: !!user.two_fa_enabled
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
