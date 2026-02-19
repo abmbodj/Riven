@@ -171,7 +171,8 @@ module.exports = function registerAuthRoutes({
             const verified = speakeasy.totp.verify({
                 secret: user.two_fa_secret,
                 encoding: 'base32',
-                token
+                token,
+                window: 1 // Allow for 30s clock drift
             });
 
             if (verified) {
@@ -215,7 +216,8 @@ module.exports = function registerAuthRoutes({
             const verified = speakeasy.totp.verify({
                 secret: user.two_fa_secret,
                 encoding: 'base32',
-                token
+                token,
+                window: 1 // Allow for 30s clock drift
             });
 
             if (verified) {
