@@ -102,67 +102,37 @@ const DeckCard = memo(({ deck, folders, index }) => {
 });
 DeckCard.displayName = 'DeckCard';
 
-// Garden hero — overlaps into header area
+// Compact Garden Pill — Reduced vertical footprint
 const GardenHero = memo(() => {
     const { isLoggedIn } = useContext(AuthContext);
     const streak = useStreak();
     const stage = getGardenStage(streak.currentStreak);
 
-    // Don't show garden hero when not logged in
     if (!isLoggedIn) return null;
 
     return (
-        <Link to="/garden" className="block mb-6 -mx-4 px-4 tap-action">
+        <Link to="/garden" className="block mb-4 -mx-2 px-2 tap-action">
             <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-                className="relative rounded-2xl overflow-hidden p-5 sm:p-6 shadow-botanical hover:shadow-botanical-lg transition-shadow duration-500 active:scale-[0.98] garden-card-hit"
-                style={{
-                    background: 'linear-gradient(135deg, rgba(122,158,114,0.18) 0%, rgba(222,185,106,0.08) 50%, rgba(30,56,64,0.1) 100%)',
-                    border: '1px solid rgba(122,158,114,0.25)',
-                    backdropFilter: 'blur(10px)',
-                }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative rounded-xl overflow-hidden py-3 px-4 flex items-center gap-4 bg-claude-surface/30 border border-claude-accent/20 backdrop-blur-md active:scale-[0.98] transition-all shadow-sm"
             >
-                {/* Decorative corner marks */}
-                <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-claude-accent/20 rounded-tl-sm pointer-events-none" />
-                <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-claude-accent/20 rounded-br-sm pointer-events-none" />
-
-                <div className="flex flex-col xs:flex-row items-center gap-4 sm:gap-6 relative z-10">
-                    <div className="shrink-0 relative">
-                        <Garden
-                            streak={streak.currentStreak}
-                            status={streak.status}
-                            size="md"
-                            showInfo={false}
-                        />
-                        <div className="absolute -inset-2 border-2 border-dashed border-claude-accent/15 rounded-full animate-[spin_30s_linear_infinite] pointer-events-none" />
-                    </div>
-                    <div className="flex-1 min-w-0 text-center xs:text-left">
-                        <div className="inline-flex items-center gap-2 mb-1 sm:mb-2">
-                            <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-[#8fa6a8] font-bold">Observer Log</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-pulse" />
-                        </div>
-                        <h2 className="font-serif text-2xl sm:text-3xl font-bold italic leading-tight mb-1 sm:mb-2 text-[#e4ddd0] tracking-tight">{stage.name}</h2>
-                        <p className="font-serif text-xs sm:text-base italic text-[#8fa6a8] leading-relaxed max-w-lg line-clamp-2 xs:line-clamp-none">{stage.description}</p>
-
-                        <div className="flex items-center justify-center xs:justify-start gap-4 mt-3 sm:mt-4">
-                            <div className="flex flex-col">
-                                <span className="font-mono text-[7px] sm:text-[8px] uppercase tracking-widest text-[#8fa6a8]/60 mb-0.5">Continuous Growth</span>
-                                <span className="font-mono text-[10px] sm:text-xs font-bold text-claude-accent px-2 sm:px-3 py-1 bg-claude-accent/10 rounded-sm border border-claude-accent/20">{streak.currentStreak}d STREAK</span>
-                            </div>
-                            {streak.status === 'at-risk' && (
-                                <div className="flex flex-col">
-                                    <span className="font-mono text-[7px] sm:text-[8px] uppercase tracking-widest text-yellow-600/60 mb-0.5">Critical State</span>
-                                    <span className="font-mono text-[10px] sm:text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 sm:px-3 py-1 rounded-sm border border-yellow-500/20">⚠ {Math.round(streak.hoursRemaining)}h LEFT</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                <div className="shrink-0 scale-75 origin-center -m-2">
+                    <Garden
+                        streak={streak.currentStreak}
+                        status={streak.status}
+                        size="sm"
+                        showInfo={false}
+                    />
                 </div>
-
-                {/* Ambient glow */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-botanical-glow opacity-30 pointer-events-none blur-[100px]" />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#8fa6a8] font-bold">Observer Log</span>
+                        <span className="font-mono text-[8px] font-bold text-claude-accent uppercase">{streak.currentStreak}d Growth</span>
+                    </div>
+                    <h2 className="font-serif text-lg font-bold italic leading-none text-[#e4ddd0] tracking-tight truncate">{stage.name}</h2>
+                </div>
+                <ChevronRight className="w-4 h-4 text-claude-accent/40" />
             </motion.div>
         </Link>
     );
@@ -537,22 +507,22 @@ export default function Home() {
             {/* Garden Hero — overlapping into header */}
             <GardenHero />
 
-            {/* Header */}
-            <div className="mb-10 pt-4 px-1">
-                <div className="flex items-end justify-between mb-8 pb-4 border-b-2 border-[#d1c9b8]/20">
+            {/* Header — Tighter vertical footprint */}
+            <div className="mb-6 pt-2 px-1">
+                <div className="flex items-end justify-between mb-4 pb-4 border-b-2 border-[#d1c9b8]/20">
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="px-2 py-0.5 bg-claude-accent text-botanical-ink text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Vol. II</span>
-                            <p className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-[#8fa6a8] opacity-80 font-bold">Personal Archives</p>
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Collection</span>
+                            <p className="font-mono text-[8px] sm:text-[10px] uppercase tracking-[0.4em] text-[#8fa6a8] opacity-80 font-bold">Archives</p>
                         </div>
-                        <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter">Collection</h1>
+                        <h1 className="text-3xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter">Catalogue</h1>
                     </div>
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
                         className="touch-target text-[#8fa6a8] hover:text-claude-accent transition-colors disabled:opacity-50 mb-1 active:rotate-180 duration-500 tap-action"
                     >
-                        <RefreshCw className={`w-6 h-6 ${refreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
 
@@ -757,37 +727,33 @@ export default function Home() {
 
             {/* Mobile Sticky Command Bar — THUMB ZONE ergonomics */}
             <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden overflow-visible">
-                {/* Search overlay background */}
-                {(searchQuery) && (
-                    <div className="absolute bottom-full left-0 right-0 p-4 animate-in slide-in-from-bottom duration-300">
-                        <div className="bg-[#1e3840]/90 backdrop-blur-xl border border-[#233e46] rounded-2xl p-2 shadow-2xl flex items-center gap-2">
-                            <Search className="w-4 h-4 text-claude-accent ml-2" />
-                            <span className="text-[10px] font-mono text-claude-parchment line-clamp-1 flex-1">Searching: "{searchQuery}"</span>
-                            <button onClick={() => setSearchQuery('')} className="p-2 bg-red-500/10 text-red-400 rounded-lg tap-action">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="bg-[#162a31]/80 backdrop-blur-2xl border-t border-[#233e46] px-4 pt-3 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                <div className="bg-[#162a31]/95 backdrop-blur-2xl border-t border-[#233e46] px-4 pt-3 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.6)]">
                     <div className="flex items-center gap-3">
-                        {/* Search Input — Primary Bottom Action */}
+                        {/* Search Input — Integrated Feedback */}
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]" />
+                            {searchQuery ? (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-claude-accent tap-action z-10"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]" />
+                            )}
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                placeholder="Filter specimens..."
-                                className="w-full bg-[#1e3840]/60 border border-[#233e46] rounded-full pl-9 pr-4 py-3 text-sm font-mono text-claude-parchment outline-none focus:border-claude-accent/50 tap-action"
+                                placeholder={activeFolder ? 'Filtering by folder...' : 'Search archive...'}
+                                className={`w-full bg-[#1e3840]/60 border rounded-full pl-9 pr-4 py-3 text-sm font-mono outline-none transition-all tap-action ${searchQuery ? 'border-claude-accent/50 text-claude-parchment' : 'border-[#233e46] text-claude-parchment'}`}
                             />
                         </div>
 
                         {/* Quick Access Actions */}
                         <Link
                             to="/create"
-                            className="bg-claude-accent text-botanical-ink w-12 h-12 rounded-full flex items-center justify-center shadow-botanical-glow active:scale-90 transition-transform tap-action"
+                            className="bg-claude-accent text-botanical-ink w-12 h-12 rounded-full flex items-center justify-center shadow-botanical-glow active:scale-95 transition-transform tap-action"
                         >
                             <Plus className="w-6 h-6" />
                         </Link>
