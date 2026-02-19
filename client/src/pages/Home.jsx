@@ -597,15 +597,6 @@ export default function Home() {
                 )}
             </div>
 
-            {/* Genius Floating Action Button */}
-            <div className="fixed bottom-24 right-6 z-[55] md:right-10 md:bottom-10 pointer-events-none">
-                <Link
-                    to="/create"
-                    className="pointer-events-auto bg-claude-accent text-botanical-ink w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shadow-botanical-glow hover:scale-110 active:scale-90 transition-all duration-300 group shadow-[0_10px_30px_rgba(222,185,106,0.3)]"
-                >
-                    <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-500" />
-                </Link>
-            </div>
 
             {/* Onboarding modal — Kept but positioned normally */}
             {showOnboarding && (

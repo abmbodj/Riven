@@ -58,11 +58,14 @@ const ProfileView = () => {
         <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
             {/* Profile Header */}
             <div className="relative mb-6">
-                {/* Botanical Gradient Background */}
-                <div className="h-40 bg-gradient-to-b from-botanical-forest/20 to-claude-bg relative overflow-hidden">
+                {/* Atmospheric Deep Header */}
+                <div className="h-40 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[#0f2026]"></div>
+                    <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl" />
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
-                    <Leaf className="absolute -top-4 -right-4 w-32 h-32 text-botanical-forest/10 rotate-12" />
-                    <Leaf className="absolute -bottom-4 -left-4 w-24 h-24 text-botanical-forest/10 -rotate-12" />
+
+                    <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5 rotate-12" />
+                    <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-botanical-forest/5 -rotate-12 opacity-40" />
                 </div>
 
                 {/* Avatar */}
