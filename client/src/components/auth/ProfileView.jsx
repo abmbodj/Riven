@@ -142,6 +142,22 @@ const ProfileView = () => {
 
             {/* Menu List */}
             <div className="px-4 max-w-md mx-auto space-y-3">
+                {(isAdmin || isOwner) && (
+                    <Link
+                        to="/admin"
+                        className="botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group border-amber-500/20"
+                        onClick={() => haptics.light()}
+                    >
+                        <div className="p-2 bg-amber-500/10 rounded-lg">
+                            <Shield className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="font-medium text-claude-text">Admin Panel</p>
+                            <p className="text-xs text-botanical-sepia">Manage users and content</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-claude-border group-hover:text-claude-secondary transition-colors" />
+                    </Link>
+                )}
                 <Link
                     to="/edit-profile"
                     className="botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group"
