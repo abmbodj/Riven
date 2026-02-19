@@ -55,9 +55,9 @@ const DeckCard = memo(({ deck, folders, index }) => {
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-4 opacity-70">
-                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] hidden xs:inline">№{deck.id?.toString().slice(-6) || '000000'}</span>
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] hidden xs:inline">ID:{deck.id?.toString().slice(-6) || '000000'}</span>
                         <div className="h-px flex-1 bg-[#d1c9b8]/40" />
-                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Collected: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Created: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
                     </div>
 
                     <div className="flex items-start gap-3 sm:gap-4">
@@ -376,7 +376,7 @@ export default function Home() {
                         >
                             <div className="p-6 pt-safe">
                                 <div className="flex items-center justify-between mb-8">
-                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Archive Index</h2>
+                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
                                     <button onClick={() => setIsMenuOpen(false)} className="p-2 -mr-2 text-[#8fa6a8] hover:text-claude-accent tap-action">
                                         <X className="w-6 h-6" />
                                     </button>
@@ -394,7 +394,7 @@ export default function Home() {
                                             className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
                                         >
                                             <Library className="w-4 h-4" />
-                                            <span className="font-mono text-xs font-bold uppercase tracking-wider">All Specimens</span>
+                                            <span className="font-mono text-xs font-bold uppercase tracking-wider">All Decks</span>
                                         </button>
                                         {folders.map(folder => (
                                             <button
@@ -411,26 +411,24 @@ export default function Home() {
                                 </div>
 
                                 {/* Tags in Menu */}
-                                {tags.length > 0 && (
-                                    <div className="mb-10">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">Taxonomy</h3>
-                                            <button onClick={() => setShowTagModal(true)} className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest">+ New</button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {tags.map(tag => (
-                                                <button
-                                                    key={tag.id}
-                                                    onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
-                                                    className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
-                                                    style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
-                                                >
-                                                    # {tag.name}
-                                                </button>
-                                            ))}
-                                        </div>
+                                <div className="mb-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">Tags</h3>
+                                        <button onClick={() => setShowTagModal(true)} className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest">+ New</button>
                                     </div>
-                                )}
+                                    <div className="flex flex-wrap gap-2">
+                                        {tags.map(tag => (
+                                            <button
+                                                key={tag.id}
+                                                onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
+                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                                                style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
+                                            >
+                                                # {tag.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
                     </>
@@ -454,7 +452,7 @@ export default function Home() {
                                     type="text"
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search the archive..."
+                                    placeholder="Search decks..."
                                     className="w-full bg-[#1e3840]/60 border-2 border-claude-accent/30 rounded-2xl pl-12 pr-4 py-4 text-lg font-mono text-claude-parchment outline-none focus:border-claude-accent"
                                 />
                             </div>
@@ -470,7 +468,7 @@ export default function Home() {
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/40 px-2">Results for "{searchQuery}"</h3>
                                     {filteredDecks.length === 0 ? (
-                                        <div className="py-12 text-center text-[#8fa6a8]/40 italic font-serif">No matches found in the archive</div>
+                                        <div className="py-12 text-center text-[#8fa6a8]/40 italic font-serif">No matching decks found</div>
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4">
                                             {filteredDecks.map((deck, i) => (
@@ -496,10 +494,10 @@ export default function Home() {
             <div className="mb-6 pt-4 px-1 flex items-start justify-between">
                 <div>
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
-                        <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Collection</span>
+                        <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Library</span>
                         <GardenHero />
                     </div>
-                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-botanical-parchment tracking-tighter leading-none">Catalogue</h1>
+                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-botanical-parchment tracking-tighter leading-none">Decks</h1>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                     <button
@@ -530,7 +528,7 @@ export default function Home() {
                     <div className="inline-flex items-center gap-3 px-4 py-2 bg-claude-accent/5 border border-claude-accent/20 rounded-full">
                         <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent/60 font-bold">Scope:</span>
                         <span className="text-[11px] font-serif italic text-botanical-parchment">
-                            {activeFolder ? (activeFolder === 'unfiled' ? 'Unfiled Specimens' : folders.find(f => f.id === activeFolder)?.name) : tags.find(t => t.id === activeTag)?.name}
+                            {activeFolder ? (activeFolder === 'unfiled' ? 'Unfiled Decks' : folders.find(f => f.id === activeFolder)?.name) : tags.find(t => t.id === activeTag)?.name}
                         </span>
                         <button onClick={() => { setActiveFolder(null); setActiveTag(null); }} className="text-claude-accent hover:text-white transition-colors">
                             <X className="w-4 h-4" />
@@ -543,7 +541,7 @@ export default function Home() {
             <div className="space-y-6 px-1">
                 <div className="flex items-baseline justify-between mb-2">
                     <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
-                        <div className="w-4 h-px bg-current opacity-30" /> Collected Specimens
+                        <div className="w-4 h-px bg-current opacity-30" /> Your Decks
                     </h2>
                     <div className="flex items-center gap-3">
                         <button
@@ -580,8 +578,8 @@ export default function Home() {
                         {decks.length === 0 ? (
                             <>
                                 <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">Archive Empty</h3>
-                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">No specimens identified. Begin your collection below.</p>
+                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Decks</h3>
+                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Your deck collection is empty. Create your first deck below.</p>
                             </>
                         ) : (
                             <div className="py-12">
@@ -616,13 +614,13 @@ export default function Home() {
                         <div className="w-20 h-20 bg-claude-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-claude-accent/30">
                             <Sparkles className="w-10 h-10 text-claude-accent" />
                         </div>
-                        <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome to the Archive</h2>
+                        <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome</h2>
                         <p className="text-[#8fa6a8] mb-8 font-serif italic text-lg leading-relaxed">
-                            Begin your collection by creating your first specimen deck.
+                            Create your first deck to get started.
                         </p>
                         <div className="space-y-4">
                             <Link to="/create" onClick={dismissOnboarding} className="claude-button-primary w-full py-4 block text-lg">
-                                Begin Collection
+                                Create My First Deck
                             </Link>
                             <button onClick={dismissOnboarding} className="text-[#8fa6a8] font-mono text-[10px] uppercase tracking-widest font-bold">
                                 Dismiss for now
@@ -643,7 +641,7 @@ export default function Home() {
                             className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingFolder ? 'Edit Category' : 'New Category'}</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingFolder ? 'Edit Folder' : 'New Folder'}</h3>
                                 <button type="button" onClick={() => setShowFolderModal(false)} className="p-2 text-[#8fa6a8]"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
@@ -654,7 +652,7 @@ export default function Home() {
                                         value={newFolder.name}
                                         onChange={e => setNewFolder({ ...newFolder, name: e.target.value })}
                                         className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
-                                        placeholder="e.g. Biological Science"
+                                        placeholder="e.g. Science"
                                         autoFocus
                                     />
                                 </div>
@@ -663,7 +661,7 @@ export default function Home() {
                                         <button key={color} type="button" onClick={() => setNewFolder({ ...newFolder, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${newFolder.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
-                                <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Selection</button>
+                                <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Folder</button>
                             </div>
                         </motion.form>
                     </div>
@@ -680,7 +678,7 @@ export default function Home() {
                             className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Define Taxonomy</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Create Tag</h3>
                                 <button type="button" onClick={() => setShowTagModal(false)} className="p-2 text-[#8fa6a8]"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
@@ -699,7 +697,7 @@ export default function Home() {
                                         <button key={color} type="button" onClick={() => setNewTag({ ...newTag, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${newTag.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
-                                <button type="submit" className="claude-button-primary w-full py-5 text-lg">Commit Tag</button>
+                                <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Tag</button>
                             </div>
                         </motion.form>
                     </div>
