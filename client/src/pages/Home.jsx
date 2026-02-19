@@ -39,49 +39,49 @@ const DeckCard = memo(({ deck, folders, index }) => {
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
             transition={{ delay: (index % 10) * 0.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative"
+            className="relative tap-action"
         >
             {/* Specimen Tape/Pin Accent */}
-            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm" />
-            <div className="absolute -top-1 right-1/4 w-4 h-4 bg-[#d1c9b8]/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center">
+            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm pointer-events-none" />
+            <div className="absolute -top-1 right-1/4 w-4 h-4 bg-[#d1c9b8]/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center pointer-events-none">
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
 
-            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-6 pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.06)] hover:border-claude-accent/30 transition-all duration-500 overflow-hidden active:scale-[0.98]">
+            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-all duration-300 overflow-hidden active:scale-[0.97] touch-target">
                 {/* Subtle paper grain and texture */}
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-4 opacity-70">
-                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a]">№{deck.id?.toString().slice(-6) || '000000'}</span>
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] hidden xs:inline">№{deck.id?.toString().slice(-6) || '000000'}</span>
                         <div className="h-px flex-1 bg-[#d1c9b8]/40" />
-                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Collected: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Collected: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
                     </div>
 
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                         <div
-                            className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 border border-current/10 shadow-inner"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shrink-0 border border-current/10 shadow-inner"
                             style={{
                                 backgroundColor: folderColor + '0d',
                                 color: folderColor
                             }}
                         >
-                            <Layers className="w-6 h-6 opacity-60" />
+                            <Layers className="w-5 h-5 sm:w-6 sm:h-6 opacity-60" />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-serif text-2xl font-bold text-[#1a1c1d] leading-[1.1] group-hover:text-claude-accent transition-colors duration-300 italic mb-2 tracking-tight">{deck.title}</h3>
+                            <h3 className="font-serif text-lg sm:text-2xl font-bold text-[#1a1c1d] leading-[1.1] group-hover:text-claude-accent transition-colors duration-300 italic mb-2 tracking-tight line-clamp-2">{deck.title}</h3>
 
                             <div className="flex items-center gap-2 flex-wrap mt-auto">
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f4f1e8] rounded-sm border border-[#e8e4d8] shadow-sm">
-                                    <span className="font-mono text-[9px] font-bold text-[#5d6466] uppercase tracking-wider">{deck.cardCount} Cards</span>
+                                    <span className="font-mono text-[8px] sm:text-[9px] font-bold text-[#5d6466] uppercase tracking-wider">{deck.cardCount} Cards</span>
                                 </div>
 
                                 {deck.tags?.length > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        {deck.tags.slice(0, 3).map(tag => (
-                                            <span key={tag.id} className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-current/20 bg-current/5" style={{ color: tag.color }}>
+                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                        {deck.tags.slice(0, 2).map(tag => (
+                                            <span key={tag.id} className="text-[8px] sm:text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-current/20 bg-current/5 whitespace-nowrap" style={{ color: tag.color }}>
                                                 {tag.name}
                                             </span>
                                         ))}
@@ -93,8 +93,8 @@ const DeckCard = memo(({ deck, folders, index }) => {
                 </div>
 
                 {/* Archival Stamp Background */}
-                <div className="absolute -bottom-4 -right-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700 pointer-events-none group-hover:rotate-12 transform origin-center scale-150">
-                    <Sparkles className="w-32 h-32" />
+                <div className="absolute -bottom-4 -right-4 opacity-[0.03] sm:opacity-[0.04] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] transform origin-center scale-[1.2] sm:scale-150">
+                    <Sparkles className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
             </Link>
         </motion.div>
@@ -112,12 +112,12 @@ const GardenHero = memo(() => {
     if (!isLoggedIn) return null;
 
     return (
-        <Link to="/garden" className="block mb-6 -mx-4 px-4">
+        <Link to="/garden" className="block mb-6 -mx-4 px-4 tap-action">
             <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-                className="relative rounded-2xl overflow-hidden p-6 shadow-botanical hover:shadow-botanical-lg transition-shadow duration-500"
+                className="relative rounded-2xl overflow-hidden p-5 sm:p-6 shadow-botanical hover:shadow-botanical-lg transition-shadow duration-500 active:scale-[0.98] garden-card-hit"
                 style={{
                     background: 'linear-gradient(135deg, rgba(122,158,114,0.18) 0%, rgba(222,185,106,0.08) 50%, rgba(30,56,64,0.1) 100%)',
                     border: '1px solid rgba(122,158,114,0.25)',
@@ -125,10 +125,10 @@ const GardenHero = memo(() => {
                 }}
             >
                 {/* Decorative corner marks */}
-                <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-claude-accent/20 rounded-tl-sm" />
-                <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-claude-accent/20 rounded-br-sm" />
+                <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-claude-accent/20 rounded-tl-sm pointer-events-none" />
+                <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-claude-accent/20 rounded-br-sm pointer-events-none" />
 
-                <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+                <div className="flex flex-col xs:flex-row items-center gap-4 sm:gap-6 relative z-10">
                     <div className="shrink-0 relative">
                         <Garden
                             streak={streak.currentStreak}
@@ -138,23 +138,23 @@ const GardenHero = memo(() => {
                         />
                         <div className="absolute -inset-2 border-2 border-dashed border-claude-accent/15 rounded-full animate-[spin_30s_linear_infinite] pointer-events-none" />
                     </div>
-                    <div className="flex-1 min-w-0 text-center sm:text-left">
-                        <div className="inline-flex items-center gap-2 mb-2">
-                            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[#8fa6a8] font-bold">Observer Log</span>
+                    <div className="flex-1 min-w-0 text-center xs:text-left">
+                        <div className="inline-flex items-center gap-2 mb-1 sm:mb-2">
+                            <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-[#8fa6a8] font-bold">Observer Log</span>
                             <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-pulse" />
                         </div>
-                        <h2 className="font-serif text-3xl font-bold italic leading-tight mb-2 text-[#e4ddd0] tracking-tight">{stage.name}</h2>
-                        <p className="font-serif text-base italic text-[#8fa6a8] leading-relaxed max-w-lg">{stage.description}</p>
+                        <h2 className="font-serif text-2xl sm:text-3xl font-bold italic leading-tight mb-1 sm:mb-2 text-[#e4ddd0] tracking-tight">{stage.name}</h2>
+                        <p className="font-serif text-xs sm:text-base italic text-[#8fa6a8] leading-relaxed max-w-lg line-clamp-2 xs:line-clamp-none">{stage.description}</p>
 
-                        <div className="flex items-center justify-center sm:justify-start gap-4 mt-4">
+                        <div className="flex items-center justify-center xs:justify-start gap-4 mt-3 sm:mt-4">
                             <div className="flex flex-col">
-                                <span className="font-mono text-[8px] uppercase tracking-widest text-[#8fa6a8]/60 mb-0.5">Continuous Growth</span>
-                                <span className="font-mono text-xs font-bold text-claude-accent px-3 py-1 bg-claude-accent/10 rounded-sm border border-claude-accent/20">{streak.currentStreak}d STREAK</span>
+                                <span className="font-mono text-[7px] sm:text-[8px] uppercase tracking-widest text-[#8fa6a8]/60 mb-0.5">Continuous Growth</span>
+                                <span className="font-mono text-[10px] sm:text-xs font-bold text-claude-accent px-2 sm:px-3 py-1 bg-claude-accent/10 rounded-sm border border-claude-accent/20">{streak.currentStreak}d STREAK</span>
                             </div>
                             {streak.status === 'at-risk' && (
                                 <div className="flex flex-col">
-                                    <span className="font-mono text-[8px] uppercase tracking-widest text-yellow-600/60 mb-0.5">Critical State</span>
-                                    <span className="font-mono text-xs font-bold text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-sm border border-yellow-500/20">⚠ {Math.round(streak.hoursRemaining)}h LEFT</span>
+                                    <span className="font-mono text-[7px] sm:text-[8px] uppercase tracking-widest text-yellow-600/60 mb-0.5">Critical State</span>
+                                    <span className="font-mono text-[10px] sm:text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 sm:px-3 py-1 rounded-sm border border-yellow-500/20">⚠ {Math.round(streak.hoursRemaining)}h LEFT</span>
                                 </div>
                             )}
                         </div>
@@ -538,26 +538,26 @@ export default function Home() {
             <GardenHero />
 
             {/* Header */}
-            <div className="mb-10 pt-4">
+            <div className="mb-10 pt-4 px-1">
                 <div className="flex items-end justify-between mb-8 pb-4 border-b-2 border-[#d1c9b8]/20">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <span className="px-2 py-0.5 bg-claude-accent text-botanical-ink text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Vol. II</span>
-                            <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-[#8fa6a8] opacity-80 font-bold">Personal Archives</p>
+                            <p className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-[#8fa6a8] opacity-80 font-bold">Personal Archives</p>
                         </div>
-                        <h1 className="text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter">Collection</h1>
+                        <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter">Collection</h1>
                     </div>
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="touch-target text-[#8fa6a8] hover:text-claude-accent transition-colors disabled:opacity-50 mb-1 active:rotate-180 duration-500"
+                        className="touch-target text-[#8fa6a8] hover:text-claude-accent transition-colors disabled:opacity-50 mb-1 active:rotate-180 duration-500 tap-action"
                     >
                         <RefreshCw className={`w-6 h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
 
-                {/* Search bar — styled as a catalog search */}
-                <div className="relative group max-w-2xl">
+                {/* Search bar — hidden on mobile if bottom bar is active, but kept for desktop */}
+                <div className="hidden md:block relative group max-w-2xl">
                     <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-3 pointer-events-none">
                         <Search className="w-5 h-5 text-[#8fa6a8] group-focus-within:text-claude-accent transition-colors" />
                         <div className="w-px h-4 bg-[#8fa6a8]/20" />
@@ -584,7 +584,7 @@ export default function Home() {
                     </h2>
                     <button
                         onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }}
-                        className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group"
+                        className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group p-2 -mr-2 active:bg-claude-accent/5 rounded-lg tap-action"
                     >
                         <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" /> Add Entry
                     </button>
@@ -592,9 +592,9 @@ export default function Home() {
                 <div className="flex gap-3 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                     <button
                         onClick={() => setActiveFolder(null)}
-                        className={`shrink-0 px-6 py-3 rounded-xl transition-all active:scale-95 border-2 ${activeFolder === null ? 'bg-claude-accent text-botanical-ink border-claude-accent shadow-botanical-glow' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
+                        className={`shrink-0 px-5 sm:px-6 py-3 rounded-xl transition-all active:scale-95 border-2 min-h-[48px] ${activeFolder === null ? 'bg-claude-accent text-botanical-ink border-claude-accent shadow-botanical-glow' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
                     >
-                        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]">All Decks</span>
+                        <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.1em]">All Decks</span>
                     </button>
 
                     {folders.map(folder => (
@@ -607,11 +607,11 @@ export default function Home() {
                                 setNewFolder({ name: folder.name, color: folder.color });
                                 setShowFolderModal(true);
                             }}
-                            className={`shrink-0 px-6 py-3 rounded-xl transition-all active:scale-95 border-2 flex items-center gap-3 ${activeFolder === folder.id ? 'shadow-botanical-glow ring-2 ring-offset-2 ring-offset-claude-bg translate-y-[-2px]' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
+                            className={`shrink-0 px-5 sm:px-6 py-3 rounded-xl transition-all active:scale-95 border-2 flex items-center gap-3 min-h-[48px] ${activeFolder === folder.id ? 'shadow-botanical-glow ring-2 ring-offset-2 ring-offset-claude-bg translate-y-[-2px]' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
                             style={activeFolder === folder.id ? { backgroundColor: folder.color, borderColor: folder.color, color: 'white', ringColor: folder.color } : {}}
                         >
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activeFolder === folder.id ? 'white' : folder.color }} />
-                            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]">{folder.name}</span>
+                            <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.1em]">{folder.name}</span>
                         </button>
                     ))}
                 </div>
@@ -619,14 +619,14 @@ export default function Home() {
 
             {/* Tags Section — Styled as Pinned Labels */}
             {tags.length > 0 && (
-                <div className="mb-10">
+                <div className="mb-10 last:mb-20 sm:last:mb-10">
                     <div className="flex items-baseline justify-between mb-5 px-1">
                         <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
                             <div className="w-4 h-px bg-current opacity-30" /> Taxonomy / Tags
                         </h2>
                         <button
                             onClick={() => setShowTagModal(true)}
-                            className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group"
+                            className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group p-2 -mr-2 active:bg-claude-accent/5 rounded-lg tap-action"
                         >
                             <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" /> Define Tag
                         </button>
@@ -636,10 +636,10 @@ export default function Home() {
                             <button
                                 key={tag.id}
                                 onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
-                                className={`shrink-0 px-5 py-2 rounded-lg transition-all active:scale-95 border-2 ${activeTag === tag.id ? 'bg-botanical-parchment text-botanical-ink border-botanical-parchment' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30'}`}
+                                className={`shrink-0 px-4 sm:px-5 py-2 rounded-lg transition-all active:scale-95 border-2 min-h-[40px] flex items-center ${activeTag === tag.id ? 'bg-botanical-parchment text-botanical-ink border-botanical-parchment' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30'}`}
                                 style={activeTag === tag.id ? {} : { borderLeft: `4px solid ${tag.color}` }}
                             >
-                                <span className="font-mono text-[10px] font-bold tracking-widest uppercase">{tag.name}</span>
+                                <span className="font-mono text-[9px] sm:text-[10px] font-bold tracking-widest uppercase">{tag.name}</span>
                             </button>
                         ))}
                     </div>
@@ -677,7 +677,7 @@ export default function Home() {
             )}
 
             {/* Decks List — Staggered grid layout */}
-            <div>
+            <div className="pb-12 sm:pb-0">
                 <div className="flex items-end justify-between mb-8 px-1">
                     <div className="flex flex-col gap-1">
                         <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">
@@ -685,33 +685,40 @@ export default function Home() {
                         </h2>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-serif italic text-botanical-parchment">{filteredDecks.length}</span>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[#8fa6a8]/40">Specimens tracked</span>
+                            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-[#8fa6a8]/40">Specimens tracked</span>
                         </div>
                     </div>
-                    <div className="relative">
+                    <div className="relative group/sort">
                         <button
                             onClick={() => setShowSortMenu(!showSortMenu)}
-                            className="flex items-center gap-3 px-4 py-2 bg-[#1e3840]/40 border border-[#233e46] rounded-lg text-[#8fa6a8] text-[10px] font-mono font-bold uppercase tracking-widest hover:border-claude-accent/30 transition-all shadow-sm"
+                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 bg-[#1e3840]/40 border border-[#233e46] rounded-lg text-[#8fa6a8] text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-widest hover:border-claude-accent/30 transition-all shadow-sm active:scale-95 tap-action"
                         >
-                            Sequence: {SORT_OPTIONS.find(o => o.id === sortBy)?.label} <SlidersHorizontal className="w-3.5 h-3.5" />
+                            <span className="hidden xs:inline">Sequence:</span> {SORT_OPTIONS.find(o => o.id === sortBy)?.label} <SlidersHorizontal className="w-3.5 h-3.5" />
                         </button>
                         {showSortMenu && (
                             <>
-                                <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
-                                <div className="absolute right-0 top-full mt-2 bg-claude-surface border border-claude-border rounded-xl shadow-botanical-lg overflow-hidden z-20 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="px-4 py-3 border-b border-claude-border bg-claude-bg/50">
+                                <div className="fixed inset-0 z-[70] sm:z-10 bg-black/20 sm:bg-transparent backdrop-blur-[2px] sm:backdrop-blur-none" onClick={() => setShowSortMenu(false)} />
+                                <div className="fixed sm:absolute bottom-0 sm:bottom-auto right-0 sm:top-full left-0 sm:left-auto mt-0 sm:mt-2 bg-claude-surface border-t sm:border border-claude-border rounded-t-3xl sm:rounded-xl shadow-botanical-lg overflow-hidden z-[80] sm:z-20 min-w-[180px] animate-in slide-in-from-bottom sm:slide-in-from-top-2 sm:fade-in sm:zoom-in-95 duration-300 sm:duration-200">
+                                    <div className="px-6 py-4 border-b border-claude-border bg-claude-bg/50 sm:hidden">
+                                        <div className="w-10 h-1 bg-claude-border rounded-full mx-auto mb-4" />
+                                        <span className="text-xs font-mono font-bold uppercase tracking-widest text-claude-text">Sort Collection</span>
+                                    </div>
+                                    <div className="px-4 py-3 border-b border-claude-border bg-claude-bg/50 hidden sm:block">
                                         <span className="text-[8px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Select ordering</span>
                                     </div>
-                                    {SORT_OPTIONS.map(option => (
-                                        <button
-                                            key={option.id}
-                                            onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                            className={`w-full px-4 py-4 flex items-center gap-3 text-[10px] font-mono font-bold uppercase tracking-widest text-left transition-colors active:bg-claude-accent/10 ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : 'text-claude-text hover:bg-claude-bg'}`}
-                                        >
-                                            <option.icon className="w-4 h-4 opacity-70" />
-                                            {option.label}
-                                        </button>
-                                    ))}
+                                    <div className="p-2 sm:p-0 flex flex-col gap-1 sm:gap-0">
+                                        {SORT_OPTIONS.map(option => (
+                                            <button
+                                                key={option.id}
+                                                onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
+                                                className={`w-full px-5 py-4 flex items-center gap-4 text-[11px] sm:text-[10px] font-mono font-bold uppercase tracking-widest text-left transition-colors active:bg-claude-accent/20 rounded-xl sm:rounded-none ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : 'text-claude-text hover:bg-claude-bg'}`}
+                                            >
+                                                <option.icon className="w-4 h-4 opacity-70" />
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="h-safe-bottom sm:hidden" />
                                 </div>
                             </>
                         )}
@@ -719,28 +726,28 @@ export default function Home() {
                 </div>
 
                 {filteredDecks.length === 0 ? (
-                    <div className="text-center py-24 bg-[#1e3840]/20 border-2 border-dashed border-[#233e46] rounded-3xl">
+                    <div className="text-center py-20 sm:py-24 bg-[#1e3840]/20 border-2 border-dashed border-[#233e46] rounded-3xl mx-1">
                         {decks.length === 0 ? (
                             <>
-                                <div className="w-20 h-20 bg-claude-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-claude-accent/20">
-                                    <Sparkles className="w-10 h-10 text-claude-accent opacity-50" />
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-claude-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-claude-accent/20">
+                                    <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-claude-accent opacity-50" />
                                 </div>
-                                <h3 className="font-serif italic text-2xl text-botanical-parchment mb-2">The archive is empty</h3>
-                                <p className="text-[#8fa6a8] text-sm mb-8 font-serif italic">No botanical specimens have been identified yet.</p>
-                                <Link to="/create" className="claude-button-primary inline-flex">Begin Collection</Link>
+                                <h3 className="font-serif italic text-xl sm:text-2xl text-botanical-parchment mb-2">The archive is empty</h3>
+                                <p className="text-[#8fa6a8] text-xs sm:text-sm mb-6 sm:mb-8 font-serif italic px-6">No botanical specimens have been identified yet.</p>
+                                <Link to="/create" className="claude-button-primary inline-flex tap-action">Begin Collection</Link>
                             </>
                         ) : (
                             <>
-                                <div className="w-20 h-20 bg-[#233e46]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Search className="w-10 h-10 text-[#8fa6a8] opacity-30" />
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#233e46]/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Search className="w-8 h-8 sm:w-10 sm:h-10 text-[#8fa6a8] opacity-30" />
                                 </div>
-                                <h3 className="font-serif italic text-2xl text-[#8fa6a8] mb-2">No matches found</h3>
-                                <p className="text-[#8fa6a8]/60 text-sm font-serif italic">Try adjusting your taxonomy filters</p>
+                                <h3 className="font-serif italic text-xl sm:text-2xl text-[#8fa6a8] mb-2">No matches found</h3>
+                                <p className="text-[#8fa6a8]/60 text-xs sm:text-sm font-serif italic">Try adjusting your taxonomy filters</p>
                             </>
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pb-20 sm:pb-10 px-1">
                         {filteredDecks.map((deck, i) => (
                             <DeckCard key={deck.id} deck={deck} folders={folders} index={i} />
                         ))}
@@ -748,7 +755,47 @@ export default function Home() {
                 )}
             </div>
 
-            <div className="h-8" />
+            {/* Mobile Sticky Command Bar — THUMB ZONE ergonomics */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden overflow-visible">
+                {/* Search overlay background */}
+                {(searchQuery) && (
+                    <div className="absolute bottom-full left-0 right-0 p-4 animate-in slide-in-from-bottom duration-300">
+                        <div className="bg-[#1e3840]/90 backdrop-blur-xl border border-[#233e46] rounded-2xl p-2 shadow-2xl flex items-center gap-2">
+                            <Search className="w-4 h-4 text-claude-accent ml-2" />
+                            <span className="text-[10px] font-mono text-claude-parchment line-clamp-1 flex-1">Searching: "{searchQuery}"</span>
+                            <button onClick={() => setSearchQuery('')} className="p-2 bg-red-500/10 text-red-400 rounded-lg tap-action">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-[#162a31]/80 backdrop-blur-2xl border-t border-[#233e46] px-4 pt-3 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center gap-3">
+                        {/* Search Input — Primary Bottom Action */}
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Filter specimens..."
+                                className="w-full bg-[#1e3840]/60 border border-[#233e46] rounded-full pl-9 pr-4 py-3 text-sm font-mono text-claude-parchment outline-none focus:border-claude-accent/50 tap-action"
+                            />
+                        </div>
+
+                        {/* Quick Access Actions */}
+                        <Link
+                            to="/create"
+                            className="bg-claude-accent text-botanical-ink w-12 h-12 rounded-full flex items-center justify-center shadow-botanical-glow active:scale-90 transition-transform tap-action"
+                        >
+                            <Plus className="w-6 h-6" />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-8 hidden md:block" />
         </div>
     );
 }

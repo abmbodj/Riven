@@ -470,6 +470,49 @@
   .deck-lift:hover {
     transform: translateY(-8px) scale(1.02);
   }
+
+  /* Mobile Touch Optimizations */
+  .tap-action {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    position: relative;
+  }
+
+  /* Visceral tap response */
+  .active-scale:active {
+    transform: scale(0.96);
+  }
+
+  /* Safe Area Utilities */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom);
+  }
+
+  /* Staggered Grid for Mobile */
+  @media (max-width: 640px) {
+    .mobile-stack {
+      grid-template-columns: 1fr;
+    }
+
+    /* Increase density for mobile info */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  }
 }
 
 /* Keyframes */
