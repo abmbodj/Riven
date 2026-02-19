@@ -148,7 +148,7 @@ module.exports = function registerAuthRoutes({
     // 2FA Setup
     app.post('/api/auth/2fa/setup', authMiddleware, async (req, res) => {
         try {
-            const secret = speakeasy.generateSecret({ length: 20, name: `Riven (${req.user.email})` });
+            const secret = speakeasy.generateSecret({ length: 20, name: `Riven (${req.user.email})`, issuer: 'Riven' });
             await db.execute('UPDATE users SET two_fa_secret = $1 WHERE id = $2', [secret.base32, req.user.id]);
 
             QRCode.toDataURL(secret.otpauth_url, (err, data_url) => {
@@ -163,7 +163,9 @@ module.exports = function registerAuthRoutes({
 
     // 2FA Verify (Enable)
     app.post('/api/auth/2fa/verify', authMiddleware, async (req, res) => {
-        const { token } = req.body;
+        let { token } = req.body;
+        if (token) token = token.toString().trim();
+
         try {
             const user = await db.queryOne('SELECT two_fa_secret FROM users WHERE id = $1', [req.user.id]);
             if (!user || !user.two_fa_secret) return res.status(400).json({ error: '2FA not initialized' });
@@ -172,7 +174,7 @@ module.exports = function registerAuthRoutes({
                 secret: user.two_fa_secret,
                 encoding: 'base32',
                 token,
-                window: 1 // Allow for 30s clock drift
+                window: 2 // Allow for 60s clock drift
             });
 
             if (verified) {
@@ -203,8 +205,10 @@ module.exports = function registerAuthRoutes({
 
     // 2FA Login Step 2
     app.post('/api/auth/2fa/login', speedLimiter, authLimiter, async (req, res) => {
-        const { tempToken, token } = req.body;
+        let { tempToken, token } = req.body;
         if (!tempToken || !token) return res.status(400).json({ error: 'Missing token' });
+
+        token = token.toString().trim();
 
         try {
             const decoded = jwt.verify(tempToken, jwtSecret);
@@ -217,7 +221,7 @@ module.exports = function registerAuthRoutes({
                 secret: user.two_fa_secret,
                 encoding: 'base32',
                 token,
-                window: 1 // Allow for 30s clock drift
+                window: 2 // Allow for 60s clock drift
             });
 
             if (verified) {
