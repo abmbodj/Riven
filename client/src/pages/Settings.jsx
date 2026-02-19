@@ -1,19 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Shield, Bell, Moon, Trash2, LogOut, ChevronRight, Leaf, Flower } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
-import AlertModal from '../components/AlertModal';
+import { ThemeContext } from '../ThemeContext';
+import ChangePasswordModal from '../components/ChangePasswordModal';
+import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 export default function Settings() {
-    const { signOut, deleteAccount } = useAuth();
+    const { signOut, user } = useAuth();
+    const { activeTheme, switchTheme, themes } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
 
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+    const [modals, setModals] = useState({
+        password: false,
+        twoFactor: false,
+        delete: false
+    });
+
+    const isLightMode = activeTheme?.name === 'Riven Light';
 
     const handleSignOut = () => {
         haptics.medium();
@@ -22,19 +31,30 @@ export default function Settings() {
         navigate('/');
     };
 
-    const handleDeleteAccount = async () => {
-        setDeleting(true);
-        try {
-            await deleteAccount();
-            toast.success('Account deleted');
-            navigate('/');
-        } catch (err) {
-            toast.error('Failed to delete account');
-            setDeleting(false);
+    const toggleTheme = () => {
+        haptics.light();
+        if (themes && themes.length > 0) {
+            const targetThemeName = isLightMode ? 'Riven' : 'Riven Light';
+            const targetTheme = themes.find(t => t.name === targetThemeName);
+            if (targetTheme) {
+                switchTheme(targetTheme.id);
+                toast.success(`Switched to ${targetThemeName}`);
+            } else {
+                toast.error('Theme not found');
+            }
         }
     };
 
-    const SettingItem = ({ icon: Icon, title, description, onClick, destructive = false, toggle = null }) => (
+    const openModal = (name) => {
+        haptics.light();
+        setModals(prev => ({ ...prev, [name]: true }));
+    };
+
+    const closeModal = (name) => {
+        setModals(prev => ({ ...prev, [name]: false }));
+    };
+
+    const SettingItem = ({ icon: Icon, title, description, onClick, destructive = false, toggle = null, toggleValue = false }) => (
         <button
             onClick={onClick}
             className={`w-full py-4 flex items-center gap-4 border-b border-botanical-sepia/10 active:bg-botanical-forest/5 transition-colors group relative overflow-hidden`}
@@ -48,8 +68,8 @@ export default function Settings() {
             </div>
 
             {toggle !== null ? (
-                <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggle ? 'bg-botanical-forest' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
-                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${toggle ? 'left-6' : 'left-1'}`} />
+                <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${toggleValue ? 'left-6' : 'left-1'}`} />
                 </div>
             ) : (
                 <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all'}`} />
@@ -93,13 +113,13 @@ export default function Settings() {
                             icon={Lock}
                             title="Change Password"
                             description="Secure your journal"
-                            onClick={() => toast('Change password coming soon!')}
+                            onClick={() => openModal('password')}
                         />
                         <SettingItem
                             icon={Shield}
                             title="Two-Factor Auth"
-                            description="Add extra protection"
-                            onClick={() => toast('2FA settings coming soon!')}
+                            description={user?.twoFAEnabled ? "Enabled" : "Add extra protection"}
+                            onClick={() => openModal('twoFactor')}
                         />
                     </div>
                 </div>
@@ -115,14 +135,16 @@ export default function Settings() {
                             title="Notifications"
                             description="Reminders & Updates"
                             toggle={true}
+                            toggleValue={false} // Placeholder
                             onClick={() => toast('Notification settings saved')}
                         />
                         <SettingItem
-                            icon={Moon}
-                            title="Dark Mode"
-                            description="Always on"
+                            icon={isLightMode ? Sun : Moon}
+                            title="Light Mode"
+                            description={isLightMode ? "Daylight Theme" : "Midnight Theme"}
                             toggle={true}
-                            onClick={() => toast('Theme settings saved')}
+                            toggleValue={isLightMode}
+                            onClick={toggleTheme}
                         />
                     </div>
                 </div>
@@ -143,7 +165,7 @@ export default function Settings() {
                             icon={Trash2}
                             title="Delete Account"
                             description="Permanently remove all data"
-                            onClick={() => setShowDeleteModal(true)}
+                            onClick={() => openModal('delete')}
                             destructive
                         />
                     </div>
@@ -157,16 +179,18 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Delete Account Modal */}
-            <AlertModal
-                isOpen={showDeleteModal}
-                title="Delete Account?"
-                message="This action cannot be undone. All your decks, progress, and data will be permanently lost."
-                confirmText={deleting ? "Deleting..." : "Delete Forever"}
-                cancelText="Cancel"
-                isDestructive
-                onConfirm={handleDeleteAccount}
-                onCancel={() => setShowDeleteModal(false)}
+            {/* Modals */}
+            <ChangePasswordModal
+                isOpen={modals.password}
+                onClose={() => closeModal('password')}
+            />
+            <TwoFactorAuthModal
+                isOpen={modals.twoFactor}
+                onClose={() => closeModal('twoFactor')}
+            />
+            <DeleteAccountModal
+                isOpen={modals.delete}
+                onClose={() => closeModal('delete')}
             />
         </div>
     );
