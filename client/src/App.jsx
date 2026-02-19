@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, useRoutes } from 'react-router-dom';
 import MobileWarning from './components/MobileWarning';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppProviders } from './AppProviders.jsx';
@@ -14,18 +14,18 @@ function App() {
         <MobileWarning />
         <RootLayout>
           <ErrorBoundary>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {routesConfig.map((route) => (
-                  <Route key={route.path} path={route.path} element={route.element} />
-                ))}
-              </Routes>
-            </Suspense>
+            <AppRoutes />
           </ErrorBoundary>
         </RootLayout>
       </BrowserRouter>
     </AppProviders>
   );
 }
+
+function AppRoutes() {
+  const element = useRoutes(routesConfig);
+  return element;
+}
+
 
 export default App;
