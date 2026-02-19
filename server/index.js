@@ -120,12 +120,15 @@ app.use((req, res, next) => {
 
 app.use('/api/', apiLimiter);
 
+const crypto = require('crypto');
+
 // Generate share code
 function generateShareCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = crypto.randomBytes(8);
     let code = '';
     for (let i = 0; i < 8; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
+        code += chars[bytes[i] % chars.length];
     }
     return code;
 }
