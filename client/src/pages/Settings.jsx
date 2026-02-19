@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Shield, Bell, Moon, Trash2, LogOut, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Bell, Moon, Trash2, LogOut, ChevronRight, Leaf, Flower } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
@@ -25,7 +25,7 @@ export default function Settings() {
     const handleDeleteAccount = async () => {
         setDeleting(true);
         try {
-            await deleteAccount(); // This likely requires password confirmation in a real app
+            await deleteAccount();
             toast.success('Account deleted');
             navigate('/');
         } catch (err) {
@@ -37,56 +37,68 @@ export default function Settings() {
     const SettingItem = ({ icon: Icon, title, description, onClick, destructive = false, toggle = null }) => (
         <button
             onClick={onClick}
-            className={`w-full p-4 flex items-center gap-4 bg-claude-surface border border-claude-border first:rounded-t-2xl last:rounded-b-2xl active:bg-claude-border/50 transition-colors ${destructive ? 'border-red-500/20 bg-red-500/5' : ''}`}
+            className={`w-full py-4 flex items-center gap-4 border-b border-botanical-sepia/10 active:bg-botanical-forest/5 transition-colors group relative overflow-hidden`}
         >
-            <div className={`p-2 rounded-lg ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-claude-bg text-claude-secondary'}`}>
+            <div className={`p-2 rounded-full ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-botanical-forest/10 text-botanical-forest'} group-hover:scale-110 transition-transform duration-300`}>
                 <Icon className="w-5 h-5" />
             </div>
-            <div className="flex-1 text-left">
-                <p className={`font-medium ${destructive ? 'text-red-500' : 'text-claude-text'}`}>{title}</p>
-                {description && <p className="text-xs text-botanical-sepia">{description}</p>}
+            <div className="flex-1 text-left z-10">
+                <p className={`font-display text-lg tracking-wide ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-botanical-parchment transition-colors'}`}>{title}</p>
+                {description && <p className="text-xs font-mono text-botanical-sepia mt-0.5">{description}</p>}
             </div>
+
             {toggle !== null ? (
-                <div className={`w-10 h-6 rounded-full relative transition-colors ${toggle ? 'bg-botanical-forest' : 'bg-claude-border'}`}>
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${toggle ? 'left-5' : 'left-1'}`} />
+                <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggle ? 'bg-botanical-forest' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${toggle ? 'left-6' : 'left-1'}`} />
                 </div>
             ) : (
-                <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-claude-border'}`} />
+                <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all'}`} />
             )}
         </button>
     );
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-3 p-4 border-b border-claude-border sticky top-0 bg-claude-bg/80 backdrop-blur z-10">
-                <button
-                    onClick={() => navigate('/account')}
-                    className="p-2 hover:bg-claude-surface rounded-lg transition-colors"
-                >
-                    <ArrowLeft className="w-6 h-6 text-claude-text" />
-                </button>
-                <h1 className="text-lg font-display font-bold text-claude-text">Settings</h1>
+            {/* Organic Header */}
+            <div className="relative h-40 overflow-hidden mb-6">
+                <div className="absolute inset-0 bg-[#0f2026]"></div>
+                <div className="absolute top-[-50%] right-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(222,185,106,0.1),transparent_60%)] blur-3xl" />
+
+                {/* Navigation */}
+                <div className="absolute top-0 left-0 right-0 p-4 z-10 safe-area-top">
+                    <button
+                        onClick={() => navigate('/account')}
+                        className="p-2 bg-black/20 backdrop-blur-md rounded-full text-white/90 hover:bg-black/30 transition-colors"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <div className="absolute bottom-4 left-6">
+                    <h1 className="text-3xl font-display text-white/90">Settings</h1>
+                </div>
+
+                <Flower className="absolute -bottom-6 -right-6 w-32 h-32 text-botanical-forest/5 rotate-[-12deg]" />
             </div>
 
-            <div className="p-4 max-w-md mx-auto space-y-6">
+            <div className="px-6 max-w-md mx-auto space-y-10">
 
                 {/* Account Security */}
                 <div>
-                    <h2 className="text-xs font-mono uppercase tracking-wider text-botanical-sepia mb-3 px-1">
-                        Security
+                    <h2 className="text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-2 pl-1 border-l-2 border-botanical-forest/30">
+                        &nbsp;Security
                     </h2>
                     <div className="flex flex-col">
                         <SettingItem
                             icon={Lock}
                             title="Change Password"
-                            description="Update your password"
+                            description="Secure your journal"
                             onClick={() => toast('Change password coming soon!')}
                         />
                         <SettingItem
                             icon={Shield}
-                            title="Two-Factor Authentication"
-                            description="Extra layer of security"
+                            title="Two-Factor Auth"
+                            description="Add extra protection"
                             onClick={() => toast('2FA settings coming soon!')}
                         />
                     </div>
@@ -94,21 +106,21 @@ export default function Settings() {
 
                 {/* Preferences */}
                 <div>
-                    <h2 className="text-xs font-mono uppercase tracking-wider text-botanical-sepia mb-3 px-1">
-                        Preferences
+                    <h2 className="text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-2 pl-1 border-l-2 border-botanical-forest/30">
+                        &nbsp;Preferences
                     </h2>
                     <div className="flex flex-col">
                         <SettingItem
                             icon={Bell}
                             title="Notifications"
-                            description="Manage push notifications"
+                            description="Reminders & Updates"
                             toggle={true}
                             onClick={() => toast('Notification settings saved')}
                         />
                         <SettingItem
                             icon={Moon}
                             title="Dark Mode"
-                            description="Adjust appearance"
+                            description="Always on"
                             toggle={true}
                             onClick={() => toast('Theme settings saved')}
                         />
@@ -117,8 +129,8 @@ export default function Settings() {
 
                 {/* Danger Zone */}
                 <div>
-                    <h2 className="text-xs font-mono uppercase tracking-wider text-red-400 mb-3 px-1">
-                        Danger Zone
+                    <h2 className="text-xs font-mono uppercase tracking-widest text-red-400 mb-2 pl-1 border-l-2 border-red-500/30">
+                        &nbsp;Danger Zone
                     </h2>
                     <div className="flex flex-col">
                         <SettingItem
@@ -130,19 +142,17 @@ export default function Settings() {
                         <SettingItem
                             icon={Trash2}
                             title="Delete Account"
-                            description="Permanently delete your data"
+                            description="Permanently remove all data"
                             onClick={() => setShowDeleteModal(true)}
                             destructive
                         />
                     </div>
                 </div>
 
-                <div className="text-center pt-8">
+                <div className="text-center pt-8 opacity-40">
+                    <Leaf className="w-6 h-6 text-botanical-forest mx-auto mb-2" />
                     <p className="text-xs text-botanical-sepia font-mono">
-                        Riven v1.0.0 (Build 2024.1)
-                    </p>
-                    <p className="text-[10px] text-claude-border mt-1">
-                        Made with 🌿 by Antigravity
+                        Riven v1.0.0
                     </p>
                 </div>
             </div>

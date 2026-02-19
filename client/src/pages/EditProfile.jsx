@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Camera, User, Mail, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Camera, User, Mail, Leaf, PenTool } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -27,7 +27,7 @@ export default function EditProfile() {
 
         try {
             await updateProfile({ bio, avatar });
-            toast.success('Profile updated');
+            toast.success('Journal updated');
             navigate('/account');
         } catch (err) {
             haptics.error();
@@ -41,20 +41,24 @@ export default function EditProfile() {
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-3 p-4 border-b border-claude-border sticky top-0 bg-claude-bg/80 backdrop-blur z-10">
-                <button
-                    onClick={() => navigate('/account')}
-                    className="p-2 hover:bg-claude-surface rounded-lg transition-colors"
-                >
-                    <ArrowLeft className="w-6 h-6 text-claude-text" />
-                </button>
-                <h1 className="text-lg font-display font-bold text-claude-text">Edit Profile</h1>
-                <div className="ml-auto">
+            {/* Organic Header */}
+            <div className="relative h-40 overflow-hidden mb-6">
+                <div className="absolute inset-0 bg-[#0f2026]"></div>
+                <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl" />
+
+                {/* Navigation / Actions */}
+                <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10 safe-area-top">
+                    <button
+                        onClick={() => navigate('/account')}
+                        className="p-2 bg-black/20 backdrop-blur-md rounded-full text-white/90 hover:bg-black/30 transition-colors"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="px-4 py-2 bg-botanical-forest text-white rounded-full text-sm font-medium disabled:opacity-50 active:scale-95 transition-all flex items-center gap-2"
+                        className="px-6 py-2 bg-botanical-forest text-white rounded-full text-sm font-bold tracking-wide shadow-lg shadow-botanical-forest/20 active:scale-95 transition-all flex items-center gap-2"
                     >
                         {saving ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -66,64 +70,85 @@ export default function EditProfile() {
                         )}
                     </button>
                 </div>
+
+                <div className="absolute bottom-4 left-6">
+                    <h1 className="text-3xl font-display text-white/90">Edit Profile</h1>
+                </div>
+
+                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5 rotate-12" />
             </div>
 
-            <div className="p-4 max-w-md mx-auto space-y-6">
+            <div className="px-6 max-w-md mx-auto space-y-10">
                 {/* Avatar Section */}
-                <div className="flex justify-center mb-8">
+                <div className="flex justify-center">
                     <button
                         onClick={() => setShowAvatarPicker(true)}
                         className="relative group"
                     >
-                        <Avatar src={avatar} size="3xl" className="border-4 border-claude-bg shadow-xl" />
-                        <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-active:opacity-100 transition-opacity flex items-center justify-center">
-                            <Camera className="w-8 h-8 text-white" />
+                        <div className="p-1 rounded-full border-2 border-dashed border-botanical-sepia/30">
+                            <Avatar src={avatar} size="3xl" className="border-4 border-claude-bg shadow-2xl" />
                         </div>
-                        <div className="absolute -bottom-2 right-0 p-2 bg-claude-surface rounded-full border-2 border-claude-bg shadow-md">
-                            <Camera className="w-4 h-4 text-claude-text" />
+                        <div className="absolute -bottom-2 -right-2 p-2.5 bg-botanical-forest text-white rounded-full shadow-lg group-active:scale-90 transition-transform">
+                            <Camera className="w-5 h-5" />
                         </div>
                     </button>
                 </div>
 
-                {/* Read-Only Fields */}
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-mono uppercase tracking-wider text-botanical-sepia mb-2">
-                            Username
-                        </label>
-                        <div className="flex items-center gap-3 p-3 bg-claude-surface/50 border border-claude-border rounded-xl opacity-70">
-                            <User className="w-5 h-5 text-claude-secondary" />
-                            <span className="text-claude-text font-mono">{user.username}</span>
+                {/* Form Fields - Journal Style */}
+                <div className="space-y-8">
+                    {/* Read Only Info */}
+                    <div className="grid grid-cols-1 gap-6 opacity-60">
+                        <div className="border-b border-botanical-sepia/20 pb-2">
+                            <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-1">
+                                <User className="w-3 h-3" />
+                                Username
+                            </label>
+                            <div className="font-display text-lg text-claude-text pl-5">
+                                {user.username}
+                            </div>
+                        </div>
+
+                        <div className="border-b border-botanical-sepia/20 pb-2">
+                            <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-1">
+                                <Mail className="w-3 h-3" />
+                                Email
+                            </label>
+                            <div className="font-display text-lg text-claude-text pl-5">
+                                {user.email}
+                            </div>
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-mono uppercase tracking-wider text-botanical-sepia mb-2">
-                            Email
-                        </label>
-                        <div className="flex items-center gap-3 p-3 bg-claude-surface/50 border border-claude-border rounded-xl opacity-70">
-                            <Mail className="w-5 h-5 text-claude-secondary" />
-                            <span className="text-claude-text font-mono">{user.email}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Editable Fields */}
-                <div>
-                    <label className="block text-xs font-mono uppercase tracking-wider text-botanical-sepia mb-2">
-                        Bio
-                    </label>
+                    {/* Bio Input - Lined Paper Look */}
                     <div className="relative">
-                        <textarea
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            maxLength={160}
-                            rows={4}
-                            placeholder="Tell us about yourself..."
-                            className="w-full p-4 bg-claude-surface border border-claude-border rounded-xl focus:border-botanical-forest outline-none text-claude-text resize-none font-sans"
-                        />
-                        <div className="absolute bottom-3 right-3 text-xs text-botanical-sepia">
-                            {bio.length}/160
+                        <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-4 text-botanical-forest">
+                            <PenTool className="w-3 h-3" />
+                            Your Bio
+                        </label>
+
+                        <div className="relative">
+                            {/* Lines background */}
+                            <div className="absolute inset-0 pointer-events-none"
+                                style={{
+                                    backgroundImage: 'linear-gradient(transparent 31px, rgba(143, 166, 168, 0.1) 32px)',
+                                    backgroundSize: '100% 32px',
+                                    marginTop: '6px'
+                                }}
+                            />
+
+                            <textarea
+                                value={bio}
+                                onChange={(e) => setBio(e.target.value)}
+                                maxLength={160}
+                                rows={5}
+                                placeholder="Reflect on your journey..."
+                                className="w-full bg-transparent border-none outline-none text-claude-text font-serif text-lg leading-[32px] resize-none placeholder:text-botanical-sepia/30 px-2 -ml-2"
+                                style={{ lineHeight: '32px' }}
+                            />
+                        </div>
+
+                        <div className="text-right mt-2 text-xs font-mono text-botanical-sepia">
+                            {bio.length} / 160
                         </div>
                     </div>
                 </div>
@@ -131,14 +156,19 @@ export default function EditProfile() {
 
             {/* Avatar Picker Modal */}
             {showAvatarPicker && (
-                <div className="fixed inset-0 bg-black/80 z-[50] flex items-center justify-center p-4">
-                    <div className="bg-claude-surface rounded-2xl w-full max-w-md p-6 relative">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-[#1e282c] border border-botanical-sepia/20 rounded-2xl w-full max-w-md p-6 relative shadow-2xl"
+                    >
                         <button
                             onClick={() => setShowAvatarPicker(false)}
-                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full"
+                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-botanical-sepia"
                         >
                             ✕
                         </button>
+                        <h3 className="text-lg font-display text-claude-text mb-4">Choose Portrait</h3>
                         <AvatarPicker
                             currentAvatar={avatar}
                             onSelect={(url) => {
@@ -146,7 +176,7 @@ export default function EditProfile() {
                                 setShowAvatarPicker(false);
                             }}
                         />
-                    </div>
+                    </motion.div>
                 </div>
             )}
         </div>
