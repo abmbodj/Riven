@@ -103,7 +103,7 @@ const DeckCard = memo(({ deck, folders, index }) => {
 });
 DeckCard.displayName = 'DeckCard';
 
-// Compact Garden Pill — Reduced vertical footprint
+// Compact Garden Pill — High-density inline integration
 const GardenHero = memo(() => {
     const { isLoggedIn } = useContext(AuthContext);
     const streak = useStreak();
@@ -112,13 +112,13 @@ const GardenHero = memo(() => {
     if (!isLoggedIn) return null;
 
     return (
-        <Link to="/garden" className="block mb-4 -mx-2 px-2 tap-action">
+        <Link to="/garden" className="inline-flex tap-action">
             <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative rounded-xl overflow-hidden py-3 px-4 flex items-center gap-4 bg-claude-surface/30 border border-claude-accent/20 backdrop-blur-md active:scale-[0.98] transition-all shadow-sm"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 pl-1 pr-2.5 py-0.5 bg-[#1e3840]/40 border border-[#233e46] rounded-full backdrop-blur-md active:scale-[0.96] transition-all shadow-sm group hover:border-claude-accent/30"
             >
-                <div className="shrink-0 scale-75 origin-center -m-2">
+                <div className="shrink-0 scale-[0.4] origin-center -m-5">
                     <Garden
                         streak={streak.currentStreak}
                         status={streak.status}
@@ -126,14 +126,10 @@ const GardenHero = memo(() => {
                         showInfo={false}
                     />
                 </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#8fa6a8] font-bold">Observer Log</span>
-                        <span className="font-mono text-[8px] font-bold text-claude-accent uppercase">{streak.currentStreak}d Growth</span>
-                    </div>
-                    <h2 className="font-serif text-lg font-bold italic leading-none text-[#e4ddd0] tracking-tight truncate">{stage.name}</h2>
+                <div className="flex flex-col">
+                    <span className="font-mono text-[6px] uppercase tracking-[0.1em] text-[#8fa6a8]/60 font-bold group-hover:text-claude-accent/60 transition-colors">Growth</span>
+                    <span className="font-serif text-[10px] font-bold italic leading-none text-botanical-parchment truncate max-w-[80px]">{stage.name}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-claude-accent/40" />
             </motion.div>
         </Link>
     );
