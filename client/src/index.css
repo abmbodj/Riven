@@ -434,6 +434,42 @@
   .botanical-card:hover {
     border-color: var(--accent-color);
   }
+
+  /* Herbarium Paper Texture */
+  .paper-texture {
+    position: relative;
+    background-color: #fcfaf2;
+    background-image:
+      url("https://www.transparenttextures.com/patterns/natural-paper.png"),
+      linear-gradient(to bottom right, rgba(255, 255, 255, 0.4), transparent);
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.1),
+      0 8px 0 -4px #fcfaf2,
+      0 8px 0 -3px #d1c9b8,
+      0 16px 0 -8px #fcfaf2,
+      0 16px 0 -7px #d1c9b8;
+  }
+
+  /* Specimen Tape Effect */
+  .specimen-tape {
+    position: absolute;
+    height: 12px;
+    width: 40px;
+    background: rgba(232, 228, 216, 0.6);
+    backdrop-filter: blur(2px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transform: rotate(-2deg);
+    z-index: 10;
+  }
+
+  /* Deck lifting hover effect */
+  .deck-lift {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .deck-lift:hover {
+    transform: translateY(-8px) scale(1.02);
+  }
 }
 
 /* Keyframes */

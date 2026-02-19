@@ -34,57 +34,67 @@ const DeckCard = memo(({ deck, folders, index }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 15, rotate: index % 2 === 0 ? -0.5 : 0.5 }}
-            animate={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -1 : 1 }}
-            transition={{ delay: index * 0.05, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 20, rotate: index % 2 === 0 ? -0.5 : 0.5 }}
+            whileInView={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -0.8 : 0.8 }}
+            viewport={{ once: true }}
+            whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
+            transition={{ delay: (index % 10) * 0.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="relative"
         >
             {/* Specimen Tape/Pin Accent */}
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-3 bg-claude-accent/20 rotate-1 rounded-sm z-10 backdrop-blur-sm" />
+            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm" />
+            <div className="absolute -top-1 right-1/4 w-4 h-4 bg-[#d1c9b8]/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center">
+                <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
+            </div>
 
-            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fefdfa] border border-[#d1c9b8] p-5 pt-7 rounded-sm shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.06)] hover:border-claude-accent/40 transition-all duration-500 overflow-hidden active:scale-[0.99]">
-                {/* Subtle pressed paper texture effect using CSS */}
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-6 pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.06)] hover:border-claude-accent/30 transition-all duration-500 overflow-hidden active:scale-[0.98]">
+                {/* Subtle paper grain and texture */}
+                <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
 
-                <div className="flex items-start gap-4">
-                    <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-current/10"
-                        style={{
-                            backgroundColor: folderColor + '08',
-                            color: folderColor
-                        }}
-                    >
-                        <Layers className="w-5 h-5 opacity-80" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-4 opacity-70">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a]">№{deck.id?.toString().slice(-6) || '000000'}</span>
+                        <div className="h-px flex-1 bg-[#d1c9b8]/40" />
+                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Collected: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-[9px] uppercase tracking-widest text-[#8a7f6a]">Specimen №{deck.id?.toString().slice(-4) || '000'}</span>
-                            <div className="h-px flex-1 bg-[#d1c9b8]/30" />
+                    <div className="flex items-start gap-4">
+                        <div
+                            className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 border border-current/10 shadow-inner"
+                            style={{
+                                backgroundColor: folderColor + '0d',
+                                color: folderColor
+                            }}
+                        >
+                            <Layers className="w-6 h-6 opacity-60" />
                         </div>
-                        <h3 className="font-serif text-xl font-medium text-[#2d3436] leading-tight group-hover:text-claude-accent transition-colors duration-300 italic">{deck.title}</h3>
 
-                        <div className="flex items-center gap-3 mt-3">
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f4f1e8] rounded-sm border border-[#e8e4d8]">
-                                <span className="font-mono text-[10px] text-[#5d6466]">{deck.cardCount} cards</span>
-                            </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-serif text-2xl font-bold text-[#1a1c1d] leading-[1.1] group-hover:text-claude-accent transition-colors duration-300 italic mb-2 tracking-tight">{deck.title}</h3>
 
-                            {deck.tags?.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                    {deck.tags.slice(0, 2).map(tag => (
-                                        <span key={tag.id} className="text-[10px] font-mono border-b border-current opacity-70" style={{ color: tag.color }}>
-                                            {tag.name}
-                                        </span>
-                                    ))}
+                            <div className="flex items-center gap-2 flex-wrap mt-auto">
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f4f1e8] rounded-sm border border-[#e8e4d8] shadow-sm">
+                                    <span className="font-mono text-[9px] font-bold text-[#5d6466] uppercase tracking-wider">{deck.cardCount} Cards</span>
                                 </div>
-                            )}
+
+                                {deck.tags?.length > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        {deck.tags.slice(0, 3).map(tag => (
+                                            <span key={tag.id} className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-current/20 bg-current/5" style={{ color: tag.color }}>
+                                                {tag.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Stamp-like accent */}
-                <div className="absolute bottom-2 right-2 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500">
-                    <Sparkles className="w-10 h-10 -rotate-12" />
+                {/* Archival Stamp Background */}
+                <div className="absolute -bottom-4 -right-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700 pointer-events-none group-hover:rotate-12 transform origin-center scale-150">
+                    <Sparkles className="w-32 h-32" />
                 </div>
             </Link>
         </motion.div>
@@ -102,43 +112,57 @@ const GardenHero = memo(() => {
     if (!isLoggedIn) return null;
 
     return (
-        <Link to="/garden" className="block mb-2 -mx-4 px-4">
+        <Link to="/garden" className="block mb-6 -mx-4 px-4">
             <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="relative rounded-2xl overflow-hidden p-5"
+                transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                className="relative rounded-2xl overflow-hidden p-6 shadow-botanical hover:shadow-botanical-lg transition-shadow duration-500"
                 style={{
-                    background: 'linear-gradient(145deg, rgba(122,158,114,0.12) 0%, rgba(222,185,106,0.04) 60%, transparent 100%)',
-                    border: '1px solid rgba(122,158,114,0.15)',
+                    background: 'linear-gradient(135deg, rgba(122,158,114,0.18) 0%, rgba(222,185,106,0.08) 50%, rgba(30,56,64,0.1) 100%)',
+                    border: '1px solid rgba(122,158,114,0.25)',
+                    backdropFilter: 'blur(10px)',
                 }}
             >
                 {/* Decorative corner marks */}
-                <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/20 rounded-tl" />
-                <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/20 rounded-br" />
+                <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-claude-accent/20 rounded-tl-sm" />
+                <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-claude-accent/20 rounded-br-sm" />
 
-                <div className="flex items-center gap-5">
+                <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
                     <div className="shrink-0 relative">
                         <Garden
                             streak={streak.currentStreak}
                             status={streak.status}
-                            size="sm"
+                            size="md"
                             showInfo={false}
                         />
-                        <div className="absolute -inset-1 border border-claude-accent/20 rounded-full animate-[spin_10s_linear_infinite] pointer-events-none" />
+                        <div className="absolute -inset-2 border-2 border-dashed border-claude-accent/15 rounded-full animate-[spin_30s_linear_infinite] pointer-events-none" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#8a7f6a] mb-1">Archive Entry</p>
-                        <h2 className="font-serif text-2xl font-bold italic leading-tight mb-0.5 text-[#2d3436] tracking-tight">{stage.name}</h2>
-                        <p className="font-serif text-sm italic text-[#5d6466] line-clamp-1">{stage.description}</p>
-                        <div className="flex items-center gap-3 mt-3">
-                            <span className="font-mono text-[10px] text-claude-accent bg-claude-accent/10 px-2 py-0.5 rounded-sm">{streak.currentStreak}d streak</span>
+                    <div className="flex-1 min-w-0 text-center sm:text-left">
+                        <div className="inline-flex items-center gap-2 mb-2">
+                            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[#8fa6a8] font-bold">Observer Log</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-pulse" />
+                        </div>
+                        <h2 className="font-serif text-3xl font-bold italic leading-tight mb-2 text-[#e4ddd0] tracking-tight">{stage.name}</h2>
+                        <p className="font-serif text-base italic text-[#8fa6a8] leading-relaxed max-w-lg">{stage.description}</p>
+
+                        <div className="flex items-center justify-center sm:justify-start gap-4 mt-4">
+                            <div className="flex flex-col">
+                                <span className="font-mono text-[8px] uppercase tracking-widest text-[#8fa6a8]/60 mb-0.5">Continuous Growth</span>
+                                <span className="font-mono text-xs font-bold text-claude-accent px-3 py-1 bg-claude-accent/10 rounded-sm border border-claude-accent/20">{streak.currentStreak}d STREAK</span>
+                            </div>
                             {streak.status === 'at-risk' && (
-                                <span className="font-mono text-[9px] text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-sm border border-yellow-200/50">⚠ {Math.round(streak.hoursRemaining)}h left</span>
+                                <div className="flex flex-col">
+                                    <span className="font-mono text-[8px] uppercase tracking-widest text-yellow-600/60 mb-0.5">Critical State</span>
+                                    <span className="font-mono text-xs font-bold text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-sm border border-yellow-500/20">⚠ {Math.round(streak.hoursRemaining)}h LEFT</span>
+                                </div>
                             )}
                         </div>
                     </div>
                 </div>
+
+                {/* Ambient glow */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-botanical-glow opacity-30 pointer-events-none blur-[100px]" />
             </motion.div>
         </Link>
     );
@@ -514,59 +538,63 @@ export default function Home() {
             <GardenHero />
 
             {/* Header */}
-            <div className="mb-8 pt-2">
-                <div className="flex items-end justify-between mb-6 pb-2 border-b border-[#d1c9b8]/40">
+            <div className="mb-10 pt-4">
+                <div className="flex items-end justify-between mb-8 pb-4 border-b-2 border-[#d1c9b8]/20">
                     <div>
-                        <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-[#8a7f6a] mb-1 opacity-60">Personal Collection</p>
-                        <h1 className="text-4xl font-serif font-bold italic text-[#2d3436]">Library</h1>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-claude-accent text-botanical-ink text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Vol. II</span>
+                            <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-[#8fa6a8] opacity-80 font-bold">Personal Archives</p>
+                        </div>
+                        <h1 className="text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter">Collection</h1>
                     </div>
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="touch-target text-[#8a7f6a] hover:text-claude-accent transition-colors disabled:opacity-50 mb-1"
+                        className="touch-target text-[#8fa6a8] hover:text-claude-accent transition-colors disabled:opacity-50 mb-1 active:rotate-180 duration-500"
                     >
-                        <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-6 h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
 
                 {/* Search bar — styled as a catalog search */}
-                <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
-                        <Search className="w-4 h-4 text-[#8a7f6a] group-focus-within:text-claude-accent transition-colors" />
-                        <span className="font-mono text-[10px] text-[#8a7f6a]/40 uppercase tracking-widest hidden sm:inline">Search Catalogue:</span>
+                <div className="relative group max-w-2xl">
+                    <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-3 pointer-events-none">
+                        <Search className="w-5 h-5 text-[#8fa6a8] group-focus-within:text-claude-accent transition-colors" />
+                        <div className="w-px h-4 bg-[#8fa6a8]/20" />
+                        <span className="font-mono text-[10px] text-[#8fa6a8]/40 uppercase tracking-[0.2em] hidden sm:inline font-bold">Catalog search:</span>
                     </div>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="Filter by title or tag..."
-                        className="w-full pl-12 sm:pl-36 pr-4 py-3 bg-[#fefdfa] border border-[#d1c9b8] rounded-sm focus:border-claude-accent outline-none transition-all font-mono text-xs placeholder:text-[#8a7f6a]/30 shadow-inner"
+                        placeholder="Find specimen by name..."
+                        className="w-full pl-12 sm:pl-48 pr-12 py-4 bg-[#1e3840]/30 border-2 border-[#233e46] rounded-xl focus:border-claude-accent/40 focus:bg-[#1e3840]/50 outline-none transition-all font-mono text-sm placeholder:text-[#8fa6a8]/20 text-botanical-parchment shadow-inner backdrop-blur-md"
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-                        <Hash className="w-4 h-4" />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
+                        <Hash className="w-5 h-5" />
                     </div>
                 </div>
             </div>
 
             {/* Folders Section — Styled as Catalog Tabs */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#5d6466] flex items-center gap-2">
-                        <FolderOpen className="w-3 h-3" /> Index / Folders
+            <div className="mb-10">
+                <div className="flex items-baseline justify-between mb-5 px-1">
+                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                        <div className="w-4 h-px bg-current opacity-30" /> Index / Folders
                     </h2>
                     <button
                         onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }}
-                        className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1 hover:underline active:scale-95 transition-transform"
+                        className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group"
                     >
-                        <Plus className="w-3 h-3" /> New Entry
+                        <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" /> Add Entry
                     </button>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+                <div className="flex gap-3 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                     <button
                         onClick={() => setActiveFolder(null)}
-                        className={`shrink-0 px-5 py-2.5 rounded-sm transition-all active:scale-95 border ${activeFolder === null ? 'bg-[#2d3436] text-[#fefdfa] border-[#2d3436] shadow-md' : 'bg-[#fefdfa] border-[#d1c9b8] text-[#5d6466]'}`}
+                        className={`shrink-0 px-6 py-3 rounded-xl transition-all active:scale-95 border-2 ${activeFolder === null ? 'bg-claude-accent text-botanical-ink border-claude-accent shadow-botanical-glow' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
                     >
-                        <span className="font-mono text-[11px] font-bold uppercase tracking-widest">General</span>
+                        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]">All Decks</span>
                     </button>
 
                     {folders.map(folder => (
@@ -579,10 +607,11 @@ export default function Home() {
                                 setNewFolder({ name: folder.name, color: folder.color });
                                 setShowFolderModal(true);
                             }}
-                            className={`shrink-0 px-5 py-2.5 rounded-sm transition-all active:scale-95 border ${activeFolder === folder.id ? 'shadow-md ring-1 ring-offset-2' : 'bg-[#fefdfa] border-[#d1c9b8] text-[#5d6466]'}`}
+                            className={`shrink-0 px-6 py-3 rounded-xl transition-all active:scale-95 border-2 flex items-center gap-3 ${activeFolder === folder.id ? 'shadow-botanical-glow ring-2 ring-offset-2 ring-offset-claude-bg translate-y-[-2px]' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30 hover:bg-[#1e3840]/60'}`}
                             style={activeFolder === folder.id ? { backgroundColor: folder.color, borderColor: folder.color, color: 'white', ringColor: folder.color } : {}}
                         >
-                            <span className="font-mono text-[11px] font-bold uppercase tracking-widest">{folder.name}</span>
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activeFolder === folder.id ? 'white' : folder.color }} />
+                            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]">{folder.name}</span>
                         </button>
                     ))}
                 </div>
@@ -590,27 +619,27 @@ export default function Home() {
 
             {/* Tags Section — Styled as Pinned Labels */}
             {tags.length > 0 && (
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#5d6466] flex items-center gap-2">
-                            <Hash className="w-3 h-3" /> Taxonomy / Tags
+                <div className="mb-10">
+                    <div className="flex items-baseline justify-between mb-5 px-1">
+                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                            <div className="w-4 h-px bg-current opacity-30" /> Taxonomy / Tags
                         </h2>
                         <button
                             onClick={() => setShowTagModal(true)}
-                            className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1 hover:underline active:scale-95 transition-transform"
+                            className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform group"
                         >
-                            <Plus className="w-3 h-3" /> New Tag
+                            <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" /> Define Tag
                         </button>
                     </div>
-                    <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+                    <div className="flex gap-3 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                         {tags.map(tag => (
                             <button
                                 key={tag.id}
                                 onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
-                                className={`shrink-0 px-4 py-1.5 rounded-sm transition-all active:scale-95 border-b-2 ${activeTag === tag.id ? 'bg-[#2d3436] text-[#fefdfa] border-[#2d3436]' : 'bg-[#fefdfa] border-[#d1c9b8]/40 hover:border-claude-accent/40'}`}
-                                style={activeTag === tag.id ? {} : { borderBottomColor: tag.color }}
+                                className={`shrink-0 px-5 py-2 rounded-lg transition-all active:scale-95 border-2 ${activeTag === tag.id ? 'bg-botanical-parchment text-botanical-ink border-botanical-parchment' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8] hover:border-[#8fa6a8]/30'}`}
+                                style={activeTag === tag.id ? {} : { borderLeft: `4px solid ${tag.color}` }}
                             >
-                                <span className="font-mono text-[10px] font-medium tracking-wider">{tag.name}</span>
+                                <span className="font-mono text-[10px] font-bold tracking-widest uppercase">{tag.name}</span>
                             </button>
                         ))}
                     </div>
@@ -647,30 +676,39 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Decks List — Staggered archive layout */}
+            {/* Decks List — Staggered grid layout */}
             <div>
-                <div className="flex items-center justify-between mb-5 px-1">
-                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#5d6466]">
-                        Collection / {filteredDecks.length} Items
-                    </h2>
+                <div className="flex items-end justify-between mb-8 px-1">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">
+                            Archive Results
+                        </h2>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-serif italic text-botanical-parchment">{filteredDecks.length}</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[#8fa6a8]/40">Specimens tracked</span>
+                        </div>
+                    </div>
                     <div className="relative">
                         <button
                             onClick={() => setShowSortMenu(!showSortMenu)}
-                            className="flex items-center gap-2 text-[#8a7f6a] text-[10px] font-mono font-bold uppercase tracking-widest touch-target hover:text-claude-accent transition-colors"
+                            className="flex items-center gap-3 px-4 py-2 bg-[#1e3840]/40 border border-[#233e46] rounded-lg text-[#8fa6a8] text-[10px] font-mono font-bold uppercase tracking-widest hover:border-claude-accent/30 transition-all shadow-sm"
                         >
-                            Sort <SlidersHorizontal className="w-3 h-3" />
+                            Sequence: {SORT_OPTIONS.find(o => o.id === sortBy)?.label} <SlidersHorizontal className="w-3.5 h-3.5" />
                         </button>
                         {showSortMenu && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
-                                <div className="absolute right-0 top-full mt-2 bg-[#fefdfa] border border-[#d1c9b8] rounded-sm shadow-xl overflow-hidden z-20 min-w-[150px] animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 top-full mt-2 bg-claude-surface border border-claude-border rounded-xl shadow-botanical-lg overflow-hidden z-20 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="px-4 py-3 border-b border-claude-border bg-claude-bg/50">
+                                        <span className="text-[8px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Select ordering</span>
+                                    </div>
                                     {SORT_OPTIONS.map(option => (
                                         <button
                                             key={option.id}
                                             onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                            className={`w-full px-4 py-3 flex items-center gap-3 text-[10px] font-mono font-bold uppercase tracking-widest text-left active:bg-[#f4f1e8] ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : 'text-[#2d3436]'}`}
+                                            className={`w-full px-4 py-4 flex items-center gap-3 text-[10px] font-mono font-bold uppercase tracking-widest text-left transition-colors active:bg-claude-accent/10 ${sortBy === option.id ? 'bg-claude-accent/10 text-claude-accent' : 'text-claude-text hover:bg-claude-bg'}`}
                                         >
-                                            <option.icon className="w-3.5 h-3.5" />
+                                            <option.icon className="w-4 h-4 opacity-70" />
                                             {option.label}
                                         </button>
                                     ))}
@@ -681,24 +719,28 @@ export default function Home() {
                 </div>
 
                 {filteredDecks.length === 0 ? (
-                    <div className="text-center py-12 bg-claude-surface border border-claude-border rounded-2xl">
+                    <div className="text-center py-24 bg-[#1e3840]/20 border-2 border-dashed border-[#233e46] rounded-3xl">
                         {decks.length === 0 ? (
                             <>
-                                <div className="text-5xl mb-4">📚</div>
-                                <h3 className="font-display font-bold text-lg mb-2">No Decks Yet</h3>
-                                <p className="text-claude-secondary text-sm mb-4">Create your first deck to get started</p>
-                                <Link to="/create" className="claude-button-primary inline-block px-6 py-3">Create Deck</Link>
+                                <div className="w-20 h-20 bg-claude-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-claude-accent/20">
+                                    <Sparkles className="w-10 h-10 text-claude-accent opacity-50" />
+                                </div>
+                                <h3 className="font-serif italic text-2xl text-botanical-parchment mb-2">The archive is empty</h3>
+                                <p className="text-[#8fa6a8] text-sm mb-8 font-serif italic">No botanical specimens have been identified yet.</p>
+                                <Link to="/create" className="claude-button-primary inline-flex">Begin Collection</Link>
                             </>
                         ) : (
                             <>
-                                <div className="text-5xl mb-4">🔍</div>
-                                <h3 className="font-display font-bold text-lg mb-2">No Matches</h3>
-                                <p className="text-claude-secondary text-sm">Try adjusting your filters</p>
+                                <div className="w-20 h-20 bg-[#233e46]/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Search className="w-10 h-10 text-[#8fa6a8] opacity-30" />
+                                </div>
+                                <h3 className="font-serif italic text-2xl text-[#8fa6a8] mb-2">No matches found</h3>
+                                <p className="text-[#8fa6a8]/60 text-sm font-serif italic">Try adjusting your taxonomy filters</p>
                             </>
                         )}
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
                         {filteredDecks.map((deck, i) => (
                             <DeckCard key={deck.id} deck={deck} folders={folders} index={i} />
                         ))}
