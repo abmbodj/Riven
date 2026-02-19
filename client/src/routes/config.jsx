@@ -1,7 +1,8 @@
 import { lazy } from 'react';
 import Home from '../pages/Home.jsx';
+import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 
-// Lazy load non-critical pages
+// Lazy load pages
 const CreateDeck = lazy(() => import('../pages/CreateDeck.jsx'));
 const DeckView = lazy(() => import('../pages/DeckView.jsx'));
 const StudyMode = lazy(() => import('../pages/StudyMode.jsx'));
@@ -16,8 +17,9 @@ const Messages = lazy(() => import('../pages/Messages.jsx'));
 const UserProfile = lazy(() => import('../pages/UserProfile.jsx'));
 const NotFound = lazy(() => import('../pages/NotFound.jsx'));
 
-
-import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
+// New Pages
+const EditProfile = lazy(() => import('../pages/EditProfile.jsx'));
+const Settings = lazy(() => import('../pages/Settings.jsx'));
 
 export const routesConfig = [
   // Public Routes
@@ -34,6 +36,8 @@ export const routesConfig = [
       { path: '/deck/:id/test', element: <TestMode /> },
       { path: '/themes', element: <ThemeSettings /> },
       { path: '/garden', element: <GardenSettings /> },
+      { path: '/edit-profile', element: <EditProfile /> },
+      { path: '/settings', element: <Settings /> },
       { path: '/shared', element: <SharedDecks /> },
       { path: '/share/:shareId', element: <SharedDecks /> },
       { path: '/admin', element: <AdminPanel /> },
@@ -47,4 +51,3 @@ export const routesConfig = [
   // Catch-all
   { path: '*', element: <NotFound /> },
 ];
-
