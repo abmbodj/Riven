@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import { useStreak } from '../hooks/useStreak';
-import { getGardenStage, gardenStages } from '../utils/gardenCustomization';
+import { getGardenStage, gardenStages, getStageIndex } from '../utils/gardenCustomization';
 import { useNavigate } from 'react-router-dom';
 import { GardenContext } from '../context/GardenContext';
 
@@ -239,14 +239,14 @@ export default function GardenSettings() {
                             min="0"
                             max="10"
                             step="1"
-                            value={customization?.stageOverride ?? getGardenStage(streak.currentStreak)}
+                            value={customization?.stageOverride ?? getStageIndex(streak.currentStreak)}
                             onChange={(e) => setStageOverride(parseInt(e.target.value, 10))}
                             className="w-full accent-amber-500 h-2 bg-claude-bg rounded-lg appearance-none cursor-pointer"
                         />
                         <div className="mt-2 text-center text-sm font-display font-semibold italic text-amber-400">
-                            Currently showing: {customization?.stageOverride !== null ? gardenStages[customization.stageOverride].name : 'Natural Progression'}
+                            Currently showing: {customization?.stageOverride != null ? gardenStages[customization.stageOverride].name : 'Natural Progression'}
                         </div>
-                        {customization?.stageOverride !== null && (
+                        {customization?.stageOverride != null && (
                             <button
                                 onClick={() => setStageOverride(null)}
                                 className="mt-2 text-xs text-claude-secondary hover:text-claude-text underline decoration-claude-secondary/30 transition-colors"
