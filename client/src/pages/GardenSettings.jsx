@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { AuthContext } from '../context/AuthContext';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
-import GardenCustomizer from '../components/GardenCustomizer';
 import { useStreak } from '../hooks/useStreak';
 import { getGardenStage } from '../utils/gardenCustomization';
 import { useNavigate } from 'react-router-dom';
@@ -36,7 +35,6 @@ export default function GardenSettings() {
     const navigate = useNavigate();
     const streak = useStreak();
     const [showGallery, setShowGallery] = useState(false);
-    const [showCustomizer, setShowCustomizer] = useState(false);
 
     // Auth gate — require sign-in
     if (!isLoggedIn) {
@@ -210,20 +208,6 @@ export default function GardenSettings() {
             <div className="space-y-3 mb-24">
                 <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setShowCustomizer(true)}
-                    className="w-full p-4 botanical-card flex items-center gap-4"
-                >
-                    <div className="w-10 h-10 rounded-lg bg-claude-accent/12 flex items-center justify-center">
-                        <Palette className="w-5 h-5 text-claude-accent" />
-                    </div>
-                    <div className="flex-1 text-left">
-                        <div className="font-display font-semibold text-sm">Customize Garden</div>
-                        <div className="text-xs text-claude-secondary">Change theme, add decorations & plants</div>
-                    </div>
-                </motion.button>
-
-                <motion.button
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowGallery(true)}
                     className="w-full p-4 botanical-card flex items-center gap-4"
                 >
@@ -244,15 +228,6 @@ export default function GardenSettings() {
                     longestStreak={streak.longestStreak}
                     currentStreak={streak.currentStreak}
                     onClose={() => setShowGallery(false)}
-                />
-            )}
-
-            {showCustomizer && (
-                <GardenCustomizer
-                    longestStreak={streak.longestStreak}
-                    currentStreak={streak.currentStreak}
-                    status={streak.status}
-                    onClose={() => setShowCustomizer(false)}
                 />
             )}
         </div>
