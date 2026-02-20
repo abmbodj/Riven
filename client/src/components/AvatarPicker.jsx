@@ -38,11 +38,18 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
         // Convert to base64 data URL
         const reader = new FileReader();
         reader.onload = (event) => {
-            // Resize image to max 256x256 for storage efficiency
+            // If the image is a GIF, skip canvas resizing so we don't lose animation
+            if (file.type === 'image/gif') {
+                setPreview(event.target.result);
+                setLoading(false);
+                return;
+            }
+
+            // Resize static images to max 512x512 for better quality while being storage efficient
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const maxSize = 256;
+                const maxSize = 512;
                 let { width, height } = img;
 
                 if (width > height) {
@@ -63,8 +70,8 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Convert to JPEG for smaller size (or PNG if transparent)
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                // Convert to WebP / JPEG at higher quality
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
                 setPreview(dataUrl);
                 setLoading(false);
             };
@@ -96,19 +103,19 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
     };
 
     return (
-        <div 
+        <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-end"
             onClick={onClose}
         >
-            <div 
+            <div
                 className="bg-claude-surface w-full rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-hidden flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-claude-border shrink-0">
                     <h3 className="text-lg font-display font-bold">Change Avatar</h3>
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         className="p-2 -mr-2 active:bg-claude-bg rounded-full transition-colors"
                     >
                         <X className="w-5 h-5 text-claude-secondary" />
@@ -126,19 +133,19 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                                         <LoadingSpinner size="md" />
                                     </div>
                                 ) : preview ? (
-                                    <img 
-                                        src={preview} 
-                                        alt="Preview" 
+                                    <img
+                                        src={preview}
+                                        alt="Preview"
                                         className="w-full h-full object-cover"
                                     />
                                 ) : currentAvatar && !currentAvatar.startsWith('gradient:') ? (
-                                    <img 
-                                        src={currentAvatar} 
-                                        alt="Current" 
+                                    <img
+                                        src={currentAvatar}
+                                        alt="Current"
                                         className="w-full h-full object-cover"
                                     />
                                 ) : currentAvatar?.startsWith('gradient:') ? (
-                                    <div 
+                                    <div
                                         className="w-full h-full"
                                         style={{ background: currentAvatar.replace('gradient:', '') }}
                                     />
@@ -180,7 +187,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                 </div>
 
                 {/* Actions */}
-                <div 
+                <div
                     className="p-4 border-t border-claude-border space-y-3 shrink-0"
                     style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 16px)' }}
                 >
@@ -193,7 +200,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                             Save Avatar
                         </button>
                     )}
-                    
+
                     {currentAvatar && (
                         <button
                             onClick={handleRemove}

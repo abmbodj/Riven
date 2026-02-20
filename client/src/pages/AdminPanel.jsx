@@ -667,7 +667,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white shrink-0">
-                                            {u.avatar || u.username[0].toUpperCase()}
+                                            {u.username[0]?.toUpperCase()}
                                         </div>
                                         <div className="min-w-0">
                                             <h4 className="text-sm font-medium text-white flex items-center gap-2">

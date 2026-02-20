@@ -157,28 +157,14 @@ export default function EditProfile() {
 
             {/* Avatar Picker Modal */}
             {showAvatarPicker && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-[#1e282c] border border-botanical-sepia/20 rounded-2xl w-full max-w-md p-6 relative shadow-2xl"
-                    >
-                        <button
-                            onClick={() => setShowAvatarPicker(false)}
-                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-botanical-sepia"
-                        >
-                            ✕
-                        </button>
-                        <h3 className="text-lg font-display text-claude-text mb-4">Choose Portrait</h3>
-                        <AvatarPicker
-                            currentAvatar={avatar}
-                            onSelect={(url) => {
-                                setAvatar(url);
-                                setShowAvatarPicker(false);
-                            }}
-                        />
-                    </motion.div>
-                </div>
+                <AvatarPicker
+                    currentAvatar={avatar}
+                    onSelect={(url) => {
+                        setAvatar(url);
+                        setShowAvatarPicker(false);
+                    }}
+                    onClose={() => setShowAvatarPicker(false)}
+                />
             )}
         </div>
     );
