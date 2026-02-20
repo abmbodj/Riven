@@ -5,8 +5,9 @@ import { AuthContext } from '../context/AuthContext';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import { useStreak } from '../hooks/useStreak';
-import { getGardenStage } from '../utils/gardenCustomization';
+import { getGardenStage, gardenStages } from '../utils/gardenCustomization';
 import { useNavigate } from 'react-router-dom';
+import { GardenContext } from '../context/GardenContext';
 
 const getStatusMessage = (streak) => {
     if (streak.status === 'broken') return 'Study to revive your garden!';
@@ -31,7 +32,8 @@ const getLast7Days = (lastStudyDate, currentStreak) => {
 };
 
 export default function GardenSettings() {
-    const { isLoggedIn } = useContext(AuthContext);
+    const { isLoggedIn, isOwner } = useContext(AuthContext);
+    const { customization, setStageOverride } = useContext(GardenContext);
     const navigate = useNavigate();
     const streak = useStreak();
     const [showGallery, setShowGallery] = useState(false);
@@ -80,7 +82,11 @@ export default function GardenSettings() {
         );
     }
 
-    const stage = getGardenStage(streak.currentStreak);
+    const effectiveStreak = (customization?.stageOverride !== undefined && customization?.stageOverride !== null)
+        ? gardenStages[customization.stageOverride].minDays
+        : streak.currentStreak;
+
+    const stage = getGardenStage(effectiveStreak);
     const weekDays = getLast7Days(streak.lastStudyDate, streak.currentStreak);
 
     return (
@@ -112,7 +118,7 @@ export default function GardenSettings() {
                     <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/15" />
 
                     <Garden
-                        streak={streak.currentStreak}
+                        streak={effectiveStreak}
                         status={streak.status}
                         size="xl"
                         showInfo={true}
@@ -200,6 +206,54 @@ export default function GardenSettings() {
                                 }
                             </div>
                         </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Owner Stage Override */}
+            {isOwner && (
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="p-4 mb-6 rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative overflow-hidden"
+                >
+                    <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-bl-lg">OWNER</div>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                            <Palette className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div>
+                            <div className="font-display font-bold text-sm text-amber-500">Stage Override</div>
+                            <div className="text-xs text-amber-500/70">Manually select a garden stage (0-10)</div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-xs text-claude-secondary font-mono px-1">
+                            <span>Stage 0 (Seed)</span>
+                            <span>Stage 10 (Celestial)</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            step="1"
+                            value={customization?.stageOverride ?? getGardenStage(streak.currentStreak)}
+                            onChange={(e) => setStageOverride(parseInt(e.target.value, 10))}
+                            className="w-full accent-amber-500 h-2 bg-claude-bg rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="mt-2 text-center text-sm font-display font-semibold italic text-amber-400">
+                            Currently showing: {customization?.stageOverride !== null ? gardenStages[customization.stageOverride].name : 'Natural Progression'}
+                        </div>
+                        {customization?.stageOverride !== null && (
+                            <button
+                                onClick={() => setStageOverride(null)}
+                                className="mt-2 text-xs text-claude-secondary hover:text-claude-text underline decoration-claude-secondary/30 transition-colors"
+                            >
+                                Reset to Natural Streak ({streak.currentStreak})
+                            </button>
+                        )}
                     </div>
                 </motion.div>
             )}
