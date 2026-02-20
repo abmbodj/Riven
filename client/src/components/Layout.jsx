@@ -5,7 +5,8 @@ import Home from 'lucide-react/dist/esm/icons/home';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
 import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import User from 'lucide-react/dist/esm/icons/user';
-import { AnimatePresence } from 'motion/react';
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from 'motion/react';
 import { ThemeContext } from '../ThemeContext';
 import { UIContext } from '../context/UIContext';
 

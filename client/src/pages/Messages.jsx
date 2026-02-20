@@ -4,7 +4,8 @@ import {
     ArrowLeft, Send, Search, Image, Layers,
     Check, CheckCheck, MoreVertical, Trash2, Leaf
 } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
@@ -350,8 +351,8 @@ export default function Messages() {
                                                 <Link
                                                     to={`/decks/${msg.deckData.id}`}
                                                     className={`botanical-card group relative overflow-hidden ${msg.isMine
-                                                            ? 'rounded-br-sm'
-                                                            : 'rounded-bl-sm'
+                                                        ? 'rounded-br-sm'
+                                                        : 'rounded-bl-sm'
                                                         }`}
                                                 >
                                                     {/* Decorative botanical accent */}
@@ -377,8 +378,8 @@ export default function Messages() {
                                                 /* Text Message Bubble */
                                                 <div
                                                     className={`relative px-4 py-3 rounded-2xl ${msg.isMine
-                                                            ? 'bg-botanical-forest text-white rounded-br-sm shadow-lg shadow-botanical-forest/20'
-                                                            : 'botanical-card rounded-bl-sm text-botanical-parchment'
+                                                        ? 'bg-botanical-forest text-white rounded-br-sm shadow-lg shadow-botanical-forest/20'
+                                                        : 'botanical-card rounded-bl-sm text-botanical-parchment'
                                                         }`}
                                                     style={msg.isMine ? {
                                                         background: 'linear-gradient(135deg, rgba(122, 158, 114, 0.95) 0%, rgba(122, 158, 114, 1) 100%)'
