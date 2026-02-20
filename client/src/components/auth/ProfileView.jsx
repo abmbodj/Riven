@@ -4,6 +4,8 @@ import {
     LogOut, Edit3, Settings, User, Mail,
     MessageCircle, Users, ChevronRight, Leaf, Shield
 } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'motion/react';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';

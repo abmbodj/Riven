@@ -1,5 +1,7 @@
 import { useState, useContext } from 'react';
 import { Palette, Clock, Trophy, Sprout, LogIn } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from 'motion/react';
 import { AuthContext } from '../context/AuthContext';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';

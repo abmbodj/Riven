@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
 
 const PasswordStrengthMeter = ({ password }) => {
