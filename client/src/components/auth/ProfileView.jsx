@@ -59,9 +59,9 @@ const ProfileView = () => {
             {/* Profile Header */}
             <div className="relative mb-6">
                 {/* Atmospheric Deep Header */}
-                <div className="h-40 overflow-hidden relative">
-                    <div className="absolute inset-0 bg-[#0f2026]"></div>
-                    <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl" />
+                <div className="h-40 overflow-hidden relative rounded-b-[3rem]">
+                    <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
+                    <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl rounded-b-[3rem]" />
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
 
                     <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5 rotate-12" />

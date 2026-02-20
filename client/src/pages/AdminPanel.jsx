@@ -442,7 +442,8 @@ function StatCard(props) {
 function ActivityChart({ data }) {
     if (!data || !data.length) return null;
 
-    const max = Math.max(...data.map(d => d.count), 1);
+    const rawMax = Math.max(...data.map(d => d.count), 1);
+    const max = rawMax * 1.1; // Add 10% buffer so line isn't clipped at peaks
     const height = 100;
     const gap = 100 / Math.max(data.length - 1, 1);
 
@@ -515,7 +516,7 @@ function ActivityChart({ data }) {
                         d={pathD}
                         fill="none"
                         stroke="#3ECF8E"
-                        strokeWidth="2.5"
+                        strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         initial={{ pathLength: 0, opacity: 0 }}

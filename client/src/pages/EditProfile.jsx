@@ -43,9 +43,9 @@ export default function EditProfile() {
     return (
         <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
             {/* Organic Header */}
-            <div className="relative h-40 overflow-hidden mb-6">
-                <div className="absolute inset-0 bg-[#0f2026]"></div>
-                <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl" />
+            <div className="relative h-40 overflow-hidden mb-6 rounded-b-[3rem]">
+                <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
+                <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl rounded-b-[3rem]" />
 
                 {/* Navigation / Actions */}
                 <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10 safe-area-top">
