@@ -10,7 +10,6 @@ const TestMode = lazy(() => import('../pages/TestMode.jsx'));
 const ThemeSettings = lazy(() => import('../pages/ThemeSettings.jsx'));
 const GardenSettings = lazy(() => import('../pages/GardenSettings.jsx'));
 const Account = lazy(() => import('../pages/Account.jsx'));
-const SharedDecks = lazy(() => import('../pages/SharedDecks.jsx'));
 const AdminPanel = lazy(() => import('../pages/AdminPanel.jsx'));
 const Friends = lazy(() => import('../pages/Friends.jsx'));
 const Messages = lazy(() => import('../pages/Messages.jsx'));
@@ -38,8 +37,6 @@ export const routesConfig = [
       { path: '/garden', element: <GardenSettings /> },
       { path: '/edit-profile', element: <EditProfile /> },
       { path: '/settings', element: <Settings /> },
-      { path: '/shared', element: <SharedDecks /> },
-      { path: '/share/:shareId', element: <SharedDecks /> },
       { path: '/admin', element: <AdminPanel /> },
       { path: '/friends', element: <Friends /> },
       { path: '/messages', element: <Messages /> },

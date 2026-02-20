@@ -109,11 +109,6 @@ export function AuthProvider({ children }) {
 
     // Passthrough functions (logic is in authApi, but exposed via context for consistency)
     const findUserByShareCode = useCallback((code) => authApi.searchUsers(code).then(users => users.find(u => u.shareCode === code)), []);
-    const shareDeck = useCallback((id) => authApi.shareDeck(id).then(res => res.shareId), []);
-    const getSharedDeck = useCallback((id) => authApi.getSharedDeck(id), []);
-    const importSharedDeck = useCallback((id) => authApi.importSharedDeck(id), []);
-    const unshareDeck = useCallback((id) => authApi.unshareDeck(id), []);
-    const getMySharedDecks = useCallback(() => authApi.getMySharedDecks(), []);
 
     // Admin Functions
     const getAllUsers = useCallback(() => authApi.adminGetAllUsers(), []);
@@ -149,11 +144,6 @@ export function AuthProvider({ children }) {
         deleteAccount,
         // Sharing
         findUserByShareCode,
-        shareDeck,
-        getSharedDeck,
-        importSharedDeck,
-        unshareDeck,
-        getMySharedDecks,
         // Admin
         getAllUsers,
         adminUpdateUser,
@@ -170,8 +160,7 @@ export function AuthProvider({ children }) {
         dismissMessage
     }), [
         user, loading, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
-        deleteAccount, findUserByShareCode, shareDeck, getSharedDeck, importSharedDeck,
-        unshareDeck, getMySharedDecks, getAllUsers, adminUpdateUser, adminDeleteUser,
+        deleteAccount, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
         getActiveMessages, dismissMessage

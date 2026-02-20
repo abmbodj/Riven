@@ -1018,99 +1018,51 @@ app.put('/api/themes/:id/activate', optionalAuth, async (req, res) => {
 
 // ============ SHARING ============
 
-app.post('/api/decks/:id/share', authMiddleware, async (req, res) => {
-    const { id } = req.params;
+// Accept a shared deck from a message
+app.post('/api/messages/:id/accept-deck', authMiddleware, async (req, res) => {
+    const messageId = req.params.id;
     try {
-        const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1 AND user_id = $2', [id, req.user.id]);
-        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+        const message = await db.queryOne('SELECT * FROM messages WHERE id = $1 AND receiver_id = $2', [messageId, req.user.id]);
+        if (!message) return res.status(404).json({ error: 'Message not found' });
+        if (message.message_type !== 'deck') return res.status(400).json({ error: 'Not a deck message' });
 
-        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1 ORDER BY position', [id]);
-        const deckData = JSON.stringify({ title: deck.title, description: deck.description, cards });
+        const deckData = message.deck_data ? JSON.parse(message.deck_data) : null;
+        if (!deckData || !deckData.id) return res.status(400).json({ error: 'Invalid deck data in message' });
+        if (deckData.acceptedDeckId) return res.status(400).json({ error: 'Deck already accepted' });
 
-        const shareId = uuidv4().slice(0, 8);
-        await db.execute(
-            'INSERT INTO shared_decks (share_id, user_id, deck_id, deck_data) VALUES ($1, $2, $3, $4)',
-            [shareId, req.user.id, id, deckData]
-        );
+        const originalDeckId = deckData.id;
+        const originalDeck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [originalDeckId]);
+        if (!originalDeck) return res.status(404).json({ error: 'Original deck no longer exists' });
 
-        res.json({ shareId, shareUrl: `/share/${shareId}` });
-    } catch (error) {
-
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/api/share/:shareId', async (req, res) => {
-    const { shareId } = req.params;
-    try {
-        const shared = await db.queryOne(
-            `SELECT sd.*, u.username, u.avatar 
-             FROM shared_decks sd 
-             JOIN users u ON sd.user_id = u.id 
-             WHERE sd.share_id = $1`,
-            [shareId]
-        );
-        if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
-
-        res.json({
-            shareId: shared.share_id,
-            deckData: JSON.parse(shared.deck_data),
-            sharedAt: shared.created_at,
-            sharedBy: {
-                username: shared.username,
-                avatar: shared.avatar
-            }
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/share/:shareId/import', authMiddleware, async (req, res) => {
-    const { shareId } = req.params;
-    try {
-        const shared = await db.queryOne('SELECT * FROM shared_decks WHERE share_id = $1', [shareId]);
-        if (!shared) return res.status(404).json({ error: 'Shared deck not found' });
-
-        const deckData = JSON.parse(shared.deck_data);
+        // Clone deck
         const newDeck = await db.queryOne(
             'INSERT INTO decks (user_id, title, description) VALUES ($1, $2, $3) RETURNING *',
-            [req.user.id, deckData.title, deckData.description || '']
+            [req.user.id, originalDeck.title, originalDeck.description]
         );
 
-        for (const card of deckData.cards || []) {
+        // Clone cards
+        const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [originalDeckId]);
+        for (const card of cards) {
             await db.execute(
                 'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6)',
-                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position || 0]
+                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position]
             );
         }
 
-        res.status(201).json(newDeck);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+        // Clone tags
+        const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [originalDeckId]);
+        for (const tag of tags) {
+            await db.execute('INSERT INTO deck_tags (deck_id, tag_id) VALUES ($1, $2)', [newDeck.id, tag.tag_id]);
+        }
 
-app.get('/api/my-shares', authMiddleware, async (req, res) => {
-    try {
-        const shared = await db.query('SELECT * FROM shared_decks WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
-        res.json(shared.map(s => ({
-            shareId: s.share_id,
-            deckData: JSON.parse(s.deck_data),
-            sharedAt: s.created_at,
-            userId: s.user_id
-        })));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+        // Update message to mark as accepted
+        deckData.acceptedDeckId = newDeck.id;
+        await db.execute(
+            'UPDATE messages SET deck_data = $1 WHERE id = $2',
+            [JSON.stringify(deckData), messageId]
+        );
 
-app.delete('/api/share/:shareId', authMiddleware, async (req, res) => {
-    const { shareId } = req.params;
-    try {
-        const result = await db.execute('DELETE FROM shared_decks WHERE share_id = $1 AND user_id = $2', [shareId, req.user.id]);
-        if (result.rowCount === 0) return res.status(404).json({ error: 'Shared deck not found' });
-        res.json({ message: 'Share link deleted' });
+        res.status(201).json({ newDeck, messageId });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -25,6 +25,7 @@ export default function Messages() {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [acceptingDeck, setAcceptingDeck] = useState(null);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -96,21 +97,30 @@ export default function Messages() {
         }
     };
 
-    // Send deck function - can be exposed via context or props later
-    const _handleSendDeck = async (deck) => {
-        haptics.light();
+    const handleAcceptDeck = async (messageId) => {
+        setAcceptingDeck(messageId);
         try {
-            const message = await authApi.sendMessage(
-                userId,
-                `Shared a deck: ${deck.title}`,
-                'deck',
-                { id: deck.id, title: deck.title, cardCount: deck.cards?.length || 0 }
-            );
-            setMessages(prev => [...prev, message]);
-            toast.success('Deck shared!');
-        } catch {
+            const { newDeck } = await authApi.acceptSharedDeck(messageId);
+            toast.success(`Deck "${newDeck.title}" added to your collection!`);
+            // Update local messages to show accepted
+            setMessages(prev => prev.map(m => {
+                if (m.id === messageId) {
+                    return {
+                        ...m,
+                        deckData: {
+                            ...m.deckData,
+                            acceptedDeckId: newDeck.id
+                        }
+                    };
+                }
+                return m;
+            }));
+            haptics.light();
+        } catch (error) {
+            toast.error(error.message || 'Failed to accept deck');
             haptics.error();
-            toast.error('Failed to share deck');
+        } finally {
+            setAcceptingDeck(null);
         }
     };
 
@@ -348,32 +358,45 @@ export default function Messages() {
 
                                             {/* Deck Message */}
                                             {msg.messageType === 'deck' && msg.deckData ? (
-                                                <Link
-                                                    to={`/decks/${msg.deckData.id}`}
-                                                    className={`botanical-card group relative overflow-hidden ${msg.isMine
-                                                        ? 'rounded-br-sm'
-                                                        : 'rounded-bl-sm'
-                                                        }`}
-                                                >
-                                                    {/* Decorative botanical accent */}
+                                                <div className={`botanical-card relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
                                                     <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-botanical-forest/30' : 'from-botanical-forest/30 to-transparent'}`} />
-
                                                     <div className="p-4">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <div className="w-8 h-8 rounded-lg bg-botanical-forest/10 flex items-center justify-center">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-botanical-forest/10 flex items-center justify-center shrink-0 mr-3">
                                                                 <Layers className="w-4 h-4 text-botanical-forest" />
                                                             </div>
-                                                            <span className="font-display font-medium text-botanical-parchment">
-                                                                {msg.deckData.title}
-                                                            </span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs text-botanical-sepia font-mono mb-0.5" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                                                                    {msg.isMine ? 'You shared a deck' : `${chatUser?.username || 'Friend'} shared a deck`}
+                                                                </p>
+                                                                <span className="font-display font-medium text-botanical-parchment block truncate">
+                                                                    {msg.deckData.title}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        <p className="text-sm text-botanical-sepia font-mono flex items-center gap-2">
-                                                            <span>{msg.deckData.cardCount} cards</span>
-                                                            <span className="text-botanical-sepia/50">•</span>
-                                                            <span className="text-botanical-forest group-hover:underline">Tap to view</span>
+                                                        <p className="text-sm text-botanical-sepia font-mono mb-4 text-center">
+                                                            {msg.deckData.cardCount} cards
                                                         </p>
+
+                                                        {msg.isMine ? (
+                                                            <Link to={`/deck/${msg.deckData.id}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest/10 text-botanical-forest hover:bg-botanical-forest/20 transition-colors">
+                                                                View Deck
+                                                            </Link>
+                                                        ) : msg.deckData.acceptedDeckId ? (
+                                                            <Link to={`/deck/${msg.deckData.acceptedDeckId}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest/10 text-botanical-forest hover:bg-botanical-forest/20 transition-colors">
+                                                                ✓ View in Collection
+                                                            </Link>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleAcceptDeck(msg.id)}
+                                                                disabled={acceptingDeck === msg.id}
+                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                                                            >
+                                                                {acceptingDeck === msg.id ? 'Adding...' : 'Add to Collection'}
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                </Link>
+                                                </div>
                                             ) : (
                                                 /* Text Message Bubble */
                                                 <div

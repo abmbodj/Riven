@@ -134,4 +134,10 @@ export const api = {
     deleteTheme: (id) => isLoggedIn()
         ? serverApi.deleteTheme(id)
         : db.deleteTheme(id),
+
+    // ============ FRIENDS & MESSAGES ============
+    getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),
+    sendMessage: (toUserId, content, messageType, deckData) => isLoggedIn()
+        ? serverApi.sendMessage(toUserId, content, messageType, deckData)
+        : Promise.reject(new Error('Must be logged in to send messages')),
 };

@@ -261,11 +261,7 @@ export const deleteTheme = (id) => authFetch(`/themes/${id}`, { method: 'DELETE'
 
 // ============ SHARING ENDPOINTS ============
 
-export const shareDeck = (deckId) => authFetch(`/decks/${deckId}/share`, { method: 'POST' });
-export const getSharedDeck = (shareId) => authFetch(`/share/${shareId}`);
-export const importSharedDeck = (shareId) => authFetch(`/share/${shareId}/import`, { method: 'POST' });
-export const getMySharedDecks = () => safeFetchArray(authFetch('/my-shares'));
-export const unshareDeck = (shareId) => authFetch(`/share/${shareId}`, { method: 'DELETE' });
+export const acceptSharedDeck = (messageId) => authFetch(`/messages/${messageId}/accept-deck`, { method: 'POST' });
 
 // ============ GUEST DATA MIGRATION ============
 
@@ -391,12 +387,7 @@ export default {
     createTheme,
     updateTheme,
     activateTheme,
-    deleteTheme,
-    shareDeck,
-    getSharedDeck,
-    importSharedDeck,
-    getMySharedDecks,
-    unshareDeck,
+    acceptSharedDeck,
     migrateGuestData,
     searchUsers,
     getUserProfile,
