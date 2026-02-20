@@ -305,6 +305,8 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
             content: m.content,
             messageType: m.message_type,
             deckData: m.deck_data ? JSON.parse(m.deck_data) : null,
+            imageUrl: m.image_url,
+            isEdited: m.is_edited === 1,
             isRead: m.is_read === 1,
             createdAt: m.created_at,
             isMine: m.sender_id === req.user.id
@@ -316,10 +318,10 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
 
 // Send a message
 app.post('/api/messages', authMiddleware, async (req, res) => {
-    const { receiverId, content, messageType = 'text', deckData } = req.body;
+    const { receiverId, content, messageType = 'text', deckData, imageUrl } = req.body;
 
     if (!receiverId) return res.status(400).json({ error: 'Receiver ID is required' });
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
+    if (!content && !imageUrl && !deckData) return res.status(400).json({ error: 'Message content, image or deck is required' });
 
     try {
         // Verify receiver exists
@@ -327,9 +329,9 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
         if (!receiver) return res.status(404).json({ error: 'User not found' });
 
         const message = await db.queryOne(
-            `INSERT INTO messages (sender_id, receiver_id, content, message_type, deck_data) 
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [req.user.id, receiverId, content, messageType, deckData ? JSON.stringify(deckData) : null]
+            `INSERT INTO messages (sender_id, receiver_id, content, message_type, deck_data, image_url) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.user.id, receiverId, content || '', messageType, deckData ? JSON.stringify(deckData) : null, imageUrl || null]
         );
 
         res.json({
@@ -338,9 +340,58 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
             content: message.content,
             messageType: message.message_type,
             deckData: message.deck_data ? JSON.parse(message.deck_data) : null,
+            imageUrl: message.image_url,
+            isEdited: message.is_edited === 1,
             createdAt: message.created_at,
             isMine: true
         });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Edit a message
+app.put('/api/messages/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content) return res.status(400).json({ error: 'Message content is required' });
+
+    try {
+        const message = await db.queryOne('SELECT * FROM messages WHERE id = $1 AND sender_id = $2', [id, req.user.id]);
+        if (!message) return res.status(404).json({ error: 'Message not found or unauthorized' });
+
+        const updated = await db.queryOne(
+            `UPDATE messages SET content = $1, is_edited = 1 WHERE id = $2 RETURNING *`,
+            [content, id]
+        );
+
+        res.json({
+            id: updated.id,
+            senderId: updated.sender_id,
+            content: updated.content,
+            messageType: updated.message_type,
+            deckData: updated.deck_data ? JSON.parse(updated.deck_data) : null,
+            imageUrl: updated.image_url,
+            isEdited: updated.is_edited === 1,
+            createdAt: updated.created_at,
+            isMine: true
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a message
+app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const message = await db.queryOne('SELECT * FROM messages WHERE id = $1 AND sender_id = $2', [id, req.user.id]);
+        if (!message) return res.status(404).json({ error: 'Message not found or unauthorized' });
+
+        await db.execute('DELETE FROM messages WHERE id = $1', [id]);
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

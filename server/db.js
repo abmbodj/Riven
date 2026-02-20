@@ -278,10 +278,20 @@ if (global.__TEST_DB_MOCK__) {
                     content TEXT NOT NULL,
                     message_type TEXT DEFAULT 'text',
                     deck_data TEXT,
+                    image_url TEXT,
+                    is_edited INTEGER DEFAULT 0,
                     is_read INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
+
+            // Add messaging enhancement columns if they don't exist (migration)
+            await client.query(`
+                ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited INTEGER DEFAULT 0
+            `).catch(() => { });
 
             // Database schema initialized successfully
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Send, Search, Image, Layers,
-    Check, CheckCheck, MoreVertical, Trash2, Leaf
+    Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X
 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,9 +26,13 @@ export default function Messages() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [acceptingDeck, setAcceptingDeck] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [activeMenuId, setActiveMenuId] = useState(null);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Load conversations list
     const loadConversations = useCallback(async () => {
@@ -77,17 +81,47 @@ export default function Messages() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result);
+                inputRef.current?.focus();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || sending) return;
+
+        if (editingMessageId) {
+            if (!newMessage.trim() || sending) return;
+            setSending(true);
+            try {
+                const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim());
+                setMessages(prev => prev.map(m => m.id === editingMessageId ? updatedMsg : m));
+                setNewMessage('');
+                setEditingMessageId(null);
+            } catch {
+                toast.error('Failed to edit message');
+            } finally {
+                setSending(false);
+            }
+            return;
+        }
+
+        if ((!newMessage.trim() && !imagePreview) || sending) return;
 
         setSending(true);
         haptics.light();
 
         try {
-            const message = await authApi.sendMessage(userId, newMessage.trim());
+            const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
             setMessages(prev => [...prev, message]);
             setNewMessage('');
+            setImagePreview(null);
             inputRef.current?.focus();
         } catch {
             haptics.error();
@@ -95,6 +129,28 @@ export default function Messages() {
         } finally {
             setSending(false);
         }
+    };
+
+    const handleDeleteMessage = async (msgId) => {
+        if (!window.confirm('Are you sure you want to delete this message?')) return;
+        try {
+            await authApi.deleteMessage(msgId);
+            setMessages(prev => prev.filter(m => m.id !== msgId));
+            setActiveMenuId(null);
+            toast.success('Message deleted');
+            haptics.medium();
+        } catch {
+            toast.error('Failed to delete message');
+            haptics.error();
+        }
+    };
+
+    const startEditing = (msg) => {
+        setEditingMessageId(msg.id);
+        setNewMessage(msg.content);
+        setImagePreview(null);
+        setActiveMenuId(null);
+        inputRef.current?.focus();
     };
 
     const handleAcceptDeck = async (messageId) => {
@@ -398,9 +454,9 @@ export default function Messages() {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                /* Text Message Bubble */
+                                                /* Text/Image Message Bubble */
                                                 <div
-                                                    className={`relative px-4 py-3 rounded-2xl ${msg.isMine
+                                                    className={`relative group px-4 py-3 rounded-2xl ${msg.isMine
                                                         ? 'bg-botanical-forest text-white rounded-br-sm shadow-lg shadow-botanical-forest/20'
                                                         : 'botanical-card rounded-bl-sm text-botanical-parchment'
                                                         }`}
@@ -412,9 +468,57 @@ export default function Messages() {
                                                     {!msg.isMine && (
                                                         <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-botanical-forest/10" />
                                                     )}
-                                                    <p className={`break-words ${msg.isMine ? 'font-medium' : 'font-mono'}`}>
-                                                        {msg.content}
-                                                    </p>
+
+                                                    {/* Message Options (Edit/Delete) */}
+                                                    {msg.isMine && (
+                                                        <div className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex">
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                                                                    className="p-1.5 text-claude-secondary hover:text-botanical-parchment hover:bg-claude-border/20 rounded-lg transition-colors"
+                                                                >
+                                                                    <MoreVertical className="w-4 h-4" />
+                                                                </button>
+                                                                {activeMenuId === msg.id && (
+                                                                    <div className="absolute right-full top-0 mr-2 bg-claude-surface border border-claude-border rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50">
+                                                                        <button
+                                                                            onClick={() => startEditing(msg)}
+                                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-claude-bg/50 text-claude-text transition-colors"
+                                                                        >
+                                                                            <Edit2 className="w-4 h-4" /> Edit
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteMessage(msg.id)}
+                                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" /> Delete
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {msg.imageUrl && (
+                                                        <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
+                                                            <img
+                                                                src={msg.imageUrl}
+                                                                alt="Attached"
+                                                                className="rounded-lg max-h-[250px] object-cover hover:opacity-90 transition-opacity"
+                                                                loading="lazy"
+                                                            />
+                                                        </a>
+                                                    )}
+
+                                                    {msg.content && (
+                                                        <p className={`break-words ${msg.isMine ? 'font-medium' : 'font-mono'}`}>
+                                                            {msg.content}
+                                                        </p>
+                                                    )}
+
+                                                    {msg.isEdited && (
+                                                        <span className="text-[10px] opacity-70 ml-2 italic">(edited)</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -439,58 +543,109 @@ export default function Messages() {
                     background: 'linear-gradient(to top, var(--bg-color) 80%, transparent 100%)'
                 }}
             >
-                <div className="botanical-card max-w-2xl mx-4 mb-4 p-2 flex items-center gap-2 shadow-xl">
+                <div className="botanical-card max-w-2xl mx-4 mb-4 p-2 flex flex-col gap-2 shadow-xl">
                     {/* Decorative leaf accent */}
                     <div className="absolute -top-2 left-4 w-5 h-5 opacity-40">
                         <Leaf className="w-full h-full text-botanical-forest rotate-45" />
                     </div>
 
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        disabled={sending}
-                        className="flex-1 px-4 py-3 bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-mono"
-                    />
+                    {imagePreview && !editingMessageId && (
+                        <div className="relative self-start mt-2 ml-4">
+                            <img src={imagePreview} alt="Preview" className="h-20 rounded-lg object-cover border border-claude-border" />
+                            <button
+                                type="button"
+                                onClick={() => setImagePreview(null)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
 
-                    <motion.button
-                        type="submit"
-                        disabled={!newMessage.trim() || sending}
-                        whileTap={{ scale: 0.9 }}
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all relative overflow-hidden group focus-ring"
-                        aria-label={sending ? 'Sending message' : 'Send message'}
-                        style={{
-                            background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',
-                            boxShadow: '0 4px 12px rgba(122, 158, 114, 0.3)'
-                        }}
-                    >
-                        {/* Shimmer effect on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    {editingMessageId && (
+                        <div className="flex items-center justify-between px-4 pt-2 pb-1 text-sm font-mono text-botanical-forest">
+                            <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditingMessageId(null);
+                                    setNewMessage('');
+                                }}
+                                className="hover:text-red-500 transition-colors flex items-center gap-1 text-xs"
+                            >
+                                <X className="w-3 h-3" /> Cancel
+                            </button>
+                        </div>
+                    )}
 
-                        <AnimatePresence mode="wait">
-                            {sending ? (
-                                <motion.div
-                                    key="sending"
-                                    initial={{ scale: 0, rotate: -180 }}
-                                    animate={{ scale: 1, rotate: 0 }}
-                                    exit={{ scale: 0, rotate: 180 }}
+                    <div className="flex items-center gap-2">
+                        {!editingMessageId && (
+                            <>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    ref={fileInputRef}
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="p-3 text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 rounded-full transition-colors flex shrink-0"
+                                    disabled={sending}
                                 >
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" role="status" aria-label="Sending" />
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="send"
-                                    initial={{ scale: 0, rotate: -180 }}
-                                    animate={{ scale: 1, rotate: 0 }}
-                                    exit={{ scale: 0, rotate: 180 }}
-                                >
-                                    <Send className="w-5 h-5" aria-hidden="true" />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.button>
+                                    <Image className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={newMessage}
+                            onChange={e => setNewMessage(e.target.value)}
+                            placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
+                            disabled={sending}
+                            className="flex-1 px-2 py-3 bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-mono"
+                        />
+
+                        <motion.button
+                            type="submit"
+                            disabled={(!newMessage.trim() && !imagePreview) || sending}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all relative overflow-hidden group focus-ring shrink-0"
+                            aria-label={sending ? 'Sending message' : 'Send message'}
+                            style={{
+                                background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',
+                                boxShadow: '0 4px 12px rgba(122, 158, 114, 0.3)'
+                            }}
+                        >
+                            {/* Shimmer effect on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+
+                            <AnimatePresence mode="wait">
+                                {sending ? (
+                                    <motion.div
+                                        key="sending"
+                                        initial={{ scale: 0, rotate: -180 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        exit={{ scale: 0, rotate: 180 }}
+                                    >
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" role="status" aria-label="Sending" />
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key={editingMessageId ? "edit" : "send"}
+                                        initial={{ scale: 0, rotate: -180 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        exit={{ scale: 0, rotate: 180 }}
+                                    >
+                                        {editingMessageId ? <Check className="w-5 h-5" aria-hidden="true" /> : <Send className="w-5 h-5" aria-hidden="true" />}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.button>
+                    </div>
                 </div>
             </motion.form>
         </motion.div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Search, UserPlus, UserMinus, Check, X,
-    MessageCircle, Users, Clock, ChevronRight
+    MessageCircle, Users, Clock, ChevronRight, Leaf
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -110,18 +110,21 @@ export default function Friends() {
 
     return (
         <div className="animate-in fade-in duration-300">
-            <div className="mb-6">
+            <div className="mb-6 relative">
+                <div className="absolute -top-2 left-0 w-8 h-8 opacity-10">
+                    <Leaf className="w-full h-full text-botanical-forest rotate-12" />
+                </div>
                 <h1 className="text-2xl font-display font-bold mb-1">Friends</h1>
-                <p className="text-claude-secondary text-sm">Connect with other learners</p>
+                <p className="text-botanical-sepia font-mono text-sm">Connect with other learners</p>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 scroll-container relative z-10">
                 <button
                     onClick={() => setTab('friends')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'friends'
-                            ? 'bg-claude-accent text-white'
-                            : 'bg-claude-surface text-claude-secondary'
+                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
+                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Users className="w-4 h-4 inline mr-1.5" />
@@ -130,14 +133,14 @@ export default function Friends() {
                 <button
                     onClick={() => setTab('requests')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative ${tab === 'requests'
-                            ? 'bg-claude-accent text-white'
-                            : 'bg-claude-surface text-claude-secondary'
+                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
+                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Clock className="w-4 h-4 inline mr-1.5" />
                     Requests
                     {incomingRequests.length > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-400 rounded-full text-xs text-white flex items-center justify-center font-bold font-mono border-2 border-claude-bg">
                             {incomingRequests.length}
                         </span>
                     )}
@@ -145,8 +148,8 @@ export default function Friends() {
                 <button
                     onClick={() => setTab('search')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'search'
-                            ? 'bg-claude-accent text-white'
-                            : 'bg-claude-surface text-claude-secondary'
+                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
+                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Search className="w-4 h-4 inline mr-1.5" />
@@ -161,54 +164,60 @@ export default function Friends() {
                         <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : acceptedFriends.length === 0 ? (
-                    <div className="text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-claude-surface flex items-center justify-center mx-auto mb-4">
-                            <Users className="w-8 h-8 text-claude-secondary" />
+                    <div className="text-center py-12 relative overflow-hidden botanical-card rounded-3xl">
+                        <div className="absolute -top-10 -right-10 w-40 h-40 opacity-5">
+                            <Leaf className="w-full h-full text-botanical-forest -rotate-45" />
                         </div>
-                        <p className="text-claude-secondary mb-2">No friends yet</p>
-                        <p className="text-sm text-claude-secondary mb-4">
+                        <div className="w-16 h-16 rounded-full bg-botanical-forest/10 flex items-center justify-center mx-auto mb-4 relative z-10">
+                            <Users className="w-8 h-8 text-botanical-forest" />
+                        </div>
+                        <p className="text-botanical-parchment font-display mb-2 relative z-10">No friends yet</p>
+                        <p className="text-sm text-botanical-sepia font-mono mb-4 relative z-10">
                             Search for users to add them as friends
                         </p>
                         <button
                             onClick={() => setTab('search')}
-                            className="px-6 py-2 bg-claude-accent text-white rounded-full font-medium"
+                            className="px-6 py-2 bg-botanical-forest text-white rounded-full font-medium active:scale-95 transition-transform"
                         >
                             Find Friends
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {acceptedFriends.map(friend => (
                             <div
                                 key={friend.id}
-                                className="flex items-center gap-3 p-4 bg-claude-surface border border-claude-border rounded-2xl"
+                                className="flex items-center gap-3 p-4 botanical-card rounded-2xl relative overflow-hidden group"
                             >
+                                {/* Decorative corner accent */}
+                                <div className="absolute top-2 left-2 w-2 h-2 border-t border-l border-botanical-forest/20 rounded-tl group-hover:border-botanical-forest/40 transition-colors" />
+
                                 <Link to={`/profile/${friend.id}`}>
                                     <Avatar src={friend.avatar} size="lg" />
                                 </Link>
                                 <Link to={`/profile/${friend.id}`} className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <p className="font-semibold truncate">{friend.username}</p>
+                                        <p className="font-display font-semibold truncate text-botanical-parchment">{friend.username}</p>
                                         {friend.isOwner ? (
                                             <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                         ) : friend.isAdmin ? (
-                                            <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                            <span className="px-1.5 py-0.5 bg-red-400 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                         ) : null}
                                     </div>
                                     {friend.bio && (
-                                        <p className="text-sm text-claude-secondary truncate">{friend.bio}</p>
+                                        <p className="text-xs text-botanical-sepia font-mono truncate mt-0.5">{friend.bio}</p>
                                     )}
                                 </Link>
                                 <div className="flex gap-2">
                                     <Link
                                         to={`/messages/${friend.id}`}
-                                        className="p-2.5 bg-claude-accent/10 text-claude-accent rounded-xl active:scale-95 transition-transform"
+                                        className="p-2.5 bg-botanical-forest/10 text-botanical-forest rounded-xl active:scale-95 transition-transform hover:bg-botanical-forest/20"
                                     >
                                         <MessageCircle className="w-5 h-5" />
                                     </Link>
                                     <button
                                         onClick={() => handleDeclineOrRemove(friend.id)}
-                                        className="p-2.5 bg-red-500/10 text-red-500 rounded-xl active:scale-95 transition-transform"
+                                        className="p-2.5 bg-red-500/10 text-red-500 rounded-xl active:scale-95 transition-transform hover:bg-red-500/20"
                                     >
                                         <UserMinus className="w-5 h-5" />
                                     </button>
@@ -225,33 +234,34 @@ export default function Friends() {
                     {/* Incoming */}
                     {incomingRequests.length > 0 && (
                         <div>
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                Incoming Requests
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-botanical-sepia mb-3 flex items-center gap-2 mt-2 ml-2">
+                                <span className="w-2 h-2 rounded-full bg-red-400"></span> Incoming Requests
                             </h3>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {incomingRequests.map(req => (
                                     <div
                                         key={req.id}
-                                        className="flex items-center gap-3 p-4 bg-claude-surface border border-claude-border rounded-2xl"
+                                        className="flex items-center gap-3 p-4 botanical-card border-l-2 border-l-red-400 rounded-2xl"
                                     >
                                         <Link to={`/profile/${req.id}`}>
                                             <Avatar src={req.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-semibold truncate">{req.username}</p>
+                                                <p className="font-display font-semibold truncate text-botanical-parchment">{req.username}</p>
+                                                {/* roles */}
                                                 {req.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                                 ) : req.isAdmin ? (
-                                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                                    <span className="px-1.5 py-0.5 bg-red-400 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                                 ) : null}
                                             </div>
-                                            <p className="text-sm text-claude-secondary">Wants to be friends</p>
+                                            <p className="text-xs text-botanical-sepia font-mono mt-0.5">Wants to be friends</p>
                                         </Link>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleAcceptRequest(req.id, req.username)}
-                                                className="p-2.5 bg-green-500 text-white rounded-xl active:scale-95 transition-transform"
+                                                className="p-2.5 bg-botanical-forest text-white rounded-xl active:scale-95 transition-transform shadow-md shadow-botanical-forest/30"
                                             >
                                                 <Check className="w-5 h-5" />
                                             </button>
@@ -271,32 +281,32 @@ export default function Friends() {
                     {/* Outgoing */}
                     {outgoingRequests.length > 0 && (
                         <div>
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-botanical-sepia mb-3 mt-6 ml-2">
                                 Pending Requests
                             </h3>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {outgoingRequests.map(req => (
                                     <div
                                         key={req.id}
-                                        className="flex items-center gap-3 p-4 bg-claude-surface border border-claude-border rounded-2xl"
+                                        className="flex items-center gap-3 p-4 botanical-card rounded-2xl opacity-80"
                                     >
                                         <Link to={`/profile/${req.id}`}>
                                             <Avatar src={req.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-semibold truncate">{req.username}</p>
+                                                <p className="font-display font-semibold truncate text-botanical-parchment">{req.username}</p>
                                                 {req.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                                 ) : req.isAdmin ? (
                                                     <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                                 ) : null}
                                             </div>
-                                            <p className="text-sm text-claude-secondary">Request pending</p>
+                                            <p className="text-xs text-botanical-sepia font-mono mt-0.5" style={{ fontStyle: 'italic' }}>Request sent...</p>
                                         </Link>
                                         <button
                                             onClick={() => handleDeclineOrRemove(req.id, true)}
-                                            className="px-4 py-2 text-sm text-red-500 font-medium"
+                                            className="px-4 py-2 text-xs font-mono text-botanical-sepia hover:text-red-500 transition-colors bg-white/50 rounded-lg border border-botanical-forest/10"
                                         >
                                             Cancel
                                         </button>
@@ -307,11 +317,11 @@ export default function Friends() {
                     )}
 
                     {incomingRequests.length === 0 && outgoingRequests.length === 0 && (
-                        <div className="text-center py-12">
-                            <div className="w-16 h-16 rounded-full bg-claude-surface flex items-center justify-center mx-auto mb-4">
-                                <Clock className="w-8 h-8 text-claude-secondary" />
+                        <div className="text-center py-12 botanical-card rounded-3xl relative overflow-hidden">
+                            <div className="w-16 h-16 rounded-full bg-botanical-forest/10 flex items-center justify-center mx-auto mb-4">
+                                <Clock className="w-8 h-8 text-botanical-forest" />
                             </div>
-                            <p className="text-claude-secondary">No pending requests</p>
+                            <p className="text-botanical-sepia font-mono">No pending requests</p>
                         </div>
                     )}
                 </div>
@@ -321,14 +331,14 @@ export default function Friends() {
             {tab === 'search' && (
                 <div>
                     {/* Search Input */}
-                    <div className="relative mb-4">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-secondary" />
+                    <div className="relative mb-6 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-botanical-forest transition-colors group-focus-within:text-botanical-forest" />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search by username or share code"
-                            className="w-full pl-12 pr-4 py-3 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none"
+                            className="w-full pl-12 pr-4 py-4 botanical-card focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-all font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
                             autoFocus
                         />
                     </div>
@@ -336,20 +346,23 @@ export default function Friends() {
                     {/* Search Results */}
                     {searching ? (
                         <div className="flex justify-center py-8">
-                            <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
                         </div>
                     ) : searchQuery.length < 2 ? (
-                        <div className="text-center py-12">
-                            <p className="text-claude-secondary">
+                        <div className="text-center py-12 botanical-card rounded-3xl">
+                            <div className="w-12 h-12 bg-botanical-forest/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Search className="w-6 h-6 text-botanical-sepia" />
+                            </div>
+                            <p className="text-botanical-sepia font-mono text-sm">
                                 Enter at least 2 characters to search
                             </p>
                         </div>
                     ) : searchResults.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-claude-secondary">No users found</p>
+                        <div className="text-center py-12 botanical-card rounded-3xl">
+                            <p className="text-botanical-sepia font-mono">No users found</p>
                         </div>
                     ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {searchResults.map(user => {
                                 const existingFriend = friends.find(f => f.id === user.id);
                                 const isFriend = existingFriend?.status === 'accepted';
@@ -358,32 +371,32 @@ export default function Friends() {
                                 return (
                                     <div
                                         key={user.id}
-                                        className="flex items-center gap-3 p-4 bg-claude-surface border border-claude-border rounded-2xl"
+                                        className="flex items-center gap-3 p-4 botanical-card rounded-2xl"
                                     >
                                         <Link to={`/profile/${user.id}`}>
                                             <Avatar src={user.avatar} size="lg" />
                                         </Link>
                                         <Link to={`/profile/${user.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-semibold truncate">{user.username}</p>
+                                                <p className="font-display font-semibold truncate text-botanical-parchment">{user.username}</p>
                                                 {user.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                                 ) : user.isAdmin ? (
-                                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
+                                                    <span className="px-1.5 py-0.5 bg-red-400 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                                 ) : null}
                                             </div>
                                             {user.bio && (
-                                                <p className="text-sm text-claude-secondary truncate">{user.bio}</p>
+                                                <p className="text-xs text-botanical-sepia font-mono truncate mt-0.5">{user.bio}</p>
                                             )}
                                         </Link>
                                         {isFriend ? (
-                                            <span className="text-sm text-green-500 font-medium px-3">Friends</span>
+                                            <span className="text-xs text-botanical-forest font-bold px-3 py-1 bg-botanical-forest/10 rounded-lg uppercase tracking-wider">Friends</span>
                                         ) : isPending || user.requestSent ? (
-                                            <span className="text-sm text-claude-secondary px-3">Pending</span>
+                                            <span className="text-xs text-botanical-sepia px-3 py-1 font-mono italic">Pending</span>
                                         ) : (
                                             <button
                                                 onClick={() => handleSendRequest(user.id)}
-                                                className="p-2.5 bg-claude-accent text-white rounded-xl active:scale-95 transition-transform"
+                                                className="p-2.5 bg-botanical-forest text-white rounded-xl active:scale-95 transition-transform hover:shadow-lg hover:shadow-botanical-forest/20"
                                             >
                                                 <UserPlus className="w-5 h-5" />
                                             </button>

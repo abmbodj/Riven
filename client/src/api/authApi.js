@@ -293,10 +293,15 @@ export const getMessages = (userId, limit, before) => {
     if (before) url += `&before=${encodeURIComponent(before)}`;
     return safeFetchArray(authFetch(url));
 };
-export const sendMessage = (receiverId, content, messageType = 'text', deckData = null) => authFetch('/messages', {
+export const sendMessage = (receiverId, content, messageType = 'text', deckData = null, imageUrl = null) => authFetch('/messages', {
     method: 'POST',
-    body: JSON.stringify({ receiverId, content, messageType, deckData }),
+    body: JSON.stringify({ receiverId, content, messageType, deckData, imageUrl }),
 });
+export const editMessage = (id, content) => authFetch(`/messages/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+});
+export const deleteMessage = (id) => authFetch(`/messages/${id}`, { method: 'DELETE' });
 export const getUnreadCount = () => safeFetchObject(authFetch('/messages/unread/count'), { count: 0 });
 
 // ============ ADMIN ENDPOINTS ============
@@ -398,6 +403,8 @@ export default {
     getConversations,
     getMessages,
     sendMessage,
+    editMessage,
+    deleteMessage,
     getUnreadCount,
     adminGetAllUsers,
     adminUpdateUser,
