@@ -199,7 +199,7 @@ export default function Messages() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="pb-24"
+                className="pb-24 sm:max-w-md sm:mx-auto w-full"
             >
                 {/* Decorative Header */}
                 <div className="mb-6 relative">
@@ -309,10 +309,10 @@ export default function Messages() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top"
+            className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl"
         >
             {/* Botanical Chat Header with decorative elements */}
-            <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative">
+            <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 backdrop-blur-xl">
                 {/* Decorative corner marks */}
                 <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-botanical-forest/20 rounded-tl" />
                 <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-botanical-forest/20 rounded-br" />
@@ -351,7 +351,7 @@ export default function Messages() {
                     backgroundImage: `radial-gradient(circle at 20% 80%, rgba(122, 158, 114, 0.03) 0%, transparent 50%)`
                 }}
             >
-                <div className="p-4 space-y-4 max-w-2xl mx-auto">
+                <div className="p-4 space-y-4 w-full">
                     {loading ? (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -531,31 +531,26 @@ export default function Messages() {
                 </div>
             </div>
 
-            {/* Botanical Message Input */}
+            {/* Native PWA Docked Message Input */}
             <motion.form
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
                 onSubmit={handleSendMessage}
-                className="fixed bottom-0 left-0 right-0 z-[60]"
+                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 backdrop-blur-xl border-t border-claude-border/50"
                 style={{
-                    paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 16px)',
-                    background: 'linear-gradient(to top, var(--bg-color) 80%, transparent 100%)'
+                    paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
+                    paddingTop: '8px'
                 }}
             >
-                <div className="botanical-card max-w-2xl mx-4 mb-4 p-2 flex flex-col gap-2 shadow-xl">
-                    {/* Decorative leaf accent */}
-                    <div className="absolute -top-2 left-4 w-5 h-5 opacity-40">
-                        <Leaf className="w-full h-full text-botanical-forest rotate-45" />
-                    </div>
-
+                <div className="px-3 flex flex-col gap-2">
                     {imagePreview && !editingMessageId && (
-                        <div className="relative self-start mt-2 ml-4">
-                            <img src={imagePreview} alt="Preview" className="h-20 rounded-lg object-cover border border-claude-border" />
+                        <div className="relative self-start mb-1 mt-1">
+                            <img src={imagePreview} alt="Preview" className="h-20 rounded-xl object-cover border border-claude-border shadow-sm" />
                             <button
                                 type="button"
                                 onClick={() => setImagePreview(null)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
+                                className="absolute -top-2 -right-2 bg-red-500/90 backdrop-blur-md text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
                             >
                                 <X className="w-3 h-3" />
                             </button>
@@ -563,7 +558,7 @@ export default function Messages() {
                     )}
 
                     {editingMessageId && (
-                        <div className="flex items-center justify-between px-4 pt-2 pb-1 text-sm font-mono text-botanical-forest">
+                        <div className="flex items-center justify-between px-2 pt-1 pb-2 text-xs font-mono text-botanical-forest">
                             <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
                             <button
                                 type="button"
@@ -571,14 +566,14 @@ export default function Messages() {
                                     setEditingMessageId(null);
                                     setNewMessage('');
                                 }}
-                                className="hover:text-red-500 transition-colors flex items-center gap-1 text-xs"
+                                className="hover:text-red-500 transition-colors flex items-center gap-1"
                             >
                                 <X className="w-3 h-3" /> Cancel
                             </button>
                         </div>
                     )}
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-end gap-2">
                         {!editingMessageId && (
                             <>
                                 <input
@@ -591,60 +586,60 @@ export default function Messages() {
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="p-3 text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 rounded-full transition-colors flex shrink-0"
+                                    className="p-2 mb-[2px] text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 rounded-full transition-colors flex shrink-0 active:scale-95"
                                     disabled={sending}
                                 >
-                                    <Image className="w-5 h-5" />
+                                    <Image className="w-6 h-6" />
                                 </button>
                             </>
                         )}
 
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
-                            disabled={sending}
-                            className="flex-1 px-2 py-3 bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-mono"
-                        />
+                        <div className="flex-1 bg-claude-surface border border-claude-border rounded-[20px] flex items-center pl-4 pr-1.5 py-1 min-h-[44px] mb-1">
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={newMessage}
+                                onChange={e => setNewMessage(e.target.value)}
+                                placeholder={editingMessageId ? "Edit message..." : "Message..."}
+                                disabled={sending}
+                                className="flex-1 w-full bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-sans text-[15px]"
+                            />
 
-                        <motion.button
-                            type="submit"
-                            disabled={(!newMessage.trim() && !imagePreview) || sending}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all relative overflow-hidden group focus-ring shrink-0"
-                            aria-label={sending ? 'Sending message' : 'Send message'}
-                            style={{
-                                background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',
-                                boxShadow: '0 4px 12px rgba(122, 158, 114, 0.3)'
-                            }}
-                        >
-                            {/* Shimmer effect on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-
-                            <AnimatePresence mode="wait">
-                                {sending ? (
-                                    <motion.div
-                                        key="sending"
-                                        initial={{ scale: 0, rotate: -180 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        exit={{ scale: 0, rotate: 180 }}
-                                    >
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" role="status" aria-label="Sending" />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key={editingMessageId ? "edit" : "send"}
-                                        initial={{ scale: 0, rotate: -180 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        exit={{ scale: 0, rotate: 180 }}
-                                    >
-                                        {editingMessageId ? <Check className="w-5 h-5" aria-hidden="true" /> : <Send className="w-5 h-5" aria-hidden="true" />}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </motion.button>
+                            <motion.button
+                                type="submit"
+                                disabled={(!newMessage.trim() && !imagePreview) || sending}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-8 h-8 ml-2 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all relative overflow-hidden group focus-ring shrink-0"
+                                aria-label={sending ? 'Sending message' : 'Send message'}
+                                style={{
+                                    background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',
+                                    boxShadow: '0 2px 8px rgba(122, 158, 114, 0.3)'
+                                }}
+                            >
+                                <AnimatePresence mode="wait">
+                                    {sending ? (
+                                        <motion.div
+                                            key="sending"
+                                            initial={{ scale: 0, rotate: -180 }}
+                                            animate={{ scale: 1, rotate: 0 }}
+                                            exit={{ scale: 0, rotate: 180 }}
+                                        >
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key={editingMessageId ? "edit" : "send"}
+                                            initial={{ scale: 0, rotate: -180 }}
+                                            animate={{ scale: 1, rotate: 0 }}
+                                            exit={{ scale: 0, rotate: 180 }}
+                                            className="ml-[1px]"
+                                        >
+                                            {editingMessageId ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </motion.button>
+                        </div>
                     </div>
                 </div>
             </motion.form>
