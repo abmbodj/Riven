@@ -1,9 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { createContext, useEffect, useState, useCallback } from 'react';
 import { api } from './api';
-import { ThemeContext } from './contexts/ThemeContext';
-export { ThemeContext };
 
-
+export const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
     const [themes, setThemes] = useState([]);
@@ -18,6 +16,14 @@ export function ThemeProvider({ children }) {
         root.style.setProperty('--secondary-text-color', theme.secondary_text_color);
         root.style.setProperty('--border-color', theme.border_color);
         root.style.setProperty('--accent-color', theme.accent_color);
+
+        // Apply font families
+        if (theme.font_family_display) {
+            root.style.setProperty('--font-display', theme.font_family_display);
+        }
+        if (theme.font_family_body) {
+            root.style.setProperty('--font-body', theme.font_family_body);
+        }
     }, []);
 
     useEffect(() => {

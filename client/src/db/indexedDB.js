@@ -65,39 +65,50 @@ async function getDB() {
         try {
             // Initialize default themes if needed
             const themeCount = await db.count('themes');
+            const proThemes = [
+                { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 1, is_default: 1 },
+                { name: 'Arctic Frost', bg_color: '#fafafa', surface_color: '#d4e4f7', text_color: '#4a6fa5', secondary_text_color: '#c0c0c0', border_color: '#d4e4f7', accent_color: '#4a6fa5', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Botanical Garden', bg_color: '#f5f3ed', surface_color: '#e9e6da', text_color: '#4a7c59', secondary_text_color: '#b7472a', border_color: '#4a7c59', accent_color: '#f9a620', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Desert Rose', bg_color: '#e8d5c4', surface_color: '#dfccba', text_color: '#5d2e46', secondary_text_color: '#b87d6d', border_color: '#d4a5a5', accent_color: '#d4a5a5', font_family_display: 'Lora', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Forest Canopy', bg_color: '#faf9f6', surface_color: '#f0ede4', text_color: '#2d4a2b', secondary_text_color: '#7d8471', border_color: '#a4ac86', accent_color: '#2d4a2b', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Golden Hour', bg_color: '#d4b896', surface_color: '#cbb08d', text_color: '#4a403a', secondary_text_color: '#c1666b', border_color: '#f4a900', accent_color: '#f4a900', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Midnight Galaxy', bg_color: '#2b1e3e', surface_color: '#362a4d', text_color: '#e6e6fa', secondary_text_color: '#a490c2', border_color: '#4a4e8f', accent_color: '#a490c2', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Modern Minimal', bg_color: '#ffffff', surface_color: '#f3f4f6', text_color: '#36454f', secondary_text_color: '#708090', border_color: '#d3d3d3', accent_color: '#36454f', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Ocean Depths', bg_color: '#1a2332', surface_color: '#243045', text_color: '#f1faee', secondary_text_color: '#a8dadc', border_color: '#2d8b8b', accent_color: '#2d8b8b', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Sunset Blvd', bg_color: '#264653', surface_color: '#2f5565', text_color: '#fafafa', secondary_text_color: '#f4a261', border_color: '#e76f51', accent_color: '#e76f51', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Tech Innovation', bg_color: '#1e1e1e', surface_color: '#2a2a2a', text_color: '#ffffff', secondary_text_color: '#00ffff', border_color: '#0066ff', accent_color: '#0066ff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 }
+            ];
+
             if (themeCount === 0) {
-                const defaultThemes = [
-                    { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', is_active: 1, is_default: 1 },
-                    { name: 'Light', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#18181b', secondary_text_color: '#71717a', border_color: '#e4e4e7', accent_color: '#deb96a', is_active: 0, is_default: 1 },
-                    { name: 'Ocean', bg_color: '#0c1929', surface_color: '#132f4c', text_color: '#e3f2fd', secondary_text_color: '#90caf9', border_color: '#1e4976', accent_color: '#42a5f5', is_active: 0, is_default: 1 },
-                    { name: 'Forest', bg_color: '#0d1f0d', surface_color: '#1a3a1a', text_color: '#e8f5e9', secondary_text_color: '#a5d6a7', border_color: '#2e5a2e', accent_color: '#66bb6a', is_active: 0, is_default: 1 }
-                ];
-                for (const theme of defaultThemes) {
+                for (const theme of proThemes) {
                     await db.add('themes', theme);
                 }
             } else {
-                // Migration: update default themes
-                const DEFAULT_NAMES = ['Dark', 'Riven', 'Light', 'Ocean', 'Forest'];
+                // Migration: update default themes and add missing ones
                 const existingThemes = await db.getAll('themes');
+                for (const pro of proThemes) {
+                    const existing = existingThemes.find(t => t.name === pro.name && t.is_default);
+                    if (existing) {
+                        // Update existing default theme with new colors/fonts
+                        await db.put('themes', { ...existing, ...pro });
+                    } else {
+                        // Add if missing
+                        await db.add('themes', pro);
+                    }
+                }
+
+                // Ensure all custom themes have font fields
                 for (const theme of existingThemes) {
-                    // Migrate old "Dark" theme to new "Riven" palette
-                    if (theme.name === 'Dark' && theme.is_default) {
+                    if (!theme.font_family_display) {
                         await db.put('themes', {
                             ...theme,
-                            name: 'Riven',
-                            bg_color: '#162a31',
-                            surface_color: '#1e3840',
-                            text_color: '#e4ddd0',
-                            secondary_text_color: '#8fa6a8',
-                            border_color: '#233e46',
-                            accent_color: '#deb96a',
-                            is_default: 1
+                            font_family_display: theme.font_family_display || 'Cormorant Garamond',
+                            font_family_body: theme.font_family_body || 'Lora'
                         });
-                    } else if (DEFAULT_NAMES.includes(theme.name) && !theme.is_default) {
-                        await db.put('themes', { ...theme, is_default: 1 });
                     }
                 }
             }
+
 
             // Initialize default tags if needed
             const tagCount = await db.count('tags');

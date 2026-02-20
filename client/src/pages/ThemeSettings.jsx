@@ -1,32 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTheme } from '../hooks/useTheme';
-import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Palette, ChevronRight } from 'lucide-react';
+import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Palette, ChevronRight, Sparkles, Type, Info } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import useHaptics from '../hooks/useHaptics';
+import { motion, AnimatePresence } from 'motion/react';
 
-// Default theme presets
+// Default theme presets for the editor
 const DEFAULT_DARK = {
-    name: 'Dark',
+    name: 'Custom Dark',
     bg_color: '#1a1a18',
     surface_color: '#242422',
     text_color: '#e8e8e3',
     secondary_text_color: '#a1a19a',
     border_color: '#3d3d3a',
-    accent_color: '#d97757'
+    accent_color: '#d97757',
+    font_family_display: 'Inter',
+    font_family_body: 'Inter'
 };
 
 const DEFAULT_LIGHT = {
-    name: 'Light',
+    name: 'Custom Light',
     bg_color: '#fafaf9',
     surface_color: '#ffffff',
     text_color: '#1c1c1a',
     secondary_text_color: '#6b6b66',
     border_color: '#e5e5e2',
-    accent_color: '#d97757'
+    accent_color: '#d97757',
+    font_family_display: 'Cormorant Garamond',
+    font_family_body: 'Lora'
 };
 
-// Color preset palettes
+// Typography presets
+const FONT_PRESETS = [
+    { name: 'Elegant Serif', display: 'Cormorant Garamond', body: 'Lora' },
+    { name: 'Modern Sans', display: 'Inter', body: 'Inter' },
+    { name: 'Monospace Tech', display: 'JetBrains Mono', body: 'JetBrains Mono' }
+];
+
+// Color preset palettes for simple mode
 const ACCENT_PRESETS = [
     { name: 'Coral', color: '#d97757' },
     { name: 'Blue', color: '#3b82f6' },
@@ -42,23 +54,16 @@ export default function ThemeSettings() {
     const { themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme } = useTheme();
     const toast = useToast();
     const haptics = useHaptics();
-    
+
     const [showEditor, setShowEditor] = useState(false);
     const [editingTheme, setEditingTheme] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, theme: null });
-    const [editorMode, setEditorMode] = useState('simple'); // 'simple' or 'advanced'
-    
-    const [themeForm, setThemeForm] = useState({
-        name: '',
-        bg_color: '#1a1a18',
-        surface_color: '#242422',
-        text_color: '#e8e8e3',
-        secondary_text_color: '#a1a19a',
-        border_color: '#3d3d3a',
-        accent_color: '#d97757'
-    });
+    const [editorMode, setEditorMode] = useState('simple');
+
+    const [themeForm, setThemeForm] = useState({ ...DEFAULT_DARK, name: '' });
 
     const handleSwitchTheme = async (themeId) => {
+        if (activeTheme?.id === themeId) return;
         haptics.light();
         await switchTheme(themeId);
         toast.success('Theme applied');
@@ -82,7 +87,9 @@ export default function ThemeSettings() {
             text_color: theme.text_color,
             secondary_text_color: theme.secondary_text_color,
             border_color: theme.border_color,
-            accent_color: theme.accent_color
+            accent_color: theme.accent_color,
+            font_family_display: theme.font_family_display || 'Inter',
+            font_family_body: theme.font_family_body || 'Inter'
         });
         setEditorMode('simple');
         setShowEditor(true);
@@ -103,8 +110,7 @@ export default function ThemeSettings() {
             setDeleteConfirm({ show: false, theme: null });
         } catch (err) {
             haptics.error();
-            const errorMessage = err?.message || 'Failed to delete theme';
-            toast.error(errorMessage);
+            toast.error(err?.message || 'Failed to delete theme');
         }
     };
 
@@ -114,7 +120,7 @@ export default function ThemeSettings() {
             toast.error('Please enter a theme name');
             return;
         }
-        
+
         try {
             if (editingTheme) {
                 await updateTheme(editingTheme.id, themeForm);
@@ -129,8 +135,7 @@ export default function ThemeSettings() {
             setEditingTheme(null);
         } catch (err) {
             haptics.error();
-            const errorMessage = err?.message || 'Failed to save theme';
-            toast.error(errorMessage);
+            toast.error(err?.message || 'Failed to save theme');
         }
     };
 
@@ -146,390 +151,364 @@ export default function ThemeSettings() {
         }));
     };
 
-    const applyAccentColor = (color) => {
-        setThemeForm(prev => ({ ...prev, accent_color: color }));
-    };
-
-    // Separate default and custom themes
-    const defaultThemes = themes.filter(t => t.is_default);
-    const customThemes = themes.filter(t => !t.is_default);
+    // Filter themes into categories
+    const categories = useMemo(() => {
+        return {
+            official: themes.filter(t => t.is_default && (t.name === 'Riven' || t.name === 'Arctic Frost' || t.name === 'Modern Minimal' || t.name === 'Tech Innovation')),
+            professional: themes.filter(t => t.is_default && !(t.name === 'Riven' || t.name === 'Arctic Frost' || t.name === 'Modern Minimal' || t.name === 'Tech Innovation')),
+            custom: themes.filter(t => !t.is_default)
+        };
+    }, [themes]);
 
     return (
-        <div className="animate-in fade-in duration-500">
-            <div className="mb-6">
-                <h1 className="text-2xl font-display font-bold mb-1">Themes</h1>
-                <p className="text-claude-secondary text-sm">Customize your app's appearance</p>
-            </div>
-
-            {/* Default Themes Section */}
-            {defaultThemes.length > 0 && (
-                <div className="mb-6">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Default Themes</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                        {defaultThemes.map(theme => (
-                            <ThemeCard
-                                key={theme.id}
-                                theme={theme}
-                                isActive={activeTheme?.id === theme.id}
-                                onSelect={() => handleSwitchTheme(theme.id)}
-                                icon={theme.name.toLowerCase().includes('light') ? Sun : Moon}
-                            />
-                        ))}
+        <div className="max-w-4xl mx-auto pb-20">
+            {/* Header */}
+            <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <div className="flex items-center gap-2 text-claude-accent mb-2">
+                        <Sparkles className="w-5 h-5" />
+                        <span className="text-xs font-bold uppercase tracking-[0.2em]">Atmosphere</span>
                     </div>
-                </div>
-            )}
+                    <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight">Themes</h1>
+                    <p className="text-claude-secondary mt-2 max-w-sm">Elevate your focus with curated professional environments and custom palettes.</p>
+                </motion.div>
 
-            {/* Custom Themes Section */}
-            <div className="mb-6">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                    {customThemes.length > 0 ? 'Your Themes' : 'Create Your Theme'}
-                </h2>
-                
-                {customThemes.length > 0 && (
-                    <div className="space-y-2 mb-4">
-                        {customThemes.map(theme => (
-                            <div
-                                key={theme.id}
-                                onClick={() => handleSwitchTheme(theme.id)}
-                                className={`p-4 rounded-2xl bg-claude-surface border transition-all cursor-pointer active:scale-[0.98] ${
-                                    activeTheme?.id === theme.id 
-                                        ? 'border-claude-accent ring-2 ring-claude-accent/20' 
-                                        : 'border-claude-border hover:border-claude-accent/50'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    {/* Color Preview */}
-                                    <div className="flex -space-x-1">
-                                        <div 
-                                            className="w-7 h-7 rounded-full border-2 border-claude-bg" 
-                                            style={{ backgroundColor: theme.bg_color }}
-                                        />
-                                        <div 
-                                            className="w-7 h-7 rounded-full border-2 border-claude-bg" 
-                                            style={{ backgroundColor: theme.accent_color }}
-                                        />
-                                    </div>
-                                    
-                                    <span className="font-semibold flex-1 truncate">{theme.name}</span>
-                                    
-                                    {activeTheme?.id === theme.id && (
-                                        <div className="w-6 h-6 bg-claude-accent rounded-full flex items-center justify-center shrink-0">
-                                            <Check className="w-3.5 h-3.5 text-white" />
-                                        </div>
-                                    )}
-                                    
-                                    <button
-                                        onClick={(e) => handleEditTheme(e, theme)}
-                                        className="p-2 text-claude-secondary hover:text-claude-accent active:scale-90 transition-all rounded-lg"
-                                    >
-                                        <Edit3 className="w-4 h-4" />
-                                    </button>
-                                    
-                                    <button
-                                        onClick={(e) => handleDeleteClick(e, theme)}
-                                        className="p-2 text-claude-secondary hover:text-red-500 active:scale-90 transition-all rounded-lg"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <button
+                <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={handleCreateNew}
-                    className="w-full p-4 border-2 border-dashed border-claude-border rounded-2xl flex items-center justify-center gap-2 text-claude-secondary hover:text-claude-accent hover:border-claude-accent/50 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-2 px-6 py-3 bg-claude-accent text-white rounded-full font-bold shadow-lg shadow-claude-accent/20 transition-all hover:shadow-xl hover:shadow-claude-accent/30"
                 >
                     <Plus className="w-5 h-5" />
-                    <span className="font-semibold">Create Custom Theme</span>
-                </button>
+                    <span>Design Yours</span>
+                </motion.button>
+            </header>
+
+            {/* Sections */}
+            <div className="space-y-12">
+                {/* Official Themes */}
+                <ThemeSection
+                    title="Foundation"
+                    subtitle="Core Riven experiences"
+                    themes={categories.official}
+                    activeThemeId={activeTheme?.id}
+                    onSelect={handleSwitchTheme}
+                    isPro={false}
+                />
+
+                {/* Professional Collection */}
+                <ThemeSection
+                    title="Professional Collection"
+                    subtitle="Masterfully crafted environments for deep work"
+                    themes={categories.professional}
+                    activeThemeId={activeTheme?.id}
+                    onSelect={handleSwitchTheme}
+                    isPro={true}
+                />
+
+                {/* Custom Themes */}
+                <ThemeSection
+                    title="Your Creation"
+                    subtitle="Themes handcrafted by you"
+                    themes={categories.custom}
+                    activeThemeId={activeTheme?.id}
+                    onSelect={handleSwitchTheme}
+                    isCustom={true}
+                    onEdit={handleEditTheme}
+                    onDelete={handleDeleteClick}
+                />
             </div>
 
-            {/* Delete Confirmation Modal */}
             <ConfirmModal
                 isOpen={deleteConfirm.show}
                 title={`Delete '${deleteConfirm.theme?.name}'?`}
-                message="This theme will be permanently removed."
-                confirmText="Delete"
-                cancelText="Cancel"
+                message="This theme will be permanently removed from your collection."
+                confirmText="Delete Theme"
                 destructive={true}
                 onConfirm={handleDeleteConfirm}
                 onCancel={() => setDeleteConfirm({ show: false, theme: null })}
             />
 
-            {/* Theme Editor Modal */}
-            {showEditor && (
-                <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setShowEditor(false);
-                    }}
-                >
-                    <form 
-                        onSubmit={handleSaveTheme} 
-                        className="bg-claude-surface w-full rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-hidden flex flex-col"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <div className="flex justify-between items-center p-4 border-b border-claude-border shrink-0">
-                            <h3 className="text-lg font-display font-bold">
-                                {editingTheme ? 'Edit Theme' : 'New Theme'}
-                            </h3>
-                            <button 
-                                type="button" 
-                                onClick={() => setShowEditor(false)} 
-                                className="p-2 -mr-2 active:bg-claude-bg rounded-full"
-                            >
-                                <X className="w-5 h-5 text-claude-secondary" />
-                            </button>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-5" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
-                            {/* Theme Name */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                    Theme Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={themeForm.name}
-                                    onChange={e => setThemeForm({ ...themeForm, name: e.target.value })}
-                                    className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none text-base"
-                                    placeholder="My Custom Theme"
-                                    required
-                                />
-                            </div>
-
-                            {/* Mode Toggle */}
-                            <div className="flex gap-2 p-1 bg-claude-bg rounded-xl">
+            {/* Theme Editor - Slide Over Panel */}
+            <AnimatePresence>
+                {showEditor && (
+                    <div className="fixed inset-0 z-[100] flex justify-end">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowEditor(false)}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="relative w-full max-w-md bg-claude-surface border-l border-claude-border h-full shadow-2xl flex flex-col"
+                        >
+                            <div className="flex items-center justify-between p-6 border-b border-claude-border">
+                                <div>
+                                    <h2 className="text-xl font-display font-bold">{editingTheme ? 'Refine Theme' : 'New Creation'}</h2>
+                                    <p className="text-xs text-claude-secondary uppercase tracking-widest mt-1">Design System</p>
+                                </div>
                                 <button
-                                    type="button"
-                                    onClick={() => setEditorMode('simple')}
-                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                        editorMode === 'simple' 
-                                            ? 'bg-claude-accent text-white' 
-                                            : 'text-claude-secondary'
-                                    }`}
+                                    onClick={() => setShowEditor(false)}
+                                    className="p-2 hover:bg-claude-bg rounded-full transition-colors"
                                 >
-                                    Simple
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditorMode('advanced')}
-                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                        editorMode === 'advanced' 
-                                            ? 'bg-claude-accent text-white' 
-                                            : 'text-claude-secondary'
-                                    }`}
-                                >
-                                    Advanced
+                                    <X className="w-6 h-6" />
                                 </button>
                             </div>
 
-                            {editorMode === 'simple' ? (
-                                <>
-                                    {/* Base Theme Selection */}
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                            Base Theme
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
+                            <form onSubmit={handleSaveTheme} className="flex-1 overflow-y-auto p-6 space-y-8">
+                                <div className="space-y-4">
+                                    <label className="text-xs font-bold uppercase tracking-widest text-claude-secondary block">Identity</label>
+                                    <input
+                                        type="text"
+                                        value={themeForm.name}
+                                        onChange={e => setThemeForm({ ...themeForm, name: e.target.value })}
+                                        className="w-full bg-claude-bg border-b-2 border-claude-border focus:border-claude-accent px-0 py-2 outline-none text-xl font-display transition-all"
+                                        placeholder="Theme Name..."
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold uppercase tracking-widest text-claude-secondary block">Palette</label>
+                                        <div className="flex bg-claude-bg p-1 rounded-lg">
                                             <button
                                                 type="button"
-                                                onClick={() => applyBaseTheme('dark')}
-                                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                                                    themeForm.bg_color === DEFAULT_DARK.bg_color
-                                                        ? 'border-claude-accent bg-claude-accent/10'
-                                                        : 'border-claude-border hover:border-claude-accent/50'
-                                                }`}
-                                            >
-                                                <div className="w-10 h-10 rounded-full bg-[#1a1a18] border border-[#3d3d3a] flex items-center justify-center">
-                                                    <Moon className="w-5 h-5 text-[#e8e8e3]" />
-                                                </div>
-                                                <span className="font-medium">Dark</span>
-                                            </button>
+                                                onClick={() => setEditorMode('simple')}
+                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${editorMode === 'simple' ? 'bg-claude-accent text-white' : 'text-claude-secondary'}`}
+                                            >Simple</button>
                                             <button
                                                 type="button"
-                                                onClick={() => applyBaseTheme('light')}
-                                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                                                    themeForm.bg_color === DEFAULT_LIGHT.bg_color
-                                                        ? 'border-claude-accent bg-claude-accent/10'
-                                                        : 'border-claude-border hover:border-claude-accent/50'
-                                                }`}
-                                            >
-                                                <div className="w-10 h-10 rounded-full bg-[#fafaf9] border border-[#e5e5e2] flex items-center justify-center">
-                                                    <Sun className="w-5 h-5 text-[#1c1c1a]" />
-                                                </div>
-                                                <span className="font-medium">Light</span>
-                                            </button>
+                                                onClick={() => setEditorMode('advanced')}
+                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${editorMode === 'advanced' ? 'bg-claude-accent text-white' : 'text-claude-secondary'}`}
+                                            >Advanced</button>
                                         </div>
                                     </div>
 
-                                    {/* Accent Color Selection */}
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                            Accent Color
-                                        </label>
-                                        <div className="grid grid-cols-4 gap-3">
-                                            {ACCENT_PRESETS.map(preset => (
-                                                <button
-                                                    key={preset.color}
-                                                    type="button"
-                                                    onClick={() => applyAccentColor(preset.color)}
-                                                    className={`aspect-square rounded-xl border-2 transition-all flex items-center justify-center ${
-                                                        themeForm.accent_color === preset.color
-                                                            ? 'border-claude-text scale-95'
-                                                            : 'border-transparent hover:scale-95'
-                                                    }`}
-                                                    style={{ backgroundColor: preset.color }}
-                                                >
-                                                    {themeForm.accent_color === preset.color && (
-                                                        <Check className="w-5 h-5 text-white drop-shadow-md" />
-                                                    )}
+                                    {editorMode === 'simple' ? (
+                                        <div className="space-y-6">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button type="button" onClick={() => applyBaseTheme('dark')} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${themeForm.bg_color === DEFAULT_DARK.bg_color ? 'border-claude-accent bg-claude-accent/5' : 'border-claude-border bg-claude-bg'}`}>
+                                                    <Moon className="w-5 h-5" />
+                                                    <span className="font-bold">Deep</span>
                                                 </button>
+                                                <button type="button" onClick={() => applyBaseTheme('light')} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${themeForm.bg_color === DEFAULT_LIGHT.bg_color ? 'border-claude-accent bg-claude-accent/5' : 'border-claude-border bg-claude-bg'}`}>
+                                                    <Sun className="w-5 h-5" />
+                                                    <span className="font-bold">Bright</span>
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-3">
+                                                {ACCENT_PRESETS.map(p => (
+                                                    <button key={p.color} type="button" onClick={() => setThemeForm({ ...themeForm, accent_color: p.color })} className={`aspect-square rounded-full border-2 transition-all ${themeForm.accent_color === p.color ? 'scale-110 border-white ring-4 ring-claude-accent/20' : 'border-transparent scale-100'}`} style={{ backgroundColor: p.color }} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {['bg_color', 'surface_color', 'text_color', 'secondary_text_color', 'border_color', 'accent_color'].map(key => (
+                                                <div key={key} className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold uppercase text-claude-secondary">{key.replace('_', ' ')}</span>
+                                                        <span className="text-[10px] font-mono text-claude-secondary opacity-50">{themeForm[key]}</span>
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="color"
+                                                            value={themeForm[key]}
+                                                            onChange={e => setThemeForm({ ...themeForm, [key]: e.target.value })}
+                                                            className="w-full h-10 rounded-xl bg-transparent border-none cursor-pointer outline-none"
+                                                        />
+                                                        <div className="absolute inset-x-0 bottom-0 top-0 rounded-xl pointer-events-none border border-white/10" style={{ backgroundColor: themeForm[key] }} />
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
-                                        
-                                        {/* Custom Color Picker */}
-                                        <div className="mt-3 flex items-center gap-3 p-3 bg-claude-bg rounded-xl">
-                                            <input
-                                                type="color"
-                                                value={themeForm.accent_color}
-                                                onChange={e => setThemeForm({ ...themeForm, accent_color: e.target.value })}
-                                                className="w-10 h-10 rounded-lg bg-transparent border-none cursor-pointer shrink-0"
-                                            />
-                                            <div className="flex-1">
-                                                <span className="text-sm font-medium">Custom Color</span>
-                                                <p className="text-xs text-claude-secondary">{themeForm.accent_color.toUpperCase()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                /* Advanced Mode - All Color Pickers */
-                                <div className="space-y-3">
-                                    {[
-                                        { label: 'Background', key: 'bg_color', desc: 'Main app background' },
-                                        { label: 'Surface', key: 'surface_color', desc: 'Cards and elevated elements' },
-                                        { label: 'Text', key: 'text_color', desc: 'Primary text color' },
-                                        { label: 'Secondary Text', key: 'secondary_text_color', desc: 'Muted text and labels' },
-                                        { label: 'Border', key: 'border_color', desc: 'Dividers and outlines' },
-                                        { label: 'Accent', key: 'accent_color', desc: 'Buttons and highlights' }
-                                    ].map(field => (
-                                        <div key={field.key} className="flex items-center gap-3 p-3 bg-claude-bg rounded-xl">
-                                            <input
-                                                type="color"
-                                                value={themeForm[field.key]}
-                                                onChange={e => setThemeForm({ ...themeForm, [field.key]: e.target.value })}
-                                                className="w-12 h-12 rounded-lg bg-transparent border-none cursor-pointer shrink-0"
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <span className="text-sm font-semibold block">{field.label}</span>
-                                                <span className="text-xs text-claude-secondary">{field.desc}</span>
-                                            </div>
-                                            <span className="text-xs font-mono text-claude-secondary shrink-0">
-                                                {themeForm[field.key].toUpperCase()}
-                                            </span>
-                                        </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
 
-                            {/* Live Preview */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">
-                                    Preview
-                                </label>
-                                <div 
-                                    className="rounded-2xl border overflow-hidden"
-                                    style={{ 
-                                        backgroundColor: themeForm.bg_color,
-                                        borderColor: themeForm.border_color 
-                                    }}
-                                >
-                                    <div 
-                                        className="p-4"
-                                        style={{ backgroundColor: themeForm.surface_color }}
-                                    >
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div 
-                                                className="w-8 h-8 rounded-full flex items-center justify-center"
-                                                style={{ backgroundColor: themeForm.accent_color }}
+                                <div className="space-y-4">
+                                    <label className="text-xs font-bold uppercase tracking-widest text-claude-secondary block">Typography</label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {FONT_PRESETS.map(f => (
+                                            <button
+                                                key={f.name}
+                                                type="button"
+                                                onClick={() => setThemeForm({ ...themeForm, font_family_display: f.display, font_family_body: f.body })}
+                                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${themeForm.font_family_display === f.display ? 'border-claude-accent bg-claude-accent/5' : 'border-claude-border bg-claude-bg'}`}
                                             >
-                                                <Palette className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold" style={{ color: themeForm.text_color }}>
-                                                    {themeForm.name || 'Theme Name'}
-                                                </p>
-                                                <p className="text-xs" style={{ color: themeForm.secondary_text_color }}>
-                                                    Preview of your theme
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            type="button"
-                                            className="w-full py-2.5 rounded-lg text-sm font-medium text-white"
-                                            style={{ backgroundColor: themeForm.accent_color }}
-                                        >
-                                            Sample Button
-                                        </button>
+                                                <div className="text-left">
+                                                    <span className="text-sm font-bold block" style={{ fontFamily: f.display }}>{f.name}</span>
+                                                    <span className="text-xs opacity-50" style={{ fontFamily: f.body }}>Preview text for body</span>
+                                                </div>
+                                                {themeForm.font_family_display === f.display && <Check className="w-4 h-4 text-claude-accent" />}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Footer */}
-                        <div className="p-4 border-t border-claude-border shrink-0 bg-claude-surface">
-                            <button 
-                                type="submit" 
-                                className="w-full claude-button-primary py-3.5 text-base"
-                            >
-                                {editingTheme ? 'Save Changes' : 'Create Theme'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
+                                {/* Preview Card */}
+                                <div className="pt-4">
+                                    <label className="text-xs font-bold uppercase tracking-widest text-claude-secondary block mb-4">Quick Look</label>
+                                    <div className="p-6 rounded-3xl shadow-xl transition-all duration-500 overflow-hidden relative" style={{ backgroundColor: themeForm.bg_color, border: `1px solid ${themeForm.border_color}` }}>
+                                        <div className="absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20" style={{ backgroundColor: themeForm.accent_color }} />
+                                        <h4 className="text-xl font-bold mb-1" style={{ color: themeForm.text_color, fontFamily: themeForm.font_family_display }}>Sample Layout</h4>
+                                        <p className="text-xs opacity-70 mb-4" style={{ color: themeForm.secondary_text_color, fontFamily: themeForm.font_family_body }}>This is how your new theme will feel in action.</p>
+                                        <div className="flex gap-2">
+                                            <div className="px-4 py-2 rounded-full text-xs font-bold text-white shadow-lg" style={{ backgroundColor: themeForm.accent_color }}>Action</div>
+                                            <div className="px-4 py-2 rounded-full text-xs font-bold" style={{ backgroundColor: themeForm.surface_color, color: themeForm.text_color, border: `1px solid ${themeForm.border_color}` }}>Cancel</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <div className="p-6 border-t border-claude-border bg-claude-surface">
+                                <button
+                                    type="submit"
+                                    onClick={handleSaveTheme}
+                                    className="w-full py-4 bg-black text-white rounded-2xl font-bold text-lg active:scale-95 transition-all"
+                                >
+                                    {editingTheme ? 'Update Collection' : 'Add to Collection'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
-// Theme Card Component for Default Themes
-function ThemeCard({ theme, isActive, onSelect }) {
+function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCustom, onEdit, onDelete, isPro }) {
+    if (themes.length === 0 && !isCustom) return null;
+
+    const container = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const item = {
+        hidden: { opacity: 0, scale: 0.9, y: 20 },
+        show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 20 } }
+    };
+
     return (
-        <button
+        <section>
+            <div className="mb-6">
+                <h2 className="text-xl font-display font-bold flex items-center gap-2">
+                    {title}
+                    {isPro && <span className="text-[10px] bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">Pro</span>}
+                </h2>
+                <p className="text-sm text-claude-secondary">{subtitle}</p>
+            </div>
+
+            <motion.div
+                variants={container}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+                {themes.map(theme => (
+                    <motion.div key={theme.id} variants={item}>
+                        <ThemeCard
+                            theme={theme}
+                            isActive={activeThemeId === theme.id}
+                            onSelect={() => onSelect(theme.id)}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            isCustom={isCustom}
+                        />
+                    </motion.div>
+                ))}
+            </motion.div>
+        </section>
+    );
+}
+
+function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
+    return (
+        <div
             onClick={onSelect}
-            className={`p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.97] ${
-                isActive 
-                    ? 'border-claude-accent bg-claude-accent/5' 
-                    : 'border-claude-border bg-claude-surface hover:border-claude-accent/50'
-            }`}
+            className={`group relative overflow-hidden rounded-[2rem] border-2 p-6 transition-all duration-300 cursor-pointer h-full flex flex-col ${isActive
+                    ? 'border-claude-accent ring-8 ring-claude-accent/5'
+                    : 'border-claude-border hover:border-claude-accent/40 bg-claude-surface'
+                }`}
         >
-            <div className="flex items-center justify-between mb-3">
-                <div 
-                    className="w-10 h-10 rounded-full flex items-center justify-center"
-                    style={{ 
-                        backgroundColor: theme.bg_color,
-                        border: `2px solid ${theme.border_color}`
-                    }}
+            {/* Visual Preview Area */}
+            <div className="relative mb-6 aspect-[4/3] rounded-2xl overflow-hidden shadow-inner flex flex-col justify-end p-4 border" style={{ backgroundColor: theme.bg_color, borderColor: theme.border_color }}>
+                {/* Simulated UI elements */}
+                <div className="absolute top-3 left-3 w-12 h-1.5 rounded-full opacity-20" style={{ backgroundColor: theme.text_color }} />
+                <div className="absolute top-6 left-3 w-8 h-1.5 rounded-full opacity-10" style={{ backgroundColor: theme.text_color }} />
+
+                <div
+                    className="w-full h-2/3 rounded-xl p-3 shadow-lg transform rotate-[-2deg] transition-transform group-hover:rotate-0"
+                    style={{ backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }}
                 >
-                    <span className="text-sm font-bold" style={{ color: theme.text_color }}>A</span>
+                    <div className="w-1/2 h-2 rounded-full mb-2" style={{ backgroundColor: theme.accent_color }} />
+                    <div className="w-3/4 h-1.5 rounded-full opacity-30" style={{ backgroundColor: theme.text_color }} />
+                    <div className="w-2/3 h-1.5 rounded-full opacity-20 mt-1" style={{ backgroundColor: theme.text_color }} />
                 </div>
-                {isActive && (
-                    <div className="w-6 h-6 bg-claude-accent rounded-full flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5 text-white" />
+
+                {/* Fonts indicator */}
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-lg border border-white/20">
+                        <Type className="w-3 h-3 text-white" />
                     </div>
-                )}
+                </div>
             </div>
-            <p className="font-semibold text-sm">{theme.name}</p>
-            <div className="flex gap-1 mt-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.bg_color, border: `1px solid ${theme.border_color}` }} />
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }} />
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.accent_color }} />
+
+            <div className="flex flex-col flex-1">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-display font-bold text-lg truncate group-hover:text-claude-accent transition-colors">{theme.name}</h3>
+                    {isActive && (
+                        <div className="bg-claude-accent text-white p-1 rounded-full shadow-lg shadow-claude-accent/30">
+                            <Check className="w-3 h-3" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-4 text-xs font-bold text-claude-secondary uppercase tracking-widest mt-auto">
+                    <div className="flex -space-x-1.5">
+                        {[theme.bg_color, theme.surface_color, theme.accent_color].map((c, i) => (
+                            <div key={i} className="w-4 h-4 rounded-full border-2 border-claude-surface shadow-sm" style={{ backgroundColor: c }} />
+                        ))}
+                    </div>
+                    <span className="opacity-60">{theme.font_family_display.split(' ')[0]}</span>
+                </div>
             </div>
-        </button>
+
+            {/* Quick Actions for Custom Themes */}
+            {isCustom && (
+                <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-[-10px] group-hover:translate-y-0">
+                    <button
+                        onClick={(e) => onEdit(e, theme)}
+                        className="bg-white/90 backdrop-blur p-2 rounded-full text-claude-bg shadow-lg hover:scale-110 active:scale-95 transition-all border border-black/5"
+                    >
+                        <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => onDelete(e, theme)}
+                        className="bg-white/90 backdrop-blur p-2 rounded-full text-red-500 shadow-lg hover:scale-110 active:scale-95 transition-all border border-black/5"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }

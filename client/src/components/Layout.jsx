@@ -41,7 +41,7 @@ export default function Layout({ children }) {
     const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || hideNavFromContext;
 
     return (
-        <div className="min-h-dvh bg-claude-bg text-claude-text font-sans">
+        <div className="min-h-dvh bg-claude-bg text-claude-text">
             {/* Main container */}
             <div className="relative min-h-dvh w-full max-w-lg mx-auto bg-claude-bg md:border-x md:border-claude-border/50 md:shadow-2xl md:shadow-black/20">
                 {/* Offline banner */}

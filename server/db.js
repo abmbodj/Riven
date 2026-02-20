@@ -206,10 +206,20 @@ if (global.__TEST_DB_MOCK__) {
                     secondary_text_color TEXT NOT NULL,
                     border_color TEXT NOT NULL,
                     accent_color TEXT NOT NULL,
+                    font_family_display TEXT DEFAULT 'Cormorant Garamond',
+                    font_family_body TEXT DEFAULT 'Lora',
                     is_active INTEGER DEFAULT 0,
                     is_default INTEGER DEFAULT 0
                 )
             `);
+
+            // Add font columns if they don't exist (migration)
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS font_family_display TEXT DEFAULT 'Cormorant Garamond'
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS font_family_body TEXT DEFAULT 'Lora'
+            `).catch(() => { });
 
             // Shared decks table
             await client.query(`

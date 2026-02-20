@@ -942,8 +942,8 @@ app.post('/api/themes', optionalAuth, async (req, res) => {
     try {
         const userId = req.user?.id || null;
         const result = await db.queryOne(
-            'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0) RETURNING *',
-            [userId, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color]
+            'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, font_family_display, font_family_body, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 0) RETURNING *',
+            [userId, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, req.body.font_family_display || 'Cormorant Garamond', req.body.font_family_body || 'Lora']
         );
         res.status(201).json(result);
     } catch (error) {
@@ -986,9 +986,11 @@ app.put('/api/themes/:id', optionalAuth, async (req, res) => {
                 text_color = COALESCE($4, text_color),
                 secondary_text_color = COALESCE($5, secondary_text_color),
                 border_color = COALESCE($6, border_color),
-                accent_color = COALESCE($7, accent_color)
-            WHERE id = $8 RETURNING *`,
-            [name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, id]
+                accent_color = COALESCE($7, accent_color),
+                font_family_display = COALESCE($8, font_family_display),
+                font_family_body = COALESCE($9, font_family_body)
+            WHERE id = $10 RETURNING *`,
+            [name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, req.body.font_family_display, req.body.font_family_body, id]
         );
         res.json(result);
     } catch (error) {

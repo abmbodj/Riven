@@ -151,7 +151,7 @@ export default function AdminPanel() {
     ];
 
     return (
-        <div className="min-h-screen -mx-4 -my-4 bg-[#121212] text-white font-sans selection:bg-[#3ECF8E]/30">
+        <div className="min-h-screen -mx-4 -my-4 bg-[#121212] text-white selection:bg-[#3ECF8E]/30">
             {/* Header with Glassmorphism */}
             <header className="sticky top-0 z-20 px-6 py-4 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5">
                 <div className="flex items-center justify-between mb-4">
