@@ -1,11 +1,11 @@
-import { useState, useEffect, useContext, useMemo } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Palette from 'lucide-react/dist/esm/icons/palette';
 import Home from 'lucide-react/dist/esm/icons/home';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
 import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import User from 'lucide-react/dist/esm/icons/user';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { ThemeContext } from '../ThemeContext';
 import { UIContext } from '../context/UIContext';
 
@@ -100,8 +100,7 @@ export default function Layout({ children }) {
                                     <Link
                                         key={item.to}
                                         to={item.to}
-                                        className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${isActive ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'
-                                            }`}
+                                        className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${isActive ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
                                     >
                                         <div className="relative">
                                             <item.icon className="w-5 h-5" />

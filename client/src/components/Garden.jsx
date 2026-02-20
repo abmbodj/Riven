@@ -42,8 +42,7 @@ if (typeof document !== 'undefined') {
 export default function Garden({
     streak = 0,
     status = 'active',
-    size = 'md',
-    showInfo = true // Used by parents, keep for compatibility
+    size = 'md'
 }) {
     const uniqueId = useId();
     const { width, height } = sizeMap[size] || sizeMap.md;
@@ -77,11 +76,11 @@ export default function Garden({
 
     return (
         <div style={{ filter, transition: 'all 1s ease-in-out' }} className="flex flex-col items-center justify-center">
-            <svg 
-                viewBox="0 0 400 400" 
-                width={width} 
-                height={height} 
-                className="rounded-3xl shadow-2xl overflow-hidden transition-all duration-1000 ease-in-out" 
+            <svg
+                viewBox="0 0 400 400"
+                width={width}
+                height={height}
+                className="rounded-3xl shadow-2xl overflow-hidden transition-all duration-1000 ease-in-out"
                 style={{ background: `linear-gradient(145deg, ${clr.bg1}, ${clr.bg2})` }}
             >
                 <defs>
@@ -101,11 +100,11 @@ export default function Garden({
                 {stageIndex >= 9 && (
                     <g className="garden-rotate" style={{ opacity: 0.15 }}>
                         {Array.from({ length: 12 }).map((_, i) => (
-                            <line 
-                                key={`ray-${i}`} 
-                                x1="200" y1="0" x2="200" y2="100" 
-                                stroke={clr.energy} strokeWidth="2" 
-                                transform={`rotate(${i * 30} 200 200)`} 
+                            <line
+                                key={`ray-${i}`}
+                                x1="200" y1="0" x2="200" y2="100"
+                                stroke={clr.energy} strokeWidth="2"
+                                transform={`rotate(${i * 30} 200 200)`}
                             />
                         ))}
                         <circle cx="200" cy="200" r="140" fill="none" stroke={clr.energy} strokeWidth="1" strokeDasharray="5 15" />
@@ -115,26 +114,26 @@ export default function Garden({
 
                 {/* Energy Core / Sun / Moon */}
                 {stageIndex >= 5 && (
-                    <circle 
-                        cx="200" cy={stageIndex >= 9 ? "200" : "120"} 
-                        r={stageIndex >= 9 ? "160" : "60"} 
-                        fill={`url(#glow-${uniqueId})`} 
-                        className="garden-pulse-slow" 
+                    <circle
+                        cx="200" cy={stageIndex >= 9 ? "200" : "120"}
+                        r={stageIndex >= 9 ? "160" : "60"}
+                        fill={`url(#glow-${uniqueId})`}
+                        className="garden-pulse-slow"
                     />
                 )}
 
                 {/* --- GROUND TOPOGRAPHY --- */}
                 {stageIndex < 9 && (
-                    <path 
-                        d="M-50,330 Q100,280 200,320 T450,310 L450,450 L-50,450 Z" 
-                        fill={`url(#ground-${uniqueId})`} 
+                    <path
+                        d="M-50,330 Q100,280 200,320 T450,310 L450,450 L-50,450 Z"
+                        fill={`url(#ground-${uniqueId})`}
                     />
                 )}
                 {stageIndex >= 3 && stageIndex < 9 && (
-                    <path 
-                        d="M-50,360 Q150,310 250,370 T450,350 L450,450 L-50,450 Z" 
-                        fill={clr.accent} 
-                        opacity="0.3" 
+                    <path
+                        d="M-50,360 Q150,310 250,370 T450,350 L450,450 L-50,450 Z"
+                        fill={clr.accent}
+                        opacity="0.3"
                     />
                 )}
 
@@ -142,22 +141,22 @@ export default function Garden({
                 <g className={stageIndex >= 9 ? "garden-float" : "garden-sway"}>
                     {/* Trunk / Base Stem */}
                     {stageIndex >= 1 && stageIndex < 9 && (
-                        <path 
-                            d="M200,350 Q205,280 200,200" 
-                            fill="none" 
-                            stroke={clr.accent} 
-                            strokeWidth={Math.min(stageIndex * 2.5, 20)} 
-                            strokeLinecap="round" 
+                        <path
+                            d="M200,350 Q205,280 200,200"
+                            fill="none"
+                            stroke={clr.accent}
+                            strokeWidth={Math.min(stageIndex * 2.5, 20)}
+                            strokeLinecap="round"
                         />
                     )}
-                    
+
                     {/* Primary Seed / Node */}
                     {stageIndex < 9 && (
-                        <ellipse 
-                            cx="200" cy="350" 
-                            rx={stageIndex === 0 ? 12 : 20} 
-                            ry={stageIndex === 0 ? 6 : 8} 
-                            fill={clr.accent} 
+                        <ellipse
+                            cx="200" cy="350"
+                            rx={stageIndex === 0 ? 12 : 20}
+                            ry={stageIndex === 0 ? 6 : 8}
+                            fill={clr.accent}
                         />
                     )}
 
@@ -213,12 +212,12 @@ export default function Garden({
                             {/* Central Mandala */}
                             {Array.from({ length: stageIndex >= 10 ? 24 : 12 }).map((_, i) => (
                                 <g key={`mandala-${i}`} transform={`rotate(${i * (360 / (stageIndex >= 10 ? 24 : 12))} 200 200)`}>
-                                    <path 
-                                        d="M200,200 Q260,100 200,30 Q140,100 200,200" 
-                                        fill={clr.leaf} 
-                                        opacity="0.2" 
-                                        stroke={clr.energy} 
-                                        strokeWidth="1.5" 
+                                    <path
+                                        d="M200,200 Q260,100 200,30 Q140,100 200,200"
+                                        fill={clr.leaf}
+                                        opacity="0.2"
+                                        stroke={clr.energy}
+                                        strokeWidth="1.5"
                                     />
                                     <circle cx="200" cy="30" r="4" fill={clr.energy} />
                                 </g>
@@ -248,14 +247,14 @@ export default function Garden({
                             const radius = 30 + (i * (150 / (stageIndex * 3)));
                             const cx = 200 + Math.cos(angle) * radius;
                             const cy = 200 + Math.sin(angle) * (radius * (stageIndex >= 9 ? 1 : 0.7)); // flatten for tree stages
-                            
+
                             return (
-                                <circle 
-                                    key={`particle-${i}`} 
-                                    cx={cx} 
-                                    cy={cy - (stageIndex < 9 ? 60 : 0)} 
-                                    r={i % 3 === 0 ? 2.5 : 1.5} 
-                                    fill={clr.energy} 
+                                <circle
+                                    key={`particle-${i}`}
+                                    cx={cx}
+                                    cy={cy - (stageIndex < 9 ? 60 : 0)}
+                                    r={i % 3 === 0 ? 2.5 : 1.5}
+                                    fill={clr.energy}
                                     opacity="0.75"
                                 />
                             );

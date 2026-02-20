@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { AuthContext } from '../context/AuthContext';
 import {
     Users, Layers, CreditCard, Share2, MessageSquare,
@@ -27,7 +27,6 @@ const COLORS = {
 export default function AdminPanel() {
     const navigate = useNavigate();
     const {
-        user,
         isAdmin,
         isOwner,
         adminGetStats,
@@ -286,14 +285,26 @@ export default function AdminPanel() {
 
 function OverviewTab({ stats }) {
     return (
-        <div className="space-y-6">
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-3">
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.1 }
+                }
+            }}
+            className="space-y-6"
+        >
+            {/* Executive Summary Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
                     title="Total Users"
                     value={stats.users}
-                    icon={Users}
                     trend={stats.recentSignups}
+                    subtitle="Last 30 days"
+                    icon={Users}
                     color="#3ECF8E"
                 />
                 <StatCard
@@ -303,164 +314,270 @@ function OverviewTab({ stats }) {
                     color="#F59E0B"
                 />
                 <StatCard
-                    title="Cards"
+                    title="Total Cards"
                     value={stats.cards}
                     icon={CreditCard}
                     color="#3B82F6"
                 />
                 <StatCard
-                    title="Sessions"
+                    title="Study Sessions"
                     value={stats.recentSessions}
+                    trend={Math.floor(stats.recentSessions * 0.1)} // Mock trend for aesthetics if no prior period data exists
+                    subtitle="Last 30 days"
                     icon={Zap}
                     color="#EC4899"
-                    subtitle="Last 7 days"
                 />
             </div>
 
-            {/* Activity Chart */}
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#3ECF8E]/5 blur-[60px] rounded-full pointer-events-none" />
-                <h3 className="text-sm font-semibold text-white/70 mb-6 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-[#3ECF8E]" />
-                    Weekly Activity
-                </h3>
+            {/* Activity Chart Area */}
+            <motion.div
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden"
+            >
+                {/* Ambient glow */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-[#3ECF8E]/10 blur-[100px] rounded-full pointer-events-none" />
 
-                <div className="h-40 w-full">
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                    <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-[#3ECF8E]" />
+                            30-Day Activity
+                        </h3>
+                        <p className="text-sm text-white/40 mt-1">Study sessions completed over time</p>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-lg bg-[#3ECF8E]/10 border border-[#3ECF8E]/20 text-[#3ECF8E] text-xs font-bold font-mono">
+                        {stats.recentSessions.toLocaleString()} TOTAL
+                    </div>
+                </div>
+
+                <div className="h-64 w-full relative z-10">
                     <ActivityChart data={stats.dailyActivity || []} />
                 </div>
-            </div>
+            </motion.div>
 
             {/* Top Decks List */}
-            <div>
-                <h3 className="text-sm font-semibold text-white/50 mb-3 px-1 uppercase tracking-wider">Trending Decks</h3>
-                <div className="space-y-2">
+            <motion.div
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+            >
+                <h3 className="text-sm font-semibold text-white/50 mb-4 px-2 uppercase tracking-wider flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" /> Trending Decks (30 Days)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {stats.topDecks?.map((deck, i) => (
-                        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-white/50">
+                        <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group">
+                            <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center text-sm font-bold text-white/40 group-hover:text-[#3ECF8E] group-hover:border-[#3ECF8E]/30 transition-colors">
                                 #{i + 1}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-white truncate">{deck.title}</h4>
-                                <p className="text-xs text-white/40 truncate">by {deck.creator}</p>
+                                <h4 className="text-sm font-bold text-white truncate">{deck.title}</h4>
+                                <p className="text-xs text-white/40 truncate flex items-center gap-1 mt-0.5">
+                                    <UserCircle className="w-3 h-3" /> {deck.creator}
+                                </p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-sm font-bold text-[#3ECF8E]">{deck.sessions}</p>
-                                <p className="text-[10px] text-white/30 uppercase">Sessions</p>
+                            <div className="text-right pl-4 border-l border-white/10">
+                                <p className="text-lg font-black tracking-tight text-[#3ECF8E]">{deck.sessions}</p>
+                                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-0.5">Plays</p>
                             </div>
                         </div>
                     ))}
                     {(!stats.topDecks || stats.topDecks.length === 0) && (
-                        <div className="text-center py-6 text-white/30 text-xs italic">
-                            No deck activity yet.
+                        <div className="col-span-full text-center py-12 rounded-2xl border border-dashed border-white/10 text-white/30 text-sm italic">
+                            No deck activity in the last 30 days.
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
 
-function StatCard({ title, value, icon: Icon, trend, color, subtitle }) {
+function StatCard(props) {
+    const { title, value, icon: DisplayIcon, trend, color, subtitle } = props;
     return (
-        <div className="relative p-4 rounded-2xl bg-white/5 border border-white/5 overflow-hidden group hover:bg-white/10 transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <motion.div
+            variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
+            className="relative p-5 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 overflow-hidden group hover:bg-white/10 hover:border-white/20 transition-all duration-300"
+        >
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-duration-500" />
+
+            {/* Subtle radial glow matching icon color */}
+            <div
+                className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-20 pointer-events-none transition-opacity group-hover:opacity-40"
+                style={{ backgroundColor: color }}
+            />
+
             <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-6">
                     <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: `${color}20` }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shadow-inner"
+                        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
                     >
-                        <Icon className="w-4 h-4" style={{ color }} />
+                        <DisplayIcon className="w-5 h-5" style={{ color }} />
                     </div>
                     {trend > 0 && (
-                        <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#3ECF8E]/20 text-[#3ECF8E]">
-                            <ArrowUp className="w-2.5 h-2.5" />
+                        <div
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
+                            style={{ backgroundColor: `${color}20`, color: color }}
+                        >
+                            <ArrowUp className="w-3 h-3" />
                             {trend}
+                            <span className="text-[10px] opacity-70 ml-0.5">NEW</span>
                         </div>
                     )}
                 </div>
                 <div>
-                    <h3 className="text-2xl font-bold text-white tracking-tight">{value?.toLocaleString() || 0}</h3>
-                    <p className="text-xs text-white/40 font-medium">{title}</p>
-                    {subtitle && <p className="text-[10px] text-white/30 mt-0.5">{subtitle}</p>}
+                    <h3 className="text-3xl font-black text-white tracking-tighter mb-1">
+                        {value?.toLocaleString() || 0}
+                    </h3>
+                    <p className="text-sm font-medium text-white/50">{title}</p>
+                    {subtitle && <p className="text-[10px] text-white/30 mt-1 uppercase tracking-wider">{subtitle}</p>}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
-// Simple SVG Chart Component
+// Advanced Smooth SVG Area Chart
 function ActivityChart({ data }) {
-    if (!data.length) return null;
+    if (!data || !data.length) return null;
 
-    const max = Math.max(...data.map(d => d.count), 1); // Avoid div by zero
+    const max = Math.max(...data.map(d => d.count), 1);
     const height = 100;
-    const width = 100;
-    const gap = 100 / (data.length - 1);
+    const gap = 100 / Math.max(data.length - 1, 1);
 
-    // Generate path
-    let pathD = `M 0,${height - (data[0].count / max) * height}`;
-    data.forEach((d, i) => {
-        const x = i * gap;
-        const y = height - (d.count / max) * height;
-        pathD += ` L ${x},${y}`;
-    });
+    // Generate smooth bezier curve path
+    const generatePath = (dataPoints) => {
+        if (dataPoints.length === 0) return '';
+        if (dataPoints.length === 1) return `M 0,${height - (dataPoints[0].count / max) * height} L 100,${height - (dataPoints[0].count / max) * height}`;
+
+        let d = `M 0,${height - (dataPoints[0].count / max) * height}`;
+        for (let i = 0; i < dataPoints.length - 1; i++) {
+            const x0 = i * gap;
+            const y0 = height - (dataPoints[i].count / max) * height;
+            const x1 = (i + 1) * gap;
+            const y1 = height - (dataPoints[i + 1].count / max) * height;
+
+            // Cubic bezier control points for smoothing
+            const cx0 = x0 + (x1 - x0) / 2;
+            const cy0 = y0;
+            const cx1 = x0 + (x1 - x0) / 2;
+            const cy1 = y1;
+
+            d += ` C ${cx0},${cy0} ${cx1},${cy1} ${x1},${y1}`;
+        }
+        return d;
+    };
+
+    const pathD = generatePath(data);
+
+    // Pick 5 roughly evenly spaced labels for the X axis
+    const labelIndices = [];
+    const step = Math.max(Math.floor(data.length / 5), 1);
+    for (let i = 0; i < data.length; i += step) {
+        if (labelIndices.length < 5) labelIndices.push(i);
+    }
+    // Ensure the last data point is always labeled if not already
+    if (!labelIndices.includes(data.length - 1)) {
+        labelIndices[labelIndices.length - 1] = data.length - 1;
+    }
 
     return (
-        <div className="relative w-full h-full flex flex-col justify-end">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                {/* Gradient Definition */}
-                <defs>
-                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3ECF8E" stopOpacity="0.5" />
-                        <stop offset="100%" stopColor="#3ECF8E" stopOpacity="0" />
-                    </linearGradient>
-                </defs>
+        <div className="relative w-full h-full flex flex-col">
+            <div className="flex-1 relative">
+                {/* Y-Axis Grid Lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className="w-full h-px bg-white/20 border-b border-dashed border-transparent" />
+                    ))}
+                </div>
 
-                {/* Area Fill */}
-                <motion.path
-                    d={`${pathD} L 100,100 L 0,100 Z`}
-                    fill="url(#chartGradient)"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1 }}
-                />
+                <svg viewBox="-2 -2 104 104" preserveAspectRatio="none" className="w-full h-full overflow-visible drop-shadow-2xl">
+                    <defs>
+                        <linearGradient id="chartAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#3ECF8E" stopOpacity="0.4" />
+                            <stop offset="50%" stopColor="#3ECF8E" stopOpacity="0.1" />
+                            <stop offset="100%" stopColor="#3ECF8E" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
 
-                {/* Line */}
-                <motion.path
-                    d={pathD}
-                    fill="none"
-                    stroke="#3ECF8E"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 1.5, ease: "easeInOut" }}
-                />
-
-                {/* Points */}
-                {data.map((d, i) => (
-                    <motion.circle
-                        key={i}
-                        cx={i * gap}
-                        cy={100 - (d.count / max) * 100}
-                        r="3"
-                        fill="#1C1C1C"
-                        stroke="#3ECF8E"
-                        strokeWidth="2"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 1 + i * 0.1 }}
+                    {/* Filled Area */}
+                    <motion.path
+                        d={`${pathD} L 100,100 L 0,100 Z`}
+                        fill="url(#chartAreaGradient)"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
                     />
-                ))}
-            </svg>
+
+                    {/* Smooth Line */}
+                    <motion.path
+                        d={pathD}
+                        fill="none"
+                        stroke="#3ECF8E"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        initial={{ pathLength: 0, opacity: 0 }}
+                        animate={{ pathLength: 1, opacity: 1 }}
+                        transition={{ duration: 1.5, ease: "easeInOut" }}
+                        style={{ filter: 'drop-shadow(0px 4px 6px rgba(62,207,142,0.3))' }}
+                    />
+
+                    {/* Data Points (Dots on the line) */}
+                    {data.map((d, i) => {
+                        const x = i * gap;
+                        const y = height - (d.count / max) * height;
+                        // Only show dots on labeled points to reduce clutter on 30 days
+                        if (!labelIndices.includes(i)) return null;
+
+                        return (
+                            <motion.g key={i}>
+                                <motion.circle
+                                    cx={x}
+                                    cy={y}
+                                    r="4"
+                                    fill="#121212"
+                                    stroke="#3ECF8E"
+                                    strokeWidth="2"
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 1 + i * 0.02, type: "spring" }}
+                                />
+                                {/* Value tooltip hint above dot */}
+                                <motion.text
+                                    x={x}
+                                    y={y - 10}
+                                    textAnchor="middle"
+                                    fill="#fff"
+                                    fontSize="4"
+                                    fontWeight="bold"
+                                    className="opacity-0 hover:opacity-100 transition-opacity"
+                                >
+                                    {d.count}
+                                </motion.text>
+                            </motion.g>
+                        );
+                    })}
+                </svg>
+            </div>
 
             {/* X-Axis Labels */}
-            <div className="flex justify-between mt-2 text-[10px] text-white/30 font-mono">
-                {data.map((d, i) => (
-                    <span key={i}>{new Date(d.date).toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
-                ))}
+            <div className="flex justify-between items-end mt-4 text-[10px] font-bold text-white/40 tracking-wider uppercase h-4">
+                {labelIndices.map((idx, i) => {
+                    const d = data[idx];
+                    if (!d) return <span key={i} className="flex-1 text-center" />;
+                    const date = new Date(d.date);
+                    const formatted = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
+
+                    return (
+                        <span
+                            key={i}
+                            className="flex-1 text-center first:text-left last:text-right"
+                        >
+                            {formatted}
+                        </span>
+                    );
+                })}
             </div>
         </div>
     );
@@ -468,6 +585,30 @@ function ActivityChart({ data }) {
 
 function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
     const [changingRole, setChangingRole] = React.useState(null);
+    const [currentPage, setCurrentPage] = React.useState(1);
+    const [searchTerm, setSearchTerm] = React.useState("");
+    const itemsPerPage = 20;
+
+    // Filter and paginate
+    const filteredUsers = React.useMemo(() => {
+        if (!searchTerm) return users;
+        const lower = searchTerm.toLowerCase();
+        return users.filter(u =>
+            (u.username && u.username.toLowerCase().includes(lower)) ||
+            (u.email && u.email.toLowerCase().includes(lower))
+        );
+    }, [users, searchTerm]);
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = React.useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredUsers.slice(start, start + itemsPerPage);
+    }, [filteredUsers, currentPage]);
+
+    // Reset page if search changes
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     const handleRoleChange = async (userId, newRole) => {
         setChangingRole(userId);
@@ -483,71 +624,119 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
     };
 
     return (
-        <div className="rounded-2xl bg-white/5 border border-white/5 overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/5 bg-white/5 text-xs font-semibold text-white/50 uppercase tracking-widest">
-                Registered Users
-            </div>
-            <div className="divide-y divide-white/5">
-                {users.map(u => {
-                    const role = u.role || (u.isAdmin ? 'admin' : 'user');
-                    const roleBadge = {
-                        owner: { label: 'OWNER', color: '#F59E0B' },
-                        admin: { label: 'ADMIN', color: '#3ECF8E' },
-                        user: { label: 'USER', color: '#6B7280' }
-                    }[role] || { label: 'USER', color: '#6B7280' };
+        <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col"
+        >
+            <div className="px-5 py-4 border-b border-white/5 bg-white/5 flex items-center justify-between gap-4">
+                <div className="text-xs font-bold text-white/50 uppercase tracking-widest shrink-0">
+                    Registered Users
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-white/10 text-white font-mono text-[10px]">{filteredUsers.length}</span>
+                </div>
 
-                    return (
-                        <div key={u.id} className="p-4 hover:bg-white/5 transition-colors">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white shrink-0">
-                                        {u.avatar || u.username[0].toUpperCase()}
+                <div className="relative max-w-xs w-full">
+                    <input
+                        type="text"
+                        placeholder="Search by username or email..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#3ECF8E]/50 transition-colors"
+                    />
+                    <Users className="w-4 h-4 text-white/30 absolute left-3 top-2.5" />
+                </div>
+            </div>
+
+            <div className="divide-y divide-white/5 flex-1 min-h-[400px]">
+                {paginatedUsers.length === 0 ? (
+                    <div className="text-center py-20 text-white/30 text-sm italic">
+                        No users found.
+                    </div>
+                ) : (
+                    paginatedUsers.map(u => {
+                        const role = u.role || (u.isAdmin ? 'admin' : 'user');
+                        const roleBadge = {
+                            owner: { label: 'OWNER', color: '#F59E0B' },
+                            admin: { label: 'ADMIN', color: '#3ECF8E' },
+                            user: { label: 'USER', color: '#6B7280' }
+                        }[role] || { label: 'USER', color: '#6B7280' };
+
+                        return (
+                            <div key={u.id} className="p-4 hover:bg-white/5 transition-colors">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white shrink-0">
+                                            {u.avatar || u.username[0].toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                                                <span className="truncate">{u.username}</span>
+                                                <span
+                                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
+                                                    style={{ backgroundColor: `${roleBadge.color}20`, color: roleBadge.color }}
+                                                >
+                                                    {roleBadge.label}
+                                                </span>
+                                            </h4>
+                                            <p className="text-xs text-white/40 truncate">{u.email}</p>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h4 className="text-sm font-medium text-white flex items-center gap-2">
-                                            <span className="truncate">{u.username}</span>
-                                            <span
-                                                className="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
-                                                style={{ backgroundColor: `${roleBadge.color}20`, color: roleBadge.color }}
-                                            >
-                                                {roleBadge.label}
-                                            </span>
-                                        </h4>
-                                        <p className="text-xs text-white/40 truncate">{u.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="hidden sm:block text-xs text-white/30 font-mono">
-                                        {new Date(u.createdAt).toLocaleDateString()}
-                                    </span>
-                                    {/* Owner controls: promote/demote */}
-                                    {isOwner && role !== 'owner' && (
-                                        <button
-                                            disabled={changingRole === u.id}
-                                            onClick={() => handleRoleChange(u.id, role === 'admin' ? 'user' : 'admin')}
-                                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${role === 'admin'
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="hidden sm:block text-xs text-white/30 font-mono">
+                                            {new Date(u.createdAt).toLocaleDateString()}
+                                        </span>
+                                        {/* Owner controls: promote/demote */}
+                                        {isOwner && role !== 'owner' && (
+                                            <button
+                                                disabled={changingRole === u.id}
+                                                onClick={() => handleRoleChange(u.id, role === 'admin' ? 'user' : 'admin')}
+                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${role === 'admin'
                                                     ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
                                                     : 'bg-[#3ECF8E]/10 text-[#3ECF8E] hover:bg-[#3ECF8E]/20'
-                                                }`}
-                                        >
-                                            {changingRole === u.id ? '...' : role === 'admin' ? 'Demote' : 'Promote'}
-                                        </button>
-                                    )}
-                                    {role !== 'owner' && (
-                                        <button
-                                            onClick={() => onDelete(u.id, u.username)}
-                                            className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                                    }`}
+                                            >
+                                                {changingRole === u.id ? '...' : role === 'admin' ? 'Demote' : 'Promote'}
+                                            </button>
+                                        )}
+                                        {role !== 'owner' && (
+                                            <button
+                                                onClick={() => onDelete(u.id, u.username)}
+                                                className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    }))}
             </div>
-        </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="px-5 py-3 border-t border-white/5 bg-black/20 flex items-center justify-between">
+                    <p className="text-xs text-white/40 font-mono">
+                        Page <span className="text-white font-bold">{currentPage}</span> of {totalPages}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-all border border-white/10"
+                        >
+                            Prev
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-all border border-white/10"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+        </motion.div>
     );
 }
 

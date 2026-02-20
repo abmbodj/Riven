@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
     LogOut, Edit3, Settings, User, Mail,
     MessageCircle, Users, ChevronRight, Leaf, Shield
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
@@ -14,7 +13,6 @@ import * as authApi from '../../api/authApi';
 
 const ProfileView = () => {
     const { user, isOwner, isAdmin, signOut } = useAuth();
-    const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
 

@@ -1,6 +1,8 @@
-import { createContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { UIContext } from '../contexts/UIContext';
+export { UIContext };
 
-export const UIContext = createContext(null);
+
 
 export function UIProvider({ children }) {
     const [hideBottomNav, setHideBottomNav] = useState(false);

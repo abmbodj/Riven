@@ -16,10 +16,12 @@ export default function Account() {
     // Reset view when auth state changes
     useEffect(() => {
         if (isLoggedIn) {
-            setAuthView('profile'); // Not strictly needed but keeps state clean
-            setTempToken(null);
+            setTimeout(() => {
+                setAuthView('profile'); // Not strictly needed but keeps state clean
+                setTempToken(null);
+            }, 0);
         } else if (!tempToken) {
-            setAuthView('login');
+            setTimeout(() => setAuthView('login'), 0);
         }
     }, [isLoggedIn, tempToken]);
 

@@ -37,7 +37,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
             setSecret(data.secret);
             setQrCode(data.qrCode);
             setMode('setup');
-        } catch (error) {
+        } catch {
             toast.error('Failed to start 2FA setup');
         } finally {
             setLoading(false);
@@ -52,7 +52,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
             await updateProfile({}); // Refresh user state
             toast.success('2FA enabled successfully');
             onClose();
-        } catch (error) {
+        } catch {
             toast.error('Invalid code. Please try again.');
         } finally {
             setLoading(false);
@@ -67,7 +67,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
             await updateProfile({}); // Refresh user state
             toast.success('2FA disabled');
             onClose();
-        } catch (error) {
+        } catch {
             toast.error('Incorrect password');
         } finally {
             setLoading(false);

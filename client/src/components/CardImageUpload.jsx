@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState, useRef } from 'react';
 import { ImagePlus, X, Loader2 } from 'lucide-react';
 
 /**
@@ -69,8 +69,8 @@ export default function CardImageUpload({ label, value, onChange, className = ''
         try {
             const compressed = await compressImage(file);
             onChange(compressed);
-        } catch (err) {
-            // Failed to process image
+        } catch {
+            alert('Images failed to scan');
         } finally {
             setLoading(false);
             // Reset input so same file can be selected again

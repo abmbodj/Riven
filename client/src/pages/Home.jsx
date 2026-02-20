@@ -5,7 +5,7 @@ import {
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
     Menu, Filter, Library
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -165,8 +165,6 @@ export default function Home() {
     const [newFolder, setNewFolder] = useState({ name: '', color: '#6366f1' });
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
 
-    const folderColors = FOLDER_COLORS;
-
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         console.log('[Home] loadData called', { isRefresh });
@@ -309,12 +307,12 @@ export default function Home() {
     if (loading) return (
         <div className="space-y-4">
             <div className="flex gap-2 overflow-x-auto pb-2">
-                {[1, 2, 3].map(i => (
-                    <div key={i} className="h-10 w-24 bg-claude-border rounded-full animate-pulse shrink-0" />
+                {[1, 2, 3].map((_, idx) => (
+                    <div key={idx} className="h-10 w-24 bg-claude-border rounded-full animate-pulse shrink-0" />
                 ))}
             </div>
-            {[1, 2, 3].map(i => (
-                <div key={i} className="claude-card p-4 flex items-center gap-4 animate-pulse">
+            {[1, 2, 3].map((_, idx) => (
+                <div key={idx} className="claude-card p-4 flex items-center gap-4 animate-pulse">
                     <div className="w-12 h-12 bg-claude-border rounded-xl" />
                     <div className="flex-1">
                         <div className="h-4 bg-claude-border rounded w-3/4 mb-2" />
@@ -471,7 +469,7 @@ export default function Home() {
                                         <div className="py-12 text-center text-[#8fa6a8]/40 italic font-serif">No matching decks found</div>
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4">
-                                            {filteredDecks.map((deck, i) => (
+                                            {filteredDecks.map((deck) => (
                                                 <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 bg-[#1e3840]/30 border border-[#233e46] rounded-xl">
                                                     <h4 className="font-serif text-lg font-bold text-botanical-parchment mb-1">{deck.title}</h4>
                                                     <div className="flex items-center gap-2">

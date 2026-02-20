@@ -1,7 +1,9 @@
-import { createContext } from 'react';
-import { useStreak } from '../hooks/useStreak';
 
-export const StreakContext = createContext(null);
+import { useStreak } from '../hooks/useStreak';
+import { StreakContext } from '../contexts/StreakContext';
+export { StreakContext };
+
+
 
 export function StreakProvider({ children }) {
     const streak = useStreak();

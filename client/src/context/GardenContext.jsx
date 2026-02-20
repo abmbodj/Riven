@@ -1,8 +1,10 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import * as authApi from '../api/authApi';
+import { GardenContext } from '../contexts/GardenContext';
+export { GardenContext };
 
-export const GardenContext = createContext(null);
+
 
 export function GardenProvider({ children }) {
     const { isLoggedIn } = useContext(AuthContext);
@@ -14,7 +16,7 @@ export function GardenProvider({ children }) {
     useEffect(() => {
         if (prevLoggedInRef.current && !isLoggedIn) {
             syncedRef.current = false;
-            setCustomization({ stageOverride: null });
+            setTimeout(() => setCustomization({ stageOverride: null }), 0);
         }
         prevLoggedInRef.current = isLoggedIn;
 

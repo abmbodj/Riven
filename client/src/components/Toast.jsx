@@ -1,9 +1,11 @@
-import React, { createContext, useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import X from 'lucide-react/dist/esm/icons/x';
+import { ToastContext } from '../contexts/ToastContext';
+export { ToastContext };
 
-export const ToastContext = createContext(null);
+
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
@@ -36,11 +38,10 @@ export function ToastProvider({ children }) {
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-top duration-300 ${
-                            toast.type === 'success' 
-                                ? 'bg-green-500 text-white' 
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-top duration-300 ${toast.type === 'success'
+                                ? 'bg-green-500 text-white'
                                 : 'bg-red-500 text-white'
-                        }`}
+                            }`}
                     >
                         {toast.type === 'success' ? (
                             <Check className="w-5 h-5 shrink-0" />

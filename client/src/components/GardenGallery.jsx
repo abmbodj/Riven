@@ -1,6 +1,5 @@
-import { useState, useEffect, useContext, useRef } from 'react';
-import { Calendar, Award, Flame, Sprout } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect, useContext } from 'react';
+import { X, Calendar } from 'lucide-react';
 import { UIContext } from '../context/UIContext';
 import { getGardenStage } from '../utils/gardenCustomization';
 

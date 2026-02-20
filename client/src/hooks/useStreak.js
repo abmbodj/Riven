@@ -72,8 +72,10 @@ export function useStreak() {
     // Fetch streak data from server when logged in
     useEffect(() => {
         if (!isLoggedIn) {
-            setStreakData(emptyStreak);
-            setLoaded(true);
+            setTimeout(() => {
+                setStreakData(emptyStreak);
+                setLoaded(true);
+            }, 0);
             syncedRef.current = false;
             return;
         }

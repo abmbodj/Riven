@@ -9,6 +9,29 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
+const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false }) => (
+    <button
+        onClick={onClick}
+        className={`w-full py-4 flex items-center gap-4 border-b border-botanical-sepia/10 active:bg-botanical-forest/5 transition-colors group relative overflow-hidden`}
+    >
+        <div className={`p-2 rounded-full ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-botanical-forest/10 text-botanical-forest'} group-hover:scale-110 transition-transform duration-300`}>
+            {IconComponent && <IconComponent className="w-5 h-5" />}
+        </div>
+        <div className="flex-1 text-left z-10">
+            <p className={`font-display text-lg tracking-wide ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-botanical-parchment transition-colors'}`}>{title}</p>
+            {description && <p className="text-xs font-mono text-botanical-sepia mt-0.5">{description}</p>}
+        </div>
+
+        {toggle !== null ? (
+            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
+                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${toggleValue ? 'left-6' : 'left-1'}`} />
+            </div>
+        ) : (
+            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all'}`} />
+        )}
+    </button>
+);
+
 export default function Settings() {
     const { signOut, user } = useAuth();
     const { activeTheme, switchTheme, themes } = useContext(ThemeContext) || {};
@@ -53,29 +76,6 @@ export default function Settings() {
     const closeModal = (name) => {
         setModals(prev => ({ ...prev, [name]: false }));
     };
-
-    const SettingItem = ({ icon: Icon, title, description, onClick, destructive = false, toggle = null, toggleValue = false }) => (
-        <button
-            onClick={onClick}
-            className={`w-full py-4 flex items-center gap-4 border-b border-botanical-sepia/10 active:bg-botanical-forest/5 transition-colors group relative overflow-hidden`}
-        >
-            <div className={`p-2 rounded-full ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-botanical-forest/10 text-botanical-forest'} group-hover:scale-110 transition-transform duration-300`}>
-                <Icon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 text-left z-10">
-                <p className={`font-display text-lg tracking-wide ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-botanical-parchment transition-colors'}`}>{title}</p>
-                {description && <p className="text-xs font-mono text-botanical-sepia mt-0.5">{description}</p>}
-            </div>
-
-            {toggle !== null ? (
-                <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
-                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${toggleValue ? 'left-6' : 'left-1'}`} />
-                </div>
-            ) : (
-                <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all'}`} />
-            )}
-        </button>
-    );
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">

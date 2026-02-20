@@ -131,30 +131,30 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
             const sharedCount = await db.queryOne('SELECT COUNT(*) as count FROM shared_decks');
             const messageCount = await db.queryOne('SELECT COUNT(*) as count FROM global_messages WHERE is_active = 1');
 
-            // Get recent signups (last 7 days)
+            // Get recent signups (last 30 days)
             const recentUsers = await db.queryOne(`
             SELECT COUNT(*) as count FROM users 
-            WHERE created_at > NOW() - INTERVAL '7 days'
+            WHERE created_at > NOW() - INTERVAL '30 days'
         `);
 
-            // Get study sessions in last 7 days
+            // Get study sessions in last 30 days
             const recentSessions = await db.queryOne(`
             SELECT COUNT(*) as count FROM study_sessions 
-            WHERE created_at > NOW() - INTERVAL '7 days'
+            WHERE created_at > NOW() - INTERVAL '30 days'
         `);
 
-            // Daily Activity (Last 7 Days)
+            // Daily Activity (Last 30 Days)
             const dailyActivity = await db.query(`
             SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count
             FROM study_sessions
-            WHERE created_at > NOW() - INTERVAL '7 days'
+            WHERE created_at > NOW() - INTERVAL '30 days'
             GROUP BY date
             ORDER BY date ASC
         `);
 
-            // Fill in missing days for the last 7 days
+            // Fill in missing days for the last 30 days
             const filledDailyActivity = [];
-            for (let i = 6; i >= 0; i--) {
+            for (let i = 29; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 const dateStr = d.toISOString().split('T')[0];
@@ -162,12 +162,13 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
                 filledDailyActivity.push({ date: dateStr, count: found ? parseInt(found.count) : 0 });
             }
 
-            // Top Decks (by study session count)
+            // Top Decks (by study session count in the last 30 days)
             const topDecks = await db.query(`
             SELECT d.title, u.username as creator, COUNT(ss.id) as session_count
             FROM study_sessions ss
             JOIN decks d ON ss.deck_id = d.id
             LEFT JOIN users u ON d.user_id = u.id
+            WHERE ss.created_at > NOW() - INTERVAL '30 days'
             GROUP BY d.id, d.title, u.username
             ORDER BY session_count DESC
             LIMIT 5
