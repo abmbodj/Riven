@@ -34,19 +34,31 @@ const authFetch = async (endpoint, options = {}) => {
         const response = await fetch(`${API_BASE}${endpoint}`, {
             ...options,
             headers,
-            credentials: 'include', // Send httpOnly cookies with requests
+            credentials: 'include',
         });
 
-        const data = await response.json();
+        // Handle empty or non-JSON responses
+        const contentType = response.headers.get('content-type');
+        let data = {};
+
+        if (contentType && contentType.includes('application/json')) {
+            const text = await response.text();
+            data = text ? JSON.parse(text) : {};
+        }
 
         if (!response.ok) {
             console.error(`[authApi] Error ${endpoint}:`, data);
-            throw new Error(data.error || 'Request failed');
+            const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+            error.status = response.status;
+            throw error;
         }
 
         return data;
     } catch (error) {
-        console.error(`[authApi] Network/Parse error ${endpoint}:`, error);
+        if (error.name === 'SyntaxError') {
+            console.error('[authApi] JSON Parse Error:', error);
+            throw new Error('Server returned an invalid response');
+        }
         throw error;
     }
 };

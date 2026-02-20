@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import { motion, AnimatePresence } from 'motion/react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 export default function ConfirmModal({ isOpen, title, message, confirmText = 'Delete', cancelText = 'Cancel', onConfirm, onCancel, destructive = true }) {
@@ -48,49 +49,64 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
         };
     }, [isOpen]);
 
-    if (!isOpen) return null;
-
     return (
-        <div 
-            className="modal-overlay"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) onCancel?.();
-            }}
-        >
-            <div 
-                ref={dialogRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="confirm-modal-title"
-                className="bg-claude-surface w-full max-w-sm rounded-2xl animate-in zoom-in-95 duration-200 modal-content"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-6 text-center">
-                    {destructive && (
-                        <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <AlertTriangle className="w-6 h-6 text-red-500" />
-                        </div>
-                    )}
-                    <h3 id="confirm-modal-title" className="text-lg font-display font-bold mb-2">{title}</h3>
-                    <p className="text-claude-secondary text-sm">{message}</p>
-                </div>
-                <div className="flex border-t border-claude-border">
-                    <button
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={onCancel}
-                        className="flex-1 py-4 font-semibold text-claude-secondary active:bg-claude-bg transition-colors border-r border-claude-border tap-action touch-target"
+                    />
+
+                    <motion.div
+                        ref={dialogRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="confirm-modal-title"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="relative bg-claude-surface w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl overflow-hidden touch-pan-y"
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        {cancelText}
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className={`flex-1 py-4 font-semibold active:bg-claude-bg transition-colors tap-action touch-target ${
-                            destructive ? 'text-red-500' : 'text-claude-accent'
-                        }`}
-                    >
-                        {confirmText}
-                    </button>
+                        {/* Drag Handle for mobile */}
+                        <div className="sm:hidden w-12 h-1.5 bg-claude-border rounded-full mx-auto mt-3 mb-1" />
+
+                        <div className="p-6 text-center">
+                            {destructive && (
+                                <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                                </div>
+                            )}
+                            <h3 id="confirm-modal-title" className="text-xl font-display font-bold mb-2">{title}</h3>
+                            <p className="text-claude-secondary text-sm leading-relaxed">{message}</p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row border-t border-claude-border bg-claude-bg/50">
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 py-4.5 sm:py-4 font-semibold text-claude-secondary active:bg-claude-bg transition-colors sm:border-r border-claude-border tap-action touch-target order-2 sm:order-1"
+                            >
+                                {cancelText}
+                            </button>
+                            <button
+                                onClick={onConfirm}
+                                className={`flex-1 py-4.5 sm:py-4 font-semibold active:bg-claude-bg transition-colors tap-action touch-target order-1 sm:order-2 ${destructive ? 'text-red-500' : 'text-claude-accent'
+                                    }`}
+                            >
+                                {confirmText}
+                            </button>
+                        </div>
+
+                        {/* Safe area padding for mobile */}
+                        <div className="h-safe-bottom sm:hidden" />
+                    </motion.div>
                 </div>
-            </div>
-        </div>
+            )}
+        </AnimatePresence>
     );
 }

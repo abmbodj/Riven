@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
 import { api } from '../api';
@@ -38,8 +39,8 @@ export default function DeckView() {
         api.getDeck(id)
             .then(data => {
                 setDeck(data);
-                setEditDeckData({ 
-                    title: data.title, 
+                setEditDeckData({
+                    title: data.title,
                     description: data.description || '',
                     folder_id: data.folder_id,
                     tagIds: data.tags?.map(t => t.id) || []
@@ -105,7 +106,7 @@ export default function DeckView() {
     const handleExport = async (format) => {
         try {
             const data = await api.exportDeck(id, format);
-            
+
             if (format === 'csv') {
                 const blob = new Blob([data], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
@@ -123,7 +124,7 @@ export default function DeckView() {
                 a.click();
                 URL.revokeObjectURL(url);
             }
-            
+
             toast.success(`Exported as ${format.toUpperCase()}`);
             setShowExportMenu(false);
         } catch {
@@ -135,16 +136,16 @@ export default function DeckView() {
         const cards = [...deck.cards];
         const idx = cards.findIndex(c => c.id === cardId);
         if (idx === -1) return;
-        
+
         const newIdx = direction === 'up' ? idx - 1 : idx + 1;
         if (newIdx < 0 || newIdx >= cards.length) return;
-        
+
         // Swap cards
         [cards[idx], cards[newIdx]] = [cards[newIdx], cards[idx]];
-        
+
         // Update positions locally
         setDeck({ ...deck, cards });
-        
+
         // Save to server
         try {
             await api.reorderCards(id, cards.map(c => c.id));
@@ -213,11 +214,11 @@ export default function DeckView() {
     const handleBulkImport = async (e) => {
         e.preventDefault();
         if (!bulkText.trim()) return;
-        
+
         // Parse the text - supports "front - back" or "front | back" or "front : back" per line
         const lines = bulkText.split('\n').filter(line => line.trim());
         const cards = [];
-        
+
         for (const line of lines) {
             // Try different separators
             let parts = null;
@@ -227,7 +228,7 @@ export default function DeckView() {
                     break;
                 }
             }
-            
+
             if (parts && parts.length >= 2) {
                 cards.push({
                     front: parts[0].trim(),
@@ -235,12 +236,12 @@ export default function DeckView() {
                 });
             }
         }
-        
+
         if (cards.length === 0) {
             toast.error('No valid cards found. Use "front - back" format.');
             return;
         }
-        
+
         try {
             // Add all cards in parallel
             await Promise.all(cards.map(card => api.addCard(id, card.front, card.back)));
@@ -284,7 +285,7 @@ export default function DeckView() {
     const handleTouchEnd = (cardId, e) => {
         const touchEndX = e.changedTouches[0].clientX;
         const diff = touchStartX.current - touchEndX;
-        
+
         if (diff > 80) {
             // Swiped left - show delete
             setSwipedCard(cardId);
@@ -312,8 +313,8 @@ export default function DeckView() {
             <ConfirmModal
                 isOpen={deleteConfirm.show}
                 title={deleteConfirm.type === 'deck' ? 'Delete Deck?' : 'Delete Card?'}
-                message={deleteConfirm.type === 'deck' 
-                    ? 'This will permanently delete the deck and all its cards.' 
+                message={deleteConfirm.type === 'deck'
+                    ? 'This will permanently delete the deck and all its cards.'
                     : 'This card will be permanently removed.'}
                 onConfirm={() => {
                     if (deleteConfirm.type === 'deck') {
@@ -327,106 +328,127 @@ export default function DeckView() {
             />
 
             {/* Stats Modal */}
-            {showStats && stats && (
-                <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-                    onClick={() => setShowStats(false)}
-                >
-                    <div 
-                        className="bg-claude-surface w-full max-w-sm max-h-[80vh] overflow-y-auto overscroll-contain rounded-3xl p-6 animate-in zoom-in-95 duration-300"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-display font-bold">Statistics</h3>
-                            <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
-                                <X className="w-6 h-6 text-claude-secondary" />
-                            </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                            <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.totalSessions || 0}</span>
-                                <p className="text-xs text-claude-secondary mt-1">Sessions</p>
-                            </div>
-                            <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.accuracy || 0}%</span>
-                                <p className="text-xs text-claude-secondary mt-1">Accuracy</p>
-                            </div>
-                            <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
-                                <p className="text-xs text-claude-secondary mt-1">Cards Studied</p>
-                            </div>
-                            <div className="bg-claude-bg rounded-xl p-4 text-center">
-                                <span className="text-2xl font-bold">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
-                                <p className="text-xs text-claude-secondary mt-1">Time Spent</p>
-                            </div>
-                        </div>
+            {/* Stats Modal */}
+            <AnimatePresence>
+                {showStats && stats && (
+                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowStats(false)}
+                        />
+                        <motion.div
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="relative bg-claude-surface w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="sm:hidden w-12 h-1.5 bg-claude-border rounded-full mx-auto -mt-2 mb-4" />
 
-                        {stats.cardsByDifficulty && (
-                            <div className="mb-4">
-                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Card Progress</h4>
-                                <div className="flex gap-2">
-                                    <div className="flex-1 bg-blue-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-blue-400">{stats.cardsByDifficulty.new || 0}</span>
-                                        <p className="text-[10px] text-blue-400">New</p>
-                                    </div>
-                                    <div className="flex-1 bg-yellow-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-yellow-400">{stats.cardsByDifficulty.learning || 0}</span>
-                                        <p className="text-[10px] text-yellow-400">Learning</p>
-                                    </div>
-                                    <div className="flex-1 bg-green-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-green-400">{stats.cardsByDifficulty.familiar || 0}</span>
-                                        <p className="text-[10px] text-green-400">Familiar</p>
-                                    </div>
-                                    <div className="flex-1 bg-purple-500/20 rounded-lg p-2 text-center">
-                                        <span className="text-lg font-bold text-purple-400">{stats.cardsByDifficulty.mastered || 0}</span>
-                                        <p className="text-[10px] text-purple-400">Mastered</p>
-                                    </div>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-display font-bold">Deck Statistics</h3>
+                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full tap-action">
+                                    <X className="w-7 h-7 text-claude-secondary" />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
+                                    <span className="text-3xl font-bold text-claude-text">{stats.totalSessions || 0}</span>
+                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Sessions</p>
+                                </div>
+                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
+                                    <span className="text-3xl font-bold text-claude-accent">{stats.accuracy || 0}%</span>
+                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Accuracy</p>
+                                </div>
+                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
+                                    <span className="text-3xl font-bold text-claude-text">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
+                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Studied</p>
+                                </div>
+                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
+                                    <span className="text-3xl font-bold text-claude-text">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
+                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Time</p>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Show mastered count from server if available */}
-                        {stats.masteredCount !== undefined && !stats.cardsByDifficulty && (
-                            <div className="mb-4">
-                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Progress</h4>
-                                <div className="bg-claude-bg rounded-xl p-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-claude-secondary">Mastered Cards</span>
-                                        <span className="text-lg font-bold text-green-400">{stats.masteredCount} / {stats.cardCount || 0}</span>
-                                    </div>
-                                    {stats.cardCount > 0 && (
-                                        <div className="mt-2 h-2 bg-claude-border rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-green-500 rounded-full transition-all"
-                                                style={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
-                                            />
+                            {stats.cardsByDifficulty && (
+                                <div className="mb-8">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Card Progress</h4>
+                                    <div className="flex gap-2.5">
+                                        <div className="flex-1 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+                                            <span className="text-xl font-bold text-blue-400">{stats.cardsByDifficulty.new || 0}</span>
+                                            <p className="text-[10px] uppercase font-bold text-blue-400">New</p>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {stats.recentSessions && stats.recentSessions.length > 0 && (
-                            <div>
-                                <h4 className="text-sm font-bold text-claude-secondary mb-2">Recent Sessions</h4>
-                                <div className="space-y-2">
-                                    {stats.recentSessions.slice(0, 5).map((session, i) => (
-                                        <div key={i} className="bg-claude-bg rounded-lg p-3 flex justify-between items-center">
-                                            <span className="text-xs text-claude-secondary">
-                                                {new Date(session.created_at).toLocaleDateString()}
-                                            </span>
-                                            <span className="text-sm font-medium">
-                                                {session.cards_correct}/{session.cards_studied} correct
-                                            </span>
+                                        <div className="flex-1 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center">
+                                            <span className="text-xl font-bold text-yellow-400">{stats.cardsByDifficulty.learning || 0}</span>
+                                            <p className="text-[10px] uppercase font-bold text-yellow-400">Learning</p>
                                         </div>
-                                    ))}
+                                        <div className="flex-1 bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+                                            <span className="text-xl font-bold text-green-400">{stats.cardsByDifficulty.familiar || 0}</span>
+                                            <p className="text-[10px] uppercase font-bold text-green-400">Familiar</p>
+                                        </div>
+                                        <div className="flex-1 bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
+                                            <span className="text-xl font-bold text-purple-400">{stats.cardsByDifficulty.mastered || 0}</span>
+                                            <p className="text-[10px] uppercase font-bold text-purple-400">Mastered</p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+
+                            {stats.masteredCount !== undefined && !stats.cardsByDifficulty && (
+                                <div className="mb-8">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Mastery Progress</h4>
+                                    <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-5">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-sm text-claude-secondary">Mastered Cards</span>
+                                            <span className="text-lg font-bold text-green-400">{stats.masteredCount} / {stats.cardCount || 0}</span>
+                                        </div>
+                                        {stats.cardCount > 0 && (
+                                            <div className="h-3 bg-claude-border rounded-full overflow-hidden shadow-inner">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
+                                                    transition={{ duration: 1, ease: 'easeOut' }}
+                                                    className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {stats.recentSessions && stats.recentSessions.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Recent Activity</h4>
+                                    <div className="space-y-2.5">
+                                        {stats.recentSessions.slice(0, 5).map((session, i) => (
+                                            <div key={i} className="bg-claude-bg/50 border border-claude-border/30 rounded-xl p-4 flex justify-between items-center">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-claude-text">
+                                                        {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </span>
+                                                    <span className="text-[10px] uppercase tracking-wider text-claude-secondary">Session Result</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-sm font-bold text-claude-accent">
+                                                        {session.cards_correct}/{session.cards_studied}
+                                                    </span>
+                                                    <p className="text-[10px] text-claude-secondary">Correct</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="h-safe-bottom sm:hidden" />
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
             {/* Header */}
             <div className="px-4 mb-6">
@@ -445,30 +467,56 @@ export default function DeckView() {
                         <div className="relative">
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
-                                className="p-2 text-claude-secondary active:text-claude-text"
+                                className="p-2 text-claude-secondary active:text-claude-text tap-action"
                                 title="Export"
                             >
                                 <Download className="w-5 h-5" />
                             </button>
-                            {showExportMenu && (
-                                <>
-                                    <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                                    <div className="absolute right-0 top-full mt-1 bg-claude-surface border border-claude-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[120px]">
-                                        <button
-                                            onClick={() => handleExport('json')}
-                                            className="w-full px-4 py-2.5 text-sm text-left hover:bg-claude-bg"
+                            <AnimatePresence>
+                                {showExportMenu && (
+                                    <div className="fixed inset-0 z-[60] flex items-end sm:items-start sm:justify-end sm:p-4">
+                                        {/* Mobile backdrop */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            className="fixed inset-0 bg-black/40 backdrop-blur-sm sm:hidden"
+                                            onClick={() => setShowExportMenu(false)}
+                                        />
+
+                                        <motion.div
+                                            initial={{ y: '100%', opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: '100%', opacity: 0 }}
+                                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md border-t sm:border border-claude-border rounded-t-[2rem] sm:rounded-xl shadow-2xl overflow-hidden z-20"
                                         >
-                                            Export JSON
-                                        </button>
-                                        <button
-                                            onClick={() => handleExport('csv')}
-                                            className="w-full px-4 py-2.5 text-sm text-left hover:bg-claude-bg border-t border-claude-border"
-                                        >
-                                            Export CSV
-                                        </button>
+                                            <div className="sm:hidden w-10 h-1 bg-claude-border rounded-full mx-auto mt-3 mb-1" />
+                                            <div className="p-4 sm:p-1 flex flex-col">
+                                                <button
+                                                    onClick={() => handleExport('json')}
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors"
+                                                >
+                                                    Export JSON
+                                                </button>
+                                                <button
+                                                    onClick={() => handleExport('csv')}
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors sm:border-t border-claude-border/50"
+                                                >
+                                                    Export CSV
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowExportMenu(false)}
+                                                    className="w-full px-6 py-4 sm:hidden text-center text-xs font-bold uppercase tracking-widest text-claude-secondary mt-2"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                            <div className="h-safe-bottom sm:hidden" />
+                                        </motion.div>
                                     </div>
-                                </>
-                            )}
+                                )}
+                            </AnimatePresence>
                         </div>
                         <button
                             onClick={handleDuplicate}
@@ -517,7 +565,7 @@ export default function DeckView() {
                             placeholder="Add a description..."
                             rows={2}
                         />
-                        
+
                         {/* Folder selector */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder</label>
@@ -577,7 +625,7 @@ export default function DeckView() {
                     <>
                         <h1 className="text-2xl font-display font-bold mb-1">{deck.title}</h1>
                         <p className="text-claude-secondary text-sm mb-3">{deck.description || 'No description'} · {deck.cards.length} cards</p>
-                        
+
                         {/* Folder & Tags display */}
                         <div className="flex items-center gap-2 flex-wrap">
                             {currentFolder && (
@@ -587,7 +635,7 @@ export default function DeckView() {
                                 </span>
                             )}
                             {deck.tags?.map(tag => (
-                                <span 
+                                <span
                                     key={tag.id}
                                     className="px-2.5 py-1 rounded-full text-xs font-medium text-white flex items-center gap-1"
                                     style={{ backgroundColor: tag.color }}
@@ -611,11 +659,10 @@ export default function DeckView() {
                             toast.error('Add some cards first');
                         }
                     }}
-                    className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${
-                        deck.cards.length > 0 
-                            ? 'bg-claude-accent text-white' 
+                    className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length > 0
+                            ? 'bg-claude-accent text-white'
                             : 'bg-claude-accent/50 text-white/70'
-                    }`}
+                        }`}
                 >
                     <BookOpen className="w-5 h-5" />
                     <span className="font-semibold">Study</span>
@@ -628,11 +675,10 @@ export default function DeckView() {
                             toast.error('Need 4+ cards for test mode');
                         }
                     }}
-                    className={`flex-1 border p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${
-                        deck.cards.length >= 4 
-                            ? 'bg-claude-surface border-claude-border' 
+                    className={`flex-1 border p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length >= 4
+                            ? 'bg-claude-surface border-claude-border'
                             : 'bg-claude-surface/50 border-claude-border/50 text-claude-secondary'
-                    }`}
+                        }`}
                 >
                     <Play className="w-5 h-5" />
                     <span className="font-semibold">Test</span>
@@ -666,7 +712,7 @@ export default function DeckView() {
 
             {/* Bulk Import Modal */}
             {showBulkImport && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowBulkImport(false);
@@ -688,9 +734,9 @@ export default function DeckView() {
                             Paste multiple cards, one per line. Use <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">-</code> or <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">|</code> to separate front and back.
                         </p>
                         <div className="text-xs text-claude-secondary mb-3 bg-claude-bg rounded-lg p-3">
-                            <strong>Example:</strong><br/>
-                            hello - hola<br/>
-                            goodbye - adiós<br/>
+                            <strong>Example:</strong><br />
+                            hello - hola<br />
+                            goodbye - adiós<br />
                             thank you - gracias
                         </div>
                         <textarea
@@ -709,7 +755,7 @@ export default function DeckView() {
 
             {/* Add card modal */}
             {showAddCard && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowAddCard(false);
@@ -771,27 +817,26 @@ export default function DeckView() {
                     <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
                 )}
                 {deck.cards.map((card, idx) => (
-                    <div 
-                        key={card.id} 
+                    <div
+                        key={card.id}
                         className="relative overflow-hidden rounded-2xl"
                         onTouchStart={(e) => handleTouchStart(card.id, e)}
                         onTouchEnd={(e) => handleTouchEnd(card.id, e)}
                     >
                         {/* Delete button behind card */}
                         <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center">
-                            <button 
+                            <button
                                 onClick={() => setDeleteConfirm({ show: true, type: 'card', id: card.id })}
                                 className="p-3"
                             >
                                 <Trash2 className="w-6 h-6 text-white" />
                             </button>
                         </div>
-                        
+
                         {/* Card content */}
-                        <div 
-                            className={`claude-card p-4 transition-transform duration-200 ${
-                                swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
-                            }`}
+                        <div
+                            className={`claude-card p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
+                                }`}
                         >
                             {editingCard === card.id ? (
                                 <div className="space-y-3">
@@ -830,14 +875,14 @@ export default function DeckView() {
                             ) : reorderMode ? (
                                 <div className="flex items-center gap-3">
                                     <div className="flex flex-col gap-1">
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
                                             disabled={idx === 0}
                                             className="p-1 text-claude-secondary disabled:opacity-30"
                                         >
                                             <ChevronUp className="w-5 h-5" />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
                                             disabled={idx === deck.cards.length - 1}
                                             className="p-1 text-claude-secondary disabled:opacity-30"

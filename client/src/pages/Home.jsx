@@ -367,19 +367,20 @@ export default function Home() {
                             className="fixed inset-0 bg-[#0d1a1f]/80 backdrop-blur-md z-[60]"
                         />
                         <motion.div
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed top-0 right-0 bottom-0 w-[85%] max-w-sm bg-[#162a31] border-l border-[#233e46] z-[70] shadow-2xl overflow-y-auto"
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                            className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-[#162a31] border-t border-[#233e46] z-[70] shadow-2xl overflow-y-auto rounded-t-[3rem]"
                         >
-                            <div className="p-6 pt-safe">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
-                                    <button onClick={() => setIsMenuOpen(false)} className="p-2 -mr-2 text-[#8fa6a8] hover:text-claude-accent tap-action">
-                                        <X className="w-6 h-6" />
-                                    </button>
-                                </div>
+                            <div className="sticky top-0 right-0 left-0 bg-[#162a31]/80 backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[#233e46]/30">
+                                <div className="w-12 h-1.5 bg-[#233e46] rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
+                                <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
+                                <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-[#8fa6a8] hover:text-claude-accent tap-action">
+                                    <X className="w-7 h-7" />
+                                </button>
+                            </div>
+                            <div className="p-8 pb-safe">
 
                                 {/* Folders in Menu */}
                                 <div className="mb-10">
@@ -500,23 +501,30 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                     <button
-                        onClick={() => setIsSearchOpen(true)}
-                        className="p-3 bg-[#1e3840]/40 border border-[#233e46] rounded-xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action"
-                    >
-                        <Search className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                    <button
-                        onClick={() => setIsMenuOpen(true)}
-                        className={`p-3 border rounded-xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
-                    >
-                        {activeFolder || activeTag ? <Filter className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
-                    </button>
-                    <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
                         className="p-3 bg-[#1e3840]/40 border border-[#233e46] rounded-xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action disabled:opacity-50"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Quick Actions Bar — Thumb-reachable controls */}
+            <div className="sticky top-safe z-30 mb-8 py-2 -mx-4 px-4 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsSearchOpen(true)}
+                        className="flex-1 flex items-center gap-3 p-3 bg-[#1e3840]/40 border border-[#233e46] rounded-2xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action"
+                    >
+                        <Search className="w-5 h-5 opacity-60 ml-1" />
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
+                    </button>
+                    <button
+                        onClick={() => setIsMenuOpen(true)}
+                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                    >
+                        {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
                 </div>
             </div>

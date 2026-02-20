@@ -2,15 +2,16 @@ import React, { useEffect, useRef } from 'react';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import Info from 'lucide-react/dist/esm/icons/info';
-import X from 'lucide-react/dist/esm/icons/x';
+import XIcon from 'lucide-react/dist/esm/icons/x';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import { motion, AnimatePresence } from 'motion/react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
-export default function AlertModal({ 
-    isOpen, 
-    onClose, 
-    title, 
-    message, 
+export default function AlertModal({
+    isOpen,
+    onClose,
+    title,
+    message,
     type = 'info', // 'success', 'error', 'warning', 'info'
     actionLabel,
     onAction
@@ -60,8 +61,6 @@ export default function AlertModal({
         };
     }, [isOpen]);
 
-    if (!isOpen) return null;
-
     const icons = {
         success: <CheckCircle className="w-10 h-10 text-green-500" />,
         error: <AlertCircle className="w-10 h-10 text-red-500" />,
@@ -84,62 +83,81 @@ export default function AlertModal({
     };
 
     return (
-        <div 
-            className="modal-overlay animate-in fade-in duration-200"
-            onClick={onClose}
-        >
-            <div 
-                ref={dialogRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="alert-modal-title"
-                className={`relative w-full max-w-sm rounded-3xl border ${colors[type]} p-6 animate-in zoom-in-95 duration-200 modal-content`}
-                style={{ backgroundColor: 'var(--surface-color)' }}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Close button */}
-                <button 
-                    onClick={onClose}
-                    className="absolute top-4 right-4 touch-target text-claude-secondary hover:text-claude-text transition-colors tap-action"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-
-                {/* Icon */}
-                <div className="flex justify-center mb-4">
-                    <div className={`w-16 h-16 rounded-full ${colors[type]} flex items-center justify-center`}>
-                        {icons[type]}
-                    </div>
-                </div>
-
-                {/* Title */}
-                {title && (
-                    <h3 id="alert-modal-title" className="text-xl font-display font-bold text-center mb-2">{title}</h3>
-                )}
-
-                {/* Message */}
-                <p className="text-claude-secondary text-center text-sm leading-relaxed mb-6">
-                    {message}
-                </p>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-3">
-                    {actionLabel && onAction && (
-                        <button
-                            onClick={onAction}
-                            className={`w-full py-4 rounded-xl font-semibold ${buttonColors[type]} active:scale-[0.97] transition-transform tap-action touch-target`}
-                        >
-                            {actionLabel}
-                        </button>
-                    )}
-                    <button
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={onClose}
-                        className="w-full py-4 rounded-xl font-semibold bg-claude-surface border border-claude-border active:scale-[0.97] transition-transform tap-action touch-target"
+                    />
+
+                    <motion.div
+                        ref={dialogRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="alert-modal-title"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="relative w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-3xl border border-claude-border shadow-2xl p-6 overflow-hidden touch-pan-y"
+                        style={{ backgroundColor: 'var(--surface-color, #162a31)' }}
+                        onClick={e => e.stopPropagation()}
                     >
-                        {actionLabel ? 'Cancel' : 'OK'}
-                    </button>
+                        {/* Drag Handle for mobile */}
+                        <div className="sm:hidden w-12 h-1.5 bg-claude-border rounded-full mx-auto -mt-2 mb-4" />
+
+                        {/* Close button */}
+                        <button
+                            onClick={onClose}
+                            className="absolute top-6 right-6 touch-target text-claude-secondary hover:text-claude-text transition-colors tap-action"
+                        >
+                            <XIcon className="w-6 h-6" />
+                        </button>
+
+                        {/* Icon */}
+                        <div className="flex justify-center mb-6">
+                            <div className={`w-20 h-20 rounded-full ${colors[type]} flex items-center justify-center`}>
+                                {icons[type]}
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        {title && (
+                            <h3 id="alert-modal-title" className="text-2xl font-display font-bold text-center mb-3 text-claude-text">{title}</h3>
+                        )}
+
+                        {/* Message */}
+                        <p className="text-claude-secondary text-center text-sm leading-relaxed mb-8 px-2">
+                            {message}
+                        </p>
+
+                        {/* Actions */}
+                        <div className="flex flex-col gap-3">
+                            {actionLabel && onAction && (
+                                <button
+                                    onClick={onAction}
+                                    className={`w-full py-4.5 rounded-2xl font-bold ${buttonColors[type]} active:scale-[0.97] transition-transform tap-action touch-target shadow-lg`}
+                                >
+                                    {actionLabel}
+                                </button>
+                            )}
+                            <button
+                                onClick={onClose}
+                                className="w-full py-4.5 rounded-2xl font-bold bg-[#1e3840]/60 border border-[#233e46] text-claude-text active:scale-[0.97] transition-transform tap-action touch-target"
+                            >
+                                {actionLabel ? 'Cancel' : 'OK'}
+                            </button>
+                        </div>
+
+                        {/* Safe area padding for mobile */}
+                        <div className="h-safe-bottom sm:hidden mt-2" />
+                    </motion.div>
                 </div>
-            </div>
-        </div>
+            )}
+        </AnimatePresence>
     );
 }
