@@ -1,17 +1,35 @@
 module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
-    function adminMiddleware(req, res, next) {
-        const role = req.user?.role;
-        if (role !== 'admin' && role !== 'owner') {
-            return res.status(403).json({ error: 'Admin access required' });
+    async function adminMiddleware(req, res, next) {
+        try {
+            const user = await db.queryOne('SELECT role, is_admin FROM users WHERE id = $1', [req.user.id]);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            const role = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+            if (role !== 'admin' && role !== 'owner') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+
+            req.user.role = role;
+            next();
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to verify permissions' });
         }
-        next();
     }
 
-    function ownerMiddleware(req, res, next) {
-        if (req.user?.role !== 'owner') {
-            return res.status(403).json({ error: 'Owner access required' });
+    async function ownerMiddleware(req, res, next) {
+        try {
+            const user = await db.queryOne('SELECT role FROM users WHERE id = $1', [req.user.id]);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            if (user.role !== 'owner') {
+                return res.status(403).json({ error: 'Owner access required' });
+            }
+
+            req.user.role = 'owner';
+            next();
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to verify permissions' });
         }
-        next();
     }
 
     app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
