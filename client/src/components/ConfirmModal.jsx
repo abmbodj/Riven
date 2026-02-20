@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 

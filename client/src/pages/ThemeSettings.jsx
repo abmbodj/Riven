@@ -4,6 +4,7 @@ import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Palette, ChevronRight, Sparkl
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import useHaptics from '../hooks/useHaptics';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 
 // Default theme presets for the editor
@@ -445,8 +446,8 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
         <div
             onClick={onSelect}
             className={`group relative overflow-hidden rounded-[2rem] border-2 p-6 transition-all duration-300 cursor-pointer h-full flex flex-col ${isActive
-                    ? 'border-claude-accent ring-8 ring-claude-accent/5'
-                    : 'border-claude-border hover:border-claude-accent/40 bg-claude-surface'
+                ? 'border-claude-accent ring-8 ring-claude-accent/5'
+                : 'border-claude-border hover:border-claude-accent/40 bg-claude-surface'
                 }`}
         >
             {/* Visual Preview Area */}

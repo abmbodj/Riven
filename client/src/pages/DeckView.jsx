@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
@@ -344,15 +345,15 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative bg-claude-surface w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
+                            className="relative botanical-card paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="sm:hidden w-12 h-1.5 bg-claude-border rounded-full mx-auto -mt-2 mb-4" />
+                            <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto -mt-2 mb-4" />
 
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-2xl font-display font-bold">Deck Statistics</h3>
-                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full tap-action">
-                                    <X className="w-7 h-7 text-claude-secondary" />
+                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-botanical-forest/10 rounded-full tap-action">
+                                    <X className="w-7 h-7 text-botanical-ink/60" />
                                 </button>
                             </div>
 
@@ -659,9 +660,9 @@ export default function DeckView() {
                             toast.error('Add some cards first');
                         }
                     }}
-                    className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length > 0
-                            ? 'bg-claude-accent text-white'
-                            : 'bg-claude-accent/50 text-white/70'
+                    className={`flex-1 p-5 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-botanical ${deck.cards.length > 0
+                        ? 'bg-botanical-forest text-botanical-parchment font-display text-lg tracking-wide hover:brightness-110 border border-botanical-forest/20'
+                        : 'bg-botanical-forest/50 text-botanical-parchment/70 font-display text-lg tracking-wide border border-transparent'
                         }`}
                 >
                     <BookOpen className="w-5 h-5" />
@@ -675,9 +676,9 @@ export default function DeckView() {
                             toast.error('Need 4+ cards for test mode');
                         }
                     }}
-                    className={`flex-1 border p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform ${deck.cards.length >= 4
-                            ? 'bg-claude-surface border-claude-border'
-                            : 'bg-claude-surface/50 border-claude-border/50 text-claude-secondary'
+                    className={`flex-1 p-5 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-botanical ${deck.cards.length >= 4
+                        ? 'botanical-card text-botanical-parchment font-display text-lg tracking-wide hover:border-botanical-forest/30'
+                        : 'botanical-card opacity-50 text-claude-secondary font-display text-lg tracking-wide'
                         }`}
                 >
                     <Play className="w-5 h-5" />
@@ -835,7 +836,7 @@ export default function DeckView() {
 
                         {/* Card content */}
                         <div
-                            className={`claude-card p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
+                            className={`botanical-card paper-texture text-botanical-ink p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
                                 }`}
                         >
                             {editingCard === card.id ? (
@@ -890,16 +891,16 @@ export default function DeckView() {
                                             <ChevronDown className="w-5 h-5" />
                                         </button>
                                     </div>
-                                    <span className="text-claude-border font-display font-bold text-sm">{idx + 1}</span>
+                                    <span className="text-botanical-forest font-display font-bold text-sm">{idx + 1}</span>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-sm mb-1">{card.front}</p>
-                                        <p className="text-claude-secondary text-sm">{card.back}</p>
+                                        <p className="text-botanical-ink/70 text-sm">{card.back}</p>
                                     </div>
-                                    <GripVertical className="w-5 h-5 text-claude-secondary shrink-0" />
+                                    <GripVertical className="w-5 h-5 text-botanical-ink/50 shrink-0" />
                                 </div>
                             ) : (
                                 <div className="flex gap-3" onClick={() => handleEditCard(card)}>
-                                    <span className="text-claude-border font-display font-bold text-sm mt-0.5">{idx + 1}</span>
+                                    <span className="text-botanical-forest font-display font-bold text-sm mt-0.5">{idx + 1}</span>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-sm mb-1">
                                             {card.front}
@@ -907,9 +908,9 @@ export default function DeckView() {
                                                 <span className="ml-2 text-xs text-claude-accent">📷</span>
                                             )}
                                         </p>
-                                        <p className="text-claude-secondary text-sm">{card.back}</p>
+                                        <p className="text-botanical-ink/70 text-sm">{card.back}</p>
                                     </div>
-                                    <Pencil className="w-4 h-4 text-claude-secondary shrink-0 mt-1" />
+                                    <Pencil className="w-4 h-4 text-botanical-ink/50 shrink-0 mt-1" />
                                 </div>
                             )}
                         </div>
