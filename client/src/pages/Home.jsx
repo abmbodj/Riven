@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
-    Menu, Filter, Library
+    Menu, Filter, Library, Leaf
 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
