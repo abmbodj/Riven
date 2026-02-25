@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers
+    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -35,6 +35,9 @@ export default function ClassView() {
     // Modal state for Schedule
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [scheduleForm, setScheduleForm] = useState({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
+
+    // AI Generation
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
@@ -180,6 +183,30 @@ export default function ClassView() {
             loadData();
         } catch (err) {
             toast.error('Failed to remove time slot');
+        }
+    };
+
+    const handleGenerateAI = async () => {
+        if (!assignForm.description || assignForm.description.trim() === '') {
+            toast.error('Please add some notes to generate flashcards from.');
+            return;
+        }
+
+        setIsGeneratingAI(true);
+        try {
+            const result = await api.generateAiDeck(
+                assignForm.description,
+                `${assignForm.title} - AI ✨`,
+                id
+            );
+            toast.success(`Generated ${result.card_count} flashcards!`);
+            setShowAssignModal(false);
+            loadData(); // Will refresh decks list
+            navigate(`/deck/${result.deck_id}`);
+        } catch (err) {
+            toast.error(err.message || 'Failed to generate flashcards.');
+        } finally {
+            setIsGeneratingAI(false);
         }
     };
 
@@ -450,10 +477,29 @@ export default function ClassView() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Description</label>
-                                    <textarea rows="3" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none" placeholder="Add any details or notes here..." />
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Description / Notes</label>
+                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Paste your lecture notes or syllabus reading here to generate flashcards..." />
+
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateAI}
+                                        disabled={isGeneratingAI || !assignForm.description?.trim()}
+                                        className="w-full h-12 flex items-center justify-center gap-2 bg-[#1e3840]/40 hover:bg-[#1e3840]/80 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                                    >
+                                        {isGeneratingAI ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Generating Deck...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="w-4 h-4 group-hover:text-yellow-300 transition-colors" />
+                                                Generate AI Flashcards
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
-                                <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Task</button>
+                                <button type="submit" disabled={isGeneratingAI} className="claude-button-primary w-full py-5 text-lg mt-4 disabled:opacity-50">Save Task</button>
                             </div>
                         </motion.form>
                     </div>

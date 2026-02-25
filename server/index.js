@@ -21,6 +21,8 @@ const registerAdminRoutes = require('./routes/admin');
 const registerClassesRoutes = require('./routes/classes');
 const registerAssignmentsRoutes = require('./routes/assignments');
 const registerScheduleRoutes = require('./routes/schedule');
+const registerLMSRoutes = require('./routes/lms');
+const registerAIRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -234,6 +236,18 @@ registerClassesRoutes({ app, db, authMiddleware });
 // ============ ASSIGNMENTS ============
 
 registerAssignmentsRoutes({ app, db, authMiddleware });
+
+// ============ SCHEDULE ============
+
+registerScheduleRoutes({ app, db, authMiddleware });
+
+// ============ LMS INTEGRATION ============
+
+registerLMSRoutes({ app, db, authMiddleware });
+
+// ============ AI GENERATION ============
+
+registerAIRoutes({ app, db, authMiddleware, rateLimit });
 
 // ============ MESSAGES ============
 

@@ -82,6 +82,13 @@ export const api = {
     deleteAssignment: (id) => isLoggedIn()
         ? serverApi.deleteAssignment(id)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
+    updateCanvasSettings: (url, token) => isLoggedIn() ? serverApi.updateCanvasSettings(url, token) : Promise.reject(new Error('Must be logged in to manage Canvas')),
+    syncCanvas: () => isLoggedIn() ? serverApi.syncCanvas() : Promise.reject(new Error('Must be logged in to sync Canvas')),
+
+    // AI Generation
+    generateAiDeck: (notes, deckName, classId) => isLoggedIn()
+        ? serverApi.generateAiDeck(notes, deckName, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
 
     // ============ SCHEDULE ============
     getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),

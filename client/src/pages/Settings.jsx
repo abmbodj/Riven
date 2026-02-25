@@ -5,9 +5,11 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
 import { ThemeContext } from '../ThemeContext';
+import { api } from '../api';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import { Network, RefreshCw } from 'lucide-react';
 
 const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false }) => (
     <button
@@ -44,6 +46,45 @@ export default function Settings() {
         twoFactor: false,
         delete: false
     });
+
+    const [lmsConfig, setLmsConfig] = useState({ url: '', token: '' });
+    const [lmsStatus, setLmsStatus] = useState({ loading: true, syncing: false, hasToken: false });
+
+    React.useEffect(() => {
+        const loadLMS = async () => {
+            try {
+                const res = await api.getCanvasSettings();
+                setLmsConfig(prev => ({ ...prev, url: res.canvas_url || '' }));
+                setLmsStatus(prev => ({ ...prev, hasToken: res.has_token, loading: false }));
+            } catch (err) {
+                setLmsStatus(prev => ({ ...prev, loading: false }));
+            }
+        };
+        loadLMS();
+    }, []);
+
+    const handleSaveLms = async () => {
+        try {
+            await api.updateCanvasSettings(lmsConfig.url, lmsConfig.token);
+            toast.success('Canvas settings saved');
+            setLmsStatus(prev => ({ ...prev, hasToken: true }));
+            setLmsConfig(prev => ({ ...prev, token: '' })); // clear memory token
+        } catch (err) {
+            toast.error('Failed to save Canvas settings');
+        }
+    };
+
+    const handleSyncLms = async () => {
+        setLmsStatus(prev => ({ ...prev, syncing: true }));
+        try {
+            const res = await api.syncCanvas();
+            toast.success(`Synced ${res.classesAdded} classes & ${res.assignmentsAdded} assignments!`);
+        } catch (err) {
+            toast.error(err.message || 'LMS Sync Failed');
+        } finally {
+            setLmsStatus(prev => ({ ...prev, syncing: false }));
+        }
+    };
 
     const isLightMode = activeTheme?.name === 'Riven Light';
 
@@ -121,6 +162,65 @@ export default function Settings() {
                             description={user?.twoFAEnabled ? "Enabled" : "Add extra protection"}
                             onClick={() => openModal('twoFactor')}
                         />
+                    </div>
+                </div>
+
+                {/* Integrations */}
+                <div>
+                    <h2 className="text-xs font-mono uppercase tracking-widest text-[#0ea5e9] mb-2 pl-1 border-l-2 border-[#0ea5e9]/30">
+                        &nbsp;Integrations
+                    </h2>
+                    <div className="flex flex-col bg-claude-surface/30 border border-botanical-sepia/10 rounded-2xl p-5 shadow-sm space-y-4">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 rounded-xl bg-[#0ea5e9]/10 text-[#0ea5e9]">
+                                <Network className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-display text-lg tracking-wide text-claude-text">Canvas LMS</h3>
+                                <p className="text-xs font-mono text-botanical-sepia mt-0.5">Automate your assignments</p>
+                            </div>
+                        </div>
+
+                        {!lmsStatus.loading && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-sepia/80 mb-1 pl-1">Canvas Domain URL</label>
+                                    <input
+                                        type="url"
+                                        placeholder="e.g. https://canvas.university.edu"
+                                        value={lmsConfig.url}
+                                        onChange={e => setLmsConfig({ ...lmsConfig, url: e.target.value })}
+                                        className="w-full bg-claude-bg border border-botanical-sepia/20 rounded-xl px-4 py-2.5 text-sm font-mono focus:border-[#0ea5e9]/50 transition-colors placeholder:opacity-30 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-sepia/80 mb-1 pl-1">Access Token {lmsStatus.hasToken && <span className="text-emerald-500 lowercase opacity-80">(Saved)</span>}</label>
+                                    <input
+                                        type="password"
+                                        placeholder={lmsStatus.hasToken ? "Enter to replace existing token" : "Paste your Canvas API token here..."}
+                                        value={lmsConfig.token}
+                                        onChange={e => setLmsConfig({ ...lmsConfig, token: e.target.value })}
+                                        className="w-full bg-claude-bg border border-botanical-sepia/20 rounded-xl px-4 py-2.5 text-sm font-mono focus:border-[#0ea5e9]/50 transition-colors placeholder:opacity-30 outline-none"
+                                    />
+                                </div>
+                                <div className="pt-2 flex gap-3">
+                                    <button
+                                        onClick={handleSaveLms}
+                                        className="flex-1 bg-[#1e3840] hover:bg-[#233e46] text-botanical-parchment font-mono text-xs uppercase tracking-widest py-2.5 rounded-xl transition-colors font-bold"
+                                    >
+                                        Save
+                                    </button>
+                                    <button
+                                        onClick={handleSyncLms}
+                                        disabled={!lmsStatus.hasToken || lmsStatus.syncing}
+                                        className="flex-1 bg-[#0ea5e9]/20 hover:bg-[#0ea5e9]/30 text-[#0ea5e9] border border-[#0ea5e9]/20 disabled:opacity-50 font-mono text-xs uppercase tracking-widest py-2.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                                    >
+                                        <RefreshCw className={`w-3.5 h-3.5 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
+                                        Sync Now
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
