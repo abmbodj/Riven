@@ -47,19 +47,16 @@ export default function Settings() {
         delete: false
     });
 
-    const [lmsStatus, setLmsStatus] = useState({ loading: true, syncing: false, isConnected: false });
+    const [lmsStatus, setLmsStatus] = useState({ loading: true, syncing: false, isConnected: false, canvasUrl: '' });
+    const [canvasForm, setCanvasForm] = useState({ url: '', token: '' });
+    const [connectingCanvas, setConnectingCanvas] = useState(false);
 
     React.useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('lms') === 'success') {
-            toast.success('Successfully connected school account!');
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-
         const loadLMS = async () => {
             try {
-                const res = await api.getEdlinkSettings();
-                setLmsStatus(prev => ({ ...prev, isConnected: res.isConnected, loading: false }));
+                const res = await api.getCanvasSettings();
+                setLmsStatus(prev => ({ ...prev, isConnected: res.isConnected, canvasUrl: res.canvasUrl || '', loading: false }));
+                if (res.canvasUrl) setCanvasForm(prev => ({ ...prev, url: res.canvasUrl }));
             } catch (err) {
                 setLmsStatus(prev => ({ ...prev, loading: false }));
             }
@@ -67,22 +64,42 @@ export default function Settings() {
         loadLMS();
     }, []);
 
-    const handleConnectLms = async () => {
+    const handleConnectCanvas = async () => {
+        if (!canvasForm.url || !canvasForm.token) {
+            toast.error('Enter your Canvas URL and API Token');
+            return;
+        }
+        setConnectingCanvas(true);
         try {
-            const res = await api.getEdlinkConnectUrl();
-            window.location.href = res.url;
+            await api.connectCanvas(canvasForm.url, canvasForm.token);
+            toast.success('Canvas connected successfully!');
+            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: canvasForm.url }));
+            setCanvasForm(prev => ({ ...prev, token: '' }));
         } catch (err) {
-            toast.error('Failed to initiate school connection');
+            toast.error(err.error || 'Failed to connect Canvas');
+        } finally {
+            setConnectingCanvas(false);
+        }
+    };
+
+    const handleDisconnectCanvas = async () => {
+        try {
+            await api.disconnectCanvas();
+            toast.success('Canvas disconnected');
+            setLmsStatus(prev => ({ ...prev, isConnected: false, canvasUrl: '' }));
+            setCanvasForm({ url: '', token: '' });
+        } catch (err) {
+            toast.error('Failed to disconnect');
         }
     };
 
     const handleSyncLms = async () => {
         setLmsStatus(prev => ({ ...prev, syncing: true }));
         try {
-            const res = await api.syncEdlink();
+            const res = await api.syncCanvas();
             toast.success(`Synced ${res.classesAdded} classes & ${res.assignmentsAdded} assignments!`);
         } catch (err) {
-            toast.error(err.message || 'LMS Sync Failed');
+            toast.error(err.error || 'Canvas Sync Failed');
         } finally {
             setLmsStatus(prev => ({ ...prev, syncing: false }));
         }
@@ -99,15 +116,11 @@ export default function Settings() {
 
     const toggleTheme = () => {
         haptics.light();
-        if (themes && themes.length > 0) {
-            const targetThemeName = isLightMode ? 'Riven' : 'Riven Light';
-            const targetTheme = themes.find(t => t.name === targetThemeName);
-            if (targetTheme) {
-                switchTheme(targetTheme.id);
-                toast.success(`Switched to ${targetThemeName}`);
-            } else {
-                toast.error('Theme not found');
-            }
+        if (themes && themes.length < 2) return;
+        const light = themes.find(t => t.name === 'Riven Light');
+        const dark = themes.find(t => t.name === 'Riven');
+        if (light && dark) {
+            switchTheme(isLightMode ? dark.name : light.name);
         }
     };
 
@@ -121,49 +134,27 @@ export default function Settings() {
     };
 
     return (
-        <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
-            {/* Organic Header */}
-            <div className="relative h-40 overflow-hidden mb-6">
-                <div className="absolute inset-0 bg-[#0f2026]"></div>
-                <div className="absolute top-[-50%] right-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(222,185,106,0.1),transparent_60%)] blur-3xl" />
-
-                {/* Navigation */}
-                <div className="absolute top-0 left-0 right-0 p-4 z-10 safe-area-top">
-                    <button
-                        onClick={() => navigate('/account')}
-                        className="p-2 bg-black/20 backdrop-blur-md rounded-full text-white/90 hover:bg-black/30 transition-colors"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
+        <div className="min-h-screen bg-claude-bg text-claude-text pb-24">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-claude-bg/80 backdrop-blur-xl border-b border-botanical-sepia/10">
+                <div className="flex items-center justify-between px-4 py-4">
+                    <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-claude-surface transition-colors">
+                        <ArrowLeft className="w-5 h-5 text-claude-text" />
                     </button>
+                    <h1 className="font-display text-xl tracking-wider text-claude-text">Settings</h1>
+                    <div className="w-9" />
                 </div>
-
-                <div className="absolute bottom-4 left-6">
-                    <h1 className="text-3xl font-display text-white/90">Settings</h1>
-                </div>
-
-                <Flower className="absolute -bottom-6 -right-6 w-32 h-32 text-botanical-forest/5 rotate-[-12deg]" />
             </div>
 
-            <div className="px-6 max-w-md mx-auto space-y-10">
-
-                {/* Account Security */}
+            <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+                {/* Account Section */}
                 <div>
                     <h2 className="text-xs font-mono uppercase tracking-widest text-botanical-sepia mb-2 pl-1 border-l-2 border-botanical-forest/30">
-                        &nbsp;Security
+                        &nbsp;Account
                     </h2>
-                    <div className="flex flex-col">
-                        <SettingItem
-                            icon={Lock}
-                            title="Change Password"
-                            description="Secure your journal"
-                            onClick={() => openModal('password')}
-                        />
-                        <SettingItem
-                            icon={Shield}
-                            title="Two-Factor Auth"
-                            description={user?.twoFAEnabled ? "Enabled" : "Add extra protection"}
-                            onClick={() => openModal('twoFactor')}
-                        />
+                    <div className="bg-claude-surface/30 border border-botanical-sepia/10 rounded-2xl overflow-hidden px-4 shadow-sm">
+                        <SettingItem icon={Lock} title="Change Password" description="Update your password" onClick={() => setModals(m => ({ ...m, password: true }))} />
+                        <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — Manage 2FA' : 'Add extra security'} onClick={() => setModals(m => ({ ...m, twoFactor: true }))} />
                     </div>
                 </div>
 
@@ -178,31 +169,61 @@ export default function Settings() {
                                 <Network className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="font-display text-lg tracking-wide text-claude-text">School Sync</h3>
-                                <p className="text-xs font-mono text-botanical-sepia mt-0.5">Automate Canvas, Blackboard, etc.</p>
+                                <h3 className="font-display text-lg tracking-wide text-claude-text">Canvas Sync</h3>
+                                <p className="text-xs font-mono text-botanical-sepia mt-0.5">
+                                    {lmsStatus.isConnected ? `Connected to ${lmsStatus.canvasUrl.replace(/https?:\/\//, '')}` : 'Import courses & assignments from Canvas'}
+                                </p>
                             </div>
                         </div>
 
                         {!lmsStatus.loading && (
                             <div className="space-y-3">
-                                <div className="pt-2 flex flex-col gap-3">
-                                    <button
-                                        onClick={handleConnectLms}
-                                        className="w-full bg-[#1e3840] hover:bg-[#233e46] text-botanical-parchment font-mono text-xs uppercase tracking-widest py-3 rounded-xl transition-colors font-bold flex items-center justify-center gap-2"
-                                    >
-                                        <Lock className="w-4 h-4" />
-                                        {lmsStatus.isConnected ? 'Reconnect Account' : 'Connect via Edlink'}
-                                    </button>
-
-                                    <button
-                                        onClick={handleSyncLms}
-                                        disabled={!lmsStatus.isConnected || lmsStatus.syncing}
-                                        className="w-full bg-[#0ea5e9]/20 hover:bg-[#0ea5e9]/30 text-[#0ea5e9] border border-[#0ea5e9]/20 disabled:opacity-50 font-mono text-xs uppercase tracking-widest py-3 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
-                                    >
-                                        <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
-                                        {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Now'}
-                                    </button>
-                                </div>
+                                {!lmsStatus.isConnected ? (
+                                    <>
+                                        <input
+                                            type="url"
+                                            placeholder="Canvas URL (e.g. https://school.instructure.com)"
+                                            value={canvasForm.url}
+                                            onChange={e => setCanvasForm(prev => ({ ...prev, url: e.target.value }))}
+                                            className="w-full bg-claude-bg border border-botanical-sepia/20 rounded-xl px-4 py-3 text-sm text-claude-text placeholder-botanical-sepia/40 font-mono focus:outline-none focus:border-[#0ea5e9]/50 transition-colors"
+                                        />
+                                        <input
+                                            type="password"
+                                            placeholder="API Token"
+                                            value={canvasForm.token}
+                                            onChange={e => setCanvasForm(prev => ({ ...prev, token: e.target.value }))}
+                                            className="w-full bg-claude-bg border border-botanical-sepia/20 rounded-xl px-4 py-3 text-sm text-claude-text placeholder-botanical-sepia/40 font-mono focus:outline-none focus:border-[#0ea5e9]/50 transition-colors"
+                                        />
+                                        <p className="text-[10px] font-mono text-botanical-sepia/60 leading-relaxed">
+                                            Find your token in Canvas → Account → Settings → New Access Token
+                                        </p>
+                                        <button
+                                            onClick={handleConnectCanvas}
+                                            disabled={connectingCanvas}
+                                            className="w-full bg-[#1e3840] hover:bg-[#233e46] text-botanical-parchment font-mono text-xs uppercase tracking-widest py-3 rounded-xl transition-colors font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <Lock className="w-4 h-4" />
+                                            {connectingCanvas ? 'Connecting...' : 'Connect Canvas'}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="pt-2 flex flex-col gap-3">
+                                        <button
+                                            onClick={handleSyncLms}
+                                            disabled={lmsStatus.syncing}
+                                            className="w-full bg-[#0ea5e9]/20 hover:bg-[#0ea5e9]/30 text-[#0ea5e9] border border-[#0ea5e9]/20 disabled:opacity-50 font-mono text-xs uppercase tracking-widest py-3 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                                        >
+                                            <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
+                                            {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Now'}
+                                        </button>
+                                        <button
+                                            onClick={handleDisconnectCanvas}
+                                            className="w-full text-botanical-sepia/60 hover:text-red-400 font-mono text-[10px] uppercase tracking-widest py-2 rounded-xl transition-colors"
+                                        >
+                                            Disconnect Canvas
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

@@ -82,10 +82,11 @@ export const api = {
     deleteAssignment: (id) => isLoggedIn()
         ? serverApi.deleteAssignment(id)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
-    // ============ LMS (Edlink) ============
-    getEdlinkConnectUrl: () => isLoggedIn() ? serverApi.getEdlinkConnectUrl() : Promise.reject(new Error('Must be logged in to connect LMS')),
-    getEdlinkSettings: () => isLoggedIn() ? serverApi.getEdlinkSettings() : Promise.resolve({ isConnected: false }),
-    syncEdlink: () => isLoggedIn() ? serverApi.syncEdlink() : Promise.reject(new Error('Must be logged in to sync LMS')),
+    // ============ LMS (Canvas) ============
+    connectCanvas: (canvasUrl, apiToken) => isLoggedIn() ? serverApi.connectCanvas(canvasUrl, apiToken) : Promise.reject(new Error('Must be logged in to connect LMS')),
+    disconnectCanvas: () => isLoggedIn() ? serverApi.disconnectCanvas() : Promise.reject(new Error('Must be logged in')),
+    getCanvasSettings: () => isLoggedIn() ? serverApi.getCanvasSettings() : Promise.resolve({ isConnected: false }),
+    syncCanvas: () => isLoggedIn() ? serverApi.syncCanvas() : Promise.reject(new Error('Must be logged in to sync LMS')),
 
     // AI Generation
     generateAiDeck: (notes, deckName, classId) => isLoggedIn()

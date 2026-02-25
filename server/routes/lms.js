@@ -2,183 +2,191 @@ const express = require('express');
 
 module.exports = function ({ app, db, authMiddleware }) {
 
-    // 1. Get Edlink Authorization URL
-    app.get('/api/lms/edlink/connect', authMiddleware, (req, res) => {
-        try {
-            const EDLINK_CLIENT_ID = process.env.EDLINK_CLIENT_ID;
-            // The callback must exactly match the Edlink dashboard configuration
-            const REDIRECT_URI = `${req.protocol}://${req.get('host')}/api/lms/edlink/callback`;
+    // 1. Save Canvas credentials (user provides their own token)
+    app.post('/api/lms/canvas/connect', authMiddleware, async (req, res) => {
+        const { canvasUrl, apiToken } = req.body;
 
-            const authUrl = `https://ed.link/sso/login?client_id=${EDLINK_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
-
-            res.json({ url: authUrl });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    // 2. Edlink OAuth Callback Handler
-    // The user's browser returns here after approving Riven inside the Edlink popup.
-    // Because they are coming from the browser, their session cookie is attached, allowing authMiddleware to run.
-    app.get('/api/lms/edlink/callback', authMiddleware, async (req, res) => {
-        const { code } = req.query;
-        if (!code) {
-            return res.status(400).send('Authorization code missing.');
+        if (!canvasUrl || !apiToken) {
+            return res.status(400).json({ error: 'Canvas URL and API Token are required.' });
         }
 
-        try {
-            const REDIRECT_URI = `${req.protocol}://${req.get('host')}/api/lms/edlink/callback`;
-            const EDLINK_CLIENT_ID = process.env.EDLINK_CLIENT_ID;
-            const EDLINK_SECRET = process.env.EDLINK_SECRET;
+        // Normalize URL: strip trailing slash
+        const normalizedUrl = canvasUrl.replace(/\/+$/, '');
 
-            // Exchange the code for an access token
-            const tokenRes = await fetch('https://ed.link/api/authentication/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    client_id: EDLINK_CLIENT_ID,
-                    client_secret: EDLINK_SECRET,
-                    code: code,
-                    grant_type: 'authorization_code',
-                    redirect_uri: REDIRECT_URI
-                })
+        // Validate by hitting Canvas API
+        try {
+            const testRes = await fetch(`${normalizedUrl}/api/v1/users/self`, {
+                headers: { 'Authorization': `Bearer ${apiToken}` }
             });
-
-            if (!tokenRes.ok) {
-                const errData = await tokenRes.text();
-                throw new Error(`Edlink Token Error: ${errData}`);
+            if (!testRes.ok) {
+                return res.status(400).json({ error: 'Invalid Canvas URL or API Token. Check your credentials.' });
             }
+        } catch (fetchErr) {
+            return res.status(400).json({ error: 'Could not reach Canvas. Check the URL.' });
+        }
 
-            const tokenData = await tokenRes.json();
-            const accessToken = tokenData.access_token;
-
-            // Save the token to the user's profile
+        try {
             await db.execute(
-                'UPDATE users SET edlink_access_token = $1 WHERE id = $2',
-                [accessToken, req.user.id]
+                'UPDATE users SET canvas_api_url = $1, canvas_api_token = $2 WHERE id = $3',
+                [normalizedUrl, apiToken, req.user.id]
             );
-
-            // Redirect back to the frontend dashboard/settings
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            res.redirect(`${frontendUrl}/settings?lms=success`);
-
+            res.json({ message: 'Canvas connected successfully.' });
         } catch (error) {
-            console.error('Edlink Callback Error:', error.message);
-            res.status(500).send(`Failed to connect to Edlink: ${error.message}`);
+            console.error('Canvas Connect Error:', error);
+            res.status(500).json({ error: 'Failed to save Canvas credentials.' });
         }
     });
 
-    // 3. Sync Edlink Data via the Graph API
+    // 2. Disconnect Canvas
+    app.post('/api/lms/canvas/disconnect', authMiddleware, async (req, res) => {
+        try {
+            await db.execute(
+                'UPDATE users SET canvas_api_url = NULL, canvas_api_token = NULL WHERE id = $1',
+                [req.user.id]
+            );
+            res.json({ message: 'Canvas disconnected.' });
+        } catch (error) {
+            console.error('Canvas Disconnect Error:', error);
+            res.status(500).json({ error: 'Failed to disconnect Canvas.' });
+        }
+    });
+
+    // 3. Sync Canvas courses & assignments (with old course filtering)
     app.post('/api/lms/sync', authMiddleware, async (req, res) => {
         try {
-            const user = await db.queryOne('SELECT edlink_access_token FROM users WHERE id = $1', [req.user.id]);
+            const user = await db.queryOne(
+                'SELECT canvas_api_url, canvas_api_token FROM users WHERE id = $1',
+                [req.user.id]
+            );
 
-            if (!user.edlink_access_token) {
-                return res.status(400).json({ error: 'School account not connected via Edlink.' });
+            if (!user?.canvas_api_url || !user?.canvas_api_token) {
+                return res.status(400).json({ error: 'Canvas is not connected. Add your Canvas URL and token first.' });
             }
 
-            const headers = { 'Authorization': `Bearer ${user.edlink_access_token}`, 'Accept': 'application/json' };
+            const { canvas_api_url, canvas_api_token } = user;
+            const headers = { 'Authorization': `Bearer ${canvas_api_token}`, 'Accept': 'application/json' };
 
-            // 1. Fetch Active Courses from the Edlink Graph API
-            const coursesRes = await fetch('https://ed.link/api/v2/graph/courses', { headers });
-            if (!coursesRes.ok) {
-                throw new Error(`Failed to fetch Edlink courses: ${coursesRes.statusText}`);
+            // Fetch active + completed courses
+            let allCourses = [];
+            try {
+                const activeRes = await fetch(`${canvas_api_url}/api/v1/courses?enrollment_state=active&per_page=100`, { headers });
+                if (activeRes.ok) {
+                    const data = await activeRes.json();
+                    allCourses.push(...data.map(c => ({ ...c, _isActive: true })));
+                }
+
+                const completedRes = await fetch(`${canvas_api_url}/api/v1/courses?enrollment_state=completed&per_page=100`, { headers });
+                if (completedRes.ok) {
+                    const data = await completedRes.json();
+                    allCourses.push(...data.map(c => ({ ...c, _isActive: false })));
+                }
+            } catch (fetchErr) {
+                return res.status(502).json({ error: 'Failed to reach Canvas API. Check your credentials.' });
             }
-            const coursesData = await coursesRes.json();
-            const courses = coursesData.$data || [];
+
+            if (allCourses.length === 0) {
+                return res.json({ message: 'No courses found on Canvas.', classesAdded: 0, assignmentsAdded: 0 });
+            }
 
             let syncedClassesCount = 0;
             let syncedAssignmentsCount = 0;
 
-            for (const course of courses) {
-                // Cross-reference or Map Class
+            for (const course of allCourses) {
+                const canvasCourseId = String(course.id);
+                const courseName = course.name || course.course_code || 'Untitled Course';
+                const isArchived = !course._isActive;
+
+                // Find or create the class
                 let mappedClass = await db.queryOne(
-                    'SELECT * FROM classes WHERE user_id = $1 AND (edlink_course_id = $2 OR name = $3)',
-                    [req.user.id, course.id, course.name]
+                    'SELECT * FROM classes WHERE user_id = $1 AND (canvas_course_id = $2 OR name = $3)',
+                    [req.user.id, canvasCourseId, courseName]
                 );
 
-                // Determine if this course is from a past semester
-                const now = new Date();
-                const isArchived = course.end_date ? new Date(course.end_date) < now : false;
-
                 if (!mappedClass) {
-                    // Create if not exists
                     mappedClass = await db.queryOne(
-                        `INSERT INTO classes (user_id, name, edlink_course_id, color, is_archived) 
+                        `INSERT INTO classes (user_id, name, canvas_course_id, color, is_archived) 
                          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                        [req.user.id, course.name, course.id, '#4f46e5', isArchived]
+                        [req.user.id, courseName, canvasCourseId, '#4f46e5', isArchived]
                     );
                     syncedClassesCount++;
                 } else {
-                    // Update edlink_course_id and archived status on every sync
                     await db.execute(
-                        'UPDATE classes SET edlink_course_id = $1, is_archived = $2 WHERE id = $3',
-                        [course.id, isArchived, mappedClass.id]
+                        'UPDATE classes SET canvas_course_id = $1, is_archived = $2 WHERE id = $3',
+                        [canvasCourseId, isArchived, mappedClass.id]
                     );
                 }
 
                 // Skip assignment sync for archived/past courses
                 if (isArchived) continue;
 
-                // 2. Fetch Assignments for this Course
-                const assignmentsRes = await fetch(`https://ed.link/api/v2/graph/courses/${course.id}/assignments`, { headers });
+                // Fetch assignments for this course
+                try {
+                    const assignRes = await fetch(
+                        `${canvas_api_url}/api/v1/courses/${course.id}/assignments?per_page=100`,
+                        { headers }
+                    );
 
-                if (assignmentsRes.ok) {
-                    const assignData = await assignmentsRes.json();
-                    const edlinkAssignments = assignData.$data || [];
+                    if (assignRes.ok) {
+                        const assignments = await assignRes.json();
 
-                    for (const ea of edlinkAssignments) {
-                        // Skip assignments without due dates
-                        if (!ea.due_date) continue;
+                        for (const a of assignments) {
+                            if (!a.due_at) continue;
 
-                        // Check if we already synced this assignment
-                        const existingAssig = await db.queryOne(
-                            'SELECT id FROM assignments WHERE user_id = $1 AND edlink_assignment_id = $2',
-                            [req.user.id, ea.id]
-                        );
-
-                        if (!existingAssig) {
-                            await db.execute(
-                                `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, edlink_assignment_id)
-                                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                                [
-                                    req.user.id,
-                                    mappedClass.id,
-                                    ea.title,
-                                    ea.description ? ea.description.replace(/<[^>]*>?/gm, '') : '', // Strip HTML
-                                    new Date(ea.due_date).toISOString(),
-                                    'Todo',
-                                    ea.id
-                                ]
+                            const canvasAssignId = String(a.id);
+                            const existingAssig = await db.queryOne(
+                                'SELECT id FROM assignments WHERE user_id = $1 AND canvas_assignment_id = $2',
+                                [req.user.id, canvasAssignId]
                             );
-                            syncedAssignmentsCount++;
+
+                            if (!existingAssig) {
+                                await db.execute(
+                                    `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
+                                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                                    [
+                                        req.user.id,
+                                        mappedClass.id,
+                                        a.name || 'Untitled Assignment',
+                                        a.description ? a.description.replace(/<[^>]*>?/gm, '') : '',
+                                        new Date(a.due_at).toISOString(),
+                                        'Todo',
+                                        canvasAssignId
+                                    ]
+                                );
+                                syncedAssignmentsCount++;
+                            }
                         }
                     }
+                } catch (assignFetchErr) {
+                    console.error(`Failed to fetch assignments for course ${course.id}:`, assignFetchErr.message);
                 }
             }
 
             res.json({
-                message: 'Edlink Sync complete',
+                message: 'Canvas sync complete!',
                 classesAdded: syncedClassesCount,
                 assignmentsAdded: syncedAssignmentsCount
             });
 
         } catch (error) {
-            console.error('Edlink Sync Error:', error.message);
-            res.status(500).json({ error: error.message });
+            console.error('Canvas Sync Error:', error.message);
+            res.status(500).json({ error: 'Sync failed. Please try again.' });
         }
     });
 
-    // 4. Edlink Settings Status
+    // 4. Canvas connection status
     app.get('/api/lms/settings', authMiddleware, async (req, res) => {
         try {
-            const user = await db.queryOne('SELECT edlink_access_token FROM users WHERE id = $1', [req.user.id]);
+            const user = await db.queryOne(
+                'SELECT canvas_api_url, canvas_api_token FROM users WHERE id = $1',
+                [req.user.id]
+            );
             res.json({
-                isConnected: !!user.edlink_access_token
+                isConnected: !!(user?.canvas_api_url && user?.canvas_api_token),
+                canvasUrl: user?.canvas_api_url || ''
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('LMS Settings Error:', error);
+            res.status(500).json({ error: 'Failed to check Canvas status.' });
         }
     });
 };
-

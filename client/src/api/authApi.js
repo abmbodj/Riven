@@ -263,10 +263,14 @@ export const createScheduleSlot = (class_id, day_of_week, start_time, end_time) 
 });
 export const deleteScheduleSlot = (id) => authFetch(`/schedule/${id}`, { method: 'DELETE' });
 
-// --- LMS Integration
-export const getEdlinkConnectUrl = () => authFetch('/lms/edlink/connect');
-export const getEdlinkSettings = () => authFetch('/lms/settings');
-export const syncEdlink = () => authFetch('/lms/sync', { method: 'POST' });
+// --- LMS Integration (Canvas)
+export const connectCanvas = (canvasUrl, apiToken) => authFetch('/lms/canvas/connect', {
+    method: 'POST',
+    body: JSON.stringify({ canvasUrl, apiToken })
+});
+export const disconnectCanvas = () => authFetch('/lms/canvas/disconnect', { method: 'POST' });
+export const getCanvasSettings = () => authFetch('/lms/settings');
+export const syncCanvas = () => authFetch('/lms/sync', { method: 'POST' });
 
 // --- AI Generation ---
 export const generateAiDeck = async (notes, deckName, classId) => {
