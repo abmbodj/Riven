@@ -463,7 +463,7 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
 
     return (
         <section className="relative w-full">
-            <div className="mb-8 px-4 md:px-0">
+            <div className="mb-2 px-4 md:px-0">
                 <h2 className="text-xs font-bold uppercase tracking-[0.25em] flex items-center gap-3 text-claude-text opacity-70">
                     {title}
                     {isPro && <span className="text-[9px] bg-claude-accent/10 text-claude-accent border border-claude-accent/20 px-2 py-0.5 rounded-sm tracking-widest font-bold">PRO</span>}
@@ -476,7 +476,7 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-12 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
+                className="flex overflow-x-auto snap-x snap-mandatory gap-6 pt-6 pb-20 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
             >
                 {themes.map((theme, index) => (
                     <motion.div
