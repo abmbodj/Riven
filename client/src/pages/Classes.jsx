@@ -93,7 +93,7 @@ export default function Classes() {
 
     // Form
     const [formData, setFormData] = useState({
-        name: '', color: '#7a9e72', professor: '', room: '', day: '', start_time: '', end_time: ''
+        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }]
     });
 
     const loadData = useCallback(async (isRefresh = false) => {
@@ -121,20 +121,38 @@ export default function Classes() {
         }
 
         try {
+            let savedClassId;
             if (editingClass) {
-                await api.updateClass(editingClass.id, formData.name, formData.color, formData.professor, formData.room, '');
+                await api.updateClass(editingClass.id, formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                savedClassId = editingClass.id;
                 toast.success('Class updated');
             } else {
-                const newClass = await api.createClass(formData.name, formData.color, formData.professor, formData.room, '');
-                // If time slot was filled in, also create a schedule entry
-                if (newClass?.id && formData.day !== '' && formData.start_time && formData.end_time) {
-                    await api.createScheduleSlot(newClass.id, formData.day, formData.start_time, formData.end_time);
-                }
+                const newClass = await api.createClass(formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                savedClassId = newClass?.id;
                 toast.success('Class created');
             }
+
+            if (savedClassId) {
+                // If editing, existing slots will be in scheduleSlots state. We need to diff.
+                const existingSlots = scheduleSlots.filter(s => s.class_id === savedClassId);
+                const slotsToKeepIds = formData.times.filter(t => t.id).map(t => t.id);
+
+                // Delete removed slots
+                const slotsToDelete = existingSlots.filter(s => !slotsToKeepIds.includes(s.id));
+                for (const slot of slotsToDelete) {
+                    await api.deleteScheduleSlot(slot.id);
+                }
+
+                // Add new slots
+                const slotsToAdd = formData.times.filter(t => (!t.id && t.day !== '' && t.start_time && t.end_time));
+                for (const slot of slotsToAdd) {
+                    await api.createScheduleSlot(savedClassId, slot.day, slot.start_time, slot.end_time);
+                }
+            }
+
             setShowModal(false);
             setEditingClass(null);
-            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '' });
+            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }] });
             loadData();
         } catch (err) {
             toast.error(err.message || 'Failed to save class');
@@ -156,18 +174,25 @@ export default function Classes() {
 
     const openCreateModal = () => {
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '' });
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }] });
         setShowModal(true);
     };
 
     const openEditModal = (cls) => {
         setEditingClass(cls);
+        const slots = scheduleSlots.filter(s => s.class_id === cls.id).map(s => ({
+            id: s.id,
+            day: s.day_of_week.toString(),
+            start_time: s.start_time.substring(0, 5),
+            end_time: s.end_time.substring(0, 5)
+        }));
         setFormData({
             name: cls.name,
             color: cls.color || '#7a9e72',
             professor: cls.professor || '',
             room: cls.room || '',
-            day: '', start_time: '', end_time: ''
+            zoom_link: cls.zoom_link || '',
+            times: slots.length > 0 ? slots : [{ day: '', start_time: '', end_time: '', id: null }]
         });
         setShowModal(true);
     };
@@ -275,63 +300,137 @@ export default function Classes() {
                 })()}
 
                 {viewMode === 'Timetable' && (
-                    <div className="space-y-8 animate-fade-in pb-12">
+                    <div className="animate-fade-in pb-12 overflow-x-auto">
                         {scheduleSlots.length === 0 ? (
                             <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
                                 <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                 <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">Empty Schedule</h3>
                                 <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
                             </div>
-                        ) : (
-                            [1, 2, 3, 4, 5, 6, 0].map(dayIdx => {
-                                const daySlots = scheduleSlots.filter(s => s.day_of_week === dayIdx).sort((a, b) => a.start_time.localeCompare(b.start_time));
-                                if (daySlots.length === 0) return null;
+                        ) : (() => {
+                            // Define calendar bounds
+                            const START_HOUR = 8; // 8 AM
+                            const END_HOUR = 22;  // 10 PM
+                            const TOTAL_HOURS = END_HOUR - START_HOUR;
+                            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+                            const dayIndices = [1, 2, 3, 4, 5]; // Mon-Fri
 
-                                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                                const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                            // Check if weekends have classes, if so include them
+                            const hasWeekendClasses = scheduleSlots.some(s => s.day_of_week === 0 || s.day_of_week === 6);
+                            if (hasWeekendClasses) {
+                                days.unshift('Sunday');
+                                dayIndices.unshift(0);
+                                days.push('Saturday');
+                                dayIndices.push(6);
+                            }
 
-                                return (
-                                    <div key={dayIdx} className="relative">
-                                        <h3 className="font-serif italic text-2xl font-bold text-botanical-parchment flex items-center gap-3 mb-4 sticky top-16 bg-[#162a31]/80 backdrop-blur-md z-10 py-2">
-                                            {days[dayIdx]}
-                                            <div className="flex-1 h-px bg-gradient-to-r from-claude-accent/30 to-transparent" />
-                                        </h3>
-                                        <div className="space-y-3 pl-2 sm:pl-4 border-l-2 border-claude-accent/20 ml-2">
-                                            {daySlots.map((slot, i) => {
-                                                const cls = classes.find(c => c.id === slot.class_id);
-                                                if (!cls) return null;
+                            const parseTimeToHours = (timeStr) => {
+                                const [hours, minutes] = timeStr.split(':').map(Number);
+                                return hours + minutes / 60;
+                            };
+
+                            const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+                            return (
+                                <div className="min-w-[700px] bg-[#162a31]/40 border border-[#233e46] rounded-2xl overflow-hidden mt-4 shadow-sm relative">
+                                    {/* Grid Header */}
+                                    <div className="grid border-b border-[#233e46] sticky top-0 bg-[#162a31] z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+                                        <div className="py-3 px-2 text-center border-r border-[#233e46]/50">
+                                            <span className="text-[9px] font-mono uppercase font-bold text-[#8fa6a8]/60">GMT</span>
+                                        </div>
+                                        {days.map((day, idx) => (
+                                            <div key={day} className="py-3 text-center border-r border-[#233e46]/50 last:border-r-0">
+                                                <span className="text-xs font-mono uppercase tracking-widest font-bold text-botanical-parchment">{day.slice(0, 3)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Grid Body */}
+                                    <div className="relative" style={{ height: `${TOTAL_HOURS * 60}px` }}> {/* 60px per hour */}
+                                        {/* Background lines & Hour Labels */}
+                                        <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `60px 1fr` }}>
+                                            <div className="border-r border-[#233e46]/50">
+                                                {Array.from({ length: TOTAL_HOURS }).map((_, i) => (
+                                                    <div key={i} className="h-[60px] border-b border-[#233e46]/30 relative">
+                                                        <span className="absolute -top-2.5 right-2 text-[10px] font-mono text-[#8fa6a8]/60">
+                                                            {START_HOUR + i === 12 ? '12 PM' : START_HOUR + i > 12 ? `${START_HOUR + i - 12} PM` : `${START_HOUR + i} AM`}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+                                                {days.map((_, i) => (
+                                                    <div key={i} className="border-r border-[#233e46]/50 last:border-r-0 relative">
+                                                        {Array.from({ length: TOTAL_HOURS }).map((_, j) => (
+                                                            <div key={j} className="h-[60px] border-b border-[#233e46]/30" />
+                                                        ))}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Class Blocks */}
+                                        <div className="absolute top-0 right-0 bottom-0 left-[60px] grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+                                            {dayIndices.map((dayIdx, i) => {
+                                                const daySlots = scheduleSlots.filter(s => s.day_of_week === dayIdx);
                                                 return (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        whileInView={{ opacity: 1, x: 0 }}
-                                                        viewport={{ once: true }}
-                                                        transition={{ delay: i * 0.05 }}
-                                                        key={slot.id}
-                                                        onClick={() => navigate(`/class/${cls.id}`)}
-                                                        className="relative group bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:scale-[1.01] transition-transform tap-action before:absolute before:left-[-11px] sm:before:left-[-19px] before:top-1/2 before:-translate-y-1/2 before:w-3 before:h-3 before:rounded-full before:border-2 before:border-[#162a31] before:bg-claude-accent"
-                                                    >
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
-                                                            <div>
-                                                                <h4 className="font-serif text-xl font-bold italic text-[#1a1c1d] tracking-tight">{cls.name}</h4>
-                                                                <div className="flex items-center gap-3 mt-1 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8a7f6a]">
-                                                                    {cls.room && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {cls.room}</span>}
-                                                                    {cls.zoom_link && <span className="flex items-center gap-1"><Video className="w-3 h-3" /> Zoom</span>}
+                                                    <div key={dayIdx} className="relative w-full h-full">
+                                                        {daySlots.map((slot) => {
+                                                            const cls = classes.find(c => c.id === slot.class_id);
+                                                            if (!cls || !slot.start_time || !slot.end_time) return null;
+
+                                                            const startHour = parseTimeToHours(slot.start_time);
+                                                            const endHour = parseTimeToHours(slot.end_time);
+
+                                                            // Only render if within the calendar bounds
+                                                            if (endHour <= START_HOUR || startHour >= END_HOUR) return null;
+
+                                                            // Calculate position and height
+                                                            const constrainedStart = Math.max(startHour, START_HOUR);
+                                                            const constrainedEnd = Math.min(endHour, END_HOUR);
+
+                                                            const top = (constrainedStart - START_HOUR) * 60;
+                                                            const height = (constrainedEnd - constrainedStart) * 60;
+
+                                                            return (
+                                                                <div
+                                                                    key={slot.id}
+                                                                    onClick={() => navigate(`/class/${cls.id}`)}
+                                                                    className="absolute left-1 right-1 rounded-xl p-2 cursor-pointer shadow-md overflow-hidden transform-style-3d hover:scale-[1.02] hover:z-10 transition-all border group"
+                                                                    style={{
+                                                                        top: `${top}px`,
+                                                                        height: `${height}px`,
+                                                                        backgroundColor: `${cls.color || '#7a9e72'}25`,
+                                                                        borderColor: `${cls.color || '#7a9e72'}50`,
+                                                                        backdropFilter: 'blur(8px)',
+                                                                        borderLeftWidth: '4px',
+                                                                        borderLeftColor: cls.color || '#7a9e72'
+                                                                    }}
+                                                                >
+                                                                    <div className="flex flex-col h-full">
+                                                                        <span className="font-serif italic font-bold text-botanical-parchment leading-tight truncate text-sm">
+                                                                            {cls.name}
+                                                                        </span>
+                                                                        <span className="font-mono text-[9px] uppercase tracking-widest text-[#8fa6a8] mt-1 truncate">
+                                                                            {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+                                                                        </span>
+                                                                        {height >= 60 && cls.room && (
+                                                                            <span className="font-mono text-[9px] font-bold mt-auto pt-1 truncate tracking-wider flex items-center gap-1 opacity-70" style={{ color: cls.color || '#7a9e72' }}>
+                                                                                <MapPin className="w-2.5 h-2.5" /> {cls.room}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="bg-[#1e3840]/5 rounded-lg px-3 py-1.5 border border-[#d1c9b8]/50 sm:text-right mt-2 sm:mt-0 ml-5 sm:ml-0">
-                                                            <span className="font-mono text-xs font-bold text-[#1a1c1d] tracking-tighter block">{formatTime(slot.start_time)}</span>
-                                                            <span className="font-mono text-[9px] uppercase tracking-widest text-[#8a7f6a] block -mt-0.5">{formatTime(slot.end_time)}</span>
-                                                        </div>
-                                                    </motion.div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
-                                );
-                            })
-                        )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
@@ -396,7 +495,7 @@ export default function Classes() {
                                         </div>
                                     </div>
 
-                                    <div className="col-span-1">
+                                    <div className="col-span-2">
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Room</label>
                                         <div className="relative">
                                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
@@ -410,43 +509,72 @@ export default function Classes() {
                                         </div>
                                     </div>
 
-                                    <div className="col-span-1">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Class Time</label>
-                                        <div className="flex flex-col gap-2">
-                                            <select
-                                                value={formData.day}
-                                                onChange={e => setFormData({ ...formData, day: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                            >
-                                                <option value="">Day (optional)</option>
-                                                <option value="1">Monday</option>
-                                                <option value="2">Tuesday</option>
-                                                <option value="3">Wednesday</option>
-                                                <option value="4">Thursday</option>
-                                                <option value="5">Friday</option>
-                                                <option value="6">Saturday</option>
-                                                <option value="0">Sunday</option>
-                                            </select>
-                                            <div className="flex gap-2">
-                                                <div className="relative flex-1">
-                                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
-                                                    <input
-                                                        type="time"
-                                                        value={formData.start_time}
-                                                        onChange={e => setFormData({ ...formData, start_time: e.target.value })}
-                                                        className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
-                                                    />
+                                    <div className="col-span-2">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8]">Class Times</label>
+                                            <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, { day: '', start_time: '', end_time: '', id: null }] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
+                                                + Add Time
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {formData.times.map((t, idx) => (
+                                                <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-[#1e3840]/20 p-3 rounded-xl border border-[#233e46]">
+                                                    <select
+                                                        value={t.day}
+                                                        onChange={e => {
+                                                            const newTimes = [...formData.times];
+                                                            newTimes[idx].day = e.target.value;
+                                                            setFormData({ ...formData, times: newTimes });
+                                                        }}
+                                                        className="w-full sm:w-auto flex-1 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                                    >
+                                                        <option value="">Day</option>
+                                                        <option value="1">Monday</option>
+                                                        <option value="2">Tuesday</option>
+                                                        <option value="3">Wednesday</option>
+                                                        <option value="4">Thursday</option>
+                                                        <option value="5">Friday</option>
+                                                        <option value="6">Saturday</option>
+                                                        <option value="0">Sunday</option>
+                                                    </select>
+                                                    <div className="flex gap-2 w-full sm:w-auto flex-[2]">
+                                                        <div className="relative flex-1">
+                                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                            <input
+                                                                type="time"
+                                                                value={t.start_time}
+                                                                onChange={e => {
+                                                                    const newTimes = [...formData.times];
+                                                                    newTimes[idx].start_time = e.target.value;
+                                                                    setFormData({ ...formData, times: newTimes });
+                                                                }}
+                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                            />
+                                                        </div>
+                                                        <div className="relative flex-1">
+                                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                            <input
+                                                                type="time"
+                                                                value={t.end_time}
+                                                                onChange={e => {
+                                                                    const newTimes = [...formData.times];
+                                                                    newTimes[idx].end_time = e.target.value;
+                                                                    setFormData({ ...formData, times: newTimes });
+                                                                }}
+                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {formData.times.length > 1 && (
+                                                        <button type="button" onClick={() => {
+                                                            const newTimes = formData.times.filter((_, i) => i !== idx);
+                                                            setFormData({ ...formData, times: newTimes });
+                                                        }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 w-full sm:w-auto flex justify-center mt-2 sm:mt-0">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <div className="relative flex-1">
-                                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
-                                                    <input
-                                                        type="time"
-                                                        value={formData.end_time}
-                                                        onChange={e => setFormData({ ...formData, end_time: e.target.value })}
-                                                        className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
-                                                    />
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
