@@ -9,7 +9,7 @@ module.exports = function ({ app, db, authMiddleware }) {
             // The callback must exactly match the Edlink dashboard configuration
             const REDIRECT_URI = `${req.protocol}://${req.get('host')}/api/lms/edlink/callback`;
 
-            const authUrl = `https://ed.link/api/authentication?client_id=${EDLINK_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
+            const authUrl = `https://ed.link/sso/login?client_id=${EDLINK_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
 
             res.json({ url: authUrl });
         } catch (error) {
