@@ -12,6 +12,11 @@ import useHaptics from '../hooks/useHaptics';
 import Avatar from '../components/Avatar';
 import * as authApi from '../api/authApi';
 
+// Global cache for instant load times
+const globalMessageCache = {};
+const globalUserCache = {};
+let globalConversationsCache = null;
+
 export default function Messages() {
     const { userId } = useParams();
     const navigate = useNavigate();
@@ -19,11 +24,11 @@ export default function Messages() {
     const haptics = useHaptics();
     const { isLoggedIn, user, socket } = useAuth();
 
-    const [conversations, setConversations] = useState([]);
-    const [messages, setMessages] = useState([]);
-    const [chatUser, setChatUser] = useState(null);
+    const [conversations, setConversations] = useState(globalConversationsCache || []);
+    const [messages, setMessages] = useState(userId && globalMessageCache[userId] ? globalMessageCache[userId] : []);
+    const [chatUser, setChatUser] = useState(userId && globalUserCache[userId] ? globalUserCache[userId] : null);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!userId || !globalMessageCache[userId]);
     const [sending, setSending] = useState(false);
     const [acceptingDeck, setAcceptingDeck] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -38,7 +43,11 @@ export default function Messages() {
     // Load conversations list
     const loadConversations = useCallback(async () => {
         try {
+            if (globalConversationsCache) {
+                setConversations(globalConversationsCache);
+            }
             const data = await authApi.getConversations();
+            globalConversationsCache = data;
             setConversations(data);
         } catch {
             // Failed to load conversations silently
@@ -48,11 +57,22 @@ export default function Messages() {
     // Load messages for specific user
     const loadMessages = useCallback(async (targetUserId) => {
         try {
-            setLoading(true);
+            if (globalMessageCache[targetUserId] && globalUserCache[targetUserId]) {
+                setMessages(globalMessageCache[targetUserId]);
+                setChatUser(globalUserCache[targetUserId]);
+                setLoading(false);
+            } else {
+                setLoading(true);
+            }
+
             const [messagesData, userData] = await Promise.all([
                 authApi.getMessages(targetUserId),
                 authApi.getUserProfile(targetUserId)
             ]);
+
+            globalMessageCache[targetUserId] = messagesData;
+            globalUserCache[targetUserId] = userData;
+
             setMessages(messagesData);
             setChatUser(userData);
         } catch {
@@ -616,21 +636,21 @@ export default function Messages() {
                                 <div className="w-8 shrink-0 mb-1">
                                     <Avatar src={chatUser?.avatar} size="xs" />
                                 </div>
-                                <div className="botanical-card rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1 items-center h-10">
+                                <div className="bg-claude-surface border border-claude-border rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
                                     <motion.div
                                         className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
-                                        animate={{ y: [0, -4, 0] }}
-                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 1, repeat: Infinity, delay: 0, ease: "easeInOut" }}
                                     />
                                     <motion.div
-                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
-                                        animate={{ y: [0, -4, 0] }}
-                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                                        className="w-1.5 h-1.5 bg-botanical-sepia/70 rounded-full"
+                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 1, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
                                     />
                                     <motion.div
-                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
-                                        animate={{ y: [0, -4, 0] }}
-                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                                        className="w-1.5 h-1.5 bg-botanical-sepia/80 rounded-full"
+                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 1, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
                                     />
                                 </div>
                             </div>
