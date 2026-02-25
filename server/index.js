@@ -90,36 +90,48 @@ app.use(cors({
     },
     credentials: true
 }));
+
+// Re-enable Content Security Policy (Helmet default) but allow frontend endpoints
 app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            connectSrc: ["'self'", ...allowedOrigins],
+            imgSrc: ["'self'", "data:", "blob:", "https:"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        },
+    },
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
+// Recursive Deep XSS Sanitization utility function
+function sanitizeDeep(obj) {
+    if (typeof obj === 'string') {
+        return xss(obj);
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeDeep(item));
+    }
+    if (typeof obj === 'object' && obj !== null) {
+        const sanitizedObj = {};
+        for (const [key, value] of Object.entries(obj)) {
+            sanitizedObj[key] = sanitizeDeep(value);
+        }
+        return sanitizedObj;
+    }
+    return obj;
+}
+
 // Input sanitization middleware
 app.use((req, res, next) => {
-    if (req.body) {
-        for (const key in req.body) {
-            if (typeof req.body[key] === 'string') {
-                req.body[key] = xss(req.body[key]);
-            }
-        }
-    }
-    if (req.query) {
-        for (const key in req.query) {
-            if (typeof req.query[key] === 'string') {
-                req.query[key] = xss(req.query[key]);
-            }
-        }
-    }
-    if (req.params) {
-        for (const key in req.params) {
-            if (typeof req.params[key] === 'string') {
-                req.params[key] = xss(req.params[key]);
-            }
-        }
-    }
+    if (req.body) req.body = sanitizeDeep(req.body);
+    if (req.query) req.query = sanitizeDeep(req.query);
+    if (req.params) req.params = sanitizeDeep(req.params);
     next();
 });
 

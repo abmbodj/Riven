@@ -14,12 +14,12 @@ class Cache {
     get(key) {
         const item = this.store.get(key);
         if (!item) return null;
-        
+
         if (Date.now() > item.expiresAt) {
             this.store.delete(key);
             return null;
         }
-        
+
         return item.value;
     }
 
@@ -35,11 +35,25 @@ class Cache {
     async wrap(key, fn, ttl) {
         const cached = this.get(key);
         if (cached !== null) return cached;
-        
+
         const result = await fn();
         this.set(key, result, ttl);
         return result;
     }
+
+    startGarbageCollection(intervalMs = 60000) { // Default 1m interval
+        if (this.gcInterval) clearInterval(this.gcInterval);
+        this.gcInterval = setInterval(() => {
+            const now = Date.now();
+            for (const [key, item] of this.store.entries()) {
+                if (now > item.expiresAt) {
+                    this.store.delete(key);
+                }
+            }
+        }, intervalMs);
+    }
 }
 
 export const cache = new Cache();
+// Automatically begin pruning memory to prevent passive cache leaks on inactive keys
+cache.startGarbageCollection();
