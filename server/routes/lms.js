@@ -1,118 +1,144 @@
 const express = require('express');
 
 module.exports = function ({ app, db, authMiddleware }) {
-    // Get Canvas Settings
-    app.get('/api/lms/canvas/settings', authMiddleware, async (req, res) => {
+
+    // 1. Get Edlink Authorization URL
+    app.get('/api/lms/edlink/connect', authMiddleware, (req, res) => {
         try {
-            const user = await db.queryOne('SELECT canvas_url, canvas_token FROM users WHERE id = $1', [req.user.id]);
-            res.json({
-                canvas_url: user.canvas_url || '',
-                has_token: !!user.canvas_token // don't send the token back to the client for security
+            const EDLINK_CLIENT_ID = process.env.EDLINK_CLIENT_ID;
+            // The callback must exactly match the Edlink dashboard configuration
+            const REDIRECT_URI = `${req.protocol}://${req.get('host')}/api/lms/edlink/callback`;
+
+            const authUrl = `https://ed.link/api/authentication?client_id=${EDLINK_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
+
+            res.json({ url: authUrl });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // 2. Edlink OAuth Callback Handler
+    // The user's browser returns here after approving Riven inside the Edlink popup.
+    // Because they are coming from the browser, their session cookie is attached, allowing authMiddleware to run.
+    app.get('/api/lms/edlink/callback', authMiddleware, async (req, res) => {
+        const { code } = req.query;
+        if (!code) {
+            return res.status(400).send('Authorization code missing.');
+        }
+
+        try {
+            const REDIRECT_URI = `${req.protocol}://${req.get('host')}/api/lms/edlink/callback`;
+            const EDLINK_CLIENT_ID = process.env.EDLINK_CLIENT_ID;
+            const EDLINK_SECRET = process.env.EDLINK_SECRET;
+
+            // Exchange the code for an access token
+            const tokenRes = await fetch('https://ed.link/api/authentication/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: EDLINK_CLIENT_ID,
+                    client_secret: EDLINK_SECRET,
+                    code: code,
+                    grant_type: 'authorization_code',
+                    redirect_uri: REDIRECT_URI
+                })
             });
+
+            if (!tokenRes.ok) {
+                const errData = await tokenRes.text();
+                throw new Error(`Edlink Token Error: ${errData}`);
+            }
+
+            const tokenData = await tokenRes.json();
+            const accessToken = tokenData.access_token;
+
+            // Save the token to the user's profile
+            await db.execute(
+                'UPDATE users SET edlink_access_token = $1 WHERE id = $2',
+                [accessToken, req.user.id]
+            );
+
+            // Redirect back to the frontend dashboard/settings
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            res.redirect(`${frontendUrl}/settings?lms=success`);
+
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('Edlink Callback Error:', error.message);
+            res.status(500).send(`Failed to connect to Edlink: ${error.message}`);
         }
     });
 
-    // Update Canvas Settings
-    app.put('/api/lms/canvas/settings', authMiddleware, async (req, res) => {
-        const { canvas_url, canvas_token } = req.body;
+    // 3. Sync Edlink Data via the Graph API
+    app.post('/api/lms/sync', authMiddleware, async (req, res) => {
         try {
-            if (canvas_token) {
-                // Formatting URL to strip trailing slashes just in case
-                const cleanUrl = canvas_url ? canvas_url.replace(/\/$/, '') : '';
-                await db.execute(
-                    'UPDATE users SET canvas_url = $1, canvas_token = $2 WHERE id = $3',
-                    [cleanUrl, canvas_token, req.user.id]
-                );
-            } else if (canvas_url !== undefined) {
-                // Only updating URL (or clearing it if empty string is passed)
-                const cleanUrl = canvas_url ? canvas_url.replace(/\/$/, '') : '';
-                await db.execute(
-                    'UPDATE users SET canvas_url = $1 WHERE id = $2',
-                    [cleanUrl, req.user.id]
-                );
-            }
-            res.json({ message: 'Canvas settings updated successfully' });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+            const user = await db.queryOne('SELECT edlink_access_token FROM users WHERE id = $1', [req.user.id]);
 
-    // Sync Canvas Data
-    app.post('/api/lms/canvas/sync', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne('SELECT canvas_url, canvas_token FROM users WHERE id = $1', [req.user.id]);
-
-            if (!user.canvas_url || !user.canvas_token) {
-                return res.status(400).json({ error: 'Canvas credentials not configured' });
+            if (!user.edlink_access_token) {
+                return res.status(400).json({ error: 'School account not connected via Edlink.' });
             }
 
-            const baseUrl = user.canvas_url;
-            const headers = { 'Authorization': `Bearer ${user.canvas_token}`, 'Accept': 'application/json' };
+            const headers = { 'Authorization': `Bearer ${user.edlink_access_token}`, 'Accept': 'application/json' };
 
-            // 1. Fetch Active Courses
-            // The canvas API usually paginates, for MVP we grab the first page (usually 10-50 items)
-            const coursesRes = await fetch(`${baseUrl}/api/v1/courses?enrollment_state=active&per_page=100`, { headers });
+            // 1. Fetch Active Courses from the Edlink Graph API
+            const coursesRes = await fetch('https://ed.link/api/v2/graph/courses', { headers });
             if (!coursesRes.ok) {
-                throw new Error(`Failed to fetch Canvas courses: ${coursesRes.statusText}`);
+                throw new Error(`Failed to fetch Edlink courses: ${coursesRes.statusText}`);
             }
-            const courses = await coursesRes.json();
-
-            // Filter out restricted or invalid courses
-            const validCourses = courses.filter(c => c.name && !c.access_restricted_by_date);
+            const coursesData = await coursesRes.json();
+            const courses = coursesData.$data || [];
 
             let syncedClassesCount = 0;
             let syncedAssignmentsCount = 0;
 
-            for (const course of validCourses) {
-                // 2. Cross-reference or Map Class
+            for (const course of courses) {
+                // Cross-reference or Map Class
                 let mappedClass = await db.queryOne(
-                    'SELECT * FROM classes WHERE user_id = $1 AND (canvas_id = $2 OR name = $3)',
-                    [req.user.id, course.id.toString(), course.name]
+                    'SELECT * FROM classes WHERE user_id = $1 AND (edlink_course_id = $2 OR name = $3)',
+                    [req.user.id, course.id, course.name]
                 );
 
                 if (!mappedClass) {
                     // Create if not exists
                     mappedClass = await db.queryOne(
-                        `INSERT INTO classes (user_id, name, canvas_id, color) 
+                        `INSERT INTO classes (user_id, name, edlink_course_id, color) 
                          VALUES ($1, $2, $3, $4) RETURNING *`,
-                        [req.user.id, course.name, course.id.toString(), '#e85a4f'] // Default Canvas-ish red
+                        [req.user.id, course.name, course.id, '#4f46e5'] // Default Indigo
                     );
                     syncedClassesCount++;
-                } else if (!mappedClass.canvas_id) {
-                    // Update existing matching class to link to canvas
-                    await db.execute('UPDATE classes SET canvas_id = $1 WHERE id = $2', [course.id.toString(), mappedClass.id]);
+                } else if (!mappedClass.edlink_course_id) {
+                    // Update existing matching class to link to edlink
+                    await db.execute('UPDATE classes SET edlink_course_id = $1 WHERE id = $2', [course.id, mappedClass.id]);
                 }
 
-                // 3. Fetch Assignments for Course
-                const assignmentsRes = await fetch(`${baseUrl}/api/v1/courses/${course.id}/assignments?per_page=100`, { headers });
+                // 2. Fetch Assignments for this Course
+                const assignmentsRes = await fetch(`https://ed.link/api/v2/graph/courses/${course.id}/assignments`, { headers });
 
                 if (assignmentsRes.ok) {
-                    const canvasAssignments = await assignmentsRes.json();
+                    const assignData = await assignmentsRes.json();
+                    const edlinkAssignments = assignData.$data || [];
 
-                    for (const ca of canvasAssignments) {
-                        // Skip assignments without due dates or deeply in the past (optional, but good for cleanliness)
-                        if (!ca.due_at) continue;
+                    for (const ea of edlinkAssignments) {
+                        // Skip assignments without due dates
+                        if (!ea.due_date) continue;
 
                         // Check if we already synced this assignment
                         const existingAssig = await db.queryOne(
-                            'SELECT id FROM assignments WHERE user_id = $1 AND canvas_id = $2',
-                            [req.user.id, ca.id.toString()]
+                            'SELECT id FROM assignments WHERE user_id = $1 AND edlink_assignment_id = $2',
+                            [req.user.id, ea.id]
                         );
 
                         if (!existingAssig) {
                             await db.execute(
-                                `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_id)
+                                `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, edlink_assignment_id)
                                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                                 [
                                     req.user.id,
                                     mappedClass.id,
-                                    ca.name,
-                                    ca.description ? ca.description.replace(/<[^>]*>?/gm, '') : '', // strip basic html from canvas descriptions
-                                    new Date(ca.due_at).toISOString(),
+                                    ea.title,
+                                    ea.description ? ea.description.replace(/<[^>]*>?/gm, '') : '', // Strip HTML
+                                    new Date(ea.due_date).toISOString(),
                                     'Todo',
-                                    ca.id.toString()
+                                    ea.id
                                 ]
                             );
                             syncedAssignmentsCount++;
@@ -122,14 +148,27 @@ module.exports = function ({ app, db, authMiddleware }) {
             }
 
             res.json({
-                message: 'Sync complete',
+                message: 'Edlink Sync complete',
                 classesAdded: syncedClassesCount,
                 assignmentsAdded: syncedAssignmentsCount
             });
 
         } catch (error) {
-            console.error('Canvas Sync Error:', error.message);
+            console.error('Edlink Sync Error:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // 4. Edlink Settings Status
+    app.get('/api/lms/settings', authMiddleware, async (req, res) => {
+        try {
+            const user = await db.queryOne('SELECT edlink_access_token FROM users WHERE id = $1', [req.user.id]);
+            res.json({
+                isConnected: !!user.edlink_access_token
+            });
+        } catch (error) {
             res.status(500).json({ error: error.message });
         }
     });
 };
+
