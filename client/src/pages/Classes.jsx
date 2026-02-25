@@ -232,7 +232,7 @@ export default function Classes() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#1e3840]/40 border border-[#233e46] rounded-xl sm:rounded-2xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -242,12 +242,12 @@ export default function Classes() {
             {/* Classes List */}
             <div className="px-4 sm:px-6">
                 {/* Segmented Control */}
-                <div className="flex bg-[#1e3840]/30 border border-[#233e46] rounded-xl p-1 mb-6 max-w-xs transition-all">
+                <div className="flex bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl p-1 mb-6 max-w-xs transition-all">
                     {['Timetable', 'Roster'].map(mode => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-all tap-action ${viewMode === mode ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-[#8fa6a8] hover:text-botanical-parchment'}`}
+                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-all tap-action ${viewMode === mode ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
                         >
                             {mode}
                         </button>
@@ -262,10 +262,10 @@ export default function Classes() {
                         <>
                             {/* Current Courses */}
                             {currentClasses.length === 0 && archivedClasses.length === 0 ? (
-                                <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
+                                <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl mt-8">
                                     <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                     <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
-                                    <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
+                                    <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
                                     <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
                                         Add First Class
                                     </button>
@@ -282,9 +282,9 @@ export default function Classes() {
                                     {archivedClasses.length > 0 && (
                                         <div className="mt-10">
                                             <div className="flex items-center gap-3 mb-4">
-                                                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8fa6a8]/60">Past Courses</span>
+                                                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Past Courses</span>
                                                 <div className="flex-1 h-px bg-[#233e46]/40" />
-                                                <span className="font-mono text-[9px] text-[#8fa6a8]/40">{archivedClasses.length}</span>
+                                                <span className="font-mono text-[9px] text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">{archivedClasses.length}</span>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 opacity-50">
                                                 {archivedClasses.map((cls, i) => (
@@ -302,10 +302,10 @@ export default function Classes() {
                 {viewMode === 'Timetable' && (
                     <div className="animate-fade-in pb-12 overflow-x-auto">
                         {scheduleSlots.length === 0 ? (
-                            <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
+                            <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl mt-8">
                                 <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                 <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">Empty Schedule</h3>
-                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
+                                <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
                             </div>
                         ) : (() => {
                             // Define calendar bounds
@@ -332,14 +332,14 @@ export default function Classes() {
                             const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
                             return (
-                                <div className="min-w-[700px] bg-[#162a31]/40 border border-[#233e46] rounded-2xl overflow-hidden mt-4 shadow-sm relative">
+                                <div className="min-w-[700px] bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-claude-border rounded-2xl overflow-hidden mt-4 shadow-sm relative">
                                     {/* Grid Header */}
-                                    <div className="grid border-b border-[#233e46] sticky top-0 bg-[#162a31] z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
-                                        <div className="py-3 px-2 text-center border-r border-[#233e46]/50">
-                                            <span className="text-[9px] font-mono uppercase font-bold text-[#8fa6a8]/60">GMT</span>
+                                    <div className="grid border-b border-claude-border sticky top-0 bg-claude-bg z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+                                        <div className="py-3 px-2 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
+                                            <span className="text-[9px] font-mono uppercase font-bold text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">GMT</span>
                                         </div>
                                         {days.map((day, idx) => (
-                                            <div key={day} className="py-3 text-center border-r border-[#233e46]/50 last:border-r-0">
+                                            <div key={day} className="py-3 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] last:border-r-0">
                                                 <span className="text-xs font-mono uppercase tracking-widest font-bold text-botanical-parchment">{day.slice(0, 3)}</span>
                                             </div>
                                         ))}
@@ -349,10 +349,10 @@ export default function Classes() {
                                     <div className="relative" style={{ height: `${TOTAL_HOURS * 60}px` }}> {/* 60px per hour */}
                                         {/* Background lines & Hour Labels */}
                                         <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `60px 1fr` }}>
-                                            <div className="border-r border-[#233e46]/50">
+                                            <div className="border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
                                                 {Array.from({ length: TOTAL_HOURS }).map((_, i) => (
-                                                    <div key={i} className="h-[60px] border-b border-[#233e46]/30 relative">
-                                                        <span className="absolute -top-2.5 right-2 text-[10px] font-mono text-[#8fa6a8]/60">
+                                                    <div key={i} className="h-[60px] border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)] relative">
+                                                        <span className="absolute -top-2.5 right-2 text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">
                                                             {START_HOUR + i === 12 ? '12 PM' : START_HOUR + i > 12 ? `${START_HOUR + i - 12} PM` : `${START_HOUR + i} AM`}
                                                         </span>
                                                     </div>
@@ -360,9 +360,9 @@ export default function Classes() {
                                             </div>
                                             <div className="grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
                                                 {days.map((_, i) => (
-                                                    <div key={i} className="border-r border-[#233e46]/50 last:border-r-0 relative">
+                                                    <div key={i} className="border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] last:border-r-0 relative">
                                                         {Array.from({ length: TOTAL_HOURS }).map((_, j) => (
-                                                            <div key={j} className="h-[60px] border-b border-[#233e46]/30" />
+                                                            <div key={j} className="h-[60px] border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]" />
                                                         ))}
                                                     </div>
                                                 ))}
@@ -411,7 +411,7 @@ export default function Classes() {
                                                                         <span className="font-serif italic font-bold text-botanical-parchment leading-tight truncate text-sm">
                                                                             {cls.name}
                                                                         </span>
-                                                                        <span className="font-mono text-[9px] uppercase tracking-widest text-[#8fa6a8] mt-1 truncate">
+                                                                        <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-1 truncate">
                                                                             {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
                                                                         </span>
                                                                         {height >= 60 && cls.room && (
@@ -450,9 +450,9 @@ export default function Classes() {
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleSave}
-                            className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe max-h-[90vh] overflow-y-auto"
+                            className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto"
                         >
-                            <div className="flex justify-between items-center mb-8 sticky top-0 bg-[#162a31] pt-2 pb-4 z-10">
+                            <div className="flex justify-between items-center mb-8 sticky top-0 bg-claude-bg pt-2 pb-4 z-10">
                                 <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingClass ? 'Edit Class' : 'New Class'}</h3>
                                 <div className="flex items-center gap-2">
                                     {editingClass && (
@@ -460,7 +460,7 @@ export default function Classes() {
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     )}
-                                    <button type="button" onClick={() => setShowModal(false)} className="p-2 text-[#8fa6a8] hover:text-white transition-colors">
+                                    <button type="button" onClick={() => setShowModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -468,12 +468,12 @@ export default function Classes() {
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Class Name *</label>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Class Name *</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                         placeholder="e.g. CS 101"
                                         autoFocus
                                         required
@@ -482,28 +482,28 @@ export default function Classes() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Professor</label>
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
                                         <div className="relative">
-                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
                                             <input
                                                 type="text"
                                                 value={formData.professor}
                                                 onChange={e => setFormData({ ...formData, professor: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                                className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
                                                 placeholder="Dr. Smith"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="col-span-2">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Room</label>
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Room</label>
                                         <div className="relative">
-                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
                                             <input
                                                 type="text"
                                                 value={formData.room}
                                                 onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                                className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-9 pr-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
                                                 placeholder="Bldg 4, 102"
                                             />
                                         </div>
@@ -511,14 +511,14 @@ export default function Classes() {
 
                                     <div className="col-span-2">
                                         <div className="flex items-center justify-between mb-3">
-                                            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8]">Class Times</label>
+                                            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Class Times</label>
                                             <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, { day: '', start_time: '', end_time: '', id: null }] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
                                                 + Add Time
                                             </button>
                                         </div>
                                         <div className="space-y-3">
                                             {formData.times.map((t, idx) => (
-                                                <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[#1e3840]/20 p-4 rounded-xl border border-[#233e46]">
+                                                <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] p-4 rounded-xl border border-claude-border">
                                                     <div className="w-full sm:w-1/3">
                                                         <select
                                                             value={t.day}
@@ -527,7 +527,7 @@ export default function Classes() {
                                                                 newTimes[idx].day = e.target.value;
                                                                 setFormData({ ...formData, times: newTimes });
                                                             }}
-                                                            className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
                                                         >
                                                             <option value="">Day</option>
                                                             <option value="1">Monday</option>
@@ -540,8 +540,7 @@ export default function Classes() {
                                                         </select>
                                                     </div>
                                                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
-                                                        <div className="flex items-center gap-2 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                            <Clock className="w-3.5 h-3.5 text-[#8fa6a8]/60 shrink-0" />
+                                                        <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
                                                             <input
                                                                 type="time"
                                                                 value={t.start_time}
@@ -553,8 +552,7 @@ export default function Classes() {
                                                                 className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
                                                             />
                                                         </div>
-                                                        <div className="flex items-center gap-2 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                            <Clock className="w-3.5 h-3.5 text-[#8fa6a8]/60 shrink-0" />
+                                                        <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
                                                             <input
                                                                 type="time"
                                                                 value={t.end_time}
@@ -582,7 +580,7 @@ export default function Classes() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Color Label</label>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Color Label</label>
                                     <div className="flex gap-2 overflow-x-auto pb-2">
                                         {CLASS_COLORS.map(color => (
                                             <button key={color} type="button" onClick={() => setFormData({ ...formData, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${formData.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />

@@ -151,7 +151,7 @@ const GardenHero = memo(() => {
                 </div>
 
                 {/* Stage Tooltip */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1e3840] text-[#8fa6a8] border border-[#233e46] rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl flex items-center gap-1.5">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-claude-surface text-claude-secondary border border-claude-border rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl flex items-center gap-1.5">
                     <Leaf className="w-2.5 h-2.5 text-claude-accent" />
                     <span className="font-mono text-[8px] font-bold uppercase tracking-[0.1em]">{stage.name}</span>
                 </div>
@@ -399,12 +399,12 @@ export default function Decks() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-[#162a31] border-t border-[#233e46] z-[70] shadow-2xl overflow-y-auto rounded-t-[3rem]"
+                            className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-claude-bg border-t border-claude-border z-[70] shadow-2xl overflow-y-auto rounded-t-[3rem]"
                         >
-                            <div className="sticky top-0 right-0 left-0 bg-[#162a31]/80 backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[#233e46]/30">
+                            <div className="sticky top-0 right-0 left-0 bg-[color-mix(in_srgb,var(--bg-color)_80%,transparent)] backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
                                 <div className="w-12 h-1.5 bg-[#233e46] rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
                                 <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
-                                <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-[#8fa6a8] hover:text-claude-accent tap-action">
+                                <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-claude-secondary hover:text-claude-accent tap-action">
                                     <X className="w-7 h-7" />
                                 </button>
                             </div>
@@ -413,13 +413,13 @@ export default function Decks() {
                                 {/* Folders in Menu */}
                                 <div className="mb-10">
                                     <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">Folders</h3>
+                                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Folders</h3>
                                         <button onClick={() => { setShowFolderModal(true); setNewFolder({ name: '', color: '#6366f1' }); }} className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest">+ New</button>
                                     </div>
                                     <div className="grid grid-cols-1 gap-2">
                                         <button
                                             onClick={() => { setActiveFolder(null); setIsMenuOpen(false); }}
-                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
                                         >
                                             <Library className="w-4 h-4" />
                                             <span className="font-mono text-xs font-bold uppercase tracking-wider">All Decks</span>
@@ -428,7 +428,7 @@ export default function Decks() {
                                             <button
                                                 key={folder.id}
                                                 onClick={() => { setActiveFolder(activeFolder === folder.id ? null : folder.id); setIsMenuOpen(false); }}
-                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
                                                 style={activeFolder === folder.id ? { borderColor: folder.color, color: folder.color, backgroundColor: folder.color + '15' } : {}}
                                             >
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }} />
@@ -441,7 +441,7 @@ export default function Decks() {
                                 {/* Tags in Menu */}
                                 <div className="mb-10">
                                     <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60">Tags</h3>
+                                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Tags</h3>
                                         <button onClick={() => setShowTagModal(true)} className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest">+ New</button>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -449,7 +449,7 @@ export default function Decks() {
                                             <button
                                                 key={tag.id}
                                                 onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
-                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
                                                 style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
                                             >
                                                 # {tag.name}
@@ -481,12 +481,12 @@ export default function Decks() {
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search decks..."
-                                    className="w-full bg-[#1e3840]/60 border-2 border-claude-accent/30 rounded-2xl pl-12 pr-4 py-4 text-lg font-mono text-claude-parchment outline-none focus:border-claude-accent"
+                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] border-2 border-claude-accent/30 rounded-2xl pl-12 pr-4 py-4 text-lg font-mono text-claude-parchment outline-none focus:border-claude-accent"
                                 />
                             </div>
                             <button
                                 onClick={() => setIsSearchOpen(false)}
-                                className="p-3 bg-white/5 rounded-2xl text-[#8fa6a8] hover:text-claude-accent transition-colors"
+                                className="p-3 bg-white/5 rounded-2xl text-claude-secondary hover:text-claude-accent transition-colors"
                             >
                                 <X className="w-6 h-6" />
                             </button>
@@ -494,18 +494,18 @@ export default function Decks() {
                         <div className="flex-1 overflow-y-auto">
                             {searchQuery && (
                                 <div className="space-y-4">
-                                    <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/40 px-2">Results for "{searchQuery}"</h3>
+                                    <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] px-2">Results for "{searchQuery}"</h3>
                                     {filteredDecks.length === 0 ? (
-                                        <div className="py-12 text-center text-[#8fa6a8]/40 italic font-serif">No matching decks found</div>
+                                        <div className="py-12 text-center text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] italic font-serif">No matching decks found</div>
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4">
                                             {filteredDecks.map((deck) => (
-                                                <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 bg-[#1e3840]/30 border border-[#233e46] rounded-xl">
+                                                <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl">
                                                     <h4 className="font-serif text-lg font-bold text-botanical-parchment mb-1">{deck.title}</h4>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-mono text-claude-accent uppercase">{deck.cardCount} Cards</span>
-                                                        <span className="text-[10px] font-mono text-[#8fa6a8]/40">•</span>
-                                                        <span className="text-[10px] font-mono text-[#8fa6a8]/60 truncate">{deck.description || 'No description'}</span>
+                                                        <span className="text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">•</span>
+                                                        <span className="text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] truncate">{deck.description || 'No description'}</span>
                                                     </div>
                                                 </Link>
                                             ))}
@@ -531,7 +531,7 @@ export default function Decks() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#1e3840]/40 border border-[#233e46] rounded-xl sm:rounded-2xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -543,14 +543,14 @@ export default function Decks() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSearchOpen(true)}
-                        className="flex-1 flex items-center gap-3 p-3 bg-[#1e3840]/40 border border-[#233e46] rounded-2xl text-[#8fa6a8] hover:text-claude-accent transition-all tap-action"
+                        className="flex-1 flex items-center gap-3 p-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action"
                     >
                         <Search className="w-5 h-5 opacity-60 ml-1" />
                         <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
                     </button>
                     <button
                         onClick={() => setIsMenuOpen(true)}
-                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'bg-[#1e3840]/40 border-[#233e46] text-[#8fa6a8]'}`}
+                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
                     >
                         {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
@@ -575,27 +575,27 @@ export default function Decks() {
             {/* Decks Collection — THE PRIMARY FOCUS */}
             <div className="space-y-6 px-1">
                 <div className="flex items-baseline justify-between mb-2">
-                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] flex items-center gap-2">
                         <div className="w-4 h-px bg-current opacity-30" /> Your Decks
                     </h2>
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setShowSortMenu(!showSortMenu)}
-                            className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] hover:text-claude-accent transition-colors flex items-center gap-1.5 tap-action"
+                            className="text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-accent transition-colors flex items-center gap-1.5 tap-action"
                         >
                             {SORT_OPTIONS.find(o => o.id === sortBy)?.label} <SlidersHorizontal className="w-3.5 h-3.5" />
                         </button>
                         {showSortMenu && (
                             <div className="relative">
                                 <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
-                                <div className="fixed bottom-0 left-0 right-0 bg-[#162a31] border-t border-[#233e46] rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
+                                <div className="fixed bottom-0 left-0 right-0 bg-claude-bg border-t border-claude-border rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
                                     <div className="w-12 h-1 bg-[#233e46] rounded-full mx-auto mb-6" />
                                     <div className="space-y-2">
                                         {SORT_OPTIONS.map(option => (
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'bg-[#1e3840]/40 text-[#8fa6a8]'}`}
+                                                className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] text-claude-secondary'}`}
                                             >
                                                 <option.icon className="w-4 h-4" />
                                                 {option.label}
@@ -609,17 +609,17 @@ export default function Decks() {
                 </div>
 
                 {filteredDecks.length === 0 ? (
-                    <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl">
+                    <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl">
                         {decks.length === 0 ? (
                             <>
                                 <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                 <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Decks</h3>
-                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Your deck collection is empty. Create your first deck below.</p>
+                                <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Your deck collection is empty. Create your first deck below.</p>
                             </>
                         ) : (
                             <div className="py-12">
-                                <Search className="w-12 h-12 text-[#8fa6a8] opacity-10 mx-auto mb-4" />
-                                <p className="text-[#8fa6a8]/40 italic font-serif">No matches for current scope</p>
+                                <Search className="w-12 h-12 text-claude-secondary opacity-10 mx-auto mb-4" />
+                                <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] italic font-serif">No matches for current scope</p>
                             </div>
                         )}
                     </div>
@@ -636,19 +636,19 @@ export default function Decks() {
             {/* Onboarding modal — Kept but positioned normally */}
             {showOnboarding && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#162a31] border border-[#233e46] w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl">
                         <div className="w-20 h-20 bg-claude-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-claude-accent/30">
                             <Sparkles className="w-10 h-10 text-claude-accent" />
                         </div>
                         <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome</h2>
-                        <p className="text-[#8fa6a8] mb-8 font-serif italic text-lg leading-relaxed">
+                        <p className="text-claude-secondary mb-8 font-serif italic text-lg leading-relaxed">
                             Create your first deck to get started.
                         </p>
                         <div className="space-y-4">
                             <Link to="/create" onClick={dismissOnboarding} className="claude-button-primary w-full py-4 block text-lg">
                                 Create My First Deck
                             </Link>
-                            <button onClick={dismissOnboarding} className="text-[#8fa6a8] font-mono text-[10px] uppercase tracking-widest font-bold">
+                            <button onClick={dismissOnboarding} className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest font-bold">
                                 Dismiss for now
                             </button>
                         </div>
@@ -664,20 +664,20 @@ export default function Decks() {
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateFolder}
-                            className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe"
+                            className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingFolder ? 'Edit Folder' : 'New Folder'}</h3>
-                                <button type="button" onClick={() => setShowFolderModal(false)} className="p-2 text-[#8fa6a8]"><X className="w-6 h-6" /></button>
+                                <button type="button" onClick={() => setShowFolderModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Label Name</label>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Label Name</label>
                                     <input
                                         type="text"
                                         value={newFolder.name}
                                         onChange={e => setNewFolder({ ...newFolder, name: e.target.value })}
-                                        className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                         placeholder="e.g. Science"
                                         autoFocus
                                     />
@@ -701,20 +701,20 @@ export default function Decks() {
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateTag}
-                            className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe"
+                            className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Create Tag</h3>
-                                <button type="button" onClick={() => setShowTagModal(false)} className="p-2 text-[#8fa6a8]"><X className="w-6 h-6" /></button>
+                                <button type="button" onClick={() => setShowTagModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Tag Label</label>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Tag Label</label>
                                     <input
                                         type="text"
                                         value={newTag.name}
                                         onChange={e => setNewTag({ ...newTag, name: e.target.value })}
-                                        className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                         placeholder="e.g. IMPORTANT"
                                     />
                                 </div>

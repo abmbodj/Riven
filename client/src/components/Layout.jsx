@@ -79,7 +79,7 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
-                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)]" style={{ backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', background: 'rgba(22, 42, 49, 0.92)' }}>
+                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)]" style={{ backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', background: 'color-mix(in srgb, var(--surface-color) 92%, transparent)' }}>
                         <div className="flex items-stretch h-16 sm:h-20">
                             {navItems.map((item) => {
                                 if (item.isFab) {

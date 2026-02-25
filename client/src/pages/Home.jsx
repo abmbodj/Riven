@@ -90,7 +90,7 @@ export default function Home() {
                 <div className="h-10 w-48 bg-claude-bg border border-claude-border rounded-xl animate-pulse mb-8" />
                 <div className="h-32 w-full bg-[#fcfaf2] rounded-2xl animate-pulse mb-8" />
                 <div className="space-y-4">
-                    {[1, 2, 3].map(i => <div key={i} className="h-20 w-full bg-[#1e3840]/30 rounded-2xl animate-pulse" />)}
+                    {[1, 2, 3].map(i => <div key={i} className="h-20 w-full bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] rounded-2xl animate-pulse" />)}
                 </div>
             </div>
         );
@@ -129,7 +129,7 @@ export default function Home() {
                                 <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                             </div>
                         </motion.div>
-                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#1e3840] text-claude-accent border border-[#233e46] text-[8px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">
+                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-claude-surface text-claude-accent border border-claude-border text-[8px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">
                             <Leaf className="w-2 h-2" /> {streak.currentStreak} Day
                         </div>
                     </Link>
@@ -140,10 +140,10 @@ export default function Home() {
             {classes.length > 0 && (
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-4 px-1">
-                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] flex items-center gap-2">
                             <Library className="w-3.5 h-3.5" /> Your Classes
                         </h2>
-                        <Link to="/classes" className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] hover:text-claude-accent transition-colors flex items-center gap-1 tap-action">
+                        <Link to="/classes" className="text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-accent transition-colors flex items-center gap-1 tap-action">
                             View All <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -154,7 +154,7 @@ export default function Home() {
                             >
                                 <Link
                                     to={`/class/${cls.id}`}
-                                    className="flex items-center gap-3 bg-[#1e3840]/40 border border-[#233e46] rounded-2xl p-3 px-4 min-w-[140px] hover:bg-[#1e3840]/80 transition-all tap-action overflow-hidden group"
+                                    className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl p-3 px-4 min-w-[140px] hover:bg-[color-mix(in_srgb,var(--surface-color)_80%,transparent)] transition-all tap-action overflow-hidden group"
                                 >
                                     <div className="w-3 h-3 rounded-full shrink-0 group-hover:scale-125 transition-transform" style={{ backgroundColor: cls.color || '#7a9e72' }} />
                                     <span className="font-serif font-bold text-botanical-parchment truncate text-sm">{cls.name}</span>
@@ -169,12 +169,12 @@ export default function Home() {
                 {/* Action Center - Assignments */}
                 <div>
                     <div className="flex items-center justify-between mb-4 px-1">
-                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] flex items-center gap-2">
                             <Sparkles className="w-3.5 h-3.5" /> Up Next
                         </h2>
                     </div>
 
-                    <div className="relative bg-[#162a31] border border-[#233e46] rounded-3xl p-5 overflow-hidden">
+                    <div className="relative bg-claude-bg border border-claude-border rounded-3xl p-5 overflow-hidden">
                         {upcomingAssignments.length > 0 ? (
                             <div className="space-y-2 relative z-10">
                                 <AnimatePresence>
@@ -187,12 +187,12 @@ export default function Home() {
                                             >
                                                 <Link
                                                     to={`/class/${a.class_id}`}
-                                                    className="group flex flex-col sm:flex-row sm:items-center gap-3 bg-[#1e3840]/30 hover:bg-[#1e3840]/60 border border-[#233e46] rounded-2xl p-3.5 transition-all tap-action"
+                                                    className="group flex flex-col sm:flex-row sm:items-center gap-3 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] border border-claude-border rounded-2xl p-3.5 transition-all tap-action"
                                                 >
                                                     <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
                                                         <button
                                                             onClick={(e) => toggleAssignStatus(e, a)}
-                                                            className={`mt-0.5 shrink-0 transition-all tap-action ${a.status === 'Doing' ? 'text-orange-400' : 'text-[#8fa6a8] hover:text-claude-accent'}`}
+                                                            className={`mt-0.5 shrink-0 transition-all tap-action ${a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
                                                         >
                                                             {a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                                                         </button>
@@ -209,7 +209,7 @@ export default function Home() {
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-2 sm:mt-0 shrink-0">
                                                         {a.due_date && (
-                                                            <div className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest font-bold ${isOverdue ? 'text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20' : 'text-[#8fa6a8]/60'}`}>
+                                                            <div className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest font-bold ${isOverdue ? 'text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
                                                                 <Calendar className="w-3 h-3" />
                                                                 {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                                                             </div>
@@ -217,7 +217,7 @@ export default function Home() {
                                                         {a.type && (
                                                             <div className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
                                                                     a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                                        'border-[#8fa6a8]/30 text-[#8fa6a8] bg-[#1e3840]/40'
+                                                                        'border-[#8fa6a8]/30 text-claude-secondary bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)]'
                                                                 }`}>
                                                                 {a.type}
                                                             </div>
@@ -233,7 +233,7 @@ export default function Home() {
                             <div className="text-center py-10 opacity-60">
                                 <CheckCircle2 className="w-10 h-10 text-claude-accent mx-auto mb-3 opacity-50" />
                                 <p className="font-serif italic text-botanical-parchment">All caught up!</p>
-                                <p className="text-[10px] font-mono uppercase tracking-widest mt-1 text-[#8fa6a8]">No upcoming tasks found.</p>
+                                <p className="text-[10px] font-mono uppercase tracking-widest mt-1 text-claude-secondary">No upcoming tasks found.</p>
                             </div>
                         )}
                     </div>
@@ -242,10 +242,10 @@ export default function Home() {
                 {/* Quick Continue - Decks */}
                 <div>
                     <div className="flex items-center justify-between mb-4 px-1">
-                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[#8fa6a8]/60 flex items-center gap-2">
+                        <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] flex items-center gap-2">
                             <Layers className="w-3.5 h-3.5" /> Recent Decks
                         </h2>
-                        <Link to="/decks" className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] hover:text-claude-accent transition-colors flex items-center gap-1 tap-action">
+                        <Link to="/decks" className="text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-accent transition-colors flex items-center gap-1 tap-action">
                             View All <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -285,8 +285,8 @@ export default function Home() {
                                 </motion.div>
                             )
                         }) : (
-                            <div className="col-span-full text-center py-10 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl opacity-60">
-                                <Layers className="w-8 h-8 text-[#8fa6a8] mx-auto mb-2 opacity-50" />
+                            <div className="col-span-full text-center py-10 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl opacity-60">
+                                <Layers className="w-8 h-8 text-claude-secondary mx-auto mb-2 opacity-50" />
                                 <p className="font-serif italic text-botanical-parchment">No decks yet</p>
                                 <Link to="/create" className="text-[10px] font-mono uppercase tracking-widest mt-2 text-claude-accent hover:underline">Create one now</Link>
                             </div>

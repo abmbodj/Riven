@@ -53,7 +53,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                 }}
             >
                 {/* Header */}
-                <div className="relative p-6 border-b border-[#233e46]/10">
+                <div className="relative p-6 border-b border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
                     <button
                         onClick={onClose}
                         className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-[#233e46]/5"
@@ -79,7 +79,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[#233e46]/20 py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
                                 placeholder="••••••••"
                                 required
                             />
@@ -93,7 +93,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[#233e46]/20 py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
                                 placeholder="••••••••"
                                 required
                                 minLength={6}
@@ -108,7 +108,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[#233e46]/20 py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
                                 placeholder="••••••••"
                                 required
                                 minLength={6}
@@ -120,7 +120,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-[#1e3840] text-[#e4ddd0] rounded-lg font-display tracking-wide text-lg hover:bg-[#233e46] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full py-3 bg-claude-surface text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-[#233e46] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

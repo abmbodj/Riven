@@ -1103,24 +1103,54 @@ app.get('/api/themes', optionalAuth, async (req, res) => {
             ? await db.query('SELECT * FROM themes WHERE user_id = $1', [userId])
             : await db.query('SELECT * FROM themes WHERE user_id IS NULL');
 
-        // Auto-migrate old "Claude Dark"/"Claude Light" themes to new Riven palette
+        // Auto-migrate old "Claude Dark"/"Claude Light" themes to new Riven palette and insert missing default themes
         if (userId) {
+            let migrated = false;
             for (const theme of themes) {
                 if (theme.is_default && (theme.name === 'Claude Dark' || (theme.name === 'Dark' && theme.bg_color === '#0a0a0b'))) {
                     await db.execute(
                         `UPDATE themes SET name = 'Riven', bg_color = '#162a31', surface_color = '#1e3840', text_color = '#e4ddd0', secondary_text_color = '#8fa6a8', border_color = '#233e46', accent_color = '#deb96a' WHERE id = $1`,
                         [theme.id]
                     );
+                    migrated = true;
                 } else if (theme.is_default && theme.name === 'Claude Light') {
                     await db.execute(
                         `UPDATE themes SET name = 'Riven Light', bg_color = '#f5f0e8', surface_color = '#ffffff', text_color = '#1e3840', secondary_text_color = '#6b7d7f', border_color = '#ddd5c8', accent_color = '#deb96a' WHERE id = $1`,
                         [theme.id]
                     );
+                    migrated = true;
                 }
             }
-            // Re-fetch after migration
-            const migrated = themes.some(t => t.is_default && (t.name === 'Claude Dark' || t.name === 'Claude Light' || (t.name === 'Dark' && t.bg_color === '#0a0a0b')));
-            if (migrated) {
+
+            const proThemes = [
+                { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 1, is_default: 1 },
+                { name: 'Riven Light', bg_color: '#f5f0e8', surface_color: '#ffffff', text_color: '#1e3840', secondary_text_color: '#6b7d7f', border_color: '#ddd5c8', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Arctic Frost', bg_color: '#fafafa', surface_color: '#d4e4f7', text_color: '#4a6fa5', secondary_text_color: '#c0c0c0', border_color: '#d4e4f7', accent_color: '#4a6fa5', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Botanical Garden', bg_color: '#f5f3ed', surface_color: '#e9e6da', text_color: '#4a7c59', secondary_text_color: '#b7472a', border_color: '#4a7c59', accent_color: '#f9a620', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Desert Rose', bg_color: '#e8d5c4', surface_color: '#dfccba', text_color: '#5d2e46', secondary_text_color: '#b87d6d', border_color: '#d4a5a5', accent_color: '#d4a5a5', font_family_display: 'Lora', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Forest Canopy', bg_color: '#faf9f6', surface_color: '#f0ede4', text_color: '#2d4a2b', secondary_text_color: '#7d8471', border_color: '#a4ac86', accent_color: '#2d4a2b', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Golden Hour', bg_color: '#d4b896', surface_color: '#cbb08d', text_color: '#4a403a', secondary_text_color: '#c1666b', border_color: '#f4a900', accent_color: '#f4a900', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Midnight Galaxy', bg_color: '#2b1e3e', surface_color: '#362a4d', text_color: '#e6e6fa', secondary_text_color: '#a490c2', border_color: '#4a4e8f', accent_color: '#a490c2', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Modern Minimal', bg_color: '#ffffff', surface_color: '#f3f4f6', text_color: '#36454f', secondary_text_color: '#708090', border_color: '#d3d3d3', accent_color: '#36454f', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Ocean Depths', bg_color: '#1a2332', surface_color: '#243045', text_color: '#f1faee', secondary_text_color: '#a8dadc', border_color: '#2d8b8b', accent_color: '#2d8b8b', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
+                { name: 'Sunset Blvd', bg_color: '#264653', surface_color: '#2f5565', text_color: '#fafafa', secondary_text_color: '#f4a261', border_color: '#e76f51', accent_color: '#e76f51', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
+                { name: 'Tech Innovation', bg_color: '#1e1e1e', surface_color: '#2a2a2a', text_color: '#ffffff', secondary_text_color: '#00ffff', border_color: '#0066ff', accent_color: '#0066ff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 }
+            ];
+
+            let missingThemesAdded = false;
+            for (const pro of proThemes) {
+                const hasTheme = themes.some(t => t.name === pro.name && t.is_default);
+                if (!hasTheme) {
+                    await db.execute(
+                        'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, font_family_display, font_family_body, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 1)',
+                        [userId, pro.name, pro.bg_color, pro.surface_color, pro.text_color, pro.secondary_text_color, pro.border_color, pro.accent_color, pro.font_family_display, pro.font_family_body]
+                    );
+                    missingThemesAdded = true;
+                }
+            }
+
+            // Re-fetch after migration if needed
+            if (migrated || missingThemesAdded) {
                 themes = await db.query('SELECT * FROM themes WHERE user_id = $1', [userId]);
             }
         }
