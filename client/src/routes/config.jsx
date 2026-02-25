@@ -1,8 +1,10 @@
 import { lazy } from 'react';
 import Home from '../pages/Home.jsx';
+import Decks from '../pages/Decks.jsx';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 
 // Lazy load pages
+const Classes = lazy(() => import('../pages/Classes.jsx'));
 const CreateDeck = lazy(() => import('../pages/CreateDeck.jsx'));
 const DeckView = lazy(() => import('../pages/DeckView.jsx'));
 const StudyMode = lazy(() => import('../pages/StudyMode.jsx'));
@@ -23,12 +25,14 @@ const Settings = lazy(() => import('../pages/Settings.jsx'));
 export const routesConfig = [
   // Public Routes
   { path: '/', element: <Home /> },
+  { path: '/decks', element: <Decks /> },
   { path: '/account', element: <Account /> },
 
   // Protected Routes
   {
     element: <ProtectedRoute />,
     children: [
+      { path: '/classes', element: <Classes /> },
       { path: '/create', element: <CreateDeck /> },
       { path: '/deck/:id', element: <DeckView /> },
       { path: '/deck/:id/study', element: <StudyMode /> },

@@ -100,6 +100,20 @@ if (global.__TEST_DB_MOCK__) {
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_enabled BOOLEAN DEFAULT FALSE
             `).catch(() => { });
 
+            // Classes table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS classes (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    color TEXT,
+                    professor TEXT,
+                    room TEXT,
+                    zoom_link TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Folders table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS folders (

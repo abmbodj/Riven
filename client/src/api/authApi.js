@@ -212,6 +212,19 @@ export const createTag = (name, color) => authFetch('/tags', {
 });
 export const deleteTag = (id) => authFetch(`/tags/${id}`, { method: 'DELETE' });
 
+// ============ CLASSES ENDPOINTS ============
+
+export const getClasses = () => safeFetchArray(authFetch('/classes'));
+export const createClass = (name, color, professor, room, zoom_link) => authFetch('/classes', {
+    method: 'POST',
+    body: JSON.stringify({ name, color, professor, room, zoom_link }),
+});
+export const updateClass = (id, name, color, professor, room, zoom_link) => authFetch(`/classes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, color, professor, room, zoom_link }),
+});
+export const deleteClass = (id) => authFetch(`/classes/${id}`, { method: 'DELETE' });
+
 export const getDecks = () => safeFetchArray(authFetch('/decks'));
 export const getDeck = (id) => authFetch(`/decks/${id}`);
 export const createDeck = (title, description, folderId, tagIds) => authFetch('/decks', {
@@ -387,6 +400,10 @@ export default {
     getTags,
     createTag,
     deleteTag,
+    getClasses,
+    createClass,
+    updateClass,
+    deleteClass,
     getDecks,
     getDeck,
     createDeck,

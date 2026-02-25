@@ -18,6 +18,7 @@ const registerAuthRoutes = require('./routes/auth');
 const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');
 const registerAdminRoutes = require('./routes/admin');
+const registerClassesRoutes = require('./routes/classes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -223,6 +224,10 @@ registerAuthRoutes({
 // ============ SOCIAL / FRIENDS ============
 
 registerSocialRoutes({ app, db, authMiddleware });
+
+// ============ CLASSES ============
+
+registerClassesRoutes({ app, db, authMiddleware });
 
 // ============ MESSAGES ============
 

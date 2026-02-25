@@ -59,6 +59,18 @@ export const api = {
             : db.deleteTag(id);
     },
 
+    // ============ CLASSES ============
+    getClasses: () => isLoggedIn() ? serverApi.getClasses() : Promise.resolve([]),
+    createClass: (name, color, professor, room, zoom_link) => isLoggedIn()
+        ? serverApi.createClass(name, color, professor, room, zoom_link)
+        : Promise.reject(new Error('Must be logged in to manage classes')),
+    updateClass: (id, name, color, professor, room, zoom_link) => isLoggedIn()
+        ? serverApi.updateClass(id, name, color, professor, room, zoom_link)
+        : Promise.reject(new Error('Must be logged in to manage classes')),
+    deleteClass: (id) => isLoggedIn()
+        ? serverApi.deleteClass(id)
+        : Promise.reject(new Error('Must be logged in to manage classes')),
+
     // ============ DECKS ============
     getDecks: () => isLoggedIn()
         ? serverApi.getDecks()

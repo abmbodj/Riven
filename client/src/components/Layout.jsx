@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import Palette from 'lucide-react/dist/esm/icons/palette';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import Layers from 'lucide-react/dist/esm/icons/layers';
 import Home from 'lucide-react/dist/esm/icons/home';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
 import Sprout from 'lucide-react/dist/esm/icons/sprout';
@@ -12,10 +13,10 @@ import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 
 const navItems = [
-    { to: '/', icon: Home, label: 'Library', matchExact: true },
-    { to: '/garden', icon: Sprout, label: 'Garden' },
+    { to: '/', icon: Home, label: 'Home', matchExact: true },
+    { to: '/classes', icon: Calendar, label: 'Classes' },
     { to: '/create', isFab: true },
-    { to: '/themes', icon: Palette, label: 'Themes' },
+    { to: '/decks', icon: Layers, label: 'Decks', alsoMatch: '/deck' },
     { to: '/account', icon: User, label: 'Account', alsoMatch: '/shared' },
 ];
 
