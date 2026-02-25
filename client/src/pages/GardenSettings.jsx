@@ -233,7 +233,7 @@ export default function GardenSettings() {
                                 {isOwner ? 'Stage Override' : 'Select Garden Stage'}
                             </div>
                             <div className={`text-xs ${isOwner ? 'text-amber-500/70' : 'text-claude-accent/70'}`}>
-                                {isOwner ? 'Manually select any garden stage (0-10)' : 'Revisit stages you have unlocked'}
+                                {isOwner ? 'Manually select any garden stage (0-15)' : 'Revisit stages you have unlocked'}
                             </div>
                         </div>
                     </div>
@@ -241,12 +241,12 @@ export default function GardenSettings() {
                     <div className="flex flex-col gap-2">
                         <div className="flex justify-between text-xs text-claude-secondary font-mono px-1">
                             <span>Stage 0 (Seed)</span>
-                            <span>{isOwner ? 'Stage 10 (Celestial)' : `Stage ${getStageIndex(streak.currentStreak)} (Max)`}</span>
+                            <span>{isOwner ? 'Stage 15 (Infinity)' : `Stage ${getStageIndex(streak.currentStreak)} (Max)`}</span>
                         </div>
                         <input
                             type="range"
                             min="0"
-                            max={isOwner ? 10 : getStageIndex(streak.currentStreak)}
+                            max={isOwner ? 15 : getStageIndex(streak.currentStreak)}
                             step="1"
                             value={customization?.stageOverride ?? getStageIndex(streak.currentStreak)}
                             onChange={(e) => setStageOverride(parseInt(e.target.value, 10))}
