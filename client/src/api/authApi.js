@@ -20,6 +20,8 @@ if (API_BASE && API_BASE.endsWith('/')) {
     API_BASE = API_BASE.slice(0, -1);
 }
 
+export const getApiBase = () => API_BASE;
+
 console.log('[authApi] INITIALIZED. Using API_BASE:', API_BASE);
 
 // Helper functions for local auth state (flag for AuthContext to know if it should try fetching user)

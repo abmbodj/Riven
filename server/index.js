@@ -2,6 +2,8 @@ if (process.env.NODE_ENV !== 'test') {
     require('dotenv').config({ override: true });
 }
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -25,6 +27,7 @@ const registerLMSRoutes = require('./routes/lms');
 const registerAIRoutes = require('./routes/ai');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // Trust the first proxy (Render/Vercel load balancer)
@@ -105,6 +108,62 @@ app.use(helmet({
     },
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+const io = new Server(server, {
+    cors: {
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
+
+// Map to store connected users: userId -> socketId
+const connectedUsers = new Map();
+
+io.on('connection', (socket) => {
+    // We expect the client to pass their token or userId in the handshake or auth.
+    // However, it's simpler if they just emit a 'register' event shortly after connecting
+    // since we use HttpOnly cookies that sockets may not easily read depending on cross-origin setup.
+
+    socket.on('register', (userId) => {
+        if (userId) {
+            connectedUsers.set(userId, socket.id);
+            // console.log(`[Socket] User ${userId} connected (${socket.id})`);
+        }
+    });
+
+    socket.on('typing', ({ receiverId, isTyping }) => {
+        const receiverSocketId = connectedUsers.get(receiverId);
+        if (receiverSocketId) {
+            // Find sender based on this socket's current registered user
+            let senderId = null;
+            for (const [id, sid] of connectedUsers.entries()) {
+                if (sid === socket.id) {
+                    senderId = id;
+                    break;
+                }
+            }
+            if (senderId) {
+                io.to(receiverSocketId).emit('typing', { senderId, isTyping });
+            }
+        }
+    });
+
+    socket.on('disconnect', () => {
+        // Remove from map
+        for (const [userId, socketId] of connectedUsers.entries()) {
+            if (socketId === socket.id) {
+                connectedUsers.delete(userId);
+                // console.log(`[Socket] User ${userId} disconnected`);
+                break;
+            }
+        }
+    });
+});
+
+// Make io accessible to routes via app locals
+app.locals.io = io;
+app.locals.connectedUsers = connectedUsers;
 
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
@@ -371,17 +430,39 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
             [req.user.id, receiverId, content || '', messageType, deckData ? JSON.stringify(deckData) : null, imageUrl || null]
         );
 
-        res.json({
+        // Fetch sender details to send along with the socket event
+        const sender = await db.queryOne('SELECT username, avatar FROM users WHERE id = $1', [req.user.id]);
+
+        const responseData = {
             id: message.id,
             senderId: message.sender_id,
+            senderUsername: sender?.username,
+            senderAvatar: sender?.avatar,
             content: message.content,
             messageType: message.message_type,
             deckData: message.deck_data ? JSON.parse(message.deck_data) : null,
             imageUrl: message.image_url,
             isEdited: message.is_edited === 1,
+            isRead: message.is_read === 1,
             createdAt: message.created_at,
             isMine: true
-        });
+        };
+
+        // Emit real-time event to receiver
+        const io = req.app.locals.io;
+        const connectedUsers = req.app.locals.connectedUsers;
+        if (io && connectedUsers) {
+            const receiverSocketId = connectedUsers.get(receiverId);
+            if (receiverSocketId) {
+                // Send the message to the receiver (with isMine = false for them)
+                io.to(receiverSocketId).emit('new_message', {
+                    ...responseData,
+                    isMine: false
+                });
+            }
+        }
+
+        res.json(responseData);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -403,7 +484,7 @@ app.put('/api/messages/:id', authMiddleware, async (req, res) => {
             [content, id]
         );
 
-        res.json({
+        const responseData = {
             id: updated.id,
             senderId: updated.sender_id,
             content: updated.content,
@@ -413,7 +494,22 @@ app.put('/api/messages/:id', authMiddleware, async (req, res) => {
             isEdited: updated.is_edited === 1,
             createdAt: updated.created_at,
             isMine: true
-        });
+        };
+
+        // Emit real-time event
+        const io = req.app.locals.io;
+        const connectedUsers = req.app.locals.connectedUsers;
+        if (io && connectedUsers) {
+            const receiverSocketId = connectedUsers.get(updated.receiver_id);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('message_updated', {
+                    ...responseData,
+                    isMine: false
+                });
+            }
+        }
+
+        res.json(responseData);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -428,6 +524,17 @@ app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
         if (!message) return res.status(404).json({ error: 'Message not found or unauthorized' });
 
         await db.execute('DELETE FROM messages WHERE id = $1', [id]);
+
+        // Emit real-time event
+        const io = req.app.locals.io;
+        const connectedUsers = req.app.locals.connectedUsers;
+        if (io && connectedUsers) {
+            const receiverSocketId = connectedUsers.get(message.receiver_id);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('message_deleted', { id: parseInt(id) });
+            }
+        }
+
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1205,7 +1312,7 @@ app.post('/api/messages/:id/dismiss', authMiddleware, async (req, res) => {
 registerHealthRoutes({ app, db });
 
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
 }

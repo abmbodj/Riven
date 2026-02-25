@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { io } from 'socket.io-client';
 import * as authApi from '../api/authApi';
 import { AuthContext } from './authContextDef';
 
@@ -8,6 +9,7 @@ export { AuthContext };
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [socket, setSocket] = useState(null);
 
     // Initial Session Check
     useEffect(() => {
@@ -42,6 +44,31 @@ export function AuthProvider({ children }) {
 
         initAuth();
     }, []);
+
+    // Socket Initialization
+    useEffect(() => {
+        let newSocket = null;
+        if (user && user.id) {
+            // Remove /api from getApiBase() to get the root server URL for Socket.IO
+            const serverUrl = authApi.getApiBase().replace(/\/api$/, '');
+            newSocket = io(serverUrl, {
+                withCredentials: true,
+                transports: ['websocket', 'polling']
+            });
+
+            newSocket.on('connect', () => {
+                newSocket.emit('register', user.id);
+            });
+
+            setSocket(newSocket);
+        }
+
+        return () => {
+            if (newSocket) {
+                newSocket.disconnect();
+            }
+        };
+    }, [user]);
 
     // Sign In - Atomic & Simple
     const signIn = useCallback(async (email, password) => {
@@ -131,6 +158,7 @@ export function AuthProvider({ children }) {
     const contextValue = useMemo(() => ({
         user,
         loading,
+        socket,
         isLoggedIn: !!user,
         isAdmin: user?.isAdmin || user?.isOwner || false,
         isOwner: user?.isOwner || false,
@@ -159,7 +187,7 @@ export function AuthProvider({ children }) {
         getActiveMessages,
         dismissMessage
     }), [
-        user, loading, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
+        user, loading, socket, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
         deleteAccount, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,

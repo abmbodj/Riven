@@ -17,7 +17,7 @@ export default function Messages() {
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
-    const { isLoggedIn } = useAuth();
+    const { isLoggedIn, user, socket } = useAuth();
 
     const [conversations, setConversations] = useState([]);
     const [messages, setMessages] = useState([]);
@@ -29,6 +29,7 @@ export default function Messages() {
     const [imagePreview, setImagePreview] = useState(null);
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
+    const [isTyping, setIsTyping] = useState(false);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -79,7 +80,83 @@ export default function Messages() {
     // Scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, isTyping]);
+
+    // Socket listeners
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleNewMessage = (msg) => {
+            if (userId && (msg.senderId === parseInt(userId) || msg.receiverId === parseInt(userId))) {
+                setMessages(prev => {
+                    // Prevent duplicate messages if we are the sender and already appended it
+                    if (prev.find(m => m.id === msg.id)) return prev;
+                    return [...prev, msg];
+                });
+
+                // If it's from the person we're chatting with, clear their typing indicator
+                if (msg.senderId === parseInt(userId)) {
+                    setIsTyping(false);
+                }
+            } else if (!userId) {
+                // We are in the conversations list view, reload conversations
+                loadConversations();
+            }
+        };
+
+        const handleMessageUpdated = (msg) => {
+            if (userId) {
+                setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+            } else {
+                loadConversations();
+            }
+        };
+
+        const handleMessageDeleted = ({ id }) => {
+            if (userId) {
+                setMessages(prev => prev.filter(m => m.id !== id));
+            } else {
+                loadConversations();
+            }
+        };
+
+        const handleTyping = ({ senderId, isTyping: typingStatus }) => {
+            if (userId && senderId === parseInt(userId)) {
+                setIsTyping(typingStatus);
+            }
+        };
+
+        socket.on('new_message', handleNewMessage);
+        socket.on('message_updated', handleMessageUpdated);
+        socket.on('message_deleted', handleMessageDeleted);
+        socket.on('typing', handleTyping);
+
+        return () => {
+            socket.off('new_message', handleNewMessage);
+            socket.off('message_updated', handleMessageUpdated);
+            socket.off('message_deleted', handleMessageDeleted);
+            socket.off('typing', handleTyping);
+        };
+    }, [socket, userId, loadConversations]);
+
+    const typingTimeoutRef = useRef(null);
+
+    const handleTypingStart = () => {
+        if (!socket || !userId) return;
+
+        // Emit typing status
+        socket.emit('typing', { receiverId: parseInt(userId), isTyping: true });
+
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Set a timeout to stop typing after 2.5s of inactivity
+        typingTimeoutRef.current = setTimeout(() => {
+            socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+        }, 2500);
+    };
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -527,6 +604,38 @@ export default function Messages() {
                             })}
                         </AnimatePresence>
                     )}
+
+                    {isTyping && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                            className="flex justify-start mb-4"
+                        >
+                            <div className="flex items-end gap-2 max-w-[85%]">
+                                <div className="w-8 shrink-0 mb-1">
+                                    <Avatar src={chatUser?.avatar} size="xs" />
+                                </div>
+                                <div className="botanical-card rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1 items-center h-10">
+                                    <motion.div
+                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
+                                        animate={{ y: [0, -4, 0] }}
+                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                                    />
+                                    <motion.div
+                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
+                                        animate={{ y: [0, -4, 0] }}
+                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                                    />
+                                    <motion.div
+                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
+                                        animate={{ y: [0, -4, 0] }}
+                                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                                    />
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
             </div>
@@ -599,7 +708,10 @@ export default function Messages() {
                                 ref={inputRef}
                                 type="text"
                                 value={newMessage}
-                                onChange={e => setNewMessage(e.target.value)}
+                                onChange={e => {
+                                    setNewMessage(e.target.value);
+                                    handleTypingStart();
+                                }}
                                 placeholder={editingMessageId ? "Edit message..." : "Message..."}
                                 disabled={sending}
                                 className="flex-1 w-full bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-sans text-[15px]"

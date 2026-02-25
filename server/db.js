@@ -363,6 +363,17 @@ if (global.__TEST_DB_MOCK__) {
 
             // Create indexes for performance optimization
             await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC)
+            `);
+
+            // Create indexes for performance optimization
+            await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards(deck_id)
             `);
             await client.query(`
