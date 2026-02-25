@@ -12,17 +12,20 @@ module.exports = function ({ app, db, authMiddleware, rateLimit }) {
         legacyHeaders: false,
     });
 
-    // Generate Flashcards Deck from Notes
+    // Generate Flashcards Deck from Notes or File
     app.post('/api/ai/generate-deck', authMiddleware, aiLimiter, async (req, res) => {
         try {
-            const { notes, deckName, classId } = req.body;
+            const { notes, file, deckName, classId } = req.body;
 
-            if (!notes || notes.trim() === '') {
-                return res.status(400).json({ error: 'Notes are required to generate flashcards.' });
+            const hasNotes = notes && notes.trim() !== '';
+            const hasFile = file && file.data && file.mimeType;
+
+            if (!hasNotes && !hasFile) {
+                return res.status(400).json({ error: 'Notes or a file are required to generate flashcards.' });
             }
 
             // Cap notes at 15,000 characters to prevent abuse and ensure fast generation
-            if (notes.length > 15000) {
+            if (hasNotes && notes.length > 15000) {
                 return res.status(400).json({ error: 'Notes are too long. Please limit to ~3000 words.' });
             }
 
@@ -33,17 +36,18 @@ module.exports = function ({ app, db, authMiddleware, rateLimit }) {
             // Initialize Gemini SDK
             const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-            const prompt = `
+            const promptInstruction = `
 You are an expert tutor creating highly effective spaced-repetition flashcards.
-Extract the most important facts, concepts, and definitions from the provided lecture notes and output them as a precise JSON array of flashcards.
+Extract the most important facts, concepts, and definitions from the provided lecture notes, document, or image, and output them as a precise JSON array of flashcards.
 
 Rules:
 1. Output ONLY a valid JSON array, with absolutely no markdown formatting, backticks, or conversational text outside the array.
 2. Each flashcard should have exactly two keys: "front" and "back".
 3. The "front" should be a clear, concise question or term.
 4. The "back" should be the direct answer or definition.
-5. Generate between 5 and 15 flashcards depending on the length and density of the notes.
+5. Generate between 5 and 15 flashcards depending on the length and density of the source material.
 6. Make the cards atomic (one concept per card).
+7. Ensure definitions are accurate based on the provided material.
 
 Example JSON format:
 [
@@ -52,15 +56,26 @@ Example JSON format:
     "back": "Mitochondria"
   }
 ]
-
-Lecture Notes:
-${notes}
 `;
 
-            // Call Gemini 1.5 Flash
+            const contentsParts = [{ text: promptInstruction }];
+
+            if (hasNotes) {
+                contentsParts.push({ text: `\n\nLecture Notes/Text Content:\n${notes}` });
+            }
+            if (hasFile) {
+                contentsParts.push({
+                    inlineData: {
+                        data: file.data,
+                        mimeType: file.mimeType
+                    }
+                });
+            }
+
+            // Call Gemini Flash
             const response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: prompt,
+                model: 'gemini-2.5-flash',
+                contents: contentsParts,
             });
 
             let rawResponse = response.text;

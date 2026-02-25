@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2
+    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -38,6 +38,8 @@ export default function ClassView() {
 
     // AI Generation
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [aiFile, setAiFile] = useState(null);
+    const [aiFilePreview, setAiFilePreview] = useState('');
 
     const loadData = useCallback(async () => {
         try {
@@ -138,6 +140,8 @@ export default function ClassView() {
     const openCreateAssign = () => {
         setEditingAssign(null);
         setAssignForm({ title: '', description: '', due_date: '', status: 'Todo', type: 'homework' });
+        setAiFile(null);
+        setAiFilePreview('');
         setShowAssignModal(true);
     };
 
@@ -150,6 +154,8 @@ export default function ClassView() {
             status: a.status,
             type: a.type || 'homework'
         });
+        setAiFile(null);
+        setAiFilePreview('');
         setShowAssignModal(true);
     };
 
@@ -187,9 +193,35 @@ export default function ClassView() {
         }
     };
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAiFile({
+                data: reader.result.split(',')[1], // Keep only the base64 part
+                mimeType: file.type
+            });
+            setAiFilePreview(file.name);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeFile = () => {
+        setAiFile(null);
+        setAiFilePreview('');
+    };
+
     const handleGenerateAI = async () => {
-        if (!assignForm.description || assignForm.description.trim() === '') {
-            toast.error('Please add some notes to generate flashcards from.');
+        const hasText = assignForm.description && assignForm.description.trim() !== '';
+        if (!hasText && !aiFile) {
+            toast.error('Please add some notes or upload a file to generate flashcards from.');
             return;
         }
 
@@ -197,6 +229,7 @@ export default function ClassView() {
         try {
             const result = await api.generateAiDeck(
                 assignForm.description,
+                aiFile,
                 `${assignForm.title} - AI ✨`,
                 id
             );
@@ -388,8 +421,8 @@ export default function ClassView() {
                                                 )}
                                                 {a.type && (
                                                     <div className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
-                                                            a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                                'border-[#8fa6a8]/30 text-[#8fa6a8] bg-[#1e3840]/40'
+                                                        a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                            'border-[#8fa6a8]/30 text-[#8fa6a8] bg-[#1e3840]/40'
                                                         }`}>
                                                         {a.type}
                                                     </div>
@@ -497,13 +530,37 @@ export default function ClassView() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Description / Notes</label>
-                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Paste your lecture notes or syllabus reading here to generate flashcards..." />
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Description / Notes & AI File</label>
+                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Paste your lecture notes/syllabus reading here to generate flashcards..." />
+
+                                    {aiFilePreview ? (
+                                        <div className="flex items-center justify-between bg-[#1e3840]/40 border border-[#233e46] rounded-xl p-3 mb-3">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-[#8fa6a8]">
+                                                    <Layers className="w-4 h-4" />
+                                                </div>
+                                                <span className="font-mono text-xs text-botanical-parchment truncate">{aiFilePreview}</span>
+                                            </div>
+                                            <button type="button" onClick={removeFile} className="p-2 text-red-400 hover:text-red-300">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="mb-3">
+                                            <label className="flex items-center justify-center w-full h-12 px-4 bg-[#1e3840]/20 border border-dashed border-[#233e46] rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
+                                                <div className="flex items-center gap-2 text-[#8fa6a8] group-hover:text-claude-accent">
+                                                    <Upload className="w-4 h-4" />
+                                                    <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload File (Image/PDF)</span>
+                                                </div>
+                                                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+                                            </label>
+                                        </div>
+                                    )}
 
                                     <button
                                         type="button"
                                         onClick={handleGenerateAI}
-                                        disabled={isGeneratingAI || !assignForm.description?.trim()}
+                                        disabled={isGeneratingAI || (!assignForm.description?.trim() && !aiFile)}
                                         className="w-full h-12 flex items-center justify-center gap-2 bg-[#1e3840]/40 hover:bg-[#1e3840]/80 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
                                     >
                                         {isGeneratingAI ? (

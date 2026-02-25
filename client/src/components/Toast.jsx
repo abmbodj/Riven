@@ -33,14 +33,14 @@ export function ToastProvider({ children }) {
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
-                className="fixed top-16 left-4 right-4 z-50 flex flex-col gap-2"
+                className="fixed top-16 left-4 right-4 z-[9999] flex flex-col gap-2"
             >
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-top duration-300 ${toast.type === 'success'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-red-500 text-white'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-red-500 text-white'
                             }`}
                     >
                         {toast.type === 'success' ? (
