@@ -21,7 +21,7 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
 
     // POST /api/assignments
     app.post('/api/assignments', authMiddleware, async (req, res) => {
-        const { class_id, title, description, due_date } = req.body;
+        const { class_id, title, description, due_date, type } = req.body;
         if (!class_id) return res.status(400).json({ error: 'class_id is required' });
         if (!title) return res.status(400).json({ error: 'title is required' });
 
@@ -31,9 +31,9 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
             if (!cls) return res.status(403).json({ error: 'Class not found or not authorized' });
 
             const result = await db.queryOne(
-                `INSERT INTO assignments (user_id, class_id, title, description, status, due_date)
-                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                [req.user.id, class_id, title, description || null, 'Todo', due_date || null]
+                `INSERT INTO assignments (user_id, class_id, title, description, status, due_date, type)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+                [req.user.id, class_id, title, description || null, 'Todo', due_date || null, type || 'homework']
             );
             res.status(201).json(result);
         } catch (error) {
@@ -44,7 +44,7 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
     // PUT /api/assignments/:id
     app.put('/api/assignments/:id', authMiddleware, async (req, res) => {
         const { id } = req.params;
-        const { title, description, status, due_date } = req.body;
+        const { title, description, status, due_date, type } = req.body;
 
         try {
             const assignment = await db.queryOne('SELECT * FROM assignments WHERE id = $1', [id]);
@@ -56,12 +56,14 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
                  SET title = COALESCE($1, title), 
                      description = $2, 
                      status = COALESCE($3, status), 
-                     due_date = $4 
-                 WHERE id = $5 RETURNING *`,
+                     due_date = $4,
+                     type = COALESCE($5, type)
+                 WHERE id = $6 RETURNING *`,
                 [title,
                     description !== undefined ? description : assignment.description,
                     status,
                     due_date !== undefined ? due_date : assignment.due_date,
+                    type,
                     id]
             );
             res.json(result);

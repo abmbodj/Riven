@@ -29,7 +29,7 @@ export default function ClassView() {
     // Modal state for Assignments
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [editingAssign, setEditingAssign] = useState(null);
-    const [assignForm, setAssignForm] = useState({ title: '', description: '', due_date: '', status: 'Todo' });
+    const [assignForm, setAssignForm] = useState({ title: '', description: '', due_date: '', status: 'Todo', type: 'homework' });
     const [deleteAssignConfirm, setDeleteAssignConfirm] = useState({ show: false, item: null });
 
     // Modal state for Schedule
@@ -115,7 +115,7 @@ export default function ClassView() {
             }
             setShowAssignModal(false);
             setEditingAssign(null);
-            setAssignForm({ title: '', description: '', due_date: '', status: 'Todo' });
+            setAssignForm({ title: '', description: '', due_date: '', status: 'Todo', type: 'homework' });
             loadData();
         } catch (err) {
             toast.error('Failed to save assignment');
@@ -137,7 +137,7 @@ export default function ClassView() {
 
     const openCreateAssign = () => {
         setEditingAssign(null);
-        setAssignForm({ title: '', description: '', due_date: '', status: 'Todo' });
+        setAssignForm({ title: '', description: '', due_date: '', status: 'Todo', type: 'homework' });
         setShowAssignModal(true);
     };
 
@@ -147,7 +147,8 @@ export default function ClassView() {
             title: a.title,
             description: a.description || '',
             due_date: a.due_date ? new Date(a.due_date).toISOString().slice(0, 16) : '',
-            status: a.status
+            status: a.status,
+            type: a.type || 'homework'
         });
         setShowAssignModal(true);
     };
@@ -351,7 +352,7 @@ export default function ClassView() {
                     {groupedAssignments.map(group => group.items.length > 0 && (
                         <div key={group.status}>
                             <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#8fa6a8] mb-4 flex items-center gap-2">
-                                {group.status} <span className="opacity-40 text-[10px]">({group.items.length})</span>
+                                {group.status === 'Todo' ? 'Assignments' : group.status === 'Doing' ? 'In Progress' : 'Completed'} <span className="opacity-40 text-[10px]">({group.items.length})</span>
                             </h3>
                             <div className="space-y-3">
                                 {group.items.map(a => (
@@ -380,9 +381,17 @@ export default function ClassView() {
                                                     <p className="text-sm text-[#8fa6a8]/80 line-clamp-2 mt-1">{a.description}</p>
                                                 )}
                                                 {a.due_date && (
-                                                    <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Done' ? 'text-red-400' : 'text-[#8fa6a8]/60'}`}>
+                                                    <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[#8fa6a8]/60'}`}>
                                                         <Calendar className="w-3.5 h-3.5" />
                                                         {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                    </div>
+                                                )}
+                                                {a.type && (
+                                                    <div className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                                                            a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                                'border-[#8fa6a8]/30 text-[#8fa6a8] bg-[#1e3840]/40'
+                                                        }`}>
+                                                        {a.type}
                                                     </div>
                                                 )}
                                             </div>
@@ -462,7 +471,7 @@ export default function ClassView() {
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Task Title *</label>
                                     <input type="text" required value={assignForm.title} onChange={e => setAssignForm({ ...assignForm, title: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="Read Chapter 4" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Due Date & Time</label>
                                         <input type="datetime-local" value={assignForm.due_date} onChange={e => setAssignForm({ ...assignForm, due_date: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" />
@@ -473,6 +482,17 @@ export default function ClassView() {
                                             <option value="Todo">To Do</option>
                                             <option value="Doing">Doing</option>
                                             <option value="Done">Done</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Type</label>
+                                        <select value={assignForm.type} onChange={e => setAssignForm({ ...assignForm, type: e.target.value })} className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none appearance-none">
+                                            <option value="homework">Homework</option>
+                                            <option value="reading">Reading</option>
+                                            <option value="project">Project</option>
+                                            <option value="test">Test</option>
+                                            <option value="exam">Exam</option>
+                                            <option value="other">Other</option>
                                         </select>
                                     </div>
                                 </div>

@@ -147,6 +147,7 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_api_token TEXT`).catch(() => { });
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS canvas_course_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS canvas_assignment_id TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'homework'`).catch(() => { });
 
             // Schedule slots table
             await client.query(`

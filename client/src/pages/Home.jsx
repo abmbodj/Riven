@@ -207,12 +207,22 @@ export default function Home() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    {a.due_date && (
-                                                        <div className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest font-bold mt-2 sm:mt-0 shrink-0 ${isOverdue ? 'text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20' : 'text-[#8fa6a8]/60'}`}>
-                                                            <Calendar className="w-3 h-3" />
-                                                            {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center gap-2 mt-2 sm:mt-0 shrink-0">
+                                                        {a.due_date && (
+                                                            <div className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest font-bold ${isOverdue ? 'text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20' : 'text-[#8fa6a8]/60'}`}>
+                                                                <Calendar className="w-3 h-3" />
+                                                                {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                        {a.type && (
+                                                            <div className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                                                                    a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                                        'border-[#8fa6a8]/30 text-[#8fa6a8] bg-[#1e3840]/40'
+                                                                }`}>
+                                                                {a.type}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </Link>
                                             </motion.div>
                                         );
