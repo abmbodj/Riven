@@ -71,6 +71,18 @@ export const api = {
         ? serverApi.deleteClass(id)
         : Promise.reject(new Error('Must be logged in to manage classes')),
 
+    // ============ ASSIGNMENTS ============
+    getAssignments: (classId) => isLoggedIn() ? serverApi.getAssignments(classId) : Promise.resolve([]),
+    createAssignment: (class_id, title, description, due_date) => isLoggedIn()
+        ? serverApi.createAssignment(class_id, title, description, due_date)
+        : Promise.reject(new Error('Must be logged in to manage assignments')),
+    updateAssignment: (id, updates) => isLoggedIn()
+        ? serverApi.updateAssignment(id, updates)
+        : Promise.reject(new Error('Must be logged in to manage assignments')),
+    deleteAssignment: (id) => isLoggedIn()
+        ? serverApi.deleteAssignment(id)
+        : Promise.reject(new Error('Must be logged in to manage assignments')),
+
     // ============ DECKS ============
     getDecks: () => isLoggedIn()
         ? serverApi.getDecks()

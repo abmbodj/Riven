@@ -19,6 +19,7 @@ const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');
 const registerAdminRoutes = require('./routes/admin');
 const registerClassesRoutes = require('./routes/classes');
+const registerAssignmentsRoutes = require('./routes/assignments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -228,6 +229,10 @@ registerSocialRoutes({ app, db, authMiddleware });
 // ============ CLASSES ============
 
 registerClassesRoutes({ app, db, authMiddleware });
+
+// ============ ASSIGNMENTS ============
+
+registerAssignmentsRoutes({ app, db, authMiddleware });
 
 // ============ MESSAGES ============
 

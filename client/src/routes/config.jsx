@@ -5,6 +5,7 @@ import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 
 // Lazy load pages
 const Classes = lazy(() => import('../pages/Classes.jsx'));
+const ClassView = lazy(() => import('../pages/ClassView.jsx'));
 const CreateDeck = lazy(() => import('../pages/CreateDeck.jsx'));
 const DeckView = lazy(() => import('../pages/DeckView.jsx'));
 const StudyMode = lazy(() => import('../pages/StudyMode.jsx'));
@@ -33,6 +34,7 @@ export const routesConfig = [
     element: <ProtectedRoute />,
     children: [
       { path: '/classes', element: <Classes /> },
+      { path: '/class/:id', element: <ClassView /> },
       { path: '/create', element: <CreateDeck /> },
       { path: '/deck/:id', element: <DeckView /> },
       { path: '/deck/:id/study', element: <StudyMode /> },

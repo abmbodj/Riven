@@ -114,6 +114,20 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // Assignments table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS assignments (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    status TEXT DEFAULT 'Todo',
+                    due_date TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Folders table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS folders (

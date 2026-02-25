@@ -223,7 +223,37 @@ export const updateClass = (id, name, color, professor, room, zoom_link) => auth
     method: 'PUT',
     body: JSON.stringify({ name, color, professor, room, zoom_link }),
 });
-export const deleteClass = (id) => authFetch(`/classes/${id}`, { method: 'DELETE' });
+export const deleteClass = async (id) => {
+    return await authFetch(`/classes/${id}`, {
+        method: 'DELETE'
+    });
+};
+
+// --- Assignments ---
+export const getAssignments = async (classId) => {
+    const url = classId ? `/assignments?class_id=${classId}` : `/assignments`;
+    return await authFetch(url);
+};
+
+export const createAssignment = async (class_id, title, description, due_date) => {
+    return await authFetch(`/assignments`, {
+        method: 'POST',
+        body: JSON.stringify({ class_id, title, description, due_date })
+    });
+};
+
+export const updateAssignment = async (id, updates) => {
+    return await authFetch(`/assignments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+    });
+};
+
+export const deleteAssignment = async (id) => {
+    return await authFetch(`/assignments/${id}`, {
+        method: 'DELETE'
+    });
+};
 
 export const getDecks = () => safeFetchArray(authFetch('/decks'));
 export const getDeck = (id) => authFetch(`/decks/${id}`);
@@ -404,6 +434,12 @@ export default {
     createClass,
     updateClass,
     deleteClass,
+
+    // Assignments
+    getAssignments,
+    createAssignment,
+    updateAssignment,
+    deleteAssignment,
     getDecks,
     getDeck,
     createDeck,

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
     Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -77,6 +78,7 @@ const ClassCard = memo(({ cls, index, onClick }) => {
 ClassCard.displayName = 'ClassCard';
 
 export default function Classes() {
+    const navigate = useNavigate();
     const toast = useToast();
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -218,7 +220,7 @@ export default function Classes() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-4">
                         {classes.map((cls, i) => (
-                            <ClassCard key={cls.id} cls={cls} index={i} onClick={() => openEditModal(cls)} />
+                            <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
                         ))}
                     </div>
                 )}
