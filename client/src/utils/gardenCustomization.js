@@ -13,9 +13,14 @@ export const gardenStages = [
     { minDays: 30, name: 'Flourishing Garden', description: 'A lush garden full of life' },
     { minDays: 60, name: 'Thriving Oasis', description: 'A beautiful sanctuary of nature' },
     { minDays: 100, name: 'Enchanted Grove', description: 'A magical garden with rare flora' },
+    { minDays: 150, name: 'Mystic Sanctuary', description: 'Ancient trees and mystical energies intertwine' },
     { minDays: 200, name: 'Paradise Garden', description: 'A slice of paradise on earth' },
     { minDays: 365, name: 'Eternal Eden', description: 'The legendary Garden of Eden itself' },
-    { minDays: 1000, name: 'Celestial Eden', description: 'A garden touched by the divine' }
+    { minDays: 500, name: 'Astral Gardens', description: 'Floating islands amongst the stars' },
+    { minDays: 1000, name: 'Celestial Eden', description: 'A garden touched by the divine' },
+    { minDays: 2000, name: 'Cosmic Nexus', description: 'The heart of a blossoming galaxy' },
+    { minDays: 5000, name: 'Universal Core', description: 'The pure essence of creation' },
+    { minDays: 10000, name: 'Infinity Loom', description: 'Weaving the fabric of reality itself' }
 ];
 
 /**

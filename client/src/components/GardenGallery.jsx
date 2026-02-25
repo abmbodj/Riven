@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { X, Calendar } from 'lucide-react';
+import { X, Calendar, Sprout } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { UIContext } from '../context/UIContext';
