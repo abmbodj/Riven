@@ -1,5 +1,12 @@
 {
   "appId": "com.riven.app",
   "appName": "Riven",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "localhost",
+      "192.168.*.*"
+    ]
+  }
 }

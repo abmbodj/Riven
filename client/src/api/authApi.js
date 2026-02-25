@@ -1,10 +1,22 @@
+import { Capacitor } from '@capacitor/core';
+
 // Authentication API - communicates with server for cross-device sync
 // Use '/api' in dev so Vite proxy keeps requests same-origin (cookies work).
 // Set VITE_API_URL for production or when server is on a different host.
-let API_BASE = import.meta.env.VITE_API_URL || '/api';
+let API_BASE = import.meta.env.VITE_API_URL;
+
+if (!API_BASE) {
+    if (Capacitor.isNativePlatform()) {
+        // On iOS Simulator, localhost correctly resolving to the Mac's host IP for servers
+        // (Note: For physical devices, VITE_API_URL must be explicitly set to the Mac's local network IP in .env)
+        API_BASE = 'http://localhost:3000/api';
+    } else {
+        API_BASE = '/api';
+    }
+}
 
 // Remove trailing slash if present to avoid double slashes
-if (API_BASE.endsWith('/')) {
+if (API_BASE && API_BASE.endsWith('/')) {
     API_BASE = API_BASE.slice(0, -1);
 }
 
