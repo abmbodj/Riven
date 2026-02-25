@@ -613,29 +613,29 @@ export default function ClassView() {
                                         <option value={0}>Sunday</option>
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Start Time</label>
-                                        <div className="relative">
-                                            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                        <div className="flex items-center gap-3 bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl px-4 py-4 w-full focus-within:border-claude-accent transition-colors">
+                                            <Clock className="w-5 h-5 text-[#8fa6a8]/60 shrink-0" />
                                             <input
                                                 type="time"
                                                 value={scheduleForm.start_time}
                                                 onChange={e => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl pl-12 pr-4 py-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                                className="w-full bg-transparent font-mono text-botanical-parchment outline-none"
                                                 required
                                             />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">End Time</label>
-                                        <div className="relative">
-                                            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                        <div className="flex items-center gap-3 bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl px-4 py-4 w-full focus-within:border-claude-accent transition-colors">
+                                            <Clock className="w-5 h-5 text-[#8fa6a8]/60 shrink-0" />
                                             <input
                                                 type="time"
                                                 value={scheduleForm.end_time}
                                                 onChange={e => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl pl-12 pr-4 py-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                                className="w-full bg-transparent font-mono text-botanical-parchment outline-none"
                                                 required
                                             />
                                         </div>

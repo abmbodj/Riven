@@ -539,9 +539,9 @@ export default function Classes() {
                                                             <option value="0">Sunday</option>
                                                         </select>
                                                     </div>
-                                                    <div className="flex gap-3 w-full sm:w-2/3">
-                                                        <div className="relative flex-1">
-                                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
+                                                        <div className="flex items-center gap-2 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                            <Clock className="w-3.5 h-3.5 text-[#8fa6a8]/60 shrink-0" />
                                                             <input
                                                                 type="time"
                                                                 value={t.start_time}
@@ -550,11 +550,11 @@ export default function Classes() {
                                                                     newTimes[idx].start_time = e.target.value;
                                                                     setFormData({ ...formData, times: newTimes });
                                                                 }}
-                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                                className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
                                                             />
                                                         </div>
-                                                        <div className="relative flex-1">
-                                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                        <div className="flex items-center gap-2 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                            <Clock className="w-3.5 h-3.5 text-[#8fa6a8]/60 shrink-0" />
                                                             <input
                                                                 type="time"
                                                                 value={t.end_time}
@@ -563,14 +563,14 @@ export default function Classes() {
                                                                     newTimes[idx].end_time = e.target.value;
                                                                     setFormData({ ...formData, times: newTimes });
                                                                 }}
-                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                                className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
                                                             />
                                                         </div>
                                                         {formData.times.length > 1 && (
                                                             <button type="button" onClick={() => {
                                                                 const newTimes = formData.times.filter((_, i) => i !== idx);
                                                                 setFormData({ ...formData, times: newTimes });
-                                                            }} className="p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0">
+                                                            }} className="w-full sm:w-auto p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 flex justify-center items-center">
                                                                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                                             </button>
                                                         )}
