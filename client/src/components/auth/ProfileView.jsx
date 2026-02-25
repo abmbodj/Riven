@@ -122,11 +122,17 @@ const ProfileView = () => {
                 className="max-w-md mx-auto px-5"
             >
                 {/* User Info */}
-                <motion.div variants={itemVariants} className="text-center mb-8">
+                <motion.div variants={itemVariants} className="text-center mb-8 mt-4">
                     <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1">
-                        {user?.username}
+                        {user?.displayName || user?.username}
                     </h1>
-                    <p className="text-botanical-sepia/80 text-sm font-mono tracking-wide mb-4">{user?.email}</p>
+                    <div className="flex flex-col items-center justify-center gap-1 mb-4">
+                        <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            @{user?.username}
+                        </p>
+                        <p className="text-botanical-sepia/60 text-[11px] font-mono tracking-wide">{user?.email}</p>
+                    </div>
                     {user?.bio && (
                         <div className="relative inline-block">
                             <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>

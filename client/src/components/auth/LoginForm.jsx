@@ -57,16 +57,16 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
         >
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
+                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email or Username</label>
                     <input
-                        type="email"
+                        type="text"
                         name="email"
                         id="email"
                         autoComplete="username"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="researcher@institute.edu"
+                        placeholder="researcher@institute.edu or naturalist_01"
                     />
                 </div>
 

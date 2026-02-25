@@ -28,6 +28,8 @@ export default function EditProfile() {
     const toast = useToast();
     const haptics = useHaptics();
 
+    const [username, setUsername] = useState(user?.username || '');
+    const [displayName, setDisplayName] = useState(user?.displayName || user?.username || '');
     const [bio, setBio] = useState(user?.bio || '');
     const [avatar, setAvatar] = useState(user?.avatar || '');
     const [saving, setSaving] = useState(false);
@@ -44,12 +46,18 @@ export default function EditProfile() {
             return;
         }
 
+        if (!username.trim() || !displayName.trim()) {
+            haptics.error();
+            toast.error('Username and Display Name are required');
+            return;
+        }
+
         if (saving) return;
         setSaving(true);
         haptics.medium();
 
         try {
-            await updateProfile({ bio: bio.trim(), avatar });
+            await updateProfile({ username: username.trim(), displayName: displayName.trim(), bio: bio.trim(), avatar });
             toast.success('Journal updated');
             haptics.success();
             navigate('/account');
@@ -63,7 +71,7 @@ export default function EditProfile() {
 
     if (!user) return <div className="min-h-screen flex items-center justify-center bg-claude-bg"><LoadingSpinner /></div>;
 
-    const hasChanges = bio.trim() !== (user?.bio || '') || avatar !== (user?.avatar || '');
+    const hasChanges = bio.trim() !== (user?.bio || '') || avatar !== (user?.avatar || '') || username.trim() !== (user?.username || '') || displayName.trim() !== (user?.displayName || user?.username || '');
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
@@ -107,8 +115,8 @@ export default function EditProfile() {
                         onClick={handleSave}
                         disabled={saving || !hasChanges}
                         className={`px-5 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase flex items-center gap-2 transition-all shadow-lg ${hasChanges && !saving
-                                ? 'bg-botanical-forest text-white shadow-botanical-forest/30 active:scale-95 hover:bg-[#2b4c3e]'
-                                : 'bg-white/10 text-white/50 backdrop-blur-md cursor-not-allowed border border-white/5'
+                            ? 'bg-botanical-forest text-white shadow-botanical-forest/30 active:scale-95 hover:bg-[#2b4c3e]'
+                            : 'bg-white/10 text-white/50 backdrop-blur-md cursor-not-allowed border border-white/5'
                             }`}
                     >
                         {saving ? (
@@ -163,13 +171,38 @@ export default function EditProfile() {
                                 <div className="p-3 bg-claude-bg rounded-xl border border-botanical-sepia/5 shadow-inner">
                                     <User className="w-5 h-5 text-botanical-sepia/70" />
                                 </div>
-                                <div>
+                                <div className="w-full">
                                     <label className="text-[10px] font-mono uppercase tracking-[0.15em] text-botanical-sepia/60 block mb-0.5">
-                                        Username
+                                        Display Name
                                     </label>
-                                    <div className="font-display text-lg tracking-wide text-claude-text font-medium">
-                                        {user.username}
-                                    </div>
+                                    <input
+                                        type="text"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        className="w-full bg-transparent font-display text-lg tracking-wide text-claude-text font-medium outline-none placeholder:text-botanical-sepia/40 border-b border-botanical-sepia/10 focus:border-botanical-forest/50 transition-colors pb-1"
+                                        placeholder="Your chosen name"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="h-px bg-gradient-to-r from-transparent via-botanical-sepia/10 to-transparent w-full"></div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-claude-bg rounded-xl border border-botanical-sepia/5 shadow-inner">
+                                    <User className="w-5 h-5 text-botanical-sepia/70" />
+                                </div>
+                                <div className="w-full">
+                                    <label className="text-[10px] font-mono uppercase tracking-[0.15em] text-botanical-sepia/60 block mb-0.5">
+                                        @Username (Unique)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                        className="w-full bg-transparent font-mono text-sm tracking-wide text-claude-text font-medium outline-none placeholder:text-botanical-sepia/40 border-b border-botanical-sepia/10 focus:border-botanical-forest/50 transition-colors pb-1"
+                                        placeholder="unique_username"
+                                        maxLength={30}
+                                    />
                                 </div>
                             </div>
 

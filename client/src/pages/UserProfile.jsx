@@ -200,23 +200,32 @@ export default function UserProfile() {
                 className="max-w-md mx-auto px-5"
             >
                 {/* Profile Info */}
-                <motion.div variants={itemVariants} className="flex flex-col items-center mb-8 text-center">
+                <motion.div variants={itemVariants} className="flex flex-col items-center mb-8 text-center mt-4">
                     <div className="flex items-center gap-2 mb-1 justify-center">
-                        <h2 className="text-3xl font-display font-bold tracking-tight text-claude-text">{profile.username}</h2>
-                        {profile.isOwner ? (
-                            <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[9px] font-bold rounded-full tracking-widest mt-1">OWNER</span>
-                        ) : profile.isAdmin ? (
-                            <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-bold rounded-full tracking-widest mt-1">ADMIN</span>
-                        ) : null}
+                        <h2 className="text-3xl font-display font-bold tracking-tight text-claude-text">
+                            {profile.display_name || profile.username}
+                        </h2>
+                        {profile.isOwner && (
+                            <span className="px-2 py-0.5 rounded-full bg-botanical-sepia/20 text-botanical-sepia font-mono text-[10px] uppercase font-bold tracking-widest border border-botanical-sepia/30 shadow-sm ml-2">
+                                Owner
+                            </span>
+                        )}
+                        {!profile.isOwner && profile.isAdmin && (
+                            <span className="px-2 py-0.5 rounded-full bg-botanical-forest/10 text-botanical-forest font-mono text-[10px] uppercase font-bold tracking-widest border border-botanical-forest/20 shadow-sm ml-2">
+                                Admin
+                            </span>
+                        )}
                     </div>
+
+                    <div className="flex flex-col items-center justify-center gap-1 mb-4">
+                        <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            @{profile.username}
+                        </p>
+                    </div>
+
                     {profile.bio && (
-                        <div className="relative inline-block mt-3">
-                            <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                            <p className="text-[15px] text-claude-secondary max-w-xs mx-auto italic font-serif leading-relaxed px-4">
-                                {profile.bio}
-                            </p>
-                            <span className="absolute -bottom-4 -right-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                        </div>
+                        <p className="text-botanical-sepia text-sm italic font-serif leading-relaxed px-4">"{profile.bio}"</p>
                     )}
                 </motion.div>
 

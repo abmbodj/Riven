@@ -55,6 +55,7 @@ if (global.__TEST_DB_MOCK__) {
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     username TEXT NOT NULL UNIQUE,
+                    display_name TEXT,
                     email TEXT NOT NULL UNIQUE,
                     password TEXT NOT NULL,
                     share_code TEXT UNIQUE,
@@ -66,6 +67,11 @@ if (global.__TEST_DB_MOCK__) {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
+
+            // Add display_name column if it doesn't exist (migration)
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT
+            `).catch(() => { });
 
             // Add pet_customization column if it doesn't exist (migration)
             await client.query(`

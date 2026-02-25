@@ -43,10 +43,12 @@ module.exports = function registerAuthRoutes({
 
             const hashedPassword = await bcrypt.hash(password, 12);
             const shareCode = generateShareCode();
+            // Default display_name to username
+            const displayName = username;
 
             const result = await db.queryOne(
-                'INSERT INTO users (username, email, password, share_code) VALUES ($1, $2, $3, $4) RETURNING id',
-                [username, email.toLowerCase(), hashedPassword, shareCode]
+                'INSERT INTO users (username, display_name, email, password, share_code) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+                [username, displayName, email.toLowerCase(), hashedPassword, shareCode]
             );
             const userId = result.id;
 
@@ -84,29 +86,29 @@ module.exports = function registerAuthRoutes({
 
             res.status(201).json({
                 token,
-                user: { id: userId, username, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
+                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
             });
         } catch (error) {
             res.status(500).json({ error: 'Verification failed' });
         }
     });
 
-    // Login
+    // Login (via email or username)
     app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
-        const { email, password } = req.body;
+        const { email, password } = req.body; // 'email' holds either email or username
         if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
+            return res.status(400).json({ error: 'Email/Username and password are required' });
         }
 
         try {
-            const user = await db.queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+            const user = await db.queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)', [email]);
             if (!user) {
-                return res.status(401).json({ error: 'Invalid email or password' });
+                return res.status(401).json({ error: 'Invalid credentials' });
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                return res.status(401).json({ error: 'Invalid email or password' });
+                return res.status(401).json({ error: 'Invalid credentials' });
             }
 
             // Check 2FA
@@ -120,7 +122,7 @@ module.exports = function registerAuthRoutes({
 
             // Set httpOnly cookie (secure in production)
             const isProd = process.env.NODE_ENV === 'production';
-            console.log(`[Auth] Login successful for ${email}:`, { isProd, userRole });
+            console.log(`[Auth] Login successful for ${user.email}:`, { isProd, userRole });
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: isProd,
@@ -132,7 +134,7 @@ module.exports = function registerAuthRoutes({
                 token,
                 require2FA: false,
                 user: {
-                    id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
+                    id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                     avatar: user.avatar, bio: user.bio || '', role: userRole,
                     isAdmin: userRole === 'admin' || userRole === 'owner',
                     isOwner: userRole === 'owner',
@@ -283,7 +285,7 @@ module.exports = function registerAuthRoutes({
             const petCustomization = user.pet_customization ? JSON.parse(user.pet_customization) : { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
 
             res.json({
-                id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
+                id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '',
                 streakData,
                 petCustomization,
@@ -298,22 +300,26 @@ module.exports = function registerAuthRoutes({
 
     // Update profile
     app.put('/api/auth/profile', authMiddleware, async (req, res) => {
-        const { username, bio, avatar } = req.body;
+        const { username, displayName, bio, avatar } = req.body;
         try {
+            // Uniqueness check for username if it's changing
             if (username) {
+                if (!isValidUsername(username)) {
+                    return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
+                }
                 const existing = await db.queryOne('SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2', [username, req.user.id]);
                 if (existing) return res.status(400).json({ error: 'Username already taken' });
             }
 
             await db.execute(
-                'UPDATE users SET username = COALESCE($1, username), bio = COALESCE($2, bio), avatar = COALESCE($3, avatar) WHERE id = $4',
-                [username, bio, avatar, req.user.id]
+                'UPDATE users SET username = COALESCE($1, username), display_name = COALESCE($2, display_name), bio = COALESCE($3, bio), avatar = COALESCE($4, avatar) WHERE id = $5',
+                [username, displayName, bio, avatar, req.user.id]
             );
 
             const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
             const updatedRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
             res.json({
-                id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
+                id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
                 role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
                 isOwner: updatedRole === 'owner', createdAt: user.created_at,

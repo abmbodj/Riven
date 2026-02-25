@@ -11,7 +11,8 @@ export default function Avatar({ src, size = 'md', className = '' }) {
         lg: 'w-16 h-16',
         xl: 'w-20 h-20',
         '2xl': 'w-24 h-24',
-        '3xl': 'w-32 h-32'
+        '3xl': 'w-32 h-32',
+        '4xl': 'w-40 h-40'
     };
 
     const iconSizes = {
@@ -21,7 +22,8 @@ export default function Avatar({ src, size = 'md', className = '' }) {
         lg: 'w-8 h-8',
         xl: 'w-10 h-10',
         '2xl': 'w-12 h-12',
-        '3xl': 'w-16 h-16'
+        '3xl': 'w-16 h-16',
+        '4xl': 'w-20 h-20'
     };
 
     // Check if it's a gradient
@@ -39,7 +41,7 @@ export default function Avatar({ src, size = 'md', className = '' }) {
 
     if (isGradient) {
         return (
-            <div 
+            <div
                 className={`${sizeClasses[size]} rounded-full shrink-0 ${className}`}
                 style={{ background: gradient }}
             />
@@ -47,10 +49,10 @@ export default function Avatar({ src, size = 'md', className = '' }) {
     }
 
     return (
-        <img 
-            src={src} 
-            alt="" 
-            className={`${sizeClasses[size]} rounded-full object-cover bg-claude-bg shrink-0 ${className}`}
+        <img
+            src={src}
+            alt=""
+            className={`${sizeClasses[size]} rounded-full aspect-square object-cover bg-claude-bg shrink-0 ${className}`}
             onError={() => setImageError(true)}
         />
     );
