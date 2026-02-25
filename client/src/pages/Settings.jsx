@@ -138,14 +138,49 @@ export default function Settings() {
                             toggleValue={false} // Placeholder
                             onClick={() => toast('Notification settings saved')}
                         />
-                        <SettingItem
-                            icon={isLightMode ? Sun : Moon}
-                            title="Light Mode"
-                            description={isLightMode ? "Daylight Theme" : "Midnight Theme"}
-                            toggle={true}
-                            toggleValue={isLightMode}
-                            onClick={toggleTheme}
-                        />
+
+                        {/* Bespoke Atmosphere Setting */}
+                        <div className="py-6 mt-4 border-t border-botanical-sepia/10">
+                            <div className="flex items-center justify-between mb-4 px-1">
+                                <div>
+                                    <h3 className="font-display text-lg tracking-wide text-claude-text">Atmosphere</h3>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mt-1 opacity-70">Current Element</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={toggleTheme}
+                                className="w-full relative overflow-hidden rounded-[2rem] p-6 text-left group transition-all duration-500 active:scale-[0.98] border border-botanical-sepia/20"
+                                style={{
+                                    backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
+                                    boxShadow: isLightMode ? '0 10px 30px -15px rgba(0,0,0,0.05)' : 'inset 0 0 0 1px rgba(255,255,255,0.05)'
+                                }}
+                            >
+                                {/* Noise Texture */}
+                                <div className="absolute inset-0 pointer-events-none opacity-[0.20] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+
+                                <div className="relative z-10 flex items-center justify-between">
+                                    <div className="flex items-center gap-5">
+                                        <div className={`p-4 rounded-full transition-all duration-500 shadow-inner border border-black/5 ${isLightMode ? 'bg-[#f4f1eb] text-amber-600' : 'bg-[#1c211f] text-indigo-300'}`}>
+                                            {isLightMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+                                        </div>
+                                        <div>
+                                            <p className={`font-display text-3xl font-light tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                {isLightMode ? 'Alabaster' : 'Obsidian'}
+                                            </p>
+                                            <p className={`text-[10px] font-mono uppercase tracking-widest mt-1 opacity-50 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                Tap to inverse flux
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Action indicator */}
+                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/20 text-[#2c2825]/40' : 'border-[#e8e4dc]/20 text-[#e8e4dc]/40'}`}>
+                                        <ChevronRight className="w-4 h-4" />
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
