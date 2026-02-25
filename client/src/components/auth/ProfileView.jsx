@@ -4,14 +4,26 @@ import {
     LogOut, Edit3, Settings, User, Mail,
     MessageCircle, Users, ChevronRight, Leaf, Shield
 } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
 import Avatar from '../Avatar';
 import LoadingSpinner from '../LoadingSpinner';
 import * as authApi from '../../api/authApi';
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
 
 const ProfileView = () => {
     const { user, isOwner, isAdmin, signOut } = useAuth();
@@ -52,161 +64,199 @@ const ProfileView = () => {
         signOut();
     };
 
-    if (!user) return <LoadingSpinner />;
+    if (!user) return <div className="min-h-screen flex items-center justify-center bg-claude-bg"><LoadingSpinner /></div>;
 
     return (
-        <div className="min-h-screen bg-claude-bg pb-24 animate-in fade-in duration-300">
-            {/* Profile Header */}
-            <div className="relative mb-6">
+        <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
+            {/* Profile Header with Atmospheric Glassmorphism */}
+            <div className="relative mb-20 z-10 w-full max-w-xl mx-auto">
                 {/* Atmospheric Deep Header */}
-                <div className="h-40 overflow-hidden relative rounded-b-[3rem]">
+                <div className="h-44 overflow-hidden relative rounded-b-[3rem] shadow-sm">
                     <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
-                    <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.1),transparent_60%)] blur-3xl rounded-b-[3rem]" />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1.2 }}
+                        transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+                        className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
+                    />
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
 
-                    <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5 rotate-12" />
-                    <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-botanical-forest/5 -rotate-12 opacity-40" />
+                    {/* Floating Leaves */}
+                    <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+                        <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5" />
+                    </motion.div>
+                    <motion.div animate={{ y: [0, 10, 0], rotate: [-12, -15, -12] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
+                        <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-botanical-forest/5 opacity-40" />
+                    </motion.div>
                 </div>
 
                 {/* Avatar */}
-                <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
+                <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-20">
                     <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.4 }}
-                        className="relative"
+                        initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
+                        className="relative group cursor-pointer"
                     >
-                        <Avatar src={user?.avatar} size="3xl" className="border-4 border-claude-bg shadow-xl" />
+                        <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
+                        <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-2xl relative z-10 bg-claude-surface" />
                         {isAdmin && (
-                            <div className={`absolute -bottom-1 -right-1 w-8 h-8 ${isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg shadow-sm`}>
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', delay: 0.3 }}
+                                className={`absolute bottom-1 right-1 w-8 h-8 ${isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg shadow-md z-20`}
+                                title={isOwner ? "Owner" : "Admin"}
+                            >
                                 <Shield className="w-4 h-4 text-white" />
-                            </div>
+                            </motion.div>
                         )}
                     </motion.div>
                 </div>
             </div>
 
-            {/* User Info */}
-            <div className="text-center mt-14 mb-8 px-4">
-                <h1 className="text-2xl font-display font-bold text-claude-text mb-1">
-                    {user?.username}
-                </h1>
-                <p className="text-botanical-sepia text-sm font-mono mb-3">{user?.email}</p>
-                {user?.bio && (
-                    <p className="text-sm text-claude-secondary max-w-xs mx-auto italic">
-                        "{user.bio}"
-                    </p>
-                )}
-            </div>
+            <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="max-w-md mx-auto px-5"
+            >
+                {/* User Info */}
+                <motion.div variants={itemVariants} className="text-center mb-8">
+                    <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1">
+                        {user?.username}
+                    </h1>
+                    <p className="text-botanical-sepia/80 text-sm font-mono tracking-wide mb-4">{user?.email}</p>
+                    {user?.bio && (
+                        <div className="relative inline-block">
+                            <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                            <p className="text-[15px] text-claude-secondary max-w-xs mx-auto italic font-serif leading-relaxed px-4">
+                                {user.bio}
+                            </p>
+                            <span className="absolute -bottom-4 -right-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                        </div>
+                    )}
+                </motion.div>
 
-            {/* Stats / Quick Actions */}
-            <div className="grid grid-cols-2 gap-4 px-4 mb-8 max-w-md mx-auto">
-                <Link
-                    to="/friends"
-                    className="botanical-card p-4 flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform group"
-                    onClick={() => haptics.light()}
-                >
-                    <div className="w-10 h-10 rounded-full bg-botanical-forest/10 flex items-center justify-center group-hover:bg-botanical-forest/20 transition-colors">
-                        <Users className="w-5 h-5 text-botanical-forest" />
-                    </div>
-                    <div className="text-center">
-                        <span className="block text-xl font-display font-bold text-claude-text">
-                            {stats.loading ? '-' : stats.friends}
-                        </span>
-                        <span className="text-xs font-mono uppercase tracking-wider text-botanical-sepia">
-                            Friends
-                        </span>
-                    </div>
-                </Link>
-
-                <Link
-                    to="/messages"
-                    className="botanical-card p-4 flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform group"
-                    onClick={() => haptics.light()}
-                >
-                    <div className="w-10 h-10 rounded-full bg-botanical-forest/10 flex items-center justify-center group-hover:bg-botanical-forest/20 transition-colors relative">
-                        <MessageCircle className="w-5 h-5 text-botanical-forest" />
-                        {!stats.loading && stats.unread > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center border-2 border-claude-bg">
-                                {stats.unread}
-                            </span>
-                        )}
-                    </div>
-                    <div className="text-center">
-                        <span className="block text-xl font-display font-bold text-claude-text">
-                            {stats.loading ? '-' : stats.unread}
-                        </span>
-                        <span className="text-xs font-mono uppercase tracking-wider text-botanical-sepia">
-                            Messages
-                        </span>
-                    </div>
-                </Link>
-            </div>
-
-            {/* Menu List */}
-            <div className="px-4 max-w-md mx-auto space-y-3">
-                {(isAdmin || isOwner) && (
+                {/* Stats / Quick Actions - Bento Grid */}
+                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-10">
                     <Link
-                        to="/admin"
-                        className="botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group border-amber-500/20"
+                        to="/friends"
                         onClick={() => haptics.light()}
+                        className="group relative overflow-hidden bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
                     >
-                        <div className="p-2 bg-amber-500/10 rounded-lg">
-                            <Shield className="w-5 h-5 text-amber-600" />
+                        {/* Glow effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                        <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
+                            <Users className="w-5 h-5 text-botanical-forest" />
+                        </div>
+                        <div className="text-center z-10">
+                            <span className="block text-2xl font-display font-bold text-claude-text">
+                                {stats.loading ? <div className="w-6 h-6 border-2 border-botanical-forest border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.friends}
+                            </span>
+                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                Friends
+                            </span>
+                        </div>
+                    </Link>
+
+                    <Link
+                        to="/messages"
+                        onClick={() => haptics.light()}
+                        className="group relative overflow-hidden bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                    >
+                        {/* Glow effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                        <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10 relative">
+                            <MessageCircle className="w-5 h-5 text-[#0ea5e9]" />
+                            {!stats.loading && stats.unread > 0 && (
+                                <motion.span
+                                    initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center border-2 border-claude-bg shadow-sm"
+                                >
+                                    {stats.unread}
+                                </motion.span>
+                            )}
+                        </div>
+                        <div className="text-center z-10">
+                            <span className="block text-2xl font-display font-bold text-claude-text">
+                                {stats.loading ? <div className="w-6 h-6 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.unread}
+                            </span>
+                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                Messages
+                            </span>
+                        </div>
+                    </Link>
+                </motion.div>
+
+                {/* Menu List - Premium List */}
+                <motion.div variants={itemVariants} className="bg-claude-surface/30 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] overflow-hidden shadow-sm">
+                    {(isAdmin || isOwner) && (
+                        <Link
+                            to="/admin"
+                            onClick={() => haptics.light()}
+                            className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-amber-500/20">
+                                <Shield className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div className="flex-1 text-left">
+                                <p className="font-display tracking-wide text-[16px] text-amber-700/80 group-hover:text-amber-600 font-semibold transition-colors">Admin Panel</p>
+                                <p className="text-[11px] font-mono text-amber-700/50">Manage users and content</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-amber-500/30 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+                        </Link>
+                    )}
+
+                    <Link
+                        to="/edit-profile"
+                        onClick={() => haptics.light()}
+                        className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
+                            <Edit3 className="w-5 h-5 text-claude-text/70" />
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="font-medium text-claude-text">Admin Panel</p>
-                            <p className="text-xs text-botanical-sepia">Manage users and content</p>
+                            <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Edit Profile</p>
+                            <p className="text-[11px] font-mono text-botanical-sepia">Update your avatar and bio</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-claude-border group-hover:text-claude-secondary transition-colors" />
+                        <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
                     </Link>
-                )}
-                <Link
-                    to="/edit-profile"
-                    className="botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group"
-                    onClick={() => haptics.light()}
-                >
-                    <div className="p-2 bg-claude-surface rounded-lg">
-                        <Edit3 className="w-5 h-5 text-claude-secondary" />
-                    </div>
-                    <div className="flex-1 text-left">
-                        <p className="font-medium text-claude-text">Edit Profile</p>
-                        <p className="text-xs text-botanical-sepia">Update your avatar and bio</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-claude-border group-hover:text-claude-secondary transition-colors" />
-                </Link>
 
-                <Link
-                    to="/settings"
-                    className="botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group"
-                    onClick={() => haptics.light()}
-                >
-                    <div className="p-2 bg-claude-surface rounded-lg">
-                        <Settings className="w-5 h-5 text-claude-secondary" />
-                    </div>
-                    <div className="flex-1 text-left">
-                        <p className="font-medium text-claude-text">Settings</p>
-                        <p className="text-xs text-botanical-sepia">Security, notifications, and more</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-claude-border group-hover:text-claude-secondary transition-colors" />
-                </Link>
+                    <Link
+                        to="/settings"
+                        onClick={() => haptics.light()}
+                        className="flex items-center gap-4 p-4 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
+                            <Settings className="w-5 h-5 text-claude-text/70" />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Settings</p>
+                            <p className="text-[11px] font-mono text-botanical-sepia">Security, notifications, integrations</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
+                    </Link>
+                </motion.div>
 
-                <button
-                    onClick={handleSignOut}
-                    className="w-full botanical-card p-4 flex items-center gap-3 active:scale-[0.98] transition-all group mt-6 border-red-500/20"
-                >
-                    <div className="p-2 bg-red-500/10 rounded-lg">
-                        <LogOut className="w-5 h-5 text-red-500" />
-                    </div>
-                    <div className="flex-1 text-left">
-                        <p className="font-medium text-red-500">Sign Out</p>
-                    </div>
-                </button>
-            </div>
+                {/* Sign Out Button */}
+                <motion.div variants={itemVariants} className="mt-6">
+                    <button
+                        onClick={handleSignOut}
+                        className="w-full bg-red-500/5 hover:bg-red-500/10 active:bg-red-500/20 border border-red-500/10 p-4 rounded-[2rem] flex items-center justify-center gap-3 transition-colors group"
+                    >
+                        <LogOut className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
+                        <span className="font-display tracking-wide font-medium text-red-500/80 group-hover:text-red-500 transition-colors">Sign Out</span>
+                    </button>
+                </motion.div>
 
-            <div className="mt-8 text-center text-xs text-botanical-sepia/50 font-mono">
-                Riven v1.0.0
-            </div>
+                <motion.div variants={itemVariants} className="mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
+                    <Leaf className="w-4 h-4 opacity-50" />
+                    <span>Riven OS v1.0.0</span>
+                </motion.div>
+            </motion.div>
         </div>
     );
 };
