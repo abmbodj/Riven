@@ -518,26 +518,28 @@ export default function Classes() {
                                         </div>
                                         <div className="space-y-3">
                                             {formData.times.map((t, idx) => (
-                                                <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-[#1e3840]/20 p-3 rounded-xl border border-[#233e46]">
-                                                    <select
-                                                        value={t.day}
-                                                        onChange={e => {
-                                                            const newTimes = [...formData.times];
-                                                            newTimes[idx].day = e.target.value;
-                                                            setFormData({ ...formData, times: newTimes });
-                                                        }}
-                                                        className="w-full sm:w-auto flex-1 bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                                    >
-                                                        <option value="">Day</option>
-                                                        <option value="1">Monday</option>
-                                                        <option value="2">Tuesday</option>
-                                                        <option value="3">Wednesday</option>
-                                                        <option value="4">Thursday</option>
-                                                        <option value="5">Friday</option>
-                                                        <option value="6">Saturday</option>
-                                                        <option value="0">Sunday</option>
-                                                    </select>
-                                                    <div className="flex gap-2 w-full sm:w-auto flex-[2]">
+                                                <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[#1e3840]/20 p-4 rounded-xl border border-[#233e46]">
+                                                    <div className="w-full sm:w-1/3">
+                                                        <select
+                                                            value={t.day}
+                                                            onChange={e => {
+                                                                const newTimes = [...formData.times];
+                                                                newTimes[idx].day = e.target.value;
+                                                                setFormData({ ...formData, times: newTimes });
+                                                            }}
+                                                            className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                                        >
+                                                            <option value="">Day</option>
+                                                            <option value="1">Monday</option>
+                                                            <option value="2">Tuesday</option>
+                                                            <option value="3">Wednesday</option>
+                                                            <option value="4">Thursday</option>
+                                                            <option value="5">Friday</option>
+                                                            <option value="6">Saturday</option>
+                                                            <option value="0">Sunday</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex gap-3 w-full sm:w-2/3">
                                                         <div className="relative flex-1">
                                                             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
                                                             <input
@@ -548,7 +550,7 @@ export default function Classes() {
                                                                     newTimes[idx].start_time = e.target.value;
                                                                     setFormData({ ...formData, times: newTimes });
                                                                 }}
-                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
                                                             />
                                                         </div>
                                                         <div className="relative flex-1">
@@ -561,18 +563,18 @@ export default function Classes() {
                                                                     newTimes[idx].end_time = e.target.value;
                                                                     setFormData({ ...formData, times: newTimes });
                                                                 }}
-                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
                                                             />
                                                         </div>
+                                                        {formData.times.length > 1 && (
+                                                            <button type="button" onClick={() => {
+                                                                const newTimes = formData.times.filter((_, i) => i !== idx);
+                                                                setFormData({ ...formData, times: newTimes });
+                                                            }} className="p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0">
+                                                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    {formData.times.length > 1 && (
-                                                        <button type="button" onClick={() => {
-                                                            const newTimes = formData.times.filter((_, i) => i !== idx);
-                                                            setFormData({ ...formData, times: newTimes });
-                                                        }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 w-full sm:w-auto flex justify-center mt-2 sm:mt-0">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
                                                 </div>
                                             ))}
                                         </div>

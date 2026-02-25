@@ -581,6 +581,71 @@ export default function ClassView() {
                         </motion.form>
                     </div>
                 )}
+
+                {showScheduleModal && (
+                    <div className="fixed inset-0 z-[100] flex items-end">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScheduleModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.form
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            onSubmit={handleSaveScheduleSlot}
+                            className="relative bg-[#162a31] w-full p-8 rounded-t-[3rem] border-t border-[#233e46] pb-safe"
+                        >
+                            <div className="flex justify-between items-center mb-8">
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Add Class Time</h3>
+                                <button type="button" onClick={() => setShowScheduleModal(false)} className="p-2 text-[#8fa6a8] hover:text-white transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Day of Week</label>
+                                    <select
+                                        value={scheduleForm.day_of_week}
+                                        onChange={e => setScheduleForm({ ...scheduleForm, day_of_week: parseInt(e.target.value) })}
+                                        className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none appearance-none"
+                                    >
+                                        <option value={1}>Monday</option>
+                                        <option value={2}>Tuesday</option>
+                                        <option value={3}>Wednesday</option>
+                                        <option value={4}>Thursday</option>
+                                        <option value={5}>Friday</option>
+                                        <option value={6}>Saturday</option>
+                                        <option value={0}>Sunday</option>
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Start Time</label>
+                                        <div className="relative">
+                                            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                            <input
+                                                type="time"
+                                                value={scheduleForm.start_time}
+                                                onChange={e => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
+                                                className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl pl-12 pr-4 py-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">End Time</label>
+                                        <div className="relative">
+                                            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
+                                            <input
+                                                type="time"
+                                                value={scheduleForm.end_time}
+                                                onChange={e => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
+                                                className="w-full bg-[#1e3840]/40 border-2 border-[#233e46] rounded-2xl pl-12 pr-4 py-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Time</button>
+                            </div>
+                        </motion.form>
+                    </div>
+                )}
             </AnimatePresence>
 
             <ConfirmModal isOpen={deleteAssignConfirm.show} title="Delete Task?" message="Are you sure you want to delete this task forever?" onConfirm={handleDeleteAssignment} onCancel={() => setDeleteAssignConfirm({ show: false, item: null })} />
