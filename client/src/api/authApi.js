@@ -255,16 +255,29 @@ export const deleteAssignment = async (id) => {
     });
 };
 
+// --- Schedule ---
+export const getSchedule = () => safeFetchArray(authFetch('/schedule'));
+export const createScheduleSlot = (class_id, day_of_week, start_time, end_time) => authFetch('/schedule', {
+    method: 'POST',
+    body: JSON.stringify({ class_id, day_of_week, start_time, end_time }),
+});
+export const deleteScheduleSlot = (id) => authFetch(`/schedule/${id}`, { method: 'DELETE' });
+
 export const getDecks = () => safeFetchArray(authFetch('/decks'));
 export const getDeck = (id) => authFetch(`/decks/${id}`);
-export const createDeck = (title, description, folderId, tagIds) => authFetch('/decks', {
-    method: 'POST',
-    body: JSON.stringify({ title, description, folder_id: folderId, tagIds }),
-});
-export const updateDeck = (id, title, description, folderId, tagIds) => authFetch(`/decks/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ title, description, folder_id: folderId, tagIds }),
-});
+export const createDeck = async (title, description, folderId, tagIds = [], classId = null) => {
+    return await authFetch('/decks', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, folder_id: folderId, tagIds, class_id: classId })
+    });
+};
+
+export const updateDeck = async (id, title, description, folderId, tagIds = [], classId = null) => {
+    return await authFetch(`/decks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title, description, folder_id: folderId, tagIds, class_id: classId })
+    });
+};
 export const deleteDeck = (id) => authFetch(`/decks/${id}`, { method: 'DELETE' });
 export const duplicateDeck = (id) => authFetch(`/decks/${id}/duplicate`, { method: 'POST' });
 

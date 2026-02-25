@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Folder, Hash, ChevronDown, Check, X } from 'lucide-react';
+import { ArrowLeft, Sparkles, Folder, Calendar, Hash, ChevronDown, Check, X } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 
@@ -8,25 +8,29 @@ export default function CreateDeck() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [selectedFolder, setSelectedFolder] = useState(null);
+    const [selectedClass, setSelectedClass] = useState(null);
     const [selectedTags, setSelectedTags] = useState([]);
     const [folders, setFolders] = useState([]);
+    const [classes, setClasses] = useState([]);
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showFolderPicker, setShowFolderPicker] = useState(false);
+    const [showClassPicker, setShowClassPicker] = useState(false);
     const navigate = useNavigate();
     const toast = useToast();
 
     useEffect(() => {
-        Promise.all([api.getFolders(), api.getTags()])
-            .then(([foldersData, tagsData]) => {
+        Promise.all([api.getFolders(), api.getClasses(), api.getTags()])
+            .then(([foldersData, classesData, tagsData]) => {
                 setFolders(foldersData);
+                setClasses(classesData);
                 setTags(tagsData);
             });
     }, []);
 
     const toggleTag = (tagId) => {
-        setSelectedTags(prev => 
-            prev.includes(tagId) 
+        setSelectedTags(prev =>
+            prev.includes(tagId)
                 ? prev.filter(id => id !== tagId)
                 : [...prev, tagId]
         );
@@ -38,7 +42,7 @@ export default function CreateDeck() {
 
         setLoading(true);
         try {
-            const newDeck = await api.createDeck(title, description, selectedFolder, selectedTags);
+            const newDeck = await api.createDeck(title, description, selectedFolder, selectedTags, selectedClass);
             toast.success('Deck created!');
             navigate(`/deck/${newDeck.id}`);
         } catch {
@@ -104,7 +108,7 @@ export default function CreateDeck() {
                             </div>
                             <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showFolderPicker ? 'rotate-180' : ''}`} />
                         </button>
-                        
+
                         {showFolderPicker && (
                             <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden">
                                 <button
@@ -132,6 +136,50 @@ export default function CreateDeck() {
                         )}
                     </div>
 
+                    {/* Class Picker */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Class (Optional)</label>
+                        <button
+                            type="button"
+                            onClick={() => { setShowClassPicker(!showClassPicker); setShowFolderPicker(false); }}
+                            className="w-full px-4 py-3.5 bg-claude-surface border border-claude-border rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: classes.find(c => c.id === selectedClass)?.color || 'var(--secondary-text-color)' }} />
+                                <span className={selectedClass ? '' : 'text-claude-secondary'}>
+                                    {classes.find(c => c.id === selectedClass)?.name || 'None'}
+                                </span>
+                            </div>
+                            <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showClassPicker ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showClassPicker && (
+                            <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden shadow-sm z-20 relative">
+                                <button
+                                    type="button"
+                                    onClick={() => { setSelectedClass(null); setShowClassPicker(false); }}
+                                    className={`w-full px-4 py-3.5 flex items-center gap-3 text-left active:bg-claude-bg ${!selectedClass ? 'bg-claude-accent/10' : ''}`}
+                                >
+                                    <Calendar className="w-5 h-5 text-claude-secondary" />
+                                    <span>None</span>
+                                    {!selectedClass && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
+                                </button>
+                                {classes.map(cls => (
+                                    <button
+                                        key={cls.id}
+                                        type="button"
+                                        onClick={() => { setSelectedClass(cls.id); setShowClassPicker(false); }}
+                                        className={`w-full px-4 py-3.5 flex items-center gap-3 text-left border-t border-claude-border active:bg-claude-bg ${selectedClass === cls.id ? 'bg-claude-accent/10' : ''}`}
+                                    >
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
+                                        <span>{cls.name}</span>
+                                        {selectedClass === cls.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Tags Picker */}
                     {tags.length > 0 && (
                         <div>
@@ -142,11 +190,10 @@ export default function CreateDeck() {
                                         key={tag.id}
                                         type="button"
                                         onClick={() => toggleTag(tag.id)}
-                                        className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-all active:scale-95 ${
-                                            selectedTags.includes(tag.id)
-                                                ? 'text-white shadow-md'
-                                                : 'bg-claude-surface border border-claude-border'
-                                        }`}
+                                        className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-all active:scale-95 ${selectedTags.includes(tag.id)
+                                            ? 'text-white shadow-md'
+                                            : 'bg-claude-surface border border-claude-border'
+                                            }`}
                                         style={selectedTags.includes(tag.id) ? { backgroundColor: tag.color } : {}}
                                     >
                                         <Hash className="w-3.5 h-3.5" style={!selectedTags.includes(tag.id) ? { color: tag.color } : {}} />

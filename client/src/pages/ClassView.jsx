@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2
+    ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -17,6 +17,8 @@ export default function ClassView() {
 
     const [cls, setCls] = useState(null);
     const [assignments, setAssignments] = useState([]);
+    const [decks, setDecks] = useState([]);
+    const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Modal state for editing Class
@@ -29,6 +31,10 @@ export default function ClassView() {
     const [editingAssign, setEditingAssign] = useState(null);
     const [assignForm, setAssignForm] = useState({ title: '', description: '', due_date: '', status: 'Todo' });
     const [deleteAssignConfirm, setDeleteAssignConfirm] = useState({ show: false, item: null });
+
+    // Modal state for Schedule
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [scheduleForm, setScheduleForm] = useState({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
 
     const loadData = useCallback(async () => {
         try {
@@ -51,6 +57,12 @@ export default function ClassView() {
 
             const assignData = await api.getAssignments(id);
             setAssignments(assignData);
+
+            const allDecks = await api.getDecks();
+            setDecks(allDecks.filter(d => d.class_id === id));
+
+            const scheduleData = await api.getSchedule();
+            setScheduleSlots(scheduleData.filter(s => s.class_id === id));
         } catch (err) {
             toast.error('Failed to load class details');
             navigate('/classes');
@@ -148,6 +160,29 @@ export default function ClassView() {
         }
     };
 
+    const handleSaveScheduleSlot = async (e) => {
+        e.preventDefault();
+        try {
+            await api.createScheduleSlot(id, scheduleForm.day_of_week, scheduleForm.start_time, scheduleForm.end_time);
+            toast.success('Time slot added');
+            setShowScheduleModal(false);
+            setScheduleForm({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
+            loadData();
+        } catch (err) {
+            toast.error('Failed to add time slot');
+        }
+    };
+
+    const handleDeleteScheduleSlot = async (slotId) => {
+        try {
+            await api.deleteScheduleSlot(slotId);
+            toast.success('Time slot removed');
+            loadData();
+        } catch (err) {
+            toast.error('Failed to remove time slot');
+        }
+    };
+
     if (loading) return (
         <div className="p-6 pt-4 min-h-screen">
             <div className="h-8 w-24 bg-claude-border rounded-xl animate-pulse mb-6" />
@@ -212,6 +247,77 @@ export default function ClassView() {
                         )}
                     </div>
                 </div>
+
+                {/* Class Schedule */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#8fa6a8] flex items-center gap-2">
+                            Class Times <span className="opacity-40 text-[10px]">({scheduleSlots.length})</span>
+                        </h3>
+                        <button onClick={() => setShowScheduleModal(true)} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
+                            + Add Time
+                        </button>
+                    </div>
+
+                    {scheduleSlots.length === 0 ? (
+                        <div className="bg-[#1e3840]/20 border border-dashed border-[#233e46] rounded-xl p-6 text-center">
+                            <Calendar className="w-8 h-8 text-[#8fa6a8]/40 mx-auto mb-2" />
+                            <p className="text-xs font-mono uppercase tracking-widest text-[#8fa6a8]/60">No times set</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-3">
+                            {scheduleSlots.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time)).map(slot => {
+                                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                                return (
+                                    <div key={slot.id} className="relative group bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-4 pr-10 py-3 flex items-center gap-3 shadow-sm hover:border-claude-accent transition-colors">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || '#7a9e72'}20`, color: cls.color || '#7a9e72' }}>
+                                            {days[slot.day_of_week]}
+                                        </div>
+                                        <div>
+                                            <p className="font-mono text-[10px] uppercase font-bold text-botanical-parchment">{formatTime(slot.start_time)} - {formatTime(slot.end_time)}</p>
+                                        </div>
+                                        <button onClick={() => handleDeleteScheduleSlot(slot.id)} className="absolute right-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Class Decks */}
+                {decks.length > 0 && (
+                    <div className="mb-8">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#8fa6a8] mb-4 flex items-center gap-2">
+                            Study Decks <span className="opacity-40 text-[10px]">({decks.length})</span>
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {decks.map(deck => (
+                                <a
+                                    key={deck.id}
+                                    href={`/deck/${deck.id}`}
+                                    className="group relative bg-[#1e3840]/30 border border-[#233e46] rounded-2xl p-4 cursor-pointer hover:bg-[#1e3840]/60 transition-all tap-action flex items-start gap-4"
+                                >
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
+                                        style={{ backgroundColor: `${cls.color || '#7a9e72'}15`, borderColor: `${cls.color || '#7a9e72'}30`, color: cls.color || '#7a9e72' }}
+                                    >
+                                        <Layers className="w-5 h-5 opacity-70" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-serif text-lg font-bold truncate text-botanical-parchment group-hover:text-white transition-colors">
+                                            {deck.title}
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="font-mono text-[10px] uppercase tracking-widest text-[#8fa6a8]/80 font-bold">{deck.cardCount} Cards</span>
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Assignments Tracker */}
                 <div className="space-y-8">

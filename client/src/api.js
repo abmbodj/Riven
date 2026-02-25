@@ -83,6 +83,15 @@ export const api = {
         ? serverApi.deleteAssignment(id)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
 
+    // ============ SCHEDULE ============
+    getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),
+    createScheduleSlot: (class_id, day_of_week, start_time, end_time) => isLoggedIn()
+        ? serverApi.createScheduleSlot(class_id, day_of_week, start_time, end_time)
+        : Promise.reject(new Error('Must be logged in to manage schedule')),
+    deleteScheduleSlot: (id) => isLoggedIn()
+        ? serverApi.deleteScheduleSlot(id)
+        : Promise.reject(new Error('Must be logged in to manage schedule')),
+
     // ============ DECKS ============
     getDecks: () => isLoggedIn()
         ? serverApi.getDecks()
@@ -90,12 +99,12 @@ export const api = {
     getDeck: (id) => isLoggedIn()
         ? serverApi.getDeck(id)
         : db.getDeck(id),
-    createDeck: (title, description, folderId, tagIds) => isLoggedIn()
-        ? serverApi.createDeck(title, description, folderId, tagIds || [])
-        : db.createDeck(title, description, folderId, tagIds || []),
-    updateDeck: (id, title, description, folderId, tagIds) => isLoggedIn()
-        ? serverApi.updateDeck(id, title, description, folderId, tagIds || [])
-        : db.updateDeck(id, title, description, folderId, tagIds || []),
+    createDeck: (title, description, folderId, tagIds, classId) => isLoggedIn()
+        ? serverApi.createDeck(title, description, folderId, tagIds || [], classId)
+        : db.createDeck(title, description, folderId, tagIds || [], classId),
+    updateDeck: (id, title, description, folderId, tagIds, classId) => isLoggedIn()
+        ? serverApi.updateDeck(id, title, description, folderId, tagIds || [], classId)
+        : db.updateDeck(id, title, description, folderId, tagIds || [], classId),
     deleteDeck: (id) => isLoggedIn()
         ? serverApi.deleteDeck(id)
         : db.deleteDeck(id),

@@ -20,6 +20,7 @@ const registerHealthRoutes = require('./routes/health');
 const registerAdminRoutes = require('./routes/admin');
 const registerClassesRoutes = require('./routes/classes');
 const registerAssignmentsRoutes = require('./routes/assignments');
+const registerScheduleRoutes = require('./routes/schedule');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -589,14 +590,14 @@ app.get('/api/decks', optionalAuth, async (req, res) => {
 });
 
 app.post('/api/decks', optionalAuth, async (req, res) => {
-    const { title, description, folder_id, tagIds } = req.body;
+    const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
         const userId = req.user?.id || null;
         const result = await db.queryOne(
-            'INSERT INTO decks (user_id, title, description, folder_id) VALUES ($1, $2, $3, $4) RETURNING id',
-            [userId, title, description || '', folder_id || null]
+            'INSERT INTO decks (user_id, title, description, folder_id, class_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            [userId, title, description || '', folder_id || null, class_id || null]
         );
         const deckId = result.id;
 
@@ -606,7 +607,7 @@ app.post('/api/decks', optionalAuth, async (req, res) => {
             }
         }
 
-        res.status(201).json({ id: deckId, title, description, folder_id });
+        res.status(201).json({ id: deckId, title, description, folder_id, class_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -633,7 +634,7 @@ app.get('/api/decks/:id', optionalAuth, async (req, res) => {
 
 app.put('/api/decks/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
-    const { title, description, folder_id, tagIds } = req.body;
+    const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     try {
@@ -643,8 +644,8 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
         await db.execute(
-            'UPDATE decks SET title = $1, description = $2, folder_id = $3 WHERE id = $4',
-            [title, description || '', folder_id || null, id]
+            'UPDATE decks SET title = $1, description = $2, folder_id = $3, class_id = $4 WHERE id = $5',
+            [title, description || '', folder_id || null, class_id || null, id]
         );
 
         if (tagIds !== undefined) {
@@ -656,7 +657,7 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
             }
         }
 
-        res.json({ id, title, description, folder_id });
+        res.json({ id, title, description, folder_id, class_id });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

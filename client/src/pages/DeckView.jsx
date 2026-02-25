@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +17,7 @@ export default function DeckView() {
     const { isLoggedIn } = useAuth();
     const [deck, setDeck] = useState(null);
     const [folders, setFolders] = useState([]);
+    const [classes, setClasses] = useState([]);
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddCard, setShowAddCard] = useState(false);
@@ -46,6 +47,7 @@ export default function DeckView() {
                     title: data.title,
                     description: data.description || '',
                     folder_id: data.folder_id,
+                    class_id: data.class_id,
                     tagIds: data.tags?.map(t => t.id) || []
                 });
             })
@@ -57,8 +59,9 @@ export default function DeckView() {
 
     useEffect(() => {
         loadDeck();
-        Promise.all([api.getFolders(), api.getTags()]).then(([f, t]) => {
+        Promise.all([api.getFolders(), api.getClasses(), api.getTags()]).then(([f, c, t]) => {
             setFolders(f);
+            setClasses(c);
             setTags(t);
         });
     }, [loadDeck]);
@@ -272,7 +275,7 @@ export default function DeckView() {
     const handleSaveDeck = async () => {
         if (!editDeckData.title.trim()) return;
         try {
-            await api.updateDeck(id, editDeckData.title, editDeckData.description, editDeckData.folder_id, editDeckData.tagIds);
+            await api.updateDeck(id, editDeckData.title, editDeckData.description, editDeckData.folder_id, editDeckData.tagIds, editDeckData.class_id);
             setEditingDeck(false);
             toast.success('Deck saved');
             loadDeck();
@@ -607,6 +610,32 @@ export default function DeckView() {
                             </div>
                         </div>
 
+                        {/* Class selector */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Class</label>
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditDeckData({ ...editDeckData, class_id: null })}
+                                    className={`px-3 py-2 rounded-lg text-sm ${!editDeckData.class_id ? 'bg-claude-accent text-white' : 'bg-claude-bg border border-claude-border'}`}
+                                >
+                                    None
+                                </button>
+                                {classes.map(cls => (
+                                    <button
+                                        key={cls.id}
+                                        type="button"
+                                        onClick={() => setEditDeckData({ ...editDeckData, class_id: cls.id })}
+                                        className={`px-3 py-2 rounded-lg text-sm flex items-center gap-1.5 ${editDeckData.class_id === cls.id ? 'text-white' : 'bg-claude-bg border border-claude-border'}`}
+                                        style={editDeckData.class_id === cls.id ? { backgroundColor: cls.color || '#7a9e72' } : {}}
+                                    >
+                                        <Calendar className="w-4 h-4" style={editDeckData.class_id !== cls.id ? { color: cls.color || '#7a9e72' } : {}} />
+                                        {cls.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Tags selector */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Tags</label>
@@ -643,6 +672,17 @@ export default function DeckView() {
 
                         {/* Folder & Tags display */}
                         <div className="flex items-center gap-2 flex-wrap">
+                            {classes.find(c => c.id === deck?.class_id) && (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 border"
+                                    style={{
+                                        borderColor: `${classes.find(c => c.id === deck?.class_id).color}40`,
+                                        backgroundColor: `${classes.find(c => c.id === deck?.class_id).color}10`,
+                                        color: classes.find(c => c.id === deck?.class_id).color
+                                    }}>
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    {classes.find(c => c.id === deck?.class_id).name}
+                                </span>
+                            )}
                             {currentFolder && (
                                 <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-claude-surface border border-claude-border">
                                     <Folder className="w-3.5 h-3.5" style={{ color: currentFolder.color }} />

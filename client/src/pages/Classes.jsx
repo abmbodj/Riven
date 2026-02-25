@@ -81,8 +81,10 @@ export default function Classes() {
     const navigate = useNavigate();
     const toast = useToast();
     const [classes, setClasses] = useState([]);
+    const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [viewMode, setViewMode] = useState('Roster'); // 'Roster' | 'Timetable'
 
     // Modals
     const [showModal, setShowModal] = useState(false);
@@ -99,6 +101,8 @@ export default function Classes() {
         try {
             const data = await api.getClasses();
             setClasses(data);
+            const schedData = await api.getSchedule();
+            setScheduleSlots(schedData);
         } catch (err) {
             toast.error('Failed to load classes');
         } finally {
@@ -208,20 +212,98 @@ export default function Classes() {
 
             {/* Classes List */}
             <div className="px-4 sm:px-6">
-                {classes.length === 0 ? (
-                    <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
-                        <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
-                        <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
-                        <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
-                            Add First Class
+                {/* Segmented Control */}
+                <div className="flex bg-[#1e3840]/30 border border-[#233e46] rounded-xl p-1 mb-6 max-w-xs transition-all">
+                    {['Timetable', 'Roster'].map(mode => (
+                        <button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-all tap-action ${viewMode === mode ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-[#8fa6a8] hover:text-botanical-parchment'}`}
+                        >
+                            {mode}
                         </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-4">
-                        {classes.map((cls, i) => (
-                            <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
-                        ))}
+                    ))}
+                </div>
+
+                {viewMode === 'Roster' && (
+                    <>
+                        {classes.length === 0 ? (
+                            <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
+                                <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
+                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
+                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
+                                <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
+                                    Add First Class
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                                {classes.map((cls, i) => (
+                                    <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {viewMode === 'Timetable' && (
+                    <div className="space-y-8 animate-fade-in pb-12">
+                        {scheduleSlots.length === 0 ? (
+                            <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
+                                <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
+                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">Empty Schedule</h3>
+                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
+                            </div>
+                        ) : (
+                            [1, 2, 3, 4, 5, 6, 0].map(dayIdx => {
+                                const daySlots = scheduleSlots.filter(s => s.day_of_week === dayIdx).sort((a, b) => a.start_time.localeCompare(b.start_time));
+                                if (daySlots.length === 0) return null;
+
+                                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+                                return (
+                                    <div key={dayIdx} className="relative">
+                                        <h3 className="font-serif italic text-2xl font-bold text-botanical-parchment flex items-center gap-3 mb-4 sticky top-16 bg-[#162a31]/80 backdrop-blur-md z-10 py-2">
+                                            {days[dayIdx]}
+                                            <div className="flex-1 h-px bg-gradient-to-r from-claude-accent/30 to-transparent" />
+                                        </h3>
+                                        <div className="space-y-3 pl-2 sm:pl-4 border-l-2 border-claude-accent/20 ml-2">
+                                            {daySlots.map((slot, i) => {
+                                                const cls = classes.find(c => c.id === slot.class_id);
+                                                if (!cls) return null;
+                                                return (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        whileInView={{ opacity: 1, x: 0 }}
+                                                        viewport={{ once: true }}
+                                                        transition={{ delay: i * 0.05 }}
+                                                        key={slot.id}
+                                                        onClick={() => navigate(`/class/${cls.id}`)}
+                                                        className="relative group bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:scale-[1.01] transition-transform tap-action before:absolute before:left-[-11px] sm:before:left-[-19px] before:top-1/2 before:-translate-y-1/2 before:w-3 before:h-3 before:rounded-full before:border-2 before:border-[#162a31] before:bg-claude-accent"
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
+                                                            <div>
+                                                                <h4 className="font-serif text-xl font-bold italic text-[#1a1c1d] tracking-tight">{cls.name}</h4>
+                                                                <div className="flex items-center gap-3 mt-1 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8a7f6a]">
+                                                                    {cls.room && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {cls.room}</span>}
+                                                                    {cls.zoom_link && <span className="flex items-center gap-1"><Video className="w-3 h-3" /> Zoom</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-[#1e3840]/5 rounded-lg px-3 py-1.5 border border-[#d1c9b8]/50 sm:text-right mt-2 sm:mt-0 ml-5 sm:ml-0">
+                                                            <span className="font-mono text-xs font-bold text-[#1a1c1d] tracking-tighter block">{formatTime(slot.start_time)}</span>
+                                                            <span className="font-mono text-[9px] uppercase tracking-widest text-[#8a7f6a] block -mt-0.5">{formatTime(slot.end_time)}</span>
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 )}
             </div>

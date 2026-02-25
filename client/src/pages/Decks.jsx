@@ -30,7 +30,7 @@ const SORT_OPTIONS = [
 
 // Memoized deck card with botanical styling
 // Memoized deck card with Herbarium Specimen styling
-const DeckCard = memo(({ deck, folders, index }) => {
+const DeckCard = memo(({ deck, folders, classes, index }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
     const folderColor = folder?.color || '#7a9e72';
 
@@ -79,6 +79,17 @@ const DeckCard = memo(({ deck, folders, index }) => {
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f4f1e8] rounded-sm border border-[#e8e4d8] shadow-sm">
                                     <span className="font-mono text-[8px] sm:text-[9px] font-bold text-[#5d6466] uppercase tracking-wider">{deck.cardCount} Cards</span>
                                 </div>
+
+                                {classes?.find(c => c.id === deck.class_id) && (
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border shadow-sm" style={{
+                                        borderColor: `${classes.find(c => c.id === deck.class_id).color}40`,
+                                        backgroundColor: `${classes.find(c => c.id === deck.class_id).color}10`,
+                                        color: classes.find(c => c.id === deck.class_id).color
+                                    }}>
+                                        <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                        <span className="font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">{classes.find(c => c.id === deck.class_id).name}</span>
+                                    </div>
+                                )}
 
                                 {deck.tags?.length > 0 && (
                                     <div className="flex items-center gap-1.5 overflow-hidden">
@@ -154,6 +165,7 @@ export default function Decks() {
     const toast = useToast();
     const [decks, setDecks] = useState([]);
     const [folders, setFolders] = useState([]);
+    const [classes, setClasses] = useState([]);
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -185,22 +197,25 @@ export default function Decks() {
 
         try {
             // Load all data in parallel for speed
-            console.log('[Home] Fetching decks, folders, tags...');
-            const [decksData, foldersData, tagsData] = await Promise.all([
+            console.log('[Home] Fetching decks, folders, tags, classes...');
+            const [decksData, foldersData, tagsData, classesData] = await Promise.all([
                 api.getDecks(),
                 api.getFolders(),
-                api.getTags()
+                api.getTags(),
+                api.getClasses()
             ]);
 
             console.log('[Home] Data loaded:', {
                 decks: decksData?.length,
                 folders: foldersData?.length,
-                tags: tagsData?.length
+                tags: tagsData?.length,
+                classes: classesData?.length
             });
 
             setDecks(decksData);
             setFolders(foldersData);
             setTags(tagsData);
+            setClasses(classesData);
             setError(null);
 
             if (decksData.length === 0 && foldersData.length === 0 && !localStorage.getItem('riven_onboarded')) {
@@ -611,7 +626,7 @@ export default function Decks() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pb-20 px-1">
                         {filteredDecks.map((deck, i) => (
-                            <DeckCard key={deck.id} deck={deck} folders={folders} index={i} />
+                            <DeckCard key={deck.id} deck={deck} folders={folders} classes={classes} index={i} />
                         ))}
                     </div>
                 )}

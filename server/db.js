@@ -128,6 +128,19 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // Schedule slots table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS schedule_slots (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+                    day_of_week INTEGER NOT NULL,
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Folders table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS folders (
@@ -198,6 +211,10 @@ if (global.__TEST_DB_MOCK__) {
             `).catch(() => { });
             await client.query(`
                 ALTER TABLE cards ALTER COLUMN back DROP NOT NULL
+            `).catch(() => { });
+
+            await client.query(`
+                ALTER TABLE decks ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id) ON DELETE SET NULL
             `).catch(() => { });
 
             // Study sessions table
