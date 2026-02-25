@@ -36,7 +36,7 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
 
 export default function Settings() {
     const { signOut, user } = useAuth();
-    const { activeTheme, switchTheme, themes } = useContext(ThemeContext) || {};
+    const { activeTheme } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
@@ -114,15 +114,6 @@ export default function Settings() {
         navigate('/');
     };
 
-    const toggleTheme = () => {
-        haptics.light();
-        if (themes && themes.length < 2) return;
-        const light = themes.find(t => t.name === 'Riven Light');
-        const dark = themes.find(t => t.name === 'Riven');
-        if (light && dark) {
-            switchTheme(isLightMode ? dark.name : light.name);
-        }
-    };
 
     const openModal = (name) => {
         haptics.light();
@@ -254,7 +245,7 @@ export default function Settings() {
                             </div>
 
                             <button
-                                onClick={toggleTheme}
+                                onClick={() => { haptics.light(); navigate('/themes'); }}
                                 className="w-full relative overflow-hidden rounded-[2rem] p-6 text-left group transition-all duration-500 active:scale-[0.98] border border-botanical-sepia/20"
                                 style={{
                                     backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
@@ -270,11 +261,11 @@ export default function Settings() {
                                             {isLightMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
                                         </div>
                                         <div>
-                                            <p className={`font-display text-3xl font-light tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                {isLightMode ? 'Alabaster' : 'Obsidian'}
+                                            <p className={`font-display text-2xl font-light tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                {activeTheme?.name || 'Theme'}
                                             </p>
                                             <p className={`text-[10px] font-mono uppercase tracking-widest mt-1 opacity-50 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                Tap to inverse flux
+                                                Tap to explore themes
                                             </p>
                                         </div>
                                     </div>
