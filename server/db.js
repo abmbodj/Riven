@@ -140,6 +140,7 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS edlink_person_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS edlink_course_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS edlink_assignment_id TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE`).catch(() => { });
 
             // Schedule slots table
             await client.query(`

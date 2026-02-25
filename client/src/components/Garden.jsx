@@ -56,11 +56,20 @@ if (typeof document !== 'undefined') {
 export default function Garden({
     streak = 0,
     status = 'active',
-    size = 'md'
+    size = 'md',
+    showInfo = true
 }) {
     const uniqueId = useId();
     const { width, height } = sizeMap[size] || sizeMap.md;
     const stageIndex = getStageIndex(streak);
+
+    const stageNames = [
+        'Barren', 'Sprout', 'Seedling', 'Growing', 'Blooming',
+        'Flourishing', 'Oasis', 'Enchanted', 'Mystic Sanctuary', 'Paradise',
+        'Eternal Eden', 'Astral Gardens', 'Celestial', 'Cosmic Nexus',
+        'Universal Core', 'Infinity Loom'
+    ];
+    const stageName = stageNames[Math.min(stageIndex, 15)];
 
     const isWilting = status === 'broken';
     const isAtRisk = status === 'at-risk';
@@ -89,7 +98,7 @@ export default function Garden({
     const filter = isWilting ? 'grayscale(80%) opacity(70%)' : isAtRisk ? 'saturate(60%) sepia(20%)' : 'none';
 
     return (
-        <div style={{ filter, transition: 'all 1s ease-in-out' }} className="flex flex-col items-center justify-center">
+        <div style={{ filter, transition: 'all 1s ease-in-out' }} className="flex flex-col items-center">
             <svg
                 viewBox="0 0 400 400"
                 width={width}
@@ -387,6 +396,12 @@ export default function Garden({
                 )}
 
             </svg>
+            {showInfo && (
+                <div className="flex flex-col items-center mt-2 gap-0.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]" style={{ color: clr.leaf }}>{stageName}</span>
+                    <span className="text-[9px] font-mono opacity-50 text-botanical-sepia">{streak} day streak</span>
+                </div>
+            )}
         </div>
     );
 }

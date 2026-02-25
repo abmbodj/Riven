@@ -126,7 +126,7 @@ export default function Home() {
                             <div className="absolute inset-x-2 bottom-2 h-1/2 bg-gradient-to-t from-[#8fa6a8]/10 to-transparent rounded-b-xl" />
                             <div className="absolute -top-1 -right-2 w-6 h-2 bg-[#e8e4d8] rotate-[35deg] shadow-sm z-20" />
                             <div className="transform scale-[0.6] sm:scale-[0.75] origin-bottom translate-y-3">
-                                <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={false} />
+                                <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                             </div>
                         </motion.div>
                         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#1e3840] text-claude-accent border border-[#233e46] text-[8px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">

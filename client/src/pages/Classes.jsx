@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
-    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2
+    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,7 +93,7 @@ export default function Classes() {
 
     // Form
     const [formData, setFormData] = useState({
-        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: ''
+        name: '', color: '#7a9e72', professor: '', room: '', day: '', start_time: '', end_time: ''
     });
 
     const loadData = useCallback(async (isRefresh = false) => {
@@ -122,10 +122,14 @@ export default function Classes() {
 
         try {
             if (editingClass) {
-                await api.updateClass(editingClass.id, formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                await api.updateClass(editingClass.id, formData.name, formData.color, formData.professor, formData.room, '');
                 toast.success('Class updated');
             } else {
-                await api.createClass(formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                const newClass = await api.createClass(formData.name, formData.color, formData.professor, formData.room, '');
+                // If time slot was filled in, also create a schedule entry
+                if (newClass?.id && formData.day !== '' && formData.start_time && formData.end_time) {
+                    await api.createScheduleSlot(newClass.id, formData.day, formData.start_time, formData.end_time);
+                }
                 toast.success('Class created');
             }
             setShowModal(false);
@@ -163,7 +167,7 @@ export default function Classes() {
             color: cls.color || '#7a9e72',
             professor: cls.professor || '',
             room: cls.room || '',
-            zoom_link: cls.zoom_link || ''
+            day: '', start_time: '', end_time: ''
         });
         setShowModal(true);
     };
@@ -225,26 +229,50 @@ export default function Classes() {
                     ))}
                 </div>
 
-                {viewMode === 'Roster' && (
-                    <>
-                        {classes.length === 0 ? (
-                            <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
-                                <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
-                                <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
-                                <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
-                                    Add First Class
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                                {classes.map((cls, i) => (
-                                    <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
-                                ))}
-                            </div>
-                        )}
-                    </>
-                )}
+                {viewMode === 'Roster' && (() => {
+                    const currentClasses = classes.filter(c => !c.is_archived);
+                    const archivedClasses = classes.filter(c => c.is_archived);
+
+                    return (
+                        <>
+                            {/* Current Courses */}
+                            {currentClasses.length === 0 && archivedClasses.length === 0 ? (
+                                <div className="text-center py-16 bg-[#1e3840]/10 border-2 border-dashed border-[#233e46]/20 rounded-3xl mt-8">
+                                    <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
+                                    <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
+                                    <p className="text-[#8fa6a8]/60 text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
+                                    <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
+                                        Add First Class
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                                        {currentClasses.map((cls, i) => (
+                                            <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
+                                        ))}
+                                    </div>
+
+                                    {/* Past Courses */}
+                                    {archivedClasses.length > 0 && (
+                                        <div className="mt-10">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8fa6a8]/60">Past Courses</span>
+                                                <div className="flex-1 h-px bg-[#233e46]/40" />
+                                                <span className="font-mono text-[9px] text-[#8fa6a8]/40">{archivedClasses.length}</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 opacity-50">
+                                                {archivedClasses.map((cls, i) => (
+                                                    <ClassCard key={cls.id} cls={cls} index={i} onClick={() => navigate(`/class/${cls.id}`)} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </>
+                    );
+                })()}
 
                 {viewMode === 'Timetable' && (
                     <div className="space-y-8 animate-fade-in pb-12">
@@ -383,16 +411,42 @@ export default function Classes() {
                                     </div>
 
                                     <div className="col-span-1">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Zoom Link</label>
-                                        <div className="relative">
-                                            <Video className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8fa6a8]/60" />
-                                            <input
-                                                type="text"
-                                                value={formData.zoom_link}
-                                                onChange={e => setFormData({ ...formData, zoom_link: e.target.value })}
-                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                                placeholder="https://zoom..."
-                                            />
+                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-[#8fa6a8] mb-3">Class Time</label>
+                                        <div className="flex flex-col gap-2">
+                                            <select
+                                                value={formData.day}
+                                                onChange={e => setFormData({ ...formData, day: e.target.value })}
+                                                className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl px-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
+                                            >
+                                                <option value="">Day (optional)</option>
+                                                <option value="1">Monday</option>
+                                                <option value="2">Tuesday</option>
+                                                <option value="3">Wednesday</option>
+                                                <option value="4">Thursday</option>
+                                                <option value="5">Friday</option>
+                                                <option value="6">Saturday</option>
+                                                <option value="0">Sunday</option>
+                                            </select>
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                    <input
+                                                        type="time"
+                                                        value={formData.start_time}
+                                                        onChange={e => setFormData({ ...formData, start_time: e.target.value })}
+                                                        className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                    />
+                                                </div>
+                                                <div className="relative flex-1">
+                                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8fa6a8]/60" />
+                                                    <input
+                                                        type="time"
+                                                        value={formData.end_time}
+                                                        onChange={e => setFormData({ ...formData, end_time: e.target.value })}
+                                                        className="w-full bg-[#1e3840]/40 border border-[#233e46] rounded-xl pl-9 pr-2 py-2.5 font-mono text-xs text-botanical-parchment focus:border-claude-accent outline-none"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

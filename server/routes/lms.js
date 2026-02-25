@@ -97,18 +97,28 @@ module.exports = function ({ app, db, authMiddleware }) {
                     [req.user.id, course.id, course.name]
                 );
 
+                // Determine if this course is from a past semester
+                const now = new Date();
+                const isArchived = course.end_date ? new Date(course.end_date) < now : false;
+
                 if (!mappedClass) {
                     // Create if not exists
                     mappedClass = await db.queryOne(
-                        `INSERT INTO classes (user_id, name, edlink_course_id, color) 
-                         VALUES ($1, $2, $3, $4) RETURNING *`,
-                        [req.user.id, course.name, course.id, '#4f46e5'] // Default Indigo
+                        `INSERT INTO classes (user_id, name, edlink_course_id, color, is_archived) 
+                         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                        [req.user.id, course.name, course.id, '#4f46e5', isArchived]
                     );
                     syncedClassesCount++;
-                } else if (!mappedClass.edlink_course_id) {
-                    // Update existing matching class to link to edlink
-                    await db.execute('UPDATE classes SET edlink_course_id = $1 WHERE id = $2', [course.id, mappedClass.id]);
+                } else {
+                    // Update edlink_course_id and archived status on every sync
+                    await db.execute(
+                        'UPDATE classes SET edlink_course_id = $1, is_archived = $2 WHERE id = $3',
+                        [course.id, isArchived, mappedClass.id]
+                    );
                 }
+
+                // Skip assignment sync for archived/past courses
+                if (isArchived) continue;
 
                 // 2. Fetch Assignments for this Course
                 const assignmentsRes = await fetch(`https://ed.link/api/v2/graph/courses/${course.id}/assignments`, { headers });
