@@ -535,6 +535,12 @@ export default function Decks() {
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
+                    <Link
+                        to="/create"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#7a9e72] border border-[#d1c9b8]/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:bg-[#688a61] transition-all tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg hover:shadow-[#7a9e72]/20 active:scale-95"
+                    >
+                        <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
+                    </Link>
                 </div>
             </div>
 

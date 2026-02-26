@@ -4,8 +4,11 @@ import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Layers from 'lucide-react/dist/esm/icons/layers';
 import Home from 'lucide-react/dist/esm/icons/home';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
-import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import User from 'lucide-react/dist/esm/icons/user';
+import Sprout from 'lucide-react/dist/esm/icons/sprout';
+import Palette from 'lucide-react/dist/esm/icons/palette';
+import Users from 'lucide-react/dist/esm/icons/users';
+import Plus from 'lucide-react/dist/esm/icons/plus';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { ThemeContext } from '../ThemeContext';
@@ -15,7 +18,7 @@ import { AuthContext } from '../context/AuthContext';
 const navItems = [
     { to: '/', icon: Home, label: 'Home', matchExact: true },
     { to: '/classes', icon: Calendar, label: 'Classes' },
-    { to: '/create', isFab: true },
+    { id: 'fab', isFab: true },
     { to: '/decks', icon: Layers, label: 'Decks', alsoMatch: '/deck' },
     { to: '/account', icon: User, label: 'Account', alsoMatch: '/shared' },
 ];
@@ -28,6 +31,7 @@ export default function Layout({ children }) {
     const isCreatePage = location.pathname === '/create';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
     useContext(ThemeContext);
 
     useEffect(() => {
@@ -40,6 +44,10 @@ export default function Layout({ children }) {
             window.removeEventListener('offline', handleOffline);
         };
     }, []);
+
+    useEffect(() => {
+        setIsFabMenuOpen(false);
+    }, [location.pathname]);
 
     const isAccountPage = location.pathname === '/account';
     const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || hideNavFromContext || (!isLoggedIn && isAccountPage);
@@ -77,6 +85,51 @@ export default function Layout({ children }) {
                     </motion.div>
                 </main>
 
+                {/* FAB Overlay Menu */}
+                <AnimatePresence>
+                    {isFabMenuOpen && !hideBottomNav && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setIsFabMenuOpen(false)}
+                                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-10"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                                className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-claude-bg border border-claude-border rounded-2xl shadow-xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
+                            >
+                                <Link
+                                    to="/garden"
+                                    onClick={() => setIsFabMenuOpen(false)}
+                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72]"
+                                >
+                                    <Sprout className="w-5 h-5" />
+                                    <span>Garden</span>
+                                </Link>
+                                <Link
+                                    to="/themes"
+                                    onClick={() => setIsFabMenuOpen(false)}
+                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent"
+                                >
+                                    <Palette className="w-5 h-5" />
+                                    <span>Themes</span>
+                                </Link>
+                                <button
+                                    disabled
+                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary opacity-50 cursor-not-allowed text-left"
+                                >
+                                    <Users className="w-5 h-5 shrink-0" />
+                                    <span className="leading-tight">Study Groups<br /><span className="text-[9px]">Coming Soon</span></span>
+                                </button>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
                     <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)]" style={{ backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', background: 'color-mix(in srgb, var(--surface-color) 92%, transparent)' }}>
@@ -84,16 +137,17 @@ export default function Layout({ children }) {
                             {navItems.map((item) => {
                                 if (item.isFab) {
                                     return (
-                                        <Link key="fab" to="/create" className="flex-1 flex items-center justify-center tap-action">
+                                        <button key="fab" onClick={() => setIsFabMenuOpen(!isFabMenuOpen)} className="flex-1 flex items-center justify-center tap-action">
                                             <motion.div
+                                                animate={{ rotate: isFabMenuOpen ? 45 : 0 }}
                                                 whileHover={{ scale: 1.05 }}
                                                 whileTap={{ scale: 0.9 }}
                                                 className="w-12 h-12 -mt-4 rounded-full flex items-center justify-center shadow-botanical-glow border-[3px] border-claude-bg"
                                                 style={{ backgroundColor: 'var(--botanical-forest)' }}
                                             >
-                                                <Sprout className="w-6 h-6 text-white" />
+                                                <Plus className="w-6 h-6 text-white" />
                                             </motion.div>
-                                        </Link>
+                                        </button>
                                     );
                                 }
 
