@@ -1,5 +1,6 @@
 const express = require('express');
 const { GoogleGenAI } = require('@google/genai');
+const mammoth = require('mammoth');
 
 module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator }) {
 
@@ -74,12 +75,35 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
             const hasNotes = notes && notes.trim() !== '';
             const hasFile = file && file.data && file.mimeType;
 
-            if (!hasNotes && !hasFile) {
+            let processedNotes = notes || '';
+            let keepFile = hasFile;
+
+            // If the file is docx/txt, process it into text here because inlineData only natively supports pdfs/images
+            if (hasFile && file.data && file.mimeType) {
+                try {
+                    const fileBuffer = Buffer.from(file.data, 'base64');
+
+                    if (file.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimeType === 'application/msword') {
+                        const result = await mammoth.extractRawText({ buffer: fileBuffer });
+                        processedNotes += '\n\n' + result.value;
+                        keepFile = false;
+                    } else if (file.mimeType === 'text/plain') {
+                        processedNotes += '\n\n' + fileBuffer.toString('utf8');
+                        keepFile = false;
+                    }
+                } catch (parseErr) {
+                    console.error("Failed to parse document text:", parseErr);
+                }
+            }
+
+            const hasProcessedNotes = processedNotes.trim() !== '';
+
+            if (!hasProcessedNotes && !keepFile) {
                 return res.status(400).json({ error: 'Notes or a file are required to generate flashcards.' });
             }
 
             // Cap notes at 15,000 characters to prevent abuse and ensure fast generation
-            if (hasNotes && notes.length > 15000) {
+            if (hasProcessedNotes && processedNotes.length > 15000) {
                 return res.status(400).json({ error: 'Notes are too long. Please limit to ~3000 words.' });
             }
 
@@ -114,10 +138,10 @@ Example JSON format:
 
             const contentsParts = [{ text: promptInstruction }];
 
-            if (hasNotes) {
-                contentsParts.push({ text: `\n\nLecture Notes/Text Content:\n${notes}` });
+            if (hasProcessedNotes) {
+                contentsParts.push({ text: `\n\nLecture Notes/Text Content:\n${processedNotes}` });
             }
-            if (hasFile) {
+            if (keepFile) {
                 contentsParts.push({
                     inlineData: {
                         data: file.data,
@@ -204,10 +228,30 @@ Example JSON format:
         try {
             const { file, notes } = req.body;
 
-            const hasNotes = notes && notes.trim() !== '';
-            const hasFile = file && file.data && file.mimeType;
+            let processedNotes = notes || '';
+            let keepFile = hasFile;
 
-            if (!hasNotes && !hasFile) {
+            // If the file is docx/txt, process it into text here because inlineData only natively supports pdfs/images
+            if (hasFile && file.data && file.mimeType) {
+                try {
+                    const fileBuffer = Buffer.from(file.data, 'base64');
+
+                    if (file.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.mimeType === 'application/msword') {
+                        const result = await mammoth.extractRawText({ buffer: fileBuffer });
+                        processedNotes += '\n\n' + result.value;
+                        keepFile = false;
+                    } else if (file.mimeType === 'text/plain') {
+                        processedNotes += '\n\n' + fileBuffer.toString('utf8');
+                        keepFile = false;
+                    }
+                } catch (parseErr) {
+                    console.error("Failed to parse document text:", parseErr);
+                }
+            }
+
+            const hasProcessedNotes = processedNotes.trim() !== '';
+
+            if (!hasProcessedNotes && !keepFile) {
                 return res.status(400).json({ error: 'A syllabus file or text notes are required.' });
             }
 
@@ -253,10 +297,10 @@ Rules:
 
             const contentsParts = [{ text: promptInstruction }];
 
-            if (hasNotes) {
-                contentsParts.push({ text: `\n\nSyllabus Text Content:\n${notes}` });
+            if (hasProcessedNotes) {
+                contentsParts.push({ text: `\n\nSyllabus Text Content:\n${processedNotes}` });
             }
-            if (hasFile) {
+            if (keepFile) {
                 contentsParts.push({
                     inlineData: {
                         data: file.data,
