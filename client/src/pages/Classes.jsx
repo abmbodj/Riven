@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
-    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2
-    , Network, Link, Network, Link
+    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2,
+    Lock, Network, Link
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -112,6 +113,7 @@ export default function Classes() {
             const res = await api.getCanvasSettings();
             setCanvasStatus(prev => ({ ...prev, isConnected: res.isConnected, url: res.canvasUrl || '', loading: false }));
         } catch (err) {
+            console.error(err);
             setCanvasStatus(prev => ({ ...prev, loading: false }));
         }
     }, []);
@@ -124,6 +126,7 @@ export default function Classes() {
             const schedData = await api.getSchedule();
             setScheduleSlots(schedData);
         } catch (err) {
+            console.error(err);
             toast.error('Failed to load classes');
         } finally {
             setLoading(false);
@@ -319,6 +322,7 @@ export default function Classes() {
             setEditingClass(null);
             loadData();
         } catch (err) {
+            console.error(err);
             toast.error('Failed to delete class');
         }
     };
@@ -333,6 +337,7 @@ export default function Classes() {
         setShowModal(true);
     };
 
+    // eslint-disable-next-line no-unused-vars
     const openEditModal = (cls) => {
         setEditingClass(cls);
         const slots = scheduleSlots.filter(s => s.class_id === cls.id).map(s => ({
@@ -497,7 +502,7 @@ export default function Classes() {
                                         <div className="py-3 px-2 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
                                             <span className="text-[9px] font-mono uppercase font-bold text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">GMT</span>
                                         </div>
-                                        {days.map((day, idx) => (
+                                        {days.map((day) => (
                                             <div key={day} className="py-3 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] last:border-r-0">
                                                 <span className="text-xs font-mono uppercase tracking-widest font-bold text-botanical-parchment">{day.slice(0, 3)}</span>
                                             </div>
@@ -530,7 +535,7 @@ export default function Classes() {
 
                                         {/* Class Blocks */}
                                         <div className="absolute top-0 right-0 bottom-0 left-[60px] grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
-                                            {dayIndices.map((dayIdx, i) => {
+                                            {dayIndices.map((dayIdx) => {
                                                 const daySlots = scheduleSlots.filter(s => s.day_of_week === dayIdx);
                                                 return (
                                                     <div key={dayIdx} className="relative w-full h-full">
@@ -632,7 +637,7 @@ export default function Classes() {
                                             {[
                                                 { id: 'manual', label: 'Manual', icon: BookOpen },
                                                 { id: 'ai', label: 'AI Syllabus', icon: Sparkles },
-                                                { id: 'canvas', label: 'Canvas Sync', icon: Layers } // using Layers temporarily because Network not explicitly imported early
+                                                { id: 'canvas', label: 'Canvas Sync', icon: Network }
                                             ].map(method => {
                                                 const isActive = creationMethod === method.id;
                                                 const Icon = method.icon;
