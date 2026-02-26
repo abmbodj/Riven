@@ -4,12 +4,66 @@ const { GoogleGenAI } = require('@google/genai');
 module.exports = function ({ app, db, authMiddleware, rateLimit }) {
 
     // AI Rate Limiter: 15 requests per 15 minutes to stay well within free tier
+    // Uses req.user.id so the limit is strictly per-account, not per-IP
     const aiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         max: 15,
+        keyGenerator: (req) => {
+            // Default to IP if user isn't populated for some reason, but they should be via authMiddleware
+            return req.user ? req.user.id : req.ip;
+        },
         message: { error: 'AI generation limit reached. Please try again later.' },
         standardHeaders: true,
         legacyHeaders: false,
+    });
+
+    // Get current AI limits and usage for the authenticated user
+    app.get('/api/ai/limits', authMiddleware, async (req, res) => {
+        try {
+            // Get the store instance from the rate limiter
+            const store = aiLimiter.store;
+            const key = req.user.id;
+
+            // The express-rate-limit store has a decrement or get/increment, but standard stores 
+            // usually have a way to fetch the current hits. 
+            // In express-rate-limit v6+, we can use `get` or manually decrement if we incremented to check.
+            // Since `get` wasn't added to all stores until late versions, `increment` with 0 isn't always supported.
+            // But standard `store.get` or `store.increment` without actually consuming a hit is tricky. 
+            // Usually, standard `store.decrement` exists but isn't what we want.
+            // If the store is the MemoryStore, it has a `hits` property on the internal map. 
+            // express-rate-limit v7 allows `await store.get(key)`. Let's try `store.get`.
+
+            let totalHits = 0;
+            if (typeof store.get === 'function') {
+                const result = await store.get(key);
+                totalHits = result ? result.totalHits || result : 0;
+                if (typeof totalHits === 'object' && totalHits.totalHits !== undefined) {
+                    totalHits = totalHits.totalHits;
+                }
+            } else if (store.hits) {
+                // memory store fallback
+                totalHits = store.hits[key] || 0;
+            }
+
+            const maxRequests = aiLimiter.max;
+            const remaining = Math.max(0, maxRequests - totalHits);
+
+            res.json({
+                remaining,
+                max: maxRequests,
+                characterLimit: 15000,
+                flashcardRange: [5, 15]
+            });
+        } catch (error) {
+            console.error('Error fetching AI limits:', error);
+            // Default safe response if store inspection fails
+            res.json({
+                remaining: 15, // Fallback
+                max: 15,
+                characterLimit: 15000,
+                flashcardRange: [5, 15]
+            });
+        }
     });
 
     // Generate Flashcards Deck from Notes or File

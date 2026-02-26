@@ -275,6 +275,7 @@ export const getCanvasSettings = () => authFetch('/lms/settings');
 export const syncCanvas = () => authFetch('/lms/sync', { method: 'POST' });
 
 // --- AI Generation ---
+export const getAILimits = () => authFetch('/ai/limits');
 export const generateAiDeck = async (notes, file, deckName, classId) => {
     return await authFetch('/ai/generate-deck', {
         method: 'POST',

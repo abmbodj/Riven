@@ -89,6 +89,9 @@ export const api = {
     syncCanvas: () => isLoggedIn() ? serverApi.syncCanvas() : Promise.reject(new Error('Must be logged in to sync LMS')),
 
     // AI Generation
+    getAILimits: () => isLoggedIn()
+        ? serverApi.getAILimits()
+        : Promise.resolve({ remaining: 15, max: 15, characterLimit: 15000, flashcardRange: [5, 15] }),
     generateAiDeck: (notes, file, deckName, classId) => isLoggedIn()
         ? serverApi.generateAiDeck(notes, file, deckName, classId)
         : Promise.reject(new Error('Must be logged in to generate AI flashcards')),

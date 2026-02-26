@@ -65,8 +65,10 @@ export default function Settings() {
     const [connectingCanvas, setConnectingCanvas] = useState(false);
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
 
+    const [aiLimits, setAiLimits] = useState({ remaining: 15, max: 15, loading: true });
+
     useEffect(() => {
-        const loadLMS = async () => {
+        const loadSettings = async () => {
             try {
                 const res = await api.getCanvasSettings();
                 setLmsStatus(prev => ({ ...prev, isConnected: res.isConnected, canvasUrl: res.canvasUrl || '', loading: false }));
@@ -74,8 +76,15 @@ export default function Settings() {
             } catch (err) {
                 setLmsStatus(prev => ({ ...prev, loading: false }));
             }
+
+            try {
+                const aiData = await api.getAILimits();
+                setAiLimits({ ...aiData, loading: false });
+            } catch (err) {
+                setAiLimits(prev => ({ ...prev, loading: false }));
+            }
         };
-        loadLMS();
+        loadSettings();
     }, []);
 
     const handleConnectCanvas = async () => {
@@ -284,6 +293,61 @@ export default function Settings() {
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+
+                {/* AI Capabilities Bento */}
+                <motion.div variants={itemVariants}>
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-500 mb-3 pl-2">
+                        AI Capabilities
+                    </h2>
+                    <div className="flex flex-col bg-claude-surface/50 backdrop-blur-md border border-amber-500/10 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
+                        {/* Glow */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
+                                <Sun className="w-6 h-6 text-amber-500" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
+                                    Flashcard Generation
+                                    {!aiLimits.loading && (
+                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                            {aiLimits.remaining} / {aiLimits.max} Left
+                                        </span>
+                                    )}
+                                </h3>
+                                <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                    Resets every 15 minutes
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="relative z-10 pt-2 grid grid-cols-2 gap-3">
+                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Max Input</p>
+                                <p className="text-sm font-medium text-claude-text">~3,000 words</p>
+                                <p className="text-[9px] text-botanical-sepia mt-0.5">15,000 chars</p>
+                            </div>
+                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Output Size</p>
+                                <p className="text-sm font-medium text-claude-text">5 - 15 Cards</p>
+                                <p className="text-[9px] text-botanical-sepia mt-0.5">per request limit</p>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar for Limits */}
+                        {!aiLimits.loading && (
+                            <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 relative z-10 border border-botanical-sepia/5 shadow-inner">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(aiLimits.remaining / aiLimits.max) * 100}%` }}
+                                    transition={{ duration: 1, ease: 'easeOut' }}
+                                    className={`h-full ${aiLimits.remaining > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-red-500'} rounded-full`}
+                                />
                             </div>
                         )}
                     </div>
