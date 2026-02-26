@@ -266,9 +266,9 @@ export const createScheduleSlot = (class_id, day_of_week, start_time, end_time) 
 export const deleteScheduleSlot = (id) => authFetch(`/schedule/${id}`, { method: 'DELETE' });
 
 // --- LMS Integration (Canvas)
-export const connectCanvas = (canvasUrl, apiToken) => authFetch('/lms/canvas/connect', {
+export const connectCanvas = (icalUrl) => authFetch('/lms/canvas/connect', {
     method: 'POST',
-    body: JSON.stringify({ canvasUrl, apiToken })
+    body: JSON.stringify({ icalUrl })
 });
 export const disconnectCanvas = () => authFetch('/lms/canvas/disconnect', { method: 'POST' });
 export const getCanvasSettings = () => authFetch('/lms/settings');

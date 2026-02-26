@@ -2,38 +2,40 @@ const express = require('express');
 
 module.exports = function ({ app, db, authMiddleware }) {
 
-    // 1. Save Canvas credentials (user provides their own token)
+    // 1. Save Canvas credentials (now just an iCal link)
     app.post('/api/lms/canvas/connect', authMiddleware, async (req, res) => {
-        const { canvasUrl, apiToken } = req.body;
+        const { icalUrl } = req.body;
 
-        if (!canvasUrl || !apiToken) {
-            return res.status(400).json({ error: 'Canvas URL and API Token are required.' });
+        if (!icalUrl || typeof icalUrl !== 'string') {
+            return res.status(400).json({ error: 'Canvas Calendar Link is required.' });
         }
 
-        // Normalize URL: strip trailing slash
-        const normalizedUrl = canvasUrl.replace(/\/+$/, '');
+        // Validate it looks like a Canvas iCal URL
+        if (!icalUrl.includes('.instructure.com/feeds/calendars/')) {
+            return res.status(400).json({ error: 'Invalid link. Be sure it comes from your Canvas Calendar Feed.' });
+        }
 
-        // Validate by hitting Canvas API
         try {
-            const testRes = await fetch(`${normalizedUrl}/api/v1/users/self`, {
-                headers: { 'Authorization': `Bearer ${apiToken}` }
-            });
-            if (!testRes.ok) {
-                return res.status(400).json({ error: 'Invalid Canvas URL or API Token. Check your credentials.' });
+            const ical = require('node-ical');
+            const data = await ical.async.fromURL(icalUrl);
+
+            // If data parses correctly, we will save the URL
+            if (!data) {
+                return res.status(400).json({ error: 'Failed to parse calendar feed. Try again.' });
             }
         } catch (fetchErr) {
-            return res.status(400).json({ error: 'Could not reach Canvas. Check the URL.' });
+            return res.status(400).json({ error: 'Could not reach Canvas Calendar Feed. Check the link.' });
         }
 
         try {
             await db.execute(
-                'UPDATE users SET canvas_api_url = $1, canvas_api_token = $2 WHERE id = $3',
-                [normalizedUrl, apiToken, req.user.id]
+                'UPDATE users SET canvas_ical_url = $1, canvas_api_url = NULL, canvas_api_token = NULL WHERE id = $2',
+                [icalUrl, req.user.id]
             );
             res.json({ message: 'Canvas connected successfully.' });
         } catch (error) {
             console.error('Canvas Connect Error:', error);
-            res.status(500).json({ error: 'Failed to save Canvas credentials.' });
+            res.status(500).json({ error: 'Failed to save Canvas calendar link.' });
         }
     });
 
@@ -41,7 +43,7 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.post('/api/lms/canvas/disconnect', authMiddleware, async (req, res) => {
         try {
             await db.execute(
-                'UPDATE users SET canvas_api_url = NULL, canvas_api_token = NULL WHERE id = $1',
+                'UPDATE users SET canvas_ical_url = NULL WHERE id = $1',
                 [req.user.id]
             );
             res.json({ message: 'Canvas disconnected.' });
@@ -51,113 +53,99 @@ module.exports = function ({ app, db, authMiddleware }) {
         }
     });
 
-    // 3. Sync Canvas courses & assignments (with old course filtering)
+    // 3. Sync Canvas courses & assignments via iCal
     app.post('/api/lms/sync', authMiddleware, async (req, res) => {
         try {
             const user = await db.queryOne(
-                'SELECT canvas_api_url, canvas_api_token FROM users WHERE id = $1',
+                'SELECT canvas_ical_url FROM users WHERE id = $1',
                 [req.user.id]
             );
 
-            if (!user?.canvas_api_url || !user?.canvas_api_token) {
-                return res.status(400).json({ error: 'Canvas is not connected. Add your Canvas URL and token first.' });
+            if (!user?.canvas_ical_url) {
+                return res.status(400).json({ error: 'Canvas is not connected. Add your Canvas Calendar Link first.' });
             }
 
-            const { canvas_api_url, canvas_api_token } = user;
-            const headers = { 'Authorization': `Bearer ${canvas_api_token}`, 'Accept': 'application/json' };
-
-            // Fetch active + completed courses
-            let allCourses = [];
+            const ical = require('node-ical');
+            let events;
             try {
-                const activeRes = await fetch(`${canvas_api_url}/api/v1/courses?enrollment_state=active&per_page=100`, { headers });
-                if (activeRes.ok) {
-                    const data = await activeRes.json();
-                    allCourses.push(...data.map(c => ({ ...c, _isActive: true })));
-                }
-
-                const completedRes = await fetch(`${canvas_api_url}/api/v1/courses?enrollment_state=completed&per_page=100`, { headers });
-                if (completedRes.ok) {
-                    const data = await completedRes.json();
-                    allCourses.push(...data.map(c => ({ ...c, _isActive: false })));
-                }
+                events = await ical.async.fromURL(user.canvas_ical_url);
             } catch (fetchErr) {
-                return res.status(502).json({ error: 'Failed to reach Canvas API. Check your credentials.' });
-            }
-
-            if (allCourses.length === 0) {
-                return res.json({ message: 'No courses found on Canvas.', classesAdded: 0, assignmentsAdded: 0 });
+                return res.status(502).json({ error: 'Failed to reach Canvas Calendar. Check your link.' });
             }
 
             let syncedClassesCount = 0;
             let syncedAssignmentsCount = 0;
 
-            for (const course of allCourses) {
-                const canvasCourseId = String(course.id);
-                const courseName = course.name || course.course_code || 'Untitled Course';
-                const isArchived = !course._isActive;
+            // Simple cache for classes created during this sync
+            const mappedClasses = {};
 
-                // Find or create the class
-                let mappedClass = await db.queryOne(
-                    'SELECT * FROM classes WHERE user_id = $1 AND (canvas_course_id = $2 OR name = $3)',
-                    [req.user.id, canvasCourseId, courseName]
-                );
+            for (const k in events) {
+                const ev = events[k];
+                if (ev.type !== 'VEVENT') continue;
 
-                if (!mappedClass) {
-                    mappedClass = await db.queryOne(
-                        `INSERT INTO classes (user_id, name, canvas_course_id, color, is_archived) 
-                         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                        [req.user.id, courseName, canvasCourseId, '#4f46e5', isArchived]
-                    );
-                    syncedClassesCount++;
-                } else {
-                    await db.execute(
-                        'UPDATE classes SET canvas_course_id = $1, is_archived = $2 WHERE id = $3',
-                        [canvasCourseId, isArchived, mappedClass.id]
-                    );
+                // Canvas usually formats summary as "Assignment Name [Course Name]"
+                const summary = ev.summary || 'Untitled Event';
+                const description = ev.description || '';
+                const uid = ev.uid; // Unique ID from Canvas
+                const due_date = ev.end || ev.start; // iCal usually uses end/start for due dates
+
+                if (!due_date) continue;
+
+                // Try to extract course name from summary "Assignment [Course]" -> "Course"
+                let courseName = 'Canvas Activities';
+                const courseMatch = summary.match(/\[(.*?)\]$/);
+                let assignmentTitle = summary;
+
+                if (courseMatch && courseMatch[1]) {
+                    courseName = courseMatch[1].trim();
+                    assignmentTitle = summary.replace(/\[.*?\]$/, '').trim();
                 }
 
-                // Skip assignment sync for archived/past courses
-                if (isArchived) continue;
-
-                // Fetch assignments for this course
-                try {
-                    const assignRes = await fetch(
-                        `${canvas_api_url}/api/v1/courses/${course.id}/assignments?per_page=100`,
-                        { headers }
+                // Get or create class
+                let classId;
+                if (mappedClasses[courseName]) {
+                    classId = mappedClasses[courseName];
+                } else {
+                    let existingClass = await db.queryOne(
+                        'SELECT id FROM classes WHERE user_id = $1 AND name = $2',
+                        [req.user.id, courseName]
                     );
 
-                    if (assignRes.ok) {
-                        const assignments = await assignRes.json();
-
-                        for (const a of assignments) {
-                            if (!a.due_at) continue;
-
-                            const canvasAssignId = String(a.id);
-                            const existingAssig = await db.queryOne(
-                                'SELECT id FROM assignments WHERE user_id = $1 AND canvas_assignment_id = $2',
-                                [req.user.id, canvasAssignId]
-                            );
-
-                            if (!existingAssig) {
-                                await db.execute(
-                                    `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
-                                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                                    [
-                                        req.user.id,
-                                        mappedClass.id,
-                                        a.name || 'Untitled Assignment',
-                                        a.description ? a.description.replace(/<[^>]*>?/gm, '') : '',
-                                        new Date(a.due_at).toISOString(),
-                                        'Todo',
-                                        canvasAssignId
-                                    ]
-                                );
-                                syncedAssignmentsCount++;
-                            }
-                        }
+                    if (!existingClass) {
+                        const newClass = await db.queryOne(
+                            `INSERT INTO classes (user_id, name, color) 
+                             VALUES ($1, $2, $3) RETURNING id`,
+                            [req.user.id, courseName, '#4f46e5']
+                        );
+                        classId = newClass.id;
+                        syncedClassesCount++;
+                    } else {
+                        classId = existingClass.id;
                     }
-                } catch (assignFetchErr) {
-                    console.error(`Failed to fetch assignments for course ${course.id}:`, assignFetchErr.message);
+                    mappedClasses[courseName] = classId;
+                }
+
+                // Get or create assignment
+                const existingAssig = await db.queryOne(
+                    'SELECT id FROM assignments WHERE user_id = $1 AND canvas_assignment_id = $2',
+                    [req.user.id, uid]
+                );
+
+                if (!existingAssig) {
+                    await db.execute(
+                        `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [
+                            req.user.id,
+                            classId,
+                            assignmentTitle,
+                            description,
+                            new Date(due_date).toISOString(),
+                            'Todo',
+                            uid
+                        ]
+                    );
+                    syncedAssignmentsCount++;
                 }
             }
 
@@ -177,12 +165,12 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.get('/api/lms/settings', authMiddleware, async (req, res) => {
         try {
             const user = await db.queryOne(
-                'SELECT canvas_api_url, canvas_api_token FROM users WHERE id = $1',
+                'SELECT canvas_ical_url FROM users WHERE id = $1',
                 [req.user.id]
             );
             res.json({
-                isConnected: !!(user?.canvas_api_url && user?.canvas_api_token),
-                canvasUrl: user?.canvas_api_url || ''
+                isConnected: !!user?.canvas_ical_url,
+                canvasUrl: user?.canvas_ical_url ? 'Canvas Feed Active' : ''
             });
         } catch (error) {
             console.error('LMS Settings Error:', error);

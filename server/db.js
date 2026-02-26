@@ -137,6 +137,7 @@ if (global.__TEST_DB_MOCK__) {
             // Add Canvas integration columns (migration)
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_url TEXT`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_token TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_ical_url TEXT`).catch(() => { });
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS canvas_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS canvas_id TEXT`).catch(() => { });
 

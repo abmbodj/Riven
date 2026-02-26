@@ -90,28 +90,27 @@ export default function Settings() {
     const handleConnectCanvas = async () => {
         // Strict empty field validation based on user rule
         const errors = {
-            url: !canvasForm.url.trim(),
-            token: !canvasForm.token.trim()
+            url: !canvasForm.url.trim()
         };
 
         setFormErrors(errors);
 
-        if (errors.url || errors.token) {
+        if (errors.url) {
             haptics.error();
-            toast.error('Please fill in all empty fields');
+            toast.error('Please fill in the Calendar Link');
 
             // Clear errors after animation
-            setTimeout(() => setFormErrors({ url: false, token: false }), 2000);
+            setTimeout(() => setFormErrors({ url: false }), 2000);
             return;
         }
 
         setConnectingCanvas(true);
         try {
-            await api.connectCanvas(canvasForm.url, canvasForm.token);
+            await api.connectCanvas(canvasForm.url);
             toast.success('Canvas connected successfully!');
             haptics.success();
-            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: canvasForm.url }));
-            setCanvasForm(prev => ({ ...prev, token: '' })); // Clear token for security
+            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: 'Canvas Feed Active' }));
+            setCanvasForm({ url: '' }); // Clear input on success
         } catch (err) {
             haptics.error();
             toast.error(err.error || 'Failed to connect Canvas');
@@ -211,7 +210,7 @@ export default function Settings() {
                             <div>
                                 <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold">Canvas Sync</h3>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    {lmsStatus.isConnected ? `Connected to ${lmsStatus.canvasUrl.replace(/https?:\/\//, '')}` : 'Import courses & assignments'}
+                                    {lmsStatus.isConnected ? `Connected via Calendar Feed` : 'Import courses & assignments'}
                                 </p>
                             </div>
                         </div>
@@ -231,7 +230,7 @@ export default function Settings() {
                                                 <motion.div animate={formErrors.url ? { x: [-5, 5, -5, 5, 0] } : {}} transition={{ duration: 0.4 }}>
                                                     <input
                                                         type="url"
-                                                        placeholder="Canvas URL (e.g. https://school.instructure.com)"
+                                                        placeholder="Canvas Calendar Link (Ends in .ics)"
                                                         value={canvasForm.url}
                                                         onChange={e => {
                                                             setCanvasForm(prev => ({ ...prev, url: e.target.value }));
@@ -240,23 +239,10 @@ export default function Settings() {
                                                         className={`w-full bg-claude-bg border ${formErrors.url ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-botanical-sepia/20 focus:border-[#0ea5e9]/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-botanical-sepia/40 font-mono focus:outline-none transition-colors shadow-inner`}
                                                     />
                                                 </motion.div>
-
-                                                <motion.div animate={formErrors.token ? { x: [-5, 5, -5, 5, 0] } : {}} transition={{ duration: 0.4 }}>
-                                                    <input
-                                                        type="password"
-                                                        placeholder="API Token"
-                                                        value={canvasForm.token}
-                                                        onChange={e => {
-                                                            setCanvasForm(prev => ({ ...prev, token: e.target.value }));
-                                                            if (formErrors.token) setFormErrors(prev => ({ ...prev, token: false }));
-                                                        }}
-                                                        className={`w-full bg-claude-bg border ${formErrors.token ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-botanical-sepia/20 focus:border-[#0ea5e9]/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-botanical-sepia/40 font-mono focus:outline-none transition-colors shadow-inner`}
-                                                    />
-                                                </motion.div>
                                             </div>
 
                                             <p className="text-[10px] font-mono text-botanical-sepia/70 leading-relaxed text-center px-2">
-                                                Find your token in Canvas → Account → Settings → New Access Token
+                                                Go to Canvas Calendar → Click 'Calendar Feed' → Copy the link
                                             </p>
 
                                             <button

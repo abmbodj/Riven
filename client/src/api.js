@@ -83,7 +83,7 @@ export const api = {
         ? serverApi.deleteAssignment(id)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
     // ============ LMS (Canvas) ============
-    connectCanvas: (canvasUrl, apiToken) => isLoggedIn() ? serverApi.connectCanvas(canvasUrl, apiToken) : Promise.reject(new Error('Must be logged in to connect LMS')),
+    connectCanvas: (icalUrl) => isLoggedIn() ? serverApi.connectCanvas(icalUrl) : Promise.reject(new Error('Must be logged in to connect LMS')),
     disconnectCanvas: () => isLoggedIn() ? serverApi.disconnectCanvas() : Promise.reject(new Error('Must be logged in')),
     getCanvasSettings: () => isLoggedIn() ? serverApi.getCanvasSettings() : Promise.resolve({ isConnected: false }),
     syncCanvas: () => isLoggedIn() ? serverApi.syncCanvas() : Promise.reject(new Error('Must be logged in to sync LMS')),
