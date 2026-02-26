@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { BrowserRouter, useRoutes } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import MobileWarning from './components/MobileWarning';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppProviders } from './AppProviders.jsx';
@@ -17,6 +18,7 @@ function App() {
             <AppRoutes />
           </ErrorBoundary>
         </RootLayout>
+        <SpeedInsights />
       </BrowserRouter>
     </AppProviders>
   );

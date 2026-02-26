@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
-    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2
-    , Network, Link, Network, Link
+    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2, Network, Link
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
