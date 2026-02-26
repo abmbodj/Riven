@@ -73,8 +73,8 @@ export const api = {
 
     // ============ ASSIGNMENTS ============
     getAssignments: (classId) => isLoggedIn() ? serverApi.getAssignments(classId) : Promise.resolve([]),
-    createAssignment: (class_id, title, description, due_date) => isLoggedIn()
-        ? serverApi.createAssignment(class_id, title, description, due_date)
+    createAssignment: (class_id, title, description, due_date, type) => isLoggedIn()
+        ? serverApi.createAssignment(class_id, title, description, due_date, type)
         : Promise.reject(new Error('Must be logged in to manage assignments')),
     updateAssignment: (id, updates) => isLoggedIn()
         ? serverApi.updateAssignment(id, updates)
@@ -95,6 +95,9 @@ export const api = {
     generateAiDeck: (notes, file, deckName, classId) => isLoggedIn()
         ? serverApi.generateAiDeck(notes, file, deckName, classId)
         : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
+    generateAiClass: (notes, file) => isLoggedIn()
+        ? serverApi.generateAiClass(notes, file)
+        : Promise.reject(new Error('Must be logged in to generate AI class')),
 
     // ============ SCHEDULE ============
     getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
-    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock
+    Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,8 +93,12 @@ export default function Classes() {
 
     // Form
     const [formData, setFormData] = useState({
-        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }]
+        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: []
     });
+
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [aiFile, setAiFile] = useState(null);
+    const [aiFilePreview, setAiFilePreview] = useState('');
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -148,14 +152,98 @@ export default function Classes() {
                 for (const slot of slotsToAdd) {
                     await api.createScheduleSlot(savedClassId, slot.day, slot.start_time, slot.end_time);
                 }
+
+                if (formData.assignments && formData.assignments.length > 0) {
+                    for (const assign of formData.assignments) {
+                        try {
+                            await api.createAssignment(savedClassId, assign.title, assign.description, assign.due_date, assign.type);
+                        } catch (err) {
+                            console.error("Failed to create isolated assignment:", err);
+                        }
+                    }
+                }
             }
 
             setShowModal(false);
             setEditingClass(null);
-            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }] });
+            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+            setAiFile(null);
+            setAiFilePreview('');
             loadData();
         } catch (err) {
             toast.error(err.message || 'Failed to save class');
+        }
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAiFile({
+                data: reader.result.split(',')[1],
+                mimeType: file.type
+            });
+            setAiFilePreview(file.name);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeFile = () => {
+        setAiFile(null);
+        setAiFilePreview('');
+    };
+
+    const handleGenerateAI = async () => {
+        if (!aiFile) {
+            toast.error('Please upload a syllabus file.');
+            return;
+        }
+
+        setIsGeneratingAI(true);
+        try {
+            const result = await api.generateAiClass('', aiFile);
+            const { classData } = result;
+
+            toast.success('Successfully extracted syllabus data!');
+
+            // Map days
+            const newTimes = [];
+            if (classData.times && classData.times.length > 0) {
+                classData.times.forEach(t => {
+                    newTimes.push({
+                        day: String(t.day),
+                        start_time: t.start_time,
+                        end_time: t.end_time,
+                        id: null
+                    });
+                });
+            } else {
+                newTimes.push({ day: '', start_time: '', end_time: '', id: null });
+            }
+
+            setFormData({
+                ...formData,
+                name: classData.name || formData.name,
+                professor: classData.professor || formData.professor,
+                room: classData.room || formData.room,
+                times: newTimes,
+                assignments: classData.assignments || []
+            });
+
+            setAiFile(null);
+            setAiFilePreview('');
+
+        } catch (err) {
+            toast.error(err.message || 'Failed to process syllabus.');
+        } finally {
+            setIsGeneratingAI(false);
         }
     };
 
@@ -174,7 +262,9 @@ export default function Classes() {
 
     const openCreateModal = () => {
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }] });
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+        setAiFile(null);
+        setAiFilePreview('');
         setShowModal(true);
     };
 
@@ -192,8 +282,11 @@ export default function Classes() {
             professor: cls.professor || '',
             room: cls.room || '',
             zoom_link: cls.zoom_link || '',
-            times: slots.length > 0 ? slots : [{ day: '', start_time: '', end_time: '', id: null }]
+            times: slots.length > 0 ? slots : [{ day: '', start_time: '', end_time: '', id: null }],
+            assignments: []
         });
+        setAiFile(null);
+        setAiFilePreview('');
         setShowModal(true);
     };
 
@@ -467,6 +560,76 @@ export default function Classes() {
                             </div>
 
                             <div className="space-y-6">
+                                {!editingClass && (
+                                    <div className="mb-6 p-4 bg-claude-accent/5 border border-claude-accent/20 rounded-2xl relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8 text-claude-accent">
+                                            <Sparkles className="w-full h-full" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <h4 className="font-serif italic font-bold text-lg text-botanical-parchment flex items-center gap-2 mb-2">
+                                                <Sparkles className="w-4 h-4 text-claude-accent" /> Auto-fill with AI
+                                            </h4>
+                                            <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or Image) and let AI extract the class details, schedule, and assignments automatically.</p>
+
+                                            {aiFilePreview ? (
+                                                <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl p-3 mb-3">
+                                                    <div className="flex items-center gap-2 truncate">
+                                                        <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-claude-secondary">
+                                                            <Layers className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="font-mono text-xs text-botanical-parchment truncate">{aiFilePreview}</span>
+                                                    </div>
+                                                    <button type="button" onClick={removeFile} className="p-2 text-red-400 hover:text-red-300 transition-colors">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="mb-3">
+                                                    <label className="flex items-center justify-center w-full h-12 px-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
+                                                        <div className="flex items-center gap-2 text-claude-secondary group-hover:text-claude-accent">
+                                                            <Upload className="w-4 h-4" />
+                                                            <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus</span>
+                                                        </div>
+                                                        <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+                                                    </label>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={handleGenerateAI}
+                                                disabled={isGeneratingAI || !aiFile}
+                                                className="w-full h-10 flex items-center justify-center gap-2 bg-claude-accent/10 hover:bg-claude-accent/20 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                                            >
+                                                {isGeneratingAI ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Extracting Data...
+                                                    </>
+                                                ) : (
+                                                    'Process Syllabus'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {formData.assignments?.length > 0 && (
+                                    <div className="mb-6 p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-claude-border rounded-2xl">
+                                        <h4 className="font-serif italic font-bold text-sm text-botanical-parchment mb-2 flex items-center gap-2">
+                                            <CheckCircle2 className="w-4 h-4 text-claude-accent" /> {formData.assignments.length} Assignments Extracted
+                                        </h4>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                                            {formData.assignments.map((a, i) => (
+                                                <div key={i} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] p-2 rounded-lg text-xs font-mono">
+                                                    <span className="text-botanical-parchment truncate flex-1">{a.title}</span>
+                                                    <span className="text-claude-secondary uppercase tracking-widest ml-2 shrink-0">{a.type}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Class Name *</label>
                                     <input

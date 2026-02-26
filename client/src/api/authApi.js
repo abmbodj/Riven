@@ -237,10 +237,10 @@ export const getAssignments = async (classId) => {
     return await authFetch(url);
 };
 
-export const createAssignment = async (class_id, title, description, due_date) => {
+export const createAssignment = async (class_id, title, description, due_date, type) => {
     return await authFetch(`/assignments`, {
         method: 'POST',
-        body: JSON.stringify({ class_id, title, description, due_date })
+        body: JSON.stringify({ class_id, title, description, due_date, type })
     });
 };
 
@@ -280,6 +280,13 @@ export const generateAiDeck = async (notes, file, deckName, classId) => {
     return await authFetch('/ai/generate-deck', {
         method: 'POST',
         body: JSON.stringify({ notes, file, deckName, classId })
+    });
+};
+
+export const generateAiClass = async (notes, file) => {
+    return await authFetch('/ai/generate-class', {
+        method: 'POST',
+        body: JSON.stringify({ notes, file })
     });
 };
 
@@ -504,6 +511,7 @@ export default {
     editMessage,
     deleteMessage,
     getUnreadCount,
+    generateAiClass,
     adminGetAllUsers,
     adminUpdateUser,
     adminDeleteUser,
