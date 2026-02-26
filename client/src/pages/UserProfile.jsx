@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
-    Clock, Layers, Calendar, Copy, Share2, Shield, Leaf
+    Clock, Layers, Calendar, Copy, Share2, Shield, Leaf, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
