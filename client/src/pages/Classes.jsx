@@ -588,9 +588,9 @@ export default function Classes() {
                                                     <label className="flex items-center justify-center w-full h-12 px-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
                                                         <div className="flex items-center gap-2 text-claude-secondary group-hover:text-claude-accent">
                                                             <Upload className="w-4 h-4" />
-                                                            <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus</span>
+                                                            <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus (PDF, Doc, Image)</span>
                                                         </div>
-                                                        <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+                                                        <input type="file" className="hidden" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={handleFileChange} />
                                                     </label>
                                                 </div>
                                             )}
