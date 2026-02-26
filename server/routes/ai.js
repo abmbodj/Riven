@@ -1,16 +1,16 @@
 const express = require('express');
 const { GoogleGenAI } = require('@google/genai');
 
-module.exports = function ({ app, db, authMiddleware, rateLimit }) {
+module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator }) {
 
     // AI Rate Limiter: 15 requests per 15 minutes to stay well within free tier
     // Uses req.user.id so the limit is strictly per-account, not per-IP
     const aiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         max: 15,
-        keyGenerator: (req) => {
-            // Default to IP if user isn't populated for some reason, but they should be via authMiddleware
-            return req.user ? req.user.id : req.ip;
+        keyGenerator: (req, res) => {
+            // Default to IP if user isn't populated for some reason
+            return req.user ? req.user.id : ipKeyGenerator(req, res);
         },
         message: { error: 'AI generation limit reached. Please try again later.' },
         standardHeaders: true,
@@ -297,7 +297,7 @@ Rules:
 
         } catch (error) {
             console.error('AI Class Generation Error:', error);
-            res.status(500).json({ error: 'An unexpected error occurred during AI class generation.' });
+            res.status(500).json({ error: `An error occurred: ${error.message || 'Unknown server error'}` });
         }
     });
 
