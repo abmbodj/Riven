@@ -131,7 +131,6 @@ const ProfileView = () => {
                             <User className="w-3 h-3" />
                             @{user?.username}
                         </p>
-                        <p className="text-botanical-sepia/60 text-[11px] font-mono tracking-wide">{user?.email}</p>
                     </div>
                     {user?.bio && (
                         <div className="relative inline-block">

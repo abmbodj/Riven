@@ -25,6 +25,10 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
             setAlert({ show: true, title: 'Missing Fields', message: 'Please fill in all fields', type: 'warning' });
             return;
         }
+        if (form.username.length < 2) {
+            setAlert({ show: true, title: 'Invalid Username', message: 'Username must be at least 2 characters', type: 'warning' });
+            return;
+        }
         if (form.password !== form.confirmPassword) {
             setAlert({ show: true, title: 'Password Mismatch', message: 'Passwords do not match', type: 'error' });
             return;

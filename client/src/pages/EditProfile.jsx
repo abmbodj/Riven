@@ -52,6 +52,12 @@ export default function EditProfile() {
             return;
         }
 
+        if (username.trim().length < 2) {
+            haptics.error();
+            toast.error('Username must be at least 2 characters');
+            return;
+        }
+
         if (saving) return;
         setSaving(true);
         haptics.medium();
