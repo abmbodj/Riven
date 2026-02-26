@@ -11,7 +11,8 @@ module.exports = function ({ app, db, authMiddleware }) {
         }
 
         // Validate it looks like a Canvas iCal URL
-        if (!icalUrl.includes('.instructure.com/feeds/calendars/')) {
+        // Allow any domain (like canvas.arcadia.edu) as long as it has the correct feed path
+        if (!icalUrl.includes('/feeds/calendars/')) {
             return res.status(400).json({ error: 'Invalid link. Be sure it comes from your Canvas Calendar Feed.' });
         }
 
