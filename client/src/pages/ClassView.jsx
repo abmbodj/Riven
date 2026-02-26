@@ -469,7 +469,11 @@ export default function ClassView() {
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
-                                    <input type="text" value={classFormData.professor} onChange={e => setClassFormData({ ...classFormData, professor: e.target.value })} className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" />
+                                    <input type="text" value={classFormData.professor} onChange={e => setClassFormData({ ...classFormData, professor: e.target.value })} className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="e.g. Dr. Smith" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Location</label>
+                                    <input type="text" value={classFormData.room} onChange={e => setClassFormData({ ...classFormData, room: e.target.value })} className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="e.g. Room 101" />
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Changes</button>
                             </div>
