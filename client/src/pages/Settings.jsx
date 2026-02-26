@@ -113,7 +113,7 @@ export default function Settings() {
             setCanvasForm({ url: '' }); // Clear input on success
         } catch (err) {
             haptics.error();
-            toast.error(err.error || 'Failed to connect Canvas');
+            toast.error(err.message || 'Failed to connect Canvas');
         } finally {
             setConnectingCanvas(false);
         }
@@ -140,7 +140,7 @@ export default function Settings() {
             haptics.success();
         } catch (err) {
             haptics.error();
-            toast.error(err.error || 'Canvas Sync Failed');
+            toast.error(err.message || 'Canvas Sync Failed');
         } finally {
             setLmsStatus(prev => ({ ...prev, syncing: false }));
         }
