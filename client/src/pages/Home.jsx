@@ -66,11 +66,17 @@ export default function Home() {
 
     // Filter and Sort Assignments (Show only Todo/Doing, sorted by nearest due date, max 5)
     const upcomingAssignments = useMemo(() => {
+        const now = new Date();
+        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
         return assignments
-            .filter(a => a.status !== 'Done')
+            .filter(a => {
+                if (a.status === 'Done') return false;
+                if (!a.due_date) return false;
+                const dueDate = new Date(a.due_date);
+                return dueDate <= nextWeek;
+            })
             .sort((a, b) => {
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
                 return new Date(a.due_date) - new Date(b.due_date);
             })
             .slice(0, 5);
@@ -216,8 +222,8 @@ export default function Home() {
                                                         )}
                                                         {a.type && (
                                                             <div className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
-                                                                    a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                                        'border-[#8fa6a8]/30 text-claude-secondary bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)]'
+                                                                a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                                    'border-[#8fa6a8]/30 text-claude-secondary bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)]'
                                                                 }`}>
                                                                 {a.type}
                                                             </div>
