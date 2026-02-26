@@ -313,7 +313,7 @@ export default function Settings() {
                             </div>
                             <div className="flex-1">
                                 <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
-                                    Flashcard Generation
+                                    AI Generations
                                     {!aiLimits.loading && (
                                         <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
                                             {aiLimits.remaining} / {aiLimits.max} Left
@@ -334,7 +334,7 @@ export default function Settings() {
                             </div>
                             <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
                                 <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Output Size</p>
-                                <p className="text-sm font-medium text-claude-text">5 - 15 Cards</p>
+                                <p className="text-sm font-medium text-claude-text">Flashcards or Class</p>
                                 <p className="text-[9px] text-botanical-sepia mt-0.5">per request limit</p>
                             </div>
                         </div>
