@@ -12,6 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 const slowDown = require('express-slow-down');
 const xss = require('xss');
@@ -318,7 +319,7 @@ registerLMSRoutes({ app, db, authMiddleware });
 
 // ============ AI GENERATION ============
 
-registerAIRoutes({ app, db, authMiddleware, rateLimit });
+registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 // ============ MESSAGES ============
 
