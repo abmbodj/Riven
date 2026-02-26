@@ -228,6 +228,8 @@ Example JSON format:
         try {
             const { file, notes } = req.body;
 
+            const hasFile = file && file.data && file.mimeType;
+
             let processedNotes = notes || '';
             let keepFile = hasFile;
 
