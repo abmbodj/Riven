@@ -561,3 +561,13 @@
     clip-path: inset(0 0 0 0);
   }
 }
+
+/* Hide scrollbar for neat layout components */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+

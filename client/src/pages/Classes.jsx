@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
     Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2
+    , Network, Link, Network, Link
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import useHaptics from '../hooks/useHaptics';
 
 const CLASS_COLORS = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -100,6 +102,20 @@ export default function Classes() {
     const [aiFile, setAiFile] = useState(null);
     const [aiFilePreview, setAiFilePreview] = useState('');
 
+    const [creationMethod, setCreationMethod] = useState('manual'); // 'manual' | 'ai' | 'canvas'
+    const [canvasStatus, setCanvasStatus] = useState({ isConnected: false, url: '', loading: true, syncing: false });
+    const [canvasFormUrl, setCanvasFormUrl] = useState('');
+    const haptics = useHaptics();
+
+    const fetchCanvasStatus = useCallback(async () => {
+        try {
+            const res = await api.getCanvasSettings();
+            setCanvasStatus(prev => ({ ...prev, isConnected: res.isConnected, url: res.canvasUrl || '', loading: false }));
+        } catch (err) {
+            setCanvasStatus(prev => ({ ...prev, loading: false }));
+        }
+    }, []);
+
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         try {
@@ -115,7 +131,10 @@ export default function Classes() {
         }
     }, [toast]);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadData();
+        fetchCanvasStatus();
+    }, [loadData, fetchCanvasStatus]);
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -247,6 +266,50 @@ export default function Classes() {
         }
     };
 
+    const handleCanvasConnect = async () => {
+        if (!canvasFormUrl.trim()) {
+            toast.error('Please enter a valid Canvas link.');
+            return;
+        }
+
+        setCanvasStatus(prev => ({ ...prev, loading: true }));
+        try {
+            await api.connectCanvas(canvasFormUrl);
+            setCanvasStatus(prev => ({ ...prev, isConnected: true, url: 'Canvas Feed Active', loading: false }));
+            setCanvasFormUrl('');
+            toast.success('Canvas connected! Beginning initial sync...');
+
+            // Auto start sync
+            handleCanvasSync();
+        } catch (err) {
+            toast.error(err.message || 'Failed to connect Canvas.');
+            setCanvasStatus(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleCanvasSync = async () => {
+        setCanvasStatus(prev => ({ ...prev, syncing: true }));
+        try {
+            const res = await api.syncCanvas();
+            toast.success(`Synced ${res.classesAdded} classes and ${res.assignmentsAdded} assignments!`);
+            handleCloseModal();
+            loadData(true);
+        } catch (err) {
+            toast.error(err.message || 'Canvas sync failed.');
+        } finally {
+            setCanvasStatus(prev => ({ ...prev, syncing: false }));
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setEditingClass(null);
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+        setAiFile(null);
+        setAiFilePreview('');
+        setCreationMethod('manual');
+    };
+
     const handleDelete = async () => {
         try {
             await api.deleteClass(deleteConfirm.item.id);
@@ -265,6 +328,8 @@ export default function Classes() {
         setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
         setAiFile(null);
         setAiFilePreview('');
+        setCreationMethod('manual');
+        fetchCanvasStatus();
         setShowModal(true);
     };
 
@@ -287,6 +352,7 @@ export default function Classes() {
         });
         setAiFile(null);
         setAiFilePreview('');
+        setCreationMethod('manual');
         setShowModal(true);
     };
 
@@ -539,7 +605,7 @@ export default function Classes() {
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCloseModal} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleSave}
@@ -553,7 +619,7 @@ export default function Classes() {
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     )}
-                                    <button type="button" onClick={() => setShowModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                    <button type="button" onClick={handleCloseModal} className="p-2 text-claude-secondary hover:text-white transition-colors">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -561,56 +627,145 @@ export default function Classes() {
 
                             <div className="space-y-6">
                                 {!editingClass && (
-                                    <div className="mb-6 p-4 bg-claude-accent/5 border border-claude-accent/20 rounded-2xl relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8 text-claude-accent">
-                                            <Sparkles className="w-full h-full" />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <h4 className="font-serif italic font-bold text-lg text-botanical-parchment flex items-center gap-2 mb-2">
-                                                <Sparkles className="w-4 h-4 text-claude-accent" /> Auto-fill with AI
-                                            </h4>
-                                            <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or Image) and let AI extract the class details, schedule, and assignments automatically.</p>
-
-                                            {aiFilePreview ? (
-                                                <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl p-3 mb-3">
-                                                    <div className="flex items-center gap-2 truncate">
-                                                        <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-claude-secondary">
-                                                            <Layers className="w-4 h-4" />
-                                                        </div>
-                                                        <span className="font-mono text-xs text-botanical-parchment truncate">{aiFilePreview}</span>
-                                                    </div>
-                                                    <button type="button" onClick={removeFile} className="p-2 text-red-400 hover:text-red-300 transition-colors">
-                                                        <X className="w-4 h-4" />
+                                    <div className="mb-6">
+                                        <div className="flex p-1 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl mb-6 max-w-full overflow-x-auto hide-scrollbar">
+                                            {[
+                                                { id: 'manual', label: 'Manual', icon: BookOpen },
+                                                { id: 'ai', label: 'AI Syllabus', icon: Sparkles },
+                                                { id: 'canvas', label: 'Canvas Sync', icon: Layers } // using Layers temporarily because Network not explicitly imported early
+                                            ].map(method => {
+                                                const isActive = creationMethod === method.id;
+                                                const Icon = method.icon;
+                                                return (
+                                                    <button
+                                                        key={method.id}
+                                                        type="button"
+                                                        onClick={() => { haptics.light(); setCreationMethod(method.id); }}
+                                                        className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-mono text-[10px] uppercase font-bold tracking-widest transition-all ${isActive ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
+                                                    >
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                        <span className="truncate">{method.label}</span>
                                                     </button>
-                                                </div>
-                                            ) : (
-                                                <div className="mb-3">
-                                                    <label className="flex items-center justify-center w-full h-12 px-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
-                                                        <div className="flex items-center gap-2 text-claude-secondary group-hover:text-claude-accent">
-                                                            <Upload className="w-4 h-4" />
-                                                            <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus (PDF, Doc, Image)</span>
-                                                        </div>
-                                                        <input type="file" className="hidden" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={handleFileChange} />
-                                                    </label>
-                                                </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <AnimatePresence mode="wait">
+                                            {creationMethod === 'canvas' && (
+                                                <motion.div
+                                                    key="canvas"
+                                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="p-5 bg-blue-500/5 border border-blue-500/20 rounded-2xl relative overflow-hidden"
+                                                >
+                                                    <div className="absolute -top-4 -right-4 w-32 h-32 opacity-10 pointer-events-none text-blue-500">
+                                                        {/* Icon placeholder for Network/Canvas */}
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full"><rect x="16" y="16" width="6" height="6" rx="1" /><rect x="2" y="16" width="6" height="6" rx="1" /><rect x="9" y="2" width="6" height="6" rx="1" /><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" /><path d="M12 12V8" /></svg>
+                                                    </div>
+                                                    <div className="relative z-10">
+                                                        <h4 className="font-serif italic font-bold text-lg text-botanical-parchment flex items-center gap-2 mb-2">
+                                                            Import from Canvas
+                                                        </h4>
+
+                                                        {canvasStatus.isConnected ? (
+                                                            <div className="space-y-4 pt-2">
+                                                                <p className="text-xs font-mono text-claude-secondary">
+                                                                    Your account is already linked to Canvas. Click below to pull in your latest classes and assignments.
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { haptics.medium(); handleCanvasSync(); }}
+                                                                    disabled={canvasStatus.syncing}
+                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
+                                                                >
+                                                                    {canvasStatus.syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                                                    {canvasStatus.syncing ? 'Syncing...' : 'Sync Now'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-4 pt-2">
+                                                                <p className="text-xs font-mono text-claude-secondary">
+                                                                    Connect your Canvas Calendar feed to instantly auto-fill your classes and assignments.
+                                                                </p>
+                                                                <input
+                                                                    type="url"
+                                                                    placeholder="Canvas Calendar Link (.ics)"
+                                                                    value={canvasFormUrl}
+                                                                    onChange={e => setCanvasFormUrl(e.target.value)}
+                                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-blue-500/30 rounded-xl px-4 py-3 font-mono text-sm text-botanical-parchment focus:border-blue-500 outline-none placeholder-claude-secondary/50"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { haptics.medium(); handleCanvasConnect(); }}
+                                                                    disabled={canvasStatus.loading || !canvasFormUrl.trim()}
+                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
+                                                                >
+                                                                    {canvasStatus.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                                                                    {canvasStatus.loading ? 'Connecting...' : 'Connect & Sync'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
                                             )}
 
-                                            <button
-                                                type="button"
-                                                onClick={handleGenerateAI}
-                                                disabled={isGeneratingAI || !aiFile}
-                                                className="w-full h-10 flex items-center justify-center gap-2 bg-claude-accent/10 hover:bg-claude-accent/20 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
-                                            >
-                                                {isGeneratingAI ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                        Extracting Data...
-                                                    </>
-                                                ) : (
-                                                    'Process Syllabus'
-                                                )}
-                                            </button>
-                                        </div>
+                                            {creationMethod === 'ai' && (
+                                                <motion.div
+                                                    key="ai"
+                                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                                    className="p-5 bg-claude-accent/5 border border-claude-accent/20 rounded-2xl relative overflow-hidden"
+                                                >
+                                                    <div className="absolute -top-4 -right-4 w-32 h-32 opacity-5 pointer-events-none text-claude-accent">
+                                                        <Sparkles className="w-full h-full" />
+                                                    </div>
+                                                    <div className="relative z-10">
+                                                        <h4 className="font-serif italic font-bold text-lg text-botanical-parchment flex items-center gap-2 mb-2">
+                                                            <Sparkles className="w-4 h-4 text-claude-accent" /> Auto-fill with AI
+                                                        </h4>
+                                                        <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or Image) and let AI extract the class details, schedule, and assignments automatically.</p>
+
+                                                        {aiFilePreview ? (
+                                                            <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl p-3 mb-3">
+                                                                <div className="flex items-center gap-2 truncate">
+                                                                    <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-claude-secondary">
+                                                                        <Layers className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span className="font-mono text-xs text-botanical-parchment truncate">{aiFilePreview}</span>
+                                                                </div>
+                                                                <button type="button" onClick={removeFile} className="p-2 text-red-400 hover:text-red-300 transition-colors">
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mb-3">
+                                                                <label className="flex items-center justify-center w-full h-12 px-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
+                                                                    <div className="flex items-center gap-2 text-claude-secondary group-hover:text-claude-accent">
+                                                                        <Upload className="w-4 h-4" />
+                                                                        <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus</span>
+                                                                    </div>
+                                                                    <input type="file" className="hidden" accept="image/*,application/pdf,line/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={handleFileChange} />
+                                                                </label>
+                                                            </div>
+                                                        )}
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleGenerateAI}
+                                                            disabled={isGeneratingAI || !aiFile}
+                                                            className="w-full h-11 flex items-center justify-center gap-2 bg-claude-accent/10 hover:bg-claude-accent/20 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                                        >
+                                                            {isGeneratingAI ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    Extracting Data...
+                                                                </>
+                                                            ) : (
+                                                                'Process Syllabus'
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 )}
 
@@ -630,128 +785,146 @@ export default function Classes() {
                                     </div>
                                 )}
 
-                                <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Class Name *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
-                                        placeholder="e.g. CS 101"
-                                        autoFocus
-                                        required
-                                    />
-                                </div>
+                                <AnimatePresence>
+                                    {(creationMethod === 'manual' || creationMethod === 'ai' || editingClass) && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="space-y-6"
+                                        >
+                                            {/* Name Entry */}
+                                            <div>
+                                                <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Class Name *</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.name}
+                                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                    placeholder="e.g. CS 101"
+                                                    autoFocus
+                                                    required={creationMethod === 'manual' || editingClass}
+                                                />
+                                            </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
-                                        <div className="relative">
-                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
-                                            <input
-                                                type="text"
-                                                value={formData.professor}
-                                                onChange={e => setFormData({ ...formData, professor: e.target.value })}
-                                                className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                                placeholder="Dr. Smith"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="col-span-2">
-                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Room</label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
-                                            <input
-                                                type="text"
-                                                value={formData.room}
-                                                onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                                className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-9 pr-3 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                                placeholder="Bldg 4, 102"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="col-span-2">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Class Times</label>
-                                            <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, { day: '', start_time: '', end_time: '', id: null }] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
-                                                + Add Time
-                                            </button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {formData.times.map((t, idx) => (
-                                                <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] p-4 rounded-xl border border-claude-border">
-                                                    <div className="w-full sm:w-1/3">
-                                                        <select
-                                                            value={t.day}
-                                                            onChange={e => {
-                                                                const newTimes = [...formData.times];
-                                                                newTimes[idx].day = e.target.value;
-                                                                setFormData({ ...formData, times: newTimes });
-                                                            }}
-                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none"
-                                                        >
-                                                            <option value="">Day</option>
-                                                            <option value="1">Monday</option>
-                                                            <option value="2">Tuesday</option>
-                                                            <option value="3">Wednesday</option>
-                                                            <option value="4">Thursday</option>
-                                                            <option value="5">Friday</option>
-                                                            <option value="6">Saturday</option>
-                                                            <option value="0">Sunday</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
-                                                        <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                            <input
-                                                                type="time"
-                                                                value={t.start_time}
-                                                                onChange={e => {
-                                                                    const newTimes = [...formData.times];
-                                                                    newTimes[idx].start_time = e.target.value;
-                                                                    setFormData({ ...formData, times: newTimes });
-                                                                }}
-                                                                className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                            <input
-                                                                type="time"
-                                                                value={t.end_time}
-                                                                onChange={e => {
-                                                                    const newTimes = [...formData.times];
-                                                                    newTimes[idx].end_time = e.target.value;
-                                                                    setFormData({ ...formData, times: newTimes });
-                                                                }}
-                                                                className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
-                                                            />
-                                                        </div>
-                                                        {formData.times.length > 1 && (
-                                                            <button type="button" onClick={() => {
-                                                                const newTimes = formData.times.filter((_, i) => i !== idx);
-                                                                setFormData({ ...formData, times: newTimes });
-                                                            }} className="w-full sm:w-auto p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 flex justify-center items-center">
-                                                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                            </button>
-                                                        )}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {/* Professor Entry */}
+                                                <div className="col-span-2">
+                                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
+                                                    <div className="relative">
+                                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
+                                                        <input
+                                                            type="text"
+                                                            value={formData.professor}
+                                                            onChange={e => setFormData({ ...formData, professor: e.target.value })}
+                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                            placeholder="Dr. Smith"
+                                                        />
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Color Label</label>
-                                    <div className="flex gap-2 overflow-x-auto pb-2">
-                                        {CLASS_COLORS.map(color => (
-                                            <button key={color} type="button" onClick={() => setFormData({ ...formData, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${formData.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
-                                        ))}
-                                    </div>
-                                </div>
+                                                {/* Room Entry */}
+                                                <div className="col-span-2">
+                                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Room / Zoom Link</label>
+                                                    <div className="relative">
+                                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]" />
+                                                        <input
+                                                            type="text"
+                                                            value={formData.room}
+                                                            onChange={e => setFormData({ ...formData, room: e.target.value })}
+                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                            placeholder="Room 101 or Zoom URL"
+                                                        />
+                                                    </div>
+                                                </div>
 
-                                <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Class</button>
+                                                {/* Times */}
+                                                <div className="col-span-2">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Class Times</label>
+                                                        <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, { day: '', start_time: '', end_time: '', id: null }] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
+                                                            + Add Time
+                                                        </button>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        {formData.times.map((t, idx) => (
+                                                            <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] p-4 rounded-xl border border-claude-border">
+                                                                <div className="w-full sm:w-1/3">
+                                                                    <select
+                                                                        value={t.day}
+                                                                        onChange={e => {
+                                                                            const newTimes = [...formData.times];
+                                                                            newTimes[idx].day = e.target.value;
+                                                                            setFormData({ ...formData, times: newTimes });
+                                                                        }}
+                                                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                                    >
+                                                                        <option value="">Day</option>
+                                                                        <option value="1">Monday</option>
+                                                                        <option value="2">Tuesday</option>
+                                                                        <option value="3">Wednesday</option>
+                                                                        <option value="4">Thursday</option>
+                                                                        <option value="5">Friday</option>
+                                                                        <option value="6">Saturday</option>
+                                                                        <option value="0">Sunday</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
+                                                                    <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                                        <input
+                                                                            type="time"
+                                                                            value={t.start_time}
+                                                                            onChange={e => {
+                                                                                const newTimes = [...formData.times];
+                                                                                newTimes[idx].start_time = e.target.value;
+                                                                                setFormData({ ...formData, times: newTimes });
+                                                                            }}
+                                                                            className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                                        <input
+                                                                            type="time"
+                                                                            value={t.end_time}
+                                                                            onChange={e => {
+                                                                                const newTimes = [...formData.times];
+                                                                                newTimes[idx].end_time = e.target.value;
+                                                                                setFormData({ ...formData, times: newTimes });
+                                                                            }}
+                                                                            className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
+                                                                        />
+                                                                    </div>
+                                                                    {formData.times.length > 1 && (
+                                                                        <button type="button" onClick={() => {
+                                                                            const newTimes = formData.times.filter((_, i) => i !== idx);
+                                                                            setFormData({ ...formData, times: newTimes });
+                                                                        }} className="w-full sm:w-auto p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 flex justify-center items-center transition-colors">
+                                                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Color Label</label>
+                                                <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                                                    {CLASS_COLORS.map(color => (
+                                                        <button key={color} type="button" onClick={() => setFormData({ ...formData, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all tap-action ${formData.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110 shadow-md' : 'opacity-40 hover:opacity-80'}`} style={{ backgroundColor: color }} />
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4 shadow-lg active:scale-[0.98] transition-all">
+                                                {editingClass ? 'Save Changes' : 'Create Class'}
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </motion.form>
                     </div>
