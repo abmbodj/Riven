@@ -137,7 +137,7 @@ export default function GardenSettings() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
-                className="botanical-card p-4 mb-6"
+                className="glass-panel p-4 mb-6"
             >
                 <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mb-3">This Week</div>
                 <div className="flex items-center justify-between gap-1">
@@ -165,7 +165,7 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="botanical-card p-5 text-center"
+                    className="glass-panel p-5 text-center"
                 >
                     <div className="text-3xl font-display font-bold text-claude-accent">{streak.currentStreak}</div>
                     <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Current Streak</div>
@@ -174,7 +174,7 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
-                    className="botanical-card p-5 pt-7 text-center"
+                    className="glass-panel p-5 pt-7 text-center"
                 >
                     <div className="text-3xl font-display font-bold text-yellow-500">{streak.longestStreak}</div>
                     <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Best Streak</div>
@@ -188,7 +188,7 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="botanical-card p-4 mb-6"
+                    className="glass-panel p-4 mb-6"
                 >
                     <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${streak.status === 'at-risk' ? 'bg-yellow-500/12' : 'bg-claude-accent/12'
@@ -274,7 +274,7 @@ export default function GardenSettings() {
                 <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowGallery(true)}
-                    className="w-full p-4 botanical-card flex items-center gap-4"
+                    className="w-full p-4 glass-panel flex items-center gap-4"
                 >
                     <div className="w-10 h-10 rounded-lg bg-yellow-500/12 flex items-center justify-center">
                         <Trophy className="w-5 h-5 text-yellow-500" />

@@ -401,7 +401,7 @@ export default function Decks() {
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                             className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-claude-bg border-t border-claude-border z-[70] shadow-2xl overflow-y-auto rounded-t-[3rem]"
                         >
-                            <div className="sticky top-0 right-0 left-0 bg-[color-mix(in_srgb,var(--bg-color)_80%,transparent)] backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
+                            <div className="sticky top-0 right-0 left-0 glass-panel backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
                                 <div className="w-12 h-1.5 bg-[#233e46] rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
                                 <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
                                 <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-claude-secondary hover:text-claude-accent tap-action">
@@ -419,7 +419,7 @@ export default function Decks() {
                                     <div className="grid grid-cols-1 gap-2">
                                         <button
                                             onClick={() => { setActiveFolder(null); setIsMenuOpen(false); }}
-                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
+                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                         >
                                             <Library className="w-4 h-4" />
                                             <span className="font-mono text-xs font-bold uppercase tracking-wider">All Decks</span>
@@ -428,7 +428,7 @@ export default function Decks() {
                                             <button
                                                 key={folder.id}
                                                 onClick={() => { setActiveFolder(activeFolder === folder.id ? null : folder.id); setIsMenuOpen(false); }}
-                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
+                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeFolder === folder.id ? { borderColor: folder.color, color: folder.color, backgroundColor: folder.color + '15' } : {}}
                                             >
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }} />
@@ -449,7 +449,7 @@ export default function Decks() {
                                             <button
                                                 key={tag.id}
                                                 onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
-                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
+                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
                                             >
                                                 # {tag.name}
@@ -481,7 +481,7 @@ export default function Decks() {
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search decks..."
-                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] border-2 border-claude-accent/30 rounded-2xl pl-12 pr-4 py-4 text-lg font-mono text-claude-parchment outline-none focus:border-claude-accent"
+                                    className="w-full glass-panel border-2 border-claude-accent/30 rounded-2xl pl-12 pr-4 py-4 text-lg font-mono text-claude-parchment outline-none focus:border-claude-accent"
                                 />
                             </div>
                             <button
@@ -500,7 +500,7 @@ export default function Decks() {
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4">
                                             {filteredDecks.map((deck) => (
-                                                <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl">
+                                                <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 glass-panel rounded-xl">
                                                     <h4 className="font-serif text-lg font-bold text-botanical-parchment mb-1">{deck.title}</h4>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-mono text-claude-accent uppercase">{deck.cardCount} Cards</span>
@@ -531,7 +531,7 @@ export default function Decks() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -549,14 +549,14 @@ export default function Decks() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSearchOpen(true)}
-                        className="flex-1 flex items-center gap-3 p-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action"
+                        className="flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action"
                     >
                         <Search className="w-5 h-5 opacity-60 ml-1" />
                         <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
                     </button>
                     <button
                         onClick={() => setIsMenuOpen(true)}
-                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-claude-border text-claude-secondary'}`}
+                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                     >
                         {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
@@ -601,7 +601,7 @@ export default function Decks() {
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] text-claude-secondary'}`}
+                                                className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'glass-panel text-claude-secondary'}`}
                                             >
                                                 <option.icon className="w-4 h-4" />
                                                 {option.label}
@@ -615,7 +615,7 @@ export default function Decks() {
                 </div>
 
                 {filteredDecks.length === 0 ? (
-                    <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl">
+                    <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
                         {decks.length === 0 ? (
                             <>
                                 <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
@@ -683,7 +683,7 @@ export default function Decks() {
                                         type="text"
                                         value={newFolder.name}
                                         onChange={e => setNewFolder({ ...newFolder, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                         placeholder="e.g. Science"
                                         autoFocus
                                     />
@@ -720,7 +720,7 @@ export default function Decks() {
                                         type="text"
                                         value={newTag.name}
                                         onChange={e => setNewTag({ ...newTag, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                         placeholder="e.g. IMPORTANT"
                                     />
                                 </div>

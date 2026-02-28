@@ -148,7 +148,7 @@ const ProfileView = () => {
                     <Link
                         to="/friends"
                         onClick={() => haptics.light()}
-                        className="group relative overflow-hidden bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                        className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
                     >
                         {/* Glow effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -169,7 +169,7 @@ const ProfileView = () => {
                     <Link
                         to="/messages"
                         onClick={() => haptics.light()}
-                        className="group relative overflow-hidden bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                        className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
                     >
                         {/* Glow effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -197,7 +197,7 @@ const ProfileView = () => {
                 </motion.div>
 
                 {/* Menu List - Premium List */}
-                <motion.div variants={itemVariants} className="bg-claude-surface/30 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] overflow-hidden shadow-sm">
+                <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
                     {(isAdmin || isOwner) && (
                         <Link
                             to="/admin"

@@ -56,7 +56,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                 <div className="relative p-6 border-b border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
                     <button
                         onClick={onClose}
-                        className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-[#233e46]/5"
+                        className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-claude-bg/5"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -120,7 +120,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-claude-surface text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-[#233e46] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

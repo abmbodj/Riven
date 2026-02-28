@@ -124,7 +124,7 @@ export default function Friends() {
                     onClick={() => setTab('friends')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'friends'
                         ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Users className="w-4 h-4 inline mr-1.5" />
@@ -134,7 +134,7 @@ export default function Friends() {
                     onClick={() => setTab('requests')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative ${tab === 'requests'
                         ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Clock className="w-4 h-4 inline mr-1.5" />
@@ -149,7 +149,7 @@ export default function Friends() {
                     onClick={() => setTab('search')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'search'
                         ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'botanical-card text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
                         }`}
                 >
                     <Search className="w-4 h-4 inline mr-1.5" />
@@ -164,7 +164,7 @@ export default function Friends() {
                         <div className="w-8 h-8 border-2 border-claude-accent border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : acceptedFriends.length === 0 ? (
-                    <div className="text-center py-12 relative overflow-hidden botanical-card rounded-3xl">
+                    <div className="text-center py-12 relative overflow-hidden glass-panel rounded-3xl">
                         <div className="absolute -top-10 -right-10 w-40 h-40 opacity-5">
                             <Leaf className="w-full h-full text-botanical-forest -rotate-45" />
                         </div>
@@ -187,7 +187,7 @@ export default function Friends() {
                         {acceptedFriends.map(friend => (
                             <div
                                 key={friend.id}
-                                className="flex items-center gap-3 p-4 botanical-card rounded-2xl relative overflow-hidden group"
+                                className="flex items-center gap-3 p-4 glass-panel rounded-2xl relative overflow-hidden group"
                             >
                                 {/* Decorative corner accent */}
                                 <div className="absolute top-2 left-2 w-2 h-2 border-t border-l border-botanical-forest/20 rounded-tl group-hover:border-botanical-forest/40 transition-colors" />
@@ -241,7 +241,7 @@ export default function Friends() {
                                 {incomingRequests.map(req => (
                                     <div
                                         key={req.id}
-                                        className="flex items-center gap-3 p-4 botanical-card border-l-2 border-l-red-400 rounded-2xl"
+                                        className="flex items-center gap-3 p-4 glass-panel border-l-2 border-l-red-400 rounded-2xl"
                                     >
                                         <Link to={`/profile/${req.id}`}>
                                             <Avatar src={req.avatar} size="lg" />
@@ -288,7 +288,7 @@ export default function Friends() {
                                 {outgoingRequests.map(req => (
                                     <div
                                         key={req.id}
-                                        className="flex items-center gap-3 p-4 botanical-card rounded-2xl opacity-80"
+                                        className="flex items-center gap-3 p-4 glass-panel rounded-2xl opacity-80"
                                     >
                                         <Link to={`/profile/${req.id}`}>
                                             <Avatar src={req.avatar} size="lg" />
@@ -317,7 +317,7 @@ export default function Friends() {
                     )}
 
                     {incomingRequests.length === 0 && outgoingRequests.length === 0 && (
-                        <div className="text-center py-12 botanical-card rounded-3xl relative overflow-hidden">
+                        <div className="text-center py-12 glass-panel rounded-3xl relative overflow-hidden">
                             <div className="w-16 h-16 rounded-full bg-botanical-forest/10 flex items-center justify-center mx-auto mb-4">
                                 <Clock className="w-8 h-8 text-botanical-forest" />
                             </div>
@@ -338,7 +338,7 @@ export default function Friends() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search by username or share code"
-                            className="w-full pl-12 pr-4 py-4 botanical-card focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-all font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
+                            className="w-full pl-12 pr-4 py-4 glass-panel focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-all font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
                             autoFocus
                         />
                     </div>
@@ -349,7 +349,7 @@ export default function Friends() {
                             <div className="w-8 h-8 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
                         </div>
                     ) : searchQuery.length < 2 ? (
-                        <div className="text-center py-12 botanical-card rounded-3xl">
+                        <div className="text-center py-12 glass-panel rounded-3xl">
                             <div className="w-12 h-12 bg-botanical-forest/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Search className="w-6 h-6 text-botanical-sepia" />
                             </div>
@@ -358,7 +358,7 @@ export default function Friends() {
                             </p>
                         </div>
                     ) : searchResults.length === 0 ? (
-                        <div className="text-center py-12 botanical-card rounded-3xl">
+                        <div className="text-center py-12 glass-panel rounded-3xl">
                             <p className="text-botanical-sepia font-mono">No users found</p>
                         </div>
                     ) : (
@@ -371,7 +371,7 @@ export default function Friends() {
                                 return (
                                     <div
                                         key={user.id}
-                                        className="flex items-center gap-3 p-4 botanical-card rounded-2xl"
+                                        className="flex items-center gap-3 p-4 glass-panel rounded-2xl"
                                     >
                                         <Link to={`/profile/${user.id}`}>
                                             <Avatar src={user.avatar} size="lg" />

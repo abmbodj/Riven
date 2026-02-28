@@ -9,32 +9,32 @@ const sizeMap = {
 };
 
 const gardenStyles = `
-    .garden-sway { animation: garden-sway-anim 6s ease-in-out infinite alternate; transform-origin: 200px 350px; }
-    @keyframes garden-sway-anim { 0% { transform: rotate(-2deg); } 100% { transform: rotate(2deg); } }
+    .garden-sway { animation: garden-sway-anim 6s ease-in-out infinite alternate; transform-origin: 200px 350px; will-change: transform; }
+    @keyframes garden-sway-anim { 0% { transform: rotate(-2deg) translateZ(0); } 100% { transform: rotate(2deg) translateZ(0); } }
     
-    .garden-sway-gentle { animation: garden-sway-gentle-anim 8s ease-in-out infinite alternate; transform-origin: 200px 350px; }
-    @keyframes garden-sway-gentle-anim { 0% { transform: rotate(-1deg); } 100% { transform: rotate(1deg); } }
+    .garden-sway-gentle { animation: garden-sway-gentle-anim 8s ease-in-out infinite alternate; transform-origin: 200px 350px; will-change: transform; }
+    @keyframes garden-sway-gentle-anim { 0% { transform: rotate(-1deg) translateZ(0); } 100% { transform: rotate(1deg) translateZ(0); } }
 
-    .garden-float { animation: garden-float-anim 8s ease-in-out infinite alternate; }
-    @keyframes garden-float-anim { 0% { transform: translateY(0px); } 100% { transform: translateY(-12px); } }
+    .garden-float { animation: garden-float-anim 8s ease-in-out infinite alternate; will-change: transform; }
+    @keyframes garden-float-anim { 0% { transform: translateY(0px) translateZ(0); } 100% { transform: translateY(-12px) translateZ(0); } }
     
-    .garden-float-fast { animation: garden-float-fast-anim 4s ease-in-out infinite alternate; }
-    @keyframes garden-float-fast-anim { 0% { transform: translateY(0px); } 100% { transform: translateY(-8px); } }
+    .garden-float-fast { animation: garden-float-fast-anim 4s ease-in-out infinite alternate; will-change: transform; }
+    @keyframes garden-float-fast-anim { 0% { transform: translateY(0px) translateZ(0); } 100% { transform: translateY(-8px) translateZ(0); } }
 
-    .garden-pulse-slow { animation: garden-pulse-anim 4s ease-in-out infinite alternate; }
-    @keyframes garden-pulse-anim { 0% { opacity: 0.6; transform: scale(0.98); } 100% { opacity: 1; transform: scale(1.02); } }
+    .garden-pulse-slow { animation: garden-pulse-anim 4s ease-in-out infinite alternate; will-change: transform, opacity; }
+    @keyframes garden-pulse-anim { 0% { opacity: 0.6; transform: scale(0.98) translateZ(0); } 100% { opacity: 1; transform: scale(1.02) translateZ(0); } }
     
-    .garden-pulse-fast { animation: garden-pulse-fast-anim 2s ease-in-out infinite alternate; }
-    @keyframes garden-pulse-fast-anim { 0% { opacity: 0.4; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1.05); } }
+    .garden-pulse-fast { animation: garden-pulse-fast-anim 2s ease-in-out infinite alternate; will-change: transform, opacity; }
+    @keyframes garden-pulse-fast-anim { 0% { opacity: 0.4; transform: scale(0.95) translateZ(0); } 100% { opacity: 1; transform: scale(1.05) translateZ(0); } }
 
-    .garden-rotate { animation: garden-rotate-anim 30s linear infinite; transform-origin: 200px 200px; }
-    @keyframes garden-rotate-anim { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .garden-rotate { animation: garden-rotate-anim 30s linear infinite; transform-origin: 200px 200px; will-change: transform; }
+    @keyframes garden-rotate-anim { 0% { transform: rotate(0deg) translateZ(0); } 100% { transform: rotate(360deg) translateZ(0); } }
     
-    .garden-rotate-fast { animation: garden-rotate-fast-anim 15s linear infinite; transform-origin: 200px 200px; }
-    @keyframes garden-rotate-fast-anim { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .garden-rotate-fast { animation: garden-rotate-fast-anim 15s linear infinite; transform-origin: 200px 200px; will-change: transform; }
+    @keyframes garden-rotate-fast-anim { 0% { transform: rotate(0deg) translateZ(0); } 100% { transform: rotate(360deg) translateZ(0); } }
 
-    .garden-orbit { animation: garden-orbit-anim 20s linear infinite; transform-origin: 200px 200px; }
-    @keyframes garden-orbit-anim { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+    .garden-orbit { animation: garden-orbit-anim 20s linear infinite; transform-origin: 200px 200px; will-change: transform; }
+    @keyframes garden-orbit-anim { 0% { transform: rotate(360deg) translateZ(0); } 100% { transform: rotate(0deg) translateZ(0); } }
     
     .garden-pulse-glow { animation: garden-pulse-glow-anim 3s ease-in-out infinite alternate; }
     @keyframes garden-pulse-glow-anim { 0% { filter: drop-shadow(0 0 5px currentColor); } 100% { filter: drop-shadow(0 0 15px currentColor); } }

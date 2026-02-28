@@ -46,7 +46,7 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
                                 </div>
                             </div>
                             {/* Card 2 (Center) */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] aspect-[3/4] botanical-card transform -rotate-2 border border-claude-accent/20 shadow-2xl p-6 flex flex-col">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] aspect-[3/4] glass-panel transform -rotate-2 border border-claude-accent/20 shadow-2xl p-6 flex flex-col">
                                 <div className="flex justify-between items-center mb-6">
                                     <span className="text-xs font-mono text-claude-accent/80">FIG 1.0</span>
                                     <div className="w-2 h-2 rounded-full bg-botanical-forest/50"></div>

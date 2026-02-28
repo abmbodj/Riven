@@ -148,7 +148,7 @@ export default function AlertModal({
                             )}
                             <button
                                 onClick={onClose}
-                                className="w-full py-4.5 rounded-2xl font-bold bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] border border-claude-border text-claude-text active:scale-[0.97] transition-transform tap-action touch-target"
+                                className="w-full py-4.5 rounded-2xl font-bold glass-panel text-claude-text active:scale-[0.97] transition-transform tap-action touch-target"
                             >
                                 {actionLabel ? 'Cancel' : 'OK'}
                             </button>

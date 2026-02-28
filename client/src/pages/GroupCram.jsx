@@ -159,7 +159,7 @@ export default function GroupCram() {
                             <div className="absolute inset-0 bg-botanical-forest/5 rounded-full blur-md animate-pulse" />
                         </motion.div>
                         <h2 className="text-4xl font-serif italic font-bold text-botanical-parchment mb-3">Session Complete</h2>
-                        <div className="inline-flex items-center gap-3 px-6 py-2 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-full">
+                        <div className="inline-flex items-center gap-3 px-6 py-2 glass-panel rounded-full">
                             <p className="text-claude-secondary font-mono uppercase tracking-widest text-[10px] font-bold">
                                 Your Score: <span className="text-claude-accent text-sm ml-1">{results.personalStats?.total_correct || 0}/{results.personalStats?.total_answered || 0}</span>
                             </p>
@@ -170,7 +170,7 @@ export default function GroupCram() {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="bg-claude-surface border border-claude-border rounded-[2rem] p-8 overflow-hidden relative shadow-sm"
+                        className="glass-panel rounded-[2rem] p-8 overflow-hidden relative shadow-sm"
                     >
                         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
@@ -189,7 +189,7 @@ export default function GroupCram() {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.3 + (i * 0.1) }}
                                         key={card.id}
-                                        className="p-5 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-red-500/10 rounded-[1.5rem] relative overflow-hidden group hover:border-red-500/20 transition-colors"
+                                        className="p-5 glass-panel border border-red-500/10 rounded-[1.5rem] relative overflow-hidden group hover:border-red-500/20 transition-colors"
                                     >
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500/50 to-orange-500/50 opacity-50" />
                                         <div className="flex justify-between items-start gap-4 mb-3">
@@ -203,7 +203,7 @@ export default function GroupCram() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-10 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-dashed border-claude-border/50 rounded-[1.5rem]">
+                            <div className="text-center py-10 glass-panel border-dashed border-claude-border/50 rounded-[1.5rem]">
                                 <span className="text-5xl mb-4 block animate-bounce" style={{ animationDuration: '3s' }}>🎯</span>
                                 <h4 className="font-serif italic text-xl text-botanical-parchment mb-2">Flawless Victory</h4>
                                 <p className="text-claude-secondary font-mono tracking-widest uppercase text-[9px]">The group mastered everything.</p>
@@ -233,7 +233,7 @@ export default function GroupCram() {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="max-w-md w-full text-center relative z-10 p-10 bg-claude-surface border border-claude-border rounded-[2.5rem] shadow-sm flex flex-col items-center"
+                    className="max-w-md w-full text-center relative z-10 p-10 glass-panel rounded-[2.5rem] shadow-sm flex flex-col items-center"
                 >
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
@@ -243,7 +243,7 @@ export default function GroupCram() {
                         Waiting for the rest of the group to complete their cards before calculating weak spots...
                     </p>
 
-                    <div className="flex items-center gap-2 mb-8 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] px-4 py-2 rounded-full border border-claude-border">
+                    <div className="flex items-center gap-2 mb-8 glass-panel px-4 py-2 rounded-full border border-claude-border">
                         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                         <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary">Syncing Live</span>
                     </div>
@@ -274,7 +274,7 @@ export default function GroupCram() {
 
             {/* Elevated Top Bar */}
             <div className="relative z-20 flex items-center justify-between px-6 h-20 shrink-0 bg-gradient-to-b from-claude-bg/80 to-transparent backdrop-blur-md">
-                <Link to={`/groups/${groupId}`} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary hover:text-white hover:border-claude-border/80 transition-all tap-action">
+                <Link to={`/groups/${groupId}`} className="w-10 h-10 flex items-center justify-center rounded-2xl glass-panel text-claude-secondary hover:text-white hover:border-claude-border/80 transition-all tap-action">
                     <X className="w-5 h-5" />
                 </Link>
 
@@ -288,14 +288,14 @@ export default function GroupCram() {
                     </div>
                 </div>
 
-                <div className="w-10 h-10 flex items-center justify-center rounded-2xl bg-claude-surface border border-claude-border/50 text-claude-secondary">
+                <div className="w-10 h-10 flex items-center justify-center rounded-2xl glass-panel/50 text-claude-secondary">
                     <span className="font-mono text-[9px] font-bold">{currentIndex + 1}/{cards.length}</span>
                 </div>
             </div>
 
             {/* Premium Progress Bar */}
             <div className="relative z-20 h-1.5 w-full bg-claude-surface/30 px-6 mt-2">
-                <div className="h-full w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border/20 rounded-full overflow-hidden relative">
+                <div className="h-full w-full glass-panel/20 rounded-full overflow-hidden relative">
                     <motion.div
                         className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-claude-accent to-amber-300 rounded-full shadow-[0_0_15px_rgba(222,185,106,0.6)]"
                         animate={{ width: `${progress}%` }}
@@ -332,7 +332,7 @@ export default function GroupCram() {
                     >
                         {/* Front - Light Material */}
                         <div
-                            className="absolute inset-0 rounded-[2rem] flex flex-col items-center justify-center p-8 overflow-hidden bg-claude-surface border border-claude-border shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                            className="absolute inset-0 rounded-[2rem] flex flex-col items-center justify-center p-8 overflow-hidden glass-panel shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
                             style={{ backfaceVisibility: 'hidden' }}
                         >
                             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
@@ -378,7 +378,7 @@ export default function GroupCram() {
                             >
                                 <button
                                     onClick={() => handleAnswer(false)}
-                                    className="flex-1 h-14 rounded-[1.25rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-red-500/10 tap-action backdrop-blur-md"
+                                    className="flex-1 h-14 rounded-[1.25rem] glass-panel border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-red-500/10 tap-action backdrop-blur-md"
                                 >
                                     <ThumbsDown className="w-4 h-4 mb-0.5" /> Forgot
                                 </button>

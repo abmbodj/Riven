@@ -291,7 +291,7 @@ export default function UserProfile() {
                                 key="outgoing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                 onClick={handleRemoveFriend}
                                 disabled={actionLoading}
-                                className="w-full py-4 bg-claude-surface border border-botanical-sepia/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-all hover:border-red-500/30 hover:text-red-500"
+                                className="w-full py-4 glass-panel border border-botanical-sepia/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-all hover:border-red-500/30 hover:text-red-500"
                             >
                                 <Clock className="w-5 h-5" />
                                 Request Pending

@@ -362,7 +362,7 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative botanical-card paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto -mt-2 mb-4" />
@@ -573,13 +573,13 @@ export default function DeckView() {
                             type="text"
                             value={editDeckData.title}
                             onChange={e => setEditDeckData({ ...editDeckData, title: e.target.value })}
-                            className="w-full text-2xl font-display font-bold bg-claude-surface border border-claude-border rounded-xl px-4 py-3 outline-none focus:border-claude-accent"
+                            className="w-full text-2xl font-display font-bold glass-panel rounded-xl px-4 py-3 outline-none focus:border-claude-accent"
                             autoFocus
                         />
                         <textarea
                             value={editDeckData.description}
                             onChange={e => setEditDeckData({ ...editDeckData, description: e.target.value })}
-                            className="w-full bg-claude-surface border border-claude-border rounded-xl px-4 py-3 outline-none focus:border-claude-accent resize-none"
+                            className="w-full glass-panel rounded-xl px-4 py-3 outline-none focus:border-claude-accent resize-none"
                             placeholder="Add a description..."
                             rows={2}
                         />
@@ -684,7 +684,7 @@ export default function DeckView() {
                                 </span>
                             )}
                             {currentFolder && (
-                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-claude-surface border border-claude-border">
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 glass-panel">
                                     <Folder className="w-3.5 h-3.5" style={{ color: currentFolder.color }} />
                                     {currentFolder.name}
                                 </span>
@@ -731,8 +731,8 @@ export default function DeckView() {
                         }
                     }}
                     className={`flex-1 p-5 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-botanical ${deck.cards.length >= 4
-                        ? 'botanical-card text-botanical-parchment font-display text-lg tracking-wide hover:border-botanical-forest/30'
-                        : 'botanical-card opacity-50 text-claude-secondary font-display text-lg tracking-wide'
+                        ? 'glass-panel text-botanical-parchment font-display text-lg tracking-wide hover:border-botanical-forest/30'
+                        : 'glass-panel opacity-50 text-claude-secondary font-display text-lg tracking-wide'
                         }`}
                 >
                     <Play className="w-5 h-5" />
@@ -890,7 +890,7 @@ export default function DeckView() {
 
                         {/* Card content */}
                         <div
-                            className={`botanical-card paper-texture text-botanical-ink p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
+                            className={`glass-panel paper-texture text-botanical-ink p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
                                 }`}
                         >
                             {editingCard === card.id ? (
@@ -994,7 +994,7 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative botanical-card paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="p-6 pb-2 shrink-0">

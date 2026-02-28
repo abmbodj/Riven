@@ -5,7 +5,7 @@ export default function NotFound() {
     return (
         <div className="fullscreen-page items-center justify-center p-6">
             <div className="text-center max-w-sm">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-claude-surface border border-claude-border flex items-center justify-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-3xl glass-panel flex items-center justify-center">
                     <Sprout className="w-10 h-10 text-claude-secondary" />
                 </div>
                 <h1 className="text-4xl font-display font-bold mb-2">404</h1>

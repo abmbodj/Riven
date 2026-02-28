@@ -87,7 +87,7 @@ export default function CreateDeck() {
                         <textarea
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            className="w-full px-4 py-3 bg-claude-surface border border-claude-border rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[80px] resize-none text-sm"
+                            className="w-full px-4 py-3 glass-panel rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[80px] resize-none text-sm"
                             placeholder="Add a description (optional)"
                         />
                     </div>
@@ -98,7 +98,7 @@ export default function CreateDeck() {
                         <button
                             type="button"
                             onClick={() => setShowFolderPicker(!showFolderPicker)}
-                            className="w-full px-4 py-3.5 bg-claude-surface border border-claude-border rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                            className="w-full px-4 py-3.5 glass-panel rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
                         >
                             <div className="flex items-center gap-3">
                                 <Folder className="w-5 h-5" style={{ color: selectedFolderData?.color || 'var(--secondary-text-color)' }} />
@@ -110,7 +110,7 @@ export default function CreateDeck() {
                         </button>
 
                         {showFolderPicker && (
-                            <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden">
+                            <div className="mt-2 glass-panel rounded-xl overflow-hidden">
                                 <button
                                     type="button"
                                     onClick={() => { setSelectedFolder(null); setShowFolderPicker(false); }}
@@ -142,7 +142,7 @@ export default function CreateDeck() {
                         <button
                             type="button"
                             onClick={() => { setShowClassPicker(!showClassPicker); setShowFolderPicker(false); }}
-                            className="w-full px-4 py-3.5 bg-claude-surface border border-claude-border rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                            className="w-full px-4 py-3.5 glass-panel rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
                         >
                             <div className="flex items-center gap-3">
                                 <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: classes.find(c => c.id === selectedClass)?.color || 'var(--secondary-text-color)' }} />
@@ -154,7 +154,7 @@ export default function CreateDeck() {
                         </button>
 
                         {showClassPicker && (
-                            <div className="mt-2 bg-claude-surface border border-claude-border rounded-xl overflow-hidden shadow-sm z-20 relative">
+                            <div className="mt-2 glass-panel rounded-xl overflow-hidden shadow-sm z-20 relative">
                                 <button
                                     type="button"
                                     onClick={() => { setSelectedClass(null); setShowClassPicker(false); }}
@@ -192,7 +192,7 @@ export default function CreateDeck() {
                                         onClick={() => toggleTag(tag.id)}
                                         className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-all active:scale-95 ${selectedTags.includes(tag.id)
                                             ? 'text-white shadow-md'
-                                            : 'bg-claude-surface border border-claude-border'
+                                            : 'glass-panel'
                                             }`}
                                         style={selectedTags.includes(tag.id) ? { backgroundColor: tag.color } : {}}
                                     >

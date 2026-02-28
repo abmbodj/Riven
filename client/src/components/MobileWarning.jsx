@@ -32,7 +32,7 @@ export default function MobileWarning() {
             onClick={handleDismiss}
         >
             <div 
-                className="w-full max-w-sm bg-claude-surface rounded-3xl border border-claude-accent/30 p-6 animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
+                className="w-full max-w-sm glass-panel rounded-3xl border border-claude-accent/30 p-6 animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
                 onClick={e => e.stopPropagation()}
             >
                 {!showInstructions ? (

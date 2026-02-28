@@ -71,7 +71,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative bg-claude-surface w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl overflow-hidden touch-pan-y"
+                        className="relative glass-panel w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl overflow-hidden touch-pan-y"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Drag Handle for mobile */}

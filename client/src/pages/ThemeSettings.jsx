@@ -255,7 +255,7 @@ export default function ThemeSettings() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 28, stiffness: 200 }}
-                            className="relative w-full md:max-w-2xl md:mx-auto md:mb-6 bg-claude-surface border-t md:border border-claude-border shadow-2xl flex flex-col rounded-t-[2.5rem] md:rounded-[2.5rem] max-h-[92vh] md:max-h-[85vh] overflow-hidden"
+                            className="relative w-full md:max-w-2xl md:mx-auto md:mb-6 glass-panel border-t md:border border-claude-border shadow-2xl flex flex-col rounded-t-[2.5rem] md:rounded-[2.5rem] max-h-[92vh] md:max-h-[85vh] overflow-hidden"
                             style={{
                                 backgroundColor: themeForm.bg_color,
                                 color: themeForm.text_color

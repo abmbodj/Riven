@@ -38,7 +38,7 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
         </div>
 
         {toggle !== null ? (
-            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest shadow-inner' : 'bg-claude-surface border border-botanical-sepia/30'}`}>
+            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest shadow-inner' : 'glass-panel border border-botanical-sepia/30'}`}>
                 <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-all duration-300 shadow-sm ${toggleValue ? 'left-[24px]' : 'left-[3px]'}`} />
             </div>
         ) : (
@@ -188,7 +188,7 @@ export default function Settings() {
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
                         Account Security
                     </h2>
-                    <div className="bg-claude-surface/50 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] overflow-hidden shadow-sm">
+                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
                         <SettingItem icon={Lock} title="Change Password" description="Update your credentials" onClick={() => openModal('password')} />
                         <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — Manage 2FA' : 'Add extra security'} onClick={() => openModal('twoFactor')} noBorder />
                     </div>
@@ -199,7 +199,7 @@ export default function Settings() {
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#0ea5e9] mb-3 pl-2">
                         Integrations
                     </h2>
-                    <div className="flex flex-col bg-claude-surface/50 backdrop-blur-md border border-[#0ea5e9]/10 rounded-[2rem] p-6 shadow-sm space-y-5 relative overflow-hidden group">
+                    <div className="flex flex-col glass-panel border-[#0ea5e9]/20 rounded-[2rem] p-6 shadow-sm space-y-5 relative overflow-hidden group">
                         {/* Glow */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#0ea5e9]/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
 
@@ -289,7 +289,7 @@ export default function Settings() {
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-500 mb-3 pl-2">
                         AI Capabilities
                     </h2>
-                    <div className="flex flex-col bg-claude-surface/50 backdrop-blur-md border border-amber-500/10 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
+                    <div className="flex flex-col glass-panel border-amber-500/20 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
                         {/* Glow */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
 
@@ -344,7 +344,7 @@ export default function Settings() {
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
                         Preferences
                     </h2>
-                    <div className="bg-claude-surface/50 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] overflow-hidden shadow-sm">
+                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
                         <SettingItem
                             icon={Bell}
                             title="Notifications"

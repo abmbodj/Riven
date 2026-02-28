@@ -83,7 +83,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
         <div className="relative p-6 border-b border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
             <button
                 onClick={onClose}
-                className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-[#233e46]/5"
+                className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-claude-bg/5"
             >
                 <X className="w-5 h-5" />
             </button>
@@ -136,7 +136,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                 <button
                                     onClick={startSetup}
                                     disabled={loading}
-                                    className="w-full py-3 bg-claude-surface text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-[#233e46] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enable 2FA'}
                                 </button>
@@ -183,7 +183,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                 <button
                                     type="submit"
                                     disabled={loading || verifyCode.length !== 6}
-                                    className="w-full py-3 bg-claude-surface text-claude-text rounded-lg font-display tracking-wide hover:bg-[#233e46] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify & Enable'}
                                 </button>
@@ -218,7 +218,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                     <button
                                         type="button"
                                         onClick={() => setMode('intro')}
-                                        className="flex-1 py-3 border border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] text-[#6b7d7f] rounded-lg hover:bg-[#233e46]/5 transition-colors"
+                                        className="flex-1 py-3 border border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] text-[#6b7d7f] rounded-lg hover:bg-claude-bg/5 transition-colors"
                                     >
                                         Cancel
                                     </button>

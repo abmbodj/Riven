@@ -316,7 +316,7 @@ export default function Messages() {
                     >
                         <div className="relative mx-auto mb-6 w-20 h-20">
                             {/* Botanical empty state */}
-                            <div className="botanical-card absolute inset-0 rounded-full flex items-center justify-center">
+                            <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
                                 <Send className="w-8 h-8 text-botanical-forest" />
                             </div>
                             <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-botanical-forest/20 flex items-center justify-center">
@@ -352,7 +352,7 @@ export default function Messages() {
                                 >
                                     <Link
                                         to={`/messages/${conv.userId}`}
-                                        className="botanical-card flex items-center gap-4 p-4 active:scale-[0.98] transition-all block group relative overflow-hidden"
+                                        className="glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-all block group relative overflow-hidden"
                                     >
                                         {/* Decorative corner accent */}
                                         <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-botanical-forest/20 rounded-tr group-hover:border-claude-accent/40 transition-colors" />
@@ -467,7 +467,7 @@ export default function Messages() {
                             className="text-center py-12"
                         >
                             <div className="relative mx-auto mb-4 w-16 h-16">
-                                <div className="botanical-card absolute inset-0 rounded-full flex items-center justify-center">
+                                <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
                                     <Send className="w-7 h-7 text-botanical-sepia" />
                                 </div>
                             </div>
@@ -511,7 +511,7 @@ export default function Messages() {
 
                                             {/* Deck Message */}
                                             {msg.messageType === 'deck' && msg.deckData ? (
-                                                <div className={`botanical-card relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
+                                                <div className={`glass-panel relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
                                                     <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-botanical-forest/30' : 'from-botanical-forest/30 to-transparent'}`} />
                                                     <div className="p-4">
                                                         <div className="flex items-center justify-between mb-3">
@@ -555,7 +555,7 @@ export default function Messages() {
                                                 <div
                                                     className={`relative group px-4 py-3 rounded-2xl ${msg.isMine
                                                         ? 'bg-botanical-forest text-white rounded-br-sm shadow-lg shadow-botanical-forest/20'
-                                                        : 'botanical-card rounded-bl-sm text-botanical-parchment'
+                                                        : 'glass-panel rounded-bl-sm text-botanical-parchment'
                                                         }`}
                                                     style={msg.isMine ? {
                                                         background: 'linear-gradient(135deg, rgba(122, 158, 114, 0.95) 0%, rgba(122, 158, 114, 1) 100%)'
@@ -577,7 +577,7 @@ export default function Messages() {
                                                                     <MoreVertical className="w-4 h-4" />
                                                                 </button>
                                                                 {activeMenuId === msg.id && (
-                                                                    <div className="absolute right-full top-0 mr-2 bg-claude-surface border border-claude-border rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50">
+                                                                    <div className="absolute right-full top-0 mr-2 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50">
                                                                         <button
                                                                             onClick={() => startEditing(msg)}
                                                                             className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-claude-bg/50 text-claude-text transition-colors"
@@ -636,7 +636,7 @@ export default function Messages() {
                                 <div className="w-8 shrink-0 mb-1">
                                     <Avatar src={chatUser?.avatar} size="xs" />
                                 </div>
-                                <div className="bg-claude-surface border border-claude-border rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
+                                <div className="glass-panel rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
                                     <motion.div
                                         className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
                                         animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
@@ -723,7 +723,7 @@ export default function Messages() {
                             </>
                         )}
 
-                        <div className="flex-1 bg-claude-surface border border-claude-border rounded-[20px] flex items-center pl-4 pr-1.5 py-1 min-h-[44px] mb-1">
+                        <div className="flex-1 glass-panel rounded-[20px] flex items-center pl-4 pr-1.5 py-1 min-h-[44px] mb-1">
                             <input
                                 ref={inputRef}
                                 type="text"

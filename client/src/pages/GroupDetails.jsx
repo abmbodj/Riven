@@ -381,7 +381,7 @@ export default function GroupDetails() {
                     {/* Dashboard Overview (Bento Grid) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                         {/* Main Info Card */}
-                        <div className="md:col-span-2 bg-claude-surface border border-claude-border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
+                        <div className="md:col-span-2 glass-panel rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
                             <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                             <div className="absolute -right-20 -top-20 w-64 h-64 bg-claude-accent/5 rounded-full blur-[60px] group-hover:bg-claude-accent/10 transition-colors duration-700 pointer-events-none" />
 
@@ -394,7 +394,7 @@ export default function GroupDetails() {
                                             <Users className="w-3.5 h-3.5" /> {members.length} Members
                                         </p>
                                         <div
-                                            className="inline-flex items-center justify-center gap-3 px-5 py-3 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] border border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/40 transition-all tap-action group/code"
+                                            className="inline-flex items-center justify-center gap-3 px-5 py-3 glass-panel rounded-xl cursor-pointer hover:border-claude-accent/40 transition-all tap-action group/code"
                                             onClick={handleCopyCode}
                                         >
                                             <div>
@@ -473,21 +473,21 @@ export default function GroupDetails() {
 
                     <div className="space-y-3 mb-10">
                         {sharedDecks.length === 0 ? (
-                            <div className="text-center py-12 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border/50 rounded-2xl relative overflow-hidden">
+                            <div className="text-center py-12 glass-panel border-dashed border-claude-border/50 rounded-2xl relative overflow-hidden">
                                 <Layers className="w-8 h-8 mx-auto text-claude-secondary opacity-30 mb-3" />
                                 <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/60">No Decks Shared Yet</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {sharedDecks.map(deck => (
-                                    <div key={deck.id} className="group/deck relative bg-claude-surface border border-claude-border rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5">
+                                    <div key={deck.id} className="group/deck relative glass-panel rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5">
                                         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
                                         <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
                                             <h4 className="font-serif font-bold text-lg text-claude-text truncate leading-tight group-hover/deck:text-claude-accent transition-colors pr-8">{deck.title}</h4>
 
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3">
-                                                <div className="flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] px-2 py-1 rounded-[0.4rem] border border-claude-border">
+                                                <div className="flex items-center gap-1.5 glass-panel px-2 py-1 rounded-[0.4rem] border border-claude-border">
                                                     <Layers className="w-3 h-3 text-claude-accent opacity-70" />
                                                     <span className="font-mono text-[9px] uppercase font-bold tracking-widest text-claude-secondary">{deck.card_count || 0}</span>
                                                 </div>
@@ -528,7 +528,7 @@ export default function GroupDetails() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setShowCreateFolderModal(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors tap-action"
+                                className="flex items-center gap-1.5 px-3 py-1.5 glass-panel text-claude-secondary rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors tap-action"
                             >
                                 <Plus className="w-3 h-3" /> Folder
                             </button>
@@ -541,11 +541,11 @@ export default function GroupDetails() {
                         </div>
                     </div>
 
-                    <div className="bg-claude-surface border border-claude-border rounded-2xl overflow-hidden mb-10 shadow-sm">
+                    <div className="glass-panel rounded-2xl overflow-hidden mb-10 shadow-sm">
                         {currentFolderId && (
                             <div
                                 onClick={() => setCurrentFolderId(null)}
-                                className="p-4 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border-b border-claude-border flex items-center gap-3 cursor-pointer hover:bg-[color-mix(in_srgb,var(--border-color)_10%,transparent)] transition-colors group"
+                                className="p-4 glass-panel border-b border-claude-border flex items-center gap-3 cursor-pointer hover:glass-panel transition-colors group"
                             >
                                 <div className="w-6 h-6 rounded-full bg-claude-border/50 flex items-center justify-center group-hover:bg-claude-border transition-colors">
                                     <ChevronLeft className="w-4 h-4 text-claude-secondary group-hover:text-claude-text" />
@@ -562,7 +562,7 @@ export default function GroupDetails() {
                         ) : (
                             <div className="divide-y divide-claude-border/50">
                                 {!currentFolderId && folders.map(folder => (
-                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 sm:p-5 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] cursor-pointer transition-colors group relative">
+                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel cursor-pointer transition-colors group relative">
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-claude-accent opacity-0 group-hover:opacity-100 transition-opacity" />
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
@@ -582,7 +582,7 @@ export default function GroupDetails() {
                                 ))}
 
                                 {files.map(file => (
-                                    <div key={file.id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] transition-colors group">
+                                    <div key={file.id} className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel transition-colors group">
                                         <div className="flex items-center gap-4 min-w-0 pr-4">
                                             <div className="w-10 h-10 rounded-xl bg-claude-border/30 flex items-center justify-center border border-claude-border/50 shrink-0 group-hover:bg-claude-border/50 transition-colors">
                                                 <FileText className="w-5 h-5 text-claude-secondary" />
@@ -601,7 +601,7 @@ export default function GroupDetails() {
                                 ))}
 
                                 {currentFolderId && files.length === 0 && (
-                                    <div className="p-12 text-center bg-[color-mix(in_srgb,var(--bg-color)_20%,transparent)]">
+                                    <div className="p-12 text-center glass-panel">
                                         <Folder className="w-8 h-8 mx-auto text-claude-secondary opacity-30 mb-3" />
                                         <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/70">Folder is empty</p>
                                     </div>
@@ -618,7 +618,7 @@ export default function GroupDetails() {
 
                 <div className="space-y-3 pb-8">
                     {members.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-4 bg-claude-surface border border-claude-border rounded-2xl hover:border-claude-border/80 transition-colors">
+                        <div key={member.id} className="flex items-center justify-between p-4 glass-panel rounded-2xl hover:border-claude-border/80 transition-colors">
                             <div className="flex items-center gap-4 min-w-0">
                                 <div className="w-12 h-12 rounded-2xl bg-claude-accent/10 flex items-center justify-center shrink-0 border border-claude-accent/20 p-1">
                                     <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-xl bg-white object-cover" />
@@ -634,7 +634,7 @@ export default function GroupDetails() {
                             {isAdmin && member.role !== 'admin' && (
                                 <button
                                     onClick={() => handleRemoveMember(member.id, member.username)}
-                                    className="w-8 h-8 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)]"
+                                    className="w-8 h-8 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg glass-panel"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -668,7 +668,7 @@ export default function GroupDetails() {
                                         type="text"
                                         value={editData.name}
                                         onChange={e => setEditData({ ...editData, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                        className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
                                     />
                                 </div>
                                 <div>
@@ -676,7 +676,7 @@ export default function GroupDetails() {
                                     <select
                                         value={editData.class_id || ''}
                                         onChange={e => setEditData({ ...editData, class_id: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                        className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
                                     >
                                         <option value="">No Class</option>
                                         {classes.map(cls => (
@@ -689,7 +689,7 @@ export default function GroupDetails() {
                                     <button
                                         type="button"
                                         onClick={handleRegenerateCode}
-                                        className="w-full py-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl text-claude-secondary font-mono text-xs uppercase tracking-widest font-bold hover:text-white transition-colors text-center"
+                                        className="w-full py-3 glass-panel rounded-xl text-claude-secondary font-mono text-xs uppercase tracking-widest font-bold hover:text-white transition-colors text-center"
                                     >
                                         Regenerate Join Code
                                     </button>
@@ -739,7 +739,7 @@ export default function GroupDetails() {
                                 ) : (
                                     <div className="space-y-3">
                                         {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).map(deck => (
-                                            <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl cursor-pointer transition-colors tap-action group/item flex items-center justify-between">
+                                            <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-4 glass-panel hover:glass-panel rounded-xl cursor-pointer transition-colors tap-action group/item flex items-center justify-between">
                                                 <div>
                                                     <h4 className="font-serif font-bold text-lg text-botanical-parchment">{deck.title}</h4>
                                                     <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">Click to share with group</p>
@@ -781,7 +781,7 @@ export default function GroupDetails() {
                                         type="text"
                                         value={newFolderName}
                                         onChange={e => setNewFolderName(e.target.value)}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                        className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
                                         placeholder="e.g. Midterm Reviews"
                                         autoFocus
                                     />
@@ -832,7 +832,7 @@ export default function GroupDetails() {
                                                     type="text"
                                                     value={uploadData.name}
                                                     onChange={e => setUploadData({ ...uploadData, name: e.target.value })}
-                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                                    className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
                                                     placeholder="e.g. Chapter 1 Notes"
                                                 />
                                             </div>
@@ -855,7 +855,7 @@ export default function GroupDetails() {
                                                             }));
                                                         }
                                                     }}
-                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:uppercase file:tracking-widest file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 transition-all"
+                                                    className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:uppercase file:tracking-widest file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -863,7 +863,7 @@ export default function GroupDetails() {
                                                 <select
                                                     value={uploadData.file_type}
                                                     onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })}
-                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                                    className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
                                                 >
                                                     <option value="pdf">PDF Document</option>
                                                     <option value="image">Image (PNG/JPG)</option>
@@ -907,7 +907,7 @@ export default function GroupDetails() {
                                             </button>
                                             <button
                                                 onClick={finalizeFileUpload}
-                                                className="w-full py-4 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-claude-secondary font-mono font-bold uppercase tracking-widest hover:text-white transition-colors"
+                                                className="w-full py-4 glass-panel rounded-2xl text-claude-secondary font-mono font-bold uppercase tracking-widest hover:text-white transition-colors"
                                             >
                                                 Not right now
                                             </button>

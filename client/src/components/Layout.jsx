@@ -94,18 +94,19 @@ export default function Layout({ children }) {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setIsFabMenuOpen(false)}
-                                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-10"
+                                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-10 cursor-pointer"
                             />
                             <motion.div
                                 initial={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
                                 animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
                                 exit={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
-                                className="fixed bottom-24 left-1/2 bg-claude-bg border border-claude-border rounded-2xl shadow-xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="fixed bottom-24 left-1/2 glass-panel rounded-2xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
                             >
                                 <Link
                                     to="/garden"
                                     onClick={() => setIsFabMenuOpen(false)}
-                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72]"
+                                    className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72] cursor-pointer touch-target"
                                 >
                                     <Sprout className="w-5 h-5" />
                                     <span>Garden</span>
@@ -113,7 +114,7 @@ export default function Layout({ children }) {
                                 <Link
                                     to="/themes"
                                     onClick={() => setIsFabMenuOpen(false)}
-                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent"
+                                    className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
                                 >
                                     <Palette className="w-5 h-5" />
                                     <span>Themes</span>
@@ -121,7 +122,7 @@ export default function Layout({ children }) {
                                 <Link
                                     to="/groups"
                                     onClick={() => setIsFabMenuOpen(false)}
-                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary"
+                                    className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary cursor-pointer touch-target"
                                 >
                                     <Users className="w-5 h-5 shrink-0" />
                                     <span className="leading-tight">Study Groups</span>
@@ -133,7 +134,7 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
-                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-claude-border/60 md:border-x md:border-claude-border/50 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)]" style={{ backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', background: 'color-mix(in srgb, var(--surface-color) 92%, transparent)' }}>
+                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-white/5 md:border-x z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel" style={{ borderBottom: 'none' }}>
                         <div className="flex items-stretch h-16 sm:h-20">
                             {navItems.map((item) => {
                                 if (item.isFab) {
@@ -160,7 +161,7 @@ export default function Layout({ children }) {
                                     <Link
                                         key={item.to}
                                         to={item.to}
-                                        className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action ${isActive ? 'text-claude-accent' : 'text-claude-secondary active:text-claude-text'}`}
+                                        className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action cursor-pointer ${isActive ? 'text-claude-accent' : 'text-claude-secondary hover:text-claude-text'}`}
                                     >
                                         <div className="relative">
                                             <item.icon className="w-5 h-5" />

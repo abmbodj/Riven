@@ -396,7 +396,7 @@ export default function Classes() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -406,7 +406,7 @@ export default function Classes() {
             {/* Classes List */}
             <div className="px-4 sm:px-6">
                 {/* Segmented Control */}
-                <div className="flex bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl p-1 mb-6 max-w-xs transition-all">
+                <div className="flex glass-panel rounded-xl p-1 mb-6 max-w-xs transition-all">
                     {['Timetable', 'Roster'].map(mode => (
                         <button
                             key={mode}
@@ -426,7 +426,7 @@ export default function Classes() {
                         <>
                             {/* Current Courses */}
                             {currentClasses.length === 0 && archivedClasses.length === 0 ? (
-                                <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl mt-8">
+                                <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl mt-8">
                                     <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                     <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
                                     <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
@@ -466,7 +466,7 @@ export default function Classes() {
                 {viewMode === 'Timetable' && (
                     <div className="animate-fade-in pb-12 overflow-x-auto">
                         {scheduleSlots.length === 0 ? (
-                            <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl mt-8">
+                            <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl mt-8">
                                 <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                 <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">Empty Schedule</h3>
                                 <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
@@ -496,7 +496,7 @@ export default function Classes() {
                             const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
                             return (
-                                <div className="min-w-[700px] bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-claude-border rounded-2xl overflow-hidden mt-4 shadow-sm relative">
+                                <div className="min-w-[700px] glass-panel rounded-2xl overflow-hidden mt-4 shadow-sm relative">
                                     {/* Grid Header */}
                                     <div className="grid border-b border-claude-border sticky top-0 bg-claude-bg z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
                                         <div className="py-3 px-2 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
@@ -633,7 +633,7 @@ export default function Classes() {
                             <div className="space-y-6">
                                 {!editingClass && (
                                     <div className="mb-6">
-                                        <div className="flex p-1 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] border border-claude-border rounded-xl mb-6 max-w-full overflow-x-auto hide-scrollbar">
+                                        <div className="flex p-1 glass-panel rounded-xl mb-6 max-w-full overflow-x-auto hide-scrollbar">
                                             {[
                                                 { id: 'manual', label: 'Manual', icon: BookOpen },
                                                 { id: 'ai', label: 'AI Syllabus', icon: Sparkles },
@@ -696,7 +696,7 @@ export default function Classes() {
                                                                     placeholder="Canvas Calendar Link (.ics)"
                                                                     value={canvasFormUrl}
                                                                     onChange={e => setCanvasFormUrl(e.target.value)}
-                                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-blue-500/30 rounded-xl px-4 py-3 font-mono text-sm text-botanical-parchment focus:border-blue-500 outline-none placeholder-claude-secondary/50"
+                                                                    className="w-full glass-panel border border-blue-500/30 rounded-xl px-4 py-3 font-mono text-sm text-botanical-parchment focus:border-blue-500 outline-none placeholder-claude-secondary/50"
                                                                 />
                                                                 <button
                                                                     type="button"
@@ -729,7 +729,7 @@ export default function Classes() {
                                                         <p className="text-xs font-mono text-claude-secondary mb-4">Upload your syllabus (PDF or Image) and let AI extract the class details, schedule, and assignments automatically.</p>
 
                                                         {aiFilePreview ? (
-                                                            <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl p-3 mb-3">
+                                                            <div className="flex items-center justify-between glass-panel rounded-xl p-3 mb-3">
                                                                 <div className="flex items-center gap-2 truncate">
                                                                     <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-claude-secondary">
                                                                         <Layers className="w-4 h-4" />
@@ -742,7 +742,7 @@ export default function Classes() {
                                                             </div>
                                                         ) : (
                                                             <div className="mb-3">
-                                                                <label className="flex items-center justify-center w-full h-12 px-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
+                                                                <label className="flex items-center justify-center w-full h-12 px-4 glass-panel border border-dashed border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/50 transition-colors group">
                                                                     <div className="flex items-center gap-2 text-claude-secondary group-hover:text-claude-accent">
                                                                         <Upload className="w-4 h-4" />
                                                                         <span className="font-mono text-xs uppercase tracking-widest font-bold">Upload Syllabus</span>
@@ -775,13 +775,13 @@ export default function Classes() {
                                 )}
 
                                 {formData.assignments?.length > 0 && (
-                                    <div className="mb-6 p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-claude-border rounded-2xl">
+                                    <div className="mb-6 p-4 glass-panel rounded-2xl">
                                         <h4 className="font-serif italic font-bold text-sm text-botanical-parchment mb-2 flex items-center gap-2">
                                             <CheckCircle2 className="w-4 h-4 text-claude-accent" /> {formData.assignments.length} Assignments Extracted
                                         </h4>
                                         <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
                                             {formData.assignments.map((a, i) => (
-                                                <div key={i} className="flex justify-between items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] p-2 rounded-lg text-xs font-mono">
+                                                <div key={i} className="flex justify-between items-center glass-panel p-2 rounded-lg text-xs font-mono">
                                                     <span className="text-botanical-parchment truncate flex-1">{a.title}</span>
                                                     <span className="text-claude-secondary uppercase tracking-widest ml-2 shrink-0">{a.type}</span>
                                                 </div>
@@ -805,7 +805,7 @@ export default function Classes() {
                                                     type="text"
                                                     value={formData.name}
                                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                    className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
                                                     placeholder="e.g. CS 101"
                                                     autoFocus
                                                     required={creationMethod === 'manual' || editingClass}
@@ -822,7 +822,7 @@ export default function Classes() {
                                                             type="text"
                                                             value={formData.professor}
                                                             onChange={e => setFormData({ ...formData, professor: e.target.value })}
-                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                            className="w-full glass-panel rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
                                                             placeholder="Dr. Smith"
                                                         />
                                                     </div>
@@ -837,7 +837,7 @@ export default function Classes() {
                                                             type="text"
                                                             value={formData.room}
                                                             onChange={e => setFormData({ ...formData, room: e.target.value })}
-                                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                            className="w-full glass-panel rounded-xl pl-11 pr-4 py-3 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
                                                             placeholder="Room 101 or Zoom URL"
                                                         />
                                                     </div>
@@ -853,7 +853,7 @@ export default function Classes() {
                                                     </div>
                                                     <div className="space-y-3">
                                                         {formData.times.map((t, idx) => (
-                                                            <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] p-4 rounded-xl border border-claude-border">
+                                                            <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center glass-panel p-4 rounded-xl border border-claude-border">
                                                                 <div className="w-full sm:w-1/3">
                                                                     <select
                                                                         value={t.day}
@@ -862,7 +862,7 @@ export default function Classes() {
                                                                             newTimes[idx].day = e.target.value;
                                                                             setFormData({ ...formData, times: newTimes });
                                                                         }}
-                                                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
+                                                                        className="w-full glass-panel rounded-xl px-3 py-2.5 font-mono text-sm text-botanical-parchment focus:border-claude-accent outline-none transition-colors"
                                                                     >
                                                                         <option value="">Day</option>
                                                                         <option value="1">Monday</option>
@@ -875,7 +875,7 @@ export default function Classes() {
                                                                     </select>
                                                                 </div>
                                                                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
-                                                                    <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                                    <div className="flex items-center glass-panel rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
                                                                         <input
                                                                             type="time"
                                                                             value={t.start_time}
@@ -887,7 +887,7 @@ export default function Classes() {
                                                                             className="w-full bg-transparent font-mono text-xs text-botanical-parchment outline-none"
                                                                         />
                                                                     </div>
-                                                                    <div className="flex items-center bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
+                                                                    <div className="flex items-center glass-panel rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
                                                                         <input
                                                                             type="time"
                                                                             value={t.end_time}

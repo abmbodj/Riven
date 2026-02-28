@@ -92,11 +92,24 @@ export default function Home() {
 
     if (loading) {
         return (
-            <div className="p-6 pt-4 pb-24 min-h-screen">
-                <div className="h-10 w-48 bg-claude-bg border border-claude-border rounded-xl animate-pulse mb-8" />
-                <div className="h-32 w-full bg-[#fcfaf2] rounded-2xl animate-pulse mb-8" />
-                <div className="space-y-4">
-                    {[1, 2, 3].map(i => <div key={i} className="h-20 w-full bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] rounded-2xl animate-pulse" />)}
+            <div className="p-4 sm:p-6 pt-4 pb-32 min-h-screen space-y-8">
+                <div className="flex justify-between items-center">
+                    <div className="space-y-2">
+                        <div className="h-8 w-48 bg-claude-surface rounded-lg animate-pulse" />
+                        <div className="h-4 w-32 bg-claude-surface/50 rounded-lg animate-pulse" />
+                    </div>
+                    <div className="h-16 w-16 bg-white/10 rounded-2xl animate-pulse" />
+                </div>
+                <div className="h-24 w-full glass-panel animate-pulse" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <div className="h-4 w-24 bg-claude-surface rounded animate-pulse mb-2" />
+                        <div className="h-64 glass-panel animate-pulse" />
+                    </div>
+                    <div className="space-y-4">
+                        <div className="h-4 w-24 bg-claude-surface rounded animate-pulse mb-2" />
+                        <div className="h-64 glass-panel animate-pulse" />
+                    </div>
                 </div>
             </div>
         );
@@ -160,10 +173,10 @@ export default function Home() {
                             >
                                 <Link
                                     to={`/class/${cls.id}`}
-                                    className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl p-3 px-4 min-w-[140px] hover:bg-[color-mix(in_srgb,var(--surface-color)_80%,transparent)] transition-all tap-action overflow-hidden group"
+                                    className="flex items-center gap-3 glass-panel rounded-2xl p-3 px-5 min-w-[140px] group tap-action cursor-pointer touch-target h-[56px]"
                                 >
-                                    <div className="w-3 h-3 rounded-full shrink-0 group-hover:scale-125 transition-transform" style={{ backgroundColor: cls.color || '#7a9e72' }} />
-                                    <span className="font-serif font-bold text-botanical-parchment truncate text-sm">{cls.name}</span>
+                                    <div className="w-3 h-3 rounded-full shrink-0 group-hover:scale-125 transition-transform shadow-sm" style={{ backgroundColor: cls.color || '#7a9e72' }} />
+                                    <span className="font-serif font-bold text-botanical-parchment truncate text-sm group-hover:text-claude-accent transition-colors">{cls.name}</span>
                                 </Link>
                             </motion.div>
                         ))}
@@ -180,7 +193,7 @@ export default function Home() {
                         </h2>
                     </div>
 
-                    <div className="relative bg-claude-bg border border-claude-border rounded-3xl p-5 overflow-hidden">
+                    <div className="relative glass-panel rounded-3xl p-5 md:p-6 overflow-hidden">
                         {upcomingAssignments.length > 0 ? (
                             <div className="space-y-2 relative z-10">
                                 <AnimatePresence>
@@ -193,7 +206,7 @@ export default function Home() {
                                             >
                                                 <Link
                                                     to={`/class/${a.class_id}`}
-                                                    className="group flex flex-col sm:flex-row sm:items-center gap-3 bg-[color-mix(in_srgb,var(--surface-color)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] border border-claude-border rounded-2xl p-3.5 transition-all tap-action"
+                                                    className="group flex flex-col sm:flex-row sm:items-center gap-3 glass-panel rounded-2xl p-4 transition-all tap-action cursor-pointer min-h-[64px]"
                                                 >
                                                     <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
                                                         <button
@@ -223,7 +236,7 @@ export default function Home() {
                                                         {a.type && (
                                                             <div className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
                                                                 a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                                    'border-[#8fa6a8]/30 text-claude-secondary bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)]'
+                                                                    'border-[#8fa6a8]/30 text-claude-secondary glass-panel'
                                                                 }`}>
                                                                 {a.type}
                                                             </div>
@@ -263,7 +276,7 @@ export default function Home() {
                                 <motion.div key={deck.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }}>
                                     <Link
                                         to={`/deck/${deck.id}`}
-                                        className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 rounded-sm shadow-sm active:shadow-inner active:bg-[#f4f1e8] transition-all duration-300 overflow-hidden tap-action"
+                                        className="group relative block bg-[#fcfaf2]/[0.98] backdrop-blur-md border border-[#d1c9b8]/80 p-5 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#deb96a]/60 hover:-translate-y-1 active:shadow-inner active:bg-[#f4f1e8] transition-all duration-300 overflow-hidden tap-action cursor-pointer"
                                     >
                                         <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                                         <div className="absolute top-2 right-2 text-claude-accent opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all">
@@ -291,7 +304,7 @@ export default function Home() {
                                 </motion.div>
                             )
                         }) : (
-                            <div className="col-span-full text-center py-10 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl opacity-60">
+                            <div className="col-span-full text-center py-10 glass-panel border-dashed border-2 border-claude-border rounded-3xl opacity-60">
                                 <Layers className="w-8 h-8 text-claude-secondary mx-auto mb-2 opacity-50" />
                                 <p className="font-serif italic text-botanical-parchment">No decks yet</p>
                                 <Link to="/create" className="text-[10px] font-mono uppercase tracking-widest mt-2 text-claude-accent hover:underline">Create one now</Link>
@@ -301,6 +314,6 @@ export default function Home() {
                 </div>
 
             </div>
-        </div>
+        </div >
     );
 }

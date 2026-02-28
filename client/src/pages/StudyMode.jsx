@@ -211,9 +211,9 @@ export default function StudyMode() {
 
             {/* Keyboard hints - only show on desktop */}
             <div className="hidden md:flex justify-center gap-4 text-[10px] font-mono text-claude-secondary px-4 py-1">
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">←</kbd> Previous</span>
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">Space</kbd> Flip</span>
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-claude-surface border border-claude-border rounded text-[10px]">→</kbd> Next</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">←</kbd> Previous</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">Space</kbd> Flip</span>
+                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">→</kbd> Next</span>
             </div>
 
             {/* Spaced Repetition Toggle */}
@@ -223,7 +223,7 @@ export default function StudyMode() {
                     onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors ${spacedRepetitionMode
                         ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
-                        : 'bg-claude-surface border border-claude-border text-claude-secondary'
+                        : 'glass-panel text-claude-secondary'
                         }`}
                 >
                     <Brain className="w-3.5 h-3.5" />
@@ -234,8 +234,8 @@ export default function StudyMode() {
             {/* Card area */}
             <div className="flex-1 flex items-center justify-center px-4 py-4" {...swipeHandlers}>
                 <div
-                    className="w-full max-w-sm aspect-[3/4] cursor-pointer"
-                    style={{ perspective: '1200px' }}
+                    className="w-full max-w-sm aspect-[3/4] cursor-pointer touch-none"
+                    style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
                     onClick={handleFlip}
                 >
                     <motion.div
@@ -369,7 +369,7 @@ export default function StudyMode() {
                         </motion.button>
                         <Link
                             to={`/deck/${id}`}
-                            className="block w-full py-4 rounded-xl bg-claude-surface border border-claude-border text-center font-display font-semibold active:scale-[0.98] transition-transform"
+                            className="block w-full py-4 rounded-xl glass-panel text-center font-display font-semibold active:scale-[0.98] transition-transform"
                         >
                             Back to Deck
                         </Link>
@@ -399,7 +399,7 @@ export default function StudyMode() {
                             whileTap={{ scale: 0.9 }}
                             onClick={handlePrev}
                             disabled={currentIndex === 0}
-                            className="w-14 h-14 rounded-xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30"
+                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30"
                         >
                             <ChevronLeft className="w-6 h-6" />
                         </motion.button>
@@ -407,7 +407,7 @@ export default function StudyMode() {
                         <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={handleFlip}
-                            className="h-14 px-8 rounded-xl bg-claude-surface border border-claude-border flex items-center gap-3 font-display font-semibold"
+                            className="h-14 px-8 rounded-xl glass-panel flex items-center gap-3 font-display font-semibold"
                         >
                             <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
                             Flip
@@ -417,7 +417,7 @@ export default function StudyMode() {
                             whileTap={{ scale: 0.9 }}
                             onClick={handleNext}
                             disabled={isLastCard}
-                            className="w-14 h-14 rounded-xl bg-claude-surface border border-claude-border flex items-center justify-center disabled:opacity-30"
+                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30"
                         >
                             <ChevronRight className="w-6 h-6" />
                         </motion.button>
