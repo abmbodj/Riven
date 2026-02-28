@@ -22,6 +22,8 @@ const NotFound = lazy(() => import('../pages/NotFound.jsx'));
 // New Pages
 const EditProfile = lazy(() => import('../pages/EditProfile.jsx'));
 const Settings = lazy(() => import('../pages/Settings.jsx'));
+const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
+const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
 
 export const routesConfig = [
   // Public Routes
@@ -48,6 +50,8 @@ export const routesConfig = [
       { path: '/messages', element: <Messages /> },
       { path: '/messages/:userId', element: <Messages /> },
       { path: '/profile/:userId', element: <UserProfile /> },
+      { path: '/groups', element: <StudyGroups /> },
+      { path: '/groups/:id', element: <GroupDetails /> },
     ],
   },
 

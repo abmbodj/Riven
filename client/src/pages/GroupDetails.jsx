@@ -1,0 +1,308 @@
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { api } from '../api';
+import { useToast } from '../hooks/useToast';
+import ConfirmModal from '../components/ConfirmModal';
+import useHaptics from '../hooks/useHaptics';
+
+export default function GroupDetails() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const toast = useToast();
+    const haptics = useHaptics();
+
+    const [group, setGroup] = useState(null);
+    const [members, setMembers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const [showSettings, setShowSettings] = useState(false);
+    const [editData, setEditData] = useState({ name: '', class_id: '' });
+    const [classes, setClasses] = useState([]);
+    const [copied, setCopied] = useState(false);
+
+    const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
+
+    const loadGroup = useCallback(async () => {
+        try {
+            const [fetchedGroup, fetchedMembers] = await Promise.all([
+                api.getGroup(id),
+                api.getGroupMembers(id)
+            ]);
+            setGroup(fetchedGroup);
+            setMembers(fetchedMembers || []);
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to load group details');
+            navigate('/groups');
+        } finally {
+            setLoading(false);
+        }
+    }, [id, navigate, toast]);
+
+    useEffect(() => {
+        loadGroup();
+    }, [loadGroup]);
+
+    useEffect(() => {
+        if (showSettings) {
+            api.getClasses().then(res => setClasses(res || []));
+            setEditData({ name: group?.name || '', class_id: group?.class_id || '' });
+        }
+    }, [showSettings, group]);
+
+    const isAdmin = group?.my_role === 'admin';
+
+    const handleCopyCode = async () => {
+        if (!group?.join_code) return;
+        try {
+            await navigator.clipboard.writeText(group.join_code);
+            haptics.light();
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            toast.success('Join code copied!');
+        } catch (err) {
+            toast.error('Failed to copy');
+        }
+    };
+
+    const handleUpdateGroup = async (e) => {
+        e.preventDefault();
+        if (!editData.name.trim()) return toast.error('Name is required');
+
+        try {
+            await api.updateGroup(id, { name: editData.name, class_id: editData.class_id || null });
+            toast.success('Group updated');
+            setShowSettings(false);
+            loadGroup();
+        } catch (err) {
+            toast.error(err.message || 'Failed to update');
+        }
+    };
+
+    const handleRegenerateCode = async () => {
+        try {
+            await api.updateGroup(id, { regenerate_code: true });
+            toast.success('Join code regenerated');
+            loadGroup();
+        } catch (err) {
+            toast.error(err.message || 'Failed to regenerate code');
+        }
+    };
+
+    const confirmAction = (title, message, action) => {
+        haptics.warning();
+        setConfirmModal({ show: true, title, message, action });
+    };
+
+    const handleConfirmAction = async () => {
+        try {
+            await confirmModal.action();
+            setConfirmModal({ show: false, title: '', message: '', action: null });
+        } catch (err) {
+            toast.error(err.message || 'Action failed');
+            setConfirmModal({ show: false, title: '', message: '', action: null });
+        }
+    };
+
+    const handleLeave = () => {
+        confirmAction('Leave Group', 'Are you sure you want to leave this group?', async () => {
+            await api.leaveGroup(id);
+            toast.success('Left group');
+            navigate('/groups');
+        });
+    };
+
+    const handleDelete = () => {
+        confirmAction('Delete Group', 'This will permanently remove the group and all its contents.', async () => {
+            await api.deleteGroup(id);
+            toast.success('Group deleted');
+            navigate('/groups');
+        });
+    };
+
+    const handleRemoveMember = (userId, name) => {
+        confirmAction('Remove Member', `Remove ${name} from the group?`, async () => {
+            await api.removeGroupMember(id, userId);
+            toast.success('Member removed');
+            loadGroup();
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="p-6 pt-4 pb-24 min-h-screen space-y-4">
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="w-10 h-10 bg-claude-border rounded-xl animate-pulse" />
+                    <div className="h-8 w-48 bg-claude-border rounded-xl animate-pulse" />
+                </div>
+                <div className="h-40 bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl animate-pulse" />
+            </div>
+        );
+    }
+
+    if (!group) return null;
+
+    return (
+        <div className="relative min-h-screen pb-24">
+            {/* Header */}
+            <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/50 px-4 py-3 flex flex-col justify-end min-h-[70px]">
+                <div className="flex items-center justify-between w-full">
+                    <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-secondary hover:text-white transition-colors tap-action">
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <div className="flex-1 min-w-0 px-2 text-center">
+                        <h2 className="font-serif italic font-bold text-lg text-botanical-parchment truncate">{group.name}</h2>
+                    </div>
+                    {isAdmin ? (
+                        <button onClick={() => setShowSettings(!showSettings)} className="p-2 -mr-2 text-claude-secondary hover:text-white transition-colors tap-action">
+                            <Settings className="w-5 h-5" />
+                        </button>
+                    ) : (
+                        <button onClick={handleLeave} className="p-2 -mr-2 text-red-400 hover:text-red-300 transition-colors tap-action">
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="px-4 sm:px-6 pt-6">
+
+                {/* Dashboard Overview */}
+                <div className="bg-[#fcfaf2] border border-[#d1c9b8] rounded-2xl p-6 shadow-sm mb-8 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="relative z-10 text-center mb-6">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-[#8a7f6a] mb-2">{group.class_name || 'Independent Group'}</h3>
+                        <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-claude-accent/10 border border-claude-accent/30 rounded-xl cursor-pointer hover:bg-claude-accent/20 transition-colors" onClick={handleCopyCode}>
+                            <span className="font-mono text-lg font-bold tracking-widest text-[#162a31]">{group.join_code}</span>
+                            {copied ? <CheckCircle2 className="w-5 h-5 text-claude-accent" /> : <Copy className="w-4 h-4 text-claude-accent opacity-70" />}
+                        </div>
+                        <p className="text-[10px] font-mono text-claude-secondary/60 mt-2 uppercase tracking-wide">Share code to invite members</p>
+                    </div>
+
+                    {/* Placeholder for future features */}
+                    <div className="flex items-center justify-center py-8 border-t border-[#d1c9b8]/40">
+                        <div className="text-center opacity-40">
+                            <Shield className="w-8 h-8 text-claude-accent mx-auto mb-2" />
+                            <p className="font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary">Shared Decks & Files<br />Coming Soon</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Members List */}
+                <h3 className="font-serif italic text-2xl text-botanical-parchment mb-4 flex items-center gap-2">
+                    <Users className="w-6 h-6 text-claude-accent opacity-70" /> Members ({members.length})
+                </h3>
+
+                <div className="space-y-3">
+                    {members.map(member => (
+                        <div key={member.id} className="flex items-center justify-between p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-claude-border rounded-xl">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-claude-accent/20 flex items-center justify-center shrink-0 border border-claude-accent/30 p-1">
+                                    <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-full bg-white object-cover" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="font-serif font-bold text-botanical-parchment truncate leading-tight">{member.display_name || member.username}</span>
+                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-0.5 flex gap-2">
+                                        @{member.username}
+                                        {member.role === 'admin' && <span className="text-claude-accent font-bold">ADMIN</span>}
+                                    </span>
+                                </div>
+                            </div>
+                            {isAdmin && member.role !== 'admin' && (
+                                <button
+                                    onClick={() => handleRemoveMember(member.id, member.username)}
+                                    className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Admin Settings Modal */}
+            <AnimatePresence>
+                {showSettings && isAdmin && (
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSettings(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.form
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            onSubmit={handleUpdateGroup}
+                            className="relative bg-claude-bg w-full max-w-lg p-8 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe max-h-[90vh] overflow-y-auto"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Group Settings</h3>
+                                <button type="button" onClick={() => setShowSettings(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Group Name</label>
+                                    <input
+                                        type="text"
+                                        value={editData.name}
+                                        onChange={e => setEditData({ ...editData, name: e.target.value })}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Associated Class</label>
+                                    <select
+                                        value={editData.class_id || ''}
+                                        onChange={e => setEditData({ ...editData, class_id: e.target.value })}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                    >
+                                        <option value="">No Class</option>
+                                        {classes.map(cls => (
+                                            <option key={cls.id} value={cls.id}>{cls.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="pt-4 border-t border-claude-border space-y-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleRegenerateCode}
+                                        className="w-full py-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl text-claude-secondary font-mono text-xs uppercase tracking-widest font-bold hover:text-white transition-colors text-center"
+                                    >
+                                        Regenerate Join Code
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    className="px-4 py-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-500 hover:bg-red-500/20 transition-colors"
+                                >
+                                    <Trash2 className="w-5 h-5 mx-auto" />
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </motion.form>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.show}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={handleConfirmAction}
+                onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })}
+            />
+        </div>
+    );
+}

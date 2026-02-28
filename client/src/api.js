@@ -184,6 +184,17 @@ export const api = {
         ? serverApi.deleteTheme(id)
         : db.deleteTheme(id),
 
+    // ============ STUDY GROUPS ============
+    getGroups: () => isLoggedIn() ? serverApi.getGroups() : Promise.resolve([]),
+    createGroup: (name, classId) => isLoggedIn() ? serverApi.createGroup(name, classId) : Promise.reject(new Error('Must be logged in')),
+    getGroup: (id) => isLoggedIn() ? serverApi.getGroup(id) : Promise.reject(new Error('Must be logged in')),
+    updateGroup: (id, updates) => isLoggedIn() ? serverApi.updateGroup(id, updates) : Promise.reject(new Error('Must be logged in')),
+    deleteGroup: (id) => isLoggedIn() ? serverApi.deleteGroup(id) : Promise.reject(new Error('Must be logged in')),
+    joinGroup: (joinCode) => isLoggedIn() ? serverApi.joinGroup(joinCode) : Promise.reject(new Error('Must be logged in')),
+    leaveGroup: (id) => isLoggedIn() ? serverApi.leaveGroup(id) : Promise.reject(new Error('Must be logged in')),
+    getGroupMembers: (id) => isLoggedIn() ? serverApi.getGroupMembers(id) : Promise.resolve([]),
+    removeGroupMember: (id, userId) => isLoggedIn() ? serverApi.removeGroupMember(id, userId) : Promise.reject(new Error('Must be logged in')),
+
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),
     sendMessage: (toUserId, content, messageType, deckData) => isLoggedIn()

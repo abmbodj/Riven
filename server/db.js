@@ -258,6 +258,28 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // Study Groups tables
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS study_groups (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  name TEXT NOT NULL,
+                  class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+                  join_code TEXT UNIQUE NOT NULL,
+                  created_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS group_members (
+                  group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
+                  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  role TEXT DEFAULT 'member',
+                  joined_at TIMESTAMPTZ DEFAULT now(),
+                  PRIMARY KEY (group_id, user_id)
+                )
+            `);
+
             // Deck tags junction table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS deck_tags (

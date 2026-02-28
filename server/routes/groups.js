@@ -1,0 +1,357 @@
+const express = require('express');
+
+function registerGroupsRoutes({ app, db, authMiddleware }) {
+    const router = express.Router();
+
+    // Mount router at /api/groups
+    app.use('/api/groups', router);
+
+    // Apply authMiddleware to all routes below
+    router.use(authMiddleware);
+
+    // 1. GET /api/groups - all groups user belongs to
+    router.get('/', async (req, res) => {
+        try {
+            const query = `
+                SELECT g.*, c.name as class_name,
+                       (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+                FROM study_groups g
+                JOIN group_members gm ON g.id = gm.group_id
+                LEFT JOIN classes c ON g.class_id = c.id
+                WHERE gm.user_id = $1
+                ORDER BY g.created_at DESC
+            `;
+            const groups = await db.query(query, [req.user.id]);
+            res.json(groups);
+        } catch (error) {
+            console.error('Error fetching groups:', error);
+            res.status(500).json({ error: 'Failed to fetch groups' });
+        }
+    });
+
+    // 2. POST /api/groups - create a group
+    router.post('/', async (req, res) => {
+        const { name, class_id } = req.body;
+
+        if (!name) return res.status(400).json({ error: 'Group name is required' });
+
+        try {
+            // Start transaction
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Generate join code (e.g. RIV-4X2)
+                const generateCode = () => {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    let result = 'RIV-';
+                    for (let i = 0; i < 3; i++) {
+                        result += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    return result;
+                };
+
+                let join_code = generateCode();
+                let codeExists = true;
+
+                // Ensure uniqueness
+                while (codeExists) {
+                    const existing = await client.query('SELECT 1 FROM study_groups WHERE join_code = $1', [join_code]);
+                    if (existing.rows.length === 0) {
+                        codeExists = false;
+                    } else {
+                        join_code = generateCode();
+                    }
+                }
+
+                // Insert into study_groups
+                const insertGroupQuery = `
+                    INSERT INTO study_groups (name, class_id, join_code, created_by) 
+                    VALUES ($1, $2, $3, $4) 
+                    RETURNING *
+                `;
+                const groupResult = await client.query(insertGroupQuery, [name, class_id || null, join_code, req.user.id]);
+                const newGroup = groupResult.rows[0];
+
+                // Insert into group_members as admin
+                const insertMemberQuery = `
+                    INSERT INTO group_members (group_id, user_id, role) 
+                    VALUES ($1, $2, 'admin')
+                `;
+                await client.query(insertMemberQuery, [newGroup.id, req.user.id]);
+
+                await client.query('COMMIT');
+
+                // Construct return object with some extra details
+                res.status(201).json({
+                    ...newGroup,
+                    member_count: 1,
+                    role: 'admin'
+                });
+            } catch (error) {
+                await client.query('ROLLBACK');
+                throw error;
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            console.error('Error creating group:', error);
+            res.status(500).json({ error: 'Failed to create group' });
+        }
+    });
+
+    // 3. GET /api/groups/:id - single group details
+    router.get('/:id', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Verify membership
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            const query = `
+                SELECT g.*, c.name as class_name
+                FROM study_groups g
+                LEFT JOIN classes c ON g.class_id = c.id
+                WHERE g.id = $1
+            `;
+            const group = await db.queryOne(query, [id]);
+
+            if (!group) return res.status(404).json({ error: 'Group not found' });
+
+            res.json({
+                ...group,
+                my_role: memberCheck.role
+            });
+        } catch (error) {
+            console.error('Error fetching group details:', error);
+            res.status(500).json({ error: 'Failed to fetch group details' });
+        }
+    });
+
+    // 4. PUT /api/groups/:id - update group (admin only)
+    router.put('/:id', async (req, res) => {
+        const { id } = req.params;
+        const { name, class_id, regenerate_code } = req.body;
+
+        try {
+            // Verify admin status
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck || memberCheck.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin permission required' });
+            }
+
+            let updateQuery = 'UPDATE study_groups SET name = COALESCE($1, name), class_id = $2';
+            let params = [name || null, class_id || null];
+            let paramIndex = 3;
+
+            if (regenerate_code) {
+                // Generate a new code
+                const generateCode = () => {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    let result = 'RIV-';
+                    for (let i = 0; i < 3; i++) {
+                        result += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    return result;
+                };
+
+                let join_code = generateCode();
+                let codeExists = true;
+
+                while (codeExists) {
+                    const existing = await db.queryOne('SELECT 1 FROM study_groups WHERE join_code = $1', [join_code]);
+                    if (!existing) {
+                        codeExists = false;
+                    } else {
+                        join_code = generateCode();
+                    }
+                }
+                updateQuery += `, join_code = $${paramIndex}`;
+                params.push(join_code);
+                paramIndex++;
+            }
+
+            updateQuery += ` WHERE id = $${paramIndex} RETURNING *`;
+            params.push(id);
+
+            const updated = await db.queryOne(updateQuery, params);
+            res.json(updated);
+        } catch (error) {
+            console.error('Error updating group:', error);
+            res.status(500).json({ error: 'Failed to update group' });
+        }
+    });
+
+    // 5. DELETE /api/groups/:id - delete group (admin only)
+    router.delete('/:id', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Verify admin status
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck || memberCheck.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin permission required' });
+            }
+
+            await db.execute('DELETE FROM study_groups WHERE id = $1', [id]);
+            res.json({ message: 'Group deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting group:', error);
+            res.status(500).json({ error: 'Failed to delete group' });
+        }
+    });
+
+    // 6. POST /api/groups/join - join via code
+    router.post('/join', async (req, res) => {
+        const { join_code } = req.body;
+
+        if (!join_code) return res.status(400).json({ error: 'Join code is required' });
+
+        const formattedCode = join_code.toUpperCase().trim();
+
+        try {
+            const group = await db.queryOne('SELECT id, name FROM study_groups WHERE join_code = $1', [formattedCode]);
+
+            if (!group) return res.status(404).json({ error: 'Invalid join code' });
+
+            const existingMember = await db.queryOne(
+                'SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [group.id, req.user.id]
+            );
+
+            if (existingMember) {
+                return res.status(400).json({ error: 'You are already a member of this group', group });
+            }
+
+            await db.execute(
+                'INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, $3)',
+                [group.id, req.user.id, 'member']
+            );
+
+            res.json({ message: 'Successfully joined group', group });
+        } catch (error) {
+            console.error('Error joining group:', error);
+            res.status(500).json({ error: 'Failed to join group' });
+        }
+    });
+
+    // 7. DELETE /api/groups/:id/leave - leave a group
+    router.delete('/:id/leave', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Check if they are the only admin
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(404).json({ error: 'Not a member of this group' });
+
+            if (memberCheck.role === 'admin') {
+                const adminCountReq = await db.queryOne(
+                    "SELECT COUNT(*) as count FROM group_members WHERE group_id = $1 AND role = 'admin'",
+                    [id]
+                );
+
+                if (parseInt(adminCountReq.count) === 1) {
+                    const memberCountReq = await db.queryOne(
+                        "SELECT COUNT(*) as count FROM group_members WHERE group_id = $1",
+                        [id]
+                    );
+
+                    if (parseInt(memberCountReq.count) > 1) {
+                        return res.status(400).json({
+                            error: 'You must promote another admin before leaving, or delete the group.'
+                        });
+                    } else {
+                        // If they're the last person, delete the group entirely
+                        await db.execute('DELETE FROM study_groups WHERE id = $1', [id]);
+                        return res.json({ message: 'Group deleted as the last member left' });
+                    }
+                }
+            }
+
+            await db.execute('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            res.json({ message: 'Left group successfully' });
+        } catch (error) {
+            console.error('Error leaving group:', error);
+            res.status(500).json({ error: 'Failed to leave group' });
+        }
+    });
+
+    // 8. GET /api/groups/:id/members
+    router.get('/:id/members', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Verify membership
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            const members = await db.query(`
+                SELECT u.id, u.username, u.display_name, u.avatar, gm.role, gm.joined_at
+                FROM group_members gm
+                JOIN users u ON gm.user_id = u.id
+                WHERE gm.group_id = $1
+                ORDER BY gm.role ASC, gm.joined_at ASC
+            `, [id]);
+
+            res.json(members);
+        } catch (error) {
+            console.error('Error fetching group members:', error);
+            res.status(500).json({ error: 'Failed to fetch group members' });
+        }
+    });
+
+    // 9. DELETE /api/groups/:id/members/:userId - remove member (admin only)
+    router.delete('/:id/members/:userId', async (req, res) => {
+        const { id, userId } = req.params;
+        try {
+            // Verify admin status
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck || memberCheck.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin permission required' });
+            }
+
+            if (req.user.id.toString() === userId) {
+                return res.status(400).json({ error: 'Use the leave endpoint to remove yourself' });
+            }
+
+            const targetMemberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, userId]
+            );
+
+            if (!targetMemberCheck) {
+                return res.status(404).json({ error: 'User is not a member of this group' });
+            }
+
+            await db.execute('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [id, userId]);
+            res.json({ message: 'User removed successfully' });
+        } catch (error) {
+            console.error('Error removing member:', error);
+            res.status(500).json({ error: 'Failed to remove member' });
+        }
+    });
+
+}
+
+module.exports = registerGroupsRoutes;

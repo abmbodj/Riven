@@ -399,6 +399,27 @@ export const editMessage = (id, content) => authFetch(`/messages/${id}`, {
 export const deleteMessage = (id) => authFetch(`/messages/${id}`, { method: 'DELETE' });
 export const getUnreadCount = () => safeFetchObject(authFetch('/messages/unread/count'), { count: 0 });
 
+// ============ STUDY GROUPS ============
+
+export const getGroups = () => safeFetchArray(authFetch('/groups'));
+export const createGroup = (name, class_id) => authFetch('/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name, class_id })
+});
+export const getGroup = (id) => authFetch(`/groups/${id}`);
+export const updateGroup = (id, updates) => authFetch(`/groups/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+});
+export const deleteGroup = (id) => authFetch(`/groups/${id}`, { method: 'DELETE' });
+export const joinGroup = (join_code) => authFetch('/groups/join', {
+    method: 'POST',
+    body: JSON.stringify({ join_code })
+});
+export const leaveGroup = (id) => authFetch(`/groups/${id}/leave`, { method: 'DELETE' });
+export const getGroupMembers = (id) => safeFetchArray(authFetch(`/groups/${id}/members`));
+export const removeGroupMember = (id, userId) => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' });
+
 // ============ ADMIN ENDPOINTS ============
 
 export const adminGetAllUsers = () => safeFetchArray(authFetch('/admin/users'));
@@ -523,4 +544,13 @@ export default {
     adminDeleteMessage,
     getActiveMessages,
     dismissMessage,
+    getGroups,
+    createGroup,
+    getGroup,
+    updateGroup,
+    deleteGroup,
+    joinGroup,
+    leaveGroup,
+    getGroupMembers,
+    removeGroupMember,
 };

@@ -26,6 +26,7 @@ const registerAssignmentsRoutes = require('./routes/assignments');
 const registerScheduleRoutes = require('./routes/schedule');
 const registerLMSRoutes = require('./routes/lms');
 const registerAIRoutes = require('./routes/ai');
+const registerGroupsRoutes = require('./routes/groups');
 
 const app = express();
 const server = http.createServer(app);
@@ -320,6 +321,10 @@ registerLMSRoutes({ app, db, authMiddleware });
 // ============ AI GENERATION ============
 
 registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
+
+// ============ GROUPS ============
+
+registerGroupsRoutes({ app, db, authMiddleware });
 
 // ============ MESSAGES ============
 

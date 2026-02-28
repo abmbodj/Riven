@@ -118,13 +118,14 @@ export default function Layout({ children }) {
                                     <Palette className="w-5 h-5" />
                                     <span>Themes</span>
                                 </Link>
-                                <button
-                                    disabled
-                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary opacity-50 cursor-not-allowed text-left"
+                                <Link
+                                    to="/groups"
+                                    onClick={() => setIsFabMenuOpen(false)}
+                                    className="flex items-center gap-3 p-3 hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary"
                                 >
                                     <Users className="w-5 h-5 shrink-0" />
-                                    <span className="leading-tight">Study Groups<br /><span className="text-[9px]">Coming Soon</span></span>
-                                </button>
+                                    <span className="leading-tight">Study Groups</span>
+                                </Link>
                             </motion.div>
                         </>
                     )}
