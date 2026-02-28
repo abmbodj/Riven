@@ -97,10 +97,10 @@ export default function Layout({ children }) {
                                 className="fixed inset-0 bg-black/40 backdrop-blur-sm z-10"
                             />
                             <motion.div
-                                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                                className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-claude-bg border border-claude-border rounded-2xl shadow-xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
+                                initial={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
+                                animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+                                exit={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
+                                className="fixed bottom-24 left-1/2 bg-claude-bg border border-claude-border rounded-2xl shadow-xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
                             >
                                 <Link
                                     to="/garden"
