@@ -412,7 +412,7 @@ export default function GroupDetails() {
                         ) : (
                             sharedDecks.map(deck => (
                                 <div key={deck.id} className="group/deck relative bg-claude-bg border border-claude-border rounded-xl p-4 overflow-hidden shadow-sm hover:shadow-md transition-all tap-action flex items-center gap-4">
-                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/ deck / ${deck.id} `)}>
+                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
                                         <h4 className="font-serif font-bold text-lg text-botanical-parchment truncate leading-tight group-hover/deck:text-claude-accent transition-colors">{deck.title}</h4>
                                         <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-claude-secondary uppercase tracking-widest">
                                             <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {deck.card_count || 0} Cards</span>
