@@ -194,6 +194,9 @@ export const api = {
     leaveGroup: (id) => isLoggedIn() ? serverApi.leaveGroup(id) : Promise.reject(new Error('Must be logged in')),
     getGroupMembers: (id) => isLoggedIn() ? serverApi.getGroupMembers(id) : Promise.resolve([]),
     removeGroupMember: (id, userId) => isLoggedIn() ? serverApi.removeGroupMember(id, userId) : Promise.reject(new Error('Must be logged in')),
+    getGroupDecks: (id) => isLoggedIn() ? serverApi.getGroupDecks(id) : Promise.resolve([]),
+    shareDeckToGroup: (id, deckId) => isLoggedIn() ? serverApi.shareDeckToGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
+    removeDeckFromGroup: (id, deckId) => isLoggedIn() ? serverApi.removeDeckFromGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
 
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),

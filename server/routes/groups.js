@@ -352,6 +352,114 @@ function registerGroupsRoutes({ app, db, authMiddleware }) {
         }
     });
 
+    // 10. GET /api/groups/:id/decks
+    router.get('/:id/decks', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Verify membership
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            const decks = await db.query(`
+                SELECT d.*, gd.shared_at, u.username as shared_by_name, u.avatar as shared_by_avatar,
+                       (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id) as card_count
+                FROM group_decks gd
+                JOIN decks d ON gd.deck_id = d.id
+                JOIN users u ON gd.shared_by = u.id
+                WHERE gd.group_id = $1
+                ORDER BY gd.shared_at DESC
+            `, [id]);
+
+            res.json(decks);
+        } catch (error) {
+            console.error('Error fetching group decks:', error);
+            res.status(500).json({ error: 'Failed to fetch group decks' });
+        }
+    });
+
+    // 11. POST /api/groups/:id/decks - share a deck
+    router.post('/:id/decks', async (req, res) => {
+        const { id } = req.params;
+        const { deck_id } = req.body;
+
+        if (!deck_id) return res.status(400).json({ error: 'Deck ID is required' });
+
+        try {
+            // Verify membership
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            // Verify they own the deck or have permission (for MVP, let's enforce ownership or it's public/already accessible)
+            const deckCheck = await db.queryOne('SELECT id, user_id FROM decks WHERE id = $1', [deck_id]);
+            if (!deckCheck) return res.status(404).json({ error: 'Deck not found' });
+
+            // Only allow sharing if they own it or if we consider it public (for now requiring ownership)
+            if (deckCheck.user_id !== req.user.id) {
+                return res.status(403).json({ error: 'You must own a deck to share it' });
+            }
+
+            // Check if already shared
+            const existing = await db.queryOne(
+                'SELECT 1 FROM group_decks WHERE group_id = $1 AND deck_id = $2',
+                [id, deck_id]
+            );
+
+            if (existing) {
+                return res.status(400).json({ error: 'Deck is already shared in this group' });
+            }
+
+            await db.execute(
+                'INSERT INTO group_decks (group_id, deck_id, shared_by) VALUES ($1, $2, $3)',
+                [id, deck_id, req.user.id]
+            );
+
+            res.json({ message: 'Deck shared successfully' });
+        } catch (error) {
+            console.error('Error sharing deck:', error);
+            res.status(500).json({ error: 'Failed to share deck' });
+        }
+    });
+
+    // 12. DELETE /api/groups/:id/decks/:deckId - remove deck
+    router.delete('/:id/decks/:deckId', async (req, res) => {
+        const { id, deckId } = req.params;
+        try {
+            // Verify membership & role
+            const memberCheck = await db.queryOne(
+                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
+                [id, req.user.id]
+            );
+
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            const shareCheck = await db.queryOne(
+                'SELECT shared_by FROM group_decks WHERE group_id = $1 AND deck_id = $2',
+                [id, deckId]
+            );
+
+            if (!shareCheck) return res.status(404).json({ error: 'Deck not found in this group' });
+
+            // Only admin OR the person who shared it can remove it
+            if (memberCheck.role !== 'admin' && shareCheck.shared_by !== req.user.id) {
+                return res.status(403).json({ error: 'Only group admins or the original sharer can remove this deck' });
+            }
+
+            await db.execute('DELETE FROM group_decks WHERE group_id = $1 AND deck_id = $2', [id, deckId]);
+            res.json({ message: 'Deck removed from group' });
+        } catch (error) {
+            console.error('Error removing deck:', error);
+            res.status(500).json({ error: 'Failed to remove deck' });
+        }
+    });
+
 }
 
 module.exports = registerGroupsRoutes;

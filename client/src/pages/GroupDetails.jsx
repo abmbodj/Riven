@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, Plus, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -15,9 +15,15 @@ export default function GroupDetails() {
 
     const [group, setGroup] = useState(null);
     const [members, setMembers] = useState([]);
+    const [sharedDecks, setSharedDecks] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [showSettings, setShowSettings] = useState(false);
+    const [showShareDeckModal, setShowShareDeckModal] = useState(false);
+
+    // Decks user currently owns and can share
+    const [myDecks, setMyDecks] = useState([]);
+
     const [editData, setEditData] = useState({ name: '', class_id: '' });
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
@@ -26,12 +32,14 @@ export default function GroupDetails() {
 
     const loadGroup = useCallback(async () => {
         try {
-            const [fetchedGroup, fetchedMembers] = await Promise.all([
+            const [fetchedGroup, fetchedMembers, fetchedDecks] = await Promise.all([
                 api.getGroup(id),
-                api.getGroupMembers(id)
+                api.getGroupMembers(id),
+                api.getGroupDecks(id)
             ]);
             setGroup(fetchedGroup);
             setMembers(fetchedMembers || []);
+            setSharedDecks(fetchedDecks || []);
         } catch (err) {
             console.error(err);
             toast.error('Failed to load group details');
@@ -52,7 +60,14 @@ export default function GroupDetails() {
         }
     }, [showSettings, group]);
 
+    useEffect(() => {
+        if (showShareDeckModal) {
+            api.getDecks().then(res => setMyDecks(res || []));
+        }
+    }, [showShareDeckModal]);
+
     const isAdmin = group?.my_role === 'admin';
+    const currentUserId = members.find(m => m.role === group?.my_role)?.id; // approximate
 
     const handleCopyCode = async () => {
         if (!group?.join_code) return;
@@ -130,6 +145,26 @@ export default function GroupDetails() {
         });
     };
 
+    const handleShareDeck = async (deckId) => {
+        try {
+            haptics.medium();
+            await api.shareDeckToGroup(id, deckId);
+            toast.success('Deck shared with group!');
+            setShowShareDeckModal(false);
+            loadGroup();
+        } catch (err) {
+            toast.error(err.message || 'Failed to share deck');
+        }
+    };
+
+    const handleRemoveDeck = (deckId) => {
+        confirmAction('Remove Deck', 'Are you sure you want to remove this deck from the group?', async () => {
+            await api.removeDeckFromGroup(id, deckId);
+            toast.success('Deck removed');
+            loadGroup();
+        });
+    };
+
     if (loading) {
         return (
             <div className="p-6 pt-4 pb-24 min-h-screen space-y-4">
@@ -182,11 +217,52 @@ export default function GroupDetails() {
                     </div>
 
                     {/* Placeholder for future features */}
-                    <div className="flex items-center justify-center py-8 border-t border-[#d1c9b8]/40">
-                        <div className="text-center opacity-40">
-                            <Shield className="w-8 h-8 text-claude-accent mx-auto mb-2" />
-                            <p className="font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary">Shared Decks & Files<br />Coming Soon</p>
-                        </div>
+                    <div className="flex items-center justify-between py-6 mt-2 mb-4">
+                        <h3 className="font-serif italic text-2xl text-botanical-parchment flex items-center gap-2">
+                            <Layers className="w-6 h-6 text-claude-accent opacity-70" /> Shared Decks ({sharedDecks.length})
+                        </h3>
+                        <button
+                            onClick={() => setShowShareDeckModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-[#162a31] transition-colors tap-action"
+                        >
+                            <Plus className="w-3.5 h-3.5" /> Share
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 mb-8">
+                        {sharedDecks.length === 0 ? (
+                            <div className="text-center py-8 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl">
+                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">No Decks Shared Yet</p>
+                            </div>
+                        ) : (
+                            sharedDecks.map(deck => (
+                                <div key={deck.id} className="group/deck relative bg-claude-bg border border-claude-border rounded-xl p-4 overflow-hidden shadow-sm hover:shadow-md transition-all tap-action flex items-center gap-4">
+                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
+                                        <h4 className="font-serif font-bold text-lg text-botanical-parchment truncate leading-tight group-hover/deck:text-claude-accent transition-colors">{deck.title}</h4>
+                                        <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-claude-secondary uppercase tracking-widest">
+                                            <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {deck.card_count || 0} Cards</span>
+                                            <span className="flex items-center gap-1">Shared by @{deck.shared_by_name}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/deck/${deck.id}/study`); }}
+                                            className="w-10 h-10 rounded-full bg-claude-accent/10 text-claude-accent flex items-center justify-center hover:bg-claude-accent hover:text-[#162a31] transition-colors"
+                                        >
+                                            <Play className="w-5 h-5 ml-1" />
+                                        </button>
+                                        {(isAdmin || deck.shared_by === currentUserId) && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
+                                                className="w-8 h-8 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 
@@ -291,6 +367,44 @@ export default function GroupDetails() {
                                 </button>
                             </div>
                         </motion.form>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Share Deck Modal */}
+            <AnimatePresence>
+                {showShareDeckModal && (
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowShareDeckModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe max-h-[85vh] flex flex-col"
+                        >
+                            <div className="flex justify-between items-center mb-6 shrink-0">
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Share Deck</h3>
+                                <button type="button" onClick={() => setShowShareDeckModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto min-h-[300px]">
+                                {myDecks.length === 0 ? (
+                                    <p className="text-center text-claude-secondary font-mono text-xs mt-10">You have no personal decks to share.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).map(deck => (
+                                            <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl cursor-pointer transition-colors tap-action">
+                                                <h4 className="font-serif font-bold text-lg text-botanical-parchment">{deck.title}</h4>
+                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">Click to share</p>
+                                            </div>
+                                        ))}
+                                        {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).length === 0 && (
+                                            <p className="text-center text-claude-secondary font-mono text-xs mt-10">All your decks are already shared!</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
                     </div>
                 )}
             </AnimatePresence>

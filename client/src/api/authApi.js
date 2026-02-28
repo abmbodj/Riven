@@ -420,6 +420,13 @@ export const leaveGroup = (id) => authFetch(`/groups/${id}/leave`, { method: 'DE
 export const getGroupMembers = (id) => safeFetchArray(authFetch(`/groups/${id}/members`));
 export const removeGroupMember = (id, userId) => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' });
 
+export const getGroupDecks = (id) => safeFetchArray(authFetch(`/groups/${id}/decks`));
+export const shareDeckToGroup = (id, deck_id) => authFetch(`/groups/${id}/decks`, {
+    method: 'POST',
+    body: JSON.stringify({ deck_id })
+});
+export const removeDeckFromGroup = (id, deckId) => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' });
+
 // ============ ADMIN ENDPOINTS ============
 
 export const adminGetAllUsers = () => safeFetchArray(authFetch('/admin/users'));
@@ -553,4 +560,7 @@ export default {
     leaveGroup,
     getGroupMembers,
     removeGroupMember,
+    getGroupDecks,
+    shareDeckToGroup,
+    removeDeckFromGroup,
 };

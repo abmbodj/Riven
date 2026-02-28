@@ -280,6 +280,16 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS group_decks (
+                  group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
+                  deck_id INTEGER REFERENCES decks(id) ON DELETE CASCADE,
+                  shared_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  shared_at TIMESTAMPTZ DEFAULT now(),
+                  PRIMARY KEY (group_id, deck_id)
+                )
+            `);
+
             // Deck tags junction table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS deck_tags (
