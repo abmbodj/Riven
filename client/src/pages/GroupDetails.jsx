@@ -26,11 +26,12 @@ export default function GroupDetails() {
     const [files, setFiles] = useState([]);
     const [currentFolderId, setCurrentFolderId] = useState(null);
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
-    const [showUploadModal, setShowUploadModal] = useState(false);
 
-    // Form inputs
-    const [newFolderName, setNewFolderName] = useState('');
+    // Upload & AI Flow
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadStep, setUploadStep] = useState('form'); // form, ai_prompt, generating
     const [uploadData, setUploadData] = useState({ name: '', file_url: '', file_type: 'pdf' });
+    const [newFolderName, setNewFolderName] = useState('');
 
     // Decks user currently owns and can share
     const [myDecks, setMyDecks] = useState([]);
@@ -203,19 +204,57 @@ export default function GroupDetails() {
         });
     };
 
-    const handleUploadFile = async (e) => {
+    const handleUploadInitialSubmit = (e) => {
         e.preventDefault();
         if (!uploadData.name.trim() || !uploadData.file_url.trim()) return toast.error('Name and URL required');
+        setUploadStep('ai_prompt');
+    };
 
+    const finalizeFileUpload = async () => {
         try {
             await api.uploadGroupFile(id, { ...uploadData, folder_id: currentFolderId });
             toast.success('File uploaded');
-            setShowUploadModal(false);
-            setUploadData({ name: '', file_url: '', file_type: 'pdf' });
+            closeUploadModal();
             loadGroup();
         } catch (err) {
             toast.error('Failed to upload file');
+            setUploadStep('form');
         }
+    };
+
+    const handleUploadWithAi = async () => {
+        setUploadStep('generating');
+        try {
+            // Wait for AI generation (using mock url as notes string placeholder for now)
+            const deckRes = await api.generateAiDeck(
+                `File reference: ${uploadData.file_url}`,
+                null,
+                `${uploadData.name} Flashcards`,
+                group?.class_id
+            );
+
+            if (deckRes && deckRes.deck_id) {
+                // Instantly share the new deck to this group
+                await api.shareDeckToGroup(id, deckRes.deck_id);
+                toast.success(`Deck generated with ${deckRes.card_count || 'several'} cards!`);
+            }
+
+            // Finally proceed to upload the file
+            await finalizeFileUpload();
+
+        } catch (err) {
+            toast.error(err.message || 'AI Generation failed, falling back to upload-only');
+            // If AI specifically fails, still save the file
+            await finalizeFileUpload();
+        }
+    };
+
+    const closeUploadModal = () => {
+        setShowUploadModal(false);
+        setTimeout(() => {
+            setUploadStep('form');
+            setUploadData({ name: '', file_url: '', file_type: 'pdf' });
+        }, 300);
     };
 
     const handleDeleteFile = (fileId) => {
@@ -595,68 +634,134 @@ export default function GroupDetails() {
                 )}
             </AnimatePresence>
 
-            {/* Upload File Modal */}
+            {/* Upload File & AI Flow Modal */}
             <AnimatePresence>
                 {showUploadModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUploadModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-                        <motion.form
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                            onSubmit={handleUploadFile}
-                            className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe"
+                            className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe overflow-hidden"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment flex items-center gap-2">
-                                    {currentFolderId && <Folder className="w-5 h-5 text-claude-accent" />}
-                                    Upload File
-                                </h3>
-                                <button type="button" onClick={() => setShowUploadModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Name</label>
-                                    <input
-                                        type="text"
-                                        value={uploadData.name}
-                                        onChange={e => setUploadData({ ...uploadData, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
-                                        placeholder="e.g. Chapter 1 Notes"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Mock File URL (Google Drive, AWS, etc)</label>
-                                    <input
-                                        type="url"
-                                        value={uploadData.file_url}
-                                        onChange={e => setUploadData({ ...uploadData, file_url: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Type</label>
-                                    <select
-                                        value={uploadData.file_type}
-                                        onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                            {/* Form Step */}
+                            <AnimatePresence mode="popLayout">
+                                {uploadStep === 'form' && (
+                                    <motion.form
+                                        key="step_form"
+                                        initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}
+                                        onSubmit={handleUploadInitialSubmit}
                                     >
-                                        <option value="pdf">PDF Document</option>
-                                        <option value="image">Image (PNG/JPG)</option>
-                                        <option value="docx">Word Document</option>
-                                        <option value="link">Web Link</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={!uploadData.name.trim() || !uploadData.file_url.trim()}
-                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
-                            >
-                                Upload
-                            </button>
-                        </motion.form>
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment flex items-center gap-2">
+                                                {currentFolderId && <Folder className="w-5 h-5 text-claude-accent" />}
+                                                Upload File
+                                            </h3>
+                                            <button type="button" onClick={closeUploadModal} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                                <X className="w-6 h-6" />
+                                            </button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={uploadData.name}
+                                                    onChange={e => setUploadData({ ...uploadData, name: e.target.value })}
+                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                                    placeholder="e.g. Chapter 1 Notes"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Mock File URL (Google Drive, AWS, etc)</label>
+                                                <input
+                                                    type="url"
+                                                    value={uploadData.file_url}
+                                                    onChange={e => setUploadData({ ...uploadData, file_url: e.target.value })}
+                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                                    placeholder="https://..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Type</label>
+                                                <select
+                                                    value={uploadData.file_type}
+                                                    onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })}
+                                                    className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                                >
+                                                    <option value="pdf">PDF Document</option>
+                                                    <option value="image">Image (PNG/JPG)</option>
+                                                    <option value="docx">Word Document</option>
+                                                    <option value="link">Web Link</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={!uploadData.name.trim() || !uploadData.file_url.trim()}
+                                            className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                                        >
+                                            Next Step
+                                        </button>
+                                    </motion.form>
+                                )}
+
+                                {/* AI Prompt Step */}
+                                {uploadStep === 'ai_prompt' && (
+                                    <motion.div
+                                        key="step_ai_prompt"
+                                        initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}
+                                        className="py-6 flex flex-col items-center text-center"
+                                    >
+                                        <div className="w-16 h-16 rounded-full bg-claude-accent/20 flex items-center justify-center mb-6 border border-claude-accent/30 shadow-[0_0_30px_rgba(230,221,211,0.15)] relative">
+                                            <div className="absolute inset-0 bg-claude-accent/20 rounded-full blur-[20px] animate-pulse pointer-events-none" />
+                                            <span className="text-3xl relative z-10 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]">✨</span>
+                                        </div>
+                                        <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment mb-3">Generate Flashcards?</h3>
+                                        <p className="text-sm text-claude-secondary font-mono leading-relaxed mb-8 max-w-[80%]">
+                                            Riven can instantly generate a testive deck from your uploaded file and share it with the group.
+                                        </p>
+
+                                        <div className="w-full space-y-3">
+                                            <button
+                                                onClick={handleUploadWithAi}
+                                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action flex items-center justify-center gap-2 shadow-lg shadow-claude-accent/20"
+                                            >
+                                                <span>✨</span> Yes, create a deck
+                                            </button>
+                                            <button
+                                                onClick={finalizeFileUpload}
+                                                className="w-full py-4 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-claude-secondary font-mono font-bold uppercase tracking-widest hover:text-white transition-colors"
+                                            >
+                                                Not right now
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* Generating Loading Step */}
+                                {uploadStep === 'generating' && (
+                                    <motion.div
+                                        key="step_generating"
+                                        initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                                        className="py-12 flex flex-col items-center text-center"
+                                    >
+                                        <div className="relative w-24 h-24 mb-8">
+                                            <div className="absolute inset-0 bg-claude-accent/20 rounded-full blur-[30px] animate-pulse" />
+                                            <div className="absolute inset-0 border-t-2 border-l-2 border-claude-accent rounded-full animate-spin [animation-duration:1.5s]" />
+                                            <div className="absolute inset-4 bg-gradient-to-br from-claude-bg to-claude-accent/10 rounded-full shadow-inner flex items-center justify-center border border-claude-border overflow-hidden">
+                                                <span className="text-3xl relative z-10 animate-bounce [animation-duration:2s]">✨</span>
+                                            </div>
+                                        </div>
+                                        <h3 className="text-xl font-serif italic font-bold text-botanical-parchment animate-pulse mb-3">
+                                            Synthesizing Knowledge...
+                                        </h3>
+                                        <p className="text-xs text-claude-secondary font-mono max-w-[80%] uppercase tracking-wider opacity-70">
+                                            Extracting concepts into precision cards
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
                     </div>
                 )}
             </AnimatePresence>
