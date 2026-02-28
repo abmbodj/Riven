@@ -11,6 +11,7 @@ export default function GroupDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const haptics = useHaptics();
+    const toast = useToast();
     const { socket } = useAuth();
 
     const [group, setGroup] = useState(null);
