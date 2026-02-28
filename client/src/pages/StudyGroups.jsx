@@ -122,14 +122,14 @@ export default function StudyGroups() {
             <div className="px-4 sm:px-6 mb-8 grid grid-cols-2 gap-4">
                 <button
                     onClick={() => { haptics.light(); setShowCreateModal(true); }}
-                    className="flex flex-col items-center justify-center py-6 px-4 bg-claude-accent/10 border border-claude-accent/30 rounded-2xl text-claude-accent hover:bg-claude-accent/20 transition-all tap-action group"
+                    className="flex flex-col items-center justify-center py-6 px-4 bg-claude-accent/10 border border-claude-accent/30 rounded-2xl text-claude-accent hover:bg-claude-accent/20 transition-all tap-action group min-h-[120px]"
                 >
-                    <Plus className="w-8 h-8 mb-2 opacity-80 group-hover:scale-110 transition-transform" />
+                    <Plus className="w-8 h-8 mb-2 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
                     <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-[#162a31]">Create Group</span>
                 </button>
                 <button
                     onClick={() => { haptics.light(); setShowJoinModal(true); }}
-                    className="flex flex-col items-center justify-center py-6 px-4 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-botanical-parchment hover:border-claude-accent/30 transition-all tap-action group"
+                    className="flex flex-col items-center justify-center py-6 px-4 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-botanical-parchment hover:border-claude-accent/30 transition-all tap-action group min-h-[120px]"
                 >
                     <LinkIcon className="w-8 h-8 mb-2 opacity-60 group-hover:scale-110 transition-transform" />
                     <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Join via Code</span>
@@ -156,9 +156,9 @@ export default function StudyGroups() {
                                 className="bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer tap-action group relative overflow-hidden"
                             >
                                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                                <div className="flex justify-between items-start mb-3">
-                                    <h3 className="font-serif text-2xl font-bold text-[#1a1c1d] italic group-hover:text-claude-accent transition-colors truncate">{group.name}</h3>
-                                    <ArrowRight className="w-5 h-5 text-claude-secondary opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1" />
+                                <div className="flex justify-between items-start mb-3 gap-3">
+                                    <h3 className="font-serif text-2xl font-bold text-[#1a1c1d] italic group-hover:text-claude-accent transition-colors break-words line-clamp-2">{group.name}</h3>
+                                    <ArrowRight className="w-5 h-5 text-claude-secondary opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1 shrink-0 mt-1" />
                                 </div>
 
                                 <div className="flex flex-col gap-2 mt-4">

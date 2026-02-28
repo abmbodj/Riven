@@ -151,6 +151,14 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('join-room', (roomId) => {
+        if (roomId) socket.join(roomId);
+    });
+
+    socket.on('leave-room', (roomId) => {
+        if (roomId) socket.leave(roomId);
+    });
+
     socket.on('disconnect', () => {
         // Remove from map
         for (const [userId, socketId] of connectedUsers.entries()) {
