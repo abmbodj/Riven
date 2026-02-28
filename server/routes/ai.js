@@ -4,10 +4,10 @@ const mammoth = require('mammoth');
 
 module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator }) {
 
-    // AI Rate Limiter: 15 requests per 15 minutes to stay well within free tier
+    // AI Rate Limiter: 15 requests per 2 hours to stay well within free tier
     // Uses req.user.id so the limit is strictly per-account, not per-IP
     const aiLimiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
+        windowMs: 2 * 60 * 60 * 1000,
         max: 15,
         keyGenerator: (req, res) => {
             // Default to IP if user isn't populated for some reason

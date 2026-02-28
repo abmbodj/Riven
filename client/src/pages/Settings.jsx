@@ -307,7 +307,7 @@ export default function Settings() {
                                     )}
                                 </h3>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    Resets every 15 minutes
+                                    Resets every 2 hours
                                 </p>
                             </div>
                         </div>
