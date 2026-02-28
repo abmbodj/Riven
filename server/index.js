@@ -758,7 +758,23 @@ app.get('/api/decks/:id', optionalAuth, async (req, res) => {
         const userId = req.user?.id || null;
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
-        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
+        let isAuthorized = false;
+        if (deck.user_id === userId) {
+            isAuthorized = true;
+        } else if (userId) {
+            // Check if deck is shared in a group the user is a member of
+            const sharedCheck = await db.queryOne(`
+                SELECT 1 
+                FROM group_decks gd
+                JOIN group_members gm ON gd.group_id = gm.group_id
+                WHERE gd.deck_id = $1 AND gm.user_id = $2
+                LIMIT 1
+            `, [id, userId]);
+            if (sharedCheck) isAuthorized = true;
+        }
+
+        if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
 
         const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1 ORDER BY position', [id]);
         const tags = await db.query(
@@ -984,9 +1000,24 @@ app.put('/api/cards/:id/review', optionalAuth, async (req, res) => {
 
     try {
         const userId = req.user?.id || null;
-        const card = await db.queryOne('SELECT c.*, d.user_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = $1', [id]);
+        const card = await db.queryOne('SELECT c.*, d.user_id, d.id as deck_id FROM cards c JOIN decks d ON c.deck_id = d.id WHERE c.id = $1', [id]);
         if (!card) return res.status(404).json({ error: 'Card not found' });
-        if (card.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
+        let isAuthorized = false;
+        if (card.user_id === userId) {
+            isAuthorized = true;
+        } else if (userId) {
+            const sharedCheck = await db.queryOne(`
+                SELECT 1 
+                FROM group_decks gd
+                JOIN group_members gm ON gd.group_id = gm.group_id
+                WHERE gd.deck_id = $1 AND gm.user_id = $2
+                LIMIT 1
+            `, [card.deck_id, userId]);
+            if (sharedCheck) isAuthorized = true;
+        }
+
+        if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
 
         let newDifficulty = card.difficulty || 0;
         if (correct) {
@@ -1019,7 +1050,22 @@ app.post('/api/study-sessions', optionalAuth, async (req, res) => {
         const userId = req.user?.id || null;
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [deck_id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
-        if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
+
+        let isAuthorized = false;
+        if (deck.user_id === userId) {
+            isAuthorized = true;
+        } else if (userId) {
+            const sharedCheck = await db.queryOne(`
+                SELECT 1 
+                FROM group_decks gd
+                JOIN group_members gm ON gd.group_id = gm.group_id
+                WHERE gd.deck_id = $1 AND gm.user_id = $2
+                LIMIT 1
+            `, [deck_id, userId]);
+            if (sharedCheck) isAuthorized = true;
+        }
+
+        if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
 
         const result = await db.queryOne(
             'INSERT INTO study_sessions (deck_id, cards_studied, cards_correct, duration_seconds, session_type) VALUES ($1, $2, $3, $4, $5) RETURNING *',

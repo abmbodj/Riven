@@ -306,7 +306,7 @@ export default function GroupDetails() {
             haptics.medium();
             const session = await api.startGroupSession(id, deckId);
             toast.success('Cram session started!');
-            navigate(`/ groups / ${id} /cram/${session.id} `);
+            navigate(`/groups/${id}/cram/${session.id}`);
         } catch (err) {
             toast.error(err.message || 'Failed to start session');
         }
@@ -371,7 +371,7 @@ export default function GroupDetails() {
                             </h3>
                             <div className="grid gap-3">
                                 {sessions.map(session => (
-                                    <div key={session.id} onClick={() => navigate(`/ groups / ${id} /cram/${session.id} `)} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative">
+                                    <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative">
                                         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-scan" />
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
