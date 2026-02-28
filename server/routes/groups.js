@@ -460,6 +460,171 @@ function registerGroupsRoutes({ app, db, authMiddleware }) {
         }
     });
 
+    // 13. GET /api/groups/:id/folders
+    router.get('/:id/folders', async (req, res) => {
+        const { id } = req.params;
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const folders = await db.query(`
+                SELECT f.*, u.username as created_by_name,
+                       (SELECT COUNT(*) FROM group_files file WHERE file.folder_id = f.id) as file_count
+                FROM group_folders f
+                JOIN users u ON f.created_by = u.id
+                WHERE f.group_id = $1
+                ORDER BY f.name ASC
+            `, [id]);
+            res.json(folders);
+        } catch (error) {
+            console.error('Error fetching folders:', error);
+            res.status(500).json({ error: 'Failed to fetch folders' });
+        }
+    });
+
+    // 14. POST /api/groups/:id/folders
+    router.post('/:id/folders', async (req, res) => {
+        const { id } = req.params;
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Folder name required' });
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const newFolder = await db.queryOne(
+                'INSERT INTO group_folders (group_id, name, created_by) VALUES ($1, $2, $3) RETURNING *',
+                [id, name, req.user.id]
+            );
+            res.json(newFolder);
+        } catch (error) {
+            console.error('Error creating folder:', error);
+            res.status(500).json({ error: 'Failed to create folder' });
+        }
+    });
+
+    // 15. PUT /api/groups/:id/folders/:folderId
+    router.put('/:id/folders/:folderId', async (req, res) => {
+        const { id, folderId } = req.params;
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Folder name required' });
+        try {
+            const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const folder = await db.queryOne('SELECT created_by FROM group_folders WHERE id = $1 AND group_id = $2', [folderId, id]);
+            if (!folder) return res.status(404).json({ error: 'Folder not found' });
+
+            if (memberCheck.role !== 'admin' && folder.created_by !== req.user.id) {
+                return res.status(403).json({ error: 'Only admins or the creator can rename this folder' });
+            }
+
+            const updatedFolder = await db.queryOne(
+                'UPDATE group_folders SET name = $1 WHERE id = $2 RETURNING *',
+                [name, folderId]
+            );
+            res.json(updatedFolder);
+        } catch (error) {
+            console.error('Error updating folder:', error);
+            res.status(500).json({ error: 'Failed to update folder' });
+        }
+    });
+
+    // 16. DELETE /api/groups/:id/folders/:folderId
+    router.delete('/:id/folders/:folderId', async (req, res) => {
+        const { id, folderId } = req.params;
+        try {
+            const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            if (memberCheck.role !== 'admin') {
+                return res.status(403).json({ error: 'Only admins can delete folders' });
+            }
+
+            await db.execute('DELETE FROM group_folders WHERE id = $1 AND group_id = $2', [folderId, id]);
+            res.json({ message: 'Folder deleted' });
+        } catch (error) {
+            console.error('Error deleting folder:', error);
+            res.status(500).json({ error: 'Failed to delete folder' });
+        }
+    });
+
+    // 17. GET /api/groups/:id/files
+    router.get('/:id/files', async (req, res) => {
+        const { id } = req.params;
+        const { folder_id } = req.query;
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            let query = `
+                SELECT f.*, u.username as uploaded_by_name, u.avatar as uploaded_by_avatar
+                FROM group_files f
+                JOIN users u ON f.uploaded_by = u.id
+                WHERE f.group_id = $1
+            `;
+            const params = [id];
+
+            if (folder_id) {
+                if (folder_id === 'null' || folder_id === 'root') {
+                    query += ' AND f.folder_id IS NULL';
+                } else {
+                    query += ' AND f.folder_id = $2';
+                    params.push(folder_id);
+                }
+            }
+
+            query += ' ORDER BY f.uploaded_at DESC';
+
+            const files = await db.query(query, params);
+            res.json(files);
+        } catch (error) {
+            console.error('Error fetching files:', error);
+            res.status(500).json({ error: 'Failed to fetch files' });
+        }
+    });
+
+    // 18. POST /api/groups/:id/files
+    router.post('/:id/files', async (req, res) => {
+        const { id } = req.params;
+        const { name, file_url, file_type, folder_id } = req.body;
+        if (!name || !file_url || !file_type) return res.status(400).json({ error: 'Missing file metadata' });
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const newFile = await db.queryOne(
+                'INSERT INTO group_files (group_id, folder_id, name, file_url, file_type, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                [id, folder_id || null, name, file_url, file_type, req.user.id]
+            );
+            res.json(newFile);
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            res.status(500).json({ error: 'Failed to save file' });
+        }
+    });
+
+    // 19. DELETE /api/groups/:id/files/:fileId
+    router.delete('/:id/files/:fileId', async (req, res) => {
+        const { id, fileId } = req.params;
+        try {
+            const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const file = await db.queryOne('SELECT uploaded_by FROM group_files WHERE id = $1 AND group_id = $2', [fileId, id]);
+            if (!file) return res.status(404).json({ error: 'File not found' });
+
+            if (memberCheck.role !== 'admin' && file.uploaded_by !== req.user.id) {
+                return res.status(403).json({ error: 'Only admins or the uploader can delete this file' });
+            }
+
+            await db.execute('DELETE FROM group_files WHERE id = $1 AND group_id = $2', [fileId, id]);
+            res.json({ message: 'File deleted' });
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            res.status(500).json({ error: 'Failed to delete file' });
+        }
+    });
+
 }
 
 module.exports = registerGroupsRoutes;

@@ -198,6 +198,15 @@ export const api = {
     shareDeckToGroup: (id, deckId) => isLoggedIn() ? serverApi.shareDeckToGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
     removeDeckFromGroup: (id, deckId) => isLoggedIn() ? serverApi.removeDeckFromGroup(id, deckId) : Promise.reject(new Error('Must be logged in')),
 
+    getGroupFolders: (id) => isLoggedIn() ? serverApi.getGroupFolders(id) : Promise.resolve([]),
+    createGroupFolder: (id, name) => isLoggedIn() ? serverApi.createGroupFolder(id, name) : Promise.reject(new Error('Must be logged in')),
+    renameGroupFolder: (id, folderId, name) => isLoggedIn() ? serverApi.renameGroupFolder(id, folderId, name) : Promise.reject(new Error('Must be logged in')),
+    deleteGroupFolder: (id, folderId) => isLoggedIn() ? serverApi.deleteGroupFolder(id, folderId) : Promise.reject(new Error('Must be logged in')),
+
+    getGroupFiles: (id, folderId) => isLoggedIn() ? serverApi.getGroupFiles(id, folderId) : Promise.resolve([]),
+    uploadGroupFile: (id, fileData) => isLoggedIn() ? serverApi.uploadGroupFile(id, fileData) : Promise.reject(new Error('Must be logged in')),
+    deleteGroupFile: (id, fileId) => isLoggedIn() ? serverApi.deleteGroupFile(id, fileId) : Promise.reject(new Error('Must be logged in')),
+
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),
     sendMessage: (toUserId, content, messageType, deckData) => isLoggedIn()

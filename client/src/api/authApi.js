@@ -427,6 +427,21 @@ export const shareDeckToGroup = (id, deck_id) => authFetch(`/groups/${id}/decks`
 });
 export const removeDeckFromGroup = (id, deckId) => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' });
 
+export const getGroupFolders = (id) => safeFetchArray(authFetch(`/groups/${id}/folders`));
+export const createGroupFolder = (id, name) => authFetch(`/groups/${id}/folders`, {
+    method: 'POST', body: JSON.stringify({ name })
+});
+export const renameGroupFolder = (id, folderId, name) => authFetch(`/groups/${id}/folders/${folderId}`, {
+    method: 'PUT', body: JSON.stringify({ name })
+});
+export const deleteGroupFolder = (id, folderId) => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' });
+
+export const getGroupFiles = (id, folderId = null) => safeFetchArray(authFetch(`/groups/${id}/files${folderId ? `?folder_id=${folderId}` : ''}`));
+export const uploadGroupFile = (id, fileData) => authFetch(`/groups/${id}/files`, {
+    method: 'POST', body: JSON.stringify(fileData)
+});
+export const deleteGroupFile = (id, fileId) => authFetch(`/groups/${id}/files/${fileId}`, { method: 'DELETE' });
+
 // ============ ADMIN ENDPOINTS ============
 
 export const adminGetAllUsers = () => safeFetchArray(authFetch('/admin/users'));
@@ -563,4 +578,11 @@ export default {
     getGroupDecks,
     shareDeckToGroup,
     removeDeckFromGroup,
+    getGroupFolders,
+    createGroupFolder,
+    renameGroupFolder,
+    deleteGroupFolder,
+    getGroupFiles,
+    uploadGroupFile,
+    deleteGroupFile,
 };

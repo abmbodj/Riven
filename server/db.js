@@ -290,6 +290,29 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS group_folders (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
+                  name TEXT NOT NULL,
+                  created_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS group_files (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
+                  folder_id UUID REFERENCES group_folders(id) ON DELETE CASCADE,
+                  name TEXT NOT NULL,
+                  file_url TEXT NOT NULL,
+                  file_type TEXT NOT NULL,
+                  uploaded_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  uploaded_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
             // Deck tags junction table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS deck_tags (

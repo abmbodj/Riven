@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, Plus, Play } from 'lucide-react';
+import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, Plus, Play, Folder, FileText, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -21,6 +21,17 @@ export default function GroupDetails() {
     const [showSettings, setShowSettings] = useState(false);
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
 
+    // Files & Folders
+    const [folders, setFolders] = useState([]);
+    const [files, setFiles] = useState([]);
+    const [currentFolderId, setCurrentFolderId] = useState(null);
+    const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+    const [showUploadModal, setShowUploadModal] = useState(false);
+
+    // Form inputs
+    const [newFolderName, setNewFolderName] = useState('');
+    const [uploadData, setUploadData] = useState({ name: '', file_url: '', file_type: 'pdf' });
+
     // Decks user currently owns and can share
     const [myDecks, setMyDecks] = useState([]);
 
@@ -32,14 +43,18 @@ export default function GroupDetails() {
 
     const loadGroup = useCallback(async () => {
         try {
-            const [fetchedGroup, fetchedMembers, fetchedDecks] = await Promise.all([
+            const [fetchedGroup, fetchedMembers, fetchedDecks, fetchedFolders, fetchedFiles] = await Promise.all([
                 api.getGroup(id),
                 api.getGroupMembers(id),
-                api.getGroupDecks(id)
+                api.getGroupDecks(id),
+                api.getGroupFolders(id),
+                api.getGroupFiles(id, currentFolderId)
             ]);
             setGroup(fetchedGroup);
             setMembers(fetchedMembers || []);
             setSharedDecks(fetchedDecks || []);
+            setFolders(fetchedFolders || []);
+            setFiles(fetchedFiles || []);
         } catch (err) {
             console.error(err);
             toast.error('Failed to load group details');
@@ -47,7 +62,7 @@ export default function GroupDetails() {
         } finally {
             setLoading(false);
         }
-    }, [id, navigate, toast]);
+    }, [id, currentFolderId, navigate, toast]);
 
     useEffect(() => {
         loadGroup();
@@ -165,6 +180,52 @@ export default function GroupDetails() {
         });
     };
 
+    const handleCreateFolder = async (e) => {
+        e.preventDefault();
+        if (!newFolderName.trim()) return;
+        try {
+            await api.createGroupFolder(id, newFolderName.trim());
+            toast.success('Folder created');
+            setShowCreateFolderModal(false);
+            setNewFolderName('');
+            loadGroup();
+        } catch (err) {
+            toast.error('Failed to create folder');
+        }
+    };
+
+    const handleDeleteFolder = (folderId) => {
+        confirmAction('Delete Folder', 'This will delete the folder and all files inside it.', async () => {
+            await api.deleteGroupFolder(id, folderId);
+            toast.success('Folder deleted');
+            if (currentFolderId === folderId) setCurrentFolderId(null);
+            loadGroup();
+        });
+    };
+
+    const handleUploadFile = async (e) => {
+        e.preventDefault();
+        if (!uploadData.name.trim() || !uploadData.file_url.trim()) return toast.error('Name and URL required');
+
+        try {
+            await api.uploadGroupFile(id, { ...uploadData, folder_id: currentFolderId });
+            toast.success('File uploaded');
+            setShowUploadModal(false);
+            setUploadData({ name: '', file_url: '', file_type: 'pdf' });
+            loadGroup();
+        } catch (err) {
+            toast.error('Failed to upload file');
+        }
+    };
+
+    const handleDeleteFile = (fileId) => {
+        confirmAction('Remove File', 'Are you sure you want to remove this file?', async () => {
+            await api.deleteGroupFile(id, fileId);
+            toast.success('File removed');
+            loadGroup();
+        });
+    };
+
     if (loading) {
         return (
             <div className="p-6 pt-4 pb-24 min-h-screen space-y-4">
@@ -264,6 +325,90 @@ export default function GroupDetails() {
                             ))
                         )}
                     </div>
+
+                    {/* Shared Files & Folders */}
+                    <div className="flex items-center justify-between py-6 mt-2 mb-4">
+                        <h3 className="font-serif italic text-2xl text-botanical-parchment flex items-center gap-2">
+                            <Folder className="w-6 h-6 text-claude-accent opacity-70" /> Files & Folders
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowCreateFolderModal(true)}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors tap-action"
+                            >
+                                <Plus className="w-3.5 h-3.5" /> Folder
+                            </button>
+                            <button
+                                onClick={() => setShowUploadModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-[#162a31] transition-colors tap-action"
+                            >
+                                <Upload className="w-3.5 h-3.5" /> Upload
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-claude-bg border border-claude-border rounded-xl overflow-hidden mb-8">
+                        {currentFolderId && (
+                            <div
+                                onClick={() => setCurrentFolderId(null)}
+                                className="p-3 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border-b border-claude-border flex items-center gap-2 cursor-pointer hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4 text-claude-secondary" />
+                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Back to root</span>
+                            </div>
+                        )}
+
+                        {!currentFolderId && folders.length === 0 && files.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Empty Directory</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-claude-border/50">
+                                {!currentFolderId && folders.map(folder => (
+                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] cursor-pointer transition-colors group">
+                                        <div className="flex items-center gap-3">
+                                            <Folder className="w-5 h-5 text-amber-500/80" fill="currentColor" />
+                                            <div>
+                                                <h4 className="font-serif font-bold text-botanical-parchment group-hover:text-claude-accent transition-colors">{folder.name}</h4>
+                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest">{folder.file_count || 0} files • By @{folder.created_by_name}</p>
+                                            </div>
+                                        </div>
+                                        {isAdmin && (
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {files.map(file => (
+                                    <div key={file.id} className="p-4 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] transition-colors group">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] flex items-center justify-center shrink-0">
+                                                <FileText className="w-5 h-5 text-claude-secondary" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <a href={file.file_url} target="_blank" rel="noreferrer" className="font-serif font-bold text-botanical-parchment hover:text-claude-accent transition-colors truncate block">{file.name}</a>
+                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-0.5 truncate">{file.file_type.toUpperCase()} • Uploaded by @{file.uploaded_by_name}</p>
+                                            </div>
+                                        </div>
+                                        {(isAdmin || file.uploaded_by === currentUserId) && (
+                                            <button onClick={() => handleDeleteFile(file.id)} className="p-2 opacity-0 group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {currentFolderId && files.length === 0 && (
+                                    <div className="p-6 text-center">
+                                        <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Folder is empty</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
 
                 {/* Members List */}
@@ -405,6 +550,113 @@ export default function GroupDetails() {
                                 )}
                             </div>
                         </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Create Folder Modal */}
+            <AnimatePresence>
+                {showCreateFolderModal && (
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreateFolderModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.form
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            onSubmit={handleCreateFolder}
+                            className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">New Folder</h3>
+                                <button type="button" onClick={() => setShowCreateFolderModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Folder Name</label>
+                                    <input
+                                        type="text"
+                                        value={newFolderName}
+                                        onChange={e => setNewFolderName(e.target.value)}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                        placeholder="e.g. Midterm Reviews"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={!newFolderName.trim()}
+                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                            >
+                                Create
+                            </button>
+                        </motion.form>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Upload File Modal */}
+            <AnimatePresence>
+                {showUploadModal && (
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUploadModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.form
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            onSubmit={handleUploadFile}
+                            className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment flex items-center gap-2">
+                                    {currentFolderId && <Folder className="w-5 h-5 text-claude-accent" />}
+                                    Upload File
+                                </h3>
+                                <button type="button" onClick={() => setShowUploadModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Name</label>
+                                    <input
+                                        type="text"
+                                        value={uploadData.name}
+                                        onChange={e => setUploadData({ ...uploadData, name: e.target.value })}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                        placeholder="e.g. Chapter 1 Notes"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Mock File URL (Google Drive, AWS, etc)</label>
+                                    <input
+                                        type="url"
+                                        value={uploadData.file_url}
+                                        onChange={e => setUploadData({ ...uploadData, file_url: e.target.value })}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">File Type</label>
+                                    <select
+                                        value={uploadData.file_type}
+                                        onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })}
+                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                    >
+                                        <option value="pdf">PDF Document</option>
+                                        <option value="image">Image (PNG/JPG)</option>
+                                        <option value="docx">Word Document</option>
+                                        <option value="link">Web Link</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={!uploadData.name.trim() || !uploadData.file_url.trim()}
+                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                            >
+                                Upload
+                            </button>
+                        </motion.form>
                     </div>
                 )}
             </AnimatePresence>
