@@ -161,7 +161,7 @@ export default function GroupDetails() {
     };
 
     const confirmAction = (title, message, action) => {
-        haptics.warning();
+        if (haptics && haptics.medium) haptics.medium();
         setConfirmModal({ show: true, title, message, action });
     };
 
