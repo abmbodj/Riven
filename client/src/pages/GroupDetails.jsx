@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, Plus, Play, Folder, FileText, Upload, Zap, Activity, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '../hooks/useToast';
 import { api } from '../api';
 import ConfirmModal from '../components/ConfirmModal';
@@ -143,7 +143,7 @@ export default function GroupDetails() {
             toast.success('Group updated');
             setShowSettings(false);
 
-            // Explicitly force a fresh reload from the server to wipe out old UI state
+            // Clear current group state to avoid stale class labels
             setGroup(null);
             loadGroup();
         } catch (err) {
@@ -388,6 +388,17 @@ export default function GroupDetails() {
                             {copied ? <CheckCircle2 className="w-5 h-5 text-claude-accent" /> : <Copy className="w-4 h-4 text-claude-accent opacity-70" />}
                         </div>
                         <p className="text-[10px] font-mono text-claude-secondary/60 mt-2 uppercase tracking-wide">Share code to invite members</p>
+
+                        {/* Prominent Start Cram Button */}
+                        <div className="mt-6 pt-6 border-t border-[#d1c9b8]/30">
+                            <button
+                                onClick={() => setShowShareDeckModal(true)}
+                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 flex items-center justify-center gap-2"
+                            >
+                                <Zap className="w-5 h-5 fill-current" />
+                                Start Group Cram
+                            </button>
+                        </div>
                     </div>
 
                     {/* Live Cram Sessions */}
@@ -439,23 +450,23 @@ export default function GroupDetails() {
                         ) : (
                             sharedDecks.map(deck => (
                                 <div key={deck.id} className="group/deck relative bg-claude-bg border border-claude-border rounded-xl p-4 overflow-hidden shadow-sm hover:shadow-md transition-all tap-action flex items-center gap-4">
-                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
+                                    <div className="flex-1 min-w-0 pr-4" onClick={() => navigate(`/deck/${deck.id}`)}>
                                         <h4 className="font-serif font-bold text-lg text-botanical-parchment truncate leading-tight group-hover/deck:text-claude-accent transition-colors">{deck.title}</h4>
                                         <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-claude-secondary uppercase tracking-widest">
                                             <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {deck.card_count || 0} Cards</span>
                                             <span className="flex items-center gap-1">Shared by @{deck.shared_by_name}</span>
                                         </div>
                                     </div>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                                    <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
                                             className="px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-[#162a31] transition-colors flex items-center gap-1.5 tap-action shrink-0"
                                         >
-                                            <Zap className="w-3.5 h-3.5" /> Cram
+                                            <Zap className="w-3.5 h-3.5 fill-current" /> Cram
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
-                                            className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg tap-action"
+                                            className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg tap-action shrink-0"
                                             title="Remove Deck"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -514,7 +525,7 @@ export default function GroupDetails() {
                                             </div>
                                         </div>
                                         {isAdmin && (
-                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">
+                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-400 transition-all tap-action">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
@@ -533,7 +544,7 @@ export default function GroupDetails() {
                                             </div>
                                         </div>
                                         {(isAdmin || file.uploaded_by === currentUserId) && (
-                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="p-2 opacity-0 group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0">
+                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="p-2 sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0 tap-action">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
@@ -678,9 +689,12 @@ export default function GroupDetails() {
                                 ) : (
                                     <div className="space-y-3">
                                         {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).map(deck => (
-                                            <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl cursor-pointer transition-colors tap-action">
-                                                <h4 className="font-serif font-bold text-lg text-botanical-parchment">{deck.title}</h4>
-                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">Click to share</p>
+                                            <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-xl cursor-pointer transition-colors tap-action group/item flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="font-serif font-bold text-lg text-botanical-parchment">{deck.title}</h4>
+                                                    <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">Click to share with group</p>
+                                                </div>
+                                                <Plus className="w-5 h-5 text-claude-accent opacity-50 group-hover/item:opacity-100" />
                                             </div>
                                         ))}
                                         {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).length === 0 && (
