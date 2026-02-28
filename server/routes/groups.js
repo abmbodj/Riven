@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const express = require('express');
 
 module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) {
     const router = express.Router();
@@ -802,5 +803,3 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
     });
 
 }
-
-module.exports = registerGroupsRoutes;
