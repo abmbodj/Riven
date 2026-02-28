@@ -25,6 +25,8 @@ const Settings = lazy(() => import('../pages/Settings.jsx'));
 const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
 const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
 
+const GroupCram = lazy(() => import('../pages/GroupCram.jsx'));
+
 export const routesConfig = [
   // Public Routes
   { path: '/', element: <Home /> },
@@ -52,6 +54,7 @@ export const routesConfig = [
       { path: '/profile/:userId', element: <UserProfile /> },
       { path: '/groups', element: <StudyGroups /> },
       { path: '/groups/:id', element: <GroupDetails /> },
+      { path: '/groups/:groupId/cram/:sessionId', element: <GroupCram /> },
     ],
   },
 

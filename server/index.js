@@ -324,7 +324,7 @@ registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 // ============ GROUPS ============
 
-registerGroupsRoutes({ app, db, authMiddleware });
+registerGroupsRoutes({ app, db, authMiddleware, io });
 
 // ============ MESSAGES ============
 

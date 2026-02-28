@@ -437,10 +437,31 @@ export const renameGroupFolder = (id, folderId, name) => authFetch(`/groups/${id
 export const deleteGroupFolder = (id, folderId) => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' });
 
 export const getGroupFiles = (id, folderId = null) => safeFetchArray(authFetch(`/groups/${id}/files${folderId ? `?folder_id=${folderId}` : ''}`));
-export const uploadGroupFile = (id, fileData) => authFetch(`/groups/${id}/files`, {
-    method: 'POST', body: JSON.stringify(fileData)
+export const uploadGroupFile = (id, data) => authFetch(`/groups/${id}/files`, {
+    method: 'POST',
+    body: JSON.stringify(data)
 });
-export const deleteGroupFile = (id, fileId) => authFetch(`/groups/${id}/files/${fileId}`, { method: 'DELETE' });
+export const deleteGroupFile = (id, fileId) => authFetch(`/groups/${id}/files/${fileId}`, {
+    method: 'DELETE'
+});
+
+// Cram Sessions
+export const getGroupSessions = (id) => safeFetchArray(authFetch(`/groups/${id}/sessions`));
+export const startGroupSession = (id, deckId) => authFetch(`/groups/${id}/sessions`, {
+    method: 'POST',
+    body: JSON.stringify({ deck_id: deckId })
+});
+export const joinGroupSession = (sessionId) => authFetch(`/groups/sessions/${sessionId}/join`, {
+    method: 'POST'
+});
+export const respondToSessionCard = (sessionId, cardId, knewIt) => authFetch(`/groups/sessions/${sessionId}/respond`, {
+    method: 'POST',
+    body: JSON.stringify({ card_id: cardId, knew_it: knewIt })
+});
+export const getSessionResults = (sessionId) => authFetch(`/groups/sessions/${sessionId}/results`);
+export const endGroupSession = (sessionId) => authFetch(`/groups/sessions/${sessionId}/end`, {
+    method: 'POST'
+});
 
 // ============ ADMIN ENDPOINTS ============
 

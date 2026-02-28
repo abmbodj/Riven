@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, Plus, Play, Folder, FileText, Upload } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { api } from '../api';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../hooks/useToast';
+import { api } from '../api';
 import ConfirmModal from '../components/ConfirmModal';
 import useHaptics from '../hooks/useHaptics';
+import { useAuth } from '../hooks/useAuth';
 
 export default function GroupDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const toast = useToast();
     const haptics = useHaptics();
+    const { socket } = useAuth();
 
     const [group, setGroup] = useState(null);
     const [members, setMembers] = useState([]);
@@ -36,6 +36,9 @@ export default function GroupDetails() {
     // Decks user currently owns and can share
     const [myDecks, setMyDecks] = useState([]);
 
+    // Active Cram Sessions
+    const [sessions, setSessions] = useState([]);
+
     const [editData, setEditData] = useState({ name: '', class_id: '' });
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
@@ -44,18 +47,23 @@ export default function GroupDetails() {
 
     const loadGroup = useCallback(async () => {
         try {
-            const [fetchedGroup, fetchedMembers, fetchedDecks, fetchedFolders, fetchedFiles] = await Promise.all([
-                api.getGroup(id),
+            const [groupRes, membersRes, decksRes, sessionsRes] = await Promise.all([
+                api.getGroupInfo(id),
                 api.getGroupMembers(id),
                 api.getGroupDecks(id),
-                api.getGroupFolders(id),
-                api.getGroupFiles(id, currentFolderId)
+                api.getGroupSessions(id)
             ]);
-            setGroup(fetchedGroup);
-            setMembers(fetchedMembers || []);
-            setSharedDecks(fetchedDecks || []);
+            setGroup(groupRes);
+            setMembers(membersRes || []);
+            setSharedDecks(decksRes || []);
+            setSessions(sessionsRes || []);
+
+            // Load folders and files
+            const fetchedFolders = await api.getGroupFolders(id);
             setFolders(fetchedFolders || []);
+            const fetchedFiles = await api.getGroupFiles(id, currentFolderId);
             setFiles(fetchedFiles || []);
+
         } catch (err) {
             console.error(err);
             toast.error('Failed to load group details');
@@ -67,7 +75,33 @@ export default function GroupDetails() {
 
     useEffect(() => {
         loadGroup();
-    }, [loadGroup]);
+
+        // Listen for real-time session events
+        const onSessionStarted = (data) => {
+            // New session started in this group
+            if (data && data.sessionId) {
+                loadGroup(); // refresh to get full session details from DB
+                toast('A live cram session just started!', { icon: '🔥' });
+            }
+        };
+
+        const onSessionEnded = () => {
+            loadGroup(); // refresh
+        };
+
+        if (socket) {
+            socket.on(`group-${id}-session-started`, onSessionStarted);
+            socket.on('session-ended', onSessionEnded); // if this socket was also in the room
+        }
+
+        return () => {
+            if (socket) {
+                socket.off(`group-${id}-session-started`, onSessionStarted);
+                socket.off('session-ended', onSessionEnded);
+            }
+        };
+
+    }, [id, loadGroup, socket]);
 
     useEffect(() => {
         if (showSettings) {
@@ -154,7 +188,7 @@ export default function GroupDetails() {
     };
 
     const handleRemoveMember = (userId, name) => {
-        confirmAction('Remove Member', `Remove ${name} from the group?`, async () => {
+        confirmAction('Remove Member', `Remove ${name} from the group ? `, async () => {
             await api.removeGroupMember(id, userId);
             toast.success('Member removed');
             loadGroup();
@@ -227,7 +261,7 @@ export default function GroupDetails() {
         try {
             // Wait for AI generation (using mock url as notes string placeholder for now)
             const deckRes = await api.generateAiDeck(
-                `File reference: ${uploadData.file_url}`,
+                `File reference: ${uploadData.file_url} `,
                 null,
                 `${uploadData.name} Flashcards`,
                 group?.class_id
@@ -263,6 +297,17 @@ export default function GroupDetails() {
             toast.success('File removed');
             loadGroup();
         });
+    };
+
+    const handleStartSession = async (deckId) => {
+        try {
+            haptics.medium();
+            const session = await api.startGroupSession(id, deckId);
+            toast.success('Cram session started!');
+            navigate(`/ groups / ${id} /cram/${session.id} `);
+        } catch (err) {
+            toast.error(err.message || 'Failed to start session');
+        }
     };
 
     if (loading) {
@@ -316,6 +361,34 @@ export default function GroupDetails() {
                         <p className="text-[10px] font-mono text-claude-secondary/60 mt-2 uppercase tracking-wide">Share code to invite members</p>
                     </div>
 
+                    {/* Live Cram Sessions */}
+                    {sessions.length > 0 && (
+                        <div className="space-y-4 mb-8">
+                            <h3 className="font-serif italic text-2xl text-red-400 mb-2 flex items-center gap-2">
+                                <Activity className="w-6 h-6 animate-pulse" /> Live Sessions
+                            </h3>
+                            <div className="grid gap-3">
+                                {sessions.map(session => (
+                                    <div key={session.id} onClick={() => navigate(`/ groups / ${id} /cram/${session.id} `)} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative">
+                                        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-scan" />
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                                                <h4 className="font-serif font-bold text-red-200">{session.deck_title}</h4>
+                                            </div>
+                                            <p className="font-mono text-[9px] uppercase tracking-widest text-red-300 ml-4">
+                                                {session.active_members || 1} members reading
+                                            </p>
+                                        </div>
+                                        <button className="px-4 py-2 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-lg shadow-red-500/20 group-hover:bg-red-600 transition-colors">
+                                            Join Now
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Placeholder for future features */}
                     <div className="flex items-center justify-between py-6 mt-2 mb-4">
                         <h3 className="font-serif italic text-2xl text-botanical-parchment flex items-center gap-2">
@@ -337,28 +410,28 @@ export default function GroupDetails() {
                         ) : (
                             sharedDecks.map(deck => (
                                 <div key={deck.id} className="group/deck relative bg-claude-bg border border-claude-border rounded-xl p-4 overflow-hidden shadow-sm hover:shadow-md transition-all tap-action flex items-center gap-4">
-                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
+                                    <div className="flex-1 min-w-0" onClick={() => navigate(`/ deck / ${deck.id} `)}>
                                         <h4 className="font-serif font-bold text-lg text-botanical-parchment truncate leading-tight group-hover/deck:text-claude-accent transition-colors">{deck.title}</h4>
                                         <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-claude-secondary uppercase tracking-widest">
                                             <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {deck.card_count || 0} Cards</span>
                                             <span className="flex items-center gap-1">Shared by @{deck.shared_by_name}</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); navigate(`/deck/${deck.id}/study`); }}
-                                            className="w-10 h-10 rounded-full bg-claude-accent/10 text-claude-accent flex items-center justify-center hover:bg-claude-accent hover:text-[#162a31] transition-colors"
+                                            onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
+                                            className="p-2 text-claude-secondary hover:text-amber-400 transition-colors bg-black/20 rounded-lg flex items-center gap-1 tap-action"
+                                            title="Start Group Cram Session"
                                         >
-                                            <Play className="w-5 h-5 ml-1" />
+                                            <Zap className="w-4 h-4" />
                                         </button>
-                                        {(isAdmin || deck.shared_by === currentUserId) && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
-                                                className="w-8 h-8 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
+                                            className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg tap-action"
+                                            title="Remove Deck"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
                             ))

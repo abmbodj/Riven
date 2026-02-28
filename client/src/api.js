@@ -187,7 +187,7 @@ export const api = {
     // ============ STUDY GROUPS ============
     getGroups: () => isLoggedIn() ? serverApi.getGroups() : Promise.resolve([]),
     createGroup: (name, classId) => isLoggedIn() ? serverApi.createGroup(name, classId) : Promise.reject(new Error('Must be logged in')),
-    getGroup: (id) => isLoggedIn() ? serverApi.getGroup(id) : Promise.reject(new Error('Must be logged in')),
+    getGroupInfo: (id) => isLoggedIn() ? serverApi.getGroup(id) : Promise.reject(new Error('Must be logged in')),
     updateGroup: (id, updates) => isLoggedIn() ? serverApi.updateGroup(id, updates) : Promise.reject(new Error('Must be logged in')),
     deleteGroup: (id) => isLoggedIn() ? serverApi.deleteGroup(id) : Promise.reject(new Error('Must be logged in')),
     joinGroup: (joinCode) => isLoggedIn() ? serverApi.joinGroup(joinCode) : Promise.reject(new Error('Must be logged in')),
@@ -206,6 +206,13 @@ export const api = {
     getGroupFiles: (id, folderId) => isLoggedIn() ? serverApi.getGroupFiles(id, folderId) : Promise.resolve([]),
     uploadGroupFile: (id, fileData) => isLoggedIn() ? serverApi.uploadGroupFile(id, fileData) : Promise.reject(new Error('Must be logged in')),
     deleteGroupFile: (id, fileId) => isLoggedIn() ? serverApi.deleteGroupFile(id, fileId) : Promise.reject(new Error('Must be logged in')),
+    // Cram Sessions
+    getGroupSessions: (id) => isLoggedIn() ? serverApi.getGroupSessions(id) : Promise.resolve([]),
+    startGroupSession: (id, deckId) => isLoggedIn() ? serverApi.startGroupSession(id, deckId) : Promise.reject(new Error('Must be logged in')),
+    joinGroupSession: (sessionId) => isLoggedIn() ? serverApi.joinGroupSession(sessionId) : Promise.reject(new Error('Must be logged in')),
+    respondToSessionCard: (sessionId, cardId, knewIt) => isLoggedIn() ? serverApi.respondToSessionCard(sessionId, cardId, knewIt) : Promise.reject(new Error('Must be logged in')),
+    getSessionResults: (sessionId) => isLoggedIn() ? serverApi.getSessionResults(sessionId) : Promise.reject(new Error('Must be logged in')),
+    endGroupSession: (sessionId) => isLoggedIn() ? serverApi.endGroupSession(sessionId) : Promise.reject(new Error('Must be logged in')),
 
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),

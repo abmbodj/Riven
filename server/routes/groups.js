@@ -1,6 +1,6 @@
-const express = require('express');
+const crypto = require('crypto');
 
-function registerGroupsRoutes({ app, db, authMiddleware }) {
+module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) {
     const router = express.Router();
 
     // Mount router at /api/groups
@@ -622,6 +622,182 @@ function registerGroupsRoutes({ app, db, authMiddleware }) {
         } catch (error) {
             console.error('Error deleting file:', error);
             res.status(500).json({ error: 'Failed to delete file' });
+        }
+    });
+
+    // ==========================================
+    // CRAM SESSIONS (Phase 5)
+    // ==========================================
+
+    // 20. GET /api/groups/:id/sessions
+    router.get('/:id/sessions', async (req, res) => {
+        const { id } = req.params;
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const sessions = await db.query(`
+                SELECT s.*, d.title as deck_title, d.description as deck_desc, u.username as started_by_name,
+                       (SELECT COUNT(DISTINCT user_id) FROM cram_responses WHERE session_id = s.id) as active_members
+                FROM cram_sessions s
+                JOIN decks d ON s.deck_id = d.id
+                JOIN users u ON s.started_by = u.id
+                WHERE s.group_id = $1 AND s.status = 'active'
+                ORDER BY s.started_at DESC
+            `, [id]);
+            res.json(sessions);
+        } catch (error) {
+            console.error('Error fetching sessions:', error);
+            res.status(500).json({ error: 'Failed to fetch active sessions' });
+        }
+    });
+
+    // 21. POST /api/groups/:id/sessions
+    router.post('/:id/sessions', async (req, res) => {
+        const { id } = req.params;
+        const { deck_id } = req.body;
+        if (!deck_id) return res.status(400).json({ error: 'Deck ID required' });
+
+        try {
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            const newSession = await db.queryOne(
+                'INSERT INTO cram_sessions (group_id, deck_id, started_by) VALUES ($1, $2, $3) RETURNING *',
+                [id, deck_id, req.user.id]
+            );
+
+            // Optional: Broadcast explicitly to the group room if we track them
+            if (io) {
+                io.emit(`group-${id}-session-started`, { sessionId: newSession.id, deckId: deck_id });
+            }
+
+            res.json(newSession);
+        } catch (error) {
+            console.error('Error starting session:', error);
+            res.status(500).json({ error: 'Failed to start session' });
+        }
+    });
+
+    // 22. POST /api/sessions/:sessionId/join
+    // Note: Registered globally on the app, not just groups router to keep URLs simple,
+    // but we can mount it here and adjust the prefix 
+    // We'll actually map this inside the existing router, so it will be /api/groups/sessions/:sessionId/join to avoid root router pollution
+    router.post('/sessions/:sessionId/join', async (req, res) => {
+        const { sessionId } = req.params;
+        try {
+            const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1 AND status = $2', [sessionId, 'active']);
+            if (!session) return res.status(404).json({ error: 'Active session not found' });
+
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
+
+            // Just return success. Real-time presence is handled by clients tracking via socket.io rooms (e.g., room "session-UUID")
+            res.json({ message: 'Joined session successfully', session });
+        } catch (error) {
+            console.error('Error joining session:', error);
+            res.status(500).json({ error: 'Failed to join session' });
+        }
+    });
+
+    // 23. POST /api/groups/sessions/:sessionId/respond
+    router.post('/sessions/:sessionId/respond', async (req, res) => {
+        const { sessionId } = req.params;
+        const { card_id, knew_it } = req.body;
+        if (!card_id || knew_it === undefined) return res.status(400).json({ error: 'Missing response data' });
+
+        try {
+            // Upsert response
+            await db.query(`
+                INSERT INTO cram_responses (session_id, user_id, card_id, knew_it) 
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (session_id, user_id, card_id) 
+                DO UPDATE SET knew_it = EXCLUDED.knew_it, responded_at = now()
+            `, [sessionId, req.user.id, card_id, knew_it]);
+
+            // Broadcast via Socket so other group members see progress indicator blips
+            if (io) {
+                // We emit to everyone tracking this session ID
+                io.to(`session-${sessionId}`).emit('session-progress', { userId: req.user.id });
+            }
+
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error recording session response:', error);
+            res.status(500).json({ error: 'Failed to record response' });
+        }
+    });
+
+    // 24. GET /api/groups/sessions/:sessionId/results
+    router.get('/sessions/:sessionId/results', async (req, res) => {
+        const { sessionId } = req.params;
+        try {
+            const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1', [sessionId]);
+            if (!session) return res.status(404).json({ error: 'Session not found' });
+
+            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
+            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
+
+            // Calculate cards that the majority of the group got wrong
+            const results = await db.query(`
+                WITH CardStats as (
+                    SELECT 
+                        card_id, 
+                        COUNT(user_id) as total_responses,
+                        SUM(CASE WHEN knew_it = false THEN 1 ELSE 0 END) as incorrect_count
+                    FROM cram_responses
+                    WHERE session_id = $1
+                    GROUP BY card_id
+                )
+                SELECT c.*, cs.total_responses, cs.incorrect_count
+                FROM CardStats cs
+                JOIN cards c ON cs.card_id = c.id
+                WHERE cs.incorrect_count > 0 
+                  AND CAST(cs.incorrect_count AS FLOAT) / cs.total_responses >= 0.5
+                ORDER BY cs.incorrect_count DESC
+                LIMIT 10
+            `, [sessionId]);
+
+            // Also send back personal stats for this specific user
+            const personalStats = await db.queryOne(`
+                SELECT 
+                    COUNT(*) as total_answered,
+                    SUM(CASE WHEN knew_it = true THEN 1 ELSE 0 END) as total_correct
+                FROM cram_responses
+                WHERE session_id = $1 AND user_id = $2
+            `, [sessionId, req.user.id]);
+
+            res.json({ weakSpots: results, personalStats });
+        } catch (error) {
+            console.error('Error fetching session results:', error);
+            res.status(500).json({ error: 'Failed to compute session results' });
+        }
+    });
+
+    // 25. POST /api/groups/sessions/:sessionId/end (Admin or creator)
+    router.post('/sessions/:sessionId/end', async (req, res) => {
+        const { sessionId } = req.params;
+        try {
+            const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1', [sessionId]);
+            if (!session) return res.status(404).json({ error: 'Session not found' });
+
+            if (session.started_by !== req.user.id) {
+                const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
+                if (!memberCheck || memberCheck.role !== 'admin') {
+                    return res.status(403).json({ error: 'Only the session starter or an admin can end the session' });
+                }
+            }
+
+            await db.execute("UPDATE cram_sessions SET status = 'ended', ended_at = now() WHERE id = $1", [sessionId]);
+
+            if (io) {
+                io.to(`session-${sessionId}`).emit('session-ended');
+            }
+
+            res.json({ message: 'Session ended' });
+        } catch (error) {
+            console.error('Error ending session:', error);
+            res.status(500).json({ error: 'Failed to end session' });
         }
     });
 

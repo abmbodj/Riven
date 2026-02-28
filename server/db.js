@@ -313,6 +313,29 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS cram_sessions (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
+                  deck_id INTEGER REFERENCES decks(id) ON DELETE CASCADE,
+                  started_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  started_at TIMESTAMPTZ DEFAULT now(),
+                  ended_at TIMESTAMPTZ,
+                  status TEXT DEFAULT 'active'
+                )
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS cram_responses (
+                  session_id UUID REFERENCES cram_sessions(id) ON DELETE CASCADE,
+                  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                  card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,
+                  knew_it BOOLEAN NOT NULL,
+                  responded_at TIMESTAMPTZ DEFAULT now(),
+                  PRIMARY KEY (session_id, user_id, card_id)
+                )
+            `);
+
             // Deck tags junction table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS deck_tags (
