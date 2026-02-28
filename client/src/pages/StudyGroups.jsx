@@ -118,59 +118,87 @@ export default function StudyGroups() {
                 </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="px-4 sm:px-6 mb-8 grid grid-cols-2 gap-4">
+            {/* Action Buttons (Bento Grid Style) */}
+            <div className="px-4 sm:px-6 mb-10 grid grid-cols-2 gap-4">
                 <button
                     onClick={() => { haptics.light(); setShowCreateModal(true); }}
-                    className="flex flex-col items-center justify-center py-6 px-4 bg-claude-accent/10 border border-claude-accent/30 rounded-2xl text-claude-accent hover:bg-claude-accent/20 transition-all tap-action group min-h-[120px]"
+                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] bg-claude-surface border border-claude-border rounded-3xl tap-action transition-all duration-300 hover:-translate-y-1 hover:border-claude-accent/40 shadow-sm hover:shadow-claude-accent/10"
                 >
-                    <Plus className="w-8 h-8 mb-2 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
-                    <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-[#162a31]">Create Group</span>
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-claude-accent/5 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-claude-accent/10 transition-colors duration-500" />
+
+                    <div className="w-12 h-12 mb-3 bg-claude-accent/10 rounded-2xl flex items-center justify-center border border-claude-accent/20 group-hover:scale-110 transition-transform duration-300 ease-out">
+                        <Plus className="w-6 h-6 text-claude-accent" />
+                    </div>
+                    <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-text group-hover:text-claude-accent transition-colors">Create Group</span>
                 </button>
+
                 <button
                     onClick={() => { haptics.light(); setShowJoinModal(true); }}
-                    className="flex flex-col items-center justify-center py-6 px-4 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-2xl text-botanical-parchment hover:border-claude-accent/30 transition-all tap-action group min-h-[120px]"
+                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-3xl tap-action transition-all duration-300 hover:-translate-y-1 hover:border-claude-secondary/40 shadow-sm"
                 >
-                    <LinkIcon className="w-8 h-8 mb-2 opacity-60 group-hover:scale-110 transition-transform" />
-                    <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Join via Code</span>
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+                    <div className="w-12 h-12 mb-3 bg-claude-surface rounded-2xl flex items-center justify-center border border-claude-border group-hover:scale-110 transition-transform duration-300 ease-out">
+                        <LinkIcon className="w-6 h-6 text-claude-secondary group-hover:text-claude-text transition-colors" />
+                    </div>
+                    <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary group-hover:text-claude-text transition-colors">Join Code</span>
                 </button>
             </div>
 
             {/* Groups List */}
             <div className="px-4 sm:px-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-serif italic text-xl text-claude-secondary">Your Squads</h2>
+                </div>
+
                 {groups.length === 0 ? (
-                    <div className="text-center py-16 bg-[color-mix(in_srgb,var(--surface-color)_10%,transparent)] border-2 border-dashed border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] rounded-3xl">
-                        <Users className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Study Groups</h3>
-                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Create or join a group to collaborate.</p>
+                    <div className="relative overflow-hidden text-center py-20 px-6 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border/50 rounded-3xl">
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-claude-bg/50 pointer-events-none" />
+                        <div className="relative z-10">
+                            <div className="w-16 h-16 mx-auto mb-5 bg-[color-mix(in_srgb,var(--surface-color)_60%,transparent)] rounded-2xl flex items-center justify-center border border-claude-border transform -rotate-6">
+                                <Users className="w-8 h-8 text-claude-accent opacity-40" />
+                            </div>
+                            <h3 className="font-serif italic text-2xl text-claude-text mb-2">The vault is empty</h3>
+                            <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">
+                                Join a squad or forge your own to begin collaborating.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {groups.map((group, i) => (
                             <motion.div
                                 key={group.id}
-                                initial={{ opacity: 0, y: 10 }}
+                                initial={{ opacity: 0, y: 15 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }}
+                                transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                                 onClick={() => navigate(`/groups/${group.id}`)}
-                                className="bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer tap-action group relative overflow-hidden"
+                                className="bg-claude-surface border border-claude-border rounded-[1.5rem] p-6 shadow-sm hover:shadow-claude-accent/5 transition-all duration-300 cursor-pointer tap-action group relative overflow-hidden hover:-translate-y-1"
                             >
-                                <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                                <div className="flex justify-between items-start mb-3 gap-3">
-                                    <h3 className="font-serif text-2xl font-bold text-[#1a1c1d] italic group-hover:text-claude-accent transition-colors break-words line-clamp-2">{group.name}</h3>
-                                    <ArrowRight className="w-5 h-5 text-claude-secondary opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1 shrink-0 mt-1" />
+                                <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+                                <div className="flex justify-between items-start mb-6 gap-3 relative z-10">
+                                    <h3 className="font-serif text-2xl font-bold text-claude-text italic group-hover:text-claude-accent transition-colors break-words line-clamp-2 leading-tight pr-8">{group.name}</h3>
+                                    <div className="absolute right-0 top-1 w-8 h-8 bg-[color-mix(in_srgb,var(--bg-color)_60%,transparent)] rounded-full flex items-center justify-center border border-claude-border group-hover:border-claude-accent/30 transition-colors">
+                                        <ArrowRight className="w-4 h-4 text-claude-secondary group-hover:text-claude-accent transition-colors transform group-hover:translate-x-0.5" />
+                                    </div>
                                 </div>
 
-                                <div className="flex flex-col gap-2 mt-4">
-                                    {group.class_name && (
-                                        <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider text-[#5d6466] truncate">
-                                            <Calendar className="w-3.5 h-3.5 opacity-60 shrink-0" />
-                                            <span className="truncate">{group.class_name}</span>
+                                <div className="flex items-center gap-3 relative z-10">
+                                    {group.class_name ? (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg-color)_60%,transparent)] rounded-lg border border-claude-border">
+                                            <Calendar className="w-3 h-3 text-claude-secondary" />
+                                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary truncate max-w-[100px]">{group.class_name}</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--bg-color)_60%,transparent)] rounded-lg border border-claude-border">
+                                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary">Independent</span>
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider text-[#5d6466] truncate mt-1">
-                                        <Users className="w-3.5 h-3.5 opacity-60 shrink-0" />
-                                        <span className="truncate">{parseInt(group.member_count) || 1} Members</span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/5 rounded-lg border border-claude-accent/20">
+                                        <Users className="w-3 h-3 text-claude-accent" />
+                                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-accent">{parseInt(group.member_count) || 1}</span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -182,40 +210,43 @@ export default function StudyGroups() {
             {/* Create Modal */}
             <AnimatePresence>
                 {showCreateModal && (
-                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreateModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={() => setShowCreateModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.form
-                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onSubmit={handleCreate}
-                            className="relative bg-claude-bg w-full max-w-lg p-8 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe"
+                            className="relative bg-claude-surface w-full max-w-lg p-8 rounded-t-[2.5rem] sm:rounded-3xl border border-claude-border pb-safe"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Create Group</h3>
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
-                                    <X className="w-6 h-6" />
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Forge Group</h3>
+                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Establish a new knowledge vault</p>
+                                </div>
+                                <button type="button" onClick={() => setShowCreateModal(false)} className="w-10 h-10 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] rounded-full flex items-center justify-center text-claude-secondary hover:text-white transition-colors border border-claude-border">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Group Name</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Vault Title</label>
                                     <input
                                         type="text"
                                         value={createData.name}
                                         onChange={e => setCreateData({ ...createData, name: e.target.value })}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none"
-                                        placeholder="e.g. Bio 101 Squad"
+                                        className="w-full bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] border border-claude-border/80 rounded-2xl px-5 py-4 font-serif text-xl italic text-claude-text focus:border-claude-accent/50 outline-none transition-colors placeholder:text-claude-secondary/40 placeholder:not-italic"
+                                        placeholder="e.g. Origins of Life"
                                         autoFocus
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Class (Optional)</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Academic Context (Optional)</label>
                                     <div className="relative">
                                         <select
                                             value={createData.class_id}
                                             onChange={e => setCreateData({ ...createData, class_id: e.target.value })}
-                                            className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none appearance-none"
+                                            className="w-full bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] border border-claude-border/80 rounded-2xl px-5 py-4 font-mono text-sm text-claude-text focus:border-claude-accent/50 outline-none appearance-none transition-colors"
                                         >
-                                            <option value="">No Class</option>
+                                            <option value="">Independent Study</option>
                                             {classes.map(cls => (
                                                 <option key={cls.id} value={cls.id}>{cls.name}</option>
                                             ))}
@@ -225,9 +256,9 @@ export default function StudyGroups() {
                             </div>
                             <button
                                 type="submit"
-                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)]"
                             >
-                                Create
+                                Initialize
                             </button>
                         </motion.form>
                     </div>
@@ -237,39 +268,42 @@ export default function StudyGroups() {
             {/* Join Modal */}
             <AnimatePresence>
                 {showJoinModal && (
-                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowJoinModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={() => setShowJoinModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.form
-                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onSubmit={handleJoin}
-                            className="relative bg-claude-bg w-full max-w-lg p-8 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe"
+                            className="relative bg-claude-surface w-full max-w-lg p-8 rounded-t-[2.5rem] sm:rounded-3xl border border-claude-border pb-safe"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Join Group</h3>
-                                <button type="button" onClick={() => setShowJoinModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
-                                    <X className="w-6 h-6" />
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Join Vault</h3>
+                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Access a shared space via code</p>
+                                </div>
+                                <button type="button" onClick={() => setShowJoinModal(false)} className="w-10 h-10 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] rounded-full flex items-center justify-center text-claude-secondary hover:text-white transition-colors border border-claude-border">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-[#7a9e72] font-bold mb-2 ml-1">Join Code</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Cipher Code</label>
                                     <input
                                         type="text"
                                         value={joinCode}
                                         onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                                        className="w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-center text-xl tracking-[0.2em] text-botanical-parchment focus:border-claude-accent/50 outline-none uppercase placeholder:lowercase placeholder:tracking-normal"
-                                        placeholder="e.g. RIV-XYZ"
+                                        className="w-full bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] border border-claude-border/80 rounded-2xl px-5 py-5 font-mono text-center text-2xl tracking-[0.3em] text-claude-text focus:border-claude-accent/50 outline-none uppercase placeholder:lowercase placeholder:tracking-normal placeholder:text-xl placeholder:text-claude-secondary/30 transition-colors"
+                                        placeholder="RIV-XYZ"
+                                        maxLength={7}
                                         autoFocus
                                     />
-                                    <p className="text-center font-mono text-[9px] text-claude-secondary mt-3">Ask your group admin for the 6-character code.</p>
                                 </div>
                             </div>
                             <button
                                 type="submit"
-                                disabled={!joinCode.trim()}
-                                className="w-full mt-6 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!joinCode.trim() || joinCode.length < 3}
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed"
                             >
-                                Join
+                                Authenticate
                             </button>
                         </motion.form>
                     </div>

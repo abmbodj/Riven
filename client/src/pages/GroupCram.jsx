@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { api } from '../api';
 import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
@@ -20,7 +20,6 @@ export default function GroupCram() {
     const [loading, setLoading] = useState(true);
 
     // Live State
-    const [connectedMembers, setConnectedMembers] = useState(1); // Self
     const [isEnded, setIsEnded] = useState(false);
     const [results, setResults] = useState(null); // { weakSpots: [], personalStats: {} }
 
@@ -28,6 +27,15 @@ export default function GroupCram() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
+
+    const fetchResults = useCallback(async () => {
+        try {
+            const resData = await api.getSessionResults(sessionId);
+            setResults(resData);
+        } catch (e) {
+            console.error(e);
+        }
+    }, [sessionId]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -57,7 +65,7 @@ export default function GroupCram() {
         };
 
         loadInitialData();
-    }, [groupId, sessionId, navigate]);
+    }, [groupId, sessionId, navigate, toast, fetchResults]);
 
     // Socket Setup
     useEffect(() => {
@@ -69,11 +77,10 @@ export default function GroupCram() {
         socket.emit('register', sessionId); // Rough trick to connect
         socket.emit('join-room', `session-${sessionId}`); // If the server supported custom room joins natively. For now server broadcasts to session-ID
 
-        const onProgress = (data) => {
-            // In a full implementation, we'd track an array of IDs and update `connectedMembers`
+        const onProgress = () => {
+            // In a full implementation, we'd track an array of IDs
             // Since we only get pinged on progress, let's pulse the UI
             haptics.light();
-            setConnectedMembers(prev => Math.min(prev + 1, 10)); // Just a mock bump for visual flair if we haven't tracked joins explicitly
         };
 
         const onEnded = () => {
@@ -88,16 +95,7 @@ export default function GroupCram() {
             socket.off('session-progress', onProgress);
             socket.off('session-ended', onEnded);
         };
-    }, [session, isEnded, sessionId, haptics, socket]);
-
-    const fetchResults = async () => {
-        try {
-            const resData = await api.getSessionResults(sessionId);
-            setResults(resData);
-        } catch (e) {
-            console.error(e);
-        }
-    };
+    }, [session, isEnded, sessionId, haptics, socket, fetchResults]);
 
     const handleAnswer = async (knewIt) => {
         if (!isFlipped) return;
@@ -150,51 +148,75 @@ export default function GroupCram() {
     // ==========================================
     if (isEnded && results) {
         return (
-            <div className="min-h-screen bg-claude-bg pb-24 px-4 pt-12">
-                <div className="max-w-md mx-auto space-y-8">
+            <div className="min-h-screen bg-claude-bg pb-24 px-4 pt-12 relative overflow-hidden">
+                {/* Subtle background glow */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-claude-accent/5 rounded-full blur-[100px] pointer-events-none" />
+
+                <div className="max-w-xl mx-auto space-y-8 relative z-10">
                     <div className="text-center">
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/20">
-                            <CheckCircle2 className="w-10 h-10" />
+                        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-botanical-forest/10 text-botanical-forest rounded-full flex items-center justify-center mx-auto mb-6 border border-botanical-forest/20 shadow-[0_0_30px_rgba(45,90,62,0.15)] relative backdrop-blur-sm">
+                            <CheckCircle2 className="w-12 h-12 relative z-10" />
+                            <div className="absolute inset-0 bg-botanical-forest/5 rounded-full blur-md animate-pulse" />
                         </motion.div>
-                        <h2 className="text-3xl font-display font-bold text-botanical-parchment mb-2">Session Complete</h2>
-                        <p className="text-claude-secondary font-mono uppercase tracking-widest text-xs">
-                            Your Score: {results.personalStats?.total_correct || 0} / {results.personalStats?.total_answered || 0}
-                        </p>
+                        <h2 className="text-4xl font-serif italic font-bold text-botanical-parchment mb-3">Session Complete</h2>
+                        <div className="inline-flex items-center gap-3 px-6 py-2 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border rounded-full">
+                            <p className="text-claude-secondary font-mono uppercase tracking-widest text-[10px] font-bold">
+                                Your Score: <span className="text-claude-accent text-sm ml-1">{results.personalStats?.total_correct || 0}/{results.personalStats?.total_answered || 0}</span>
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="bg-claude-surface border border-claude-border rounded-3xl p-6 overflow-hidden relative">
-                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 opacity-50" />
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="bg-claude-surface border border-claude-border rounded-[2rem] p-8 overflow-hidden relative shadow-sm"
+                    >
+                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
-                        <h3 className="font-serif italic font-bold text-xl text-botanical-parchment mb-4 text-center">Group Weak Spots</h3>
-                        <p className="text-xs text-claude-secondary font-mono mb-6 text-center leading-relaxed">
-                            These cards tripped up the majority of the group. Review them carefully!
-                        </p>
+                        <div className="flex flex-col items-center mb-8">
+                            <h3 className="font-serif italic font-bold text-2xl text-botanical-parchment mb-2 text-center">Group Weak Spots</h3>
+                            <p className="text-[10px] text-claude-secondary font-mono tracking-widest uppercase text-center max-w-[80%] leading-relaxed">
+                                Review these concepts carefully.
+                            </p>
+                        </div>
 
                         {results.weakSpots && results.weakSpots.length > 0 ? (
-                            <div className="space-y-3">
-                                {results.weakSpots.map(card => (
-                                    <div key={card.id} className="p-4 bg-red-500/5 border border-red-500/10 rounded-2xl">
-                                        <div className="flex justify-between items-start gap-4 mb-2">
-                                            <p className="text-sm font-medium text-botanical-parchment flex-1">{card.front}</p>
-                                            <span className="shrink-0 text-[10px] font-mono font-bold bg-red-500/20 text-red-400 px-2 py-1 rounded-full uppercase tracking-widest shrink-0">
-                                                {card.incorrect_count}/{card.total_responses} WRONG
+                            <div className="space-y-4">
+                                {results.weakSpots.map((card, i) => (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.3 + (i * 0.1) }}
+                                        key={card.id}
+                                        className="p-5 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-red-500/10 rounded-[1.5rem] relative overflow-hidden group hover:border-red-500/20 transition-colors"
+                                    >
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500/50 to-orange-500/50 opacity-50" />
+                                        <div className="flex justify-between items-start gap-4 mb-3">
+                                            <p className="text-sm font-serif font-bold text-botanical-parchment flex-1 leading-snug">{card.front}</p>
+                                            <span className="shrink-0 text-[9px] font-mono font-bold bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">
+                                                {card.incorrect_count}/{card.total_responses} Missed
                                             </span>
                                         </div>
-                                        <p className="text-xs text-claude-secondary border-t border-claude-border/50 pt-2 mt-2">{card.back}</p>
-                                    </div>
+                                        <p className="text-[11px] text-claude-secondary font-mono border-t border-claude-border/30 pt-3 mt-1 leading-relaxed">{card.back}</p>
+                                    </motion.div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-6">
-                                <span className="text-4xl mb-4 block">🎉</span>
-                                <p className="text-claude-secondary font-mono tracking-widest uppercase text-xs">The group crushed it!</p>
+                            <div className="text-center py-10 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border border-dashed border-claude-border/50 rounded-[1.5rem]">
+                                <span className="text-5xl mb-4 block animate-bounce" style={{ animationDuration: '3s' }}>🎯</span>
+                                <h4 className="font-serif italic text-xl text-botanical-parchment mb-2">Flawless Victory</h4>
+                                <p className="text-claude-secondary font-mono tracking-widest uppercase text-[9px]">The group mastered everything.</p>
                             </div>
                         )}
 
-                        <button onClick={() => navigate(`/groups/${groupId}`)} className="w-full mt-8 py-4 bg-claude-accent text-[#162a31] rounded-2xl font-mono text-sm tracking-widest font-bold uppercase transition-transform active:scale-[0.98]">
-                            Back to Group
+                        <button
+                            onClick={() => navigate(`/groups/${groupId}`)}
+                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-all hover:opacity-90 active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                        >
+                            Return to Group Vault
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         );
@@ -205,17 +227,35 @@ export default function GroupCram() {
     // ==========================================
     if (isFinished) {
         return (
-            <div className="fullscreen-page items-center justify-center p-6 text-center">
-                <span className="text-5xl mb-6 block animate-bounce">☕️</span>
-                <h2 className="text-2xl font-display font-bold text-botanical-parchment mb-4">You finished!</h2>
-                <p className="text-claude-secondary text-sm max-w-xs mb-10 leading-relaxed font-mono">
-                    Waiting for the rest of the group to complete their cards before calculating weak spots...
-                </p>
+            <div className="min-h-screen bg-claude-bg pb-24 px-4 pt-12 relative overflow-hidden flex flex-col items-center justify-center">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-claude-accent/5 rounded-full blur-[120px] pointer-events-none" />
 
-                {/* Show end button if admin/creator */}
-                <button onClick={handleEndSessionGlobally} className="px-6 py-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-red-500/30 text-red-400 rounded-2xl font-mono text-xs uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-colors">
-                    End Session for Everyone
-                </button>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-md w-full text-center relative z-10 p-10 bg-claude-surface border border-claude-border rounded-[2.5rem] shadow-sm flex flex-col items-center"
+                >
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+                    <span className="text-6xl mb-8 block animate-bounce" style={{ animationDuration: '2.5s' }}>☕️</span>
+                    <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4">You finished!</h2>
+                    <p className="text-claude-secondary text-xs max-w-xs mb-10 leading-relaxed font-mono tracking-widest uppercase opacity-80">
+                        Waiting for the rest of the group to complete their cards before calculating weak spots...
+                    </p>
+
+                    <div className="flex items-center gap-2 mb-8 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] px-4 py-2 rounded-full border border-claude-border">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary">Syncing Live</span>
+                    </div>
+
+                    {/* Show end button if admin/creator */}
+                    <button
+                        onClick={handleEndSessionGlobally}
+                        className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all tap-action"
+                    >
+                        End Session for Everyone
+                    </button>
+                </motion.div>
             </div>
         );
     }
@@ -227,100 +267,126 @@ export default function GroupCram() {
     const progress = ((currentIndex) / cards.length) * 100;
 
     return (
-        <div className="fullscreen-page">
-            <div className="flex items-center justify-between px-4 h-14 shrink-0 border-b border-claude-border/30 bg-claude-bg/50 backdrop-blur-md">
-                <Link to={`/groups/${groupId}`} className="touch-target -ml-2 text-claude-secondary tap-action">
+        <div className="min-h-screen bg-claude-bg relative overflow-hidden flex flex-col">
+            {/* Immersive Dark Background glow */}
+            <div className="absolute inset-0 bg-gradient-to-b from-claude-bg via-[#161a1d] to-[#0f1113] pointer-events-none z-0" />
+            <div className="absolute top-0 right-0 w-full h-[50vh] bg-claude-accent/5 blur-[120px] pointer-events-none z-0" />
+
+            {/* Elevated Top Bar */}
+            <div className="relative z-20 flex items-center justify-between px-6 h-20 shrink-0 bg-gradient-to-b from-claude-bg/80 to-transparent backdrop-blur-md">
+                <Link to={`/groups/${groupId}`} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary hover:text-white hover:border-claude-border/80 transition-all tap-action">
                     <X className="w-5 h-5" />
                 </Link>
+
                 <div className="flex flex-col items-center">
-                    <span className="font-serif italic text-amber-400 font-bold tracking-wide flex items-center gap-1.5 text-lg">
-                        <Zap className="w-4 h-4 fill-amber-400" /> Group Cram
+                    <span className="font-serif italic text-claude-accent font-bold tracking-wide flex items-center gap-2 text-xl filter drop-shadow-[0_0_8px_rgba(222,185,106,0.5)]">
+                        <Zap className="w-4 h-4 fill-claude-accent" /> Group Cram
                     </span>
-                    <span className="text-[9px] font-mono text-claude-secondary tracking-widest uppercase flex items-center gap-1">
-                        <Users className="w-3 h-3" /> Live
-                    </span>
-                </div>
-                <div className="w-10" /> {/* Spacer */}
-            </div>
-
-            {/* Progress Bar */}
-            <div className="h-1 w-full bg-claude-border overflow-hidden">
-                <motion.div
-                    className="h-full bg-amber-400 rounded-r-full shadow-[0_0_10px_rgba(251,191,36,0.5)]"
-                    animate={{ width: `${progress}%` }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                />
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative">
-
-                {/* Background visual sync indicator */}
-                <div className="absolute top-4 inset-x-0 flex justify-center opacity-40">
-                    <div className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-amber-500/20 px-4 py-1.5 rounded-full backdrop-blur-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        <span className="text-[9px] font-mono text-amber-200/70 tracking-widest uppercase">Other members answering...</span>
+                    <div className="mt-1 flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                        <span className="text-[8px] font-mono text-red-300 tracking-[0.25em] uppercase font-bold">Live Focus</span>
                     </div>
                 </div>
 
+                <div className="w-10 h-10 flex items-center justify-center rounded-2xl bg-claude-surface border border-claude-border/50 text-claude-secondary">
+                    <span className="font-mono text-[9px] font-bold">{currentIndex + 1}/{cards.length}</span>
+                </div>
+            </div>
+
+            {/* Premium Progress Bar */}
+            <div className="relative z-20 h-1.5 w-full bg-claude-surface/30 px-6 mt-2">
+                <div className="h-full w-full bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border/20 rounded-full overflow-hidden relative">
+                    <motion.div
+                        className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-claude-accent to-amber-300 rounded-full shadow-[0_0_15px_rgba(222,185,106,0.6)]"
+                        animate={{ width: `${progress}%` }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    />
+                </div>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative z-10">
+
+                {/* Subdued sync indicator replacing the previous bright box */}
+                <div className="absolute top-6 inset-x-0 flex justify-center pointer-events-none">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md opacity-60"
+                    >
+                        <span className="w-1 h-1 rounded-full bg-amber-400/50 animate-pulse" />
+                        <span className="text-[8px] font-mono text-claude-secondary tracking-[0.2em] uppercase">Group syncing...</span>
+                    </motion.div>
+                </div>
+
+                {/* Enhanced 3D Flashcard */}
                 <div
-                    className="w-full max-w-sm aspect-[3/4] cursor-pointer mt-8"
-                    style={{ perspective: '1200px' }}
+                    className="w-full max-w-sm aspect-[3/4] cursor-pointer mt-4"
+                    style={{ perspective: '1400px' }}
                     onClick={handleFlip}
                 >
                     <motion.div
-                        className="relative w-full h-full"
+                        className="relative w-full h-full rounded-[2rem] shadow-2xl"
                         style={{ transformStyle: 'preserve-3d' }}
-                        animate={{ rotateY: isFlipped ? 180 : 0 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                        animate={{ rotateY: isFlipped ? 180 : 0, scale: isFlipped ? 1.02 : 1 }}
+                        transition={{ type: 'spring', stiffness: 220, damping: 25 }}
                     >
-                        {/* Front */}
+                        {/* Front - Light Material */}
                         <div
-                            className="absolute inset-0 rounded-3xl flex flex-col items-center justify-center p-8 overflow-hidden bg-claude-surface border border-claude-border shadow-2xl"
+                            className="absolute inset-0 rounded-[2rem] flex flex-col items-center justify-center p-8 overflow-hidden bg-claude-surface border border-claude-border shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
                             style={{ backfaceVisibility: 'hidden' }}
                         >
-                            <span className="absolute top-6 font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia">Question {currentIndex + 1}/{cards.length}</span>
-                            <p className="font-display font-semibold text-center text-xl text-botanical-parchment break-words">{currentCard?.front}</p>
-                            <span className="absolute bottom-6 text-[10px] font-mono text-claude-secondary/50 tracking-wide animate-pulse">tap to reveal</span>
+                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-claude-bg/20 to-transparent pointer-events-none" />
+
+                            <span className="absolute top-8 font-mono text-[9px] uppercase tracking-[0.25em] text-claude-secondary/60">Concept</span>
+                            <p className="relative z-10 font-serif font-bold text-center text-2xl text-botanical-parchment break-words leading-tight drop-shadow-sm">{currentCard?.front}</p>
+
+                            <div className="absolute bottom-8 flex flex-col items-center">
+                                <span className="w-6 h-1 rounded-full bg-claude-border/50 mb-3" />
+                                <span className="text-[8px] font-mono text-claude-secondary/40 tracking-[0.2em] uppercase font-bold">Tap to Reveal</span>
+                            </div>
                         </div>
 
-                        {/* Back */}
+                        {/* Back - Deep Material */}
                         <div
-                            className="absolute inset-0 rounded-3xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                            className="absolute inset-0 rounded-[2rem] flex flex-col items-center justify-center p-8 overflow-hidden bg-[#1c2c25]"
                             style={{
                                 backfaceVisibility: 'hidden',
                                 transform: 'rotateY(180deg)',
-                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
-                                border: '1px solid rgba(122,158,114,0.3)',
-                                boxShadow: '0 8px 32px rgba(34,83,96,0.3)'
+                                border: '1px solid rgba(122,158,114,0.15)',
+                                boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5), 0 20px 40px rgba(0,0,0,0.4)'
                             }}
                         >
-                            <span className="absolute top-6 font-mono text-[9px] uppercase tracking-[0.25em] text-white/40">Answer</span>
-                            <p className="font-display font-semibold text-center text-xl text-white break-words">{currentCard?.back}</p>
+                            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-claude-accent/20 rounded-full blur-[80px] pointer-events-none" />
+
+                            <span className="absolute top-8 font-mono text-[9px] uppercase tracking-[0.25em] text-[#7a9e72] font-bold">Meaning</span>
+                            <p className="relative z-10 font-serif text-center text-[22px] text-botanical-parchment break-words leading-snug drop-shadow-md">{currentCard?.back}</p>
                         </div>
                     </motion.div>
                 </div>
 
-                {/* Response Controls */}
-                <div className="w-full max-w-sm mt-10 h-20">
+                {/* Response Controls (Glassmorphism) */}
+                <div className="w-full max-w-sm mt-12 h-20">
                     <AnimatePresence>
                         {isFlipped && (
                             <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                initial={{ opacity: 0, scale: 0.9, y: 15 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 15 }}
                                 className="flex items-center gap-4"
                             >
                                 <button
                                     onClick={() => handleAnswer(false)}
-                                    className="flex-1 h-14 rounded-2xl bg-[#ff4d4f]/10 border border-[#ff4d4f]/30 text-[#ff4d4f] flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.98] transition-transform"
+                                    className="flex-1 h-14 rounded-[1.25rem] bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-red-500/10 tap-action backdrop-blur-md"
                                 >
-                                    <ThumbsDown className="w-5 h-5" /> Forgot
+                                    <ThumbsDown className="w-4 h-4 mb-0.5" /> Forgot
                                 </button>
                                 <button
                                     onClick={() => handleAnswer(true)}
-                                    className="flex-1 h-14 rounded-2xl bg-amber-400 text-[#162a31] flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.98] transition-transform shadow-[0_0_20px_rgba(251,191,36,0.3)]"
+                                    className="flex-1 h-14 rounded-[1.25rem] bg-claude-accent text-botanical-ink flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-opacity-90 shadow-[0_0_20px_rgba(222,185,106,0.3)] tap-action"
                                 >
-                                    <ThumbsUp className="w-5 h-5" /> Got It
+                                    <ThumbsUp className="w-4 h-4 mb-0.5" /> Got It
                                 </button>
                             </motion.div>
                         )}

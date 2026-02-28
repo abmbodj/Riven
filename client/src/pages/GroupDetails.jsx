@@ -353,74 +353,104 @@ export default function GroupDetails() {
     if (!group) return null;
 
     return (
-        <div className="relative min-h-screen pb-24">
-            {/* Header */}
-            <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/50 px-4 py-3 flex flex-col justify-end min-h-[70px]">
-                <div className="flex items-center justify-between w-full">
-                    <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-secondary hover:text-white transition-colors tap-action">
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <div className="flex-1 min-w-0 px-2 text-center">
-                        <h2 className="font-serif italic font-bold text-lg text-botanical-parchment truncate">{group.name}</h2>
-                    </div>
-                    {isAdmin ? (
-                        <button onClick={() => setShowSettings(!showSettings)} className="p-2 -mr-2 text-claude-secondary hover:text-white transition-colors tap-action">
-                            <Settings className="w-5 h-5" />
+        <>
+            <div className="relative min-h-screen pb-24">
+                {/* Header */}
+                <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/50 px-4 py-3 flex flex-col justify-end min-h-[70px]">
+                    <div className="flex items-center justify-between w-full">
+                        <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-secondary hover:text-white transition-colors tap-action">
+                            <ChevronLeft className="w-6 h-6" />
                         </button>
-                    ) : (
-                        <button onClick={handleLeave} className="p-2 -mr-2 text-red-400 hover:text-red-300 transition-colors tap-action">
-                            <LogOut className="w-5 h-5" />
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className="px-4 sm:px-6 pt-6">
-
-                {/* Dashboard Overview */}
-                <div className="bg-[#fcfaf2] border border-[#d1c9b8] rounded-2xl p-6 shadow-sm mb-8 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                    <div className="relative z-10 text-center mb-6">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-[#8a7f6a] mb-2">{group.class_name || 'Independent Group'}</h3>
-                        <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-claude-accent/10 border border-claude-accent/30 rounded-xl cursor-pointer hover:bg-claude-accent/20 transition-colors" onClick={handleCopyCode}>
-                            <span className="font-mono text-lg font-bold tracking-widest text-[#162a31]">{group.join_code}</span>
-                            {copied ? <CheckCircle2 className="w-5 h-5 text-claude-accent" /> : <Copy className="w-4 h-4 text-claude-accent opacity-70" />}
+                        <div className="flex-1 min-w-0 px-2 text-center">
+                            <h2 className="font-serif italic font-bold text-lg text-botanical-parchment truncate">{group.name}</h2>
                         </div>
-                        <p className="text-[10px] font-mono text-claude-secondary/60 mt-2 uppercase tracking-wide">Share code to invite members</p>
-
-                        {/* Prominent Start Cram Button */}
-                        <div className="mt-6 pt-6 border-t border-[#d1c9b8]/30">
-                            <button
-                                onClick={() => setShowShareDeckModal(true)}
-                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 flex items-center justify-center gap-2"
-                            >
-                                <Zap className="w-5 h-5 fill-current" />
-                                Start Group Cram
+                        {isAdmin ? (
+                            <button onClick={() => setShowSettings(!showSettings)} className="p-2 -mr-2 text-claude-secondary hover:text-white transition-colors tap-action">
+                                <Settings className="w-5 h-5" />
                             </button>
+                        ) : (
+                            <button onClick={handleLeave} className="p-2 -mr-2 text-red-400 hover:text-red-300 transition-colors tap-action">
+                                <LogOut className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="px-4 sm:px-6 pt-6">
+
+                    {/* Dashboard Overview (Bento Grid) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        {/* Main Info Card */}
+                        <div className="md:col-span-2 bg-claude-surface border border-claude-border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
+                            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                            <div className="absolute -right-20 -top-20 w-64 h-64 bg-claude-accent/5 rounded-full blur-[60px] group-hover:bg-claude-accent/10 transition-colors duration-700 pointer-events-none" />
+
+                            <div className="relative z-10">
+                                <h3 className="font-mono text-[10px] uppercase font-bold tracking-[0.2em] text-claude-secondary mb-3">{group.class_name || 'Independent Study'}</h3>
+
+                                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+                                    <div>
+                                        <p className="text-[11px] font-mono text-claude-secondary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                            <Users className="w-3.5 h-3.5" /> {members.length} Members
+                                        </p>
+                                        <div
+                                            className="inline-flex items-center justify-center gap-3 px-5 py-3 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] border border-claude-border rounded-xl cursor-pointer hover:border-claude-accent/40 transition-all tap-action group/code"
+                                            onClick={handleCopyCode}
+                                        >
+                                            <div>
+                                                <span className="block text-[8px] font-mono text-claude-secondary uppercase tracking-widest leading-none mb-1">Cipher Code</span>
+                                                <span className="font-mono text-lg font-bold tracking-[0.2em] text-claude-text">{group.join_code}</span>
+                                            </div>
+                                            {copied ? <CheckCircle2 className="w-5 h-5 text-claude-accent drop-shadow-[0_0_8px_rgba(222,185,106,0.5)]" /> : <Copy className="w-5 h-5 text-claude-secondary group-hover/code:text-claude-text transition-colors" />}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Cram Action Card */}
+                        <div className="bg-claude-accent/10 border border-claude-accent/20 rounded-[2rem] p-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+                            <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/5 to-transparent pointer-events-none" />
+                            <div className="relative z-10 flex-1 flex flex-col items-start justify-between">
+                                <div className="w-10 h-10 bg-claude-bg/50 rounded-xl flex items-center justify-center border border-claude-accent/20 mb-4">
+                                    <Zap className="w-5 h-5 text-claude-accent fill-current" />
+                                </div>
+                                <div className="w-full">
+                                    <button
+                                        onClick={() => setShowShareDeckModal(true)}
+                                        className="w-full py-3.5 bg-claude-accent rounded-xl text-botanical-ink font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 text-[11px]"
+                                    >
+                                        Initiate Cram
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Live Cram Sessions */}
                     {sessions.length > 0 && (
-                        <div className="space-y-4 mb-8">
-                            <h3 className="font-serif italic text-2xl text-red-400 mb-2 flex items-center gap-2">
-                                <Activity className="w-6 h-6 animate-pulse" /> Live Sessions
+                        <div className="space-y-4 mb-10">
+                            <h3 className="font-serif italic text-2xl text-red-400 mb-4 flex items-center gap-3 font-bold">
+                                <div className="relative flex items-center justify-center w-6 h-6">
+                                    <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-30 animate-ping"></span>
+                                    <Activity className="relative w-5 h-5" />
+                                </div>
+                                Live Sessions
                             </h3>
                             <div className="grid gap-3">
                                 {sessions.map(session => (
-                                    <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative">
-                                        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-scan" />
-                                        <div>
+                                    <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                                        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent animate-scan" />
+                                        <div className="flex-1 min-w-0 pr-4">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                                                <h4 className="font-serif font-bold text-red-200">{session.deck_title}</h4>
+                                                <h4 className="font-serif font-bold text-red-100 text-lg truncate group-hover:text-white transition-colors">{session.deck_title}</h4>
                                             </div>
-                                            <p className="font-mono text-[9px] uppercase tracking-widest text-red-300 ml-4">
-                                                {session.active_members || 1} members reading
+                                            <p className="font-mono text-[9px] uppercase tracking-widest text-red-300 flex items-center gap-1.5 opacity-80 mt-1">
+                                                <Users className="w-3 h-3" /> {session.active_members || 1} reading now
                                             </p>
                                         </div>
-                                        <button className="px-4 py-2 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-lg shadow-red-500/20 group-hover:bg-red-600 transition-colors">
-                                            Join Now
+                                        <button className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(239,68,68,0.4)] group-hover:bg-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)] transition-all transform group-hover:-translate-y-0.5 whitespace-nowrap">
+                                            Join
                                         </button>
                                     </div>
                                 ))}
@@ -428,103 +458,123 @@ export default function GroupDetails() {
                         </div>
                     )}
 
-                    {/* Placeholder for future features */}
-                    <div className="flex items-center justify-between py-6 mt-2 mb-4">
-                        <h3 className="font-serif italic text-2xl text-botanical-parchment flex items-center gap-2">
-                            <Layers className="w-6 h-6 text-claude-accent opacity-70" /> Shared Decks ({sharedDecks.length})
+                    {/* Shared Decks Bento Section */}
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-serif italic text-2xl text-claude-text flex items-center gap-2 font-bold">
+                            <Layers className="w-6 h-6 text-claude-accent" /> Shared Decks <span className="text-claude-secondary ml-2 relative -top-1 font-mono text-sm not-italic opacity-50">({sharedDecks.length})</span>
                         </h3>
                         <button
                             onClick={() => setShowShareDeckModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-[#162a31] transition-colors tap-action"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-botanical-ink transition-colors tap-action"
                         >
                             <Plus className="w-3.5 h-3.5" /> Share
                         </button>
                     </div>
 
-                    <div className="space-y-3 mb-8">
+                    <div className="space-y-3 mb-10">
                         {sharedDecks.length === 0 ? (
-                            <div className="text-center py-8 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border rounded-xl">
-                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">No Decks Shared Yet</p>
+                            <div className="text-center py-12 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-dashed border-claude-border/50 rounded-2xl relative overflow-hidden">
+                                <Layers className="w-8 h-8 mx-auto text-claude-secondary opacity-30 mb-3" />
+                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/60">No Decks Shared Yet</p>
                             </div>
                         ) : (
-                            sharedDecks.map(deck => (
-                                <div key={deck.id} className="group/deck relative bg-claude-bg border border-claude-border rounded-xl p-4 overflow-hidden shadow-sm hover:shadow-md transition-all tap-action flex items-center gap-4">
-                                    <div className="flex-1 min-w-0 pr-4" onClick={() => navigate(`/deck/${deck.id}`)}>
-                                        <h4 className="font-serif font-bold text-lg text-botanical-parchment truncate leading-tight group-hover/deck:text-claude-accent transition-colors">{deck.title}</h4>
-                                        <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-claude-secondary uppercase tracking-widest">
-                                            <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {deck.card_count || 0} Cards</span>
-                                            <span className="flex items-center gap-1">Shared by @{deck.shared_by_name}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {sharedDecks.map(deck => (
+                                    <div key={deck.id} className="group/deck relative bg-claude-surface border border-claude-border rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5">
+                                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+                                        <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
+                                            <h4 className="font-serif font-bold text-lg text-claude-text truncate leading-tight group-hover/deck:text-claude-accent transition-colors pr-8">{deck.title}</h4>
+
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3">
+                                                <div className="flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--bg-color)_50%,transparent)] px-2 py-1 rounded-[0.4rem] border border-claude-border">
+                                                    <Layers className="w-3 h-3 text-claude-accent opacity-70" />
+                                                    <span className="font-mono text-[9px] uppercase font-bold tracking-widest text-claude-secondary">{deck.card_count || 0}</span>
+                                                </div>
+                                                <span className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest truncate max-w-[120px]">
+                                                    by @{deck.shared_by_name}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover/deck:opacity-100 transition-opacity absolute right-4 top-4">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
+                                                className="w-8 h-8 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-full flex items-center justify-center hover:bg-claude-accent hover:text-botanical-ink transition-colors tap-action"
+                                                title="Start Cram"
+                                            >
+                                                <Zap className="w-3.5 h-3.5 fill-current" />
+                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
+                                                    className="w-8 h-8 bg-red-500/10 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-500 transition-colors rounded-full flex items-center justify-center tap-action"
+                                                    title="Remove Deck"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
-                                            className="px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-[#162a31] transition-colors flex items-center gap-1.5 tap-action shrink-0"
-                                        >
-                                            <Zap className="w-3.5 h-3.5 fill-current" /> Cram
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
-                                            className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg tap-action shrink-0"
-                                            title="Remove Deck"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         )}
                     </div>
 
                     {/* Shared Files & Folders */}
-                    <div className="flex items-center justify-between py-6 mt-2 mb-4">
-                        <h3 className="font-serif italic text-2xl text-botanical-parchment flex items-center gap-2">
-                            <Folder className="w-6 h-6 text-claude-accent opacity-70" /> Files & Folders
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-serif italic text-2xl text-claude-text flex items-center gap-2 font-bold">
+                            <Folder className="w-6 h-6 text-claude-accent" /> Library
                         </h3>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setShowCreateFolderModal(true)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors tap-action"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] border border-claude-border text-claude-secondary rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors tap-action"
                             >
-                                <Plus className="w-3.5 h-3.5" /> Folder
+                                <Plus className="w-3 h-3" /> Folder
                             </button>
                             <button
                                 onClick={() => setShowUploadModal(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-[#162a31] transition-colors tap-action"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-lg font-mono text-[9px] uppercase font-bold tracking-widest hover:bg-claude-accent hover:text-botanical-ink transition-colors tap-action"
                             >
-                                <Upload className="w-3.5 h-3.5" /> Upload
+                                <Upload className="w-3 h-3" /> Upload
                             </button>
                         </div>
                     </div>
 
-                    <div className="bg-claude-bg border border-claude-border rounded-xl overflow-hidden mb-8">
+                    <div className="bg-claude-surface border border-claude-border rounded-2xl overflow-hidden mb-10 shadow-sm">
                         {currentFolderId && (
                             <div
                                 onClick={() => setCurrentFolderId(null)}
-                                className="p-3 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border-b border-claude-border flex items-center gap-2 cursor-pointer hover:bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] transition-colors"
+                                className="p-4 bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] border-b border-claude-border flex items-center gap-3 cursor-pointer hover:bg-[color-mix(in_srgb,var(--border-color)_10%,transparent)] transition-colors group"
                             >
-                                <ChevronLeft className="w-4 h-4 text-claude-secondary" />
-                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Back to root</span>
+                                <div className="w-6 h-6 rounded-full bg-claude-border/50 flex items-center justify-center group-hover:bg-claude-border transition-colors">
+                                    <ChevronLeft className="w-4 h-4 text-claude-secondary group-hover:text-claude-text" />
+                                </div>
+                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary group-hover:text-claude-text transition-colors">Directory Level Up</span>
                             </div>
                         )}
 
                         {!currentFolderId && folders.length === 0 && files.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Empty Directory</p>
+                            <div className="text-center py-16">
+                                <FileText className="w-8 h-8 text-claude-secondary opacity-20 mx-auto mb-3" />
+                                <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/60">Directory is empty</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-claude-border/50">
                                 {!currentFolderId && folders.map(folder => (
-                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] cursor-pointer transition-colors group">
-                                        <div className="flex items-center gap-3">
-                                            <Folder className="w-5 h-5 text-amber-500/80" fill="currentColor" />
+                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 sm:p-5 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] cursor-pointer transition-colors group relative">
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-claude-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
+                                                <Folder className="w-5 h-5 text-amber-500/80" fill="currentColor" />
+                                            </div>
                                             <div>
-                                                <h4 className="font-serif font-bold text-botanical-parchment group-hover:text-claude-accent transition-colors">{folder.name}</h4>
-                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest">{folder.file_count || 0} files • By @{folder.created_by_name}</p>
+                                                <h4 className="font-serif font-bold text-lg text-claude-text group-hover:text-claude-accent transition-colors leading-tight">{folder.name}</h4>
+                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">{folder.file_count || 0} items • Created by @{folder.created_by_name}</p>
                                             </div>
                                         </div>
                                         {isAdmin && (
-                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="p-2 sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-400 transition-all tap-action">
+                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all tap-action">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
@@ -532,18 +582,18 @@ export default function GroupDetails() {
                                 ))}
 
                                 {files.map(file => (
-                                    <div key={file.id} className="p-4 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] transition-colors group">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-10 h-10 rounded-lg bg-[color-mix(in_srgb,var(--surface-color)_40%,transparent)] flex items-center justify-center shrink-0">
+                                    <div key={file.id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)] transition-colors group">
+                                        <div className="flex items-center gap-4 min-w-0 pr-4">
+                                            <div className="w-10 h-10 rounded-xl bg-claude-border/30 flex items-center justify-center border border-claude-border/50 shrink-0 group-hover:bg-claude-border/50 transition-colors">
                                                 <FileText className="w-5 h-5 text-claude-secondary" />
                                             </div>
                                             <div className="min-w-0">
-                                                <a href={file.file_url} target="_blank" rel="noreferrer" className="font-serif font-bold text-botanical-parchment hover:text-claude-accent transition-colors truncate block">{file.name}</a>
-                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-0.5 truncate">{file.file_type.toUpperCase()} • Uploaded by @{file.uploaded_by_name}</p>
+                                                <a href={file.file_url} target="_blank" rel="noreferrer" className="font-serif font-bold text-lg text-claude-text hover:text-claude-accent transition-colors truncate block leading-tight">{file.name}</a>
+                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1 truncate">{file.file_type.toUpperCase()} • Added by @{file.uploaded_by_name}</p>
                                             </div>
                                         </div>
                                         {(isAdmin || file.uploaded_by === currentUserId) && (
-                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="p-2 sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0 tap-action">
+                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0 tap-action">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
@@ -551,40 +601,40 @@ export default function GroupDetails() {
                                 ))}
 
                                 {currentFolderId && files.length === 0 && (
-                                    <div className="p-6 text-center">
-                                        <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary">Folder is empty</p>
+                                    <div className="p-12 text-center bg-[color-mix(in_srgb,var(--bg-color)_20%,transparent)]">
+                                        <Folder className="w-8 h-8 mx-auto text-claude-secondary opacity-30 mb-3" />
+                                        <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/70">Folder is empty</p>
                                     </div>
                                 )}
                             </div>
                         )}
                     </div>
-
                 </div>
 
                 {/* Members List */}
-                <h3 className="font-serif italic text-2xl text-botanical-parchment mb-4 flex items-center gap-2">
-                    <Users className="w-6 h-6 text-claude-accent opacity-70" /> Members ({members.length})
+                <h3 className="font-serif italic text-2xl text-claude-text mb-4 flex items-center gap-2 font-bold">
+                    <Users className="w-6 h-6 text-claude-accent" /> Members <span className="text-claude-secondary ml-2 relative -top-1 font-mono text-sm not-italic opacity-50">({members.length})</span>
                 </h3>
 
-                <div className="space-y-3">
+                <div className="space-y-3 pb-8">
                     {members.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-4 bg-[color-mix(in_srgb,var(--surface-color)_20%,transparent)] border border-claude-border rounded-xl">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-claude-accent/20 flex items-center justify-center shrink-0 border border-claude-accent/30 p-1">
-                                    <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-full bg-white object-cover" />
+                        <div key={member.id} className="flex items-center justify-between p-4 bg-claude-surface border border-claude-border rounded-2xl hover:border-claude-border/80 transition-colors">
+                            <div className="flex items-center gap-4 min-w-0">
+                                <div className="w-12 h-12 rounded-2xl bg-claude-accent/10 flex items-center justify-center shrink-0 border border-claude-accent/20 p-1">
+                                    <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-xl bg-white object-cover" />
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="font-serif font-bold text-botanical-parchment truncate leading-tight">{member.display_name || member.username}</span>
-                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-0.5 flex gap-2">
+                                    <span className="font-serif font-bold text-lg text-claude-text truncate leading-tight">{member.display_name || member.username}</span>
+                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-1 flex items-center gap-2">
                                         @{member.username}
-                                        {member.role === 'admin' && <span className="text-claude-accent font-bold">ADMIN</span>}
+                                        {member.role === 'admin' && <span className="px-1.5 py-0.5 bg-claude-accent/10 text-claude-accent rounded border border-claude-accent/20 font-bold">ADMIN</span>}
                                     </span>
                                 </div>
                             </div>
                             {isAdmin && member.role !== 'admin' && (
                                 <button
                                     onClick={() => handleRemoveMember(member.id, member.username)}
-                                    className="p-2 text-claude-secondary hover:text-red-400 transition-colors bg-black/20 rounded-lg"
+                                    className="w-8 h-8 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg bg-[color-mix(in_srgb,var(--bg-color)_40%,transparent)]"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -663,11 +713,12 @@ export default function GroupDetails() {
                             </div>
                         </motion.form>
                     </div>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
             {/* Share Deck Modal */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {showShareDeckModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowShareDeckModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
@@ -705,10 +756,10 @@ export default function GroupDetails() {
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* Create Folder Modal */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {showCreateFolderModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreateFolderModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
@@ -746,10 +797,10 @@ export default function GroupDetails() {
                         </motion.form>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* Upload File & AI Flow Modal */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {showUploadModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
@@ -890,16 +941,16 @@ export default function GroupDetails() {
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* Confirm Modal */}
-            <ConfirmModal
+            < ConfirmModal
                 isOpen={confirmModal.show}
                 title={confirmModal.title}
                 message={confirmModal.message}
                 onConfirm={handleConfirmAction}
                 onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })}
             />
-        </div>
+        </>
     );
 }
