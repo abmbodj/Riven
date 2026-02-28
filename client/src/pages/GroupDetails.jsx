@@ -13,12 +13,14 @@ export default function GroupDetails() {
     const navigate = useNavigate();
     const haptics = useHaptics();
     const toast = useToast();
-    const { socket } = useAuth();
-
+    const { socket, user } = useAuth();
     const [group, setGroup] = useState(null);
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const currentUserId = user?.id;
+    const isAdmin = group?.my_role === 'admin';
 
     const [showSettings, setShowSettings] = useState(false);
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
@@ -117,9 +119,6 @@ export default function GroupDetails() {
             api.getDecks().then(res => setMyDecks(res || []));
         }
     }, [showShareDeckModal]);
-
-    const isAdmin = group?.my_role === 'admin';
-    const currentUserId = members.find(m => m.role === group?.my_role)?.id; // approximate
 
     const handleCopyCode = async () => {
         if (!group?.join_code) return;

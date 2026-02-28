@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import { AlertTriangle } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
@@ -53,7 +53,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+                <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
