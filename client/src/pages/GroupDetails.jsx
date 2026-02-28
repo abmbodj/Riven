@@ -142,6 +142,9 @@ export default function GroupDetails() {
             await api.updateGroup(id, { name: editData.name, class_id: editData.class_id || null });
             toast.success('Group updated');
             setShowSettings(false);
+
+            // Explicitly force a fresh reload from the server to wipe out old UI state
+            setGroup(null);
             loadGroup();
         } catch (err) {
             toast.error(err.message || 'Failed to update');
@@ -232,12 +235,17 @@ export default function GroupDetails() {
     };
 
 
-    const handleDeleteFolder = (folderId) => {
+    const handleDeleteFolder = (e, folderId) => {
+        e.stopPropagation();
         confirmAction('Delete Folder', 'This will delete the folder and all files inside it.', async () => {
-            await api.deleteGroupFolder(id, folderId);
-            toast.success('Folder deleted');
-            if (currentFolderId === folderId) setCurrentFolderId(null);
-            loadGroup();
+            try {
+                await api.deleteGroupFolder(id, folderId);
+                toast.success('Folder deleted');
+                if (currentFolderId === folderId) setCurrentFolderId(null);
+                loadGroup();
+            } catch (err) {
+                toast.error('Failed to delete folder');
+            }
         });
     };
 
@@ -307,11 +315,16 @@ export default function GroupDetails() {
         }, 300);
     };
 
-    const handleDeleteFile = (fileId) => {
+    const handleDeleteFile = (e, fileId) => {
+        e.stopPropagation();
         confirmAction('Remove File', 'Are you sure you want to remove this file?', async () => {
-            await api.deleteGroupFile(id, fileId);
-            toast.success('File removed');
-            loadGroup();
+            try {
+                await api.deleteGroupFile(id, fileId);
+                toast.success('File removed');
+                loadGroup();
+            } catch (err) {
+                toast.error('Failed to remove file');
+            }
         });
     };
 
@@ -501,7 +514,7 @@ export default function GroupDetails() {
                                             </div>
                                         </div>
                                         {isAdmin && (
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">
+                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
@@ -520,7 +533,7 @@ export default function GroupDetails() {
                                             </div>
                                         </div>
                                         {(isAdmin || file.uploaded_by === currentUserId) && (
-                                            <button onClick={() => handleDeleteFile(file.id)} className="p-2 opacity-0 group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0">
+                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="p-2 opacity-0 group-hover:opacity-100 text-claude-secondary hover:text-red-400 transition-all shrink-0">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         )}
