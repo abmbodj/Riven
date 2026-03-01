@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, X, Check, ArrowRight } from 'lucide-react';
+import { Sparkles, X, Check, ArrowRight, Crown, Zap, Shield } from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 // RevenueCat would be imported here in the future
@@ -10,6 +10,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
     useBodyScrollLock(isOpen);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedPlan, setSelectedPlan] = useState('supporter');
 
     // Close on escape key
     useEffect(() => {
@@ -56,10 +57,49 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
     if (!isOpen) return null;
 
+    const plans = [
+        {
+            id: 'supporter',
+            name: 'Supporter',
+            price: '$5.99',
+            period: '/month',
+            icon: Zap,
+            accent: 'claude-accent',
+            accentBg: 'claude-accent/10',
+            accentBorder: 'claude-accent/40',
+            badge: 'Most Popular',
+            features: [
+                'Unlimited Hearts',
+                'Unlimited AI Generations',
+                'All PRO Themes',
+                'Ad-free Experience',
+                'Advanced Study Groups',
+            ],
+        },
+        {
+            id: 'lifetime',
+            name: 'Lifetime',
+            price: '$29.99',
+            period: 'once',
+            icon: Crown,
+            accent: 'amber-500',
+            accentBg: 'amber-500/10',
+            accentBorder: 'amber-500/40',
+            badge: 'Best Value',
+            features: [
+                'All Supporter Benefits',
+                'No Recurring Payments',
+                'Exclusive Lifetime Badge',
+                'All Future Premium Features',
+                'Exclusive Custom Themes',
+            ],
+        },
+    ];
+
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-4">
+                <div className="fixed inset-0 z-[999] flex items-end justify-center">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -74,126 +114,141 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         initial={{ y: '100%', opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative glass-panel w-full sm:max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                        transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+                        className="relative glass-panel w-full max-w-md rounded-t-[2rem] shadow-2xl overflow-hidden flex flex-col"
+                        style={{ maxHeight: '92vh' }}
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Drag Handle */}
+                        <div className="w-12 h-1.5 bg-claude-border rounded-full mx-auto mt-3 mb-1 shrink-0" />
+
                         {/* Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-claude-border/30 bg-claude-bg/50">
+                        <div className="flex items-center justify-between px-6 pt-3 pb-4 shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-claude-accent/20 rounded-xl text-claude-accent">
-                                    <Sparkles className="w-6 h-6" />
+                                <div className="p-2 bg-claude-accent/15 rounded-xl text-claude-accent">
+                                    <Sparkles className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-display font-bold text-claude-text">Upgrade Riven</h2>
-                                    <p className="text-sm text-claude-secondary">Unlock the ultimate learning aesthetic.</p>
+                                    <h2 className="text-xl font-display font-bold text-claude-text">Upgrade Riven</h2>
+                                    <p className="text-xs text-claude-secondary">Unlock the ultimate learning aesthetic.</p>
                                 </div>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/10 text-claude-secondary hover:text-claude-text transition-colors"
+                                className="p-2 rounded-full hover:bg-white/10 text-claude-secondary hover:text-claude-text transition-colors tap-action"
                             >
-                                <X className="w-6 h-6" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        {/* Content area */}
-                        <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+                        {/* Content */}
+                        <div className="px-5 pb-6 overflow-y-auto custom-scrollbar flex-1">
                             {error && (
-                                <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm text-center">
+                                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
                                     {error}
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {/* Free Tier */}
-                                <div className="relative flex flex-col p-6 rounded-2xl border border-claude-border/40 bg-white/5 backdrop-blur-md">
-                                    <h3 className="text-xl font-bold font-display text-claude-secondary mb-2">Basic</h3>
-                                    <div className="flex items-baseline gap-1 mb-6">
-                                        <span className="text-3xl font-bold text-claude-text">$0</span>
-                                        <span className="text-claude-secondary">/ forever</span>
-                                    </div>
-                                    <ul className="flex-1 space-y-4 mb-6 text-sm text-claude-secondary">
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> Limited Hearts (Refill over time)</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> 15 AI Generations / 2hrs</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> Create unlimited decks</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> Standard Canvas Sync</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 shrink-0" /> Ads included</li>
-                                    </ul>
-                                    <button disabled className="w-full py-3 rounded-xl border border-claude-border text-claude-secondary opacity-50 cursor-not-allowed font-medium">
-                                        Current Plan
-                                    </button>
-                                </div>
-
-                                {/* Supporter Tier */}
-                                <div className="relative flex flex-col p-6 rounded-2xl border-2 border-claude-accent bg-claude-accent/5 backdrop-blur-md transform md:-translate-y-4 shadow-xl shadow-claude-accent/10">
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-claude-accent text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                                        Most Popular
-                                    </div>
-                                    <h3 className="text-xl font-bold font-display text-claude-accent mb-2">Supporter</h3>
-                                    <div className="flex items-baseline gap-1 mb-1">
-                                        <span className="text-4xl font-bold text-claude-text">$5.99</span>
-                                        <span className="text-claude-secondary">/ month</span>
-                                    </div>
-                                    <p className="text-xs text-claude-secondary mb-6 line-through">Cancel anytime</p>
-
-                                    <ul className="flex-1 space-y-4 mb-6 text-sm text-claude-text">
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-claude-accent shrink-0" /> <strong>Unlimited Hearts</strong> (Never lose a session)</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-claude-accent shrink-0" /> <strong>Unlimited AI Generations</strong></li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-claude-accent shrink-0" /> All PRO Themes Unlocked</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-claude-accent shrink-0" /> Ad-free experience</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-claude-accent shrink-0" /> Advanced Study Groups</li>
-                                    </ul>
-
-                                    <button
-                                        onClick={() => handlePurchase('supporter')}
-                                        disabled={loading || currentTier === 'supporter' || currentTier === 'lifetime'}
-                                        className="w-full py-3 rounded-xl bg-gradient-to-r from-claude-accent to-indigo-500 text-white font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {loading ? <span className="animate-spin text-xl">↻</span> : (currentTier === 'supporter' ? 'Current Plan' : 'Go Supporter')}
-                                        {!loading && currentTier !== 'supporter' && <ArrowRight className="w-4 h-4" />}
-                                    </button>
-                                </div>
-
-                                {/* Lifetime Tier */}
-                                <div className="relative flex flex-col p-6 rounded-2xl border border-claude-border/40 bg-gradient-to-b from-amber-500/10 to-transparent backdrop-blur-md">
-                                    <h3 className="text-xl font-bold font-display text-amber-500 mb-2">Lifetime</h3>
-                                    <div className="flex items-baseline gap-1 mb-1">
-                                        <span className="text-3xl font-bold text-claude-text">$29.99</span>
-                                    </div>
-                                    <p className="text-xs text-claude-secondary mb-6">One-time payment</p>
-
-                                    <ul className="flex-1 space-y-4 mb-6 text-sm text-claude-text">
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" /> <strong>All Supporter Benefits</strong></li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" /> <strong>No Recurring Payments</strong></li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" /> Exclusive Lifetime Badge</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" /> All Future Premium Features</li>
-                                        <li className="flex items-start gap-2"><Check className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" /> Exclusive Custom Themes</li>
-                                    </ul>
-
-                                    <button
-                                        onClick={() => handlePurchase('lifetime')}
-                                        disabled={loading || currentTier === 'lifetime'}
-                                        className="w-full py-3 rounded-xl bg-white/10 border border-amber-500/30 text-amber-500 font-bold hover:bg-amber-500/10 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {loading ? <span className="animate-spin text-xl">↻</span> : (currentTier === 'lifetime' ? 'Active' : 'Get Lifetime')}
-                                    </button>
+                            {/* Current Plan Banner */}
+                            <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
+                                <Shield className="w-4 h-4 text-claude-secondary shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Current Plan</span>
+                                    <p className="text-sm font-bold text-claude-text capitalize">{currentTier === 'free' ? 'Basic (Free)' : currentTier}</p>
                                 </div>
                             </div>
 
+                            {/* Plan Cards — Stacked vertically */}
+                            <div className="space-y-4">
+                                {plans.map((plan) => {
+                                    const Icon = plan.icon;
+                                    const isSelected = selectedPlan === plan.id;
+                                    const isCurrentPlan = currentTier === plan.id;
+                                    const isDisabled = isCurrentPlan || (plan.id === 'supporter' && currentTier === 'lifetime');
+
+                                    return (
+                                        <motion.button
+                                            key={plan.id}
+                                            onClick={() => !isDisabled && setSelectedPlan(plan.id)}
+                                            whileTap={{ scale: isDisabled ? 1 : 0.98 }}
+                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${isSelected && !isDisabled
+                                                    ? `border-${plan.accent} bg-${plan.accentBg}`
+                                                    : 'border-claude-border/30 bg-white/[0.03]'
+                                                } ${isDisabled ? 'opacity-50' : ''}`}
+                                        >
+                                            {/* Badge */}
+                                            {plan.badge && !isDisabled && (
+                                                <span className={`absolute top-3 right-3 text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${plan.accentBg} text-${plan.accent} border border-${plan.accentBorder}`}>
+                                                    {plan.badge}
+                                                </span>
+                                            )}
+
+                                            {/* Selection indicator */}
+                                            <div className="flex items-start gap-3">
+                                                <div className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center transition-colors ${isSelected && !isDisabled ? `border-${plan.accent} bg-${plan.accent}` : 'border-claude-border'
+                                                    }`}>
+                                                    {isSelected && !isDisabled && (
+                                                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                                            <Check className="w-3 h-3 text-white" />
+                                                        </motion.div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Icon className={`w-4 h-4 text-${plan.accent}`} />
+                                                        <h3 className="text-base font-bold font-display text-claude-text">{plan.name}</h3>
+                                                    </div>
+
+                                                    <div className="flex items-baseline gap-1 mb-3">
+                                                        <span className="text-2xl font-bold text-claude-text">{plan.price}</span>
+                                                        <span className="text-xs text-claude-secondary">{plan.period}</span>
+                                                    </div>
+
+                                                    <ul className="space-y-2">
+                                                        {plan.features.map((feat, i) => (
+                                                            <li key={i} className="flex items-start gap-2 text-xs text-claude-secondary">
+                                                                <Check className={`w-3.5 h-3.5 mt-0.5 shrink-0 text-${plan.accent}`} />
+                                                                {feat}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Purchase Button */}
+                            <motion.button
+                                onClick={() => handlePurchase(selectedPlan)}
+                                disabled={loading || currentTier === selectedPlan || (selectedPlan === 'supporter' && currentTier === 'lifetime')}
+                                whileTap={{ scale: 0.97 }}
+                                className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-claude-accent to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-claude-accent/20 tap-action"
+                            >
+                                {loading ? (
+                                    <span className="animate-spin text-xl">↻</span>
+                                ) : (
+                                    <>
+                                        Continue with {plans.find(p => p.id === selectedPlan)?.name}
+                                        <ArrowRight className="w-4 h-4" />
+                                    </>
+                                )}
+                            </motion.button>
+
                             {/* Restore Purchases — Required by Apple */}
-                            <div className="pt-4 border-t border-white/5 text-center">
+                            <div className="pt-4 text-center">
                                 <button
                                     onClick={() => {
                                         // TODO: Wire to RevenueCat restore purchases
                                         alert('Restore purchases will work once App Store integration is live.');
                                     }}
-                                    className="text-xs text-claude-secondary hover:text-claude-text transition-colors underline underline-offset-4"
+                                    className="text-[11px] text-claude-secondary hover:text-claude-text transition-colors underline underline-offset-4 tap-action"
                                 >
                                     Restore Purchases
                                 </button>
                             </div>
-
                         </div>
                     </motion.div>
                 </div>
