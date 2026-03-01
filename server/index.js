@@ -131,16 +131,14 @@ io.on('connection', (socket) => {
     // since we use HttpOnly cookies that sockets may not easily read depending on cross-origin setup.
 
     socket.on('register', (userId) => {
-        if (userId) {
-            connectedUsers.set(userId, socket.id);
-            // console.log(`[Socket] User ${userId} connected (${socket.id})`);
+        if (userId != null) {
+            connectedUsers.set(parseInt(userId), socket.id);
         }
     });
 
     socket.on('typing', ({ receiverId, isTyping }) => {
-        const receiverSocketId = connectedUsers.get(receiverId);
+        const receiverSocketId = connectedUsers.get(parseInt(receiverId));
         if (receiverSocketId) {
-            // Find sender based on this socket's current registered user
             let senderId = null;
             for (const [id, sid] of connectedUsers.entries()) {
                 if (sid === socket.id) {
@@ -478,12 +476,22 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
         const io = req.app.locals.io;
         const connectedUsers = req.app.locals.connectedUsers;
         if (io && connectedUsers) {
-            const receiverSocketId = connectedUsers.get(receiverId);
+            const receiverSocketId = connectedUsers.get(parseInt(receiverId));
             if (receiverSocketId) {
-                // Send the message to the receiver (with isMine = false for them)
                 io.to(receiverSocketId).emit('new_message', {
                     ...responseData,
                     isMine: false
+                });
+                // Clear sender's typing indicator for the receiver
+                io.to(receiverSocketId).emit('typing', { senderId: req.user.id, isTyping: false });
+            }
+            // Also notify the sender on other tabs/devices
+            const senderSocketId = connectedUsers.get(parseInt(req.user.id));
+            if (senderSocketId) {
+                io.to(senderSocketId).emit('new_message', {
+                    ...responseData,
+                    isMine: true,
+                    receiverId: parseInt(receiverId)
                 });
             }
         }
@@ -528,7 +536,7 @@ app.put('/api/messages/:id', authMiddleware, async (req, res) => {
         const io = req.app.locals.io;
         const connectedUsers = req.app.locals.connectedUsers;
         if (io && connectedUsers) {
-            const receiverSocketId = connectedUsers.get(updated.receiver_id);
+            const receiverSocketId = connectedUsers.get(parseInt(updated.receiver_id));
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit('message_updated', {
                     ...responseData,
@@ -559,7 +567,7 @@ app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
         const io = req.app.locals.io;
         const connectedUsers = req.app.locals.connectedUsers;
         if (io && connectedUsers) {
-            const receiverSocketId = connectedUsers.get(message.receiver_id);
+            const receiverSocketId = connectedUsers.get(parseInt(message.receiver_id));
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit('message_deleted', { id: parseInt(id) });
             }

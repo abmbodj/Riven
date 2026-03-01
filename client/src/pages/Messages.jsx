@@ -251,6 +251,10 @@ export default function Messages() {
         setSending(true);
         haptics.light();
 
+        // Stop typing indicator immediately
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        if (socket && userId) socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
             setMessages(prev => {
