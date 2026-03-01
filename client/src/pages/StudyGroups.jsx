@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
+import { useAuth } from '../hooks/useAuth';
+import PricingModal from '../components/ui/PricingModal';
 
 export default function StudyGroups() {
     const navigate = useNavigate();
@@ -23,6 +25,10 @@ export default function StudyGroups() {
     // Form states
     const [createData, setCreateData] = useState({ name: '', class_id: '' });
     const [joinCode, setJoinCode] = useState('');
+
+    // Auth & Monetization
+    const { user } = useAuth();
+    const [pricingOpen, setPricingOpen] = useState(false);
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -121,7 +127,19 @@ export default function StudyGroups() {
             {/* Action Buttons (Bento Grid Style) */}
             <div className="px-4 sm:px-6 mb-10 grid grid-cols-2 gap-4">
                 <button
-                    onClick={() => { haptics.light(); setShowCreateModal(true); }}
+                    onClick={() => {
+                        haptics.light();
+                        // Check subscription tier for group limits
+                        const tier = user?.subscription_tier || 'free';
+                        // Assuming the API returns groups where the user is a member OR owner.
+                        // For simplicity, let's limit total joined/owned groups to 1 for free users, 
+                        // or at least creating a new group when you already have 1 group requires PRO.
+                        if (tier === 'free' && groups.length >= 1) {
+                            setPricingOpen(true);
+                            return;
+                        }
+                        setShowCreateModal(true);
+                    }}
                     className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-all duration-300 hover:-translate-y-1 hover:border-claude-accent/40 shadow-sm hover:shadow-claude-accent/10"
                 >
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
@@ -309,6 +327,12 @@ export default function StudyGroups() {
                     </div>
                 )}
             </AnimatePresence>
+
+            <PricingModal
+                isOpen={pricingOpen}
+                onClose={() => setPricingOpen(false)}
+                currentTier={user?.subscription_tier || 'free'}
+            />
         </div>
     );
 }

@@ -4,6 +4,7 @@ import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle, List, Keyboard, Se
 import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
+import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 
 export default function TestMode() {
     const { id } = useParams();
@@ -17,6 +18,9 @@ export default function TestMode() {
     const [showFeedback, setShowFeedback] = useState(false);
     const [testMode, setTestMode] = useState(null); // 'multiple' or 'typed'
     const [typedAnswer, setTypedAnswer] = useState('');
+    const [heartsStatus, setHeartsStatus] = useState(null);
+    const [showOutOfHearts, setShowOutOfHearts] = useState(false);
+    const [heartsLoading, setHeartsLoading] = useState(true);
     const inputRef = useRef(null);
     const { incrementStreak } = useStreakContext();
     const haptics = useHaptics();
@@ -60,11 +64,20 @@ export default function TestMode() {
     }, []);
 
     useEffect(() => {
-        api.getDeck(id).then(data => {
-            setCards(data.cards);
+        Promise.all([
+            api.getDeck(id),
+            api.getHeartsStatus()
+        ]).then(([deckData, heartsData]) => {
+            setCards(deckData.cards);
+            setHeartsStatus(heartsData);
+            if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
+                setShowOutOfHearts(true);
+            }
             setLoading(false);
+            setHeartsLoading(false);
         }).catch(() => {
             setLoading(false);
+            setHeartsLoading(false);
         });
     }, [id]);
 
@@ -80,7 +93,7 @@ export default function TestMode() {
         generateTest(cards, mode);
     };
 
-    const handleMultipleAnswer = (selectedOption) => {
+    const handleMultipleAnswer = async (selectedOption) => {
         if (showFeedback) return;
 
         setSelectedAnswer(selectedOption);
@@ -92,6 +105,18 @@ export default function TestMode() {
             setScore(s => s + 1);
         } else {
             haptics.error();
+            // Deduct heart
+            if (heartsStatus && !heartsStatus.isUnlimited) {
+                try {
+                    const newStatus = await api.decrementHeart();
+                    setHeartsStatus(newStatus);
+                    if (newStatus.hearts <= 0) {
+                        setTimeout(() => setShowOutOfHearts(true), 1200);
+                    }
+                } catch (err) {
+                    console.error("Failed to decrement heart", err);
+                }
+            }
         }
 
         setTimeout(() => {
@@ -115,7 +140,7 @@ export default function TestMode() {
             .replace(/[.,!?;:'"]/g, ''); // remove punctuation
     };
 
-    const handleTypedSubmit = (e) => {
+    const handleTypedSubmit = async (e) => {
         e?.preventDefault();
         if (showFeedback || !typedAnswer.trim()) return;
 
@@ -129,6 +154,18 @@ export default function TestMode() {
             setScore(s => s + 1);
         } else {
             haptics.error();
+            // Deduct heart
+            if (heartsStatus && !heartsStatus.isUnlimited) {
+                try {
+                    const newStatus = await api.decrementHeart();
+                    setHeartsStatus(newStatus);
+                    if (newStatus.hearts <= 0) {
+                        setTimeout(() => setShowOutOfHearts(true), 2000);
+                    }
+                } catch (err) {
+                    console.error("Failed to decrement heart", err);
+                }
+            }
         }
 
         setTimeout(() => {
@@ -144,7 +181,7 @@ export default function TestMode() {
         }, 2000); // Longer timeout to see the correct answer
     };
 
-    if (loading) return (
+    if (loading || heartsLoading) return (
         <div className="fullscreen-page items-center justify-center">
             <div className="animate-pulse text-claude-secondary">Loading...</div>
         </div>
@@ -179,8 +216,8 @@ export default function TestMode() {
                             onClick={() => startTest('multiple')}
                             disabled={cards.length < 4}
                             className={`w-full p-6 rounded-2xl border text-left transition-all ${cards.length < 4
-                                    ? 'border-claude-border/50 opacity-50'
-                                    : 'glass-panel active:scale-[0.98]'
+                                ? 'border-claude-border/50 opacity-50'
+                                : 'glass-panel active:scale-[0.98]'
                                 }`}
                         >
                             <div className="flex items-start gap-4">
@@ -318,8 +355,8 @@ export default function TestMode() {
                 <div className="flex-1 px-4 pb-8">
                     <form onSubmit={handleTypedSubmit} className="space-y-4">
                         <div className={`relative rounded-2xl border transition-all ${isCorrect ? 'border-green-500 bg-green-500/10' :
-                                isWrong ? 'border-red-500 bg-red-500/10' :
-                                    'glass-panel'
+                            isWrong ? 'border-red-500 bg-red-500/10' :
+                                'glass-panel'
                             }`}>
                             <input
                                 ref={inputRef}
@@ -331,15 +368,15 @@ export default function TestMode() {
                                 autoComplete="off"
                                 autoCapitalize="off"
                                 className={`w-full px-4 py-4 pr-14 bg-transparent rounded-2xl outline-none text-lg ${isCorrect ? 'text-green-500' :
-                                        isWrong ? 'text-red-500' : ''
+                                    isWrong ? 'text-red-500' : ''
                                     }`}
                             />
                             <button
                                 type="submit"
                                 disabled={showFeedback || !typedAnswer.trim()}
                                 className={`absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${typedAnswer.trim() && !showFeedback
-                                        ? 'bg-claude-accent text-white'
-                                        : 'bg-claude-border/50 text-claude-secondary'
+                                    ? 'bg-claude-accent text-white'
+                                    : 'bg-claude-border/50 text-claude-secondary'
                                     }`}
                             >
                                 <Send className="w-5 h-5" />
@@ -429,16 +466,16 @@ export default function TestMode() {
                             onClick={() => handleMultipleAnswer(option)}
                             disabled={showFeedback}
                             className={`w-full text-left p-4 rounded-2xl border transition-all ${showCorrect
-                                    ? 'border-green-500 bg-green-500/10'
-                                    : showWrong
-                                        ? 'border-red-500 bg-red-500/10'
-                                        : 'glass-panel active:scale-[0.98]'
+                                ? 'border-green-500 bg-green-500/10'
+                                : showWrong
+                                    ? 'border-red-500 bg-red-500/10'
+                                    : 'glass-panel active:scale-[0.98]'
                                 } ${showFeedback && !isSelected && !isCorrect ? 'opacity-50' : ''}`}
                         >
                             <div className="flex items-center gap-4">
                                 <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0 ${showCorrect ? 'border-green-500 bg-green-500 text-white' :
-                                        showWrong ? 'border-red-500 bg-red-500 text-white' :
-                                            'border-claude-border'
+                                    showWrong ? 'border-red-500 bg-red-500 text-white' :
+                                        'border-claude-border'
                                     }`}>
                                     {showCorrect ? <CheckCircle2 className="w-5 h-5" /> :
                                         showWrong ? <XCircle className="w-5 h-5" /> :
@@ -453,6 +490,20 @@ export default function TestMode() {
                     );
                 })}
             </div>
+
+            <OutOfHeartsModal isOpen={showOutOfHearts} onClose={() => setShowOutOfHearts(false)} onPractice={async () => {
+                try {
+                    const result = await api.practiceRefill();
+                    setHeartsStatus(result);
+                    setShowOutOfHearts(false);
+                } catch {
+                    setShowOutOfHearts(false);
+                    window.location.href = `/deck/${id}/study`;
+                }
+            }} onEnd={() => {
+                setShowOutOfHearts(false);
+                window.location.href = `/deck/${id}`;
+            }} />
         </div>
     );
 }

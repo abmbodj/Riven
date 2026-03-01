@@ -3,7 +3,9 @@ import { useTheme } from '../hooks/useTheme';
 import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Sparkles, Type } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
+import { useAuth } from '../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Default theme presets for the editor
@@ -52,6 +54,7 @@ const ACCENT_PRESETS = [
 
 export default function ThemeSettings() {
     const { themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme } = useTheme();
+    const { user } = useAuth();
     const toast = useToast();
     const haptics = useHaptics();
 
@@ -59,11 +62,23 @@ export default function ThemeSettings() {
     const [editingTheme, setEditingTheme] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, theme: null });
     const [editorMode, setEditorMode] = useState('simple');
+    const [pricingOpen, setPricingOpen] = useState(false);
 
     const [themeForm, setThemeForm] = useState({ ...DEFAULT_DARK, name: '' });
 
-    const handleSwitchTheme = async (themeId) => {
+    const handleSwitchTheme = async (themeId, isPro) => {
         if (activeTheme?.id === themeId) return;
+
+        // Check Pro status
+        if (isPro) {
+            const tier = user?.subscription_tier || 'free';
+            if (tier === 'free') {
+                haptics.error();
+                setPricingOpen(true);
+                return;
+            }
+        }
+
         haptics.light();
         await switchTheme(themeId);
         toast.success('Theme applied');
@@ -204,7 +219,7 @@ export default function ThemeSettings() {
                     subtitle="Core aesthetic experiences"
                     themes={categories.official}
                     activeThemeId={activeTheme?.id}
-                    onSelect={handleSwitchTheme}
+                    onSelect={(id) => handleSwitchTheme(id, false)}
                     isPro={false}
                 />
 
@@ -213,7 +228,7 @@ export default function ThemeSettings() {
                     subtitle="Masterfully crafted environments"
                     themes={categories.professional}
                     activeThemeId={activeTheme?.id}
-                    onSelect={handleSwitchTheme}
+                    onSelect={(id) => handleSwitchTheme(id, true)}
                     isPro={true}
                 />
 
@@ -222,7 +237,7 @@ export default function ThemeSettings() {
                     subtitle="Handcrafted by you"
                     themes={categories.custom}
                     activeThemeId={activeTheme?.id}
-                    onSelect={handleSwitchTheme}
+                    onSelect={(id) => handleSwitchTheme(id, false)}
                     isCustom={true}
                     onEdit={handleEditTheme}
                     onDelete={handleDeleteClick}
@@ -237,6 +252,12 @@ export default function ThemeSettings() {
                 destructive={true}
                 onConfirm={handleDeleteConfirm}
                 onCancel={() => setDeleteConfirm({ show: false, theme: null })}
+            />
+
+            <PricingModal
+                isOpen={pricingOpen}
+                onClose={() => setPricingOpen(false)}
+                currentTier={user?.subscription_tier || 'free'}
             />
 
             {/* Theme Editor - Bottom Sheet for Mobile First */}

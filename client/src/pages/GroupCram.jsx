@@ -6,6 +6,7 @@ import { api } from '../api';
 import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
+import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 
 export default function GroupCram() {
     const { groupId, sessionId } = useParams();
@@ -27,6 +28,10 @@ export default function GroupCram() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
+
+    // Hearts State
+    const [heartsStatus, setHeartsStatus] = useState(null);
+    const [showOutOfHearts, setShowOutOfHearts] = useState(false);
 
     const fetchResults = useCallback(async () => {
         try {
@@ -51,9 +56,18 @@ export default function GroupCram() {
                     return;
                 }
 
-                // Fetch deck cards
-                const deckData = await api.getDeck(sessionRes.session.deck_id);
+                // Fetch deck cards and hearts status concurrently
+                const [deckData, heartsData] = await Promise.all([
+                    api.getDeck(sessionRes.session.deck_id),
+                    api.getHeartsStatus()
+                ]);
+
                 setCards(deckData.cards || []);
+                setHeartsStatus(heartsData);
+
+                if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
+                    setShowOutOfHearts(true);
+                }
 
             } catch (err) {
                 console.error(err);
@@ -104,6 +118,18 @@ export default function GroupCram() {
         // Fire off network quietly
         api.respondToSessionCard(sessionId, currentCard.id, knewIt).catch(console.error);
         haptics.selection();
+
+        if (!knewIt && heartsStatus && !heartsStatus.isUnlimited) {
+            try {
+                const newStatus = await api.decrementHeart();
+                setHeartsStatus(newStatus);
+                if (newStatus.hearts <= 0) {
+                    setTimeout(() => setShowOutOfHearts(true), 150);
+                }
+            } catch (err) {
+                console.error("Failed to decrement heart", err);
+            }
+        }
 
         if (currentIndex < cards.length - 1) {
             setIsFlipped(false);
@@ -394,6 +420,20 @@ export default function GroupCram() {
                 </div>
 
             </div>
+
+            <OutOfHeartsModal isOpen={showOutOfHearts} onClose={() => setShowOutOfHearts(false)} onPractice={async () => {
+                try {
+                    const result = await api.practiceRefill();
+                    setHeartsStatus(result);
+                    setShowOutOfHearts(false);
+                } catch {
+                    setShowOutOfHearts(false);
+                    navigate(`/groups/${groupId}`);
+                }
+            }} onEnd={() => {
+                setShowOutOfHearts(false);
+                navigate(`/groups/${groupId}`);
+            }} />
         </div>
     );
 }

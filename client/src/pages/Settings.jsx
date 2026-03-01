@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -10,6 +10,7 @@ import { api } from '../api';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import PricingModal from '../components/ui/PricingModal';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -57,7 +58,8 @@ export default function Settings() {
     const [modals, setModals] = useState({
         password: false,
         twoFactor: false,
-        delete: false
+        delete: false,
+        pricing: false
     });
 
     const [lmsStatus, setLmsStatus] = useState({ loading: true, syncing: false, isConnected: false, canvasUrl: '' });
@@ -193,6 +195,76 @@ export default function Settings() {
                         <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — Manage 2FA' : 'Add extra security'} onClick={() => openModal('twoFactor')} noBorder />
                     </div>
                 </motion.div>
+
+                {/* Subscription Bento */}
+                <motion.div variants={itemVariants}>
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-accent mb-3 pl-2">
+                        Subscription
+                    </h2>
+                    <div className="flex flex-col glass-panel border-claude-accent/20 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="p-3 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 shadow-inner">
+                                <Sparkles className="w-6 h-6 text-claude-accent" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
+                                    Current Plan
+                                    <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border uppercase ${user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-botanical-sepia/10 text-botanical-sepia/80 border-botanical-sepia/20'}`}>
+                                        {user?.subscription_tier || 'Free'}
+                                    </span>
+                                </h3>
+                                <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                    {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Limited daily usage' : 'Unlimited Pro active'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="relative z-10 pt-2 flex gap-3">
+                            <button
+                                onClick={() => openModal('pricing')}
+                                className="flex-1 bg-gradient-to-r from-claude-accent to-indigo-500 hover:from-indigo-500 hover:to-claude-accent text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-claude-accent/20"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Upgrade Riven
+                            </button>
+                            <button
+                                onClick={() => { haptics.light(); toast('Purchase sync mocked for now'); }}
+                                className="p-3.5 bg-claude-bg border border-botanical-sepia/10 hover:bg-white/5 rounded-xl text-claude-secondary hover:text-claude-text transition-colors"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Subscriber Badge */}
+                {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') && (
+                    <motion.div variants={itemVariants}>
+                        <div className="glass-panel rounded-[2rem] p-5 flex items-center gap-4 relative overflow-hidden">
+                            <div className={`p-3 rounded-2xl ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shadow-inner`}>
+                                {user?.subscription_tier === 'lifetime'
+                                    ? <Crown className="w-6 h-6 text-amber-400" />
+                                    : <Award className="w-6 h-6 text-indigo-400" />}
+                            </div>
+                            <div>
+                                <h3 className="font-display text-base font-bold text-claude-text flex items-center gap-2">
+                                    {user?.subscription_tier === 'lifetime' ? 'Lifetime Member' : 'Supporter'}
+                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+                                        {user?.subscription_tier === 'lifetime' ? '∞ LIFETIME' : '⭐ PRO'}
+                                    </span>
+                                </h3>
+                                <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
+                                    {user?.subscription_tier === 'lifetime' ? 'All features unlocked forever' : 'Thank you for supporting Riven!'}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Referral Program */}
+                <ReferralCard />
 
                 {/* Integrations Bento */}
                 <motion.div variants={itemVariants}>
@@ -429,6 +501,132 @@ export default function Settings() {
             <ChangePasswordModal isOpen={modals.password} onClose={() => closeModal('password')} />
             <TwoFactorAuthModal isOpen={modals.twoFactor} onClose={() => closeModal('twoFactor')} />
             <DeleteAccountModal isOpen={modals.delete} onClose={() => closeModal('delete')} />
+            <PricingModal isOpen={modals.pricing} onClose={() => closeModal('pricing')} currentTier={user?.subscription_tier || 'free'} />
         </div>
+    );
+}
+
+function ReferralCard() {
+    const [referralInfo, setReferralInfo] = React.useState(null);
+    const [applyCode, setApplyCode] = React.useState('');
+    const [copied, setCopied] = React.useState(false);
+    const [applying, setApplying] = React.useState(false);
+    const toast = useToast();
+
+    React.useEffect(() => {
+        api.getReferralInfo().then(data => {
+            if (data) setReferralInfo(data);
+        }).catch(() => { });
+    }, []);
+
+    const handleCopy = () => {
+        if (referralInfo?.referralCode) {
+            navigator.clipboard.writeText(referralInfo.referralCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleApply = async () => {
+        if (!applyCode.trim()) return;
+        setApplying(true);
+        try {
+            await api.applyReferralCode(applyCode.trim());
+            toast('Referral code applied!');
+            setApplyCode('');
+        } catch (err) {
+            toast(err.message || 'Failed to apply code');
+        } finally {
+            setApplying(false);
+        }
+    };
+
+    if (!referralInfo) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+        >
+            <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-pink-400 mb-3 pl-2">
+                Invite Friends
+            </h2>
+            <div className="glass-panel rounded-[2rem] p-6 space-y-5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-pink-400/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+
+                {/* Header */}
+                <div className="flex items-center gap-4 relative z-10">
+                    <div className="p-3 rounded-2xl bg-pink-500/10 border border-pink-500/20 shadow-inner">
+                        <Gift className="w-6 h-6 text-pink-400" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-display text-base font-bold text-claude-text">
+                            Earn Lifetime Free
+                        </h3>
+                        <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
+                            Invite 5 friends who use Riven &rarr; free Lifetime membership
+                        </p>
+                    </div>
+                </div>
+
+                {/* Your Code */}
+                <div className="relative z-10">
+                    <p className="text-[10px] font-mono uppercase text-claude-secondary mb-2 tracking-wider">Your Referral Code</p>
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-claude-bg border border-claude-border rounded-xl px-4 py-3 text-lg font-mono font-bold text-claude-text tracking-[0.3em] text-center">
+                            {referralInfo.referralCode}
+                        </div>
+                        <button
+                            onClick={handleCopy}
+                            className="p-3 rounded-xl bg-claude-bg border border-claude-border hover:border-pink-400/30 hover:bg-pink-400/5 transition-all"
+                        >
+                            {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Progress */}
+                <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
+                        <span className="text-[11px] font-mono font-bold text-claude-text">{referralInfo.qualifiedCount} / {referralInfo.targetCount}</span>
+                    </div>
+                    <div className="w-full h-2 bg-claude-bg rounded-full overflow-hidden border border-claude-border">
+                        <div
+                            className="h-full bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full transition-all duration-700"
+                            style={{ width: `${Math.min(100, (referralInfo.qualifiedCount / referralInfo.targetCount) * 100)}%` }}
+                        />
+                    </div>
+                    {referralInfo.rewardEarned && (
+                        <p className="text-[11px] font-mono text-green-400 mt-2 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Lifetime earned! 🎉
+                        </p>
+                    )}
+                </div>
+
+                {/* Apply someone else's code */}
+                <div className="relative z-10 pt-2 border-t border-claude-border">
+                    <p className="text-[10px] font-mono uppercase text-claude-secondary mb-2 tracking-wider">Have a referral code?</p>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={applyCode}
+                            onChange={(e) => setApplyCode(e.target.value.toUpperCase())}
+                            placeholder="ENTER CODE"
+                            maxLength={8}
+                            className="flex-1 bg-claude-bg border border-claude-border rounded-xl px-3 py-2.5 text-sm font-mono text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-pink-400/50"
+                        />
+                        <button
+                            onClick={handleApply}
+                            disabled={applying || !applyCode.trim()}
+                            className="px-4 py-2.5 rounded-xl bg-pink-500/10 text-pink-400 font-mono text-[11px] uppercase tracking-wider font-bold hover:bg-pink-500/20 disabled:opacity-30 transition-all"
+                        >
+                            {applying ? '...' : 'Apply'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
     );
 }

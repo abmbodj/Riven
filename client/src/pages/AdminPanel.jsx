@@ -30,6 +30,7 @@ export default function AdminPanel() {
     const {
         isAdmin,
         isOwner,
+        user,
         adminGetStats,
         getAllUsers,
         adminDeleteUser,
@@ -37,7 +38,8 @@ export default function AdminPanel() {
         adminGetMessages,
         adminCreateMessage,
         adminUpdateMessage,
-        adminDeleteMessage
+        adminDeleteMessage,
+        toggleSimulateFree
     } = useContext(AuthContext);
 
     const [activeTab, setActiveTab] = useState('overview');
@@ -262,15 +264,7 @@ export default function AdminPanel() {
                             )}
 
                             {activeTab === 'account' && (
-                                <div className="p-8 text-center text-white/40 text-sm">
-                                    Please use the main app settings for account management.
-                                    <button
-                                        onClick={() => navigate('/account')}
-                                        className="block mx-auto mt-4 text-[#3ECF8E] hover:underline"
-                                    >
-                                        Go to Account Settings
-                                    </button>
-                                </div>
+                                <AccountTab user={user} isOwner={isOwner} toggleSimulateFree={toggleSimulateFree} />
                             )}
                         </motion.div>
                     )}
@@ -862,5 +856,97 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                 )}
             </div>
         </div>
+    );
+}
+
+function AccountTab({ user, isOwner, toggleSimulateFree }) {
+    const [toggling, setToggling] = React.useState(false);
+    const simulatingFree = !!user?.simulate_free_tier;
+    const currentTier = user?.subscription_tier || 'free';
+
+    const handleToggle = async () => {
+        setToggling(true);
+        try {
+            await toggleSimulateFree();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setToggling(false);
+        }
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+        >
+            {/* Subscription Status */}
+            <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#3ECF8E]/10 blur-[80px] rounded-full pointer-events-none" />
+                <div className="relative z-10">
+                    <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-[#3ECF8E]" />
+                        Subscription Status
+                    </h3>
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className={`text-2xl font-black tracking-tight capitalize ${currentTier === 'lifetime' ? 'text-[#F59E0B]' : currentTier === 'supporter' ? 'text-[#3ECF8E]' : 'text-white/60'}`}>
+                            {currentTier}
+                        </span>
+                        {isOwner && !simulatingFree && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] uppercase tracking-widest">
+                                Owner
+                            </span>
+                        )}
+                        {simulatingFree && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 uppercase tracking-widest animate-pulse">
+                                Simulated
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-white/40">
+                        {simulatingFree
+                            ? 'You are currently experiencing Riven as a free-tier user.'
+                            : 'As the owner, you have permanent Lifetime access.'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Simulate Free Toggle (Owner Only) */}
+            {isOwner && (
+                <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden">
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold text-white tracking-tight mb-1 flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-[#F59E0B]" />
+                                    Simulate Free User
+                                </h3>
+                                <p className="text-xs text-white/40 max-w-sm leading-relaxed">
+                                    Toggle this to experience Riven as a free-tier user — limited hearts, AI caps, theme locks, and group restrictions will all apply to you.
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleToggle}
+                                disabled={toggling}
+                                className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 ${simulatingFree
+                                    ? 'bg-[#3ECF8E] shadow-[0_0_15px_rgba(62,207,142,0.4)]'
+                                    : 'bg-white/10 border border-white/20'
+                                    } ${toggling ? 'opacity-50' : ''}`}
+                            >
+                                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${simulatingFree ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        {simulatingFree && (
+                            <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <span>Free mode is active. You will see hearts, limits, and paywalls. Toggle off to restore Lifetime access.</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </motion.div>
     );
 }

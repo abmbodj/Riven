@@ -4,71 +4,96 @@ const mammoth = require('mammoth');
 
 module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator }) {
 
-    // AI Rate Limiter: 15 requests per 2 hours to stay well within free tier
-    // Uses req.user.id so the limit is strictly per-account, not per-IP
-    const aiLimiter = rateLimit({
-        windowMs: 2 * 60 * 60 * 1000,
-        max: 15,
-        keyGenerator: (req, res) => {
-            // Default to IP if user isn't populated for some reason
-            return req.user ? req.user.id : ipKeyGenerator(req, res);
-        },
-        message: { error: 'AI generation limit reached. Please try again later.' },
-        standardHeaders: true,
-        legacyHeaders: false,
-    });
+    // Helper function to check and consume AI quota
+    const checkAndConsumeAILimit = async (req, res, next) => {
+        try {
+            const userRes = await db.query('SELECT subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier FROM users WHERE id = $1', [req.user.id]);
+            if (!userRes.length) return res.status(401).json({ error: 'User not found' });
+
+            const user = userRes[0];
+            const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
+            const isUnlimited = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+
+            if (isUnlimited) {
+                req.aiLimitsContext = { isUnlimited: true };
+                return next();
+            }
+
+            const MAX_LIMIT = 15;
+            const RESET_MS = 2 * 60 * 60 * 1000; // 2 hours
+            const now = new Date();
+
+            let count = user.ai_generations_count || 0;
+            let lastReset = user.last_ai_generation_reset ? new Date(user.last_ai_generation_reset) : null;
+
+            // Reset if 2 hours have passed
+            if (!lastReset || (now - lastReset > RESET_MS)) {
+                count = 0;
+                lastReset = now;
+            }
+
+            if (count >= MAX_LIMIT) {
+                return res.status(429).json({ error: 'AI generation limit reached. Please try again later or upgrade to Premium.' });
+            }
+
+            // Consume 1 quota immediately
+            count += 1;
+            await db.execute('UPDATE users SET ai_generations_count = $1, last_ai_generation_reset = $2 WHERE id = $3', [count, lastReset, req.user.id]);
+
+            req.aiLimitsContext = { isUnlimited: false, characterLimit: 15000, flashcardRange: [5, 15] };
+            next();
+        } catch (err) {
+            console.error('AI Limiter Error:', err);
+            res.status(500).json({ error: 'Failed to verify AI limits' });
+        }
+    };
 
     // Get current AI limits and usage for the authenticated user
     app.get('/api/ai/limits', authMiddleware, async (req, res) => {
         try {
-            // Get the store instance from the rate limiter
-            const store = aiLimiter.store;
-            const key = req.user.id;
+            const userRes = await db.query('SELECT subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier FROM users WHERE id = $1', [req.user.id]);
+            if (!userRes.length) return res.status(401).json({ error: 'User not found' });
 
-            // The express-rate-limit store has a decrement or get/increment, but standard stores 
-            // usually have a way to fetch the current hits. 
-            // In express-rate-limit v6+, we can use `get` or manually decrement if we incremented to check.
-            // Since `get` wasn't added to all stores until late versions, `increment` with 0 isn't always supported.
-            // But standard `store.get` or `store.increment` without actually consuming a hit is tricky. 
-            // Usually, standard `store.decrement` exists but isn't what we want.
-            // If the store is the MemoryStore, it has a `hits` property on the internal map. 
-            // express-rate-limit v7 allows `await store.get(key)`. Let's try `store.get`.
+            const user = userRes[0];
+            const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
+            const isUnlimited = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
 
-            let totalHits = 0;
-            if (typeof store.get === 'function') {
-                const result = await store.get(key);
-                totalHits = result ? result.totalHits || result : 0;
-                if (typeof totalHits === 'object' && totalHits.totalHits !== undefined) {
-                    totalHits = totalHits.totalHits;
-                }
-            } else if (store.hits) {
-                // memory store fallback
-                totalHits = store.hits[key] || 0;
+            if (isUnlimited) {
+                return res.json({
+                    remaining: 'Unlimited',
+                    max: 'Unlimited',
+                    characterLimit: 50000,
+                    flashcardRange: [5, 40]
+                });
             }
 
-            const maxRequests = aiLimiter.max;
-            const remaining = Math.max(0, maxRequests - totalHits);
+            const MAX_LIMIT = 15;
+            const RESET_MS = 2 * 60 * 60 * 1000;
+            const now = new Date();
+
+            let count = user.ai_generations_count || 0;
+            let lastReset = user.last_ai_generation_reset ? new Date(user.last_ai_generation_reset) : null;
+
+            if (!lastReset || (now - lastReset > RESET_MS)) {
+                count = 0;
+            }
+
+            const remaining = Math.max(0, MAX_LIMIT - count);
 
             res.json({
                 remaining,
-                max: maxRequests,
+                max: MAX_LIMIT,
                 characterLimit: 15000,
                 flashcardRange: [5, 15]
             });
         } catch (error) {
             console.error('Error fetching AI limits:', error);
-            // Default safe response if store inspection fails
-            res.json({
-                remaining: 15, // Fallback
-                max: 15,
-                characterLimit: 15000,
-                flashcardRange: [5, 15]
-            });
+            res.status(500).json({ error: 'Failed to fetch AI limits' });
         }
     });
 
     // Generate Flashcards Deck from Notes or File
-    app.post('/api/ai/generate-deck', authMiddleware, aiLimiter, async (req, res) => {
+    app.post('/api/ai/generate-deck', authMiddleware, checkAndConsumeAILimit, async (req, res) => {
         try {
             const { notes, file, deckName, classId } = req.body;
 
@@ -102,9 +127,10 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
                 return res.status(400).json({ error: 'Notes or a file are required to generate flashcards.' });
             }
 
-            // Cap notes at 15,000 characters to prevent abuse and ensure fast generation
-            if (hasProcessedNotes && processedNotes.length > 15000) {
-                return res.status(400).json({ error: 'Notes are too long. Please limit to ~3000 words.' });
+            // Cap notes to prevent abuse and ensure fast generation
+            const characterLimit = req.aiLimitsContext?.characterLimit || (req.aiLimitsContext?.isUnlimited ? 50000 : 15000);
+            if (hasProcessedNotes && processedNotes.length > characterLimit) {
+                return res.status(400).json({ error: `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.` });
             }
 
             if (!process.env.GEMINI_API_KEY) {
@@ -224,7 +250,7 @@ Example JSON format:
     });
 
     // Generate Class from Syllabus
-    app.post('/api/ai/generate-class', authMiddleware, aiLimiter, async (req, res) => {
+    app.post('/api/ai/generate-class', authMiddleware, checkAndConsumeAILimit, async (req, res) => {
         try {
             const { file, notes } = req.body;
 

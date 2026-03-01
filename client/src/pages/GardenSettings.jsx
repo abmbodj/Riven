@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { Palette, Clock, Trophy, Sprout, LogIn } from 'lucide-react';
+import { Palette, Clock, Trophy, Sprout, LogIn, Sparkles, Lock } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthContext } from '../context/AuthContext';
@@ -33,7 +33,8 @@ const getLast7Days = (lastStudyDate, currentStreak) => {
 };
 
 export default function GardenSettings() {
-    const { isLoggedIn, isOwner } = useContext(AuthContext);
+    const { isLoggedIn, isOwner, isAdmin, user } = useContext(AuthContext);
+    const isPremium = isOwner || isAdmin || user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
     const { customization, setStageOverride } = useContext(GardenContext);
     const navigate = useNavigate();
     const streak = useStreak();
@@ -211,60 +212,82 @@ export default function GardenSettings() {
                 </motion.div>
             )}
 
-            {/* Stage Selection (Owner Override or User Progression) */}
-            {(isOwner || streak.currentStreak >= gardenStages[1].minDays) && (
+            {/* Stage Selection (Premium or Owner Override) */}
+            {isPremium ? (
+                (isOwner || streak.currentStreak >= gardenStages[1].minDays) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                        className={`p-4 mb-6 rounded-2xl border-2 relative overflow-hidden ${isOwner ? 'border-amber-500/30 bg-amber-500/5' : 'border-claude-accent/30 bg-claude-accent/5'
+                            }`}
+                    >
+                        {isOwner && (
+                            <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-bl-lg">OWNER</div>
+                        )}
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isOwner ? 'bg-amber-500/20' : 'bg-claude-accent/20'
+                                }`}>
+                                <Palette className={`w-4 h-4 ${isOwner ? 'text-amber-500' : 'text-claude-accent'}`} />
+                            </div>
+                            <div>
+                                <div className={`font-display font-bold text-sm ${isOwner ? 'text-amber-500' : 'text-claude-accent'}`}>
+                                    {isOwner ? 'Stage Override' : 'Select Garden Stage'}
+                                </div>
+                                <div className={`text-xs ${isOwner ? 'text-amber-500/70' : 'text-claude-accent/70'}`}>
+                                    {isOwner ? 'Manually select any garden stage (0-15)' : 'Revisit stages you have unlocked'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between text-xs text-claude-secondary font-mono px-1">
+                                <span>Stage 0 (Seed)</span>
+                                <span>{isOwner ? 'Stage 15 (Infinity)' : `Stage ${getStageIndex(streak.currentStreak)} (Max)`}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max={isOwner ? 15 : getStageIndex(streak.currentStreak)}
+                                step="1"
+                                value={customization?.stageOverride ?? getStageIndex(streak.currentStreak)}
+                                onChange={(e) => setStageOverride(parseInt(e.target.value, 10))}
+                                className={`w-full h-2 bg-claude-bg rounded-lg appearance-none cursor-pointer ${isOwner ? 'accent-amber-500' : 'accent-claude-accent'
+                                    }`}
+                            />
+                            <div className={`mt-2 text-center text-sm font-display font-semibold italic ${isOwner ? 'text-amber-400' : 'text-claude-text'
+                                }`}>
+                                Currently showing: {customization?.stageOverride != null ? gardenStages[customization.stageOverride].name : 'Current Max Stage'}
+                            </div>
+                            {customization?.stageOverride != null && (
+                                <button
+                                    onClick={() => setStageOverride(null)}
+                                    className="mt-2 text-xs text-claude-secondary hover:text-claude-text underline decoration-claude-secondary/30 transition-colors"
+                                >
+                                    Reset to Natural Streak ({streak.currentStreak})
+                                </button>
+                            )}
+                        </div>
+                    </motion.div>
+                )
+            ) : (
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
-                    className={`p-4 mb-6 rounded-2xl border-2 relative overflow-hidden ${isOwner ? 'border-amber-500/30 bg-amber-500/5' : 'border-claude-accent/30 bg-claude-accent/5'
-                        }`}
+                    className="p-4 mb-6 rounded-2xl border border-claude-border bg-white/3 relative overflow-hidden"
                 >
-                    {isOwner && (
-                        <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-bl-lg">OWNER</div>
-                    )}
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isOwner ? 'bg-amber-500/20' : 'bg-claude-accent/20'
-                            }`}>
-                            <Palette className={`w-4 h-4 ${isOwner ? 'text-amber-500' : 'text-claude-accent'}`} />
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                            <Lock className="w-4 h-4 text-indigo-400" />
                         </div>
-                        <div>
-                            <div className={`font-display font-bold text-sm ${isOwner ? 'text-amber-500' : 'text-claude-accent'}`}>
-                                {isOwner ? 'Stage Override' : 'Select Garden Stage'}
+                        <div className="flex-1">
+                            <div className="font-display font-bold text-sm text-claude-text flex items-center gap-2">
+                                Garden Customization
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full uppercase">PRO</span>
                             </div>
-                            <div className={`text-xs ${isOwner ? 'text-amber-500/70' : 'text-claude-accent/70'}`}>
-                                {isOwner ? 'Manually select any garden stage (0-15)' : 'Revisit stages you have unlocked'}
-                            </div>
+                            <div className="text-xs text-claude-secondary">Upgrade to customize your garden stages</div>
                         </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <div className="flex justify-between text-xs text-claude-secondary font-mono px-1">
-                            <span>Stage 0 (Seed)</span>
-                            <span>{isOwner ? 'Stage 15 (Infinity)' : `Stage ${getStageIndex(streak.currentStreak)} (Max)`}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max={isOwner ? 15 : getStageIndex(streak.currentStreak)}
-                            step="1"
-                            value={customization?.stageOverride ?? getStageIndex(streak.currentStreak)}
-                            onChange={(e) => setStageOverride(parseInt(e.target.value, 10))}
-                            className={`w-full h-2 bg-claude-bg rounded-lg appearance-none cursor-pointer ${isOwner ? 'accent-amber-500' : 'accent-claude-accent'
-                                }`}
-                        />
-                        <div className={`mt-2 text-center text-sm font-display font-semibold italic ${isOwner ? 'text-amber-400' : 'text-claude-text'
-                            }`}>
-                            Currently showing: {customization?.stageOverride != null ? gardenStages[customization.stageOverride].name : 'Current Max Stage'}
-                        </div>
-                        {customization?.stageOverride != null && (
-                            <button
-                                onClick={() => setStageOverride(null)}
-                                className="mt-2 text-xs text-claude-secondary hover:text-claude-text underline decoration-claude-secondary/30 transition-colors"
-                            >
-                                Reset to Natural Streak ({streak.currentStreak})
-                            </button>
-                        )}
                     </div>
                 </motion.div>
             )}
@@ -273,15 +296,18 @@ export default function GardenSettings() {
             <div className="space-y-3 mb-24">
                 <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setShowGallery(true)}
-                    className="w-full p-4 glass-panel flex items-center gap-4"
+                    onClick={() => isPremium ? setShowGallery(true) : null}
+                    className={`w-full p-4 glass-panel flex items-center gap-4 ${!isPremium ? 'opacity-60' : ''}`}
                 >
                     <div className="w-10 h-10 rounded-lg bg-yellow-500/12 flex items-center justify-center">
-                        <Trophy className="w-5 h-5 text-yellow-500" />
+                        {isPremium ? <Trophy className="w-5 h-5 text-yellow-500" /> : <Lock className="w-5 h-5 text-yellow-500/50" />}
                     </div>
                     <div className="flex-1 text-left">
-                        <div className="font-display font-semibold text-sm">Garden Memories</div>
-                        <div className="text-xs text-claude-secondary">View your past gardens & achievements</div>
+                        <div className="font-display font-semibold text-sm flex items-center gap-2">
+                            Garden Memories
+                            {!isPremium && <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full uppercase">PRO</span>}
+                        </div>
+                        <div className="text-xs text-claude-secondary">{isPremium ? 'View your past gardens & achievements' : 'Upgrade to unlock Garden Memories'}</div>
                     </div>
                 </motion.button>
             </div>

@@ -27,6 +27,9 @@ const registerScheduleRoutes = require('./routes/schedule');
 const registerLMSRoutes = require('./routes/lms');
 const registerAIRoutes = require('./routes/ai');
 const registerGroupsRoutes = require('./routes/groups');
+const registerHeartsRoutes = require('./routes/hearts');
+const registerWebhooksRoutes = require('./routes/webhooks');
+const registerReferralRoutes = require('./routes/referrals');
 
 const app = express();
 const server = http.createServer(app);
@@ -329,6 +332,15 @@ registerLMSRoutes({ app, db, authMiddleware });
 // ============ AI GENERATION ============
 
 registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
+
+// ============ HEARTS / MONETIZATION ============
+
+registerHeartsRoutes({ app, db, authMiddleware });
+registerReferralRoutes({ app, db, authMiddleware });
+
+// ============ WEBHOOKS ============
+
+registerWebhooksRoutes({ app, db });
 
 // ============ GROUPS ============
 
@@ -755,6 +767,16 @@ app.post('/api/decks', optionalAuth, async (req, res) => {
         }
 
         res.status(201).json({ id: deckId, title, description, folder_id, class_id });
+
+        // Auto-check referral qualification (non-blocking)
+        if (userId) {
+            db.queryOne('SELECT * FROM referrals WHERE referred_id = $1', [userId]).then(async referral => {
+                if (!referral) return;
+                const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [userId]);
+                const hasDeck = parseInt(deckCount.count) >= 1;
+                await db.execute('UPDATE referrals SET has_deck = $1 WHERE referred_id = $2', [hasDeck, userId]);
+            }).catch(() => { });
+        }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -1081,6 +1103,39 @@ app.post('/api/study-sessions', optionalAuth, async (req, res) => {
         );
 
         await db.execute('UPDATE decks SET last_studied = CURRENT_TIMESTAMP WHERE id = $1', [deck_id]);
+
+        // Auto-check referral qualification for this user
+        if (userId) {
+            try {
+                const referral = await db.queryOne('SELECT * FROM referrals WHERE referred_id = $1', [userId]);
+                if (referral) {
+                    const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [userId]);
+                    const hasDeck = parseInt(deckCount.count) >= 1;
+                    const sessionCount = await db.queryOne(
+                        'SELECT COUNT(*) as count FROM study_sessions ss JOIN decks d ON d.id = ss.deck_id WHERE d.user_id = $1', [userId]
+                    );
+                    const sessions = parseInt(sessionCount.count);
+                    const qualified = hasDeck && sessions >= 10;
+                    await db.execute(
+                        'UPDATE referrals SET has_deck = $1, session_count = $2, qualified = $3 WHERE referred_id = $4',
+                        [hasDeck, sessions, qualified, userId]
+                    );
+                    if (qualified) {
+                        const qualCount = await db.queryOne(
+                            'SELECT COUNT(*) as count FROM referrals WHERE referrer_id = $1 AND qualified = TRUE',
+                            [referral.referrer_id]
+                        );
+                        if (parseInt(qualCount.count) >= 5) {
+                            await db.execute(
+                                "UPDATE users SET subscription_tier = 'lifetime' WHERE id = $1 AND subscription_tier != 'lifetime'",
+                                [referral.referrer_id]
+                            );
+                        }
+                    }
+                }
+            } catch (e) { /* non-critical, don't block session save */ }
+        }
+
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });

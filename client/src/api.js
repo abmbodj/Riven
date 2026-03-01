@@ -219,4 +219,15 @@ export const api = {
     sendMessage: (toUserId, content, messageType, deckData) => isLoggedIn()
         ? serverApi.sendMessage(toUserId, content, messageType, deckData)
         : Promise.reject(new Error('Must be logged in to send messages')),
+
+    // Hearts API
+    getHeartsStatus: () => isLoggedIn() ? serverApi.getHeartsStatus() : Promise.resolve({ hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true }),
+    getSessionHearts: (deckId) => isLoggedIn() ? serverApi.getSessionHearts(deckId) : Promise.resolve({ hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true }),
+    decrementHeart: () => isLoggedIn() ? serverApi.decrementHeart() : Promise.resolve({ hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true }),
+    refillHearts: (amount) => isLoggedIn() ? serverApi.refillHearts(amount) : Promise.resolve({ hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true }),
+    practiceRefill: () => isLoggedIn() ? serverApi.practiceRefill() : Promise.resolve({ hearts: 'Unlimited', max: 'Unlimited', isUnlimited: true }),
+
+    // Referrals API
+    getReferralInfo: () => isLoggedIn() ? serverApi.getReferralInfo() : Promise.resolve(null),
+    applyReferralCode: (code) => isLoggedIn() ? serverApi.applyReferralCode(code) : Promise.reject(new Error('Must be logged in')),
 };

@@ -606,4 +606,19 @@ export default {
     getGroupFiles,
     uploadGroupFile,
     deleteGroupFile,
+
+    // Hearts API
+    getHeartsStatus: () => authFetch('/users/hearts/status'),
+    getSessionHearts: (deckId) => authFetch(`/users/hearts/session/${deckId}`),
+    decrementHeart: () => authFetch('/users/hearts/decrement', { method: 'POST' }),
+    refillHearts: (amount) => authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) }),
+    practiceRefill: () => authFetch('/users/hearts/practice-refill', { method: 'POST' }),
+
+    // Owner: Simulate Free Tier toggle
+    toggleSimulateFree: () => authFetch('/auth/simulate-free', { method: 'POST' }),
+
+    // Referrals API
+    getReferralInfo: () => authFetch('/referrals/me'),
+    applyReferralCode: (code) => authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) }),
+    checkReferralQualification: () => authFetch('/referrals/check-qualification', { method: 'POST' }),
 };

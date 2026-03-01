@@ -130,6 +130,8 @@ module.exports = function registerAuthRoutes({
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
             });
 
+            const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+
             res.json({
                 token,
                 require2FA: false,
@@ -139,7 +141,9 @@ module.exports = function registerAuthRoutes({
                     isAdmin: userRole === 'admin' || userRole === 'owner',
                     isOwner: userRole === 'owner',
                     streakData: JSON.parse(user.streak_data || '{}'),
-                    twoFAEnabled: !!user.two_fa_enabled
+                    twoFAEnabled: !!user.two_fa_enabled,
+                    subscription_tier: effectiveTier,
+                    simulate_free_tier: !!user.simulate_free_tier
                 }
             });
         } catch (error) {
@@ -238,6 +242,8 @@ module.exports = function registerAuthRoutes({
                     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
                 });
 
+                const effectiveTier2FA = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+
                 res.json({
                     token: newToken,
                     user: {
@@ -246,7 +252,9 @@ module.exports = function registerAuthRoutes({
                         isAdmin: userRole === 'admin' || userRole === 'owner',
                         isOwner: userRole === 'owner',
                         streakData: JSON.parse(user.streak_data || '{}'),
-                        twoFAEnabled: !!user.two_fa_enabled
+                        twoFAEnabled: !!user.two_fa_enabled,
+                        subscription_tier: effectiveTier2FA,
+                        simulate_free_tier: !!user.simulate_free_tier
                     }
                 });
             } else {
@@ -284,6 +292,8 @@ module.exports = function registerAuthRoutes({
 
             const petCustomization = user.pet_customization ? JSON.parse(user.pet_customization) : { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
 
+            const effectiveTierMe = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+
             res.json({
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '',
@@ -291,7 +301,9 @@ module.exports = function registerAuthRoutes({
                 petCustomization,
                 role: userRole, isAdmin: userRole === 'admin' || userRole === 'owner',
                 isOwner: userRole === 'owner', createdAt: user.created_at,
-                twoFAEnabled: !!user.two_fa_enabled
+                twoFAEnabled: !!user.two_fa_enabled,
+                subscription_tier: effectiveTierMe,
+                simulate_free_tier: !!user.simulate_free_tier
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -318,12 +330,15 @@ module.exports = function registerAuthRoutes({
 
             const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
             const updatedRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+            const effectiveTierProfile = (updatedRole === 'owner' || updatedRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
             res.json({
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                 avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
                 role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
                 isOwner: updatedRole === 'owner', createdAt: user.created_at,
-                twoFAEnabled: !!user.two_fa_enabled
+                twoFAEnabled: !!user.two_fa_enabled,
+                subscription_tier: effectiveTierProfile,
+                simulate_free_tier: !!user.simulate_free_tier
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -495,6 +510,21 @@ module.exports = function registerAuthRoutes({
             });
         } catch (error) {
             res.status(500).json({ error: 'Failed to migrate guest data' });
+        }
+    });
+
+    // Toggle simulate free tier (owner only)
+    app.post('/api/auth/simulate-free', authMiddleware, async (req, res) => {
+        try {
+            const user = await db.queryOne('SELECT role, simulate_free_tier FROM users WHERE id = $1', [req.user.id]);
+            const userRole = user.role || 'user';
+            if (userRole !== 'owner' && userRole !== 'admin') return res.status(403).json({ error: 'Owner or Admin only' });
+
+            const newVal = !user.simulate_free_tier;
+            await db.execute('UPDATE users SET simulate_free_tier = $1 WHERE id = $2', [newVal, req.user.id]);
+            res.json({ simulate_free_tier: newVal, subscription_tier: newVal ? 'free' : 'lifetime' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
     });
 };

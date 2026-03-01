@@ -11,6 +11,8 @@ import { useToast } from '../hooks/useToast';
 import Garden from '../components/Garden';
 import { useStreak } from '../hooks/useStreak';
 import { getGardenStage } from '../utils/gardenCustomization';
+import HeartsDisplay from '../components/ui/HeartsDisplay';
+import PricingModal from '../components/ui/PricingModal';
 
 export default function Home() {
     const { user } = useAuth();
@@ -22,6 +24,7 @@ export default function Home() {
     const [assignments, setAssignments] = useState([]);
     const [decks, setDecks] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [pricingOpen, setPricingOpen] = useState(false);
 
     useEffect(() => {
         const loadDashboard = async () => {
@@ -130,11 +133,14 @@ export default function Home() {
                         </motion.h1>
                         <motion.p
                             initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
-                            className="text-[#8a7f6a] font-mono text-xs uppercase tracking-widest font-bold flex items-center gap-2"
+                            className="text-[#8a7f6a] font-mono text-xs uppercase tracking-widest font-bold flex items-center gap-2 mb-4"
                         >
                             <CalendarDays className="w-4 h-4" />
                             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                         </motion.p>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                            <HeartsDisplay onClick={() => setPricingOpen(true)} />
+                        </motion.div>
                     </div>
 
                     <Link to="/garden" className="shrink-0 group relative tap-action">
@@ -314,6 +320,8 @@ export default function Home() {
                 </div>
 
             </div>
+
+            <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} currentTier={user?.subscription_tier || 'free'} />
         </div >
     );
 }

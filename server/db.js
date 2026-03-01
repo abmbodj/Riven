@@ -64,6 +64,11 @@ if (global.__TEST_DB_MOCK__) {
                     streak_data TEXT DEFAULT '{}',
                     pet_customization TEXT DEFAULT '{}',
                     is_admin INTEGER DEFAULT 0,
+                    subscription_tier TEXT DEFAULT 'free',
+                    hearts INTEGER DEFAULT -1,
+                    last_heart_refill TIMESTAMP,
+                    ai_generations_count INTEGER DEFAULT 0,
+                    last_ai_generation_reset TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
@@ -77,6 +82,14 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS pet_customization TEXT DEFAULT '{}'
             `).catch(() => { });
+
+            // Add monetization columns (migration)
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS simulate_free_tier BOOLEAN DEFAULT FALSE`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS hearts INTEGER DEFAULT -1`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_heart_refill TIMESTAMP`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_generations_count INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ai_generation_reset TIMESTAMP`).catch(() => { });
 
             // Add role column (migration: user | admin | owner)
             await client.query(`
@@ -105,6 +118,24 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_enabled BOOLEAN DEFAULT FALSE
             `).catch(() => { });
+
+            // Referral system columns
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id)`).catch(() => { });
+
+            // Referrals tracking table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS referrals (
+                    id SERIAL PRIMARY KEY,
+                    referrer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    referred_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    has_deck BOOLEAN DEFAULT FALSE,
+                    session_count INTEGER DEFAULT 0,
+                    qualified BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(referrer_id, referred_id)
+                )
+            `);
 
             // Classes table
             await client.query(`

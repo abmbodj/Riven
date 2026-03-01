@@ -7,6 +7,7 @@ import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';
+import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -22,6 +23,8 @@ export default function StudyMode() {
     const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0 });
     const { incrementStreak } = useStreakContext();
     const haptics = useHaptics();
+    const [heartsStatus, setHeartsStatus] = useState(null);
+    const [showOutOfHearts, setShowOutOfHearts] = useState(false);
 
     // Initialize start time on mount
     useEffect(() => {
@@ -34,14 +37,20 @@ export default function StudyMode() {
     }, [cardsStudied, cardsCorrect]);
 
     useEffect(() => {
-        api.getDeck(id).then(data => {
-            // Sort cards by next_review date for spaced repetition (due cards first)
+        Promise.all([
+            api.getDeck(id),
+            api.getHeartsStatus()
+        ]).then(([data, heartsData]) => {
             const sortedCards = [...data.cards].sort((a, b) => {
                 if (!a.next_review) return -1;
                 if (!b.next_review) return 1;
                 return new Date(a.next_review) - new Date(b.next_review);
             });
             setCards(sortedCards);
+            setHeartsStatus(heartsData);
+            if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
+                setShowOutOfHearts(true);
+            }
             setLoading(false);
         }).catch(() => {
             setLoading(false);
@@ -85,6 +94,22 @@ export default function StudyMode() {
         if (!isFlipped) return;
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
+
+        // Deduct a heart on wrong answer
+        if (heartsStatus && !heartsStatus.isUnlimited) {
+            try {
+                const newStatus = await api.decrementHeart();
+                setHeartsStatus(newStatus);
+                if (newStatus.hearts <= 0) {
+                    setShowOutOfHearts(true);
+                    return;
+                }
+            } catch {
+                // Out of hearts
+                setShowOutOfHearts(true);
+                return;
+            }
+        }
 
         if (spacedRepetitionMode) {
             await api.reviewCard(card.id, false).catch(() => { });
@@ -424,6 +449,17 @@ export default function StudyMode() {
                     </div>
                 )}
             </div>
+            <OutOfHeartsModal isOpen={showOutOfHearts} onClose={() => setShowOutOfHearts(false)} onPractice={async () => {
+                try {
+                    const result = await api.practiceRefill();
+                    setHeartsStatus(result);
+                    setShowOutOfHearts(false);
+                } catch {
+                    setShowOutOfHearts(false);
+                }
+            }} onUpgrade={() => {
+                setShowOutOfHearts(false);
+            }} />
         </div>
     );
 }

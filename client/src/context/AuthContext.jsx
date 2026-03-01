@@ -155,6 +155,13 @@ export function AuthProvider({ children }) {
     const adminGetUserStreakData = useCallback(() => { return null; }, []);
     const adminUpdateStreakData = useCallback(() => { return true; }, []);
 
+    // Owner: toggle simulate free tier
+    const toggleSimulateFree = useCallback(async () => {
+        const result = await authApi.toggleSimulateFree();
+        setUser(prev => prev ? { ...prev, subscription_tier: result.subscription_tier, simulate_free_tier: result.simulate_free_tier } : prev);
+        return result;
+    }, []);
+
     const contextValue = useMemo(() => ({
         user,
         loading,
@@ -185,13 +192,14 @@ export function AuthProvider({ children }) {
         adminUpdateMessage,
         adminDeleteMessage,
         getActiveMessages,
-        dismissMessage
+        dismissMessage,
+        toggleSimulateFree
     }), [
         user, loading, socket, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
         deleteAccount, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
-        getActiveMessages, dismissMessage
+        getActiveMessages, dismissMessage, toggleSimulateFree
     ]);
 
     return (
