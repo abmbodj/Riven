@@ -496,8 +496,10 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
 
 // Edit a message
 app.put('/api/messages/:id', authMiddleware, async (req, res) => {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const { content } = req.body;
+
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid message ID' });
 
     if (!content) return res.status(400).json({ error: 'Message content is required' });
 
@@ -543,7 +545,9 @@ app.put('/api/messages/:id', authMiddleware, async (req, res) => {
 
 // Delete a message
 app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid message ID' });
 
     try {
         const message = await db.queryOne('SELECT * FROM messages WHERE id = $1 AND sender_id = $2', [id, req.user.id]);

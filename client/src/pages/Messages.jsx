@@ -16,6 +16,8 @@ import * as authApi from '../api/authApi';
 const globalMessageCache = {};
 const globalUserCache = {};
 let globalConversationsCache = null;
+const globalCacheTimes = {}; // tracks when each userId's messages were last fetched
+const CACHE_TTL = 30000; // 30 seconds — socket events keep it live
 
 export default function Messages() {
     const { userId } = useParams();
@@ -39,6 +41,7 @@ export default function Messages() {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const loadedMsgIdsRef = useRef(new Set()); // track already-rendered message IDs to skip entrance animation
 
     // Load conversations list
     const loadConversations = useCallback(async () => {
@@ -54,17 +57,32 @@ export default function Messages() {
         }
     }, []);
 
+    // Invalidate conversations cache so the list refreshes on next visit
+    const invalidateConversations = useCallback(() => {
+        globalConversationsCache = null;
+    }, []);
+
     // Load messages for specific user
     const loadMessages = useCallback(async (targetUserId) => {
-        try {
-            if (globalMessageCache[targetUserId] && globalUserCache[targetUserId]) {
-                setMessages(globalMessageCache[targetUserId]);
-                setChatUser(globalUserCache[targetUserId]);
-                setLoading(false);
-            } else {
-                setLoading(true);
-            }
+        const hasFreshCache = globalMessageCache[targetUserId]
+            && globalUserCache[targetUserId]
+            && globalCacheTimes[targetUserId]
+            && (Date.now() - globalCacheTimes[targetUserId] < CACHE_TTL);
 
+        if (globalMessageCache[targetUserId] && globalUserCache[targetUserId]) {
+            setMessages(globalMessageCache[targetUserId]);
+            setChatUser(globalUserCache[targetUserId]);
+            // Seed the loaded IDs set so cached messages don't animate
+            loadedMsgIdsRef.current = new Set(globalMessageCache[targetUserId].map(m => m.id));
+            setLoading(false);
+
+            // Skip network call if cache is fresh — socket events keep it live
+            if (hasFreshCache) return;
+        } else {
+            setLoading(true);
+        }
+
+        try {
             const [messagesData, userData] = await Promise.all([
                 authApi.getMessages(targetUserId),
                 authApi.getUserProfile(targetUserId)
@@ -72,6 +90,10 @@ export default function Messages() {
 
             globalMessageCache[targetUserId] = messagesData;
             globalUserCache[targetUserId] = userData;
+            globalCacheTimes[targetUserId] = Date.now();
+
+            // Seed loaded IDs so fetched messages don't animate
+            loadedMsgIdsRef.current = new Set(messagesData.map(m => m.id));
 
             setMessages(messagesData);
             setChatUser(userData);
@@ -109,35 +131,45 @@ export default function Messages() {
         const handleNewMessage = (msg) => {
             if (userId && (msg.senderId === parseInt(userId) || msg.receiverId === parseInt(userId))) {
                 setMessages(prev => {
-                    // Prevent duplicate messages if we are the sender and already appended it
                     if (prev.find(m => m.id === msg.id)) return prev;
-                    return [...prev, msg];
+                    const updated = [...prev, msg];
+                    globalMessageCache[userId] = updated;
+                    return updated;
                 });
 
-                // If it's from the person we're chatting with, clear their typing indicator
                 if (msg.senderId === parseInt(userId)) {
                     setIsTyping(false);
                 }
             } else if (!userId) {
-                // We are in the conversations list view, reload conversations
                 loadConversations();
             }
+            invalidateConversations();
         };
 
         const handleMessageUpdated = (msg) => {
             if (userId) {
-                setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+                setMessages(prev => {
+                    const updated = prev.map(m => m.id === msg.id ? { ...m, ...msg } : m);
+                    globalMessageCache[userId] = updated;
+                    return updated;
+                });
             } else {
                 loadConversations();
             }
+            invalidateConversations();
         };
 
         const handleMessageDeleted = ({ id }) => {
             if (userId) {
-                setMessages(prev => prev.filter(m => m.id !== id));
+                setMessages(prev => {
+                    const updated = prev.filter(m => m.id !== id);
+                    globalMessageCache[userId] = updated;
+                    return updated;
+                });
             } else {
                 loadConversations();
             }
+            invalidateConversations();
         };
 
         const handleTyping = ({ senderId, isTyping: typingStatus }) => {
@@ -157,7 +189,7 @@ export default function Messages() {
             socket.off('message_deleted', handleMessageDeleted);
             socket.off('typing', handleTyping);
         };
-    }, [socket, userId, loadConversations]);
+    }, [socket, userId, loadConversations, invalidateConversations]);
 
     const typingTimeoutRef = useRef(null);
 
@@ -198,7 +230,12 @@ export default function Messages() {
             setSending(true);
             try {
                 const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim());
-                setMessages(prev => prev.map(m => m.id === editingMessageId ? updatedMsg : m));
+                setMessages(prev => {
+                    const updated = prev.map(m => m.id === editingMessageId ? updatedMsg : m);
+                    if (userId) globalMessageCache[userId] = updated;
+                    return updated;
+                });
+                invalidateConversations();
                 setNewMessage('');
                 setEditingMessageId(null);
             } catch {
@@ -216,7 +253,12 @@ export default function Messages() {
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
-            setMessages(prev => [...prev, message]);
+            setMessages(prev => {
+                const updated = [...prev, message];
+                globalMessageCache[userId] = updated;
+                return updated;
+            });
+            invalidateConversations();
             setNewMessage('');
             setImagePreview(null);
             inputRef.current?.focus();
@@ -232,7 +274,12 @@ export default function Messages() {
         if (!window.confirm('Are you sure you want to delete this message?')) return;
         try {
             await authApi.deleteMessage(msgId);
-            setMessages(prev => prev.filter(m => m.id !== msgId));
+            setMessages(prev => {
+                const updated = prev.filter(m => m.id !== msgId);
+                if (userId) globalMessageCache[userId] = updated;
+                return updated;
+            });
+            invalidateConversations();
             setActiveMenuId(null);
             toast.success('Message deleted');
             haptics.medium();
@@ -488,8 +535,7 @@ export default function Messages() {
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.9 }}
                                         transition={{
-                                            duration: 0.3,
-                                            delay: Math.min(i * 0.03, 0.5),
+                                            duration: 0.25,
                                             ease: [0.25, 0.1, 0.25, 1]
                                         }}
                                         className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}
