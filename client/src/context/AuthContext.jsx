@@ -51,9 +51,14 @@ export function AuthProvider({ children }) {
         if (user && user.id) {
             // Remove /api from getApiBase() to get the root server URL for Socket.IO
             const serverUrl = authApi.getApiBase().replace(/\/api$/, '');
+            const token = authApi.getToken();
+
             newSocket = io(serverUrl, {
                 withCredentials: true,
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                extraHeaders: token ? {
+                    Authorization: `Bearer ${token}`
+                } : undefined
             });
 
             newSocket.on('connect', () => {

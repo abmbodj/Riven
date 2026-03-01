@@ -77,7 +77,7 @@ const apiLimiter = rateLimit({
 // CORS
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:5173', 'http://localhost:3000', 'https://riven-virid.vercel.app'];
+    : ['http://localhost:5173', 'http://localhost:3000', 'https://riven-virid.vercel.app', 'capacitor://localhost', 'http://localhost'];
 
 app.use(cors({
     origin: function (origin, callback) {
