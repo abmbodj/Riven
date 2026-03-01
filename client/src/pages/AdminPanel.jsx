@@ -8,22 +8,9 @@ import {
     Plus, Trash2, Power, AlertCircle, Info, CheckCircle,
     AlertTriangle, X, Send, BarChart3, TrendingUp,
     Megaphone, UserCircle, Calendar, Zap, Database,
-    User, Mail, Key, Shield, ExternalLink, Activity, ArrowUp
+    User, Mail, Key, Shield, ExternalLink, Activity, ArrowUp,
+    Leaf, BookOpen, Feather
 } from 'lucide-react';
-
-// Theme Constants
-const COLORS = {
-    primary: '#3ECF8E', // Supabase Green
-    primaryGlow: 'rgba(62, 207, 142, 0.4)',
-    bg: '#1C1C1C',
-    surface: '#232323',
-    border: '#2E2E2E',
-    text: '#EDEDED',
-    textSecondary: '#8F8F8F',
-    danger: '#EF4444',
-    warning: '#F59E0B',
-    info: '#3B82F6'
-};
 
 export default function AdminPanel() {
     const navigate = useNavigate();
@@ -153,45 +140,43 @@ export default function AdminPanel() {
     ];
 
     return (
-        <div className="min-h-screen -mx-4 -my-4 bg-[#121212] text-white selection:bg-[#3ECF8E]/30">
-            {/* Header with Glassmorphism */}
-            <header className="sticky top-0 z-20 px-6 py-4 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-[#3ECF8E] blur-[20px] opacity-20 rounded-full" />
-                            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3ECF8E]/20 to-[#3ECF8E]/5 border border-[#3ECF8E]/20 flex items-center justify-center shadow-lg shadow-[#3ECF8E]/10">
-                                <Database className="w-5 h-5 text-[#3ECF8E]" />
-                            </div>
+        <div className="min-h-screen -mx-4 -my-4 bg-claude-bg text-claude-text selection:bg-claude-accent/30">
+            {/* Header with botanical glassmorphism */}
+            <header className="sticky top-0 z-20 px-5 pt-4 pb-3 header-blur safe-area-top">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-claude-accent blur-[16px] opacity-15 rounded-full" />
+                        <div className="relative w-10 h-10 rounded-xl glass-panel flex items-center justify-center border-claude-accent/20">
+                            <Leaf className="w-5 h-5 text-claude-accent" />
                         </div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight text-white/90">Admin Panel</h1>
-                            <p className="text-xs font-medium text-white/40 uppercase tracking-wider">Dashboard</p>
-                        </div>
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-display tracking-tight text-claude-text">Admin Panel</h1>
+                        <p className="text-[11px] font-mono text-claude-secondary uppercase tracking-[0.2em]">Dashboard</p>
                     </div>
                 </div>
 
-                {/* Animated Tabs */}
-                <div className="flex gap-2 p-1 bg-white/5 rounded-xl overflow-x-auto scrollbar-hide">
+                {/* Segmented Control Tabs */}
+                <div className="segmented-control">
                     {tabs.map(tab => {
                         const isActive = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all z-0 ${isActive ? 'text-[#121212]' : 'text-white/60 hover:text-white hover:bg-white/5'
+                                className={`segmented-item relative flex items-center justify-center gap-1.5 touch-target tap-action ${isActive ? 'segmented-item-active' : 'text-claude-secondary'
                                     }`}
                             >
                                 {isActive && (
                                     <motion.div
-                                        layoutId="activeTab"
-                                        className="absolute inset-0 bg-[#3ECF8E] rounded-lg -z-10 shadow-[0_0_15px_rgba(62,207,142,0.4)]"
+                                        layoutId="adminActiveTab"
+                                        className="absolute inset-0 bg-claude-accent rounded-lg -z-10 shadow-botanical-glow"
                                         initial={false}
                                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     />
                                 )}
-                                <tab.icon className="w-4 h-4" />
-                                {tab.label}
+                                <tab.icon className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-semibold tracking-wide">{tab.label}</span>
                             </button>
                         );
                     })}
@@ -210,24 +195,24 @@ export default function AdminPanel() {
                             className="flex flex-col items-center justify-center py-32 text-center"
                         >
                             <div className="relative w-16 h-16 mb-4">
-                                <div className="absolute inset-0 border-4 border-white/10 rounded-full" />
-                                <div className="absolute inset-0 border-4 border-[#3ECF8E] border-t-transparent rounded-full animate-spin" />
+                                <div className="absolute inset-0 border-4 border-claude-border rounded-full" />
+                                <div className="absolute inset-0 border-4 border-claude-accent border-t-transparent rounded-full animate-spin" />
                             </div>
-                            <p className="text-sm text-white/40 font-mono tracking-widest animate-pulse">SYNCING DATA...</p>
+                            <p className="text-sm text-claude-secondary font-mono tracking-widest animate-pulse">SYNCING DATA…</p>
                         </motion.div>
                     ) : error ? (
                         <motion.div
                             key="error"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-center"
+                            className="p-6 rounded-2xl bg-red-900/20 border border-red-500/20 text-center"
                         >
-                            <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-                            <h3 className="text-lg font-bold text-red-100">Sync Failed</h3>
-                            <p className="text-sm text-red-300 mt-1 mb-4">{error}</p>
+                            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+                            <h3 className="text-lg font-display text-red-200">Sync Failed</h3>
+                            <p className="text-sm text-red-300/70 mt-1 mb-4">{error}</p>
                             <button
-                                onClick={loadData}
-                                className="px-5 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-100 text-sm font-semibold transition-colors"
+                                onClick={() => { setError(''); loadData(); }}
+                                className="px-5 py-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-200 text-sm font-semibold transition-colors touch-target tap-action native-press"
                             >
                                 Retry Connection
                             </button>
@@ -235,11 +220,11 @@ export default function AdminPanel() {
                     ) : (
                         <motion.div
                             key={activeTab}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            className="space-y-6"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                            className="space-y-5"
                         >
                             {activeTab === 'overview' && stats && (
                                 <OverviewTab stats={stats} />
@@ -287,96 +272,101 @@ function OverviewTab({ stats }) {
                 hidden: { opacity: 0 },
                 visible: {
                     opacity: 1,
-                    transition: { staggerChildren: 0.1 }
+                    transition: { staggerChildren: 0.08 }
                 }
             }}
-            className="space-y-6"
+            className="space-y-5"
         >
-            {/* Executive Summary Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Stat Cards — 2-col bento grid */}
+            <div className="grid grid-cols-2 gap-3">
                 <StatCard
                     title="Total Users"
                     value={stats.users}
                     trend={stats.recentSignups}
                     subtitle="Last 30 days"
                     icon={Users}
-                    color="#3ECF8E"
+                    accentClass="text-claude-accent"
+                    glowColor="var(--accent-color)"
                 />
                 <StatCard
                     title="Total Decks"
                     value={stats.decks}
                     icon={Layers}
-                    color="#F59E0B"
+                    accentClass="text-botanical-forest"
+                    glowColor="var(--botanical-forest)"
                 />
                 <StatCard
                     title="Total Cards"
                     value={stats.cards}
-                    icon={CreditCard}
-                    color="#3B82F6"
+                    icon={BookOpen}
+                    accentClass="text-botanical-sepia"
+                    glowColor="var(--botanical-sepia)"
                 />
                 <StatCard
-                    title="Study Sessions"
+                    title="Sessions"
                     value={stats.recentSessions}
-                    trend={Math.floor(stats.recentSessions * 0.1)} // Mock trend for aesthetics if no prior period data exists
+                    trend={Math.floor(stats.recentSessions * 0.1)}
                     subtitle="Last 30 days"
-                    icon={Zap}
-                    color="#EC4899"
+                    icon={Feather}
+                    accentClass="text-claude-accent"
+                    glowColor="var(--accent-color)"
                 />
             </div>
 
-            {/* Activity Chart Area */}
+            {/* Activity Chart */}
             <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden"
+                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+                className="p-5 rounded-2xl glass-panel relative overflow-hidden"
             >
                 {/* Ambient glow */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-[#3ECF8E]/10 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(222,185,106,0.08) 0%, transparent 70%)' }} />
 
-                <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="flex items-center justify-between mb-6 relative z-10">
                     <div>
-                        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-[#3ECF8E]" />
+                        <h3 className="text-base font-display text-claude-text flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-claude-accent" />
                             30-Day Activity
                         </h3>
-                        <p className="text-sm text-white/40 mt-1">Study sessions completed over time</p>
+                        <p className="text-xs text-claude-secondary mt-0.5">Study sessions over time</p>
                     </div>
-                    <div className="px-3 py-1.5 rounded-lg bg-[#3ECF8E]/10 border border-[#3ECF8E]/20 text-[#3ECF8E] text-xs font-bold font-mono">
+                    <div className="px-2.5 py-1 rounded-lg bg-claude-accent/10 border border-claude-accent/20 text-claude-accent text-[10px] font-bold font-mono tracking-wider">
                         {stats.recentSessions.toLocaleString()} TOTAL
                     </div>
                 </div>
 
-                <div className="h-64 w-full relative z-10">
+                <div className="h-48 w-full relative z-10">
                     <ActivityChart data={stats.dailyActivity || []} />
                 </div>
             </motion.div>
 
-            {/* Top Decks List */}
+            {/* Trending Decks */}
             <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
             >
-                <h3 className="text-sm font-semibold text-white/50 mb-4 px-2 uppercase tracking-wider flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" /> Trending Decks (30 Days)
+                <h3 className="text-xs font-semibold text-claude-secondary mb-3 px-1 uppercase tracking-[0.15em] flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5" /> Trending Decks
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
                     {stats.topDecks?.map((deck, i) => (
-                        <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group">
-                            <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center text-sm font-bold text-white/40 group-hover:text-[#3ECF8E] group-hover:border-[#3ECF8E]/30 transition-colors">
+                        <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl botanical-card">
+                            <div className="w-9 h-9 rounded-lg bg-claude-bg/60 border border-claude-border flex items-center justify-center text-xs font-display font-bold text-claude-secondary">
                                 #{i + 1}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-bold text-white truncate">{deck.title}</h4>
-                                <p className="text-xs text-white/40 truncate flex items-center gap-1 mt-0.5">
+                                <h4 className="text-sm font-medium text-claude-text truncate">{deck.title}</h4>
+                                <p className="text-[11px] text-claude-secondary truncate flex items-center gap-1 mt-0.5">
                                     <UserCircle className="w-3 h-3" /> {deck.creator}
                                 </p>
                             </div>
-                            <div className="text-right pl-4 border-l border-white/10">
-                                <p className="text-lg font-black tracking-tight text-[#3ECF8E]">{deck.sessions}</p>
-                                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-0.5">Plays</p>
+                            <div className="text-right pl-3 border-l border-claude-border">
+                                <p className="text-lg font-display font-bold tracking-tight text-claude-accent">{deck.sessions}</p>
+                                <p className="text-[9px] font-mono text-claude-secondary uppercase tracking-widest">Plays</p>
                             </div>
                         </div>
                     ))}
                     {(!stats.topDecks || stats.topDecks.length === 0) && (
-                        <div className="col-span-full text-center py-12 rounded-2xl border border-dashed border-white/10 text-white/30 text-sm italic">
+                        <div className="text-center py-10 rounded-2xl border border-dashed border-claude-border text-claude-secondary text-sm italic font-body">
                             No deck activity in the last 30 days.
                         </div>
                     )}
@@ -386,62 +376,53 @@ function OverviewTab({ stats }) {
     );
 }
 
-function StatCard(props) {
-    const { title, value, icon: DisplayIcon, trend, color, subtitle } = props;
+function StatCard({ title, value, icon: DisplayIcon, trend, accentClass, glowColor, subtitle }) {
     return (
         <motion.div
-            variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
-            className="relative p-5 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 overflow-hidden group hover:bg-white/10 hover:border-white/20 transition-all duration-300"
+            variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
+            className="relative p-4 rounded-2xl glass-panel overflow-hidden group active:scale-[0.97] transition-transform duration-100"
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-duration-500" />
-
-            {/* Subtle radial glow matching icon color */}
+            {/* Subtle radial glow */}
             <div
-                className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-20 pointer-events-none transition-opacity group-hover:opacity-40"
-                style={{ backgroundColor: color }}
+                className="absolute -top-8 -right-8 w-24 h-24 rounded-full blur-[30px] opacity-15 pointer-events-none"
+                style={{ backgroundColor: glowColor }}
             />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between items-start mb-4">
                     <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shadow-inner"
-                        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center bg-claude-bg/50 border border-claude-border"
                     >
-                        <DisplayIcon className="w-5 h-5" style={{ color }} />
+                        <DisplayIcon className={`w-4 h-4 ${accentClass}`} />
                     </div>
                     {trend > 0 && (
-                        <div
-                            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
-                            style={{ backgroundColor: `${color}20`, color: color }}
-                        >
-                            <ArrowUp className="w-3 h-3" />
+                        <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-botanical-forest/15 text-botanical-forest">
+                            <ArrowUp className="w-2.5 h-2.5" />
                             {trend}
-                            <span className="text-[10px] opacity-70 ml-0.5">NEW</span>
                         </div>
                     )}
                 </div>
                 <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter mb-1">
+                    <h3 className="text-2xl font-display font-bold text-claude-text tracking-tight mb-0.5">
                         {value?.toLocaleString() || 0}
                     </h3>
-                    <p className="text-sm font-medium text-white/50">{title}</p>
-                    {subtitle && <p className="text-[10px] text-white/30 mt-1 uppercase tracking-wider">{subtitle}</p>}
+                    <p className="text-[11px] font-medium text-claude-secondary">{title}</p>
+                    {subtitle && <p className="text-[9px] text-claude-secondary/60 mt-0.5 uppercase tracking-wider font-mono">{subtitle}</p>}
                 </div>
             </div>
         </motion.div>
     );
 }
 
-// Advanced Smooth SVG Area Chart
+// Smooth SVG Area Chart — gold accent
 function ActivityChart({ data }) {
     if (!data || !data.length) return null;
 
     const rawMax = Math.max(...data.map(d => d.count), 1);
-    const max = rawMax * 1.1; // Add 10% buffer so line isn't clipped at peaks
+    const max = rawMax * 1.1;
     const height = 100;
     const gap = 100 / Math.max(data.length - 1, 1);
 
-    // Generate smooth bezier curve path
     const generatePath = (dataPoints) => {
         if (dataPoints.length === 0) return '';
         if (dataPoints.length === 1) return `M 0,${height - (dataPoints[0].count / max) * height} L 100,${height - (dataPoints[0].count / max) * height}`;
@@ -453,7 +434,6 @@ function ActivityChart({ data }) {
             const x1 = (i + 1) * gap;
             const y1 = height - (dataPoints[i + 1].count / max) * height;
 
-            // Cubic bezier control points for smoothing
             const cx0 = x0 + (x1 - x0) / 2;
             const cy0 = y0;
             const cx1 = x0 + (x1 - x0) / 2;
@@ -466,13 +446,11 @@ function ActivityChart({ data }) {
 
     const pathD = generatePath(data);
 
-    // Pick 5 roughly evenly spaced labels for the X axis
     const labelIndices = [];
     const step = Math.max(Math.floor(data.length / 5), 1);
     for (let i = 0; i < data.length; i += step) {
         if (labelIndices.length < 5) labelIndices.push(i);
     }
-    // Ensure the last data point is always labeled if not already
     if (!labelIndices.includes(data.length - 1)) {
         labelIndices[labelIndices.length - 1] = data.length - 1;
     }
@@ -483,47 +461,46 @@ function ActivityChart({ data }) {
                 {/* Y-Axis Grid Lines */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
                     {[0, 1, 2, 3].map(i => (
-                        <div key={i} className="w-full h-px bg-white/20 border-b border-dashed border-transparent" />
+                        <div key={i} className="w-full h-px bg-claude-border" />
                     ))}
                 </div>
 
-                <svg viewBox="-2 -2 104 104" preserveAspectRatio="none" className="w-full h-full overflow-visible drop-shadow-2xl">
+                <svg viewBox="-2 -2 104 104" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                     <defs>
-                        <linearGradient id="chartAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3ECF8E" stopOpacity="0.4" />
-                            <stop offset="50%" stopColor="#3ECF8E" stopOpacity="0.1" />
-                            <stop offset="100%" stopColor="#3ECF8E" stopOpacity="0" />
+                        <linearGradient id="chartAreaGradientBotanical" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.35" />
+                            <stop offset="50%" stopColor="var(--accent-color)" stopOpacity="0.08" />
+                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
                         </linearGradient>
                     </defs>
 
                     {/* Filled Area */}
                     <motion.path
                         d={`${pathD} L 100,100 L 0,100 Z`}
-                        fill="url(#chartAreaGradient)"
+                        fill="url(#chartAreaGradientBotanical)"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
                     />
 
-                    {/* Smooth Line */}
+                    {/* Line */}
                     <motion.path
                         d={pathD}
                         fill="none"
-                        stroke="#3ECF8E"
+                        stroke="var(--accent-color)"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         initial={{ pathLength: 0, opacity: 0 }}
                         animate={{ pathLength: 1, opacity: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
-                        style={{ filter: 'drop-shadow(0px 4px 6px rgba(62,207,142,0.3))' }}
+                        style={{ filter: 'drop-shadow(0px 3px 6px rgba(222,185,106,0.25))' }}
                     />
 
-                    {/* Data Points (Dots on the line) */}
+                    {/* Dots on labeled points */}
                     {data.map((d, i) => {
                         const x = i * gap;
                         const y = height - (d.count / max) * height;
-                        // Only show dots on labeled points to reduce clutter on 30 days
                         if (!labelIndices.includes(i)) return null;
 
                         return (
@@ -531,26 +508,14 @@ function ActivityChart({ data }) {
                                 <motion.circle
                                     cx={x}
                                     cy={y}
-                                    r="4"
-                                    fill="#121212"
-                                    stroke="#3ECF8E"
+                                    r="3.5"
+                                    fill="var(--bg-color)"
+                                    stroke="var(--accent-color)"
                                     strokeWidth="2"
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ delay: 1 + i * 0.02, type: "spring" }}
                                 />
-                                {/* Value tooltip hint above dot */}
-                                <motion.text
-                                    x={x}
-                                    y={y - 10}
-                                    textAnchor="middle"
-                                    fill="#fff"
-                                    fontSize="4"
-                                    fontWeight="bold"
-                                    className="opacity-0 hover:opacity-100 transition-opacity"
-                                >
-                                    {d.count}
-                                </motion.text>
                             </motion.g>
                         );
                     })}
@@ -558,7 +523,7 @@ function ActivityChart({ data }) {
             </div>
 
             {/* X-Axis Labels */}
-            <div className="flex justify-between items-end mt-4 text-[10px] font-bold text-white/40 tracking-wider uppercase h-4">
+            <div className="flex justify-between items-end mt-3 text-[9px] font-mono text-claude-secondary tracking-wider uppercase h-4">
                 {labelIndices.map((idx, i) => {
                     const d = data[idx];
                     if (!d) return <span key={i} className="flex-1 text-center" />;
@@ -585,7 +550,6 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
     const [searchTerm, setSearchTerm] = React.useState("");
     const itemsPerPage = 20;
 
-    // Filter and paginate
     const filteredUsers = React.useMemo(() => {
         if (!searchTerm) return users;
         const lower = searchTerm.toLowerCase();
@@ -601,7 +565,6 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
         return filteredUsers.slice(start, start + itemsPerPage);
     }, [filteredUsers, currentPage]);
 
-    // Reset page if search changes
     React.useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm]);
@@ -619,84 +582,83 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
         }
     };
 
+    const ROLE_STYLES = {
+        owner: { label: 'OWNER', cls: 'bg-claude-accent/15 text-claude-accent' },
+        admin: { label: 'ADMIN', cls: 'bg-botanical-forest/15 text-botanical-forest' },
+        user: { label: 'USER', cls: 'bg-claude-secondary/15 text-claude-secondary' }
+    };
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col"
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl glass-panel overflow-hidden flex flex-col"
         >
-            <div className="px-5 py-4 border-b border-white/5 bg-white/5 flex items-center justify-between gap-4">
-                <div className="text-xs font-bold text-white/50 uppercase tracking-widest shrink-0">
-                    Registered Users
-                    <span className="ml-2 px-2 py-0.5 rounded-full bg-white/10 text-white font-mono text-[10px]">{filteredUsers.length}</span>
+            {/* Header with search */}
+            <div className="px-4 py-3 border-b border-white/5 bg-claude-surface/30 flex items-center justify-between gap-3">
+                <div className="text-[10px] font-bold text-claude-secondary uppercase tracking-[0.15em] shrink-0 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    Users
+                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-claude-border text-claude-text font-mono text-[9px]">{filteredUsers.length}</span>
                 </div>
 
-                <div className="relative max-w-xs w-full">
+                <div className="relative max-w-[200px] w-full">
                     <input
                         type="text"
-                        placeholder="Search by username or email..."
+                        placeholder="Search…"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#3ECF8E]/50 transition-colors"
+                        className="w-full pl-8 pr-3 py-2 bg-claude-bg/60 border border-claude-border rounded-xl text-xs text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-claude-accent/50 transition-colors"
                     />
-                    <Users className="w-4 h-4 text-white/30 absolute left-3 top-2.5" />
+                    <Users className="w-3.5 h-3.5 text-claude-secondary absolute left-2.5 top-2.5" />
                 </div>
             </div>
 
-            <div className="divide-y divide-white/5 flex-1 min-h-[400px]">
+            {/* User List */}
+            <div className="divide-y divide-claude-border/50 flex-1 min-h-[300px]">
                 {paginatedUsers.length === 0 ? (
-                    <div className="text-center py-20 text-white/30 text-sm italic">
+                    <div className="text-center py-16 text-claude-secondary text-sm italic font-body">
                         No users found.
                     </div>
                 ) : (
                     paginatedUsers.map(u => {
                         const role = u.role || (u.isAdmin ? 'admin' : 'user');
-                        const roleBadge = {
-                            owner: { label: 'OWNER', color: '#F59E0B' },
-                            admin: { label: 'ADMIN', color: '#3ECF8E' },
-                            user: { label: 'USER', color: '#6B7280' }
-                        }[role] || { label: 'USER', color: '#6B7280' };
+                        const badge = ROLE_STYLES[role] || ROLE_STYLES.user;
 
                         return (
-                            <div key={u.id} className="p-4 hover:bg-white/5 transition-colors">
+                            <div key={u.id} className="p-4 active:bg-claude-surface/40 transition-colors tap-action">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-sm font-bold text-white shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-claude-surface border border-claude-border flex items-center justify-center text-sm font-display font-bold text-claude-accent shrink-0">
                                             {u.username[0]?.toUpperCase()}
                                         </div>
                                         <div className="min-w-0">
-                                            <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                                            <h4 className="text-sm font-medium text-claude-text flex items-center gap-2">
                                                 <span className="truncate">{u.username}</span>
-                                                <span
-                                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
-                                                    style={{ backgroundColor: `${roleBadge.color}20`, color: roleBadge.color }}
-                                                >
-                                                    {roleBadge.label}
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badge.cls}`}>
+                                                    {badge.label}
                                                 </span>
                                             </h4>
-                                            <p className="text-xs text-white/40 truncate">{u.email}</p>
+                                            <p className="text-[11px] text-claude-secondary truncate">{u.email}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="hidden sm:block text-xs text-white/30 font-mono">
-                                            {new Date(u.createdAt).toLocaleDateString()}
-                                        </span>
                                         {/* Owner controls: promote/demote */}
                                         {isOwner && role !== 'owner' && (
                                             <button
                                                 disabled={changingRole === u.id}
                                                 onClick={() => handleRoleChange(u.id, role === 'admin' ? 'user' : 'admin')}
-                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${role === 'admin'
-                                                    ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                                                    : 'bg-[#3ECF8E]/10 text-[#3ECF8E] hover:bg-[#3ECF8E]/20'
+                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all touch-target tap-action native-press ${role === 'admin'
+                                                    ? 'bg-claude-accent/10 text-claude-accent'
+                                                    : 'bg-botanical-forest/10 text-botanical-forest'
                                                     }`}
                                             >
-                                                {changingRole === u.id ? '...' : role === 'admin' ? 'Demote' : 'Promote'}
+                                                {changingRole === u.id ? '…' : role === 'admin' ? 'Demote' : 'Promote'}
                                             </button>
                                         )}
                                         {role !== 'owner' && (
                                             <button
                                                 onClick={() => onDelete(u.id, u.username)}
-                                                className="p-2 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                                className="p-2 rounded-lg text-claude-secondary/40 hover:text-red-400 active:bg-red-400/10 transition-colors touch-target tap-action"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -708,24 +670,24 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                     }))}
             </div>
 
-            {/* Pagination Controls */}
+            {/* Pagination */}
             {totalPages > 1 && (
-                <div className="px-5 py-3 border-t border-white/5 bg-black/20 flex items-center justify-between">
-                    <p className="text-xs text-white/40 font-mono">
-                        Page <span className="text-white font-bold">{currentPage}</span> of {totalPages}
+                <div className="px-4 py-3 border-t border-claude-border/50 bg-claude-bg/30 flex items-center justify-between">
+                    <p className="text-[10px] text-claude-secondary font-mono">
+                        Page <span className="text-claude-text font-bold">{currentPage}</span> of {totalPages}
                     </p>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-all border border-white/10"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-all border border-claude-border touch-target tap-action native-press"
                         >
                             Prev
                         </button>
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 transition-all border border-white/10"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-all border border-claude-border touch-target tap-action native-press"
                         >
                             Next
                         </button>
@@ -736,14 +698,21 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
     );
 }
 
+const MSG_TYPE_COLORS = {
+    info: { bg: 'bg-botanical-sepia/15', text: 'text-botanical-sepia', dot: 'bg-botanical-sepia' },
+    success: { bg: 'bg-botanical-forest/15', text: 'text-botanical-forest', dot: 'bg-botanical-forest' },
+    warning: { bg: 'bg-claude-accent/15', text: 'text-claude-accent', dot: 'bg-claude-accent' },
+    error: { bg: 'bg-red-500/15', text: 'text-red-400', dot: 'bg-red-400' }
+};
+
 function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmit, onToggle, onDelete, loading }) {
     return (
         <div className="space-y-4">
-            {/* Action Bar */}
+            {/* Create Button */}
             {!showForm && (
                 <button
                     onClick={() => setShowForm(true)}
-                    className="w-full py-4 rounded-xl border border-dashed border-white/20 text-white/40 hover:text-[#3ECF8E] hover:border-[#3ECF8E]/50 hover:bg-[#3ECF8E]/5 transition-all flex items-center justify-center gap-2 font-medium"
+                    className="w-full py-4 rounded-xl border border-dashed border-claude-border text-claude-secondary hover:text-claude-accent active:text-claude-accent active:border-claude-accent/50 active:bg-claude-accent/5 transition-all flex items-center justify-center gap-2 font-medium touch-target tap-action native-press"
                 >
                     <Plus className="w-5 h-5" />
                     Create New Broadcast
@@ -757,34 +726,36 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="bg-[#232323] rounded-2xl border border-white/10 overflow-hidden"
+                        className="rounded-2xl glass-panel overflow-hidden"
                         onSubmit={onSubmit}
                     >
-                        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                            <h3 className="text-sm font-semibold text-white">Compose Message</h3>
-                            <button type="button" onClick={() => setShowForm(false)} className="text-white/40 hover:text-white">
+                        <div className="p-4 border-b border-claude-border/50 flex justify-between items-center bg-claude-surface/30">
+                            <h3 className="text-sm font-display text-claude-text">Compose Message</h3>
+                            <button type="button" onClick={() => setShowForm(false)} className="text-claude-secondary hover:text-claude-text touch-target tap-action">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
                         <div className="p-4 space-y-4">
                             <div>
-                                <label className="text-xs text-white/40 mb-2 block uppercase tracking-wider">Type</label>
+                                <label className="text-[10px] text-claude-secondary mb-2 block uppercase tracking-[0.15em] font-mono">Type</label>
                                 <div className="flex gap-2">
-                                    {['info', 'success', 'warning', 'error'].map(type => (
-                                        <button
-                                            key={type}
-                                            type="button"
-                                            onClick={() => setForm({ ...form, type })}
-                                            className={`flex-1 py-2 rounded-lg text-xs font-medium capitalize border transition-all ${form.type === type
-                                                ? `border-[${COLORS[type]}] bg-[${COLORS[type]}]/10 text-white`
-                                                : 'border-transparent bg-white/5 text-white/40 hover:bg-white/10'
-                                                }`}
-                                            // Handle dynamic colors for style prop if needed
-                                            style={form.type === type ? { borderColor: COLORS[type], color: COLORS[type] } : {}}
-                                        >
-                                            {type}
-                                        </button>
-                                    ))}
+                                    {['info', 'success', 'warning', 'error'].map(type => {
+                                        const isSelected = form.type === type;
+                                        const colors = MSG_TYPE_COLORS[type];
+                                        return (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                onClick={() => setForm({ ...form, type })}
+                                                className={`flex-1 py-2.5 rounded-lg text-xs font-medium capitalize border transition-all touch-target tap-action ${isSelected
+                                                    ? `${colors.bg} ${colors.text} border-current`
+                                                    : 'border-transparent bg-claude-surface/40 text-claude-secondary active:bg-claude-surface/60'
+                                                    }`}
+                                            >
+                                                {type}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             <input
@@ -792,21 +763,21 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                                 placeholder="Message Title"
                                 value={form.title}
                                 onChange={e => setForm({ ...form, title: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-[#3ECF8E] transition-colors"
+                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors"
                             />
                             <textarea
-                                placeholder="Message Content..."
+                                placeholder="Message Content…"
                                 rows={4}
                                 value={form.content}
                                 onChange={e => setForm({ ...form, content: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-[#3ECF8E] transition-colors resize-none"
+                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors resize-none"
                             />
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 rounded-xl bg-[#3ECF8E] text-black font-bold hover:bg-[#34D399] transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-3.5 rounded-xl bg-claude-accent text-botanical-ink font-bold transition-colors flex items-center justify-center gap-2 touch-target tap-action native-press shadow-botanical-glow"
                             >
-                                {loading ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                                {loading ? <div className="w-4 h-4 border-2 border-botanical-ink/30 border-t-botanical-ink rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
                                 Send Broadcast
                             </button>
                         </div>
@@ -814,45 +785,45 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                 )}
             </AnimatePresence>
 
-            {/* List */}
-            <div className="space-y-3">
+            {/* Message List */}
+            <div className="space-y-2">
                 {messages.length === 0 ? (
-                    <div className="text-center py-12">
-                        <MessageSquare className="w-12 h-12 text-white/10 mx-auto mb-3" />
-                        <p className="text-white/30 text-sm">No active broadcasts</p>
+                    <div className="empty-state">
+                        <MessageSquare className="w-12 h-12 text-claude-border mx-auto mb-3" />
+                        <p className="text-claude-secondary text-sm font-body italic">No active broadcasts</p>
                     </div>
                 ) : (
-                    messages.map(msg => (
-                        <div key={msg.id} className={`p-4 rounded-xl border transition-all ${msg.isActive ? 'bg-white/5 border-white/10' : 'bg-transparent border-white/5 opacity-50'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ backgroundColor: COLORS[msg.type] || COLORS.info }}
-                                    />
-                                    <h4 className="text-sm font-semibold text-white">{msg.title}</h4>
+                    messages.map(msg => {
+                        const colors = MSG_TYPE_COLORS[msg.type] || MSG_TYPE_COLORS.info;
+                        return (
+                            <div key={msg.id} className={`p-4 rounded-xl transition-all ${msg.isActive ? 'botanical-card' : 'bg-claude-surface/20 border border-claude-border/30 opacity-50'}`}>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                                        <h4 className="text-sm font-medium text-claude-text">{msg.title}</h4>
+                                    </div>
+                                    <span className="text-[9px] text-claude-secondary font-mono tracking-wider">
+                                        {new Date(msg.createdAt).toLocaleDateString()}
+                                    </span>
                                 </div>
-                                <span className="text-[10px] text-white/30 font-mono">
-                                    {new Date(msg.createdAt).toLocaleDateString()}
-                                </span>
+                                <p className="text-xs text-claude-secondary mb-4 line-clamp-2">{msg.content}</p>
+                                <div className="flex gap-2 justify-end">
+                                    <button
+                                        onClick={() => onToggle(msg.id, msg.isActive)}
+                                        className="px-3 py-2 rounded-lg text-[11px] font-medium bg-claude-surface/40 active:bg-claude-surface/60 text-claude-secondary transition-colors touch-target tap-action native-press"
+                                    >
+                                        {msg.isActive ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button
+                                        onClick={() => onDelete(msg.id)}
+                                        className="px-3 py-2 rounded-lg text-[11px] font-medium bg-red-500/10 active:bg-red-500/20 text-red-400 transition-colors touch-target tap-action native-press"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
-                            <p className="text-xs text-white/60 mb-4 line-clamp-2">{msg.content}</p>
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => onToggle(msg.id, msg.isActive)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-white/60 transition-colors"
-                                >
-                                    {msg.isActive ? 'Deactivate' : 'Activate'}
-                                </button>
-                                <button
-                                    onClick={() => onDelete(msg.id)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>
@@ -875,36 +846,43 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
         }
     };
 
+    const tierStyles = {
+        lifetime: 'text-claude-accent',
+        supporter: 'text-botanical-forest',
+        free: 'text-claude-secondary'
+    };
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-4"
         >
             {/* Subscription Status */}
-            <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-[#3ECF8E]/10 blur-[80px] rounded-full pointer-events-none" />
+            <div className="p-5 rounded-2xl glass-panel relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(222,185,106,0.08) 0%, transparent 70%)' }} />
                 <div className="relative z-10">
-                    <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-[#3ECF8E]" />
+                    <h3 className="text-[10px] font-mono text-claude-secondary uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5 text-claude-accent" />
                         Subscription Status
                     </h3>
                     <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-2xl font-black tracking-tight capitalize ${currentTier === 'lifetime' ? 'text-[#F59E0B]' : currentTier === 'supporter' ? 'text-[#3ECF8E]' : 'text-white/60'}`}>
+                        <span className={`text-2xl font-display font-bold tracking-tight capitalize ${tierStyles[currentTier] || tierStyles.free}`}>
                             {currentTier}
                         </span>
                         {isOwner && !simulatingFree && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F59E0B]/20 text-[#F59E0B] uppercase tracking-widest">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-claude-accent/15 text-claude-accent uppercase tracking-widest font-mono">
                                 Owner
                             </span>
                         )}
                         {simulatingFree && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 uppercase tracking-widest animate-pulse">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-500/15 text-red-400 uppercase tracking-widest font-mono animate-pulse">
                                 Simulated
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-white/40">
+                    <p className="text-xs text-claude-secondary leading-relaxed">
                         {simulatingFree
                             ? 'You are currently experiencing Riven as a free-tier user.'
                             : 'As the owner, you have permanent Lifetime access.'}
@@ -914,24 +892,24 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
 
             {/* Simulate Free Toggle (Owner Only) */}
             {isOwner && (
-                <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 relative overflow-hidden">
+                <div className="p-5 rounded-2xl glass-panel relative overflow-hidden">
                     <div className="relative z-10">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-sm font-bold text-white tracking-tight mb-1 flex items-center gap-2">
-                                    <Zap className="w-4 h-4 text-[#F59E0B]" />
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                                <h3 className="text-sm font-display text-claude-text tracking-tight mb-1 flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-claude-accent" />
                                     Simulate Free User
                                 </h3>
-                                <p className="text-xs text-white/40 max-w-sm leading-relaxed">
-                                    Toggle this to experience Riven as a free-tier user — limited hearts, AI caps, theme locks, and group restrictions will all apply to you.
+                                <p className="text-[11px] text-claude-secondary leading-relaxed">
+                                    Toggle to experience Riven as a free-tier user — limited hearts, AI caps, theme locks, and group restrictions apply.
                                 </p>
                             </div>
                             <button
                                 onClick={handleToggle}
                                 disabled={toggling}
-                                className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 ${simulatingFree
-                                    ? 'bg-[#3ECF8E] shadow-[0_0_15px_rgba(62,207,142,0.4)]'
-                                    : 'bg-white/10 border border-white/20'
+                                className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 tap-action ${simulatingFree
+                                    ? 'bg-claude-accent shadow-botanical-glow'
+                                    : 'bg-claude-border'
                                     } ${toggling ? 'opacity-50' : ''}`}
                             >
                                 <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${simulatingFree ? 'left-7' : 'left-1'}`} />
@@ -939,8 +917,8 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                         </div>
 
                         {simulatingFree && (
-                            <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-start gap-2">
-                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div className="mt-4 p-3 rounded-xl bg-red-900/15 border border-red-500/20 text-red-300/80 text-[11px] flex items-start gap-2 leading-relaxed">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                                 <span>Free mode is active. You will see hearts, limits, and paywalls. Toggle off to restore Lifetime access.</span>
                             </div>
                         )}
