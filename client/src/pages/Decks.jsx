@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback, useMemo, memo, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Layers, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, FolderOpen, Hash, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
-    Menu, Filter, Library, Leaf
+    Menu, Filter, Library
 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,10 +11,8 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
-import Garden from '../components/Garden';
-import { useStreak } from '../hooks/useStreak';
-import { getGardenStage } from '../utils/gardenCustomization';
-import { AuthContext } from '../context/AuthContext';
+
+
 
 const FOLDER_COLORS = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -115,51 +113,7 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
 });
 DeckCard.displayName = 'DeckCard';
 
-// Compact Garden Pill — High-density inline integration
-const GardenHero = memo(() => {
-    const { isLoggedIn } = useContext(AuthContext);
-    const streak = useStreak();
-    const stage = getGardenStage(streak.currentStreak);
 
-    if (!isLoggedIn) return null;
-
-    return (
-        <Link to="/garden" className="block tap-action group hover:z-10 relative">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9, rotate: 2 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ duration: 0.5, type: 'spring' }}
-                className="relative w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl sm:rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] overflow-hidden flex items-end justify-center transform-style-3d group-hover:-translate-y-1 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] active:scale-95 transition-all duration-300"
-            >
-                {/* Paper Texture Overlay */}
-                <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-
-                {/* Inner Archival Frame */}
-                <div className="absolute inset-[3px] border border-dashed border-[#d1c9b8]/60 pointer-events-none rounded-lg sm:rounded-[10px]" />
-
-                {/* Vintage tape corner */}
-                <div className="absolute -top-1 -right-2 w-6 h-2 bg-[#e8e4d8] rotate-[35deg] shadow-sm z-20" />
-
-                {/* The Plant */}
-                <div className="relative z-10 scale-[0.4] sm:scale-[0.5] origin-bottom translate-y-3">
-                    <Garden
-                        streak={streak.currentStreak}
-                        status={streak.status}
-                        size="sm"
-                        showInfo={false}
-                    />
-                </div>
-
-                {/* Stage Tooltip */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-claude-surface text-claude-secondary border border-claude-border rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl flex items-center gap-1.5">
-                    <Leaf className="w-2.5 h-2.5 text-claude-accent" />
-                    <span className="font-mono text-[8px] font-bold uppercase tracking-[0.1em]">{stage.name}</span>
-                </div>
-            </motion.div>
-        </Link>
-    );
-});
-GardenHero.displayName = 'GardenHero';
 
 export default function Decks() {
     const toast = useToast();
@@ -527,7 +481,7 @@ export default function Decks() {
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-botanical-parchment tracking-tighter leading-none">Decks</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <GardenHero />
+
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
