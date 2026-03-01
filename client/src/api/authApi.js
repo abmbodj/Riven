@@ -509,6 +509,21 @@ export const login2FA = async (tempToken, token) => {
     return data.user;
 };
 
+// ============ HEARTS API ============
+export const getHeartsStatus = () => authFetch('/users/hearts/status');
+export const getSessionHearts = (deckId) => authFetch(`/users/hearts/session/${deckId}`);
+export const decrementHeart = () => authFetch('/users/hearts/decrement', { method: 'POST' });
+export const refillHearts = (amount) => authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) });
+export const practiceRefill = () => authFetch('/users/hearts/practice-refill', { method: 'POST' });
+
+// Owner: Simulate Free Tier toggle
+export const toggleSimulateFree = () => authFetch('/auth/simulate-free', { method: 'POST' });
+
+// ============ REFERRALS API ============
+export const getReferralInfo = () => authFetch('/referrals/me');
+export const applyReferralCode = (code) => authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) });
+export const checkReferralQualification = () => authFetch('/referrals/check-qualification', { method: 'POST' });
+
 export default {
     getToken,
     setToken,
@@ -608,17 +623,17 @@ export default {
     deleteGroupFile,
 
     // Hearts API
-    getHeartsStatus: () => authFetch('/users/hearts/status'),
-    getSessionHearts: (deckId) => authFetch(`/users/hearts/session/${deckId}`),
-    decrementHeart: () => authFetch('/users/hearts/decrement', { method: 'POST' }),
-    refillHearts: (amount) => authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) }),
-    practiceRefill: () => authFetch('/users/hearts/practice-refill', { method: 'POST' }),
+    getHeartsStatus,
+    getSessionHearts,
+    decrementHeart,
+    refillHearts,
+    practiceRefill,
 
     // Owner: Simulate Free Tier toggle
-    toggleSimulateFree: () => authFetch('/auth/simulate-free', { method: 'POST' }),
+    toggleSimulateFree,
 
     // Referrals API
-    getReferralInfo: () => authFetch('/referrals/me'),
-    applyReferralCode: (code) => authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) }),
-    checkReferralQualification: () => authFetch('/referrals/check-qualification', { method: 'POST' }),
+    getReferralInfo,
+    applyReferralCode,
+    checkReferralQualification,
 };
