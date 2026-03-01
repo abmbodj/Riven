@@ -52,7 +52,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
     return (
         <AuthLayout
             title="Login"
-            subtitle="Enter your credentials to access the journal."
+            subtitle="Sign in to your account."
             showBackLink={true}
         >
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -66,7 +66,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="researcher@institute.edu or naturalist_01"
+                        placeholder="email@example.com or username"
                     />
                 </div>
 
@@ -113,7 +113,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
 
             <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
                 <p className="text-sm text-claude-secondary text-center">
-                    No profile recorded?
+                    Don't have an account?
                 </p>
                 <button
                     onClick={onSwitchToSignup}

@@ -167,7 +167,7 @@ export default function StudyGroups() {
             {/* Groups List */}
             <div className="px-4 sm:px-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-serif italic text-xl text-claude-secondary">Your Squads</h2>
+                    <h2 className="font-serif italic text-xl text-claude-secondary">Your Groups</h2>
                 </div>
 
                 {groups.length === 0 ? (
@@ -177,9 +177,9 @@ export default function StudyGroups() {
                             <div className="w-16 h-16 mx-auto mb-5 glass-panel rounded-2xl flex items-center justify-center border border-claude-border transform -rotate-6">
                                 <Users className="w-8 h-8 text-claude-accent opacity-40" />
                             </div>
-                            <h3 className="font-serif italic text-2xl text-claude-text mb-2">The vault is empty</h3>
+                            <h3 className="font-serif italic text-2xl text-claude-text mb-2">No groups yet</h3>
                             <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">
-                                Join a squad or forge your own to begin collaborating.
+                                Create or join a group to start studying together.
                             </p>
                         </div>
                     </div>
@@ -237,8 +237,8 @@ export default function StudyGroups() {
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <div>
-                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Forge Group</h3>
-                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Establish a new knowledge vault</p>
+                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Create Group</h3>
+                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Start a new study group</p>
                                 </div>
                                 <button type="button" onClick={() => setShowCreateModal(false)} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-claude-secondary hover:text-white transition-colors border border-claude-border">
                                     <X className="w-5 h-5" />
@@ -246,7 +246,7 @@ export default function StudyGroups() {
                             </div>
                             <div className="space-y-5">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Vault Title</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Group Name</label>
                                     <input
                                         type="text"
                                         value={createData.name}
@@ -257,7 +257,7 @@ export default function StudyGroups() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Academic Context (Optional)</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Class (Optional)</label>
                                     <div className="relative">
                                         <select
                                             value={createData.class_id}
@@ -276,7 +276,7 @@ export default function StudyGroups() {
                                 type="submit"
                                 className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)]"
                             >
-                                Initialize
+                                Create
                             </button>
                         </motion.form>
                     </div>
@@ -295,8 +295,8 @@ export default function StudyGroups() {
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <div>
-                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Join Vault</h3>
-                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Access a shared space via code</p>
+                                    <h3 className="text-3xl font-serif italic font-bold text-claude-text">Join Group</h3>
+                                    <p className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest mt-1">Enter an invite code to join</p>
                                 </div>
                                 <button type="button" onClick={() => setShowJoinModal(false)} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-claude-secondary hover:text-white transition-colors border border-claude-border">
                                     <X className="w-5 h-5" />
@@ -304,7 +304,7 @@ export default function StudyGroups() {
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Cipher Code</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Invite Code</label>
                                     <input
                                         type="text"
                                         value={joinCode}
@@ -321,7 +321,7 @@ export default function StudyGroups() {
                                 disabled={!joinCode.trim() || joinCode.length < 3}
                                 className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed"
                             >
-                                Authenticate
+                                Join
                             </button>
                         </motion.form>
                     </div>

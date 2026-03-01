@@ -57,7 +57,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     return (
         <AuthLayout
             title="Create account"
-            subtitle="Join the archives to begin your collection."
+            subtitle="Create your account to get started."
             showBackLink={true}
             backLinkText="RETURN TO LOGIN"
             backLinkTo="#" // Handled by state switch in Account.jsx, but visual link style
@@ -78,7 +78,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                         value={form.username}
                         onChange={e => setForm({ ...form, username: e.target.value })}
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="naturalist_01"
+                        placeholder="your_username"
                     />
                 </div>
 
@@ -152,7 +152,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
 
             <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
                 <p className="text-sm text-claude-secondary text-center">
-                    Already recorded?
+                    Already have an account?
                 </p>
                 <button
                     onClick={onSwitchToLogin}
