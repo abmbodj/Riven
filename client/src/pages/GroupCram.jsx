@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
