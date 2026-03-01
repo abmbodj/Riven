@@ -4,7 +4,7 @@ import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
     Clock, Layers, Calendar, Copy, Share2, Shield, Leaf, User
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
