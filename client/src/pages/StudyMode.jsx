@@ -8,6 +8,7 @@ import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
+import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -225,13 +226,16 @@ export default function StudyMode() {
                     </div>
                     <p className="text-center text-[10px] font-mono text-botanical-sepia mt-1.5 tracking-wide">{currentIndex + 1} / {cards.length}</p>
                 </div>
-                <button
-                    onClick={handleShuffle}
-                    className={`p-2 -mr-2 ${isShuffled ? 'text-claude-accent' : 'text-claude-secondary'}`}
-                    title="Shuffle cards"
-                >
-                    <Shuffle className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <StudyHeartsDisplay heartsStatus={heartsStatus} />
+                    <button
+                        onClick={handleShuffle}
+                        className={`p-2 ${isShuffled ? 'text-claude-accent' : 'text-claude-secondary'}`}
+                        title="Shuffle cards"
+                    >
+                        <Shuffle className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Keyboard hints - only show on desktop */}

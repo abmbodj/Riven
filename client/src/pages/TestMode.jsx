@@ -5,6 +5,7 @@ import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
+import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 
 export default function TestMode() {
     const { id } = useParams();
@@ -207,7 +208,7 @@ export default function TestMode() {
                         <X className="w-6 h-6" />
                     </Link>
                     <h1 className="flex-1 text-center font-display font-bold">Choose Quiz Mode</h1>
-                    <div className="w-10" />
+                    <StudyHeartsDisplay heartsStatus={heartsStatus} />
                 </div>
 
                 <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -333,7 +334,7 @@ export default function TestMode() {
                         </div>
                         <p className="text-center text-xs text-claude-secondary mt-1">Question {currentQIndex + 1} of {questions.length}</p>
                     </div>
-                    <div className="w-10" />
+                    <StudyHeartsDisplay heartsStatus={heartsStatus} />
                 </div>
 
                 {/* Question */}
@@ -434,7 +435,7 @@ export default function TestMode() {
                     </div>
                     <p className="text-center text-xs text-claude-secondary mt-1">Question {currentQIndex + 1} of {questions.length}</p>
                 </div>
-                <div className="w-10" />
+                <StudyHeartsDisplay heartsStatus={heartsStatus} />
             </div>
 
             {/* Question */}

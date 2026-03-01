@@ -7,6 +7,7 @@ import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
+import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 
 export default function GroupCram() {
     const { groupId, sessionId } = useParams();
@@ -314,8 +315,11 @@ export default function GroupCram() {
                     </div>
                 </div>
 
-                <div className="w-10 h-10 flex items-center justify-center rounded-2xl glass-panel/50 text-claude-secondary">
-                    <span className="font-mono text-[9px] font-bold">{currentIndex + 1}/{cards.length}</span>
+                <div className="flex items-center gap-3">
+                    <StudyHeartsDisplay heartsStatus={heartsStatus} />
+                    <div className="h-8 flex items-center justify-center rounded-2xl glass-panel/50 px-3">
+                        <span className="font-mono text-[9px] font-bold text-claude-secondary">{currentIndex + 1}/{cards.length}</span>
+                    </div>
                 </div>
             </div>
 
