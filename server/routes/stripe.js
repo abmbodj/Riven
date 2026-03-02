@@ -9,11 +9,16 @@ module.exports = function ({ db }) {
     router.post('/create-checkout-session', async (req, res) => {
         try {
             const { priceId, isSubscription } = req.body;
-            const user = req.user; // Assuming auth middleware is used
+            const user = req.user;
 
             if (!user) {
                 return res.status(401).json({ error: 'Authentication required' });
             }
+
+            // Determine the base URL from the request origin (more robust than env var)
+            let baseUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:5173';
+            // Remove trailing slash if it exists
+            if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
@@ -24,13 +29,13 @@ module.exports = function ({ db }) {
                     },
                 ],
                 mode: isSubscription ? 'subscription' : 'payment',
-                success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account`,
+                success_url: `${baseUrl}/account?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${baseUrl}/account`,
                 client_reference_id: String(user.id),
                 customer_email: user.email,
                 metadata: {
                     userId: String(user.id),
-                    tier: priceId.includes('LQZ') ? 'lifetime' : 'supporter' // Basic safety tag
+                    tier: priceId.includes('LQZ') ? 'lifetime' : 'supporter'
                 }
             });
 
@@ -40,6 +45,7 @@ module.exports = function ({ db }) {
             res.status(500).json({ error: error.message });
         }
     });
+
 
     // ── Create Portal Session ────────────────────────────────────
     router.post('/create-portal-session', async (req, res) => {
@@ -59,9 +65,13 @@ module.exports = function ({ db }) {
                 return res.status(404).json({ error: 'No Stripe customer found for this email.' });
             }
 
+            // Determine return URL dynamically
+            let baseUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:5173';
+            if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
             const session = await stripe.billingPortal.sessions.create({
                 customer: customers.data[0].id,
-                return_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account`,
+                return_url: `${baseUrl}/account`,
             });
 
             res.json({ url: session.url });

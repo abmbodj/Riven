@@ -203,8 +203,13 @@ function sanitizeDeep(obj) {
 
 // Input sanitization middleware
 app.use((req, res, next) => {
+    // Skip sanitization for Stripe webhooks as it needs the raw Buffer body for signature verification
+    if (req.path === '/api/webhooks/stripe') return next();
+
     if (process.env.NODE_ENV !== 'test') {
-        if (req.body) req.body = sanitizeDeep(req.body);
+        if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+            req.body = sanitizeDeep(req.body);
+        }
         if (req.query) req.query = sanitizeDeep(req.query);
         if (req.params) req.params = sanitizeDeep(req.params);
     }

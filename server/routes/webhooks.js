@@ -10,11 +10,16 @@ module.exports = function ({ app, db }) {
         let event;
 
         try {
-            // Use the raw body already parsed by express.raw in index.js
+            // CRITICAL: Verify the body is a Buffer (raw). Sanitization must be bypassed in index.js.
+            if (!Buffer.isBuffer(req.body)) {
+                console.error('[Stripe Webhook] ❌ Error: Body is not a Buffer! Global middleware might be parsing it too early.');
+                return res.status(400).send('Webhook Error: Request body must be raw.');
+            }
+
             event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
         } catch (err) {
             console.error('[Stripe Webhook] ❌ Signature verification failed:', err.message);
-            console.error('[Stripe Webhook] Hint: Check if STRIPE_WEBHOOK_SECRET in Render matches the secret for this specific endpoint in Stripe Dashboard.');
+            console.error('[Stripe Webhook] Hint: Check if STRIPE_WEBHOOK_SECRET in Render matches the secret for THIS SPECIFIC ENDPOINT in the Stripe Dashboard.');
             return res.status(400).send(`Webhook Error: ${err.message}`);
         }
 
