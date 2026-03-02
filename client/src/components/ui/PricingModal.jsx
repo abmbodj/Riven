@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Check, ArrowRight, Crown, Zap, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
-import { getToken } from '../../api/authApi';
+import { getToken, getApiBase } from '../../api/authApi';
 
 // Stripe Price IDs from environment
 const PRICE_IDS = {
@@ -37,12 +37,13 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             const priceId = pkgType === 'lifetime' ? PRICE_IDS.lifetime : PRICE_IDS.monthly;
             const isSubscription = pkgType !== 'lifetime';
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/stripe/create-checkout-session`, {
+            const response = await fetch(`${getApiBase()}/stripe/create-checkout-session`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${getToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ priceId, isSubscription })
             });
 

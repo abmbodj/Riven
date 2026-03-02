@@ -74,8 +74,8 @@ module.exports = function registerAuthRoutes({
             const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
 
             // Set httpOnly cookie (secure in production)
-            // Production: sameSite 'none' for cross-origin (frontend/API on different domains)
-            // Dev: sameSite 'lax' for localhost different ports
+            // Cross-origin (Vercel frontend → Render backend) requires sameSite 'none' + secure
+            // Client also sends JWT via Authorization header as fallback for iOS PWA
             const isProd = process.env.NODE_ENV === 'production';
             res.cookie('token', token, {
                 httpOnly: true,

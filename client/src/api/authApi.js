@@ -24,14 +24,14 @@ export const getApiBase = () => API_BASE;
 
 
 
-// Helper functions for local auth state (flag for AuthContext to know if it should try fetching user)
-// On web: only store a session flag – httpOnly cookie handles real auth (prevents XSS token theft)
-// On native (Capacitor): store actual JWT since cross-origin cookies are unreliable
+// Helper functions for local auth state
+// Store actual JWT on all platforms so Authorization header works as fallback
+// when httpOnly cookies fail (e.g. iOS PWA/Add-to-Home-Screen has separate cookie jar)
 const isNative = Capacitor.isNativePlatform();
 export const getToken = () => localStorage.getItem('riven_auth_token');
 export const setToken = (token) => {
     if (token) {
-        localStorage.setItem('riven_auth_token', isNative ? token : 'logged_in');
+        localStorage.setItem('riven_auth_token', token);
     } else {
         localStorage.removeItem('riven_auth_token');
     }
@@ -46,8 +46,9 @@ const authFetch = async (endpoint, options = {}) => {
         ...options.headers,
     };
 
-    // Only attach Authorization header on native where cookies don't work cross-origin
-    if (token && isNative && token !== 'logged_in') {
+    // Always attach Authorization header as fallback for when cookies fail
+    // (iOS PWA mode, Safari ITP, cross-origin on native, etc.)
+    if (token && token !== 'logged_in') {
         headers['Authorization'] = `Bearer ${token}`;
     }
 

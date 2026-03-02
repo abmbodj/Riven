@@ -1,16 +1,17 @@
-import { getToken } from './authApi';
+import { getToken, getApiBase } from './authApi';
 
 /**
  * Stripe API wrapper for the client.
  */
 export async function getManagementPortalUrl() {
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/stripe/create-portal-session`, {
+        const response = await fetch(`${getApiBase()}/stripe/create-portal-session`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getToken()}`
-            }
+            },
+            credentials: 'include'
         });
         const data = await response.json();
         return data.url;
