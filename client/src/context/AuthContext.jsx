@@ -139,6 +139,20 @@ export function AuthProvider({ children }) {
         setUser(null);
     }, [user]);
 
+    // Refresh User Data (Manually check for subscription updates)
+    const refreshUser = useCallback(async () => {
+        try {
+            const userData = await authApi.getMe();
+            if (userData && userData.id) {
+                setUser(userData);
+                return userData;
+            }
+        } catch (err) {
+            console.error('[AuthContext] Refresh failed:', err);
+            throw err;
+        }
+    }, []);
+
     // Passthrough functions (logic is in authApi, but exposed via context for consistency)
     const findUserByShareCode = useCallback((code) => authApi.searchUsers(code).then(users => users.find(u => u.shareCode === code)), []);
 
@@ -182,6 +196,7 @@ export function AuthProvider({ children }) {
         updateProfile,
         changePassword,
         deleteAccount,
+        refreshUser,
         // Sharing
         findUserByShareCode,
         // Admin
@@ -201,7 +216,7 @@ export function AuthProvider({ children }) {
         toggleSimulateFree
     }), [
         user, loading, socket, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
-        deleteAccount, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
+        deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
         getActiveMessages, dismissMessage, toggleSimulateFree

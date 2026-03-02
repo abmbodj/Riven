@@ -14,9 +14,11 @@ const PRICE_IDS = {
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
     const [loading, setLoading] = useState(false);
+    const [restoring, setRestoring] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState('supporter');
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
 
     // Close on escape key
     useEffect(() => {
@@ -52,10 +54,30 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 throw new Error(data.error || 'Failed to create checkout session');
             }
         } catch (err) {
-            console.error('Purchase failed:', err);
-            setError(err.message || 'Purchase failed. Please try again.');
+            console.error('[PricingModal] Purchase error:', err);
+            setError(err.message || 'Failed to initiate purchase. Please try again.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        setRestoring(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const updatedUser = await refreshUser();
+            if (updatedUser.subscription_tier !== 'free') {
+                setSuccess(`Welcome back, ${updatedUser.subscription_tier}! Your subscription has been restored.`);
+                // Close modal after a short delay
+                setTimeout(onClose, 2000);
+            } else {
+                setError('No active subscription found. If you just paid, please wait a minute for Stripe to process.');
+            }
+        } catch (err) {
+            setError('Failed to restore. Please try again or contact support.');
+        } finally {
+            setRestoring(false);
         }
     };
 
@@ -143,6 +165,27 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             >
                                 <X className="w-5 h-5" />
                             </button>
+                        </div>
+
+                        {/* Restore Purchase */}
+                        <div className="mt-8 pt-6 border-t border-white/5 text-center">
+                            <p className="text-xs text-stone-500 mb-3">
+                                Already purchased on another device or web session?
+                            </p>
+                            <button
+                                onClick={handleRestore}
+                                disabled={restoring}
+                                className="text-xs font-medium text-amber-500/80 hover:text-amber-500 transition-colors flex items-center justify-center gap-1.5 mx-auto"
+                            >
+                                <Zap className={`w-3 h-3 ${restoring ? 'animate-spin' : ''}`} />
+                                {restoring ? 'Checking Stripe...' : 'Restore Purchase'}
+                            </button>
+
+                            {success && (
+                                <p className="mt-3 text-xs text-emerald-500 animate-fade-in">
+                                    {success}
+                                </p>
+                            )}
                         </div>
 
                         {/* Content */}
