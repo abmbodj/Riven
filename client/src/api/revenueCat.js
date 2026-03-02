@@ -78,9 +78,33 @@ export async function getCustomerInfo() {
     }
 }
 
+// ── Management Interface ────────────────────────────────────
+/**
+ * Opens the Stripe Customer Portal (managementURL) in a new tab.
+ * Requires "RevenueCat Web Billing" and "Stripe Customer Portal" to be configured.
+ */
+export async function manageSubscription() {
+    if (!configured) return;
+    try {
+        const customerInfo = await getCustomerInfo();
+        if (customerInfo?.managementURL) {
+            window.open(customerInfo.managementURL, '_blank');
+        } else {
+            console.warn('[RevenueCat] No management URL found. Ensure Stripe Customer Portal is configured.');
+            alert("No subscription management link found. Please go to your email or Stripe to manage your plan.");
+        }
+    } catch (err) {
+        console.error('[RevenueCat] manageSubscription failed:', err);
+    }
+}
+
 // ── Restore (web = re-fetch entitlements from server) ───────
 export async function restorePurchases() {
     return getCustomerInfo();
+}
+
+export function isConfigured() {
+    return configured;
 }
 
 // Re-export ErrorCode so PricingModal can detect cancellations
