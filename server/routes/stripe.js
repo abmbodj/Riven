@@ -53,16 +53,24 @@ module.exports = function ({ db }) {
             const user = req.user;
             if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-            // We need the Stripe Customer ID. If we don't have it saved, 
-            // we have to find it by email or wait for the first webhook.
-            // For now, we'll try to find by email.
-            const customers = await stripe.customers.list({
-                email: user.email,
-                limit: 1
-            });
+            // 1. If we have the Stripe Customer ID saved, use it! (Most reliable)
+            let stripeCustomerId = user.stripe_customer_id;
 
-            if (customers.data.length === 0) {
-                return res.status(404).json({ error: 'No Stripe customer found for this email.' });
+            // 2. Fallback: Search for the customer by email if ID is missing
+            if (!stripeCustomerId) {
+                console.info(`[Stripe] No stripeCustomerId found for user ${user.id}, searching by email...`);
+                const customers = await stripe.customers.list({
+                    email: user.email,
+                    limit: 1
+                });
+
+                if (customers.data.length > 0) {
+                    stripeCustomerId = customers.data[0].id;
+                }
+            }
+
+            if (!stripeCustomerId) {
+                return res.status(404).json({ error: 'No Stripe customer record found. Please make a purchase first.' });
             }
 
             // Determine return URL dynamically
@@ -70,7 +78,7 @@ module.exports = function ({ db }) {
             if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
             const session = await stripe.billingPortal.sessions.create({
-                customer: customers.data[0].id,
+                customer: stripeCustomerId,
                 return_url: `${baseUrl}/account`,
             });
 

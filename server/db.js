@@ -90,6 +90,8 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_heart_refill TIMESTAMP`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_generations_count INTEGER DEFAULT 0`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ai_generation_reset TIMESTAMP`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`).catch(() => { });
 
             // Add role column (migration: user | admin | owner)
             await client.query(`

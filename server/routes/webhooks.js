@@ -42,7 +42,18 @@ module.exports = function ({ app, db }) {
 
                     console.info(`[Stripe Webhook] ✅ Fulfillment starting for user ${userId} -> ${tier}`);
 
-                    const result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE id = $2', [tier, parseInt(userId)]);
+                    // Save Stripe Customer ID and Subscription ID for bulletproof matching later
+                    const stripeCustomerId = session.customer;
+                    const stripeSubscriptionId = session.subscription;
+
+                    const result = await db.execute(
+                        `UPDATE users 
+                         SET subscription_tier = $1, 
+                             stripe_customer_id = $2, 
+                             stripe_subscription_id = $3 
+                         WHERE id = $4`,
+                        [tier, stripeCustomerId, stripeSubscriptionId, parseInt(userId)]
+                    );
 
                     if (result.rowCount === 0) {
                         console.error(`[Stripe Webhook] ❌ Failed to update user ${userId}: User not found in database.`);
@@ -54,12 +65,20 @@ module.exports = function ({ app, db }) {
 
                 case 'customer.subscription.deleted': {
                     const subscription = event.data.object;
-                    // Find user by Stripe Customer ID (would require us to have saved it)
-                    // Or find by email if we can
-                    const customer = await stripe.customers.retrieve(subscription.customer);
-                    if (customer.email) {
-                        console.info(`[Stripe Webhook] Subscription deleted for ${customer.email}. Reverting to free.`);
-                        await db.execute('UPDATE users SET subscription_tier = $1 WHERE email = $2', ['free', customer.email]);
+                    const stripeCustomerId = subscription.customer;
+
+                    console.info(`[Stripe Webhook] 🗑️ Subscription deleted for customer ${stripeCustomerId}. Reverting to free.`);
+
+                    // Try matching by Stripe Customer ID first (most reliable)
+                    let result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE stripe_customer_id = $2', ['free', stripeCustomerId]);
+
+                    // Fallback to email if we haven't saved the Stripe ID yet
+                    if (result.rowCount === 0) {
+                        const customer = await stripe.customers.retrieve(stripeCustomerId);
+                        if (customer.email) {
+                            console.info(`[Stripe Webhook] ⚠️ ID match failed, falling back to email ${customer.email}`);
+                            await db.execute('UPDATE users SET subscription_tier = $1 WHERE email = $2', ['free', customer.email]);
+                        }
                     }
                     break;
                 }
