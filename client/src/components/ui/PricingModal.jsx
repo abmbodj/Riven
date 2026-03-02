@@ -167,26 +167,6 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             </button>
                         </div>
 
-                        {/* Restore Purchase */}
-                        <div className="mt-8 pt-6 border-t border-white/5 text-center">
-                            <p className="text-xs text-stone-500 mb-3">
-                                Already purchased on another device or web session?
-                            </p>
-                            <button
-                                onClick={handleRestore}
-                                disabled={restoring}
-                                className="text-xs font-medium text-amber-500/80 hover:text-amber-500 transition-colors flex items-center justify-center gap-1.5 mx-auto"
-                            >
-                                <Zap className={`w-3 h-3 ${restoring ? 'animate-spin' : ''}`} />
-                                {restoring ? 'Checking Stripe...' : 'Restore Purchase'}
-                            </button>
-
-                            {success && (
-                                <p className="mt-3 text-xs text-emerald-500 animate-fade-in">
-                                    {success}
-                                </p>
-                            )}
-                        </div>
 
                         {/* Content */}
                         <div className="px-5 pb-6 overflow-y-auto custom-scrollbar flex-1">
@@ -282,6 +262,27 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </>
                                 )}
                             </motion.button>
+
+                            {/* Restore Purchase */}
+                            <div className="mt-8 pt-4 border-t border-white/5 text-center">
+                                <p className="text-[10px] text-stone-500 mb-2">
+                                    Already purchased?
+                                </p>
+                                <button
+                                    onClick={handleRestore}
+                                    disabled={restoring}
+                                    className="text-xs font-medium text-amber-500/80 hover:text-amber-500 transition-colors flex items-center justify-center gap-1.5 mx-auto"
+                                >
+                                    <Zap className={`w-3 h-3 ${restoring ? 'animate-spin' : ''}`} />
+                                    {restoring ? 'Checking Stripe...' : 'Restore Purchase'}
+                                </button>
+
+                                {success && (
+                                    <p className="mt-3 text-xs text-emerald-500 animate-fade-in">
+                                        {success}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 </div>

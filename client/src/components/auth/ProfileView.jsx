@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
     LogOut, Edit3, Settings, User, Mail,
-    MessageCircle, Users, ChevronRight, Leaf, Shield
+    MessageCircle, Users, ChevronRight, Leaf, Shield, Crown, Sparkles, Award
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getManagementPortalUrl } from '../../api/stripe';
@@ -124,14 +124,31 @@ const ProfileView = () => {
             >
                 {/* User Info */}
                 <motion.div variants={itemVariants} className="text-center mb-8 mt-4">
-                    <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1">
+                    <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center gap-2">
                         {user?.displayName || user?.username}
+                        {user?.subscription_tier === 'lifetime' && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                <Crown className="w-5 h-5 text-amber-500" strokeWidth={2.5} />
+                            </motion.div>
+                        )}
+                        {user?.subscription_tier === 'supporter' && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                <Sparkles className="w-5 h-5 text-claude-accent" strokeWidth={2.5} />
+                            </motion.div>
+                        )}
                     </h1>
                     <div className="flex flex-col items-center justify-center gap-1 mb-4">
-                        <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            @{user?.username}
-                        </p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                @{user?.username}
+                            </p>
+                            {user?.subscription_tier !== 'free' && (
+                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-widest font-bold ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'}`}>
+                                    {user?.subscription_tier}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     {user?.bio && (
                         <div className="relative inline-block">
