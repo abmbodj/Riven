@@ -43,7 +43,7 @@ module.exports = function ({ db }) {
             // Remove trailing slash if it exists
             if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
-            const session = await stripe.checkout.sessions.create({
+            const sessionParams = {
                 payment_method_types: ['card'],
                 line_items: [
                     {
@@ -60,7 +60,15 @@ module.exports = function ({ db }) {
                     userId: String(user.id),
                     tier: allowedPrice.tier
                 }
-            });
+            };
+
+            // ── Test Coupon: set STRIPE_TEST_COUPON in .env to auto-apply 100% off ──
+            if (process.env.STRIPE_TEST_COUPON) {
+                console.warn(`[Stripe] ⚠️  TEST MODE: Applying coupon "${process.env.STRIPE_TEST_COUPON}" to checkout`);
+                sessionParams.discounts = [{ coupon: process.env.STRIPE_TEST_COUPON }];
+            }
+
+            const session = await stripe.checkout.sessions.create(sessionParams);
 
             res.json({ url: session.url });
         } catch (error) {
