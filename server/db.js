@@ -16,9 +16,13 @@ if (global.__TEST_DB_MOCK__) {
     }
 
     const isProduction = process.env.NODE_ENV === 'production';
+    const needsSsl = isProduction || process.env.DB_SSL === 'true';
     const pool = new Pool({
         connectionString: connectionString || 'postgres://test', // Fallback for test env if not set
-        ssl: isProduction || process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false
+        ssl: needsSsl ? { rejectUnauthorized: false } : false,
+        // Serverless-friendly: short idle timeout so connections don't linger
+        idleTimeoutMillis: isProduction ? 20000 : 30000,
+        max: isProduction ? 5 : 10,
     });
 
     // Helper to create a clean interface
@@ -570,10 +574,17 @@ if (global.__TEST_DB_MOCK__) {
         }
     }
 
-    // Initialize on startup
+    // Initialize on startup (with guard for serverless cold starts)
+    let _initPromise = null;
     if (process.env.NODE_ENV !== 'test') {
-        initDb().catch(console.error);
+        _initPromise = initDb().catch(err => {
+            console.error('initDb failed:', err.message);
+            _initPromise = null; // Allow retry on next cold start
+        });
     }
+
+    // Expose a way to await init completion (useful for serverless first-request)
+    db.ready = () => _initPromise || Promise.resolve();
 }
 
 module.exports = db;

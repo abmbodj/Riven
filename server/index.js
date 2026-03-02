@@ -224,6 +224,17 @@ app.use((req, res, next) => {
 
 app.use('/api/', apiLimiter);
 
+// Ensure DB schema is ready before handling API requests (serverless cold-start safety)
+app.use('/api/', async (req, res, next) => {
+    try {
+        await db.ready();
+        next();
+    } catch (err) {
+        console.error('DB not ready:', err.message);
+        res.status(503).json({ error: 'Database initializing, please retry' });
+    }
+});
+
 const crypto = require('crypto');
 
 // Generate share code
