@@ -5,7 +5,7 @@
  * on the web / PWA. When the env var is missing (local dev),
  * every function gracefully no-ops so the UI never crashes.
  */
-import { Purchases, ErrorCode } from '@revenuecat/purchases-js';
+import Purchases, { ErrorCode } from '@revenuecat/purchases-js';
 
 const API_KEY = import.meta.env.VITE_REVENUECAT_WEB_API_KEY || '';
 
