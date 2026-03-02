@@ -5,6 +5,7 @@ import {
     MessageCircle, Users, ChevronRight, Leaf, Shield
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { manageSubscription } from '../../api/revenueCat';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
@@ -244,6 +245,25 @@ const ProfileView = () => {
                         </div>
                         <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
                     </Link>
+
+                    {user?.subscription_tier && user.subscription_tier !== 'free' && (
+                        <button
+                            onClick={() => {
+                                haptics.medium();
+                                manageSubscription();
+                            }}
+                            className="w-full flex items-center gap-4 p-4 border-t border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-indigo-500/20">
+                                <Shield className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <div className="flex-1 text-left">
+                                <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-600 transition-colors">Manage Subscription</p>
+                                <p className="text-[11px] font-mono text-botanical-sepia">Update or cancel your plan</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                        </button>
+                    )}
                 </motion.div>
 
                 {/* Sign Out Button */}

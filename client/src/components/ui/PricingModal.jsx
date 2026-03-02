@@ -69,10 +69,14 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 }
             }
         } catch (err) {
+            if (err.errorCode === ErrorCode?.UserCancelledError) {
+                console.info('User cancelled the purchase flow.');
+                return;
+            }
             console.error('Purchase failed:', err);
             setError(err.message || 'Purchase failed. Please try again.');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
             document.body.classList.remove('rc-billing-active');
         }
     };
@@ -283,11 +287,17 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 <button
                                     onClick={async () => {
                                         setLoading(true);
-                                        const customerInfo = await restorePurchases();
-                                        if (customerInfo?.entitlements?.active['pro']) {
-                                            setTimeout(() => window.location.reload(), 1500);
-                                        } else {
-                                            alert('No active purchases found to restore.');
+                                        try {
+                                            const customerInfo = await restorePurchases();
+                                            if (customerInfo?.entitlements?.active?.pro) {
+                                                setTimeout(() => window.location.reload(), 1500);
+                                            } else {
+                                                alert('No active purchases found to restore.');
+                                            }
+                                        } catch (err) {
+                                            console.error('Restore failed:', err);
+                                            setError('Failed to restore purchases. Please try again.');
+                                        } finally {
                                             setLoading(false);
                                         }
                                     }}
