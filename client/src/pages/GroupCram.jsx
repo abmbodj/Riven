@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap, Power } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import useHaptics from '../hooks/useHaptics';
@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function GroupCram() {
     const { groupId, sessionId } = useParams();
@@ -19,6 +20,7 @@ export default function GroupCram() {
     // Session Data
     const [session, setSession] = useState(null);
     const [cards, setCards] = useState([]);
+    const [groupRole, setGroupRole] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Live State
@@ -33,6 +35,8 @@ export default function GroupCram() {
     // Hearts State
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
+
+    const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
 
     const fetchResults = useCallback(async () => {
         try {
@@ -57,14 +61,16 @@ export default function GroupCram() {
                     return;
                 }
 
-                // Fetch deck cards and hearts status concurrently
-                const [deckData, heartsData] = await Promise.all([
+                // Fetch deck cards, hearts status, and group role concurrently
+                const [deckData, heartsData, groupData] = await Promise.all([
                     api.getDeck(sessionRes.session.deck_id),
-                    api.getHeartsStatus()
+                    api.getHeartsStatus(),
+                    api.getGroupInfo(groupId)
                 ]);
 
                 setCards(deckData.cards || []);
                 setHeartsStatus(heartsData);
+                setGroupRole(groupData.my_role);
 
                 if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
                     setShowOutOfHearts(true);
@@ -152,13 +158,26 @@ export default function GroupCram() {
         setIsFlipped(f => !f);
     }, [haptics]);
 
-    const handleEndSessionGlobally = async () => {
+    const confirmAction = (title, message, action) => {
+        if (haptics && haptics.medium) haptics.medium();
+        setConfirmModal({ show: true, title, message, action });
+    };
+
+    const handleConfirmAction = async () => {
         try {
+            await confirmModal.action();
+            setConfirmModal({ show: false, title: '', message: '', action: null });
+        } catch (err) {
+            toast.error(err.message || 'Action failed');
+            setConfirmModal({ show: false, title: '', message: '', action: null });
+        }
+    };
+
+    const handleEndSessionGlobally = () => {
+        confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
             await api.endGroupSession(sessionId);
             // The socket 'session-ended' will fire and transition everyone
-        } catch (e) {
-            console.error(e);
-        }
+        });
     };
 
     if (loading) return (
@@ -276,12 +295,14 @@ export default function GroupCram() {
                     </div>
 
                     {/* Show end button if admin/creator */}
-                    <button
-                        onClick={handleEndSessionGlobally}
-                        className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all tap-action"
-                    >
-                        End Session for Everyone
-                    </button>
+                    {(groupRole === 'admin' || session?.started_by === (api.getCurrentUser?.()?.id || 1)) && (
+                        <button
+                            onClick={handleEndSessionGlobally}
+                            className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all tap-action"
+                        >
+                            End Session for Everyone
+                        </button>
+                    )}
                 </motion.div>
             </div>
         );
@@ -320,6 +341,15 @@ export default function GroupCram() {
                     <div className="h-8 flex items-center justify-center rounded-2xl glass-panel/50 px-3">
                         <span className="font-mono text-[9px] font-bold text-claude-secondary">{currentIndex + 1}/{cards.length}</span>
                     </div>
+                    {(groupRole === 'admin' || session?.started_by === (api.getCurrentUser?.()?.id || 1)) && (
+                        <button
+                            onClick={handleEndSessionGlobally}
+                            className="w-8 h-8 flex items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all tap-action"
+                            title="End Session"
+                        >
+                            <Power className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -500,6 +530,15 @@ export default function GroupCram() {
                 setShowOutOfHearts(false);
                 navigate(`/groups/${groupId}`);
             }} />
+
+            {confirmModal.show && (
+                <ConfirmModal
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    onConfirm={handleConfirmAction}
+                    onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })}
+                />
+            )}
         </div>
     );
 }

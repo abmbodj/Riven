@@ -219,6 +219,14 @@ export default function GroupDetails() {
         });
     };
 
+    const handleEndSession = (sessionId) => {
+        confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
+            await api.endGroupSession(sessionId);
+            toast.success('Session ended');
+            loadGroup();
+        });
+    };
+
     const handleCreateFolder = async (e) => {
         e.preventDefault();
         if (!newFolderName.trim()) return;
@@ -448,6 +456,14 @@ export default function GroupDetails() {
                                         <button className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(239,68,68,0.4)] group-hover:bg-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)] transition-all transform group-hover:-translate-y-0.5 whitespace-nowrap">
                                             Join
                                         </button>
+                                        {isAdmin && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleEndSession(session.id); }}
+                                                className="ml-3 px-3 py-2.5 bg-claude-bg/50 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap tap-action"
+                                            >
+                                                End
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
