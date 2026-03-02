@@ -87,7 +87,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'supporter',
             name: 'Supporter',
-            price: offerings?.monthly?.webBillingProduct?.currentPrice?.priceString,
+            price: offerings?.monthly?.webBillingProduct?.price?.formattedPrice,
             period: '/month',
             icon: Zap,
             accent: 'claude-accent',
@@ -105,7 +105,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'lifetime',
             name: 'Lifetime',
-            price: offerings?.lifetime?.webBillingProduct?.currentPrice?.priceString,
+            price: offerings?.lifetime?.webBillingProduct?.price?.formattedPrice,
             period: 'once',
             icon: Crown,
             accent: 'amber-500',
@@ -178,7 +178,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             )}
 
                             {/* Plan Cards — Stacked vertically */}
-                            {!isFetching && (
+                            {!isFetching && offerings && (
                                 <>
                                     {/* Current Plan Banner */}
                                     <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
@@ -250,6 +250,13 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         })}
                                     </div>
                                 </>
+                            )}
+
+                            {!isFetching && !offerings && (
+                                <div className="text-center py-12">
+                                    <p className="text-sm text-claude-secondary mb-4">No active plans found.</p>
+                                    <p className="text-[10px] text-claude-secondary/60">Please verify that your RevenueCat dashboard has an offering named "default" with products published for the Web platform.</p>
+                                </div>
                             )}
 
                             {error && (

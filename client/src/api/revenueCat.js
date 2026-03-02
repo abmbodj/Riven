@@ -13,17 +13,28 @@ let configured = false;
 
 // ── Initialise ──────────────────────────────────────────────
 export function initRevenueCat(appUserId) {
+    if (typeof window !== 'undefined') {
+        window.RC_DEBUG = {
+            apiKeyPresent: !!API_KEY,
+            configured: false,
+            lastError: null,
+            offerings: null
+        };
+    }
+
     if (!API_KEY) {
-        console.info('[RevenueCat] No API key found – running in dev stub mode.');
+        console.warn('[RevenueCat] No API key found in VITE_REVENUECAT_WEB_API_KEY. SDK will not initialize.');
         return;
     }
-    if (configured) return; // only configure once
+    if (configured) return;
 
     try {
         Purchases.configure(API_KEY, String(appUserId));
         configured = true;
+        if (window.RC_DEBUG) window.RC_DEBUG.configured = true;
         console.info('[RevenueCat] SDK configured for user', appUserId);
     } catch (err) {
+        if (window.RC_DEBUG) window.RC_DEBUG.lastError = err;
         console.error('[RevenueCat] configure() failed:', err);
     }
 }
@@ -32,8 +43,11 @@ export function initRevenueCat(appUserId) {
 export async function getOfferings() {
     if (!configured) return null;
     try {
-        return await Purchases.getSharedInstance().getOfferings({ currency: 'USD' });
+        const offerings = await Purchases.getSharedInstance().getOfferings({ currency: 'USD' });
+        if (window.RC_DEBUG) window.RC_DEBUG.offerings = offerings;
+        return offerings;
     } catch (err) {
+        if (window.RC_DEBUG) window.RC_DEBUG.lastError = err;
         console.error('[RevenueCat] getOfferings() failed:', err);
         return null;
     }
