@@ -88,6 +88,10 @@ module.exports = function registerAuthRoutes({
                 token,
                 user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: false }
             });
+
+            // Send welcome email (fire-and-forget, don't block registration)
+            const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+            sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
         } catch (error) {
             res.status(500).json({ error: 'Verification failed' });
         }
@@ -533,7 +537,7 @@ module.exports = function registerAuthRoutes({
     // ============ FORGOT / RESET PASSWORD ============
 
     const crypto = require('crypto');
-    const { sendPasswordResetEmail, sendEmailVerification } = require('../utils/email');
+    const { sendPasswordResetEmail, sendEmailVerification, sendWelcomeEmail } = require('../utils/email');
 
     // Request password reset
     app.post('/api/auth/forgot-password', speedLimiter, authLimiter, async (req, res) => {
