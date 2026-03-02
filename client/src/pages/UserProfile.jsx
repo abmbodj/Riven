@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
-    Clock, Layers, Calendar, Copy, Share2, Shield, Leaf, User
+    Clock, Layers, Calendar, Shield, Leaf, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
@@ -34,7 +34,6 @@ export default function UserProfile() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
-    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -103,16 +102,6 @@ export default function UserProfile() {
             toast.error(errorMessage);
         } finally {
             setActionLoading(false);
-        }
-    };
-
-    const copyShareCode = () => {
-        if (profile?.shareCode) {
-            navigator.clipboard.writeText(profile.shareCode);
-            setCopied(true);
-            haptics.success();
-            toast.success('Share code copied');
-            setTimeout(() => setCopied(false), 2000);
         }
     };
 
@@ -308,38 +297,6 @@ export default function UserProfile() {
                             </motion.button>
                         )}
                     </AnimatePresence>
-                </motion.div>
-
-                {/* Share Code Ticket */}
-                <motion.div variants={itemVariants} className="bg-gradient-to-br from-claude-surface to-claude-bg border border-botanical-sepia/10 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
-                    {/* Ticket notch cutouts via pseudo-elements would require complex CSS, using simple overlay instead */}
-                    <div className="absolute top-1/2 -left-4 w-8 h-8 rounded-full bg-claude-bg border-r border-botanical-sepia/10 transform -translate-y-1/2 hidden sm:block"></div>
-                    <div className="absolute top-1/2 -right-4 w-8 h-8 rounded-full bg-claude-bg border-l border-botanical-sepia/10 transform -translate-y-1/2 hidden sm:block"></div>
-
-                    <div className="flex items-center justify-between relative z-10">
-                        <div>
-                            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia/80 mb-1.5 flex items-center gap-1.5">
-                                <Share2 className="w-3 h-3" /> Connect Ticket
-                            </p>
-                            <p className="text-2xl font-mono font-bold tracking-[0.2em] text-claude-text selection:bg-botanical-forest/20">{profile.shareCode}</p>
-                        </div>
-                        <button
-                            onClick={copyShareCode}
-                            className={`p-3.5 rounded-2xl active:scale-90 transition-all shadow-inner border border-botanical-sepia/10 ${copied ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-claude-bg hover:bg-botanical-forest/5 text-botanical-forest'}`}
-                        >
-                            <AnimatePresence mode="wait">
-                                {copied ? (
-                                    <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                                        <Check className="w-6 h-6" />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                                        <Copy className="w-6 h-6" />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </button>
-                    </div>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
