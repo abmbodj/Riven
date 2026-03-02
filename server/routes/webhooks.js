@@ -37,7 +37,7 @@ module.exports = function ({ app, db }) {
             if (['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION'].includes(eventType)) {
                 if (productId.includes('lifetime')) {
                     newTier = 'lifetime';
-                } else if (productId.includes('supporter') || productId.includes('tester')) {
+                } else if (productId.includes('supporter') || productId.includes('tester') || productId.includes('test') || productId.includes('hi')) {
                     newTier = 'supporter';
                 }
             } else if (eventType === 'EXPIRATION') {
