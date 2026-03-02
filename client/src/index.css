@@ -617,3 +617,18 @@ body.rc-billing-active .fixed.inset-0.z-\[999\] {
   z-index: 50 !important;
   pointer-events: none !important;
 }
+
+/* Fallback: if the billing overlay hangs/freezes, let users at least interact with the modal again after a delay or if they force-close */
+@keyframes rcb-safety-unlock {
+  0% {
+    pointer-events: none;
+  }
+
+  100% {
+    pointer-events: auto;
+  }
+}
+
+body.rc-billing-active .fixed.inset-0.z-\[999\] {
+  animation: rcb-safety-unlock 10s forwards;
+}

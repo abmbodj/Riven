@@ -43,6 +43,13 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
+    // Cleanup body class on unmount
+    useEffect(() => {
+        return () => {
+            document.body.classList.remove('rc-billing-active');
+        };
+    }, []);
+
     const handlePurchase = async (pkgType) => {
         setLoading(true);
         setError(null);
@@ -56,27 +63,43 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 throw new Error(`Package ${pkgType} not found in current offering.`);
             }
 
+            // Detect if the portal is active
+            document.body.classList.add('rc-billing-active');
+
             const result = await purchase(pkg);
+
+            // Sync user data if purchase returned successfully
             if (result?.customerInfo?.entitlements?.active?.pro) {
-                // Success! Refresh user data
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 const userData = await response.json();
                 if (userData.success) {
                     onClose();
-                    // Optional: show success toast or message
                 }
             }
         } catch (err) {
+            // Handle specific RevenueCat errors
             if (err.errorCode === ErrorCode?.UserCancelledError) {
                 console.info('User cancelled the purchase flow.');
                 return;
             }
+
+            if (err.errorCode === ErrorCode?.ProductAlreadyPurchasedError || err.message?.includes('already active')) {
+                console.info('Product already active, attempting to sync account...');
+                setError('Syncing account status...');
+                const info = await restorePurchases();
+                if (info?.entitlements?.active?.pro) {
+                    window.location.reload();
+                    return;
+                }
+            }
+
             console.error('Purchase failed:', err);
             setError(err.message || 'Purchase failed. Please try again.');
         } finally {
             setLoading(false);
+            // Ensure we remove the block-overlay class
             document.body.classList.remove('rc-billing-active');
         }
     };
