@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LoginForm from '../components/auth/LoginForm';
 import SignupForm from '../components/auth/SignupForm';
+import ForgotPasswordForm from '../components/auth/ForgotPasswordForm';
 import ProfileView from '../components/auth/ProfileView';
 import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 
@@ -10,14 +11,14 @@ import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 // No complex logic, just state switching
 export default function Account() {
     const { isLoggedIn, loading } = useAuth();
-    const [authView, setAuthView] = useState('login'); // 'login', 'signup', or '2fa'
+    const [authView, setAuthView] = useState('login'); // 'login', 'signup', 'forgot', or '2fa'
     const [tempToken, setTempToken] = useState(null);
 
     // Reset view when auth state changes
     useEffect(() => {
         if (isLoggedIn) {
             setTimeout(() => {
-                setAuthView('profile'); // Not strictly needed but keeps state clean
+                setAuthView('profile');
                 setTempToken(null);
             }, 0);
         } else if (!tempToken) {
@@ -50,6 +51,15 @@ export default function Account() {
         );
     }
 
+    // Forgot Password
+    if (authView === 'forgot') {
+        return (
+            <ForgotPasswordForm
+                onBackToLogin={() => setAuthView('login')}
+            />
+        );
+    }
+
     // If logged out, show Login or Signup
     if (authView === 'signup') {
         return (
@@ -66,6 +76,7 @@ export default function Account() {
     return (
         <LoginForm
             onSwitchToSignup={() => setAuthView('signup')}
+            onForgotPassword={() => setAuthView('forgot')}
             onLoginSuccess={(result) => {
                 if (result?.require2FA) {
                     setTempToken(result.tempToken);

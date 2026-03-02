@@ -22,7 +22,7 @@ if (API_BASE && API_BASE.endsWith('/')) {
 
 export const getApiBase = () => API_BASE;
 
-console.log('[authApi] INITIALIZED. Using API_BASE:', API_BASE);
+
 
 // Helper functions for local auth state (flag for AuthContext to know if it should try fetching user)
 export const getToken = () => localStorage.getItem('riven_auth_token');
@@ -34,7 +34,7 @@ export const setToken = (token) => {
 // Fetch wrapper with dual auth (Cookie + Header)
 const authFetch = async (endpoint, options = {}) => {
     const token = getToken();
-    console.log(`[authApi] Fetching ${endpoint}`, options);
+
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -114,12 +114,12 @@ export const register = async (username, email, password) => {
 };
 
 export const login = async (email, password) => {
-    console.log('[authApi] login called', { email });
+
     const data = await authFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-    console.log('[authApi] login response', data);
+
     // Token is now set as httpOnly cookie by server AND returned in body
     if (data.token) {
         setToken(data.token); // Save token for mobile/fallback
@@ -509,6 +509,27 @@ export const login2FA = async (tempToken, token) => {
     return data.user;
 };
 
+// ============ PASSWORD RESET ============
+
+export const forgotPassword = (email) => authFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+});
+
+export const resetPassword = (token, password) => authFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+});
+
+// ============ EMAIL VERIFICATION ============
+
+export const sendVerificationEmail = () => authFetch('/auth/send-verification', { method: 'POST' });
+
+export const verifyEmail = (token) => authFetch('/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+});
+
 // ============ HEARTS API ============
 export const getHeartsStatus = () => authFetch('/users/hearts/status');
 export const getSessionHearts = (deckId) => authFetch(`/users/hearts/session/${deckId}`);
@@ -636,4 +657,12 @@ export default {
     getReferralInfo,
     applyReferralCode,
     checkReferralQualification,
+
+    // Password Reset
+    forgotPassword,
+    resetPassword,
+
+    // Email Verification
+    sendVerificationEmail,
+    verifyEmail,
 };

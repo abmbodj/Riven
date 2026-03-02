@@ -26,12 +26,16 @@ const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
 const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
 
 const GroupCram = lazy(() => import('../pages/GroupCram.jsx'));
+const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
+const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 
 export const routesConfig = [
   // Public Routes
   { path: '/', element: <Home /> },
   { path: '/decks', element: <Decks /> },
   { path: '/account', element: <Account /> },
+  { path: '/reset-password', element: <ResetPassword /> },
+  { path: '/verify-email', element: <VerifyEmail /> },
 
   // Protected Routes
   {

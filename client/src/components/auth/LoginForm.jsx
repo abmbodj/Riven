@@ -7,7 +7,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import AuthLayout from './AuthLayout';
 
-const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
+const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     const { signIn } = useAuth();
     const haptics = useHaptics();
     const toast = useToast();
@@ -94,6 +94,18 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess }) => {
                         </button>
                     </div>
                 </div>
+
+                {onForgotPassword && (
+                    <div className="flex justify-end -mt-2">
+                        <button
+                            type="button"
+                            onClick={onForgotPassword}
+                            className="text-xs text-claude-secondary hover:text-claude-accent transition-colors"
+                        >
+                            Forgot password?
+                        </button>
+                    </div>
+                )}
 
                 <button
                     type="submit"

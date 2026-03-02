@@ -51,10 +51,11 @@ if (!JWT_SECRET) {
 }
 const jwtSecret = JWT_SECRET;
 
-// Rate limiters
+// Rate limiters (strict in production, relaxed in dev)
+const isProdEnv = process.env.NODE_ENV === 'production';
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100, // Relaxed from 5 to 100 for dev
+    max: isProdEnv ? 10 : 100,
     message: { error: 'Too many attempts, please try again later' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -62,8 +63,8 @@ const authLimiter = rateLimit({
 
 const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000,
-    delayAfter: 20, // Relaxed from 3
-    delayMs: (hits) => hits * 100
+    delayAfter: isProdEnv ? 3 : 20,
+    delayMs: (hits) => hits * 200
 });
 
 const apiLimiter = rateLimit({

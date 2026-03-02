@@ -86,7 +86,7 @@ module.exports = function registerAuthRoutes({
 
             res.status(201).json({
                 token,
-                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false }
+                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: false }
             });
         } catch (error) {
             res.status(500).json({ error: 'Verification failed' });
@@ -120,9 +120,8 @@ module.exports = function registerAuthRoutes({
             const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
             const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
 
-            // Set httpOnly cookie (secure in production)
+
             const isProd = process.env.NODE_ENV === 'production';
-            console.log(`[Auth] Login successful for ${user.email}:`, { isProd, userRole });
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: isProd,
@@ -143,7 +142,8 @@ module.exports = function registerAuthRoutes({
                     streakData: JSON.parse(user.streak_data || '{}'),
                     twoFAEnabled: !!user.two_fa_enabled,
                     subscription_tier: effectiveTier,
-                    simulate_free_tier: !!user.simulate_free_tier
+                    simulate_free_tier: !!user.simulate_free_tier,
+                    email_verified: !!user.email_verified
                 }
             });
         } catch (error) {
@@ -254,7 +254,8 @@ module.exports = function registerAuthRoutes({
                         streakData: JSON.parse(user.streak_data || '{}'),
                         twoFAEnabled: !!user.two_fa_enabled,
                         subscription_tier: effectiveTier2FA,
-                        simulate_free_tier: !!user.simulate_free_tier
+                        simulate_free_tier: !!user.simulate_free_tier,
+                        email_verified: !!user.email_verified
                     }
                 });
             } else {
@@ -303,7 +304,8 @@ module.exports = function registerAuthRoutes({
                 isOwner: userRole === 'owner', createdAt: user.created_at,
                 twoFAEnabled: !!user.two_fa_enabled,
                 subscription_tier: effectiveTierMe,
-                simulate_free_tier: !!user.simulate_free_tier
+                simulate_free_tier: !!user.simulate_free_tier,
+                email_verified: !!user.email_verified
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -525,6 +527,135 @@ module.exports = function registerAuthRoutes({
             res.json({ simulate_free_tier: newVal, subscription_tier: newVal ? 'free' : 'lifetime' });
         } catch (error) {
             res.status(500).json({ error: error.message });
+        }
+    });
+
+    // ============ FORGOT / RESET PASSWORD ============
+
+    const crypto = require('crypto');
+    const { sendPasswordResetEmail, sendEmailVerification } = require('../utils/email');
+
+    // Request password reset
+    app.post('/api/auth/forgot-password', speedLimiter, authLimiter, async (req, res) => {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+
+        try {
+            // Always return success to prevent email enumeration
+            const user = await db.queryOne('SELECT id, email FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+
+            if (user) {
+                // Invalidate any existing tokens for this user
+                await db.execute('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
+
+                // Generate secure token
+                const resetToken = crypto.randomBytes(32).toString('hex');
+                const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+                await db.execute(
+                    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                    [user.id, resetToken, expiresAt.toISOString()]
+                );
+
+                // Determine base URL for the reset link
+                const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+
+                await sendPasswordResetEmail(user.email, resetToken, baseUrl);
+            }
+
+            // Always return 200 to prevent email enumeration
+            res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+        } catch (error) {
+            console.error('[Auth] Forgot password error:', error);
+            res.status(500).json({ error: 'Failed to process request' });
+        }
+    });
+
+    // Reset password with token
+    app.post('/api/auth/reset-password', speedLimiter, authLimiter, async (req, res) => {
+        const { token, password } = req.body;
+        if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
+        if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+        try {
+            const resetRecord = await db.queryOne(
+                'SELECT * FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()',
+                [token]
+            );
+
+            if (!resetRecord) {
+                return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+            }
+
+            // Hash new password and update
+            const hashedPassword = await bcrypt.hash(password, 12);
+            await db.execute('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, resetRecord.user_id]);
+
+            // Mark token as used
+            await db.execute('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [resetRecord.id]);
+
+            // Clean up old tokens for this user
+            await db.execute('DELETE FROM password_reset_tokens WHERE user_id = $1 AND id != $2', [resetRecord.user_id, resetRecord.id]);
+
+            res.json({ message: 'Password has been reset successfully. You can now log in.' });
+        } catch (error) {
+            console.error('[Auth] Reset password error:', error);
+            res.status(500).json({ error: 'Failed to reset password' });
+        }
+    });
+
+    // ============ EMAIL VERIFICATION ============
+
+    // Send verification email
+    app.post('/api/auth/send-verification', authMiddleware, async (req, res) => {
+        try {
+            const user = await db.queryOne('SELECT id, email, email_verified FROM users WHERE id = $1', [req.user.id]);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            if (user.email_verified) return res.json({ message: 'Email already verified' });
+
+            // Invalidate existing tokens
+            await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [user.id]);
+
+            const verifyToken = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+            await db.execute(
+                'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                [user.id, verifyToken, expiresAt.toISOString()]
+            );
+
+            const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+            await sendEmailVerification(user.email, verifyToken, baseUrl);
+
+            res.json({ message: 'Verification email sent' });
+        } catch (error) {
+            console.error('[Auth] Send verification error:', error);
+            res.status(500).json({ error: 'Failed to send verification email' });
+        }
+    });
+
+    // Verify email with token
+    app.post('/api/auth/verify-email', async (req, res) => {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ error: 'Token is required' });
+
+        try {
+            const record = await db.queryOne(
+                'SELECT * FROM email_verification_tokens WHERE token = $1 AND expires_at > NOW()',
+                [token]
+            );
+
+            if (!record) {
+                return res.status(400).json({ error: 'Invalid or expired verification link' });
+            }
+
+            await db.execute('UPDATE users SET email_verified = TRUE WHERE id = $1', [record.user_id]);
+            await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [record.user_id]);
+
+            res.json({ message: 'Email verified successfully' });
+        } catch (error) {
+            console.error('[Auth] Verify email error:', error);
+            res.status(500).json({ error: 'Failed to verify email' });
         }
     });
 };
