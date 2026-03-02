@@ -16,10 +16,16 @@ export function initRevenueCat(appUserId) {
     if (typeof window !== 'undefined') {
         window.RC_DEBUG = {
             apiKeyPresent: !!API_KEY,
+            apiKeyStart: API_KEY ? API_KEY.substring(0, 7) : 'none',
+            appUserId: appUserId,
             configured: false,
             lastError: null,
             offerings: null
         };
+        console.log('[RevenueCat] Initializing with User ID:', appUserId);
+        if (API_KEY && !API_KEY.startsWith('rcb_')) {
+            console.error('[RevenueCat] WARNING: Your API Key does not start with "rcb_". It might be a Stripe key instead of a RevenueCat Web Billing key.');
+        }
     }
 
     if (!API_KEY) {
@@ -32,7 +38,7 @@ export function initRevenueCat(appUserId) {
         Purchases.configure(API_KEY, String(appUserId));
         configured = true;
         if (window.RC_DEBUG) window.RC_DEBUG.configured = true;
-        console.info('[RevenueCat] SDK configured for user', appUserId);
+        console.info('[RevenueCat] SDK configured successfully.');
     } catch (err) {
         if (window.RC_DEBUG) window.RC_DEBUG.lastError = err;
         console.error('[RevenueCat] configure() failed:', err);
