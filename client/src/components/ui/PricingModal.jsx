@@ -166,11 +166,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                         {/* Content */}
                         <div className="px-5 pb-6 overflow-y-auto custom-scrollbar flex-1">
-                            {error && (
-                                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
-                                    {error}
-                                </div>
-                            )}
+
 
                             {/* Current Plan Banner */}
                             <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
@@ -242,6 +238,12 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     );
                                 })}
                             </div>
+
+                            {error && (
+                                <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-in fade-in slide-in-from-bottom-2">
+                                    {error}
+                                </div>
+                            )}
 
                             {/* Purchase Button */}
                             <motion.button
