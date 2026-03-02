@@ -83,7 +83,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'lifetime',
             name: 'Lifetime',
-            price: '$39.99',
+            price: '$29.99',
             period: 'once',
             icon: Crown,
             accent: 'amber-500',
