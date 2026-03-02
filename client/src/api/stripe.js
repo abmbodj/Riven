@@ -1,3 +1,5 @@
+import { getToken } from './authApi';
+
 /**
  * Stripe API wrapper for the client.
  */
@@ -7,7 +9,7 @@ export async function getManagementPortalUrl() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${getToken()}`
             }
         });
         const data = await response.json();

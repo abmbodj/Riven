@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Check, ArrowRight, Crown, Zap, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
+import { getToken } from '../../api/authApi';
 
 // Stripe Price IDs provided by user
 const PRICE_IDS = {
@@ -38,7 +39,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${getToken()}`
                 },
                 body: JSON.stringify({ priceId, isSubscription })
             });

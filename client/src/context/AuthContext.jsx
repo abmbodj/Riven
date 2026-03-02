@@ -87,7 +87,6 @@ export function AuthProvider({ children }) {
 
             if (data.user) {
                 setUser(data.user);
-                initRevenueCat(data.user.id);
                 return data.user;
             }
 
@@ -102,7 +101,6 @@ export function AuthProvider({ children }) {
     const signUp = useCallback(async (username, email, password) => {
         const userData = await authApi.register(username, email, password);
         setUser(userData);
-        initRevenueCat(userData.id);
         return userData;
     }, []);
 
