@@ -194,10 +194,7 @@ export default function GroupCram() {
     // ==========================================
     if (isEnded && results) {
         return (
-            <div className="min-h-screen bg-claude-bg pb-24 px-4 pt-12 relative overflow-hidden">
-                {/* Subtle background glow */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-claude-accent/5 rounded-full blur-[100px] pointer-events-none" />
-
+            <div className="fullscreen-page pb-24 px-4 pt-12 relative overflow-y-auto">
                 <div className="max-w-xl mx-auto space-y-8 relative z-10">
                     <div className="text-center">
                         <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-botanical-forest/10 text-botanical-forest rounded-full flex items-center justify-center mx-auto mb-6 border border-botanical-forest/20 shadow-[0_0_30px_rgba(45,90,62,0.15)] relative backdrop-blur-sm">
@@ -273,9 +270,7 @@ export default function GroupCram() {
     // ==========================================
     if (isFinished) {
         return (
-            <div className="min-h-screen bg-claude-bg pb-24 px-4 pt-12 relative overflow-hidden flex flex-col items-center justify-center">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-claude-accent/5 rounded-full blur-[120px] pointer-events-none" />
-
+            <div className="fullscreen-page pb-24 px-4 pt-12 relative flex flex-col items-center justify-center">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -315,14 +310,10 @@ export default function GroupCram() {
     const progress = ((currentIndex) / cards.length) * 100;
 
     return (
-        <div className="min-h-screen bg-claude-bg relative overflow-hidden flex flex-col">
-            {/* Immersive Dark Background glow */}
-            <div className="absolute inset-0 bg-gradient-to-b from-claude-bg via-[#161a1d] to-[#0f1113] pointer-events-none z-0" />
-            <div className="absolute top-0 right-0 w-full h-[50vh] bg-claude-accent/5 blur-[120px] pointer-events-none z-0" />
-
+        <div className="fullscreen-page flex flex-col">
             {/* Elevated Top Bar */}
-            <div className="relative z-20 flex items-center justify-between px-6 h-20 shrink-0 bg-gradient-to-b from-claude-bg/80 to-transparent backdrop-blur-md">
-                <Link to={`/groups/${groupId}`} className="w-10 h-10 flex items-center justify-center rounded-2xl glass-panel text-claude-secondary hover:text-white hover:border-claude-border/80 transition-all tap-action">
+            <div className="relative z-20 flex items-center justify-between px-4 h-14 shrink-0">
+                <Link to={`/groups/${groupId}`} className="touch-target -ml-2 text-claude-secondary tap-action">
                     <X className="w-5 h-5" />
                 </Link>
 
