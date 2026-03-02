@@ -5,6 +5,14 @@ const Stripe = require('stripe');
 module.exports = function ({ db }) {
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+    // ── Server-side Price ID Allowlist ─────────────────────────────
+    // SECURITY: Only these exact Stripe Price IDs are accepted.
+    // Prevents clients from substituting arbitrary price IDs.
+    const ALLOWED_PRICES = {
+        'price_1T6LPsLYlsIF3kiqi3vNu8q5': { tier: 'supporter', mode: 'subscription' },
+        'price_1T6LQZLYlsIF3kiqrWxurMC7': { tier: 'lifetime',  mode: 'payment' },
+    };
+
     // ── Create Checkout Session ──────────────────────────────────
     router.post('/create-checkout-session', async (req, res) => {
         try {
@@ -17,6 +25,13 @@ module.exports = function ({ db }) {
 
             if (!priceId) {
                 return res.status(400).json({ error: 'Missing priceId in request body' });
+            }
+
+            // Validate priceId against server-side allowlist
+            const allowedPrice = ALLOWED_PRICES[priceId];
+            if (!allowedPrice) {
+                console.warn(`[Stripe] Rejected unknown priceId: ${priceId} from user ${user.id}`);
+                return res.status(400).json({ error: 'Invalid price selected.' });
             }
 
             // Determine the base URL from the request origin (more robust than env var)
@@ -32,14 +47,14 @@ module.exports = function ({ db }) {
                         quantity: 1,
                     },
                 ],
-                mode: isSubscription ? 'subscription' : 'payment',
+                mode: allowedPrice.mode,
                 success_url: `${baseUrl}/account?payment=success`,
                 cancel_url: `${baseUrl}/account`,
                 client_reference_id: String(user.id),
                 customer_email: user.email,
                 metadata: {
                     userId: String(user.id),
-                    tier: isSubscription ? 'supporter' : 'lifetime'
+                    tier: allowedPrice.tier
                 }
             });
 

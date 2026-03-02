@@ -4,6 +4,18 @@ const Stripe = require('stripe');
 module.exports = function ({ app, db }) {
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+    // ── Environment Guard ─────────────────────────────────────────
+    if (process.env.NODE_ENV === 'production') {
+        if (!process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')) {
+            console.error('[Stripe] FATAL: Production environment using non-live Stripe key. Refusing to start.');
+            throw new Error('STRIPE_SECRET_KEY must be a live key in production');
+        }
+        if (!process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')) {
+            console.error('[Stripe] FATAL: STRIPE_WEBHOOK_SECRET missing or invalid in production.');
+            throw new Error('STRIPE_WEBHOOK_SECRET is required in production');
+        }
+    }
+
     // ── Webhook Idempotency: prevent duplicate event processing ──
     // Uses DB table; falls back to in-memory Set if table doesn't exist yet
     const processedEventsCache = new Set();
@@ -32,6 +44,8 @@ module.exports = function ({ app, db }) {
 
         try {
             await db.execute('INSERT INTO stripe_processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING', [eventId]);
+            // Periodic cleanup: remove events older than 7 days (Stripe retries stop after ~3 days)
+            await db.execute("DELETE FROM stripe_processed_events WHERE processed_at < NOW() - INTERVAL '7 days'");
         } catch {
             // Table may not exist yet — in-memory cache is still protecting us
         }
@@ -64,20 +78,39 @@ module.exports = function ({ app, db }) {
             return res.json({ received: true });
         }
 
+        // BEST PRACTICE: Respond 200 immediately, then process asynchronously.
+        // Stripe times out at ~20s and retries, which can cause duplicate processing.
+        res.json({ received: true });
+
         try {
             switch (event.type) {
                 case 'checkout.session.completed': {
                     const session = event.data.object;
                     const userId = session.client_reference_id;
-                    const metadataTier = session.metadata?.tier; // 'lifetime' or 'supporter'
 
                     if (!userId) {
                         console.warn('[Stripe Webhook] ⚠️ No userId (client_reference_id) found in session:', session.id);
                         break;
                     }
 
-                    // Map Price ID to Tier if metadata is missing (backup)
-                    let tier = metadataTier || 'supporter';
+                    // SERVER-SIDE RE-FETCH: Don't trust webhook payload alone.
+                    // Re-fetch the session from Stripe to verify payment status and get canonical tier.
+                    let tier;
+                    try {
+                        const verifiedSession = await stripe.checkout.sessions.retrieve(session.id, {
+                            expand: ['line_items']
+                        });
+                        if (verifiedSession.payment_status !== 'paid') {
+                            console.warn(`[Stripe Webhook] ⚠️ Session ${session.id} payment_status is ${verifiedSession.payment_status}, skipping.`);
+                            break;
+                        }
+                        // Determine tier from the verified session mode (most reliable)
+                        tier = verifiedSession.mode === 'subscription' ? 'supporter' : 'lifetime';
+                    } catch (fetchErr) {
+                        console.error(`[Stripe Webhook] ❌ Failed to re-fetch session ${session.id}:`, fetchErr.message);
+                        // Fallback to metadata if Stripe API is temporarily down
+                        tier = session.metadata?.tier || 'supporter';
+                    }
 
                     console.info(`[Stripe Webhook] ✅ Fulfillment starting for user ${userId} -> ${tier}`);
 
@@ -169,11 +202,9 @@ module.exports = function ({ app, db }) {
 
             // Mark event as processed AFTER successful handling
             await markEventProcessed(event.id);
-
-            res.json({ received: true });
         } catch (error) {
+            // Response already sent (200) — log and let Stripe's idempotency + our DB guard handle retries
             console.error('[Stripe Webhook] Error processing event:', error);
-            res.status(500).send('Internal Server Error');
         }
     });
 
