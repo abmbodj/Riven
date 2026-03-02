@@ -57,27 +57,23 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             }
 
             const result = await purchase(pkg);
-
-            if (result && result.customerInfo) {
-                if (result.customerInfo.entitlements.active['pro']) {
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    setError('Purchase completed but entitlement not found. Please try restoring purchases.');
-                    setLoading(false);
+            if (result?.customerInfo?.entitlements?.active?.pro) {
+                // Success! Refresh user data
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const userData = await response.json();
+                if (userData.success) {
+                    onClose();
+                    // Optional: show success toast or message
                 }
-            } else {
-                alert(`Mock Purchase Successful for ${pkgType}! RevenueCat webhook would fire and grant access.`);
-                setLoading(false);
-                onClose();
             }
         } catch (err) {
-            if (err.errorCode === ErrorCode?.UserCancelledError) {
-                console.log('User cancelled purchase');
-            } else {
-                console.error('Purchase failed:', err);
-                setError(err.message || 'Purchase failed. Please try again.');
-            }
-            setLoading(false);
+            console.error('Purchase failed:', err);
+            setError(err.message || 'Purchase failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+            document.body.classList.remove('rc-billing-active');
         }
     };
 

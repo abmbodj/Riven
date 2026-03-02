@@ -589,3 +589,31 @@
   scrollbar-width: none;
   /* Firefox */
 }
+
+/* RevenueCat Web Billing & Stripe Mobile Fixes */
+.rcb-ui-root,
+#rcb-ui-root,
+.rc-billing-root {
+  z-index: 99999 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+}
+
+/* Force checkout iframes to be interactive and on top */
+iframe[src*="checkout.stripe.com"],
+iframe[src*="revenuecat.com"] {
+  z-index: 100000 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure the PricingModal doesn't block the billing overlay when it's active */
+body.rc-billing-active .fixed.inset-0.z-\[999\] {
+  z-index: 50 !important;
+  pointer-events: none !important;
+}
