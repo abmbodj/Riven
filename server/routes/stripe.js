@@ -15,6 +15,10 @@ module.exports = function ({ db }) {
                 return res.status(401).json({ error: 'Authentication required' });
             }
 
+            if (!priceId) {
+                return res.status(400).json({ error: 'Missing priceId in request body' });
+            }
+
             // Determine the base URL from the request origin (more robust than env var)
             let baseUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:5173';
             // Remove trailing slash if it exists
@@ -29,13 +33,13 @@ module.exports = function ({ db }) {
                     },
                 ],
                 mode: isSubscription ? 'subscription' : 'payment',
-                success_url: `${baseUrl}/account?session_id={CHECKOUT_SESSION_ID}`,
+                success_url: `${baseUrl}/account?payment=success`,
                 cancel_url: `${baseUrl}/account`,
                 client_reference_id: String(user.id),
                 customer_email: user.email,
                 metadata: {
                     userId: String(user.id),
-                    tier: priceId.includes('LQZ') ? 'lifetime' : 'supporter'
+                    tier: isSubscription ? 'supporter' : 'lifetime'
                 }
             });
 

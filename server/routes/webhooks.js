@@ -4,6 +4,39 @@ const Stripe = require('stripe');
 module.exports = function ({ app, db }) {
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+    // ── Webhook Idempotency: prevent duplicate event processing ──
+    // Uses DB table; falls back to in-memory Set if table doesn't exist yet
+    const processedEventsCache = new Set();
+    const CACHE_MAX = 1000;
+
+    async function isEventAlreadyProcessed(eventId) {
+        // Check in-memory cache first (fast path)
+        if (processedEventsCache.has(eventId)) return true;
+
+        try {
+            const existing = await db.query('SELECT 1 FROM stripe_processed_events WHERE event_id = $1', [eventId]);
+            if (existing.length > 0) return true;
+        } catch {
+            // Table may not exist yet — rely on in-memory cache only
+        }
+        return false;
+    }
+
+    async function markEventProcessed(eventId) {
+        processedEventsCache.add(eventId);
+        // Prevent unbounded memory growth
+        if (processedEventsCache.size > CACHE_MAX) {
+            const first = processedEventsCache.values().next().value;
+            processedEventsCache.delete(first);
+        }
+
+        try {
+            await db.execute('INSERT INTO stripe_processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING', [eventId]);
+        } catch {
+            // Table may not exist yet — in-memory cache is still protecting us
+        }
+    }
+
     // ── Direct Stripe Webhook ────────────────────────────────────
     app.post('/api/webhooks/stripe', async (req, res) => {
         const sig = req.headers['stripe-signature'];
@@ -24,6 +57,12 @@ module.exports = function ({ app, db }) {
         }
 
         console.log(`[Stripe Webhook] 🔔 Received event: ${event.type}`);
+
+        // Idempotency guard: skip already-processed events (Stripe can retry)
+        if (await isEventAlreadyProcessed(event.id)) {
+            console.info(`[Stripe Webhook] ⏭️ Skipping duplicate event: ${event.id}`);
+            return res.json({ received: true });
+        }
 
         try {
             switch (event.type) {
@@ -59,6 +98,27 @@ module.exports = function ({ app, db }) {
                         console.error(`[Stripe Webhook] ❌ Failed to update user ${userId}: User not found in database.`);
                     } else {
                         console.info(`[Stripe Webhook] ✨ Subscription updated successfully for user ${userId}`);
+
+                        // --- DUMMY PROOFING: Auto-cancel existing subscriptions on Lifetime upgrade ---
+                        if (tier === 'lifetime' && stripeCustomerId) {
+                            try {
+                                // Find any active or trialing subscriptions for this customer
+                                const subscriptions = await stripe.subscriptions.list({
+                                    customer: stripeCustomerId,
+                                    status: 'active',
+                                    limit: 10,
+                                });
+
+                                for (const sub of subscriptions.data) {
+                                    // Don't try to cancel the lifetime one if it somehow shows up as a subscription (it shouldn't, it's a payment)
+                                    // But definitely cancel standard monthly ones.
+                                    console.info(`[Stripe Webhook] 🔄 Lifetime upgrade detected! Canceling old subscription ${sub.id}...`);
+                                    await stripe.subscriptions.cancel(sub.id);
+                                }
+                            } catch (cancelErr) {
+                                console.error(`[Stripe Webhook] ⚠️ Failed to auto-cancel old subscriptions for ${userId}:`, cancelErr.message);
+                            }
+                        }
                     }
                     break;
                 }
@@ -67,7 +127,14 @@ module.exports = function ({ app, db }) {
                     const subscription = event.data.object;
                     const stripeCustomerId = subscription.customer;
 
-                    console.info(`[Stripe Webhook] 🗑️ Subscription deleted for customer ${stripeCustomerId}. Reverting to free.`);
+                    console.info(`[Stripe Webhook] 🗑️ Subscription deleted for customer ${stripeCustomerId}. Checking before reverting to free.`);
+
+                    // Guard: Don't downgrade lifetime users when their old monthly sub gets canceled
+                    const currentUser = await db.execute('SELECT subscription_tier FROM users WHERE stripe_customer_id = $1', [stripeCustomerId]);
+                    if (currentUser.rows.length > 0 && currentUser.rows[0].subscription_tier === 'lifetime') {
+                        console.info(`[Stripe Webhook] ⏭️ Skipping downgrade — user is on lifetime plan.`);
+                        break;
+                    }
 
                     // Try matching by Stripe Customer ID first (most reliable)
                     let result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE stripe_customer_id = $2', ['free', stripeCustomerId]);
@@ -82,18 +149,32 @@ module.exports = function ({ app, db }) {
                     }
                     break;
                 }
+
+                case 'invoice.payment_failed': {
+                    const invoice = event.data.object;
+                    const stripeCustomerId = invoice.customer;
+                    const attemptCount = invoice.attempt_count || 1;
+
+                    console.warn(`[Stripe Webhook] ⚠️ Payment failed for customer ${stripeCustomerId} (attempt ${attemptCount})`);
+
+                    // On final failure (attempt 3+), Stripe will auto-cancel the subscription
+                    // which triggers customer.subscription.deleted — so we just log here.
+                    // But we can notify the user proactively on early failures:
+                    if (attemptCount >= 2) {
+                        console.warn(`[Stripe Webhook] 🚨 Multiple payment failures for ${stripeCustomerId}. Subscription may be canceled soon.`);
+                    }
+                    break;
+                }
             }
+
+            // Mark event as processed AFTER successful handling
+            await markEventProcessed(event.id);
+
             res.json({ received: true });
         } catch (error) {
             console.error('[Stripe Webhook] Error processing event:', error);
             res.status(500).send('Internal Server Error');
         }
-    });
-
-    // ── Legacy RevenueCat Webhook (Graceful removal or keep as proxy) ──
-    app.post('/api/webhooks/revenuecat', express.json(), async (req, res) => {
-        // ... (Optional: Keep for a few days to handle any mid-flight RC payments, or just return 200)
-        res.status(200).send('Legacy RevenueCat handler - transitioning to direct Stripe');
     });
 
 };

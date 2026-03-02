@@ -115,18 +115,27 @@ module.exports = function ({ app, db, authMiddleware }) {
         }
     });
 
-    // POST: Refill hearts (Practice mode or ads)
+    // POST: Refill hearts (Admin-only — use /practice-refill for normal users)
     app.post('/api/users/hearts/refill', authMiddleware, async (req, res) => {
-        const { amount } = req.body; // e.g., 5 from practice
         try {
-            const status = await getUpdatedHearts(req.user.id);
+            // Admin-only guard: prevent free users from exploiting this endpoint
+            const adminCheck = await db.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
+            const role = adminCheck[0]?.role;
+            if (role !== 'admin' && role !== 'owner') {
+                return res.status(403).json({ error: 'Admin access required. Use practice mode to earn hearts.' });
+            }
+
+            const { amount, targetUserId } = req.body;
+            const userId = targetUserId ? parseInt(targetUserId) : req.user.id;
+
+            const status = await getUpdatedHearts(userId);
             if (status.isUnlimited) return res.json(status);
 
-            const heartsToAdd = amount ? parseInt(amount) : GLOBAL_MAX; // full refill if no amount
+            const heartsToAdd = amount ? Math.min(parseInt(amount), GLOBAL_MAX) : GLOBAL_MAX;
             const newHearts = Math.min(GLOBAL_MAX, status.hearts + heartsToAdd);
 
-            await db.execute('UPDATE users SET hearts = $1 WHERE id = $2', [newHearts, req.user.id]);
-            const updatedStatus = await getUpdatedHearts(req.user.id);
+            await db.execute('UPDATE users SET hearts = $1 WHERE id = $2', [newHearts, userId]);
+            const updatedStatus = await getUpdatedHearts(userId);
             res.json(updatedStatus);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -134,7 +143,7 @@ module.exports = function ({ app, db, authMiddleware }) {
     });
 
     // POST: Practice mode refill — rate-limited to 3 uses per hour, +5 hearts each
-    const practiceRefillTracker = new Map(); // userId -> { count, resetAt }
+    // Persisted in DB to survive server restarts
     const PRACTICE_REFILL_AMOUNT = 5;
     const PRACTICE_MAX_PER_HOUR = 3;
 
@@ -144,34 +153,46 @@ module.exports = function ({ app, db, authMiddleware }) {
             const status = await getUpdatedHearts(userId);
             if (status.isUnlimited) return res.json({ ...status, practiceUsed: 0, practiceMax: PRACTICE_MAX_PER_HOUR });
 
-            // Rate limit check
-            const now = Date.now();
-            let tracker = practiceRefillTracker.get(userId);
-            if (!tracker || now >= tracker.resetAt) {
-                tracker = { count: 0, resetAt: now + 60 * 60 * 1000 };
+            // Rate limit check (DB-persisted)
+            const now = new Date();
+            const userRow = await db.query(
+                'SELECT practice_refill_count, practice_refill_reset_at FROM users WHERE id = $1',
+                [userId]
+            );
+            let count = userRow[0]?.practice_refill_count || 0;
+            let resetAt = userRow[0]?.practice_refill_reset_at ? new Date(userRow[0].practice_refill_reset_at) : null;
+
+            // Reset window if expired or never set
+            if (!resetAt || now >= resetAt) {
+                count = 0;
+                resetAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+                await db.execute(
+                    'UPDATE users SET practice_refill_count = 0, practice_refill_reset_at = $1 WHERE id = $2',
+                    [resetAt, userId]
+                );
             }
 
-            if (tracker.count >= PRACTICE_MAX_PER_HOUR) {
-                const minutesLeft = Math.ceil((tracker.resetAt - now) / 1000 / 60);
+            if (count >= PRACTICE_MAX_PER_HOUR) {
+                const minutesLeft = Math.ceil((resetAt.getTime() - now.getTime()) / 1000 / 60);
                 return res.status(429).json({
                     error: `Practice refill limit reached. Try again in ${minutesLeft} minutes.`,
-                    practiceUsed: tracker.count,
+                    practiceUsed: count,
                     practiceMax: PRACTICE_MAX_PER_HOUR
                 });
             }
 
             // Refill hearts
             const newHearts = Math.min(GLOBAL_MAX, status.hearts + PRACTICE_REFILL_AMOUNT);
-            await db.execute('UPDATE users SET hearts = $1 WHERE id = $2', [newHearts, userId]);
-
-            tracker.count++;
-            practiceRefillTracker.set(userId, tracker);
+            await db.execute(
+                'UPDATE users SET hearts = $1, practice_refill_count = practice_refill_count + 1 WHERE id = $2',
+                [newHearts, userId]
+            );
 
             const updatedStatus = await getUpdatedHearts(userId);
             res.json({
                 ...updatedStatus,
                 heartsAdded: PRACTICE_REFILL_AMOUNT,
-                practiceUsed: tracker.count,
+                practiceUsed: count + 1,
                 practiceMax: PRACTICE_MAX_PER_HOUR
             });
         } catch (error) {

@@ -503,6 +503,18 @@ if (global.__TEST_DB_MOCK__) {
             // Add email_verified column to users
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE`).catch(() => { });
 
+            // Practice refill tracking (persisted instead of in-memory)
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_refill_count INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_refill_reset_at TIMESTAMP`).catch(() => { });
+
+            // Stripe webhook idempotency table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS stripe_processed_events (
+                    event_id TEXT PRIMARY KEY,
+                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Database schema initialized successfully
 
             // Create indexes for performance optimization
