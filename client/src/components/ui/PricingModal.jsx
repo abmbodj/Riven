@@ -2,15 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, X, Check, ArrowRight, Crown, Zap, Shield } from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
-
-// RevenueCat would be imported here in the future
-// import { Purchases } from '@revenuecat/purchases-capacitor';
+import { getOfferings, purchase, restorePurchases, ErrorCode } from '../../api/revenueCat';
+import { getMe } from '../../api/authApi';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState('supporter');
+    const [offerings, setOfferings] = useState(null);
+    const { user, signIn } = React.useContext(AuthContext); // Use signIn from context (which sets user) or simply fetch and update context state if possible. We will call getMe() instead and reload or notify context.
 
     // Close on escape key
     useEffect(() => {
@@ -19,6 +21,16 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handleEscape);
+
+        // Fetch live offerings from RevenueCat
+        const fetchOfferings = async () => {
+            const offs = await getOfferings();
+            if (offs && offs.current) {
+                setOfferings(offs.current);
+            }
+        };
+        fetchOfferings();
+
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
@@ -26,31 +38,42 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setLoading(true);
         setError(null);
         try {
-            // Placeholder for real RevenueCat logic
-            /*
-            if (Capacitor.isNativePlatform()) {
-               const offerings = await Purchases.getOfferings();
-               if (offerings.current !== null) {
-                   const pkg = pkgType === 'lifetime' ? offerings.current.lifetime : offerings.current.monthly;
-                   const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
-                   if (typeof customerInfo.entitlements.active['pro'] !== 'undefined') {
-                       // Success!
-                       window.location.reload();
-                   }
-               }
-            } else { ... mock success ... }
-            */
+            if (!offerings) {
+                throw new Error('Offerings not loaded yet. Please try again.');
+            }
 
-            // Development Native Bypass / Web Stub
-            setTimeout(() => {
+            const pkg = pkgType === 'lifetime' ? offerings.lifetime : offerings.monthly;
+            if (!pkg) {
+                throw new Error(`Package ${pkgType} not found in current offering.`);
+            }
+
+            const result = await purchase(pkg);
+
+            if (result && result.customerInfo) {
+                // Check if they got the entitlement
+                if (result.customerInfo.entitlements.active['pro']) {
+                    // Success! Refresh user data to get the new tier from our DB (via webhook or direct)
+                    // The webhook might take a second, so we could optimistically update,
+                    // but reloading or fetching /me is safest.
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    setError('Purchase completed but entitlement not found. Please try restoring purchases.');
+                    setLoading(false);
+                }
+            } else {
+                // If it returned null, it means API key is missing (dev fallback)
                 alert(`Mock Purchase Successful for ${pkgType}! RevenueCat webhook would fire and grant access.`);
                 setLoading(false);
                 onClose();
-            }, 1000);
-
+            }
         } catch (err) {
-            console.error('Purchase failed', err);
-            setError('Purchase canceled or failed. Please try again.');
+            if (err.errorCode === ErrorCode.UserCancelledError) {
+                // User backed out of the Stripe checkout, don't show an error
+                console.log('User cancelled purchase');
+            } else {
+                console.error('Purchase failed:', err);
+                setError(err.message || 'Purchase failed. Please try again.');
+            }
             setLoading(false);
         }
     };
@@ -61,7 +84,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'supporter',
             name: 'Supporter',
-            price: '$5.99',
+            price: offerings?.monthly?.webBillingProduct?.currentPrice?.priceString || '$5.99',
             period: '/month',
             icon: Zap,
             accent: 'claude-accent',
@@ -79,7 +102,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'lifetime',
             name: 'Lifetime',
-            price: '$29.99',
+            price: offerings?.lifetime?.webBillingProduct?.currentPrice?.priceString || '$29.99',
             period: 'once',
             icon: Crown,
             accent: 'amber-500',
@@ -172,8 +195,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                             onClick={() => !isDisabled && setSelectedPlan(plan.id)}
                                             whileTap={{ scale: isDisabled ? 1 : 0.98 }}
                                             className={`w-full text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${isSelected && !isDisabled
-                                                    ? `border-${plan.accent} bg-${plan.accentBg}`
-                                                    : 'border-claude-border/30 bg-white/[0.03]'
+                                                ? `border-${plan.accent} bg-${plan.accentBg}`
+                                                : 'border-claude-border/30 bg-white/[0.03]'
                                                 } ${isDisabled ? 'opacity-50' : ''}`}
                                         >
                                             {/* Badge */}
@@ -240,11 +263,18 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             {/* Restore Purchases — Required by Apple */}
                             <div className="pt-4 text-center">
                                 <button
-                                    onClick={() => {
-                                        // TODO: Wire to RevenueCat restore purchases
-                                        alert('Restore purchases will work once App Store integration is live.');
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        const customerInfo = await restorePurchases();
+                                        if (customerInfo?.entitlements?.active['pro']) {
+                                            setTimeout(() => window.location.reload(), 1500);
+                                        } else {
+                                            alert('No active purchases found to restore.');
+                                            setLoading(false);
+                                        }
                                     }}
-                                    className="text-[11px] text-claude-secondary hover:text-claude-text transition-colors underline underline-offset-4 tap-action"
+                                    disabled={loading}
+                                    className="text-[11px] text-claude-secondary hover:text-claude-text transition-colors underline underline-offset-4 tap-action disabled:opacity-50"
                                 >
                                     Restore Purchases
                                 </button>

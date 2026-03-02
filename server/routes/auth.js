@@ -93,7 +93,7 @@ module.exports = function registerAuthRoutes({
             const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
             sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
         } catch (error) {
-            res.status(500).json({ error: 'Verification failed' });
+            res.status(500).json({ error: 'Verification failed', debug: error.message, stack: error.stack });
         }
     });
 

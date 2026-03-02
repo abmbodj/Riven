@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import * as authApi from '../api/authApi';
+import { initRevenueCat } from '../api/revenueCat';
 import { AuthContext } from './authContextDef';
 
 // Re-export for convenience
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
                 const userData = await authApi.getMe();
                 if (userData && userData.id) {
                     setUser(userData);
+                    initRevenueCat(userData.id);
                 } else {
                     // Invalid token or session expired
                     authApi.setToken(null);
@@ -87,6 +89,7 @@ export function AuthProvider({ children }) {
 
             if (data.user) {
                 setUser(data.user);
+                initRevenueCat(data.user.id);
                 return data.user;
             }
 
@@ -101,6 +104,7 @@ export function AuthProvider({ children }) {
     const signUp = useCallback(async (username, email, password) => {
         const userData = await authApi.register(username, email, password);
         setUser(userData);
+        initRevenueCat(userData.id);
         return userData;
     }, []);
 

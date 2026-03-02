@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.1.0",
+    "@revenuecat/purchases-js": "^1.26.3",
     "idb": "^8.0.3",
     "motion": "^12.34.0",
     "react": "^19.2.0",

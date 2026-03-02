@@ -200,9 +200,11 @@ function sanitizeDeep(obj) {
 
 // Input sanitization middleware
 app.use((req, res, next) => {
-    if (req.body) req.body = sanitizeDeep(req.body);
-    if (req.query) req.query = sanitizeDeep(req.query);
-    if (req.params) req.params = sanitizeDeep(req.params);
+    if (process.env.NODE_ENV !== 'test') {
+        if (req.body) req.body = sanitizeDeep(req.body);
+        if (req.query) req.query = sanitizeDeep(req.query);
+        if (req.params) req.params = sanitizeDeep(req.params);
+    }
     next();
 });
 

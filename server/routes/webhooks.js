@@ -24,12 +24,14 @@ module.exports = function ({ app, db }) {
             }
 
             const eventType = event.type;
-            // RevenueCat event types: INITIAL_PURCHASE, RENEWAL, CANCELLATION, EXPIRATION, PRODUCT_CHANGE, etc.
+            // RevenueCat event types: INITIAL_PURCHASE, RENEWAL, CANCELLATION, UNCANCELLATION, EXPIRATION, PRODUCT_CHANGE, etc.
+
+            console.log(`[RevenueCat Webhook] Received ${eventType} for user ${userId}`);
 
             const productId = event.product_id || '';
             let newTier = null;
 
-            if (['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE'].includes(eventType)) {
+            if (['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION'].includes(eventType)) {
                 // We will setup our store product IDs to include the tier names
                 if (productId.includes('lifetime')) {
                     newTier = 'lifetime';
@@ -42,17 +44,21 @@ module.exports = function ({ app, db }) {
             } else if (eventType === 'CANCELLATION') {
                 // Cancellation just means auto-renew is off, they retain access until the expiration date.
                 // RevenueCat will send an EXPIRATION event later. No DB update needed right now.
+                console.log(`[RevenueCat Webhook] User ${userId} canceled auto-renew (retains access until expiration)`);
                 return res.status(200).send('Cancellation logged');
             }
 
             if (newTier) {
+                console.log(`[RevenueCat Webhook] Updating user ${userId} to tier: ${newTier}`);
                 await db.execute('UPDATE users SET subscription_tier = $1 WHERE id = $2', [newTier, userId]);
+            } else if (!['TEST'].includes(eventType)) {
+                console.log(`[RevenueCat Webhook] Unhandled or non-tier-changing event type: ${eventType} for product ${productId}`);
             }
 
             res.status(200).send('Webhook handled successfully');
 
         } catch (error) {
-            console.error('RevenueCat Webhook Error:', error);
+            console.error('[RevenueCat Webhook] Error:', error);
             res.status(500).send('Internal Server Error');
         }
     });
