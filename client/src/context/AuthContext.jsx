@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
             });
 
             newSocket.on('connect', () => {
-                newSocket.emit('register', user.id);
+                newSocket.emit('register', token);
             });
 
             setSocket(newSocket);

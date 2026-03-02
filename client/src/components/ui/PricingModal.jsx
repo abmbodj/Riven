@@ -5,10 +5,10 @@ import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import { getToken } from '../../api/authApi';
 
-// Stripe Price IDs provided by user
+// Stripe Price IDs from environment
 const PRICE_IDS = {
-    monthly: 'price_1T6LPsLYlsIF3kiqi3vNu8q5',
-    lifetime: 'price_1T6LQZLYlsIF3kiqrWxurMC7'
+    monthly: import.meta.env.VITE_STRIPE_PRICE_MONTHLY,
+    lifetime: import.meta.env.VITE_STRIPE_PRICE_LIFETIME
 };
 
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {

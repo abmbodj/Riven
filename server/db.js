@@ -18,7 +18,7 @@ if (global.__TEST_DB_MOCK__) {
     const isProduction = process.env.NODE_ENV === 'production';
     const pool = new Pool({
         connectionString: connectionString || 'postgres://test', // Fallback for test env if not set
-        ssl: isProduction || process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+        ssl: isProduction || process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false
     });
 
     // Helper to create a clean interface

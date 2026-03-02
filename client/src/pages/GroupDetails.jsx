@@ -256,17 +256,13 @@ export default function GroupDetails() {
 
     const finalizeFileUpload = async () => {
         try {
-            // For a real file upload, we'd use FormData. 
-            // Given the current api.js structure doesn't handle FormData perfectly without tweaks,
-            // we will simulate the file upload by sending the name, a mock url, and the type to the backend.
-            // Riven's backend currently expects a JSON body with `file_url`, `name`, `file_type`.
-
-            // Generate a fake url based on the file name to appease the existing backend logic
-            const mockUrl = `https://generated-storage.local/${Date.now()}_${encodeURIComponent(uploadData.file?.name || uploadData.name)}`;
+            // TODO: Implement real file storage (S3/Supabase Storage) for actual file hosting.
+            // Currently stores a metadata-only reference — no file content is persisted.
+            const referenceUrl = `file-ref://${Date.now()}_${encodeURIComponent(uploadData.file?.name || uploadData.name)}`;
 
             await api.uploadGroupFile(id, {
                 name: uploadData.name,
-                file_url: mockUrl,
+                file_url: referenceUrl,
                 file_type: uploadData.file_type || 'pdf',
                 folder_id: currentFolderId
             });

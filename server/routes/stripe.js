@@ -61,7 +61,7 @@ module.exports = function ({ db }) {
             res.json({ url: session.url });
         } catch (error) {
             console.error('[Stripe] Checkout error:', error);
-            res.status(500).json({ error: error.message });
+            res.status(500).json({ error: 'Failed to create checkout session' });
         }
     });
 
@@ -104,7 +104,7 @@ module.exports = function ({ db }) {
             res.json({ url: session.url });
         } catch (error) {
             console.error('[Stripe] Portal error:', error);
-            res.status(500).json({ error: error.message });
+            res.status(500).json({ error: 'Failed to create portal session' });
         }
     });
 

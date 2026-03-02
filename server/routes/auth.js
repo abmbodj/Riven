@@ -26,8 +26,8 @@ module.exports = function registerAuthRoutes({
         if (!isValidUsername(username)) {
             return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
         }
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
         }
 
         try {
@@ -93,7 +93,8 @@ module.exports = function registerAuthRoutes({
             const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
             sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
         } catch (error) {
-            res.status(500).json({ error: 'Verification failed', debug: error.message, stack: error.stack });
+            console.error('POST /api/auth/register error:', error);
+            res.status(500).json({ error: 'Registration failed' });
         }
     });
 
@@ -167,7 +168,7 @@ module.exports = function registerAuthRoutes({
             });
         } catch (error) {
             console.error('Setup Error:', error);
-            res.status(500).json({ error: '2FA setup failed', details: error.toString() });
+            res.status(500).json({ error: '2FA setup failed' });
         }
     });
 
@@ -312,7 +313,8 @@ module.exports = function registerAuthRoutes({
                 email_verified: !!user.email_verified
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/auth/me error:', error);
+            res.status(500).json({ error: 'Failed to fetch user profile' });
         }
     });
 
@@ -347,7 +349,8 @@ module.exports = function registerAuthRoutes({
                 simulate_free_tier: !!user.simulate_free_tier
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/auth/profile error:', error);
+            res.status(500).json({ error: 'Failed to update profile' });
         }
     });
 
@@ -357,8 +360,8 @@ module.exports = function registerAuthRoutes({
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ error: 'Current and new password are required' });
         }
-        if (newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
         }
 
         try {
@@ -370,7 +373,8 @@ module.exports = function registerAuthRoutes({
             await db.execute('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
             res.json({ message: 'Password changed successfully' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/auth/password error:', error);
+            res.status(500).json({ error: 'Failed to change password' });
         }
     });
 
@@ -385,7 +389,8 @@ module.exports = function registerAuthRoutes({
             await db.execute('DELETE FROM users WHERE id = $1', [req.user.id]);
             res.json({ message: 'Account deleted successfully' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('DELETE /api/auth/account error:', error);
+            res.status(500).json({ error: 'Failed to delete account' });
         }
     });
 
@@ -396,7 +401,8 @@ module.exports = function registerAuthRoutes({
             await db.execute('UPDATE users SET streak_data = $1 WHERE id = $2', [JSON.stringify(streakData), req.user.id]);
             res.json({ message: 'Streak data saved' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/auth/streak error:', error);
+            res.status(500).json({ error: 'Failed to save streak data' });
         }
     });
 
@@ -405,7 +411,8 @@ module.exports = function registerAuthRoutes({
             const user = await db.queryOne('SELECT streak_data FROM users WHERE id = $1', [req.user.id]);
             res.json(JSON.parse(user.streak_data || '{}'));
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/auth/streak error:', error);
+            res.status(500).json({ error: 'Failed to fetch streak data' });
         }
     });
 
@@ -416,7 +423,8 @@ module.exports = function registerAuthRoutes({
             const defaultCustomization = { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
             res.json(user?.pet_customization ? JSON.parse(user.pet_customization) : defaultCustomization);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/auth/pet error:', error);
+            res.status(500).json({ error: 'Failed to fetch garden customization' });
         }
     });
 
@@ -426,7 +434,8 @@ module.exports = function registerAuthRoutes({
             await db.execute('UPDATE users SET pet_customization = $1 WHERE id = $2', [JSON.stringify(customization), req.user.id]);
             res.json({ message: 'Garden customization saved', customization });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/auth/pet error:', error);
+            res.status(500).json({ error: 'Failed to save garden customization' });
         }
     });
 
@@ -530,7 +539,8 @@ module.exports = function registerAuthRoutes({
             await db.execute('UPDATE users SET simulate_free_tier = $1 WHERE id = $2', [newVal, req.user.id]);
             res.json({ simulate_free_tier: newVal, subscription_tier: newVal ? 'free' : 'lifetime' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/auth/simulate-free error:', error);
+            res.status(500).json({ error: 'Failed to toggle free tier' });
         }
     });
 
@@ -579,7 +589,7 @@ module.exports = function registerAuthRoutes({
     app.post('/api/auth/reset-password', speedLimiter, authLimiter, async (req, res) => {
         const { token, password } = req.body;
         if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
-        if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
         try {
             const resetRecord = await db.queryOne(

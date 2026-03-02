@@ -33,10 +33,12 @@ class ErrorBoundary extends React.Component {
                         <p className="text-claude-secondary mb-2">
                             Don't worry, your data is safe. Try refreshing the page.
                         </p>
-                        <div className="text-left bg-black/10 p-4 rounded text-xs text-red-500 overflow-auto max-h-48 mb-6">
-                            <strong>{this.state.error?.message}</strong>
-                            <pre className="mt-2 text-[10px]">{this.state.error?.stack}</pre>
-                        </div>
+                        {import.meta.env.DEV && (
+                            <div className="text-left bg-black/10 p-4 rounded text-xs text-red-500 overflow-auto max-h-48 mb-6">
+                                <strong>{this.state.error?.message}</strong>
+                                <pre className="mt-2 text-[10px]">{this.state.error?.stack}</pre>
+                            </div>
+                        )}
                         <button
                             onClick={this.handleReset}
                             className="claude-button-primary px-6 py-3 flex items-center gap-2 mx-auto"

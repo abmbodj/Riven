@@ -2,9 +2,11 @@ module.exports = function ({ app, db, authMiddleware }) {
 
     // Helper: Generate a unique 8-char referral code
     function generateReferralCode() {
+        const crypto = require('crypto');
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let code = '';
-        for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        const bytes = crypto.randomBytes(8);
+        for (let i = 0; i < 8; i++) code += chars[bytes[i] % chars.length];
         return code;
     }
 
@@ -44,7 +46,8 @@ module.exports = function ({ app, db, authMiddleware }) {
                 rewardEarned: qualifiedCount >= 5
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/referrals/me error:', error);
+            res.status(500).json({ error: 'Failed to fetch referral info' });
         }
     });
 
@@ -72,7 +75,8 @@ module.exports = function ({ app, db, authMiddleware }) {
 
             res.json({ message: 'Referral code applied!' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/referrals/apply error:', error);
+            res.status(500).json({ error: 'Failed to apply referral code' });
         }
     });
 
@@ -122,7 +126,8 @@ module.exports = function ({ app, db, authMiddleware }) {
 
             res.json({ qualified, hasDeck, sessions });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/referrals/check-qualification error:', error);
+            res.status(500).json({ error: 'Failed to check qualification' });
         }
     });
 };

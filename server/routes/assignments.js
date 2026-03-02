@@ -15,7 +15,8 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
             const assignments = await db.query(query, params);
             res.json(assignments);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/assignments error:', error);
+            res.status(500).json({ error: 'Failed to fetch assignments' });
         }
     });
 
@@ -37,7 +38,8 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
             );
             res.status(201).json(result);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/assignments error:', error);
+            res.status(500).json({ error: 'Failed to create assignment' });
         }
     });
 
@@ -68,7 +70,8 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
             );
             res.json(result);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/assignments error:', error);
+            res.status(500).json({ error: 'Failed to update assignment' });
         }
     });
 
@@ -83,7 +86,8 @@ module.exports = function registerAssignmentsRoutes({ app, db, authMiddleware })
             await db.execute('DELETE FROM assignments WHERE id = $1', [id]);
             res.json({ message: 'Assignment deleted' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('DELETE /api/assignments error:', error);
+            res.status(500).json({ error: 'Failed to delete assignment' });
         }
     });
 };

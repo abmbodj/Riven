@@ -46,8 +46,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                 const generateCode = () => {
                     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
                     let result = 'RIV-';
+                    const bytes = crypto.randomBytes(3);
                     for (let i = 0; i < 3; i++) {
-                        result += chars.charAt(Math.floor(Math.random() * chars.length));
+                        result += chars.charAt(bytes[i] % chars.length);
                     }
                     return result;
                 };
@@ -158,8 +159,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                 const generateCode = () => {
                     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
                     let result = 'RIV-';
+                    const bytes = crypto.randomBytes(3);
                     for (let i = 0; i < 3; i++) {
-                        result += chars.charAt(Math.floor(Math.random() * chars.length));
+                        result += chars.charAt(bytes[i] % chars.length);
                     }
                     return result;
                 };

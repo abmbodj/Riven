@@ -11,7 +11,8 @@ module.exports = function registerScheduleRoutes({ app, db, authMiddleware }) {
             const slots = await db.query(query, [req.user.id]);
             res.json(slots);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/schedule error:', error);
+            res.status(500).json({ error: 'Failed to fetch schedule' });
         }
     });
 
@@ -35,7 +36,8 @@ module.exports = function registerScheduleRoutes({ app, db, authMiddleware }) {
             );
             res.status(201).json(result);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/schedule error:', error);
+            res.status(500).json({ error: 'Failed to create schedule slot' });
         }
     });
 
@@ -50,7 +52,8 @@ module.exports = function registerScheduleRoutes({ app, db, authMiddleware }) {
             await db.execute('DELETE FROM schedule_slots WHERE id = $1', [id]);
             res.json({ message: 'Schedule slot deleted' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('DELETE /api/schedule error:', error);
+            res.status(500).json({ error: 'Failed to delete schedule slot' });
         }
     });
 };

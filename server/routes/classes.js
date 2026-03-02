@@ -8,7 +8,8 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
             );
             res.json(classes);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/classes error:', error);
+            res.status(500).json({ error: 'Failed to fetch classes' });
         }
     });
 
@@ -25,7 +26,8 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
             );
             res.status(201).json(result);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/classes error:', error);
+            res.status(500).json({ error: 'Failed to create class' });
         }
     });
 
@@ -55,7 +57,8 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
             );
             res.json(result);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('PUT /api/classes error:', error);
+            res.status(500).json({ error: 'Failed to update class' });
         }
     });
 
@@ -70,7 +73,8 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
             await db.execute('DELETE FROM classes WHERE id = $1', [id]);
             res.json({ message: 'Class deleted' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('DELETE /api/classes error:', error);
+            res.status(500).json({ error: 'Failed to delete class' });
         }
     });
 };

@@ -60,7 +60,8 @@ module.exports = function ({ app, db, authMiddleware }) {
             const status = await getUpdatedHearts(req.user.id);
             res.json(status);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/users/hearts/status error:', error);
+            res.status(500).json({ error: 'Failed to fetch heart status' });
         }
     });
 
@@ -83,7 +84,8 @@ module.exports = function ({ app, db, authMiddleware }) {
                 sessionMax
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/users/hearts/session error:', error);
+            res.status(500).json({ error: 'Failed to fetch session hearts' });
         }
     });
 
@@ -111,7 +113,7 @@ module.exports = function ({ app, db, authMiddleware }) {
             }
         } catch (error) {
             console.error('Heart decrement error:', error);
-            res.status(500).json({ error: error.message });
+            res.status(500).json({ error: 'Failed to decrement heart' });
         }
     });
 
@@ -138,7 +140,8 @@ module.exports = function ({ app, db, authMiddleware }) {
             const updatedStatus = await getUpdatedHearts(userId);
             res.json(updatedStatus);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/users/hearts/refill error:', error);
+            res.status(500).json({ error: 'Failed to refill hearts' });
         }
     });
 
@@ -196,7 +199,8 @@ module.exports = function ({ app, db, authMiddleware }) {
                 practiceMax: PRACTICE_MAX_PER_HOUR
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/users/hearts/practice-refill error:', error);
+            res.status(500).json({ error: 'Failed to practice refill' });
         }
     });
 };

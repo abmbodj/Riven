@@ -49,7 +49,7 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
 );
 
 export default function Settings() {
-    const { signOut, user } = useAuth();
+    const { signOut, user, refreshUser } = useAuth();
     const { activeTheme } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const toast = useToast();
@@ -230,7 +230,7 @@ export default function Settings() {
                                 Upgrade Riven
                             </button>
                             <button
-                                onClick={() => { haptics.light(); toast('Purchase sync mocked for now'); }}
+                                onClick={async () => { haptics.light(); try { const u = await refreshUser(); toast(u?.subscription_tier !== 'free' ? 'Subscription restored!' : 'No active subscription found'); } catch { toast('Sync failed, try again'); } }}
                                 className="p-3.5 bg-claude-bg border border-botanical-sepia/10 hover:bg-white/5 rounded-xl text-claude-secondary hover:text-claude-text transition-colors"
                             >
                                 <RefreshCw className="w-4 h-4" />

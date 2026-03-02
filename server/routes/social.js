@@ -19,7 +19,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
                 };
             }));
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/users/search error:', error);
+            res.status(500).json({ error: 'Search failed' });
         }
     });
 
@@ -59,7 +60,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
                 friendshipDirection: friendship ? (friendship.user_id === req.user.id ? 'outgoing' : 'incoming') : null
             });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/users/:id error:', error);
+            res.status(500).json({ error: 'Failed to fetch user profile' });
         }
     });
 
@@ -91,7 +93,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
                 };
             }));
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('GET /api/friends error:', error);
+            res.status(500).json({ error: 'Failed to fetch friends' });
         }
     });
 
@@ -125,7 +128,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
 
             res.json({ message: 'Friend request sent', username: targetUser.username });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/friends/request error:', error);
+            res.status(500).json({ error: 'Failed to send friend request' });
         }
     });
 
@@ -149,7 +153,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
 
             res.json({ message: 'Friend request accepted' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('POST /api/friends/accept error:', error);
+            res.status(500).json({ error: 'Failed to accept friend request' });
         }
     });
 
@@ -166,7 +171,8 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
 
             res.json({ message: 'Friend removed' });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('DELETE /api/friends error:', error);
+            res.status(500).json({ error: 'Failed to remove friend' });
         }
     });
 };

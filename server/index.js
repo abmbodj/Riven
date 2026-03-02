@@ -132,9 +132,15 @@ io.on('connection', (socket) => {
     // However, it's simpler if they just emit a 'register' event shortly after connecting
     // since we use HttpOnly cookies that sockets may not easily read depending on cross-origin setup.
 
-    socket.on('register', (userId) => {
-        if (userId != null) {
-            connectedUsers.set(parseInt(userId), socket.id);
+    socket.on('register', (token) => {
+        if (!token) return;
+        try {
+            const decoded = jwt.verify(token, jwtSecret);
+            if (decoded?.id) {
+                connectedUsers.set(parseInt(decoded.id), socket.id);
+            }
+        } catch (err) {
+            // Invalid token — ignore registration
         }
     });
 
@@ -181,7 +187,7 @@ app.locals.connectedUsers = connectedUsers;
 app.use(cookieParser());
 // Stripe webhook needs raw body for signature verification
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Recursive Deep XSS Sanitization utility function
 function sanitizeDeep(obj) {
@@ -398,7 +404,8 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
             unreadCount: parseInt(c.unread_count)
         })));
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch conversations error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -447,7 +454,8 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
             isMine: m.sender_id === req.user.id
         })));
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch messages error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -513,7 +521,8 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
 
         res.json(responseData);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Send message error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -562,7 +571,8 @@ app.put('/api/messages/:id', authMiddleware, async (req, res) => {
 
         res.json(responseData);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Edit message error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -590,7 +600,8 @@ app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete message error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -603,13 +614,14 @@ app.get('/api/messages/unread/count', authMiddleware, async (req, res) => {
         );
         res.json({ count: parseInt(result.count) });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch unread count error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ FOLDERS ============
 
-app.get('/api/folders', optionalAuth, async (req, res) => {
+app.get('/api/folders', authMiddleware, async (req, res) => {
     try {
         const userId = req.user?.id || null;
         const userFilter = userId ? 'f.user_id = $1' : 'f.user_id IS NULL';
@@ -626,11 +638,12 @@ app.get('/api/folders', optionalAuth, async (req, res) => {
         );
         res.json(folders);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch folders error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.post('/api/folders', optionalAuth, async (req, res) => {
+app.post('/api/folders', authMiddleware, async (req, res) => {
     const { name, color, icon } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
@@ -642,11 +655,12 @@ app.post('/api/folders', optionalAuth, async (req, res) => {
         );
         res.status(201).json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Create folder error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/folders/:id', optionalAuth, async (req, res) => {
+app.put('/api/folders/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { name, color, icon } = req.body;
 
@@ -662,11 +676,12 @@ app.put('/api/folders/:id', optionalAuth, async (req, res) => {
         );
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Update folder error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.delete('/api/folders/:id', optionalAuth, async (req, res) => {
+app.delete('/api/folders/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -678,13 +693,14 @@ app.delete('/api/folders/:id', optionalAuth, async (req, res) => {
         await db.execute('DELETE FROM folders WHERE id = $1', [id]);
         res.json({ message: 'Folder deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete folder error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ TAGS ============
 
-app.get('/api/tags', optionalAuth, async (req, res) => {
+app.get('/api/tags', authMiddleware, async (req, res) => {
     try {
         const userId = req.user?.id || null;
         const tags = userId
@@ -692,11 +708,12 @@ app.get('/api/tags', optionalAuth, async (req, res) => {
             : await db.query('SELECT * FROM tags WHERE user_id IS NULL ORDER BY is_preset DESC, name ASC');
         res.json(tags);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch tags error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.post('/api/tags', optionalAuth, async (req, res) => {
+app.post('/api/tags', authMiddleware, async (req, res) => {
     const { name, color } = req.body;
     if (!name || !color) return res.status(400).json({ error: 'Name and color are required' });
 
@@ -711,11 +728,12 @@ app.post('/api/tags', optionalAuth, async (req, res) => {
         if (error.message.includes('duplicate') || error.message.includes('unique')) {
             return res.status(400).json({ error: 'Tag already exists' });
         }
-        res.status(500).json({ error: error.message });
+        console.error('Tag creation error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.delete('/api/tags/:id', optionalAuth, async (req, res) => {
+app.delete('/api/tags/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -727,13 +745,14 @@ app.delete('/api/tags/:id', optionalAuth, async (req, res) => {
         await db.execute('DELETE FROM tags WHERE id = $1', [id]);
         res.json({ message: 'Tag deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete tag error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ DECKS ============
 
-app.get('/api/decks', optionalAuth, async (req, res) => {
+app.get('/api/decks', authMiddleware, async (req, res) => {
     try {
         const userId = req.user?.id || null;
         const userFilter = userId ? 'user_id = $1' : 'user_id IS NULL';
@@ -771,11 +790,12 @@ app.get('/api/decks', optionalAuth, async (req, res) => {
 
         res.json(decks.map(d => ({ ...d, tags: tagsByDeck[d.id] || [] })));
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch decks error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.post('/api/decks', optionalAuth, async (req, res) => {
+app.post('/api/decks', authMiddleware, async (req, res) => {
     const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
@@ -805,11 +825,12 @@ app.post('/api/decks', optionalAuth, async (req, res) => {
             }).catch(() => { });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Create deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.get('/api/decks/:id', optionalAuth, async (req, res) => {
+app.get('/api/decks/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -840,11 +861,12 @@ app.get('/api/decks/:id', optionalAuth, async (req, res) => {
         );
         res.json({ ...deck, cards, tags });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch deck detail error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/decks/:id', optionalAuth, async (req, res) => {
+app.put('/api/decks/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
@@ -871,11 +893,12 @@ app.put('/api/decks/:id', optionalAuth, async (req, res) => {
 
         res.json({ id, title, description, folder_id, class_id });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Update deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/decks/:id/move', optionalAuth, async (req, res) => {
+app.put('/api/decks/:id/move', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { folder_id } = req.body;
 
@@ -888,11 +911,12 @@ app.put('/api/decks/:id/move', optionalAuth, async (req, res) => {
         await db.execute('UPDATE decks SET folder_id = $1 WHERE id = $2', [folder_id || null, id]);
         res.json({ id, folder_id });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Move deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.delete('/api/decks/:id', optionalAuth, async (req, res) => {
+app.delete('/api/decks/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -903,12 +927,13 @@ app.delete('/api/decks/:id', optionalAuth, async (req, res) => {
         await db.execute('DELETE FROM decks WHERE id = $1', [id]);
         res.json({ message: 'Deck deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Duplicate deck
-app.post('/api/decks/:id/duplicate', optionalAuth, async (req, res) => {
+app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -936,13 +961,14 @@ app.post('/api/decks/:id/duplicate', optionalAuth, async (req, res) => {
 
         res.status(201).json(newDeck);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Duplicate deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ CARDS ============
 
-app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
+app.post('/api/decks/:id/cards', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { front, back, front_image, back_image } = req.body;
     // Require either text or image for both front and back
@@ -963,11 +989,12 @@ app.post('/api/decks/:id/cards', optionalAuth, async (req, res) => {
         );
         res.status(201).json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Create card error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/cards/:id', optionalAuth, async (req, res) => {
+app.put('/api/cards/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { front, back, front_image, back_image } = req.body;
     // Require either text or image for both front and back
@@ -987,11 +1014,12 @@ app.put('/api/cards/:id', optionalAuth, async (req, res) => {
         );
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Update card error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.delete('/api/cards/:id', optionalAuth, async (req, res) => {
+app.delete('/api/cards/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -1002,12 +1030,13 @@ app.delete('/api/cards/:id', optionalAuth, async (req, res) => {
         await db.execute('DELETE FROM cards WHERE id = $1', [id]);
         res.json({ message: 'Card deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete card error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Update card progress
-app.put('/api/cards/:id/progress', optionalAuth, async (req, res) => {
+app.put('/api/cards/:id/progress', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { difficulty, times_reviewed, times_correct, last_reviewed, next_review } = req.body;
 
@@ -1023,12 +1052,13 @@ app.put('/api/cards/:id/progress', optionalAuth, async (req, res) => {
         );
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Update card progress error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Reorder cards
-app.put('/api/decks/:id/cards/reorder', optionalAuth, async (req, res) => {
+app.put('/api/decks/:id/cards/reorder', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { cardIds } = req.body;
     if (!cardIds || !Array.isArray(cardIds)) {
@@ -1046,12 +1076,13 @@ app.put('/api/decks/:id/cards/reorder', optionalAuth, async (req, res) => {
         }
         res.json({ message: 'Cards reordered' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Reorder cards error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Review card (spaced repetition)
-app.put('/api/cards/:id/review', optionalAuth, async (req, res) => {
+app.put('/api/cards/:id/review', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { correct } = req.body;
 
@@ -1093,13 +1124,14 @@ app.put('/api/cards/:id/review', optionalAuth, async (req, res) => {
         );
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Review card error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ STUDY SESSIONS ============
 
-app.post('/api/study-sessions', optionalAuth, async (req, res) => {
+app.post('/api/study-sessions', authMiddleware, async (req, res) => {
     const { deck_id, cards_studied, cards_correct, duration_seconds, session_type } = req.body;
 
     try {
@@ -1165,11 +1197,12 @@ app.post('/api/study-sessions', optionalAuth, async (req, res) => {
 
         res.status(201).json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Create study session error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.get('/api/study-sessions', optionalAuth, async (req, res) => {
+app.get('/api/study-sessions', authMiddleware, async (req, res) => {
     const { deck_id, limit = 10 } = req.query;
 
     try {
@@ -1192,11 +1225,12 @@ app.get('/api/study-sessions', optionalAuth, async (req, res) => {
         }
         res.json(sessions);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch study sessions error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.get('/api/decks/:id/stats', optionalAuth, async (req, res) => {
+app.get('/api/decks/:id/stats', authMiddleware, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -1232,13 +1266,14 @@ app.get('/api/decks/:id/stats', optionalAuth, async (req, res) => {
             recentSessions: sessions.slice(0, 10)
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch deck stats error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // ============ THEMES ============
 
-app.get('/api/themes', optionalAuth, async (req, res) => {
+app.get('/api/themes', authMiddleware, async (req, res) => {
     try {
         const userId = req.user?.id || null;
         let themes = userId
@@ -1299,11 +1334,12 @@ app.get('/api/themes', optionalAuth, async (req, res) => {
 
         res.json(themes);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Fetch themes error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.post('/api/themes', optionalAuth, async (req, res) => {
+app.post('/api/themes', authMiddleware, async (req, res) => {
     const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
 
     try {
@@ -1314,11 +1350,12 @@ app.post('/api/themes', optionalAuth, async (req, res) => {
         );
         res.status(201).json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Create theme error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.delete('/api/themes/:id', optionalAuth, async (req, res) => {
+app.delete('/api/themes/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -1330,11 +1367,12 @@ app.delete('/api/themes/:id', optionalAuth, async (req, res) => {
         await db.execute('DELETE FROM themes WHERE id = $1', [id]);
         res.json({ message: 'Theme deleted' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Delete theme error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/themes/:id', optionalAuth, async (req, res) => {
+app.put('/api/themes/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color } = req.body;
 
@@ -1361,11 +1399,12 @@ app.put('/api/themes/:id', optionalAuth, async (req, res) => {
         );
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Update theme error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/themes/:id/activate', optionalAuth, async (req, res) => {
+app.put('/api/themes/:id/activate', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
@@ -1379,7 +1418,8 @@ app.put('/api/themes/:id/activate', optionalAuth, async (req, res) => {
         await db.execute('UPDATE themes SET is_active = 1 WHERE id = $1', [id]);
         res.json({ message: 'Theme activated' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Activate theme error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -1431,7 +1471,8 @@ app.post('/api/messages/:id/accept-deck', authMiddleware, async (req, res) => {
 
         res.status(201).json({ newDeck, messageId });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Accept deck error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
