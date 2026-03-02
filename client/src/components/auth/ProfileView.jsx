@@ -5,7 +5,7 @@ import {
     MessageCircle, Users, ChevronRight, Leaf, Shield
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { manageSubscription } from '../../api/revenueCat';
+import { getManagementPortalUrl } from '../../api/stripe';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
@@ -250,7 +250,10 @@ const ProfileView = () => {
                         <button
                             onClick={() => {
                                 haptics.medium();
-                                manageSubscription();
+                                getManagementPortalUrl().then(url => {
+                                    if (url) window.location.href = url;
+                                    else toast.error('Failed to open management portal');
+                                });
                             }}
                             className="w-full flex items-center gap-4 p-4 border-t border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
                         >

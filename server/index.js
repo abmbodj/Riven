@@ -30,6 +30,7 @@ const registerGroupsRoutes = require('./routes/groups');
 const registerHeartsRoutes = require('./routes/hearts');
 const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
+const registerStripeRoutes = require('./routes/stripe');
 
 const app = express();
 const server = http.createServer(app);
@@ -178,6 +179,8 @@ app.locals.io = io;
 app.locals.connectedUsers = connectedUsers;
 
 app.use(cookieParser());
+// Stripe webhook needs raw body for signature verification
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 
 // Recursive Deep XSS Sanitization utility function
@@ -342,6 +345,10 @@ registerReferralRoutes({ app, db, authMiddleware });
 // ============ WEBHOOKS ============
 
 registerWebhooksRoutes({ app, db });
+
+// ============ STRIPE ============
+const stripeRouter = registerStripeRoutes({ db });
+app.use('/api/stripe', authMiddleware, stripeRouter);
 
 // ============ GROUPS ============
 
