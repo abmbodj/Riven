@@ -9,10 +9,11 @@ import { AuthContext } from '../../context/AuthContext';
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
     const [loading, setLoading] = useState(false);
+    const [isFetching, setIsFetching] = useState(true);
     const [error, setError] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState('supporter');
     const [offerings, setOfferings] = useState(null);
-    const { user, signIn } = React.useContext(AuthContext); // Use signIn from context (which sets user) or simply fetch and update context state if possible. We will call getMe() instead and reload or notify context.
+    const { user } = React.useContext(AuthContext);
 
     // Close on escape key
     useEffect(() => {
@@ -24,9 +25,17 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
         // Fetch live offerings from RevenueCat
         const fetchOfferings = async () => {
-            const offs = await getOfferings();
-            if (offs && offs.current) {
-                setOfferings(offs.current);
+            setIsFetching(true);
+            try {
+                const offs = await getOfferings();
+                if (offs && offs.current) {
+                    setOfferings(offs.current);
+                }
+            } catch (err) {
+                console.error('Failed to fetch offerings:', err);
+                setError('Failed to load pricing packages. Please check your connection.');
+            } finally {
+                setIsFetching(false);
             }
         };
         fetchOfferings();
@@ -50,25 +59,19 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             const result = await purchase(pkg);
 
             if (result && result.customerInfo) {
-                // Check if they got the entitlement
                 if (result.customerInfo.entitlements.active['pro']) {
-                    // Success! Refresh user data to get the new tier from our DB (via webhook or direct)
-                    // The webhook might take a second, so we could optimistically update,
-                    // but reloading or fetching /me is safest.
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
                     setError('Purchase completed but entitlement not found. Please try restoring purchases.');
                     setLoading(false);
                 }
             } else {
-                // If it returned null, it means API key is missing (dev fallback)
                 alert(`Mock Purchase Successful for ${pkgType}! RevenueCat webhook would fire and grant access.`);
                 setLoading(false);
                 onClose();
             }
         } catch (err) {
-            if (err.errorCode === ErrorCode.UserCancelledError) {
-                // User backed out of the Stripe checkout, don't show an error
+            if (err.errorCode === ErrorCode?.UserCancelledError) {
                 console.log('User cancelled purchase');
             } else {
                 console.error('Purchase failed:', err);
@@ -84,7 +87,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'supporter',
             name: 'Supporter',
-            price: offerings?.monthly?.webBillingProduct?.currentPrice?.priceString || '$5.99',
+            price: offerings?.monthly?.webBillingProduct?.currentPrice?.priceString,
             period: '/month',
             icon: Zap,
             accent: 'claude-accent',
@@ -102,7 +105,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         {
             id: 'lifetime',
             name: 'Lifetime',
-            price: offerings?.lifetime?.webBillingProduct?.currentPrice?.priceString || '$29.99',
+            price: offerings?.lifetime?.webBillingProduct?.currentPrice?.priceString,
             period: 'once',
             icon: Crown,
             accent: 'amber-500',
@@ -166,78 +169,88 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                         {/* Content */}
                         <div className="px-5 pb-6 overflow-y-auto custom-scrollbar flex-1">
-
-
-                            {/* Current Plan Banner */}
-                            <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
-                                <Shield className="w-4 h-4 text-claude-secondary shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <span className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Current Plan</span>
-                                    <p className="text-sm font-bold text-claude-text capitalize">{currentTier === 'free' ? 'Basic (Free)' : currentTier}</p>
+                            {/* Loading State */}
+                            {isFetching && (
+                                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                                    <div className="w-10 h-10 border-4 border-claude-accent/30 border-t-claude-accent rounded-full animate-spin" />
+                                    <p className="text-sm text-claude-secondary animate-pulse">Fetching latest offerings...</p>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Plan Cards — Stacked vertically */}
-                            <div className="space-y-4">
-                                {plans.map((plan) => {
-                                    const Icon = plan.icon;
-                                    const isSelected = selectedPlan === plan.id;
-                                    const isCurrentPlan = currentTier === plan.id;
-                                    const isDisabled = isCurrentPlan || (plan.id === 'supporter' && currentTier === 'lifetime');
+                            {!isFetching && (
+                                <>
+                                    {/* Current Plan Banner */}
+                                    <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
+                                        <Shield className="w-4 h-4 text-claude-secondary shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Current Plan</span>
+                                            <p className="text-sm font-bold text-claude-text capitalize">{currentTier === 'free' ? 'Basic (Free)' : currentTier}</p>
+                                        </div>
+                                    </div>
 
-                                    return (
-                                        <motion.button
-                                            key={plan.id}
-                                            onClick={() => !isDisabled && setSelectedPlan(plan.id)}
-                                            whileTap={{ scale: isDisabled ? 1 : 0.98 }}
-                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${isSelected && !isDisabled
-                                                ? `border-${plan.accent} bg-${plan.accentBg}`
-                                                : 'border-claude-border/30 bg-white/[0.03]'
-                                                } ${isDisabled ? 'opacity-50' : ''}`}
-                                        >
-                                            {/* Badge */}
-                                            {plan.badge && !isDisabled && (
-                                                <span className={`absolute top-3 right-3 text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${plan.accentBg} text-${plan.accent} border border-${plan.accentBorder}`}>
-                                                    {plan.badge}
-                                                </span>
-                                            )}
+                                    <div className="space-y-4">
+                                        {plans.map((plan) => {
+                                            const Icon = plan.icon;
+                                            const isSelected = selectedPlan === plan.id;
+                                            const isCurrentPlan = currentTier === plan.id;
+                                            const isDisabled = isCurrentPlan || (plan.id === 'supporter' && currentTier === 'lifetime');
 
-                                            {/* Selection indicator */}
-                                            <div className="flex items-start gap-3">
-                                                <div className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center transition-colors ${isSelected && !isDisabled ? `border-${plan.accent} bg-${plan.accent}` : 'border-claude-border'
-                                                    }`}>
-                                                    {isSelected && !isDisabled && (
-                                                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                                            <Check className="w-3 h-3 text-white" />
-                                                        </motion.div>
+                                            return (
+                                                <motion.button
+                                                    key={plan.id}
+                                                    onClick={() => !isDisabled && setSelectedPlan(plan.id)}
+                                                    whileTap={{ scale: isDisabled ? 1 : 0.98 }}
+                                                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${isSelected && !isDisabled
+                                                        ? `border-${plan.accent} bg-${plan.accentBg}`
+                                                        : 'border-claude-border/30 bg-white/[0.03]'
+                                                        } ${isDisabled ? 'opacity-50' : ''}`}
+                                                >
+                                                    {/* Badge */}
+                                                    {plan.badge && !isDisabled && (
+                                                        <span className={`absolute top-3 right-3 text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${plan.accentBg} text-${plan.accent} border border-${plan.accentBorder}`}>
+                                                            {plan.badge}
+                                                        </span>
                                                     )}
-                                                </div>
 
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Icon className={`w-4 h-4 text-${plan.accent}`} />
-                                                        <h3 className="text-base font-bold font-display text-claude-text">{plan.name}</h3>
+                                                    {/* Selection indicator */}
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center transition-colors ${isSelected && !isDisabled ? `border-${plan.accent} bg-${plan.accent}` : 'border-claude-border'
+                                                            }`}>
+                                                            {isSelected && !isDisabled && (
+                                                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                                                    <Check className="w-3 h-3 text-white" />
+                                                                </motion.div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <Icon className={`w-4 h-4 text-${plan.accent}`} />
+                                                                <h3 className="text-base font-bold font-display text-claude-text">{plan.name}</h3>
+                                                            </div>
+
+                                                            <div className="flex items-baseline gap-1 mb-3">
+                                                                <span className="text-2xl font-bold text-claude-text">{plan.price || '—'}</span>
+                                                                <span className="text-xs text-claude-secondary">{plan.period}</span>
+                                                            </div>
+
+                                                            <ul className="space-y-2">
+                                                                {plan.features.map((feat, i) => (
+                                                                    <li key={i} className="flex items-start gap-2 text-xs text-claude-secondary">
+                                                                        <Check className={`w-3.5 h-3.5 mt-0.5 shrink-0 text-${plan.accent}`} />
+                                                                        {feat}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
                                                     </div>
-
-                                                    <div className="flex items-baseline gap-1 mb-3">
-                                                        <span className="text-2xl font-bold text-claude-text">{plan.price}</span>
-                                                        <span className="text-xs text-claude-secondary">{plan.period}</span>
-                                                    </div>
-
-                                                    <ul className="space-y-2">
-                                                        {plan.features.map((feat, i) => (
-                                                            <li key={i} className="flex items-start gap-2 text-xs text-claude-secondary">
-                                                                <Check className={`w-3.5 h-3.5 mt-0.5 shrink-0 text-${plan.accent}`} />
-                                                                {feat}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
+                                                </motion.button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
 
                             {error && (
                                 <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-in fade-in slide-in-from-bottom-2">
