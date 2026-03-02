@@ -2,6 +2,10 @@ const express = require('express');
 const Stripe = require('stripe');
 
 module.exports = function ({ app, db }) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        console.warn('[Stripe Webhooks] STRIPE_SECRET_KEY not set — skipping webhook routes');
+        return;
+    }
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
     // ── Environment Guard ─────────────────────────────────────────

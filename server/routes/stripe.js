@@ -3,6 +3,10 @@ const router = express.Router();
 const Stripe = require('stripe');
 
 module.exports = function ({ db }) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        console.warn('[Stripe] STRIPE_SECRET_KEY not set — skipping Stripe routes');
+        return router;
+    }
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
     // ── Server-side Price ID Allowlist ─────────────────────────────
