@@ -24,8 +24,8 @@ module.exports = function ({ db }) {
                     },
                 ],
                 mode: isSubscription ? 'subscription' : 'payment',
-                success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/profile?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/profile`,
+                success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account`,
                 client_reference_id: String(user.id),
                 customer_email: user.email,
                 metadata: {
@@ -61,7 +61,7 @@ module.exports = function ({ db }) {
 
             const session = await stripe.billingPortal.sessions.create({
                 customer: customers.data[0].id,
-                return_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/profile`,
+                return_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/account`,
             });
 
             res.json({ url: session.url });

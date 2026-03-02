@@ -5,18 +5,20 @@ module.exports = function ({ app, db }) {
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
     // ── Direct Stripe Webhook ────────────────────────────────────
-    app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+    app.post('/api/webhooks/stripe', async (req, res) => {
         const sig = req.headers['stripe-signature'];
         let event;
 
         try {
+            // Use the raw body already parsed by express.raw in index.js
             event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
         } catch (err) {
-            console.error('[Stripe Webhook] Signature verification failed:', err.message);
+            console.error('[Stripe Webhook] ❌ Signature verification failed:', err.message);
+            console.error('[Stripe Webhook] Hint: Check if STRIPE_WEBHOOK_SECRET in Render matches the secret for this specific endpoint in Stripe Dashboard.');
             return res.status(400).send(`Webhook Error: ${err.message}`);
         }
 
-        console.log(`[Stripe Webhook] Received event: ${event.type}`);
+        console.log(`[Stripe Webhook] 🔔 Received event: ${event.type}`);
 
         try {
             switch (event.type) {
@@ -26,16 +28,22 @@ module.exports = function ({ app, db }) {
                     const metadataTier = session.metadata?.tier; // 'lifetime' or 'supporter'
 
                     if (!userId) {
-                        console.warn('[Stripe Webhook] No userId found in session');
+                        console.warn('[Stripe Webhook] ⚠️ No userId (client_reference_id) found in session:', session.id);
                         break;
                     }
 
-                    // Map Price ID to Tier if metadata is missing
+                    // Map Price ID to Tier if metadata is missing (backup)
                     let tier = metadataTier || 'supporter';
-                    // Double check line items if possible or use Price/Product ID patterns
 
-                    console.info(`[Stripe Webhook] Fulfillment starting for user ${userId} -> ${tier}`);
-                    await db.execute('UPDATE users SET subscription_tier = $1 WHERE id = $2', [tier, userId]);
+                    console.info(`[Stripe Webhook] ✅ Fulfillment starting for user ${userId} -> ${tier}`);
+
+                    const result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE id = $2', [tier, parseInt(userId)]);
+
+                    if (result.rowCount === 0) {
+                        console.error(`[Stripe Webhook] ❌ Failed to update user ${userId}: User not found in database.`);
+                    } else {
+                        console.info(`[Stripe Webhook] ✨ Subscription updated successfully for user ${userId}`);
+                    }
                     break;
                 }
 
