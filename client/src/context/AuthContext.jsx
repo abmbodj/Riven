@@ -1,15 +1,19 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import * as authApi from '../api/authApi';
-import { AuthContext } from './authContextDef';
+import { AuthContext, AuthActionsContext } from './authContextDef';
 
 // Re-export for convenience
-export { AuthContext };
+export { AuthContext, AuthActionsContext };
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
+
+    // Ref to avoid stale closures in callbacks — lets us remove `user` from dependency arrays
+    const userRef = useRef(user);
+    useEffect(() => { userRef.current = user; }, [user]);
 
     // Initial Session Check
     useEffect(() => {
@@ -45,44 +49,49 @@ export function AuthProvider({ children }) {
         initAuth();
     }, []);
 
-    // Socket Initialization
+    // Socket Initialization — C6 fix: depend on user?.id, guard with isMounted
     useEffect(() => {
-        let newSocket = null;
-        if (user && user.id) {
-            // Remove /api from getApiBase() to get the root server URL for Socket.IO
-            const serverUrl = authApi.getApiBase().replace(/\/api$/, '');
-            const token = authApi.getToken();
+        if (!user?.id) {
+            setSocket(null);
+            return;
+        }
 
-            newSocket = io(serverUrl, {
-                withCredentials: true,
-                transports: ['websocket', 'polling'],
-                extraHeaders: token ? {
-                    Authorization: `Bearer ${token}`
-                } : undefined
-            });
+        const serverUrl = authApi.getApiBase().replace(/\/api$/, '');
+        const token = authApi.getToken();
+        let isMounted = true;
 
-            newSocket.on('connect', () => {
+        const newSocket = io(serverUrl, {
+            withCredentials: true,
+            transports: ['websocket', 'polling'],
+            extraHeaders: token ? {
+                Authorization: `Bearer ${token}`
+            } : undefined
+        });
+
+        newSocket.on('connect', () => {
+            if (isMounted) {
                 newSocket.emit('register', token);
-            });
+            }
+        });
 
+        if (isMounted) {
             setSocket(newSocket);
         }
 
         return () => {
-            if (newSocket) {
-                newSocket.disconnect();
-            }
+            isMounted = false;
+            newSocket.disconnect();
         };
-    }, [user]);
+    }, [user?.id]);
 
-    // Sign In - Atomic & Simple
+    // ============ ACTION CALLBACKS (stable — no user in deps) ============
+
     const signIn = useCallback(async (email, password) => {
         try {
             const data = await authApi.login(email, password);
 
-            // Handle 2FA requirement
             if (data.require2FA) {
-                return data; // Return to UI to handle 2FA step
+                return data;
             }
 
             if (data.user) {
@@ -97,49 +106,42 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    // Sign Up - Simple (Migration removed from critical path)
     const signUp = useCallback(async (username, email, password) => {
         const userData = await authApi.register(username, email, password);
         setUser(userData);
         return userData;
     }, []);
 
-    // Sign In with 2FA
     const signInWith2FA = useCallback(async (tempToken, code) => {
         const userData = await authApi.login2FA(tempToken, code);
         setUser(userData);
         return userData;
     }, []);
 
-    // Sign Out
     const signOut = useCallback(() => {
-        authApi.logout().catch(console.warn); // Best effort logout
+        authApi.logout().catch(console.warn);
         authApi.setToken(null);
         setUser(null);
     }, []);
 
-    // Update Profile
     const updateProfile = useCallback(async (updates) => {
-        if (!user) throw new Error('Not logged in');
+        if (!userRef.current) throw new Error('Not logged in');
         const updatedUser = await authApi.updateProfile(updates);
         setUser(updatedUser);
         return updatedUser;
-    }, [user]);
+    }, []);
 
-    // Change Password
     const changePassword = useCallback(async (currentPassword, newPassword) => {
-        if (!user) throw new Error('Not logged in');
+        if (!userRef.current) throw new Error('Not logged in');
         await authApi.changePassword(currentPassword, newPassword);
-    }, [user]);
+    }, []);
 
-    // Delete Account
     const deleteAccount = useCallback(async (password) => {
-        if (!user) throw new Error('Not logged in');
+        if (!userRef.current) throw new Error('Not logged in');
         await authApi.deleteAccount(password);
         setUser(null);
-    }, [user]);
+    }, []);
 
-    // Refresh User Data (Manually check for subscription updates)
     const refreshUser = useCallback(async () => {
         try {
             const userData = await authApi.getMe();
@@ -153,10 +155,9 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    // Passthrough functions (logic is in authApi, but exposed via context for consistency)
     const findUserByShareCode = useCallback((code) => authApi.searchUsers(code).then(users => users.find(u => u.shareCode === code)), []);
 
-    // Admin Functions
+    // Admin Functions (all stable — no deps)
     const getAllUsers = useCallback(() => authApi.adminGetAllUsers(), []);
     const adminUpdateUser = useCallback((id, updates) => authApi.adminUpdateUser(id, updates), []);
     const adminDeleteUser = useCallback((id) => authApi.adminDeleteUser(id), []);
@@ -172,20 +173,19 @@ export function AuthProvider({ children }) {
     const adminBanUser = useCallback((id) => authApi.adminBanUser(id), []);
     const getActiveMessages = useCallback(() => authApi.getActiveMessages(), []);
     const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
-    // Streak data is now part of user object or fetched via generic endpoint, 
-    // but for admin viewing we might need a specific call. authApi has getStreak but that's for 'me'.
-    // If admin needs to view another user's streak, it should cover in adminGetAllUsers or generic user update.
     const adminGetUserStreakData = useCallback(() => { return null; }, []);
     const adminUpdateStreakData = useCallback(() => { return true; }, []);
 
-    // Owner: toggle simulate free tier
     const toggleSimulateFree = useCallback(async () => {
         const result = await authApi.toggleSimulateFree();
         setUser(prev => prev ? { ...prev, subscription_tier: result.subscription_tier, simulate_free_tier: result.simulate_free_tier } : prev);
         return result;
     }, []);
 
-    const contextValue = useMemo(() => ({
+    // ============ CONTEXT VALUES ============
+
+    // State context — only changes when user/loading/socket change
+    const stateValue = useMemo(() => ({
         user,
         loading,
         socket,
@@ -193,6 +193,10 @@ export function AuthProvider({ children }) {
         isAdmin: user?.isAdmin || user?.isOwner || false,
         isOwner: user?.isOwner || false,
         role: user?.role || 'user',
+    }), [user, loading, socket]);
+
+    // Actions context — stable, never triggers re-renders
+    const actionsValue = useMemo(() => ({
         signIn,
         signUp,
         signInWith2FA,
@@ -201,16 +205,14 @@ export function AuthProvider({ children }) {
         changePassword,
         deleteAccount,
         refreshUser,
-        // Sharing
         findUserByShareCode,
-        // Admin
         getAllUsers,
         adminUpdateUser,
         adminDeleteUser,
         adminGetStats,
         adminUpdateUserRole,
-        adminGetUserStreakData, // Legacy/Stub
-        adminUpdateStreakData, // Legacy/Stub
+        adminGetUserStreakData,
+        adminUpdateStreakData,
         adminGetMessages,
         adminCreateMessage,
         adminUpdateMessage,
@@ -223,17 +225,19 @@ export function AuthProvider({ children }) {
         dismissMessage,
         toggleSimulateFree
     }), [
-        user, loading, socket, signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
-        deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
-        adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
-        adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
-        adminGetReports, adminResolveReport, adminCloseReport, adminBanUser,
-        getActiveMessages, dismissMessage, toggleSimulateFree
+        signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
+        deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser,
+        adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
+        adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,
+        adminDeleteMessage, adminGetReports, adminResolveReport, adminCloseReport,
+        adminBanUser, getActiveMessages, dismissMessage, toggleSimulateFree
     ]);
 
     return (
-        <AuthContext.Provider value={contextValue}>
-            {children}
+        <AuthContext.Provider value={stateValue}>
+            <AuthActionsContext.Provider value={actionsValue}>
+                {children}
+            </AuthActionsContext.Provider>
         </AuthContext.Provider>
     );
 }

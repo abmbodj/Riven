@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import {
     Users, Layers, CreditCard, Share2, MessageSquare,
     Plus, Trash2, Power, AlertCircle, Info, CheckCircle,
@@ -31,7 +31,7 @@ export default function AdminPanel() {
         adminCloseReport,
         adminBanUser,
         toggleSimulateFree
-    } = useContext(AuthContext);
+    } = useAuth();
 
     const [activeTab, setActiveTab] = useState('overview');
     const [stats, setStats] = useState(null);

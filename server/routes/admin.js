@@ -83,13 +83,30 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
         const { username, email, bio } = req.body;
 
         try {
+            const target = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
+            if (!target) return res.status(404).json({ error: 'User not found' });
+
+            // Prevent admins from editing owners or other admins (unless requester is owner)
+            if (target.role === 'owner' && req.user.role !== 'owner') {
+                return res.status(403).json({ error: 'Cannot edit owner account' });
+            }
+
+            // Check uniqueness of email/username before updating
+            if (email && email.toLowerCase() !== target.email.toLowerCase()) {
+                const existing = await db.queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id != $2', [email, id]);
+                if (existing) return res.status(400).json({ error: 'Email already in use' });
+            }
+            if (username && username.toLowerCase() !== target.username.toLowerCase()) {
+                const existing = await db.queryOne('SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2', [username, id]);
+                if (existing) return res.status(400).json({ error: 'Username already in use' });
+            }
+
             await db.execute(
                 'UPDATE users SET username = COALESCE($1, username), email = COALESCE($2, email), bio = COALESCE($3, bio) WHERE id = $4',
                 [username, email, bio, id]
             );
 
-            const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
-            if (!user) return res.status(404).json({ error: 'User not found' });
+            const user = await db.queryOne('SELECT id, username, email, role, is_admin FROM users WHERE id = $1', [id]);
             const r = user.role || (user.is_admin === 1 ? 'admin' : 'user');
 
             res.json({ id: user.id, username: user.username, email: user.email, role: r, isAdmin: r === 'admin' || r === 'owner' });

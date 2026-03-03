@@ -1,12 +1,14 @@
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useContext, useMemo } from 'react';
+import { AuthContext, AuthActionsContext } from '../context/AuthContext';
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (!context) {
+    const state = useContext(AuthContext);
+    const actions = useContext(AuthActionsContext);
+    if (!state) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
-    return context;
+    // Merge state + actions for backward compatibility
+    return useMemo(() => ({ ...state, ...actions }), [state, actions]);
 }
 
 export default useAuth;

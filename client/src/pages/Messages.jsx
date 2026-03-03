@@ -13,12 +13,43 @@ import Avatar from '../components/Avatar';
 import ReportModal from '../components/ui/ReportModal';
 import * as authApi from '../api/authApi';
 
-// Global cache for instant load times
-const globalMessageCache = {};
-const globalUserCache = {};
-let globalConversationsCache = null;
-const globalCacheTimes = {}; // tracks when each userId's messages were last fetched
-const CACHE_TTL = 30000; // 30 seconds — socket events keep it live
+// Session-aware message cache — clears on user change, bounded to prevent memory leaks
+const CACHE_TTL = 30000;
+const MAX_CACHED_CONVERSATIONS = 50;
+const messageCache = {
+    _userId: null,
+    messages: {},
+    users: {},
+    conversations: null,
+    times: {},
+    /** Reset cache if user changed, or clear entirely */
+    ensure(userId) {
+        if (this._userId !== userId) {
+            this.messages = {};
+            this.users = {};
+            this.conversations = null;
+            this.times = {};
+            this._userId = userId;
+        }
+    },
+    /** Evict oldest entries if cache is too large */
+    _trim() {
+        const keys = Object.keys(this.messages);
+        if (keys.length > MAX_CACHED_CONVERSATIONS) {
+            const sorted = keys.sort((a, b) => (this.times[a] || 0) - (this.times[b] || 0));
+            for (const key of sorted.slice(0, keys.length - MAX_CACHED_CONVERSATIONS)) {
+                delete this.messages[key];
+                delete this.users[key];
+                delete this.times[key];
+            }
+        }
+    },
+    setMessages(targetId, data) {
+        this.messages[targetId] = data;
+        this.times[targetId] = Date.now();
+        this._trim();
+    },
+};
 
 export default function Messages() {
     const { userId } = useParams();
@@ -27,11 +58,14 @@ export default function Messages() {
     const haptics = useHaptics();
     const { isLoggedIn, user, socket } = useAuth();
 
-    const [conversations, setConversations] = useState(globalConversationsCache || []);
-    const [messages, setMessages] = useState(userId && globalMessageCache[userId] ? globalMessageCache[userId] : []);
-    const [chatUser, setChatUser] = useState(userId && globalUserCache[userId] ? globalUserCache[userId] : null);
+    // Ensure cache is valid for current user
+    messageCache.ensure(user?.id);
+
+    const [conversations, setConversations] = useState(messageCache.conversations || []);
+    const [messages, setMessages] = useState(userId && messageCache.messages[userId] ? messageCache.messages[userId] : []);
+    const [chatUser, setChatUser] = useState(userId && messageCache.users[userId] ? messageCache.users[userId] : null);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(!userId || !globalMessageCache[userId]);
+    const [loading, setLoading] = useState(!userId || !messageCache.messages[userId]);
     const [sending, setSending] = useState(false);
     const [acceptingDeck, setAcceptingDeck] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -52,11 +86,11 @@ export default function Messages() {
     // Load conversations list
     const loadConversations = useCallback(async () => {
         try {
-            if (globalConversationsCache) {
-                setConversations(globalConversationsCache);
+            if (messageCache.conversations) {
+                setConversations(messageCache.conversations);
             }
             const data = await authApi.getConversations();
-            globalConversationsCache = data;
+            messageCache.conversations = data;
             setConversations(data);
         } catch {
             // Failed to load conversations silently
@@ -65,21 +99,21 @@ export default function Messages() {
 
     // Invalidate conversations cache so the list refreshes on next visit
     const invalidateConversations = useCallback(() => {
-        globalConversationsCache = null;
+        messageCache.conversations = null;
     }, []);
 
     // Load messages for specific user
     const loadMessages = useCallback(async (targetUserId) => {
-        const hasFreshCache = globalMessageCache[targetUserId]
-            && globalUserCache[targetUserId]
-            && globalCacheTimes[targetUserId]
-            && (Date.now() - globalCacheTimes[targetUserId] < CACHE_TTL);
+        const cached = messageCache.messages[targetUserId];
+        const cachedUser = messageCache.users[targetUserId];
+        const cacheTime = messageCache.times[targetUserId] || 0;
+        const hasFreshCache = cached && cachedUser && (Date.now() - cacheTime < CACHE_TTL);
 
-        if (globalMessageCache[targetUserId] && globalUserCache[targetUserId]) {
-            setMessages(globalMessageCache[targetUserId]);
-            setChatUser(globalUserCache[targetUserId]);
+        if (cached && cachedUser) {
+            setMessages(cached);
+            setChatUser(cachedUser);
             // Seed the loaded IDs set so cached messages don't animate
-            loadedMsgIdsRef.current = new Set(globalMessageCache[targetUserId].map(m => m.id));
+            loadedMsgIdsRef.current = new Set(cached.map(m => m.id));
             setLoading(false);
 
             // Skip network call if cache is fresh — socket events keep it live
@@ -94,9 +128,8 @@ export default function Messages() {
                 authApi.getUserProfile(targetUserId)
             ]);
 
-            globalMessageCache[targetUserId] = messagesData;
-            globalUserCache[targetUserId] = userData;
-            globalCacheTimes[targetUserId] = Date.now();
+            messageCache.setMessages(targetUserId, messagesData);
+            messageCache.users[targetUserId] = userData;
 
             // Seed loaded IDs so fetched messages don't animate
             loadedMsgIdsRef.current = new Set(messagesData.map(m => m.id));
@@ -139,7 +172,7 @@ export default function Messages() {
                 setMessages(prev => {
                     if (prev.find(m => m.id === msg.id)) return prev;
                     const updated = [...prev, msg];
-                    globalMessageCache[userId] = updated;
+                    messageCache.messages[userId] = updated;
                     return updated;
                 });
 
@@ -156,7 +189,7 @@ export default function Messages() {
             if (userId) {
                 setMessages(prev => {
                     const updated = prev.map(m => m.id === msg.id ? { ...m, ...msg } : m);
-                    globalMessageCache[userId] = updated;
+                    messageCache.messages[userId] = updated;
                     return updated;
                 });
             } else {
@@ -169,7 +202,7 @@ export default function Messages() {
             if (userId) {
                 setMessages(prev => {
                     const updated = prev.filter(m => m.id !== id);
-                    globalMessageCache[userId] = updated;
+                    messageCache.messages[userId] = updated;
                     return updated;
                 });
             } else {
@@ -238,7 +271,7 @@ export default function Messages() {
                 const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim());
                 setMessages(prev => {
                     const updated = prev.map(m => m.id === editingMessageId ? updatedMsg : m);
-                    if (userId) globalMessageCache[userId] = updated;
+                    if (userId) messageCache.messages[userId] = updated;
                     return updated;
                 });
                 invalidateConversations();
@@ -265,7 +298,7 @@ export default function Messages() {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
             setMessages(prev => {
                 const updated = [...prev, message];
-                globalMessageCache[userId] = updated;
+                messageCache.messages[userId] = updated;
                 return updated;
             });
             invalidateConversations();
@@ -286,7 +319,7 @@ export default function Messages() {
             await authApi.deleteMessage(msgId);
             setMessages(prev => {
                 const updated = prev.filter(m => m.id !== msgId);
-                if (userId) globalMessageCache[userId] = updated;
+                if (userId) messageCache.messages[userId] = updated;
                 return updated;
             });
             invalidateConversations();

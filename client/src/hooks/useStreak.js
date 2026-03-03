@@ -68,6 +68,7 @@ export function useStreak() {
     const [streakData, setStreakData] = useState(emptyStreak);
     const [loaded, setLoaded] = useState(false);
     const syncedRef = useRef(false);
+    const streakDataRef = useRef(streakData);
 
     // Fetch streak data from server when logged in
     useEffect(() => {
@@ -130,13 +131,17 @@ export function useStreak() {
         });
     }, [saveToServer]);
 
+    // Keep ref in sync so the interval always reads current data
+    useEffect(() => { streakDataRef.current = streakData; }, [streakData]);
+
     // Check for broken streak on mount and periodically
     useEffect(() => {
         if (!isLoggedIn || !loaded) return;
 
         const checkStreak = () => {
-            const status = calculateStatus(streakData.lastStudyDate);
-            if (status === 'broken' && streakData.currentStreak > 0) {
+            const current = streakDataRef.current;
+            const status = calculateStatus(current.lastStudyDate);
+            if (status === 'broken' && current.currentStreak > 0) {
                 breakStreak();
             }
         };
@@ -144,7 +149,7 @@ export function useStreak() {
         checkStreak();
         const interval = setInterval(checkStreak, 60000);
         return () => clearInterval(interval);
-    }, [streakData.lastStudyDate, streakData.currentStreak, breakStreak, isLoggedIn, loaded]);
+    }, [breakStreak, isLoggedIn, loaded]);
 
     /**
      * Increment the streak (call when user completes a study session)

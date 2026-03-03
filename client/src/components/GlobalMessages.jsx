@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import X from 'lucide-react/dist/esm/icons/x';
 import Info from 'lucide-react/dist/esm/icons/info';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
@@ -7,7 +7,7 @@ import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 
 export default function GlobalMessages() {
-    const { isLoggedIn, getActiveMessages, dismissMessage } = useContext(AuthContext);
+    const { isLoggedIn, getActiveMessages, dismissMessage } = useAuth();
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
 

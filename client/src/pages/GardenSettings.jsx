@@ -2,7 +2,7 @@ import { useState, useContext } from 'react';
 import { Palette, Clock, Trophy, Sprout, LogIn, Sparkles, Lock } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Garden from '../components/Garden';
 import GardenGallery from '../components/GardenGallery';
 import { useStreak } from '../hooks/useStreak';
@@ -33,7 +33,7 @@ const getLast7Days = (lastStudyDate, currentStreak) => {
 };
 
 export default function GardenSettings() {
-    const { isLoggedIn, isOwner, isAdmin, user } = useContext(AuthContext);
+    const { isLoggedIn, isOwner, isAdmin, user } = useAuth();
     const isPremium = isOwner || isAdmin || user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
     const { customization, setStageOverride } = useContext(GardenContext);
     const navigate = useNavigate();

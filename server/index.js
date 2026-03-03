@@ -852,7 +852,7 @@ app.post('/api/decks', authMiddleware, async (req, res) => {
                 const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [userId]);
                 const hasDeck = parseInt(deckCount.count) >= 1;
                 await db.execute('UPDATE referrals SET has_deck = $1 WHERE referred_id = $2', [hasDeck, userId]);
-            }).catch(() => { });
+            }).catch(err => console.error('Referral deck check failed:', err));
         }
     } catch (error) {
         console.error('Create deck error:', error);
@@ -976,17 +976,32 @@ app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
             [userId, `${deck.title} (Copy)`, deck.description, deck.folder_id]
         );
 
-        const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [id]);
-        for (const card of cards) {
+        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1', [id]);
+        if (cards.length > 0) {
+            const values = [];
+            const placeholders = cards.map((card, i) => {
+                const offset = i * 6;
+                values.push(newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position);
+                return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+            });
             await db.execute(
-                'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6)',
-                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position]
+                `INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ${placeholders.join(', ')}`,
+                values
             );
         }
 
         const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [id]);
-        for (const tag of tags) {
-            await db.execute('INSERT INTO deck_tags (deck_id, tag_id) VALUES ($1, $2)', [newDeck.id, tag.tag_id]);
+        if (tags.length > 0) {
+            const values = [];
+            const placeholders = tags.map((tag, i) => {
+                const offset = i * 2;
+                values.push(newDeck.id, tag.tag_id);
+                return `($${offset + 1}, $${offset + 2})`;
+            });
+            await db.execute(
+                `INSERT INTO deck_tags (deck_id, tag_id) VALUES ${placeholders.join(', ')}`,
+                values
+            );
         }
 
         res.status(201).json(newDeck);
@@ -1101,8 +1116,15 @@ app.put('/api/decks/:id/cards/reorder', authMiddleware, async (req, res) => {
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
-        for (let i = 0; i < cardIds.length; i++) {
-            await db.execute('UPDATE cards SET position = $1 WHERE id = $2 AND deck_id = $3', [i, cardIds[i], id]);
+        if (cardIds.length > 0) {
+            const cases = cardIds.map((_, i) => `WHEN id = $${i * 2 + 1}::int THEN $${i * 2 + 2}::int`).join(' ');
+            const values = cardIds.flatMap((cardId, i) => [cardId, i]);
+            const idPlaceholders = cardIds.map((_, i) => `$${i * 2 + 1}::int`).join(', ');
+            values.push(id);
+            await db.execute(
+                `UPDATE cards SET position = CASE ${cases} END WHERE deck_id = $${values.length} AND id IN (${idPlaceholders})`,
+                values
+            );
         }
         res.json({ message: 'Cards reordered' });
     } catch (error) {
@@ -1193,36 +1215,48 @@ app.post('/api/study-sessions', authMiddleware, async (req, res) => {
 
         await db.execute('UPDATE decks SET last_studied = CURRENT_TIMESTAMP WHERE id = $1', [deck_id]);
 
-        // Auto-check referral qualification for this user
+        // Auto-check referral qualification for this user (transactional to prevent race conditions)
         if (userId) {
+            const client = await db.pool.connect();
             try {
-                const referral = await db.queryOne('SELECT * FROM referrals WHERE referred_id = $1', [userId]);
+                await client.query('BEGIN');
+                const { rows: [referral] } = await client.query(
+                    'SELECT * FROM referrals WHERE referred_id = $1 FOR UPDATE', [userId]
+                );
                 if (referral) {
-                    const deckCount = await db.queryOne('SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [userId]);
+                    const { rows: [deckCount] } = await client.query(
+                        'SELECT COUNT(*) as count FROM decks WHERE user_id = $1', [userId]
+                    );
                     const hasDeck = parseInt(deckCount.count) >= 1;
-                    const sessionCount = await db.queryOne(
+                    const { rows: [sessionCount] } = await client.query(
                         'SELECT COUNT(*) as count FROM study_sessions ss JOIN decks d ON d.id = ss.deck_id WHERE d.user_id = $1', [userId]
                     );
                     const sessions = parseInt(sessionCount.count);
                     const qualified = hasDeck && sessions >= 10;
-                    await db.execute(
+                    await client.query(
                         'UPDATE referrals SET has_deck = $1, session_count = $2, qualified = $3 WHERE referred_id = $4',
                         [hasDeck, sessions, qualified, userId]
                     );
                     if (qualified) {
-                        const qualCount = await db.queryOne(
+                        const { rows: [qualCount] } = await client.query(
                             'SELECT COUNT(*) as count FROM referrals WHERE referrer_id = $1 AND qualified = TRUE',
                             [referral.referrer_id]
                         );
                         if (parseInt(qualCount.count) >= 5) {
-                            await db.execute(
+                            await client.query(
                                 "UPDATE users SET subscription_tier = 'lifetime' WHERE id = $1 AND subscription_tier != 'lifetime'",
                                 [referral.referrer_id]
                             );
                         }
                     }
                 }
-            } catch (e) { /* non-critical, don't block session save */ }
+                await client.query('COMMIT');
+            } catch (e) {
+                await client.query('ROLLBACK').catch(() => {});
+                console.error('Referral qualification check failed:', e);
+            } finally {
+                client.release();
+            }
         }
 
         res.status(201).json(result);
@@ -1234,20 +1268,37 @@ app.post('/api/study-sessions', authMiddleware, async (req, res) => {
 
 app.get('/api/study-sessions', authMiddleware, async (req, res) => {
     const { deck_id, limit = 10 } = req.query;
+    const cappedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
 
     try {
         let sessions;
         if (deck_id) {
+            // Verify the user owns this deck or it's shared with them
+            const userId = req.user?.id || null;
+            const deck = await db.queryOne('SELECT user_id FROM decks WHERE id = $1', [deck_id]);
+            if (!deck) return res.status(404).json({ error: 'Deck not found' });
+
+            let isAuthorized = deck.user_id === userId;
+            if (!isAuthorized && userId) {
+                const sharedCheck = await db.queryOne(`
+                    SELECT 1 FROM group_decks gd
+                    JOIN group_members gm ON gd.group_id = gm.group_id
+                    WHERE gd.deck_id = $1 AND gm.user_id = $2 LIMIT 1
+                `, [deck_id, userId]);
+                if (sharedCheck) isAuthorized = true;
+            }
+            if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
             sessions = await db.query(
                 'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC LIMIT $2',
-                [deck_id, parseInt(limit)]
+                [deck_id, cappedLimit]
             );
         } else {
             const userId = req.user?.id || null;
             if (userId) {
                 sessions = await db.query(
                     'SELECT ss.* FROM study_sessions ss JOIN decks d ON ss.deck_id = d.id WHERE d.user_id = $1 ORDER BY ss.created_at DESC LIMIT $2',
-                    [userId, parseInt(limit)]
+                    [userId, cappedLimit]
                 );
             } else {
                 sessions = [];
@@ -1262,8 +1313,24 @@ app.get('/api/study-sessions', authMiddleware, async (req, res) => {
 
 app.get('/api/decks/:id/stats', authMiddleware, async (req, res) => {
     const { id } = req.params;
+    const userId = req.user?.id || null;
 
     try {
+        // Verify ownership or group membership
+        const deck = await db.queryOne('SELECT user_id FROM decks WHERE id = $1', [id]);
+        if (!deck) return res.status(404).json({ error: 'Deck not found' });
+
+        let isAuthorized = deck.user_id === userId;
+        if (!isAuthorized && userId) {
+            const sharedCheck = await db.queryOne(`
+                SELECT 1 FROM group_decks gd
+                JOIN group_members gm ON gd.group_id = gm.group_id
+                WHERE gd.deck_id = $1 AND gm.user_id = $2 LIMIT 1
+            `, [id, userId]);
+            if (sharedCheck) isAuthorized = true;
+        }
+        if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
         const sessions = await db.query(
             'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC',
             [id]
@@ -1477,19 +1544,34 @@ app.post('/api/messages/:id/accept-deck', authMiddleware, async (req, res) => {
             [req.user.id, originalDeck.title, originalDeck.description]
         );
 
-        // Clone cards
-        const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [originalDeckId]);
-        for (const card of cards) {
+        // Clone cards (bulk insert)
+        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1', [originalDeckId]);
+        if (cards.length > 0) {
+            const values = [];
+            const placeholders = cards.map((card, i) => {
+                const offset = i * 6;
+                values.push(newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position);
+                return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+            });
             await db.execute(
-                'INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ($1, $2, $3, $4, $5, $6)',
-                [newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position]
+                `INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ${placeholders.join(', ')}`,
+                values
             );
         }
 
-        // Clone tags
+        // Clone tags (bulk insert)
         const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [originalDeckId]);
-        for (const tag of tags) {
-            await db.execute('INSERT INTO deck_tags (deck_id, tag_id) VALUES ($1, $2)', [newDeck.id, tag.tag_id]);
+        if (tags.length > 0) {
+            const values = [];
+            const placeholders = tags.map((tag, i) => {
+                const offset = i * 2;
+                values.push(newDeck.id, tag.tag_id);
+                return `($${offset + 1}, $${offset + 2})`;
+            });
+            await db.execute(
+                `INSERT INTO deck_tags (deck_id, tag_id) VALUES ${placeholders.join(', ')}`,
+                values
+            );
         }
 
         // Update message to mark as accepted

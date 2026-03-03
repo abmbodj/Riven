@@ -86,13 +86,15 @@ const authFetch = async (endpoint, options = {}) => {
 };
 
 
-// Helper for safe data fetching (swallows errors, returns consistent defaults)
+// Helper for safe data fetching — returns defaults for network/server errors,
+// but re-throws auth errors (401/403) so session expiry is properly handled
 const safeFetchArray = async (promise) => {
     try {
         const data = await promise;
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.warn('[authApi] Safe fetch failed (returning []):', err);
+        if (err.status === 401 || err.status === 403) throw err;
+        console.error('[authApi] Fetch failed (returning []):', err.message || err);
         return [];
     }
 };
@@ -102,7 +104,8 @@ const safeFetchObject = async (promise, defaultVal = {}) => {
         const data = await promise;
         return data || defaultVal;
     } catch (err) {
-        console.warn('[authApi] Safe fetch failed (returning default):', err);
+        if (err.status === 401 || err.status === 403) throw err;
+        console.error('[authApi] Fetch failed (returning default):', err.message || err);
         return defaultVal;
     }
 };
