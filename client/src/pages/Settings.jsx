@@ -721,7 +721,7 @@ function BlockedUsersCard() {
         try {
             const { unblockUser } = await import('../api/authApi');
             await unblockUser(userId);
-            setBlockedUsers(prev => prev.filter(u => u.blocked_user_id !== userId));
+            setBlockedUsers(prev => prev.filter(u => u.id !== userId));
             toast('User unblocked successfully.');
         } catch (err) {
             toast.error(err.message || 'Failed to unblock user.');
@@ -773,19 +773,19 @@ function BlockedUsersCard() {
                                     </div>
                                 ) : (
                                     blockedUsers.map(u => (
-                                        <div key={u.blocked_user_id} className="flex items-center justify-between p-3 rounded-xl bg-claude-bg border border-claude-border/50">
+                                        <div key={u.id} className="flex items-center justify-between p-3 rounded-xl bg-claude-bg border border-claude-border/50">
                                             <div>
-                                                <p className="text-sm font-semibold text-claude-text">{u.blocked_username}</p>
+                                                <p className="text-sm font-semibold text-claude-text">{u.username}</p>
                                                 <p className="text-[10px] text-claude-secondary font-mono tracking-wider mt-0.5">
-                                                    Blocked {new Date(u.created_at).toLocaleDateString()}
+                                                    Blocked {new Date(u.blocked_at).toLocaleDateString()}
                                                 </p>
                                             </div>
                                             <button
-                                                onClick={() => handleUnblock(u.blocked_user_id)}
-                                                disabled={unblockingId === u.blocked_user_id}
+                                                onClick={() => handleUnblock(u.id)}
+                                                disabled={unblockingId === u.id}
                                                 className="px-3 py-1.5 rounded-lg text-xs font-bold text-claude-text bg-claude-surface hover:bg-claude-surface/80 border border-claude-border transition-colors disabled:opacity-50 touch-target tap-action native-press"
                                             >
-                                                {unblockingId === u.blocked_user_id ? 'Unblocking...' : 'Unblock'}
+                                                {unblockingId === u.id ? 'Unblocking...' : 'Unblock'}
                                             </button>
                                         </div>
                                     ))
