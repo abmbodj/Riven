@@ -1,0 +1,29 @@
+{
+  "name": "riven-social",
+  "version": "1.0.0",
+  "description": "Riven promo videos for TikTok, Instagram Reels, and YouTube Shorts",
+  "scripts": {
+    "start": "npx remotion studio",
+    "build": "npx remotion render",
+    "render:all": "npm run render:exam-panic && npm run render:seed-reward && npm run render:garden-loop && npm run render:skin-reveal && npm run render:study-with-me",
+    "render:exam-panic": "npx remotion render src/index.ts ExamPanic out/exam-panic.mp4 --codec=h264 --crf=18",
+    "render:seed-reward": "npx remotion render src/index.ts SeedReward out/seed-reward.mp4 --codec=h264 --crf=18",
+    "render:garden-loop": "npx remotion render src/index.ts GardenLoop out/garden-loop.mp4 --codec=h264 --crf=18",
+    "render:skin-reveal": "npx remotion render src/index.ts DeckSkinReveal out/skin-reveal.mp4 --codec=h264 --crf=18",
+    "render:study-with-me": "npx remotion render src/index.ts StudyWithMe out/study-with-me.mp4 --codec=h264 --crf=18",
+    "preview:exam-panic": "npx remotion render src/index.ts ExamPanic out/preview.mp4 --codec=h264 --crf=28 --scale=0.5"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.242",
+    "@remotion/google-fonts": "4.0.242",
+    "@remotion/transitions": "4.0.242",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.242"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.6.3"
+  }
+}
