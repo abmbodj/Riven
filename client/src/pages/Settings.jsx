@@ -67,7 +67,7 @@ export default function Settings() {
     const [connectingCanvas, setConnectingCanvas] = useState(false);
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
 
-    const [aiLimits, setAiLimits] = useState({ remaining: 15, max: 15, loading: true });
+    const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
 
     useEffect(() => {
         const loadSettings = async () => {
@@ -216,7 +216,7 @@ export default function Settings() {
                                     </span>
                                 </h3>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Limited daily usage' : 'Unlimited Pro active'}
+                                    {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Limited daily usage' : 'Pro active'}
                                 </p>
                             </div>
                         </div>
@@ -401,8 +401,8 @@ export default function Settings() {
                                 <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
                                     AI Generations
                                     {!aiLimits.loading && (
-                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining === 'Unlimited' || aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                                            {aiLimits.remaining === 'Unlimited' ? 'Unlimited' : `${aiLimits.remaining} / ${aiLimits.max} Left`}
+                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                            {`${aiLimits.remaining} / ${aiLimits.max} Left`}
                                         </span>
                                     )}
                                 </h3>

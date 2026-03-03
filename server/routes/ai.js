@@ -12,14 +12,11 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
 
             const user = userRes[0];
             const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
-            const isUnlimited = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+            const isPremium = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
 
-            if (isUnlimited) {
-                req.aiLimitsContext = { isUnlimited: true };
-                return next();
-            }
-
-            const MAX_LIMIT = 15;
+            const FREE_LIMIT = 10;
+            const PREMIUM_LIMIT = 50;
+            const MAX_LIMIT = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
             const RESET_MS = 2 * 60 * 60 * 1000; // 2 hours
             const now = new Date();
 
@@ -33,14 +30,19 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
             }
 
             if (count >= MAX_LIMIT) {
-                return res.status(429).json({ error: 'AI generation limit reached. Please try again later or upgrade to Premium.' });
+                const errorMsg = isPremium
+                    ? 'AI generation limit reached. Please try again later.'
+                    : 'AI generation limit reached. Please try again later or upgrade to Premium.';
+                return res.status(429).json({ error: errorMsg });
             }
 
             // Consume 1 quota immediately
             count += 1;
             await db.execute('UPDATE users SET ai_generations_count = $1, last_ai_generation_reset = $2 WHERE id = $3', [count, lastReset, req.user.id]);
 
-            req.aiLimitsContext = { isUnlimited: false, characterLimit: 15000, flashcardRange: [5, 15] };
+            req.aiLimitsContext = isPremium
+                ? { isPremium: true, characterLimit: 50000, flashcardRange: [5, 40] }
+                : { isPremium: false, characterLimit: 15000, flashcardRange: [5, 15] };
             next();
         } catch (err) {
             console.error('AI Limiter Error:', err);
@@ -56,18 +58,11 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
 
             const user = userRes[0];
             const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
-            const isUnlimited = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+            const isPremium = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
 
-            if (isUnlimited) {
-                return res.json({
-                    remaining: 'Unlimited',
-                    max: 'Unlimited',
-                    characterLimit: 50000,
-                    flashcardRange: [5, 40]
-                });
-            }
-
-            const MAX_LIMIT = 15;
+            const FREE_LIMIT = 10;
+            const PREMIUM_LIMIT = 50;
+            const MAX_LIMIT = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
             const RESET_MS = 2 * 60 * 60 * 1000;
             const now = new Date();
 
@@ -83,8 +78,8 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
             res.json({
                 remaining,
                 max: MAX_LIMIT,
-                characterLimit: 15000,
-                flashcardRange: [5, 15]
+                characterLimit: isPremium ? 50000 : 15000,
+                flashcardRange: isPremium ? [5, 40] : [5, 15]
             });
         } catch (error) {
             console.error('Error fetching AI limits:', error);
@@ -128,7 +123,7 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
             }
 
             // Cap notes to prevent abuse and ensure fast generation
-            const characterLimit = req.aiLimitsContext?.characterLimit || (req.aiLimitsContext?.isUnlimited ? 50000 : 15000);
+            const characterLimit = req.aiLimitsContext?.characterLimit || 15000;
             if (hasProcessedNotes && processedNotes.length > characterLimit) {
                 return res.status(400).json({ error: `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.` });
             }
