@@ -1,42 +1,43 @@
 import React from 'react';
-import {
-  useCurrentFrame,
-  useVideoConfig,
-  spring,
-  interpolate,
-} from 'remotion';
-import { COLORS } from '../constants';
-import { FONTS } from '../fonts';
+import { spring, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { COLORS, SPRINGS } from '../constants';
+import { cormorant, inter } from '../fonts';
 
-type SeedCounterProps = {
+interface SeedCounterProps {
   from: number;
   to: number;
   label?: string;
-};
+  delay?: number;
+  fontSize?: number;
+}
 
 export const SeedCounter: React.FC<SeedCounterProps> = ({
   from,
   to,
-  label = 'seeds earned',
+  label,
+  delay = 0,
+  fontSize = 72,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const progress = spring({
-    frame,
+    frame: frame - delay,
     fps,
-    config: { damping: 30, stiffness: 60 },
+    config: SPRINGS.smooth,
+    from: 0,
+    to: 1,
   });
 
-  const count = Math.round(interpolate(progress, [0, 1], [from, to]));
+  const value = Math.round(interpolate(progress, [0, 1], [from, to]));
 
-  const scale = spring({
-    frame,
+  const entrance = spring({
+    frame: frame - delay,
     fps,
-    config: { damping: 12, stiffness: 150 },
+    config: SPRINGS.snappy,
+    from: 0,
+    to: 1,
   });
-
-  const scaleValue = interpolate(scale, [0, 1], [0.6, 1]);
 
   return (
     <div
@@ -45,33 +46,34 @@ export const SeedCounter: React.FC<SeedCounterProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         gap: 8,
-        transform: `scale(${scaleValue})`,
+        opacity: entrance,
+        transform: `scale(${0.8 + entrance * 0.2})`,
       }}
     >
       <div
         style={{
-          fontFamily: FONTS.serif,
-          fontSize: 72,
+          fontFamily: cormorant,
+          fontSize,
           fontWeight: 700,
           color: COLORS.accent,
           lineHeight: 1,
         }}
       >
-        🌱 {count}
+        <span style={{ marginRight: 8 }}>🌱</span>
+        {value}
       </div>
-      <div
-        style={{
-          fontFamily: FONTS.sans,
-          fontSize: 18,
-          fontWeight: 500,
-          color: COLORS.text,
-          opacity: 0.7,
-          letterSpacing: 1.5,
-          textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </div>
+      {label && (
+        <div
+          style={{
+            fontFamily: inter,
+            fontSize: 18,
+            color: COLORS.textMuted,
+            fontWeight: 500,
+          }}
+        >
+          {label}
+        </div>
+      )}
     </div>
   );
 };

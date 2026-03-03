@@ -1,17 +1,23 @@
 {
   "name": "riven-social",
   "version": "1.0.0",
-  "description": "Riven promo videos for TikTok, Instagram Reels, and YouTube Shorts",
+  "private": true,
   "scripts": {
     "start": "npx remotion studio",
     "build": "npx remotion render",
-    "render:all": "npm run render:exam-panic && npm run render:seed-reward && npm run render:garden-loop && npm run render:skin-reveal && npm run render:study-with-me",
-    "render:exam-panic": "npx remotion render src/index.ts ExamPanic out/exam-panic.mp4 --codec=h264 --crf=18",
-    "render:seed-reward": "npx remotion render src/index.ts SeedReward out/seed-reward.mp4 --codec=h264 --crf=18",
-    "render:garden-loop": "npx remotion render src/index.ts GardenLoop out/garden-loop.mp4 --codec=h264 --crf=18",
-    "render:skin-reveal": "npx remotion render src/index.ts DeckSkinReveal out/skin-reveal.mp4 --codec=h264 --crf=18",
-    "render:study-with-me": "npx remotion render src/index.ts StudyWithMe out/study-with-me.mp4 --codec=h264 --crf=18",
-    "preview:exam-panic": "npx remotion render src/index.ts ExamPanic out/preview.mp4 --codec=h264 --crf=28 --scale=0.5"
+    "render:all": "npm run render:nobody && npm run render:syllabus && npm run render:canvas && npm run render:garden && npm run render:quizlet && npm run render:studywithme && npm run render:group && npm run render:aesthetic && npm run render:spacedrep && npm run render:semester && npm run render:darkacademia && npm run render:streak",
+    "render:nobody": "npx remotion render src/index.ts NobodyTalkingAbout out/nobody-talking-about.mp4 --codec=h264 --crf=18",
+    "render:syllabus": "npx remotion render src/index.ts SyllabusDropped out/syllabus-dropped.mp4 --codec=h264 --crf=18",
+    "render:canvas": "npx remotion render src/index.ts CanvasAutopilot out/canvas-autopilot.mp4 --codec=h264 --crf=18",
+    "render:garden": "npx remotion render src/index.ts GardenTransformation out/garden-transformation.mp4 --codec=h264 --crf=18",
+    "render:quizlet": "npx remotion render src/index.ts QuizletWho out/quizlet-who.mp4 --codec=h264 --crf=18",
+    "render:studywithme": "npx remotion render src/index.ts StudyWithMeAmbient out/study-with-me.mp4 --codec=h264 --crf=18",
+    "render:group": "npx remotion render src/index.ts GroupStudyFOMO out/group-study-fomo.mp4 --codec=h264 --crf=18",
+    "render:aesthetic": "npx remotion render src/index.ts AestheticSetup out/aesthetic-setup.mp4 --codec=h264 --crf=18",
+    "render:spacedrep": "npx remotion render src/index.ts SpacedRepSecret out/spaced-rep-secret.mp4 --codec=h264 --crf=18",
+    "render:semester": "npx remotion render src/index.ts SemesterInSeconds out/semester-in-seconds.mp4 --codec=h264 --crf=18",
+    "render:darkacademia": "npx remotion render src/index.ts DarkAcademiaStudy out/dark-academia-study.mp4 --codec=h264 --crf=18",
+    "render:streak": "npx remotion render src/index.ts StreakChallenge out/streak-challenge.mp4 --codec=h264 --crf=18"
   },
   "dependencies": {
     "@remotion/cli": "4.0.242",
@@ -23,7 +29,7 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "canvas": "^3.2.1",
     "typescript": "^5.6.3"
   }
 }

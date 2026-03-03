@@ -1,25 +1,30 @@
 import React from 'react';
-import {
-  useCurrentFrame,
-  useVideoConfig,
-  spring,
-  interpolate,
-} from 'remotion';
-import { COLORS } from '../constants';
-import { FONTS } from '../fonts';
+import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { COLORS, SPRINGS } from '../constants';
+import { cormorant, inter } from '../fonts';
 
-type TextRevealProps = {
+interface TextRevealProps {
   lines: string[];
   staggerFrames?: number;
   fontSize?: number;
-  align?: 'left' | 'center';
-};
+  align?: 'left' | 'center' | 'right';
+  color?: string;
+  font?: 'serif' | 'sans';
+  fontWeight?: number;
+  delay?: number;
+  italic?: boolean;
+}
 
 export const TextReveal: React.FC<TextRevealProps> = ({
   lines,
-  staggerFrames = 20,
+  staggerFrames = 8,
   fontSize = 48,
   align = 'center',
+  color = COLORS.text,
+  font = 'serif',
+  fontWeight = 700,
+  delay = 0,
+  italic = false,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -29,33 +34,38 @@ export const TextReveal: React.FC<TextRevealProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: align === 'center' ? 'center' : 'flex-start',
-        gap: 16,
+        alignItems:
+          align === 'center'
+            ? 'center'
+            : align === 'right'
+            ? 'flex-end'
+            : 'flex-start',
+        gap: fontSize * 0.3,
       }}
     >
       {lines.map((line, i) => {
-        const lineDelay = i * staggerFrames;
-        const entrance = spring({
+        const lineDelay = delay + i * staggerFrames;
+        const progress = spring({
           frame: frame - lineDelay,
           fps,
-          config: { damping: 16, stiffness: 100 },
+          config: SPRINGS.snappy,
+          from: 0,
+          to: 1,
         });
-
-        const translateY = interpolate(entrance, [0, 1], [40, 0]);
-        const opacity = interpolate(entrance, [0, 1], [0, 1]);
 
         return (
           <div
             key={i}
             style={{
-              fontFamily: FONTS.serif,
+              fontFamily: font === 'serif' ? cormorant : inter,
               fontSize,
-              fontWeight: 700,
-              color: COLORS.text,
-              opacity,
-              transform: `translateY(${translateY}px)`,
+              fontWeight,
+              fontStyle: italic ? 'italic' : 'normal',
+              color,
+              opacity: progress,
+              transform: `translateY(${(1 - progress) * 30}px)`,
               textAlign: align,
-              lineHeight: 1.3,
+              lineHeight: 1.2,
             }}
           >
             {line}

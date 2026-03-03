@@ -34,13 +34,14 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
 
     app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
         try {
-            const users = await db.query('SELECT id, username, email, share_code, avatar, bio, streak_data, is_admin, role, created_at FROM users ORDER BY created_at DESC');
+            const users = await db.query('SELECT id, username, email, share_code, avatar, bio, streak_data, is_admin, role, subscription_tier, created_at FROM users ORDER BY created_at DESC');
             res.json(users.map(u => {
                 const r = u.role || (u.is_admin === 1 ? 'admin' : 'user');
                 return {
                     id: u.id, username: u.username, email: u.email, shareCode: u.share_code,
                     avatar: u.avatar, bio: u.bio || '', streakData: JSON.parse(u.streak_data || '{}'),
                     role: r, isAdmin: r === 'admin' || r === 'owner', isOwner: r === 'owner',
+                    subscriptionTier: u.subscription_tier || 'free',
                     createdAt: u.created_at
                 };
             }));
@@ -54,8 +55,8 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
         const { id } = req.params;
         const { role } = req.body;
 
-        if (!['user', 'admin'].includes(role)) {
-            return res.status(400).json({ error: 'Role must be "user" or "admin"' });
+        if (!['user', 'admin', 'friends'].includes(role)) {
+            return res.status(400).json({ error: 'Role must be "user", "admin", or "friends"' });
         }
 
         try {
@@ -70,9 +71,19 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
             }
 
             const isAdminVal = role === 'admin' ? 1 : 0;
-            await db.execute('UPDATE users SET role = $1, is_admin = $2 WHERE id = $3', [role, isAdminVal, id]);
 
-            res.json({ id: target.id, username: target.username, role, isAdmin: role === 'admin' });
+            // Friends role grants lifetime membership
+            if (role === 'friends') {
+                await db.execute('UPDATE users SET role = $1, is_admin = $2, subscription_tier = $3 WHERE id = $4', [role, isAdminVal, 'lifetime', id]);
+            } else if (target.role === 'friends') {
+                // Removing friends role reverts subscription to free
+                await db.execute('UPDATE users SET role = $1, is_admin = $2, subscription_tier = $3 WHERE id = $4', [role, isAdminVal, 'free', id]);
+            } else {
+                await db.execute('UPDATE users SET role = $1, is_admin = $2 WHERE id = $3', [role, isAdminVal, id]);
+            }
+
+            const subscriptionTier = role === 'friends' ? 'lifetime' : (target.role === 'friends' ? 'free' : (target.subscription_tier || 'free'));
+            res.json({ id: target.id, username: target.username, role, isAdmin: role === 'admin', subscriptionTier });
         } catch (error) {
             res.status(500).json({ error: 'Failed to update user role' });
         }

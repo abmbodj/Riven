@@ -617,7 +617,13 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
         setChangingRole(userId);
         try {
             await onRoleChange(userId, newRole);
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole, isAdmin: newRole === 'admin', isOwner: false } : u));
+            setUsers(prev => prev.map(u => u.id === userId ? {
+                ...u,
+                role: newRole,
+                isAdmin: newRole === 'admin',
+                isOwner: false,
+                subscriptionTier: newRole === 'friends' ? 'lifetime' : (u.role === 'friends' ? 'free' : u.subscriptionTier)
+            } : u));
         } catch (err) {
             const errorMessage = err?.message || 'Failed to change role';
             alert(errorMessage);
@@ -629,6 +635,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
     const ROLE_STYLES = {
         owner: { label: 'OWNER', cls: 'bg-claude-accent/15 text-claude-accent' },
         admin: { label: 'ADMIN', cls: 'bg-botanical-forest/15 text-botanical-forest' },
+        friends: { label: 'FRIEND', cls: 'bg-purple-500/15 text-purple-400' },
         user: { label: 'USER', cls: 'bg-claude-secondary/15 text-claude-secondary' }
     };
 
@@ -697,6 +704,19 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                                                     }`}
                                             >
                                                 {changingRole === u.id ? '…' : role === 'admin' ? 'Demote' : 'Promote'}
+                                            </button>
+                                        )}
+                                        {/* Owner controls: friend toggle */}
+                                        {isOwner && role !== 'owner' && role !== 'admin' && (
+                                            <button
+                                                disabled={changingRole === u.id}
+                                                onClick={() => handleRoleChange(u.id, role === 'friends' ? 'user' : 'friends')}
+                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all touch-target tap-action native-press ${role === 'friends'
+                                                    ? 'bg-purple-500/10 text-purple-400'
+                                                    : 'bg-purple-500/10 text-purple-400/60'
+                                                    }`}
+                                            >
+                                                {changingRole === u.id ? '…' : role === 'friends' ? 'Unfriend' : 'Friend'}
                                             </button>
                                         )}
                                         {role !== 'owner' && (

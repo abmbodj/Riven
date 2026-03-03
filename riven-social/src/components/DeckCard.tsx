@@ -1,137 +1,135 @@
 import React from 'react';
-import {
-  useCurrentFrame,
-  useVideoConfig,
-  spring,
-  interpolate,
-} from 'remotion';
-import { SKINS, type SkinName, COLORS } from '../constants';
-import { FONTS } from '../fonts';
+import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { COLORS, SKINS, SPRINGS, type SkinName } from '../constants';
+import { cormorant, inter } from '../fonts';
 
-type DeckCardProps = {
+interface DeckCardProps {
   title: string;
   cardCount: number;
   tag?: string;
-  skin: SkinName;
-  animateIn?: boolean;
+  skin?: SkinName;
   delay?: number;
-};
+  width?: number;
+  height?: number;
+}
 
 export const DeckCard: React.FC<DeckCardProps> = ({
   title,
   cardCount,
   tag,
-  skin,
-  animateIn = true,
+  skin = 'parchment',
   delay = 0,
+  width = 280,
+  height = 200,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const skinDef = SKINS[skin];
 
-  const entrance = animateIn
-    ? spring({ frame, fps, delay, config: { damping: 14, stiffness: 120 } })
-    : 1;
+  const entrance = spring({
+    frame: frame - delay,
+    fps,
+    config: SPRINGS.snappy,
+    from: 0,
+    to: 1,
+  });
 
-  const translateY = interpolate(entrance, [0, 1], [120, 0]);
-  const opacity = interpolate(entrance, [0, 1], [0, 1]);
+  const translateY = (1 - entrance) * 40;
+  const rotation = (1 - entrance) * (delay % 2 === 0 ? -0.8 : 0.8);
 
   return (
     <div
       style={{
-        width: 360,
-        borderRadius: 20,
+        width,
+        height,
+        backgroundColor: skinDef.bg,
+        borderRadius: 12,
         overflow: 'hidden',
-        boxShadow: `0 20px 60px ${COLORS.cardShadow}`,
-        transform: `translateY(${translateY}px)`,
-        opacity,
+        position: 'relative',
+        opacity: entrance,
+        transform: `translateY(${translateY}px) rotate(${rotation}deg)`,
+        boxShadow: `0 8px 24px ${COLORS.cardShadow}`,
       }}
     >
-      {/* Clip / top accent bar */}
+      {/* Top accent bar */}
       <div
         style={{
-          height: 14,
+          height: 6,
           backgroundColor: skinDef.clip,
-          borderRadius: '20px 20px 0 0',
+          width: '100%',
         }}
       />
 
-      {/* Card body */}
-      <div
-        style={{
-          backgroundColor: skinDef.bg,
-          padding: '36px 28px 28px',
-          position: 'relative',
-        }}
-      >
+      {/* Galaxy stars */}
+      {skin === 'galaxy' &&
+        Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 2,
+              height: 2,
+              borderRadius: '50%',
+              backgroundColor: '#fff',
+              top: `${15 + Math.random() * 70}%`,
+              left: `${5 + Math.random() * 90}%`,
+              opacity: 0.4 + Math.sin((frame + i * 20) / 15) * 0.4,
+            }}
+          />
+        ))}
+
+      {/* Content */}
+      <div style={{ padding: '20px 18px' }}>
         {tag && (
           <div
             style={{
-              fontFamily: FONTS.sans,
-              fontSize: 13,
+              fontFamily: inter,
+              fontSize: 11,
               fontWeight: 600,
-              letterSpacing: 2,
-              textTransform: 'uppercase',
               color: skinDef.clip,
-              marginBottom: 10,
+              textTransform: 'uppercase',
+              letterSpacing: 1.5,
+              marginBottom: 8,
             }}
           >
             {tag}
           </div>
         )}
-
         <div
           style={{
-            fontFamily: FONTS.serif,
-            fontSize: 28,
+            fontFamily: cormorant,
+            fontSize: 22,
             fontWeight: 700,
+            fontStyle: 'italic',
             color: skinDef.text,
-            lineHeight: 1.3,
-            marginBottom: 16,
+            lineHeight: 1.2,
+            marginBottom: 12,
           }}
         >
           {title}
         </div>
-
         <div
           style={{
-            fontFamily: FONTS.sans,
-            fontSize: 15,
+            fontFamily: inter,
+            fontSize: 13,
             color: skinDef.text,
             opacity: 0.6,
           }}
         >
           {cardCount} cards
         </div>
-
-        {/* Galaxy skin — star particles */}
-        {skin === 'galaxy' && (
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const twinkle = interpolate(
-                Math.sin((frame + i * 20) * 0.05),
-                [-1, 1],
-                [0.2, 0.9]
-              );
-              return (
-                <div
-                  key={i}
-                  style={{
-                    position: 'absolute',
-                    width: 3,
-                    height: 3,
-                    borderRadius: '50%',
-                    backgroundColor: '#fff',
-                    opacity: twinkle,
-                    top: `${10 + (i * 37) % 80}%`,
-                    left: `${5 + (i * 53) % 90}%`,
-                  }}
-                />
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      {/* Paper texture overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.01) 3px, rgba(0,0,0,0.01) 4px)',
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   );
 };

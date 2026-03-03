@@ -1,24 +1,18 @@
-// Run this script to generate a grain.png texture
-// Usage: node generate-grain.js
-// Requires: npm install canvas
-
 const { createCanvas } = require('canvas');
 const fs = require('fs');
 
-const SIZE = 512;
-const canvas = createCanvas(SIZE, SIZE);
+const size = 512;
+const canvas = createCanvas(size, size);
 const ctx = canvas.getContext('2d');
 
-const imageData = ctx.createImageData(SIZE, SIZE);
-for (let i = 0; i < imageData.data.length; i += 4) {
-  const val = Math.random() * 255;
-  imageData.data[i] = val;     // R
-  imageData.data[i + 1] = val; // G
-  imageData.data[i + 2] = val; // B
-  imageData.data[i + 3] = 40;  // A (low opacity)
+for (let x = 0; x < size; x++) {
+  for (let y = 0; y < size; y++) {
+    const v = Math.floor(Math.random() * 256);
+    ctx.fillStyle = `rgba(${v},${v},${v},0.16)`;
+    ctx.fillRect(x, y, 1, 1);
+  }
 }
-ctx.putImageData(imageData, 0, 0);
 
 const buffer = canvas.toBuffer('image/png');
-fs.writeFileSync('./public/grain.png', buffer);
-console.log('✅ grain.png generated (512x512)');
+fs.writeFileSync('public/grain.png', buffer);
+console.log('grain.png generated');

@@ -1,33 +1,34 @@
 import React from 'react';
-import {
-  useCurrentFrame,
-  useVideoConfig,
-  spring,
-  interpolate,
-} from 'remotion';
-import { COLORS } from '../constants';
-import { FONTS } from '../fonts';
+import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { COLORS, SPRINGS } from '../constants';
+import { cormorant } from '../fonts';
 
-type LogoProps = {
+interface LogoProps {
   showWordmark?: boolean;
-  animateIn?: boolean;
   tagline?: string;
-};
+  delay?: number;
+  scale?: number;
+}
 
 export const Logo: React.FC<LogoProps> = ({
   showWordmark = true,
-  animateIn = true,
   tagline,
+  delay = 0,
+  scale: baseScale = 1,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const entrance = animateIn
-    ? spring({ frame, fps, config: { damping: 15, stiffness: 80 } })
-    : 1;
+  const entrance = spring({
+    frame: frame - delay,
+    fps,
+    config: SPRINGS.bouncy,
+    from: 0,
+    to: 1,
+  });
 
-  const scale = interpolate(entrance, [0, 1], [0.7, 1]);
-  const opacity = interpolate(entrance, [0, 1], [0, 1]);
+  const scaleAnim = entrance * baseScale;
+  const opacity = Math.min(entrance * 2, 1);
 
   return (
     <div
@@ -35,101 +36,98 @@ export const Logo: React.FC<LogoProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 20,
-        transform: `scale(${scale})`,
+        gap: 16,
+        transform: `scale(${scaleAnim})`,
         opacity,
       }}
     >
-      {/* Logo mark — botanical plant + flashcard */}
-      <svg width={120} height={140} viewBox="0 0 120 140">
-        {/* Flashcard base */}
+      {/* Plant + Card Logo */}
+      <svg width={80} height={90} viewBox="0 0 80 90">
+        {/* Card base */}
+        <rect
+          x={15}
+          y={30}
+          width={50}
+          height={55}
+          rx={6}
+          fill={COLORS.accent}
+          opacity={0.9}
+        />
         <rect
           x={20}
-          y={50}
-          width={80}
-          height={80}
-          rx={8}
-          fill={COLORS.text}
-          opacity={0.95}
+          y={35}
+          width={40}
+          height={45}
+          rx={4}
+          fill={COLORS.bg}
         />
-        <rect
-          x={26}
-          y={56}
-          width={68}
-          height={68}
-          rx={5}
-          fill="none"
-          stroke={COLORS.accent}
-          strokeWidth={1.5}
-          opacity={0.3}
-        />
-
-        {/* Plant sprouting from card */}
+        {/* Plant stem */}
         <line
-          x1={60}
-          y1={50}
-          x2={60}
-          y2={15}
-          stroke={COLORS.secondary}
+          x1={40}
+          y1={35}
+          x2={40}
+          y2={10}
+          stroke={COLORS.green}
           strokeWidth={3}
           strokeLinecap="round"
         />
-        {/* Left leaf */}
+        {/* Leaves */}
+        <ellipse
+          cx={32}
+          cy={18}
+          rx={10}
+          ry={5}
+          fill={COLORS.green}
+          transform="rotate(-30 32 18)"
+        />
         <ellipse
           cx={48}
-          cy={30}
-          rx={12}
-          ry={6}
-          fill={COLORS.secondary}
-          transform="rotate(-35, 48, 30)"
-        />
-        {/* Right leaf */}
-        <ellipse
-          cx={72}
           cy={22}
-          rx={12}
-          ry={6}
-          fill={COLORS.secondaryLight}
-          transform="rotate(30, 72, 22)"
+          rx={10}
+          ry={5}
+          fill={COLORS.green}
+          transform="rotate(25 48 22)"
+          opacity={0.8}
         />
-        {/* Top bud */}
-        <circle cx={60} cy={12} r={5} fill={COLORS.accent} opacity={0.9} />
-
-        {/* Card lines */}
-        <line x1={34} y1={80} x2={86} y2={80} stroke={COLORS.background} strokeWidth={1.5} opacity={0.15} />
-        <line x1={34} y1={92} x2={72} y2={92} stroke={COLORS.background} strokeWidth={1.5} opacity={0.15} />
-        <line x1={34} y1={104} x2={80} y2={104} stroke={COLORS.background} strokeWidth={1.5} opacity={0.15} />
+        <ellipse
+          cx={35}
+          cy={28}
+          rx={8}
+          ry={4}
+          fill={COLORS.green}
+          transform="rotate(-15 35 28)"
+          opacity={0.6}
+        />
       </svg>
 
       {showWordmark && (
-        <div
+        <span
           style={{
-            fontFamily: FONTS.serif,
+            fontFamily: cormorant,
             fontSize: 56,
             fontWeight: 700,
+            fontStyle: 'italic',
             color: COLORS.text,
-            letterSpacing: 4,
+            letterSpacing: 6,
+            textTransform: 'uppercase',
           }}
         >
-          RIVEN
-        </div>
+          Riven
+        </span>
       )}
 
       {tagline && (
-        <div
+        <span
           style={{
-            fontFamily: FONTS.sans,
-            fontSize: 18,
-            fontWeight: 500,
-            color: COLORS.text,
-            opacity: 0.6,
-            letterSpacing: 2,
-            textTransform: 'uppercase',
+            fontFamily: cormorant,
+            fontSize: 24,
+            color: COLORS.textMuted,
+            fontStyle: 'italic',
             marginTop: -8,
           }}
         >
           {tagline}
-        </div>
+        </span>
       )}
     </div>
   );
