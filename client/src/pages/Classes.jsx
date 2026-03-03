@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
     Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2,
-    Lock, Network, Link
+    Lock, Network, Link, Crown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
+import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
 
 const CLASS_COLORS = [
@@ -83,6 +85,8 @@ ClassCard.displayName = 'ClassCard';
 export default function Classes() {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user } = useAuth();
+    const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
     const [classes, setClasses] = useState([]);
     const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -93,6 +97,7 @@ export default function Classes() {
     const [showModal, setShowModal] = useState(false);
     const [editingClass, setEditingClass] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [pricingOpen, setPricingOpen] = useState(false);
 
     // Form
     const [formData, setFormData] = useState({
@@ -607,6 +612,12 @@ export default function Classes() {
                 onCancel={() => setDeleteConfirm({ show: false, item: null })}
             />
 
+            <PricingModal
+                isOpen={pricingOpen}
+                onClose={() => setPricingOpen(false)}
+                currentTier={user?.subscription_tier || 'free'}
+            />
+
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
@@ -641,15 +652,26 @@ export default function Classes() {
                                             ].map(method => {
                                                 const isActive = creationMethod === method.id;
                                                 const Icon = method.icon;
+                                                const isCanvasLocked = method.id === 'canvas' && !isPremium;
                                                 return (
                                                     <button
                                                         key={method.id}
                                                         type="button"
-                                                        onClick={() => { haptics.light(); setCreationMethod(method.id); }}
+                                                        onClick={() => {
+                                                            haptics.light();
+                                                            if (isCanvasLocked) {
+                                                                setPricingOpen(true);
+                                                            } else {
+                                                                setCreationMethod(method.id);
+                                                            }
+                                                        }}
                                                         className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-mono text-[10px] uppercase font-bold tracking-widest transition-all ${isActive ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
                                                     >
                                                         <Icon className="w-3.5 h-3.5" />
                                                         <span className="truncate">{method.label}</span>
+                                                        {isCanvasLocked && (
+                                                            <Crown className="w-3 h-3 text-amber-400 shrink-0" />
+                                                        )}
                                                     </button>
                                                 );
                                             })}

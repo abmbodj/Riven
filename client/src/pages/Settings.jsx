@@ -50,6 +50,7 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
 
 export default function Settings() {
     const { signOut, user, refreshUser } = useAuth();
+    const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
     const { activeTheme } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const toast = useToast();
@@ -279,15 +280,33 @@ export default function Settings() {
                             <div className="p-3 rounded-2xl bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 shadow-inner">
                                 <Network className="w-6 h-6 text-[#0ea5e9]" />
                             </div>
-                            <div>
-                                <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold">Canvas Sync</h3>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold">Canvas Sync</h3>
+                                    {!isPremium && (
+                                        <span className="text-[9px] font-mono px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full uppercase tracking-widest font-bold">PRO</span>
+                                    )}
+                                </div>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
                                     {lmsStatus.isConnected ? `Connected via Calendar Feed` : 'Import courses & assignments'}
                                 </p>
                             </div>
                         </div>
 
-                        {!lmsStatus.loading && (
+                        {!isPremium ? (
+                            <div className="relative z-10 pt-2">
+                                <p className="text-[11px] font-mono text-botanical-sepia/70 leading-relaxed mb-4">
+                                    Automatically import your courses and assignments from Canvas. Upgrade to unlock this integration.
+                                </p>
+                                <button
+                                    onClick={() => { haptics.medium(); openModal('pricing'); }}
+                                    className="w-full bg-gradient-to-r from-amber-500 to-amber-400 text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-amber-500/20"
+                                >
+                                    <Crown className="w-4 h-4" />
+                                    Upgrade to Connect Canvas
+                                </button>
+                            </div>
+                        ) : !lmsStatus.loading && (
                             <div className="relative z-10">
                                 <AnimatePresence mode="wait">
                                     {!lmsStatus.isConnected ? (
