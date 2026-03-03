@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import X from 'lucide-react/dist/esm/icons/x';
 import Info from 'lucide-react/dist/esm/icons/info';
@@ -73,34 +74,41 @@ export default function GlobalMessages() {
 
     return (
         <div role="region" aria-live="polite" aria-label="System messages" className="space-y-2 mb-4">
-            {messages.map(message => {
-                const styles = getTypeStyles(message.type);
-                return (
-                    <div
-                        key={message.id}
-                        className={`p-3 rounded-xl border ${styles.bg} animate-in slide-in-from-top duration-300`}
-                    >
-                        <div className="flex items-start gap-3">
-                            {styles.icon}
-                            <div className="flex-1 min-w-0">
-                                <h4 className={`text-sm font-semibold ${styles.text}`}>
-                                    {message.title}
-                                </h4>
-                                <p className="text-xs text-claude-secondary mt-0.5">
-                                    {message.content}
-                                </p>
+            <AnimatePresence mode="popLayout">
+                {messages.map(message => {
+                    const styles = getTypeStyles(message.type);
+                    return (
+                        <motion.div
+                            key={message.id}
+                            layout
+                            initial={{ opacity: 0, y: -20, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                            className={`p-3 rounded-xl border ${styles.bg}`}
+                        >
+                            <div className="flex items-start gap-3">
+                                {styles.icon}
+                                <div className="flex-1 min-w-0">
+                                    <h4 className={`text-sm font-semibold ${styles.text}`}>
+                                        {message.title}
+                                    </h4>
+                                    <p className="text-xs text-claude-secondary mt-0.5">
+                                        {message.content}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleDismiss(message.id)}
+                                    aria-label="Dismiss message"
+                                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-claude-border/30 text-claude-secondary hover:text-claude-text transition-colors shrink-0"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => handleDismiss(message.id)}
-                                aria-label="Dismiss message"
-                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-claude-border/30 text-claude-secondary hover:text-claude-text transition-colors shrink-0"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                );
-            })}
+                        </motion.div>
+                    );
+                })}
+            </AnimatePresence>
         </div>
     );
 }
