@@ -91,6 +91,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                                     {REPORT_REASONS.map(reason => (
                                         <label
                                             key={reason.id}
+                                            htmlFor={`report-reason-${reason.id}`}
                                             className={`
                                                 flex flex-col p-3 rounded-xl border cursor-pointer transition-colors
                                                 ${selectedReason === reason.id
@@ -98,9 +99,18 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                                                     : 'border-claude-border bg-white/5 hover:bg-white/10'}
                                             `}
                                         >
+                                            <input
+                                                type="radio"
+                                                id={`report-reason-${reason.id}`}
+                                                name="report-reason"
+                                                value={reason.id}
+                                                checked={selectedReason === reason.id}
+                                                onChange={() => setSelectedReason(reason.id)}
+                                                className="sr-only"
+                                            />
                                             <div className="flex items-center gap-3">
                                                 <div className={`
-                                                    w-4 h-4 rounded-full border-2 flex items-center justify-center
+                                                    w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
                                                     ${selectedReason === reason.id ? 'border-red-400' : 'border-claude-secondary'}
                                                 `}>
                                                     {selectedReason === reason.id && (
