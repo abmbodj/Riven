@@ -37,6 +37,12 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         if (!name) return res.status(400).json({ error: 'Group name is required' });
 
         try {
+            // Check if user is banned
+            const currentUser = await db.queryOne('SELECT is_banned FROM users WHERE id = $1', [req.user.id]);
+            if (currentUser && currentUser.is_banned) {
+                return res.status(403).json({ error: 'Your account has been restricted from creating study groups.' });
+            }
+
             // Start transaction
             const client = await db.pool.connect();
             try {
@@ -224,6 +230,12 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         const formattedCode = join_code.toUpperCase().trim();
 
         try {
+            // Check if user is banned
+            const currentUser = await db.queryOne('SELECT is_banned FROM users WHERE id = $1', [req.user.id]);
+            if (currentUser && currentUser.is_banned) {
+                return res.status(403).json({ error: 'Your account has been restricted from joining study groups.' });
+            }
+
             const group = await db.queryOne('SELECT id, name FROM study_groups WHERE join_code = $1', [formattedCode]);
 
             if (!group) return res.status(404).json({ error: 'Invalid join code' });

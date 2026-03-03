@@ -1,6 +1,6 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award, UserMinus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -432,6 +432,11 @@ export default function Settings() {
                     </div>
                 </motion.div>
 
+                {/* Privacy & Safety Bento */}
+                <motion.div variants={itemVariants}>
+                    <BlockedUsersCard />
+                </motion.div>
+
                 {/* Atmosphere Setting - Premium Standalone Card */}
                 <motion.div variants={itemVariants} className="pt-2">
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
@@ -628,5 +633,117 @@ function ReferralCard() {
                 </div>
             </div>
         </motion.div>
+    );
+}
+
+function BlockedUsersCard() {
+    const [blockedUsers, setBlockedUsers] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [unblockingId, setUnblockingId] = React.useState(null);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const toast = useToast();
+
+    const fetchBlockedUsers = useCallback(async () => {
+        setLoading(true);
+        try {
+            // Need to import directly or destruct from api object if it exports it. 
+            // In API file: export const getBlockedUsers = ... 
+            // Assuming it is exported in `index.js` as well.
+            const { getBlockedUsers } = await import('../api/authApi');
+            const data = await getBlockedUsers();
+            setBlockedUsers(data || []);
+        } catch (err) {
+            console.error('Failed to load blocked users', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (isOpen) {
+            fetchBlockedUsers();
+        }
+    }, [isOpen, fetchBlockedUsers]);
+
+    const handleUnblock = async (userId) => {
+        setUnblockingId(userId);
+        try {
+            const { unblockUser } = await import('../api/authApi');
+            await unblockUser(userId);
+            setBlockedUsers(prev => prev.filter(u => u.blocked_user_id !== userId));
+            toast('User unblocked successfully.');
+        } catch (err) {
+            toast.error(err.message || 'Failed to unblock user.');
+        } finally {
+            setUnblockingId(null);
+        }
+    };
+
+    return (
+        <div className="pt-2">
+            <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary mb-3 pl-2">
+                Privacy & Safety
+            </h2>
+            <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm transition-all duration-300">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="w-full py-4 px-5 flex items-center gap-4 active:bg-claude-surface/40 transition-colors group"
+                >
+                    <div className="p-2.5 rounded-xl bg-claude-bg text-claude-text/70 shadow-sm border border-claude-border/50 group-hover:scale-110 transition-transform duration-300">
+                        <UserMinus className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 text-left z-10">
+                        <p className="font-display text-[16px] tracking-wide font-medium text-claude-text group-hover:text-claude-accent transition-colors">
+                            Blocked Users
+                        </p>
+                        <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
+                            Manage who you've blocked
+                        </p>
+                    </div>
+                    <ChevronRight className={`w-5 h-5 text-claude-secondary/30 transition-transform duration-300 ${isOpen ? 'rotate-90 text-claude-accent' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                    {isOpen && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-claude-bg/30 border-t border-claude-border/30 overflow-hidden"
+                        >
+                            <div className="p-4 space-y-3">
+                                {loading ? (
+                                    <div className="text-center py-6 text-sm py-4 text-claude-secondary font-mono animate-pulse">
+                                        Loading...
+                                    </div>
+                                ) : blockedUsers.length === 0 ? (
+                                    <div className="text-center py-6 text-sm text-claude-secondary italic font-body">
+                                        You haven't blocked anyone.
+                                    </div>
+                                ) : (
+                                    blockedUsers.map(u => (
+                                        <div key={u.blocked_user_id} className="flex items-center justify-between p-3 rounded-xl bg-claude-bg border border-claude-border/50">
+                                            <div>
+                                                <p className="text-sm font-semibold text-claude-text">{u.blocked_username}</p>
+                                                <p className="text-[10px] text-claude-secondary font-mono tracking-wider mt-0.5">
+                                                    Blocked {new Date(u.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleUnblock(u.blocked_user_id)}
+                                                disabled={unblockingId === u.blocked_user_id}
+                                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-claude-text bg-claude-surface hover:bg-claude-surface/80 border border-claude-border transition-colors disabled:opacity-50 touch-target tap-action native-press"
+                                            >
+                                                {unblockingId === u.blocked_user_id ? 'Unblocking...' : 'Unblock'}
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
     );
 }

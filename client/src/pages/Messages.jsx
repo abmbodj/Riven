@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Send, Search, Image, Layers,
-    Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X
+    Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X, ShieldAlert
 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
 import Avatar from '../components/Avatar';
+import ReportModal from '../components/ui/ReportModal';
 import * as authApi from '../api/authApi';
 
 // Global cache for instant load times
@@ -37,6 +38,11 @@ export default function Messages() {
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
     const [isTyping, setIsTyping] = useState(false);
+
+    // Reporting state
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isReporting, setIsReporting] = useState(false);
+    const [reportingMessageId, setReportingMessageId] = useState(null);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -301,6 +307,26 @@ export default function Messages() {
         inputRef.current?.focus();
     };
 
+    const handleReportMessageSubmit = async (reason, details) => {
+        setIsReporting(true);
+        try {
+            await authApi.reportContent({
+                reportedUserId: chatUser.id,
+                contentType: 'message',
+                contentId: reportingMessageId,
+                reason,
+                details
+            });
+            toast.success('Message reported successfully. Thank you.');
+            setIsReportModalOpen(false);
+            setReportingMessageId(null);
+        } catch (err) {
+            toast.error(err.message || 'Failed to submit report');
+        } finally {
+            setIsReporting(false);
+        }
+    };
+
     const handleAcceptDeck = async (messageId) => {
         setAcceptingDeck(messageId);
         try {
@@ -342,6 +368,20 @@ export default function Messages() {
 
     // Conversations List View
     if (!userId) {
+        if (user?.is_banned) {
+            return (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center sm:max-w-md sm:mx-auto">
+                    <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                        <ShieldAlert className="w-10 h-10 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-display font-bold text-claude-text mb-3">Messaging Disabled</h2>
+                    <p className="text-sm text-claude-secondary leading-relaxed max-w-xs">
+                        Your account has been restricted from using social features due to a violation of our community guidelines.
+                    </p>
+                </div>
+            );
+        }
+
         return (
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -616,35 +656,48 @@ export default function Messages() {
                                                         <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-botanical-forest/10" />
                                                     )}
 
-                                                    {/* Message Options (Edit/Delete) */}
-                                                    {msg.isMine && (
-                                                        <div className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex">
-                                                            <div className="relative">
-                                                                <button
-                                                                    onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
-                                                                    className="p-1.5 text-claude-secondary hover:text-botanical-parchment hover:bg-claude-border/20 rounded-lg transition-colors"
-                                                                >
-                                                                    <MoreVertical className="w-4 h-4" />
-                                                                </button>
-                                                                {activeMenuId === msg.id && (
-                                                                    <div className="absolute right-full top-0 mr-2 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50">
+                                                    {/* Message Options (Edit/Delete/Report) */}
+                                                    <div className={`absolute ${msg.isMine ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex`}>
+                                                        <div className="relative">
+                                                            <button
+                                                                onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                                                                className="p-1.5 text-claude-secondary hover:text-botanical-parchment hover:bg-claude-border/20 rounded-lg transition-colors"
+                                                            >
+                                                                <MoreVertical className="w-4 h-4" />
+                                                            </button>
+                                                            {activeMenuId === msg.id && (
+                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50`}>
+                                                                    {msg.isMine ? (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => startEditing(msg)}
+                                                                                className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-claude-bg/50 text-claude-text transition-colors"
+                                                                            >
+                                                                                <Edit2 className="w-4 h-4" /> Edit
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDeleteMessage(msg.id)}
+                                                                                className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" /> Delete
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
                                                                         <button
-                                                                            onClick={() => startEditing(msg)}
-                                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-claude-bg/50 text-claude-text transition-colors"
-                                                                        >
-                                                                            <Edit2 className="w-4 h-4" /> Edit
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => handleDeleteMessage(msg.id)}
+                                                                            onClick={() => {
+                                                                                setReportingMessageId(msg.id);
+                                                                                setIsReportModalOpen(true);
+                                                                                setActiveMenuId(null);
+                                                                            }}
                                                                             className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
                                                                         >
-                                                                            <Trash2 className="w-4 h-4" /> Delete
+                                                                            <ShieldAlert className="w-4 h-4" /> Report
                                                                         </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
+                                                    </div>
 
                                                     {msg.imageUrl && (
                                                         <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
@@ -825,6 +878,15 @@ export default function Messages() {
                     </div>
                 </div>
             </motion.form>
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    setIsReportModalOpen(false);
+                    setReportingMessageId(null);
+                }}
+                onSubmit={handleReportMessageSubmit}
+                isSubmitting={isReporting}
+            />
         </motion.div>
     );
 }

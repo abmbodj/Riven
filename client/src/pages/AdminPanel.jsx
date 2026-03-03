@@ -9,7 +9,7 @@ import {
     AlertTriangle, X, Send, BarChart3, TrendingUp,
     Megaphone, UserCircle, Calendar, Zap, Database,
     User, Mail, Key, Shield, ExternalLink, Activity, ArrowUp,
-    Leaf, BookOpen, Feather
+    Leaf, BookOpen, Feather, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -26,6 +26,10 @@ export default function AdminPanel() {
         adminCreateMessage,
         adminUpdateMessage,
         adminDeleteMessage,
+        adminGetReports,
+        adminResolveReport,
+        adminCloseReport,
+        adminBanUser,
         toggleSimulateFree
     } = useContext(AuthContext);
 
@@ -33,6 +37,7 @@ export default function AdminPanel() {
     const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
     const [messages, setMessages] = useState([]);
+    const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -48,21 +53,23 @@ export default function AdminPanel() {
     const loadData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const [statsData, usersData, messagesData] = await Promise.all([
+            const [statsData, usersData, messagesData, reportsData] = await Promise.all([
                 adminGetStats(),
                 getAllUsers(),
-                adminGetMessages()
+                adminGetMessages(),
+                adminGetReports()
             ]);
             setStats(statsData);
             setUsers(usersData || []);
             setMessages(messagesData || []);
+            setReports(reportsData || []);
         } catch (err) {
             console.error(err);
             setError('Failed to load admin data');
         } finally {
             setLoading(false);
         }
-    }, [adminGetStats, getAllUsers, adminGetMessages]);
+    }, [adminGetStats, getAllUsers, adminGetMessages, adminGetReports]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -130,11 +137,44 @@ export default function AdminPanel() {
         }
     };
 
+    const handleResolveReport = async (reportId) => {
+        try {
+            await adminResolveReport(reportId);
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+        } catch {
+            setError('Failed to resolve report');
+        }
+    };
+
+    const handleCloseReport = async (reportId) => {
+        try {
+            await adminCloseReport(reportId);
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: 'closed' } : r));
+        } catch {
+            setError('Failed to close report');
+        }
+    };
+
+    const handleBanUserFromReport = async (userId, reportId) => {
+        if (!confirm('Are you sure you want to completely ban this user? They will lose all access to social features.')) return;
+        try {
+            await adminBanUser(userId);
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+
+            // Re-fetch users to reflect ban status if we are on the users tab
+            const newUsersData = await getAllUsers();
+            setUsers(newUsersData || []);
+        } catch {
+            setError('Failed to ban user: You might not have permission, or they are an owner.');
+        }
+    };
+
     if (!isAdmin) return null;
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: BarChart3 },
         { id: 'users', label: 'Users', icon: Users },
+        { id: 'reports', label: 'Reports', icon: ShieldAlert },
         { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone },
         { id: 'account', label: 'Account', icon: User }
     ];
@@ -232,6 +272,10 @@ export default function AdminPanel() {
 
                             {activeTab === 'users' && (
                                 <UsersTab users={users} setUsers={setUsers} onDelete={handleDeleteUser} isOwner={isOwner} onRoleChange={adminUpdateUserRole} />
+                            )}
+
+                            {activeTab === 'reports' && (
+                                <ReportsTab reports={reports} onResolve={handleResolveReport} onClose={handleCloseReport} onBan={handleBanUserFromReport} />
                             )}
 
                             {activeTab === 'broadcasts' && (
@@ -926,5 +970,105 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                 </div>
             )}
         </motion.div>
+    );
+}
+
+function ReportsTab({ reports, onResolve, onClose, onBan }) {
+    const [filter, setFilter] = useState('pending'); // 'pending', 'resolved', 'closed', 'all'
+
+    const filteredReports = React.useMemo(() => {
+        if (filter === 'all') return reports;
+        return reports.filter(r => r.status === filter);
+    }, [reports, filter]);
+
+    const STATUS_COLORS = {
+        pending: 'bg-claude-accent/20 text-claude-accent border-claude-accent/30',
+        resolved: 'bg-botanical-forest/20 text-botanical-forest border-botanical-forest/30',
+        closed: 'bg-claude-secondary/20 text-claude-secondary border-claude-secondary/30'
+    };
+
+    return (
+        <div className="space-y-4">
+            {/* Filter Toggle */}
+            <div className="flex items-center gap-2 p-1.5 glass-panel rounded-xl overflow-x-auto no-scrollbar scroll-smooth">
+                {['pending', 'resolved', 'closed', 'all'].map(status => (
+                    <button
+                        key={status}
+                        onClick={() => setFilter(status)}
+                        className={`capitalize px-4 py-2 rounded-lg text-[11px] font-bold tracking-widest font-mono transition-all whitespace-nowrap touch-target tap-action ${filter === status
+                            ? 'bg-claude-accent text-botanical-ink shadow-botanical-glow'
+                            : 'text-claude-secondary hover:text-claude-text'
+                            }`}
+                    >
+                        {status}
+                    </button>
+                ))}
+            </div>
+
+            {/* Reports List */}
+            <div className="space-y-3">
+                {filteredReports.length === 0 ? (
+                    <div className="text-center py-16 text-claude-secondary text-sm italic font-body glass-panel rounded-2xl">
+                        No {filter !== 'all' ? filter : ''} reports found.
+                    </div>
+                ) : (
+                    filteredReports.map(report => (
+                        <div key={report.id} className="p-4 rounded-xl botanical-card flex flex-col gap-3 group relative overflow-hidden">
+                            {/* Card Header: Reporter & Target */}
+                            <div className="flex justify-between items-start gap-3">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border ${STATUS_COLORS[report.status] || STATUS_COLORS.pending}`}>
+                                            {report.status}
+                                        </span>
+                                        <span className="text-[10px] font-mono text-claude-secondary uppercase tracking-[0.1em]">
+                                            Type: {report.content_type}
+                                        </span>
+                                    </div>
+                                    <h4 className="text-base font-display text-claude-text truncate">
+                                        Reported: <span className="text-claude-accent">{report.reported_username}</span>
+                                    </h4>
+                                    <p className="text-[11px] text-claude-secondary truncate">
+                                        Reported by {report.reporter_username} on {new Date(report.created_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Report Details */}
+                            <div className="bg-claude-surface/30 rounded-lg p-3 border border-claude-border/50">
+                                <p className="text-sm font-semibold text-claude-text mb-1">Reason: {report.reason}</p>
+                                <p className="text-xs text-claude-secondary whitespace-pre-wrap font-mono">
+                                    {report.details || '(No additional details provided)'}
+                                </p>
+                            </div>
+
+                            {/* Actions (Only for pending reports generally, but available all time as fallback) */}
+                            {report.status === 'pending' && (
+                                <div className="flex flex-wrap items-center gap-2 mt-2 pt-3 border-t border-claude-border/50">
+                                    <button
+                                        onClick={() => onResolve(report.id)}
+                                        className="flex-1 min-w-[100px] py-2 rounded-lg text-[11px] font-bold font-mono tracking-widest bg-botanical-forest/15 hover:bg-botanical-forest/25 text-botanical-forest border border-botanical-forest/30 transition-colors flex items-center justify-center gap-1.5 touch-target tap-action native-press"
+                                    >
+                                        <CheckCircle2 className="w-3.5 h-3.5" /> Resolve
+                                    </button>
+                                    <button
+                                        onClick={() => onClose(report.id)}
+                                        className="flex-1 min-w-[100px] py-2 rounded-lg text-[11px] font-bold font-mono tracking-widest bg-claude-surface/60 hover:bg-claude-surface/80 text-claude-secondary transition-colors flex items-center justify-center gap-1.5 touch-target tap-action native-press"
+                                    >
+                                        <X className="w-3.5 h-3.5" /> Close Return
+                                    </button>
+                                    <button
+                                        onClick={() => onBan(report.reported_user_id, report.id)}
+                                        className="w-full sm:w-auto px-4 py-2 rounded-lg text-[11px] font-bold font-mono tracking-widest bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors flex items-center justify-center gap-1.5 touch-target tap-action native-press"
+                                    >
+                                        <ShieldAlert className="w-3.5 h-3.5" /> Ban User
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
     );
 }

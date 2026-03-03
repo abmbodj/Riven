@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
-    Clock, Layers, Calendar, Shield, Leaf, User
+    Clock, Layers, Calendar, Shield, Leaf, User, ShieldAlert, Ban
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
 import Avatar from '../components/Avatar';
+import ReportModal from '../components/ui/ReportModal';
+import ConfirmModal from '../components/ConfirmModal';
 import * as authApi from '../api/authApi';
 
 const containerVariants = {
@@ -34,6 +36,12 @@ export default function UserProfile() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Repot & Block state
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isReporting, setIsReporting] = useState(false);
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    const [isBlocking, setIsBlocking] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -102,6 +110,38 @@ export default function UserProfile() {
             toast.error(errorMessage);
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const handleBlockUser = async () => {
+        setIsBlocking(true);
+        try {
+            await authApi.blockUser(profile.id);
+            toast.success('User blocked successfully');
+            navigate('/messages', { replace: true });
+        } catch (err) {
+            toast.error(err.message || 'Failed to block user');
+        } finally {
+            setIsBlocking(false);
+            setIsBlockModalOpen(false);
+        }
+    };
+
+    const handleReportSubmit = async (reason, details) => {
+        setIsReporting(true);
+        try {
+            await authApi.reportContent({
+                reportedUserId: profile.id,
+                contentType: 'user',
+                reason,
+                details
+            });
+            toast.success('Report submitted successfully. Thank you.');
+            setIsReportModalOpen(false);
+        } catch (err) {
+            toast.error(err.message || 'Failed to submit report');
+        } finally {
+            setIsReporting(false);
         }
     };
 
@@ -299,10 +339,45 @@ export default function UserProfile() {
                     </AnimatePresence>
                 </motion.div>
 
+                <motion.div variants={itemVariants} className="mt-8 pt-8 border-t border-botanical-sepia/10 flex flex-col gap-2">
+                    <button
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                        <ShieldAlert className="w-4 h-4" />
+                        Report User
+                    </button>
+                    <button
+                        onClick={() => setIsBlockModalOpen(true)}
+                        className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                        <Ban className="w-4 h-4" />
+                        Block User
+                    </button>
+                </motion.div>
+
                 <motion.div variants={itemVariants} className="mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
                     <Leaf className="w-4 h-4 opacity-50" />
                 </motion.div>
             </motion.div>
+
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                onSubmit={handleReportSubmit}
+                isSubmitting={isReporting}
+            />
+
+            <ConfirmModal
+                isOpen={isBlockModalOpen}
+                onClose={() => setIsBlockModalOpen(false)}
+                onConfirm={handleBlockUser}
+                title="Block User"
+                message={`Are you sure you want to block ${profile?.display_name || profile?.username}? They will not be able to interact with you, and their messages will be hidden.`}
+                confirmText="Block"
+                isDestructive={true}
+                isLoading={isBlocking}
+            />
         </div>
     );
 }

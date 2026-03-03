@@ -102,6 +102,11 @@ if (global.__TEST_DB_MOCK__) {
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'
             `).catch(() => { });
 
+            // Add is_banned column (migration)
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE
+            `).catch(() => { });
+
             // Migrate: promote existing is_admin=1 users to 'admin' role if still 'user'
             await client.query(`
                 UPDATE users SET role = 'admin' WHERE is_admin = 1 AND role = 'user'
@@ -519,6 +524,34 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // User Blocks table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_blocks (
+                    id SERIAL PRIMARY KEY,
+                    blocker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(blocker_id, blocked_id)
+                )
+            `);
+
+            // Reports table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS reports (
+                    id SERIAL PRIMARY KEY,
+                    reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    reported_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    content_type TEXT NOT NULL, -- 'user', 'message', 'group'
+                    content_id TEXT, -- ID of the message or group (can be UUID or int, so we use TEXT)
+                    reason TEXT NOT NULL,
+                    details TEXT,
+                    status TEXT DEFAULT 'pending', -- 'pending', 'resolved', 'closed'
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at TIMESTAMP,
+                    resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+                )
+            `);
+
             // Database schema initialized successfully
 
             // Create indexes for performance optimization
@@ -565,6 +598,14 @@ if (global.__TEST_DB_MOCK__) {
             `);
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_shared_decks_share_id ON shared_decks(share_id)
+            `);
+
+            // Indexes for blocks and reports
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_blocks_blocker_id ON user_blocks(blocker_id)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)
             `);
         } catch (error) {
             console.error('Database initialization error:', error);

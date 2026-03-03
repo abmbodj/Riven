@@ -288,6 +288,10 @@ module.exports = function registerAuthRoutes({
             const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
             if (!user) return res.status(404).json({ error: 'User not found' });
 
+            if (user.is_banned) {
+                return res.status(403).json({ error: 'Your account has been banned due to violations of our terms of service.' });
+            }
+
             const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
 
             // Ensure robust defaults for potential missing data

@@ -166,6 +166,10 @@ export function AuthProvider({ children }) {
     const adminCreateMessage = useCallback((t, c, type, exp) => authApi.adminCreateMessage(t, c, type, exp), []);
     const adminUpdateMessage = useCallback((id, u) => authApi.adminUpdateMessage(id, u), []);
     const adminDeleteMessage = useCallback((id) => authApi.adminDeleteMessage(id), []);
+    const adminGetReports = useCallback(() => authApi.adminGetReports(), []);
+    const adminResolveReport = useCallback((id) => authApi.adminResolveReport(id), []);
+    const adminCloseReport = useCallback((id) => authApi.adminCloseReport(id), []);
+    const adminBanUser = useCallback((id) => authApi.adminBanUser(id), []);
     const getActiveMessages = useCallback(() => authApi.getActiveMessages(), []);
     const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
     // Streak data is now part of user object or fetched via generic endpoint, 
@@ -211,6 +215,10 @@ export function AuthProvider({ children }) {
         adminCreateMessage,
         adminUpdateMessage,
         adminDeleteMessage,
+        adminGetReports,
+        adminResolveReport,
+        adminCloseReport,
+        adminBanUser,
         getActiveMessages,
         dismissMessage,
         toggleSimulateFree
@@ -219,6 +227,7 @@ export function AuthProvider({ children }) {
         deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser, adminDeleteUser,
         adminGetStats, adminUpdateUserRole, adminGetUserStreakData, adminUpdateStreakData,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
+        adminGetReports, adminResolveReport, adminCloseReport, adminBanUser,
         getActiveMessages, dismissMessage, toggleSimulateFree
     ]);
 

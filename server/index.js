@@ -400,6 +400,11 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
              ) sub
              JOIN messages m ON m.id = sub.id
              JOIN users u ON u.id = sub.other_user_id
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM user_blocks 
+                 WHERE (blocker_id = $1 AND blocked_id = sub.other_user_id)
+                    OR (blocked_id = $1 AND blocker_id = sub.other_user_id)
+             )
              ORDER BY other_user_id, m.created_at DESC`,
             [req.user.id]
         );
@@ -478,9 +483,26 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
     if (!content && !imageUrl && !deckData) return res.status(400).json({ error: 'Message content, image or deck is required' });
 
     try {
+        // Check if sender is banned
+        const senderCheck = await db.queryOne('SELECT is_banned, username, avatar FROM users WHERE id = $1', [req.user.id]);
+        if (senderCheck && senderCheck.is_banned) {
+            return res.status(403).json({ error: 'Your account has been restricted from sending messages.' });
+        }
+
         // Verify receiver exists
         const receiver = await db.queryOne('SELECT id FROM users WHERE id = $1', [receiverId]);
         if (!receiver) return res.status(404).json({ error: 'User not found' });
+
+        // Check if either user has blocked the other
+        const blockCheck = await db.queryOne(
+            `SELECT 1 FROM user_blocks 
+             WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocked_id = $1 AND blocker_id = $2)`,
+            [req.user.id, receiverId]
+        );
+
+        if (blockCheck) {
+            return res.status(403).json({ error: 'Cannot send message. You have blocked this user or they have blocked you.' });
+        }
 
         const message = await db.queryOne(
             `INSERT INTO messages (sender_id, receiver_id, content, message_type, deck_data, image_url) 
@@ -488,14 +510,11 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
             [req.user.id, receiverId, content || '', messageType, deckData ? JSON.stringify(deckData) : null, imageUrl || null]
         );
 
-        // Fetch sender details to send along with the socket event
-        const sender = await db.queryOne('SELECT username, avatar FROM users WHERE id = $1', [req.user.id]);
-
         const responseData = {
             id: message.id,
             senderId: message.sender_id,
-            senderUsername: sender?.username,
-            senderAvatar: sender?.avatar,
+            senderUsername: senderCheck?.username,
+            senderAvatar: senderCheck?.avatar,
             content: message.content,
             messageType: message.message_type,
             deckData: message.deck_data ? JSON.parse(message.deck_data) : null,

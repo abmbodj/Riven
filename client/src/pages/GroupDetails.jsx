@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers } from 'lucide-react';
+import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '../hooks/useToast';
 import { api } from '../api';
 import ConfirmModal from '../components/ConfirmModal';
+import ReportModal from '../components/ui/ReportModal';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
+import * as authApi from '../api/authApi';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -21,6 +23,7 @@ export default function GroupDetails() {
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
+    const isBanned = user?.is_banned;
 
     const [showSettings, setShowSettings] = useState(false);
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
@@ -47,9 +50,15 @@ export default function GroupDetails() {
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
 
-    // Action Loading States
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Reporting & Blocking
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isReporting, setIsReporting] = useState(false);
+    const [reportingUserId, setReportingUserId] = useState(null);
+    const [isBlocking, setIsBlocking] = useState(false);
+    const [activeMemberMenuId, setActiveMemberMenuId] = useState(null);
 
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
 
@@ -211,6 +220,42 @@ export default function GroupDetails() {
         });
     };
 
+    const handleBlockUser = (userId, name) => {
+        confirmAction('Block User', `Are you sure you want to block ${name}? They will no longer be able to interact with you.`, async () => {
+            setIsBlocking(true);
+            try {
+                await authApi.blockUser(userId);
+                toast.success('User blocked successfully');
+                // Refresh group to potentially clear blocked user's content (if backend filters it)
+                loadGroup();
+            } catch (err) {
+                toast.error(err.message || 'Failed to block user');
+            } finally {
+                setIsBlocking(false);
+            }
+        });
+    };
+
+    const handleReportUserSubmit = async (reason, details) => {
+        setIsReporting(true);
+        try {
+            await authApi.reportContent({
+                reportedUserId: reportingUserId,
+                contentType: 'user',
+                contentId: reportingUserId,
+                reason,
+                details
+            });
+            toast.success('Report submitted successfully. Thank you for keeping Riven safe.');
+            setIsReportModalOpen(false);
+            setReportingUserId(null);
+        } catch (err) {
+            toast.error(err.message || 'Failed to submit report');
+        } finally {
+            setIsReporting(false);
+        }
+    };
+
     const handleShareDeck = async (deckId) => {
         try {
             haptics.medium();
@@ -369,6 +414,22 @@ export default function GroupDetails() {
             toast.error(err.message || 'Failed to start session');
         }
     };
+
+    // Assuming 'user' is available from a context or prop
+    // For example: const { user } = useAuth();
+    if (user?.is_banned) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center sm:max-w-md sm:mx-auto">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                    <ShieldAlert className="w-10 h-10 text-red-500" />
+                </div>
+                <h2 className="text-2xl font-display font-bold text-claude-text mb-3">Group Access Restricted</h2>
+                <p className="text-sm text-claude-secondary leading-relaxed max-w-xs">
+                    Your account has been restricted from using social features due to a violation of our community guidelines.
+                </p>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -718,14 +779,54 @@ export default function GroupDetails() {
                                         </span>
                                     </div>
                                 </div>
-                                {isAdmin && member.role !== 'admin' && (
-                                    <button
-                                        onClick={() => handleRemoveMember(member.id, member.username)}
-                                        className="w-8 h-8 shrink-0 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg glass-panel"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
+
+                                <div className="flex items-center gap-2 relative">
+                                    {member.id !== currentUserId && (
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setActiveMemberMenuId(activeMemberMenuId === member.id ? null : member.id)}
+                                                className="w-8 h-8 shrink-0 flex items-center justify-center text-claude-secondary hover:text-claude-text hover:bg-claude-bg/50 transition-colors rounded-lg glass-panel"
+                                            >
+                                                <MoreVertical className="w-4 h-4" />
+                                            </button>
+
+                                            {activeMemberMenuId === member.id && (
+                                                <div className="absolute right-0 top-full mt-2 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[140px] z-50 py-1">
+                                                    {isAdmin && member.role !== 'admin' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                handleRemoveMember(member.id, member.username);
+                                                                setActiveMemberMenuId(null);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" /> Remove
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            handleBlockUser(member.id, member.username);
+                                                            setActiveMemberMenuId(null);
+                                                        }}
+                                                        className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                    >
+                                                        <Shield className="w-4 h-4" /> Block
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setReportingUserId(member.id);
+                                                            setIsReportModalOpen(true);
+                                                            setActiveMemberMenuId(null);
+                                                        }}
+                                                        className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-400 transition-colors"
+                                                    >
+                                                        <ShieldAlert className="w-4 h-4" /> Report
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </motion.div>
                         ))}
                     </AnimatePresence>
@@ -1038,6 +1139,16 @@ export default function GroupDetails() {
                 message={confirmModal.message}
                 onConfirm={handleConfirmAction}
                 onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })}
+            />
+
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    setIsReportModalOpen(false);
+                    setReportingUserId(null);
+                }}
+                onSubmit={handleReportUserSubmit}
+                isSubmitting={isReporting}
             />
         </>
     );
