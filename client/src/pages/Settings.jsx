@@ -540,11 +540,15 @@ export default function Settings() {
 }
 
 function ReferralCard() {
+    const { user } = useAuth();
     const [referralInfo, setReferralInfo] = React.useState(null);
     const [applyCode, setApplyCode] = React.useState('');
     const [copied, setCopied] = React.useState(false);
     const [applying, setApplying] = React.useState(false);
     const toast = useToast();
+
+    // Hide referral program for users who already have a membership
+    if (user?.subscription_tier && user.subscription_tier !== 'free') return null;
 
     React.useEffect(() => {
         api.getReferralInfo().then(data => {

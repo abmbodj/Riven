@@ -13,7 +13,12 @@ module.exports = function ({ app, db, authMiddleware }) {
     // GET: Get my referral info (code + progress)
     app.get('/api/referrals/me', authMiddleware, async (req, res) => {
         try {
-            const user = await db.queryOne('SELECT referral_code FROM users WHERE id = $1', [req.user.id]);
+            const user = await db.queryOne('SELECT referral_code, subscription_tier FROM users WHERE id = $1', [req.user.id]);
+
+            // Members don't need the referral program
+            if (user.subscription_tier && user.subscription_tier !== 'free') {
+                return res.json(null);
+            }
 
             // Auto-generate referral code if missing
             let code = user.referral_code;
@@ -55,6 +60,12 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.post('/api/referrals/apply', authMiddleware, async (req, res) => {
         const { code } = req.body;
         if (!code) return res.status(400).json({ error: 'Referral code required' });
+
+        // Members don't need referral codes
+        const subscriber = await db.queryOne('SELECT subscription_tier FROM users WHERE id = $1', [req.user.id]);
+        if (subscriber.subscription_tier && subscriber.subscription_tier !== 'free') {
+            return res.status(400).json({ error: 'Referral program is for free-tier users' });
+        }
 
         try {
             // Check if user already has a referrer
