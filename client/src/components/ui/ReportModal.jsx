@@ -43,7 +43,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[998] flex items-end sm:items-center justify-center p-4">
+                <div className="fixed inset-0 z-[998] flex items-end justify-center">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -59,11 +59,16 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative glass-panel w-full sm:max-w-md bg-claude-bg rounded-3xl shadow-2xl overflow-hidden flex flex-col z-[999]"
+                        className="relative w-full max-h-[90vh] bg-claude-bg shadow-2xl flex flex-col z-[999] rounded-t-[32px] border-t border-white/10"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Mobile Drag Handle Indicator */}
+                        <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
+                            <div className="w-12 h-1.5 rounded-full bg-white/20"></div>
+                        </div>
+
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-claude-border">
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 shrink-0">
                             <div className="flex items-center gap-2 text-red-400">
                                 <ShieldAlert className="w-5 h-5" />
                                 <h3 className="font-display font-semibold text-lg">Report Content</h3>
@@ -76,7 +81,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-4 overflow-y-auto max-h-[70vh]">
+                        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto flex-1 overscroll-contain pb-safe">
                             <div className="mb-4">
                                 <p className="text-sm text-claude-secondary mb-4">
                                     Please select a reason for reporting. This helps us take the appropriate action.

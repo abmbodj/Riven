@@ -356,6 +356,34 @@ export default function Settings() {
                     </div>
                 </motion.div>
 
+                {/* Support & Legal Bento */}
+                <motion.div variants={itemVariants}>
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary mb-3 pl-2">
+                        Support & Legal
+                    </h2>
+                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
+                        <SettingItem
+                            icon={Mail}
+                            title="Contact Support"
+                            description="Email the developer"
+                            onClick={() => window.open('mailto:support@Riven.app')}
+                        />
+                        <SettingItem
+                            icon={Shield}
+                            title="Privacy Policy"
+                            description="How we protect your data"
+                            onClick={() => window.open('https://Riven.app/privacy', '_blank')}
+                        />
+                        <SettingItem
+                            icon={BookOpen}
+                            title="Terms of Service"
+                            description="EULA and usage rules"
+                            onClick={() => window.open('https://Riven.app/terms', '_blank')}
+                            noBorder
+                        />
+                    </div>
+                </motion.div>
+
                 {/* AI Capabilities Bento */}
                 <motion.div variants={itemVariants}>
                     <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-500 mb-3 pl-2">

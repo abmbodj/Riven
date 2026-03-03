@@ -16,6 +16,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [alert, setAlert] = useState({ show: false, title: '', message: '', type: 'info' });
 
     const handleSubmit = async (e) => {
@@ -35,6 +36,10 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
         }
         if (form.password.length < 6) {
             setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters', type: 'warning' });
+            return;
+        }
+        if (!agreedToTerms) {
+            setAlert({ show: true, title: 'Agreement Required', message: 'You must agree to the Terms of Service and Privacy Policy to create an account. We have no tolerance for objectionable content or abusive users.', type: 'warning' });
             return;
         }
 
@@ -132,6 +137,19 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                         className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
                         placeholder="••••••••"
                     />
+                </div>
+
+                <div className="flex items-start gap-3 mt-4">
+                    <input
+                        type="checkbox"
+                        id="terms"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded border-white/20 bg-black/20 text-botanical-forest focus:ring-botanical-forest focus:ring-offset-black transition-colors cursor-pointer"
+                    />
+                    <label htmlFor="terms" className="text-[11px] text-claude-secondary leading-relaxed cursor-pointer">
+                        I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-claude-accent hover:underline">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-claude-accent hover:underline">Privacy Policy</a>. By creating an account, I acknowledge that Riven has zero tolerance for objectionable content or abusive users.
+                    </label>
                 </div>
 
                 <button
