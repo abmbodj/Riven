@@ -401,8 +401,8 @@ export default function Settings() {
                                 <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
                                     AI Generations
                                     {!aiLimits.loading && (
-                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                                            {aiLimits.remaining} / {aiLimits.max} Left
+                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining === 'Unlimited' || aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                            {aiLimits.remaining === 'Unlimited' ? 'Unlimited' : `${aiLimits.remaining} / ${aiLimits.max} Left`}
                                         </span>
                                     )}
                                 </h3>
