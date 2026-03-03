@@ -47,6 +47,10 @@ export default function GroupDetails() {
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
 
+    // Action Loading States
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
 
     const loadGroup = useCallback(async () => {
@@ -192,10 +196,18 @@ export default function GroupDetails() {
     };
 
     const handleRemoveMember = (userId, name) => {
-        confirmAction('Remove Member', `Remove ${name} from the group ? `, async () => {
-            await api.removeGroupMember(id, userId);
-            toast.success('Member removed');
-            loadGroup();
+        confirmAction('Remove Member', `Remove ${name} from the group?`, async () => {
+            // Optimistic UI
+            const prevMembers = [...members];
+            setMembers(members.filter(m => m.id !== userId));
+            try {
+                await api.removeGroupMember(id, userId);
+                toast.success('Member removed');
+                loadGroup(); // Silent background sync
+            } catch (err) {
+                setMembers(prevMembers); // Rollback
+                toast.error('Failed to remove member');
+            }
         });
     };
 
@@ -213,9 +225,17 @@ export default function GroupDetails() {
 
     const handleRemoveDeck = (deckId) => {
         confirmAction('Remove Deck', 'Are you sure you want to remove this deck from the group?', async () => {
-            await api.removeDeckFromGroup(id, deckId);
-            toast.success('Deck removed');
-            loadGroup();
+            // Optimistic UI
+            const prevDecks = [...sharedDecks];
+            setSharedDecks(sharedDecks.filter(d => d.id !== deckId));
+            try {
+                await api.removeDeckFromGroup(id, deckId);
+                toast.success('Deck removed');
+                loadGroup(); // Sync
+            } catch (err) {
+                setSharedDecks(prevDecks); // Rollback
+                toast.error('Failed to remove deck');
+            }
         });
     };
 
@@ -245,12 +265,16 @@ export default function GroupDetails() {
     const handleDeleteFolder = (e, folderId) => {
         e.stopPropagation();
         confirmAction('Delete Folder', 'This will delete the folder and all files inside it.', async () => {
+            // Optimistic UI
+            const prevFolders = [...folders];
+            setFolders(folders.filter(f => f.id !== folderId));
             try {
                 await api.deleteGroupFolder(id, folderId);
                 toast.success('Folder deleted');
                 if (currentFolderId === folderId) setCurrentFolderId(null);
-                loadGroup();
+                loadGroup(); // Sync
             } catch (err) {
+                setFolders(prevFolders); // Rollback
                 toast.error('Failed to delete folder');
             }
         });
@@ -321,11 +345,15 @@ export default function GroupDetails() {
     const handleDeleteFile = (e, fileId) => {
         e.stopPropagation();
         confirmAction('Remove File', 'Are you sure you want to remove this file?', async () => {
+            // Optimistic UI
+            const prevFiles = [...files];
+            setFiles(files.filter(f => f.id !== fileId));
             try {
                 await api.deleteGroupFile(id, fileId);
                 toast.success('File removed');
-                loadGroup();
+                loadGroup(); // Sync
             } catch (err) {
+                setFiles(prevFiles); // Rollback
                 toast.error('Failed to remove file');
             }
         });
@@ -359,28 +387,31 @@ export default function GroupDetails() {
     return (
         <>
             <div className="relative min-h-screen pb-24">
-                {/* Header */}
-                <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/50 px-4 py-3 flex flex-col justify-end min-h-[70px]">
-                    <div className="flex items-center justify-between w-full">
-                        <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-secondary hover:text-white transition-colors tap-action">
-                            <ChevronLeft className="w-6 h-6" />
+                {/* Botanical Premium Header */}
+                <div className="relative w-full h-[180px] sm:h-[220px] overflow-hidden bg-[#1a3329]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest via-[#224536] to-[#12261b]" />
+                    <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23deb96a' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-claude-bg to-transparent" />
+                    <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20">
+                        <button onClick={() => navigate('/groups')} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action backdrop-blur-md border border-white/20">
+                            <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <div className="flex-1 min-w-0 px-2 text-center">
-                            <h2 className="font-serif italic font-bold text-lg text-botanical-parchment truncate">{group.name}</h2>
-                        </div>
                         {isAdmin ? (
-                            <button onClick={() => setShowSettings(!showSettings)} className="p-2 -mr-2 text-claude-secondary hover:text-white transition-colors tap-action">
+                            <button onClick={() => setShowSettings(!showSettings)} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action backdrop-blur-md border border-white/20">
                                 <Settings className="w-5 h-5" />
                             </button>
                         ) : (
-                            <button onClick={handleLeave} className="p-2 -mr-2 text-red-400 hover:text-red-300 transition-colors tap-action">
+                            <button onClick={handleLeave} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-red-300 hover:text-red-200 hover:bg-red-500/20 transition-colors tap-action backdrop-blur-md border border-red-500/30">
                                 <LogOut className="w-5 h-5" />
                             </button>
                         )}
                     </div>
                 </div>
 
-                <div className="px-4 sm:px-6 pt-6">
+                <div className="px-4 sm:px-6 -mt-16 relative z-10">
+                    <div className="mb-8">
+                        <h2 className="font-serif italic font-bold text-4xl sm:text-5xl text-botanical-parchment leading-tight drop-shadow-md break-words">{group.name}</h2>
+                    </div>
 
                     {/* Dashboard Overview (Bento Grid) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -441,13 +472,20 @@ export default function GroupDetails() {
                                 </div>
                                 Live Sessions
                             </h3>
-                            <div className="grid gap-3">
+                            <AnimatePresence>
                                 {sessions.map(session => (
-                                    <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                                    <motion.div
+                                        key={session.id}
+                                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        onClick={() => navigate(`/groups/${id}/cram/${session.id}`)}
+                                        className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+                                    >
                                         <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent animate-scan" />
                                         <div className="flex-1 min-w-0 pr-4">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="font-serif font-bold text-red-100 text-lg truncate group-hover:text-white transition-colors">{session.deck_title}</h4>
+                                                <h4 className="font-serif font-bold text-red-100 text-lg truncate group-hover:text-white transition-colors" title={session.deck_title}>{session.deck_title}</h4>
                                             </div>
                                             <p className="font-mono text-[9px] uppercase tracking-widest text-red-300 flex items-center gap-1.5 opacity-80 mt-1">
                                                 <Users className="w-3 h-3" /> {session.active_members || 1} reading now
@@ -464,9 +502,9 @@ export default function GroupDetails() {
                                                 End
                                             </button>
                                         )}
-                                    </div>
+                                    </motion.div>
                                 ))}
-                            </div>
+                            </AnimatePresence>
                         </div>
                     )}
 
@@ -490,45 +528,54 @@ export default function GroupDetails() {
                                 <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/60">No Decks Shared Yet</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {sharedDecks.map(deck => (
-                                    <div key={deck.id} className="group/deck relative glass-panel rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5">
-                                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                            <AnimatePresence>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {sharedDecks.map((deck, i) => (
+                                        <motion.div
+                                            key={deck.id}
+                                            initial={{ opacity: 0, y: 15 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            className="group/deck relative glass-panel rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5"
+                                        >
+                                            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
-                                        <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
-                                            <h4 className="font-serif font-bold text-lg text-claude-text truncate leading-tight group-hover/deck:text-claude-accent transition-colors pr-8">{deck.title}</h4>
+                                            <div className="flex-1 min-w-0" onClick={() => navigate(`/deck/${deck.id}`)}>
+                                                <h4 className="font-serif font-bold text-lg text-claude-text truncate leading-tight group-hover/deck:text-claude-accent transition-colors pr-8" title={deck.title}>{deck.title}</h4>
 
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3">
-                                                <div className="flex items-center gap-1.5 glass-panel px-2 py-1 rounded-[0.4rem] border border-claude-border">
-                                                    <Layers className="w-3 h-3 text-claude-accent opacity-70" />
-                                                    <span className="font-mono text-[9px] uppercase font-bold tracking-widest text-claude-secondary">{deck.card_count || 0}</span>
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3">
+                                                    <div className="flex items-center gap-1.5 glass-panel px-2 py-1 rounded-[0.4rem] border border-claude-border">
+                                                        <Layers className="w-3 h-3 text-claude-accent opacity-70" />
+                                                        <span className="font-mono text-[9px] uppercase font-bold tracking-widest text-claude-secondary">{deck.card_count || 0}</span>
+                                                    </div>
+                                                    <span className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest truncate max-w-[120px]">
+                                                        by @{deck.shared_by_name}
+                                                    </span>
                                                 </div>
-                                                <span className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest truncate max-w-[120px]">
-                                                    by @{deck.shared_by_name}
-                                                </span>
                                             </div>
-                                        </div>
-                                        <div className="flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover/deck:opacity-100 transition-opacity absolute right-4 top-4">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
-                                                className="w-8 h-8 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-full flex items-center justify-center hover:bg-claude-accent hover:text-botanical-ink transition-colors tap-action"
-                                                title="Start Cram"
-                                            >
-                                                <Zap className="w-3.5 h-3.5 fill-current" />
-                                            </button>
-                                            {isAdmin && (
+                                            <div className="flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover/deck:opacity-100 transition-opacity absolute right-4 top-4">
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
-                                                    className="w-8 h-8 bg-red-500/10 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-500 transition-colors rounded-full flex items-center justify-center tap-action"
-                                                    title="Remove Deck"
+                                                    onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }}
+                                                    className="w-8 h-8 bg-claude-accent/10 border border-claude-accent/30 text-claude-accent rounded-full flex items-center justify-center hover:bg-claude-accent hover:text-botanical-ink transition-colors tap-action"
+                                                    title="Start Cram"
                                                 >
-                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <Zap className="w-3.5 h-3.5 fill-current" />
                                                 </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRemoveDeck(deck.id); }}
+                                                        className="w-8 h-8 bg-red-500/10 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-500 transition-colors rounded-full flex items-center justify-center tap-action"
+                                                        title="Remove Deck"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </AnimatePresence>
                         )}
                     </div>
 
@@ -553,16 +600,20 @@ export default function GroupDetails() {
                         </div>
                     </div>
 
-                    <div className="glass-panel rounded-2xl overflow-hidden mb-10 shadow-sm">
+                    <div className="glass-panel rounded-2xl overflow-hidden mb-10 shadow-sm relative">
                         {currentFolderId && (
-                            <div
-                                onClick={() => setCurrentFolderId(null)}
-                                className="p-4 glass-panel border-b border-claude-border flex items-center gap-3 cursor-pointer hover:glass-panel transition-colors group"
-                            >
-                                <div className="w-6 h-6 rounded-full bg-claude-border/50 flex items-center justify-center group-hover:bg-claude-border transition-colors">
-                                    <ChevronLeft className="w-4 h-4 text-claude-secondary group-hover:text-claude-text" />
+                            <div className="px-5 py-4 glass-panel border-b border-claude-border/50 flex items-center gap-2 bg-claude-surface/30">
+                                <div
+                                    onClick={() => setCurrentFolderId(null)}
+                                    className="flex items-center gap-1.5 cursor-pointer hover:text-claude-text text-claude-secondary transition-colors group tap-action"
+                                >
+                                    <Folder className="w-4 h-4" />
+                                    <span className="font-mono text-[10px] uppercase font-bold tracking-widest">Library</span>
                                 </div>
-                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary group-hover:text-claude-text transition-colors">Directory Level Up</span>
+                                <ChevronLeft className="w-3 h-3 text-claude-secondary/50 rotate-180" />
+                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-accent truncate max-w-[150px]" title={folders.find(f => f.id === currentFolderId)?.name}>
+                                    {folders.find(f => f.id === currentFolderId)?.name || 'Folder'}
+                                </span>
                             </div>
                         )}
 
@@ -572,45 +623,62 @@ export default function GroupDetails() {
                                 <p className="font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary/60">Directory is empty</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-claude-border/50">
-                                {!currentFolderId && folders.map(folder => (
-                                    <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel cursor-pointer transition-colors group relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-claude-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
-                                                <Folder className="w-5 h-5 text-amber-500/80" fill="currentColor" />
+                            <div className="divide-y divide-claude-border/50 relative overflow-hidden">
+                                <AnimatePresence initial={false}>
+                                    {!currentFolderId && folders.map((folder, i) => (
+                                        <motion.div
+                                            key={`folder-${folder.id}`}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.98 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            onClick={() => setCurrentFolderId(folder.id)}
+                                            className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel cursor-pointer transition-colors group relative bg-transparent"
+                                        >
+                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-claude-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
+                                                    <Folder className="w-5 h-5 text-amber-500/80" fill="currentColor" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-serif font-bold text-lg text-claude-text group-hover:text-claude-accent transition-colors leading-tight">{folder.name}</h4>
+                                                    <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">{folder.file_count || 0} items • Created by @{folder.created_by_name}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-serif font-bold text-lg text-claude-text group-hover:text-claude-accent transition-colors leading-tight">{folder.name}</h4>
-                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1">{folder.file_count || 0} items • Created by @{folder.created_by_name}</p>
-                                            </div>
-                                        </div>
-                                        {isAdmin && (
-                                            <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all tap-action">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
+                                            {isAdmin && (
+                                                <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all tap-action">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </motion.div>
+                                    ))}
 
-                                {files.map(file => (
-                                    <div key={file.id} className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel transition-colors group">
-                                        <div className="flex items-center gap-4 min-w-0 pr-4">
-                                            <div className="w-10 h-10 rounded-xl bg-claude-border/30 flex items-center justify-center border border-claude-border/50 shrink-0 group-hover:bg-claude-border/50 transition-colors">
-                                                <FileText className="w-5 h-5 text-claude-secondary" />
+                                    {files.map((file, i) => (
+                                        <motion.div
+                                            key={`file-${file.id}`}
+                                            initial={{ opacity: 0, x: 10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.98 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            className="p-4 sm:p-5 flex items-center justify-between hover:glass-panel transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4 min-w-0 pr-4">
+                                                <div className="w-10 h-10 rounded-xl bg-claude-border/30 flex items-center justify-center border border-claude-border/50 shrink-0 group-hover:bg-claude-border/50 transition-colors">
+                                                    <FileText className="w-5 h-5 text-claude-secondary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <a href={file.file_url} target="_blank" rel="noreferrer" className="font-serif font-bold text-lg text-claude-text hover:text-claude-accent transition-colors truncate block leading-tight" title={file.name}>{file.name}</a>
+                                                    <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1 truncate">{file.file_type.toUpperCase()} • Added by @{file.uploaded_by_name}</p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <a href={file.file_url} target="_blank" rel="noreferrer" className="font-serif font-bold text-lg text-claude-text hover:text-claude-accent transition-colors truncate block leading-tight">{file.name}</a>
-                                                <p className="font-mono text-[9px] text-claude-secondary uppercase tracking-widest mt-1 truncate">{file.file_type.toUpperCase()} • Added by @{file.uploaded_by_name}</p>
-                                            </div>
-                                        </div>
-                                        {(isAdmin || file.uploaded_by === currentUserId) && (
-                                            <button onClick={(e) => handleDeleteFile(e, file.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0 tap-action">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
+                                            {(isAdmin || file.uploaded_by === currentUserId) && (
+                                                <button onClick={(e) => handleDeleteFile(e, file.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0 tap-action">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
 
                                 {currentFolderId && files.length === 0 && (
                                     <div className="p-12 text-center glass-panel">
@@ -629,30 +697,38 @@ export default function GroupDetails() {
                 </h3>
 
                 <div className="space-y-3 pb-8">
-                    {members.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-4 glass-panel rounded-2xl hover:border-claude-border/80 transition-colors">
-                            <div className="flex items-center gap-4 min-w-0">
-                                <div className="w-12 h-12 rounded-2xl bg-claude-accent/10 flex items-center justify-center shrink-0 border border-claude-accent/20 p-1">
-                                    <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-xl bg-white object-cover" />
+                    <AnimatePresence>
+                        {members.map(member => (
+                            <motion.div
+                                key={`member-${member.id}`}
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="flex items-center justify-between p-4 glass-panel rounded-2xl hover:border-claude-border/80 transition-colors"
+                            >
+                                <div className="flex items-center gap-4 min-w-0 pr-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-claude-accent/10 flex items-center justify-center shrink-0 border border-claude-accent/20 p-1">
+                                        <img src={member.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + member.username} alt="avatar" className="w-full h-full rounded-xl bg-white object-cover" />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="font-serif font-bold text-lg text-claude-text truncate leading-tight" title={member.display_name || member.username}>{member.display_name || member.username}</span>
+                                        <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-1 flex items-center gap-2">
+                                            @{member.username}
+                                            {member.role === 'admin' && <span className="px-1.5 py-0.5 bg-claude-accent/10 text-claude-accent rounded border border-claude-accent/20 font-bold">ADMIN</span>}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col min-w-0">
-                                    <span className="font-serif font-bold text-lg text-claude-text truncate leading-tight">{member.display_name || member.username}</span>
-                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mt-1 flex items-center gap-2">
-                                        @{member.username}
-                                        {member.role === 'admin' && <span className="px-1.5 py-0.5 bg-claude-accent/10 text-claude-accent rounded border border-claude-accent/20 font-bold">ADMIN</span>}
-                                    </span>
-                                </div>
-                            </div>
-                            {isAdmin && member.role !== 'admin' && (
-                                <button
-                                    onClick={() => handleRemoveMember(member.id, member.username)}
-                                    className="w-8 h-8 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg glass-panel"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                                {isAdmin && member.role !== 'admin' && (
+                                    <button
+                                        onClick={() => handleRemoveMember(member.id, member.username)}
+                                        className="w-8 h-8 shrink-0 flex items-center justify-center text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-lg glass-panel"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
                 </div>
             </div>
 

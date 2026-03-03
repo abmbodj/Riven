@@ -36,6 +36,11 @@ export default function GroupCram() {
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
 
+    // Network & Debounce State
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [socketConnected, setSocketConnected] = useState(true);
+    const [activeMembers, setActiveMembers] = useState([]); // Array of connected user IDs/Avatars
+
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
 
     const fetchResults = useCallback(async () => {
@@ -92,16 +97,28 @@ export default function GroupCram() {
     useEffect(() => {
         if (!session || isEnded || !socket) return;
 
-        // Note: Basic socket.io rooms setup for multiplayer presence
-        // Riven's backend already has socket running globally
+        // Register presence
+        socket.emit('register', sessionId);
+        socket.emit('join-room', `session-${sessionId}`);
 
-        socket.emit('register', sessionId); // Rough trick to connect
-        socket.emit('join-room', `session-${sessionId}`); // If the server supported custom room joins natively. For now server broadcasts to session-ID
+        const onConnect = () => setSocketConnected(true);
+        const onDisconnect = () => setSocketConnected(false);
 
-        const onProgress = () => {
-            // In a full implementation, we'd track an array of IDs
-            // Since we only get pinged on progress, let's pulse the UI
+        const onProgress = (data) => {
+            // Pulse UI for the user who answered
             haptics.light();
+
+            // If data contains the user who progressed, briefly highlight them
+            if (data?.userId) {
+                setActiveMembers(prev => prev.map(m =>
+                    m.id === data.userId ? { ...m, isPulsing: true } : m
+                ));
+                setTimeout(() => {
+                    setActiveMembers(prev => prev.map(m =>
+                        m.id === data.userId ? { ...m, isPulsing: false } : m
+                    ));
+                }, 1000);
+            }
         };
 
         const onEnded = () => {
@@ -109,54 +126,70 @@ export default function GroupCram() {
             fetchResults();
         };
 
+        // Listeners for robust connection tracking
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
         socket.on('session-progress', onProgress);
         socket.on('session-ended', onEnded);
 
+        // Initial check
+        setSocketConnected(socket.connected);
+
         return () => {
+            socket.off('connect', onConnect);
+            socket.off('disconnect', onDisconnect);
             socket.off('session-progress', onProgress);
             socket.off('session-ended', onEnded);
         };
     }, [session, isEnded, sessionId, haptics, socket, fetchResults]);
 
     const handleAnswer = async (knewIt) => {
-        if (!isFlipped) return;
+        if (!isFlipped || isSubmitting) return;
+        setIsSubmitting(true);
+
         const currentCard = cards[currentIndex];
 
-        // Fire off network quietly
-        api.respondToSessionCard(sessionId, currentCard.id, knewIt).catch(console.error);
-        haptics.selection();
+        try {
+            // Fire off network quietly
+            api.respondToSessionCard(sessionId, currentCard.id, knewIt).catch(console.error);
+            haptics.selection();
 
-        if (!knewIt && heartsStatus && !heartsStatus.isUnlimited) {
-            try {
-                const newStatus = await api.decrementHeart();
-                setHeartsStatus(newStatus);
-                if (newStatus.hearts <= 0) {
-                    setTimeout(() => setShowOutOfHearts(true), 150);
+            if (!knewIt && heartsStatus && !heartsStatus.isUnlimited) {
+                try {
+                    const newStatus = await api.decrementHeart();
+                    setHeartsStatus(newStatus);
+                    if (newStatus.hearts <= 0) {
+                        setTimeout(() => setShowOutOfHearts(true), 150);
+                    }
+                } catch (err) {
+                    console.error("Failed to decrement heart", err);
                 }
-            } catch (err) {
-                console.error("Failed to decrement heart", err);
             }
-        }
 
-        if (currentIndex < cards.length - 1) {
-            setIsFlipped(false);
-            setTimeout(() => setCurrentIndex(c => c + 1), 150);
-        } else {
-            setIsFlipped(false);
-            setIsFinished(true);
+            if (currentIndex < cards.length - 1) {
+                setIsFlipped(false);
+                setTimeout(() => setCurrentIndex(c => c + 1), 150);
+            } else {
+                setIsFlipped(false);
+                setIsFinished(true);
 
-            // If I was the session starter, technically they could end it here,
-            // but let's let standard users just wait on this screen or hit "End Session for Everyone"
-            if (session?.started_by === (api.getCurrentUser?.()?.id || 1)) {
-                // Keep it active until they hit the manual button below
+                // If I was the session starter, technically they could end it here,
+                // but let's let standard users just wait on this screen or hit "End Session for Everyone"
+                if (session?.started_by === (api.getCurrentUser?.()?.id || 1)) {
+                    // Keep it active until they hit the manual button below
+                }
             }
+        } finally {
+            // Unblock submission rapidly to maintain flow, but prevent double-tap bursts
+            setTimeout(() => setIsSubmitting(false), 300);
         }
     };
 
     const handleFlip = useCallback(() => {
+        if (isSubmitting) return;
         haptics.selection();
         setIsFlipped(f => !f);
-    }, [haptics]);
+    }, [haptics, isSubmitting]);
 
     const confirmAction = (title, message, action) => {
         if (haptics && haptics.medium) haptics.medium();
@@ -280,8 +313,17 @@ export default function GroupCram() {
 
                     <span className="text-6xl mb-8 block animate-bounce" style={{ animationDuration: '2.5s' }}>☕️</span>
                     <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4">You finished!</h2>
+
+                    {/* Visual Waiting State */}
+                    <div className="relative w-24 h-24 mx-auto mb-8">
+                        <div className="absolute inset-0 border-4 border-claude-accent/20 border-t-claude-accent rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+                        <div className="absolute inset-2 bg-claude-accent/10 rounded-full flex items-center justify-center">
+                            <Users className="w-8 h-8 text-claude-accent opacity-70" />
+                        </div>
+                    </div>
+
                     <p className="text-claude-secondary text-xs max-w-xs mb-10 leading-relaxed font-mono tracking-widest uppercase opacity-80">
-                        Waiting for the rest of the group to complete their cards before calculating weak spots...
+                        Waiting for everyone to complete their cards before calculating weak spots...
                     </p>
 
                     <div className="flex items-center gap-2 mb-8 glass-panel px-4 py-2 rounded-full border border-claude-border">
@@ -321,9 +363,11 @@ export default function GroupCram() {
                     <span className="font-serif italic text-claude-accent font-bold tracking-wide flex items-center gap-2 text-xl filter drop-shadow-[0_0_8px_rgba(222,185,106,0.5)]">
                         <Zap className="w-4 h-4 fill-claude-accent" /> Group Cram
                     </span>
-                    <div className="mt-1 flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                        <span className="text-[8px] font-mono text-red-300 tracking-[0.25em] uppercase font-bold">Live Focus</span>
+                    <div className={`mt-1 flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full transition-colors ${socketConnected ? 'bg-red-500/10 border-red-500/20' : 'bg-claude-secondary/10 border-claude-secondary/20'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-red-400 animate-pulse' : 'bg-claude-secondary'}`} />
+                        <span className={`text-[8px] font-mono tracking-[0.25em] uppercase font-bold ${socketConnected ? 'text-red-300' : 'text-claude-secondary'}`}>
+                            {socketConnected ? 'Live Focus' : 'Reconnecting...'}
+                        </span>
                     </div>
                 </div>
 
@@ -357,8 +401,40 @@ export default function GroupCram() {
 
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative z-10">
 
-                {/* Subdued sync indicator replacing the previous bright box */}
-                <div className="absolute top-6 inset-x-0 flex justify-center pointer-events-none">
+                {/* Subdued sync indicator & Active Members Cluster */}
+                <div className="absolute top-6 inset-x-0 flex flex-col items-center gap-3 pointer-events-none">
+
+                    {/* Live Avatar Cluster */}
+                    {activeMembers.length > 0 && (
+                        <div className="flex items-center justify-center -space-x-2">
+                            <AnimatePresence>
+                                {activeMembers.slice(0, 5).map((member, idx) => (
+                                    <motion.div
+                                        key={member.id}
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0 }}
+                                        className="relative z-10"
+                                        style={{ zIndex: 10 - idx }}
+                                    >
+                                        <div className={`w-8 h-8 rounded-full border-2 overflow-hidden transition-all duration-300 ${member.isPulsing ? 'border-claude-accent scale-110 shadow-[0_0_15px_rgba(222,185,106,0.5)]' : 'border-claude-bg opacity-70'}`}>
+                                            <img
+                                                src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username || member.id}`}
+                                                alt="Member"
+                                                className="w-full h-full object-cover bg-claude-surface"
+                                            />
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                            {activeMembers.length > 5 && (
+                                <div className="w-8 h-8 rounded-full border-2 border-claude-bg bg-claude-surface flex items-center justify-center relative z-[1] ml-[-12px]">
+                                    <span className="text-[9px] font-mono tracking-wider text-claude-secondary font-bold">+{activeMembers.length - 5}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}

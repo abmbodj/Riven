@@ -25,6 +25,7 @@ export default function StudyGroups() {
     // Form states
     const [createData, setCreateData] = useState({ name: '', class_id: '' });
     const [joinCode, setJoinCode] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Auth & Monetization
     const { user } = useAuth();
@@ -54,11 +55,12 @@ export default function StudyGroups() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
-        if (!createData.name.trim()) {
-            toast.error('Group name is required');
+        if (!createData.name.trim() || isSubmitting) {
+            if (!createData.name.trim()) toast.error('Group name is required');
             return;
         }
 
+        setIsSubmitting(true);
         try {
             haptics.medium();
             const newGroup = await api.createGroup(createData.name, createData.class_id || null);
@@ -68,16 +70,19 @@ export default function StudyGroups() {
             navigate(`/groups/${newGroup.id}`);
         } catch (err) {
             toast.error(err.message || 'Failed to create group');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleJoin = async (e) => {
         e.preventDefault();
-        if (!joinCode.trim()) {
-            toast.error('Join code is required');
+        if (!joinCode.trim() || joinCode.length < 3 || isSubmitting) {
+            if (!joinCode.trim()) toast.error('Join code is required');
             return;
         }
 
+        setIsSubmitting(true);
         try {
             haptics.medium();
             const res = await api.joinGroup(joinCode);
@@ -87,6 +92,8 @@ export default function StudyGroups() {
             navigate(`/groups/${res.group.id}`);
         } catch (err) {
             toast.error(err.message || 'Failed to join group');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -171,56 +178,91 @@ export default function StudyGroups() {
                 </div>
 
                 {groups.length === 0 ? (
-                    <div className="relative overflow-hidden text-center py-20 px-6 glass-panel border-dashed border-claude-border/50 rounded-3xl">
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-claude-bg/50 pointer-events-none" />
+                    <div className="relative overflow-hidden text-center py-20 px-6 glass-panel border-dashed border-claude-border/60 rounded-[2rem] group/empty">
+                        <div className="absolute inset-0 bg-gradient-to-b from-claude-bg/20 to-claude-bg/60 pointer-events-none" />
+                        <div className="absolute -right-20 -top-20 w-64 h-64 bg-claude-accent/5 rounded-full blur-[60px] pointer-events-none" />
                         <div className="relative z-10">
-                            <div className="w-16 h-16 mx-auto mb-5 glass-panel rounded-2xl flex items-center justify-center border border-claude-border transform -rotate-6">
-                                <Users className="w-8 h-8 text-claude-accent opacity-40" />
-                            </div>
-                            <h3 className="font-serif italic text-2xl text-claude-text mb-2">No groups yet</h3>
-                            <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">
-                                Create or join a group to start studying together.
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.6, type: 'spring' }}
+                                className="w-20 h-20 mx-auto mb-6 relative"
+                            >
+                                <div className="absolute inset-0 bg-claude-accent/10 rounded-full blur-xl animate-pulse" />
+                                <div className="w-full h-full glass-panel rounded-[1.5rem] flex items-center justify-center border border-claude-accent/20 transform -rotate-6 shadow-sm group-hover/empty:rotate-0 transition-transform duration-500">
+                                    <Users className="w-8 h-8 text-claude-accent/70" />
+                                </div>
+                            </motion.div>
+                            <h3 className="font-serif italic text-2xl text-botanical-parchment mb-3">No Groups Found</h3>
+                            <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest max-w-[240px] mx-auto leading-relaxed opacity-80">
+                                Create a new vault or enter a Cipher code to begin collaborating.
                             </p>
                         </div>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {groups.map((group, i) => (
-                            <motion.div
-                                key={group.id}
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                                onClick={() => navigate(`/groups/${group.id}`)}
-                                className="glass-panel rounded-[1.5rem] p-6 shadow-sm hover:shadow-claude-accent/5 transition-all duration-300 cursor-pointer tap-action group relative overflow-hidden hover:-translate-y-1"
-                            >
-                                <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                        {groups.map((group, i) => {
+                            // Mocking members if not returned by list API, or using real counts
+                            const mockMembersCount = parseInt(group.member_count) || 1;
+                            // Display up to 3 avatars visually
+                            const avatarsToShow = Math.min(mockMembersCount, 3);
+                            const extraMembers = mockMembersCount - 3;
 
-                                <div className="flex justify-between items-start mb-6 gap-3 relative z-10">
-                                    <h3 className="font-serif text-2xl font-bold text-claude-text italic group-hover:text-claude-accent transition-colors break-words line-clamp-2 leading-tight pr-8">{group.name}</h3>
-                                    <div className="absolute right-0 top-1 w-8 h-8 glass-panel rounded-full flex items-center justify-center border border-claude-border group-hover:border-claude-accent/30 transition-colors">
-                                        <ArrowRight className="w-4 h-4 text-claude-secondary group-hover:text-claude-accent transition-colors transform group-hover:translate-x-0.5" />
-                                    </div>
-                                </div>
+                            return (
+                                <motion.div
+                                    key={group.id}
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                                    onClick={() => navigate(`/groups/${group.id}`)}
+                                    className="glass-panel rounded-[1.5rem] p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(222,185,106,0.1)] hover:border-claude-accent/30 transition-all duration-300 cursor-pointer tap-action group relative overflow-hidden flex flex-col justify-between min-h-[160px]"
+                                >
+                                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                                    {/* Subtle gradient hover effect */}
+                                    <div className="absolute -right-20 -bottom-20 w-40 h-40 bg-claude-accent/5 rounded-full blur-2xl group-hover:bg-claude-accent/10 transition-colors duration-500 pointer-events-none" />
 
-                                <div className="flex items-center gap-3 relative z-10">
-                                    {group.class_name ? (
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 glass-panel rounded-lg border border-claude-border">
-                                            <Calendar className="w-3 h-3 text-claude-secondary" />
-                                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary truncate max-w-[100px]">{group.class_name}</span>
+                                    <div className="flex justify-between items-start mb-4 gap-3 relative z-10">
+                                        <h3 className="font-serif text-2xl font-bold text-claude-text italic group-hover:text-claude-accent transition-colors break-words line-clamp-2 leading-tight pr-8">{group.name}</h3>
+                                        <div className="absolute right-0 top-0 w-8 h-8 bg-claude-bg/50 rounded-full flex items-center justify-center border border-claude-border/50 group-hover:border-claude-accent/40 group-hover:bg-claude-accent/5 transition-colors">
+                                            <ArrowRight className="w-4 h-4 text-claude-secondary group-hover:text-claude-accent transition-colors transform group-hover:translate-x-0.5" />
                                         </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 glass-panel rounded-lg border border-claude-border">
-                                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary">Independent</span>
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-accent/5 rounded-lg border border-claude-accent/20">
-                                        <Users className="w-3 h-3 text-claude-accent" />
-                                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-claude-accent">{parseInt(group.member_count) || 1}</span>
                                     </div>
-                                </div>
-                            </motion.div>
-                        ))}
+
+                                    <div className="flex items-end justify-between relative z-10 mt-auto pt-4 border-t border-claude-border/30">
+                                        <div className="flex items-center gap-2">
+                                            {group.class_name ? (
+                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-claude-surface/50 rounded-md border border-claude-border/80">
+                                                    <Calendar className="w-3 h-3 text-claude-secondary" />
+                                                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-claude-secondary truncate max-w-[100px]">{group.class_name}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-claude-surface/50 rounded-md border border-claude-border/80">
+                                                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-claude-secondary">Independent</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Avatar Cluster */}
+                                        <div className="flex items-center -space-x-2">
+                                            {Array.from({ length: avatarsToShow }).map((_, idx) => (
+                                                <div key={idx} className="w-7 h-7 rounded-full bg-claude-accent/20 border-2 border-claude-bg flex items-center justify-center overflow-hidden z-[3] relative" style={{ zIndex: 10 - idx }}>
+                                                    <img
+                                                        src={`https://api.dicebear.com/7.x/notionists/svg?seed=${group.id}_${idx}`}
+                                                        alt="Member"
+                                                        className="w-full h-full object-cover opacity-80"
+                                                    />
+                                                </div>
+                                            ))}
+                                            {extraMembers > 0 && (
+                                                <div className="w-7 h-7 rounded-full bg-claude-surface border-2 border-claude-bg flex items-center justify-center z-[1] relative ml-[-12px]">
+                                                    <span className="text-[8px] font-mono font-bold text-claude-secondary">+{extraMembers}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -274,9 +316,10 @@ export default function StudyGroups() {
                             </div>
                             <button
                                 type="submit"
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)]"
+                                disabled={isSubmitting}
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             >
-                                Create
+                                {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Create Vault'}
                             </button>
                         </motion.form>
                     </div>
@@ -305,23 +348,28 @@ export default function StudyGroups() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Invite Code</label>
-                                    <input
-                                        type="text"
-                                        value={joinCode}
-                                        onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                                        className="w-full glass-panel border-claude-border/80 rounded-2xl px-5 py-5 font-mono text-center text-2xl tracking-[0.3em] text-claude-text focus:border-claude-accent/50 outline-none uppercase placeholder:lowercase placeholder:tracking-normal placeholder:text-xl placeholder:text-claude-secondary/30 transition-colors"
-                                        placeholder="RIV-XYZ"
-                                        maxLength={7}
-                                        autoFocus
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={joinCode}
+                                            onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                                            className="w-full glass-panel border-claude-border/80 rounded-2xl px-5 py-5 font-mono text-center text-2xl tracking-[0.3em] text-claude-text focus:border-claude-accent/50 outline-none uppercase placeholder:lowercase placeholder:tracking-normal placeholder:text-xl placeholder:text-claude-secondary/30 transition-colors"
+                                            placeholder="RIV-XYZ"
+                                            maxLength={7}
+                                            autoFocus
+                                        />
+                                        {joinCode.length > 0 && joinCode.length < 3 && (
+                                            <span className="absolute -bottom-5 right-2 text-[9px] font-mono text-red-400 uppercase tracking-widest">Too short</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <button
                                 type="submit"
-                                disabled={!joinCode.trim() || joinCode.length < 3}
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed"
+                                disabled={!joinCode.trim() || joinCode.length < 3 || isSubmitting}
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
                             >
-                                Join
+                                {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Join Vault'}
                             </button>
                         </motion.form>
                     </div>
