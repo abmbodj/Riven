@@ -8,7 +8,6 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
@@ -145,7 +144,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('typing', ({ receiverId, isTyping }) => {
-        const receiverSocketId = connectedUsers.get(parseInt(receiverId));
+        const parsedReceiverId = parseInt(receiverId);
+        if (isNaN(parsedReceiverId)) return;
+        const receiverSocketId = connectedUsers.get(parsedReceiverId);
         if (receiverSocketId) {
             let senderId = null;
             for (const [id, sid] of connectedUsers.entries()) {
@@ -161,11 +162,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('join-room', (roomId) => {
-        if (roomId) socket.join(roomId);
+        if (roomId && typeof roomId === 'string') socket.join(roomId);
     });
 
     socket.on('leave-room', (roomId) => {
-        if (roomId) socket.leave(roomId);
+        if (roomId && typeof roomId === 'string') socket.leave(roomId);
     });
 
     socket.on('disconnect', () => {
@@ -280,32 +281,6 @@ async function authMiddleware(req, res, next) {
     } catch (err) {
         return res.status(401).json({ error: 'Invalid token' });
     }
-}
-
-// Optional auth middleware
-function optionalAuth(req, res, next) {
-    // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
-    let token = req.cookies.token;
-
-    if (!token) {
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.split(' ')[1];
-        }
-    }
-
-    if (token) {
-        try {
-            const decoded = jwt.verify(token, jwtSecret);
-            req.user = decoded;
-            // console.log('[Auth] optionalAuth verified token for user:', decoded.id);
-        } catch (err) {
-            console.error('[Auth] optionalAuth token verification failed:', err.message);
-        }
-    } else {
-        // console.log('[Auth] optionalAuth: No token found');
-    }
-    next();
 }
 
 // Input validation
@@ -429,6 +404,7 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
 app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
     const { userId } = req.params;
     const { limit = 50, before } = req.query;
+    const cappedLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
 
     try {
         let query = `
@@ -445,7 +421,7 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
         }
 
         query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
-        params.push(parseInt(limit));
+        params.push(cappedLimit);
 
         const messages = await db.query(query, params);
 
@@ -462,7 +438,7 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
             senderAvatar: m.sender_avatar,
             content: m.content,
             messageType: m.message_type,
-            deckData: m.deck_data ? JSON.parse(m.deck_data) : null,
+            deckData: m.deck_data ? (() => { try { return JSON.parse(m.deck_data); } catch { return null; } })() : null,
             imageUrl: m.image_url,
             isEdited: m.is_edited === 1,
             isRead: m.is_read === 1,
@@ -475,12 +451,27 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
     }
 });
 
+// Rate limiter for message sending (30 messages per minute)
+const messageLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: isProdEnv ? 30 : 200,
+    message: { error: 'Too many messages sent, please slow down' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // Send a message
-app.post('/api/messages', authMiddleware, async (req, res) => {
+app.post('/api/messages', authMiddleware, messageLimiter, async (req, res) => {
     const { receiverId, content, messageType = 'text', deckData, imageUrl } = req.body;
 
     if (!receiverId) return res.status(400).json({ error: 'Receiver ID is required' });
     if (!content && !imageUrl && !deckData) return res.status(400).json({ error: 'Message content, image or deck is required' });
+    if (content && (typeof content !== 'string' || content.trim().length === 0 && !imageUrl && !deckData)) {
+        return res.status(400).json({ error: 'Message content cannot be empty' });
+    }
+    if (content && content.length > 5000) {
+        return res.status(400).json({ error: 'Message content must be under 5000 characters' });
+    }
 
     try {
         // Check if sender is banned
@@ -789,7 +780,6 @@ app.get('/api/decks', authMiddleware, async (req, res) => {
         const params = userId ? [userId] : [];
 
         // Single query: get decks with card counts
-        console.log('[Decks] Fetching decks for user:', userId ? `ID ${userId}` : 'Public (NULL)');
         const decks = await db.query(
             `SELECT d.*, COALESCE(c.count, 0)::int AS "cardCount"
              FROM decks d
@@ -828,6 +818,8 @@ app.get('/api/decks', authMiddleware, async (req, res) => {
 app.post('/api/decks', authMiddleware, async (req, res) => {
     const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (title.length > 200) return res.status(400).json({ error: 'Title must be under 200 characters' });
+    if (description && description.length > 2000) return res.status(400).json({ error: 'Description must be under 2000 characters' });
 
     try {
         const userId = req.user?.id || null;
@@ -900,6 +892,8 @@ app.put('/api/decks/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { title, description, folder_id, tagIds, class_id } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (title.length > 200) return res.status(400).json({ error: 'Title must be under 200 characters' });
+    if (description && description.length > 2000) return res.status(400).json({ error: 'Description must be under 2000 characters' });
 
     try {
         const userId = req.user?.id || null;
@@ -962,21 +956,24 @@ app.delete('/api/decks/:id', authMiddleware, async (req, res) => {
     }
 });
 
-// Duplicate deck
+// Duplicate deck (wrapped in transaction to prevent orphaned data on failure)
 app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
     const { id } = req.params;
+    const client = await db.pool.connect();
     try {
         const userId = req.user?.id || null;
         const deck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [id]);
         if (!deck) return res.status(404).json({ error: 'Deck not found' });
         if (deck.user_id !== userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const newDeck = await db.queryOne(
+        await client.query('BEGIN');
+
+        const { rows: [newDeck] } = await client.query(
             'INSERT INTO decks (user_id, title, description, folder_id) VALUES ($1, $2, $3, $4) RETURNING *',
             [userId, `${deck.title} (Copy)`, deck.description, deck.folder_id]
         );
 
-        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1', [id]);
+        const { rows: cards } = await client.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1', [id]);
         if (cards.length > 0) {
             const values = [];
             const placeholders = cards.map((card, i) => {
@@ -984,13 +981,13 @@ app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
                 values.push(newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position);
                 return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
             });
-            await db.execute(
+            await client.query(
                 `INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ${placeholders.join(', ')}`,
                 values
             );
         }
 
-        const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [id]);
+        const { rows: tags } = await client.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [id]);
         if (tags.length > 0) {
             const values = [];
             const placeholders = tags.map((tag, i) => {
@@ -998,16 +995,20 @@ app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
                 values.push(newDeck.id, tag.tag_id);
                 return `($${offset + 1}, $${offset + 2})`;
             });
-            await db.execute(
+            await client.query(
                 `INSERT INTO deck_tags (deck_id, tag_id) VALUES ${placeholders.join(', ')}`,
                 values
             );
         }
 
+        await client.query('COMMIT');
         res.status(201).json(newDeck);
     } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
         console.error('Duplicate deck error:', error);
         res.status(500).json({ error: 'Internal server error' });
+    } finally {
+        client.release();
     }
 });
 
@@ -1020,6 +1021,8 @@ app.post('/api/decks/:id/cards', authMiddleware, async (req, res) => {
     if ((!front && !front_image) || (!back && !back_image)) {
         return res.status(400).json({ error: 'Front and back content (text or image) are required' });
     }
+    if (front && front.length > 5000) return res.status(400).json({ error: 'Front content must be under 5000 characters' });
+    if (back && back.length > 5000) return res.status(400).json({ error: 'Back content must be under 5000 characters' });
 
     try {
         const userId = req.user?.id || null;
@@ -1046,6 +1049,8 @@ app.put('/api/cards/:id', authMiddleware, async (req, res) => {
     if ((!front && !front_image) || (!back && !back_image)) {
         return res.status(400).json({ error: 'Front and back content (text or image) are required' });
     }
+    if (front && front.length > 5000) return res.status(400).json({ error: 'Front content must be under 5000 characters' });
+    if (back && back.length > 5000) return res.status(400).json({ error: 'Back content must be under 5000 characters' });
 
     try {
         const userId = req.user?.id || null;
@@ -1331,36 +1336,54 @@ app.get('/api/decks/:id/stats', authMiddleware, async (req, res) => {
         }
         if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
 
-        const sessions = await db.query(
-            'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC',
-            [id]
-        );
-        const cards = await db.query('SELECT * FROM cards WHERE deck_id = $1', [id]);
+        // Use SQL aggregation instead of fetching all rows
+        const [sessionStats, cardStats, recentSessions] = await Promise.all([
+            db.queryOne(
+                `SELECT COUNT(*) as total_sessions,
+                        COALESCE(SUM(cards_studied), 0) as total_studied,
+                        COALESCE(SUM(cards_correct), 0) as total_correct,
+                        COALESCE(SUM(duration_seconds), 0) as total_time
+                 FROM study_sessions WHERE deck_id = $1`,
+                [id]
+            ),
+            db.queryOne(
+                `SELECT COUNT(*) as card_count,
+                        COUNT(*) FILTER (WHERE COALESCE(times_correct, 0) = 0 AND COALESCE(times_reviewed, 0) = 0) as new_count,
+                        COUNT(*) FILTER (WHERE COALESCE(times_reviewed, 0) > 0 AND COALESCE(times_correct, 0) < 2) as learning_count,
+                        COUNT(*) FILTER (WHERE COALESCE(times_correct, 0) >= 2 AND COALESCE(times_correct, 0) < 5) as familiar_count,
+                        COUNT(*) FILTER (WHERE COALESCE(times_correct, 0) >= 5) as mastered_count
+                 FROM cards WHERE deck_id = $1`,
+                [id]
+            ),
+            db.query(
+                'SELECT * FROM study_sessions WHERE deck_id = $1 ORDER BY created_at DESC LIMIT 10',
+                [id]
+            )
+        ]);
 
-        const totalStudied = sessions.reduce((sum, s) => sum + (s.cards_studied || 0), 0);
-        const totalCorrect = sessions.reduce((sum, s) => sum + (s.cards_correct || 0), 0);
-        const totalTime = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
+        const totalStudied = parseInt(sessionStats.total_studied);
+        const totalCorrect = parseInt(sessionStats.total_correct);
+        const totalTime = parseInt(sessionStats.total_time);
 
-        // Calculate card difficulty distribution based on times_correct
         const cardsByDifficulty = {
-            new: cards.filter(c => (c.times_correct || 0) === 0 && (c.times_reviewed || 0) === 0).length,
-            learning: cards.filter(c => (c.times_reviewed || 0) > 0 && (c.times_correct || 0) < 2).length,
-            familiar: cards.filter(c => (c.times_correct || 0) >= 2 && (c.times_correct || 0) < 5).length,
-            mastered: cards.filter(c => (c.times_correct || 0) >= 5).length
+            new: parseInt(cardStats.new_count),
+            learning: parseInt(cardStats.learning_count),
+            familiar: parseInt(cardStats.familiar_count),
+            mastered: parseInt(cardStats.mastered_count)
         };
 
         res.json({
-            totalSessions: sessions.length,
+            totalSessions: parseInt(sessionStats.total_sessions),
             totalCardsStudied: totalStudied,
-            totalStudied, // alias for compatibility
+            totalStudied,
             totalCorrect,
             accuracy: totalStudied > 0 ? Math.round((totalCorrect / totalStudied) * 100) : 0,
             totalTimeSeconds: totalTime,
-            totalTime, // alias for compatibility
-            cardCount: cards.length,
+            totalTime,
+            cardCount: parseInt(cardStats.card_count),
             masteredCount: cardsByDifficulty.mastered,
             cardsByDifficulty,
-            recentSessions: sessions.slice(0, 10)
+            recentSessions
         });
     } catch (error) {
         console.error('Fetch deck stats error:', error);

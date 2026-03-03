@@ -11,7 +11,6 @@ import Users from 'lucide-react/dist/esm/icons/users';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
-import { ThemeContext } from '../ThemeContext';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 
@@ -32,7 +31,6 @@ export default function Layout({ children }) {
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
-    useContext(ThemeContext);
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
@@ -139,7 +137,7 @@ export default function Layout({ children }) {
                             {navItems.map((item) => {
                                 if (item.isFab) {
                                     return (
-                                        <button key="fab" onClick={() => setIsFabMenuOpen(!isFabMenuOpen)} className="flex-1 flex items-center justify-center tap-action">
+                                        <button key="fab" onClick={() => setIsFabMenuOpen(!isFabMenuOpen)} aria-label={isFabMenuOpen ? 'Close menu' : 'Open quick actions'} aria-expanded={isFabMenuOpen} className="flex-1 flex items-center justify-center tap-action">
                                             <motion.div
                                                 animate={{ rotate: isFabMenuOpen ? 45 : 0 }}
                                                 whileHover={{ scale: 1.05 }}

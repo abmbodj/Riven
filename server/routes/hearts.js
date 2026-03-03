@@ -156,46 +156,44 @@ module.exports = function ({ app, db, authMiddleware }) {
             const status = await getUpdatedHearts(userId);
             if (status.isUnlimited) return res.json({ ...status, practiceUsed: 0, practiceMax: PRACTICE_MAX_PER_HOUR });
 
-            // Rate limit check (DB-persisted)
+            // Reset expired windows first (atomic)
             const now = new Date();
-            const userRow = await db.query(
-                'SELECT practice_refill_count, practice_refill_reset_at FROM users WHERE id = $1',
-                [userId]
+            await db.execute(
+                `UPDATE users SET practice_refill_count = 0, practice_refill_reset_at = $1
+                 WHERE id = $2 AND (practice_refill_reset_at IS NULL OR practice_refill_reset_at <= NOW())`,
+                [new Date(now.getTime() + 60 * 60 * 1000), userId]
             );
-            let count = userRow[0]?.practice_refill_count || 0;
-            let resetAt = userRow[0]?.practice_refill_reset_at ? new Date(userRow[0].practice_refill_reset_at) : null;
 
-            // Reset window if expired or never set
-            if (!resetAt || now >= resetAt) {
-                count = 0;
-                resetAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
-                await db.execute(
-                    'UPDATE users SET practice_refill_count = 0, practice_refill_reset_at = $1 WHERE id = $2',
-                    [resetAt, userId]
+            // Atomic: increment count only if under limit, and refill hearts in one query
+            const newHearts = Math.min(GLOBAL_MAX, status.hearts + PRACTICE_REFILL_AMOUNT);
+            const atomicResult = await db.queryOne(
+                `UPDATE users
+                 SET hearts = $1, practice_refill_count = practice_refill_count + 1
+                 WHERE id = $2 AND practice_refill_count < $3
+                 RETURNING practice_refill_count, practice_refill_reset_at`,
+                [newHearts, userId, PRACTICE_MAX_PER_HOUR]
+            );
+
+            if (!atomicResult) {
+                // Limit was reached — fetch reset time for error message
+                const userRow = await db.queryOne(
+                    'SELECT practice_refill_count, practice_refill_reset_at FROM users WHERE id = $1',
+                    [userId]
                 );
-            }
-
-            if (count >= PRACTICE_MAX_PER_HOUR) {
+                const resetAt = userRow?.practice_refill_reset_at ? new Date(userRow.practice_refill_reset_at) : now;
                 const minutesLeft = Math.ceil((resetAt.getTime() - now.getTime()) / 1000 / 60);
                 return res.status(429).json({
-                    error: `Practice refill limit reached. Try again in ${minutesLeft} minutes.`,
-                    practiceUsed: count,
+                    error: `Practice refill limit reached. Try again in ${Math.max(1, minutesLeft)} minutes.`,
+                    practiceUsed: userRow?.practice_refill_count || PRACTICE_MAX_PER_HOUR,
                     practiceMax: PRACTICE_MAX_PER_HOUR
                 });
             }
-
-            // Refill hearts
-            const newHearts = Math.min(GLOBAL_MAX, status.hearts + PRACTICE_REFILL_AMOUNT);
-            await db.execute(
-                'UPDATE users SET hearts = $1, practice_refill_count = practice_refill_count + 1 WHERE id = $2',
-                [newHearts, userId]
-            );
 
             const updatedStatus = await getUpdatedHearts(userId);
             res.json({
                 ...updatedStatus,
                 heartsAdded: PRACTICE_REFILL_AMOUNT,
-                practiceUsed: count + 1,
+                practiceUsed: atomicResult.practice_refill_count,
                 practiceMax: PRACTICE_MAX_PER_HOUR
             });
         } catch (error) {

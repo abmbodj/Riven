@@ -1,6 +1,17 @@
 const crypto = require('crypto');
 const express = require('express');
 
+// Generate a group join code (e.g. RIV-4X2)
+function generateJoinCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = 'RIV-';
+    const bytes = crypto.randomBytes(3);
+    for (let i = 0; i < 3; i++) {
+        result += chars.charAt(bytes[i] % chars.length);
+    }
+    return result;
+}
+
 module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) {
     const router = express.Router();
 
@@ -48,18 +59,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             try {
                 await client.query('BEGIN');
 
-                // Generate join code (e.g. RIV-4X2)
-                const generateCode = () => {
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                    let result = 'RIV-';
-                    const bytes = crypto.randomBytes(3);
-                    for (let i = 0; i < 3; i++) {
-                        result += chars.charAt(bytes[i] % chars.length);
-                    }
-                    return result;
-                };
-
-                let join_code = generateCode();
+                let join_code = generateJoinCode();
                 let codeExists = true;
 
                 // Ensure uniqueness
@@ -68,7 +68,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                     if (existing.rows.length === 0) {
                         codeExists = false;
                     } else {
-                        join_code = generateCode();
+                        join_code = generateJoinCode();
                     }
                 }
 
@@ -161,18 +161,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             let paramIndex = 3;
 
             if (regenerate_code) {
-                // Generate a new code
-                const generateCode = () => {
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                    let result = 'RIV-';
-                    const bytes = crypto.randomBytes(3);
-                    for (let i = 0; i < 3; i++) {
-                        result += chars.charAt(bytes[i] % chars.length);
-                    }
-                    return result;
-                };
-
-                let join_code = generateCode();
+                let join_code = generateJoinCode();
                 let codeExists = true;
 
                 while (codeExists) {
@@ -180,7 +169,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                     if (!existing) {
                         codeExists = false;
                     } else {
-                        join_code = generateCode();
+                        join_code = generateJoinCode();
                     }
                 }
                 updateQuery += `, join_code = $${paramIndex}`;

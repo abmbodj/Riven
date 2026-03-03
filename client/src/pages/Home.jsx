@@ -30,9 +30,9 @@ export default function Home() {
         const loadDashboard = async () => {
             try {
                 const [assignData, decksData, classesData] = await Promise.all([
-                    api.getAssignments(),
-                    api.getDecks(),
-                    api.getClasses()
+                    api.getAssignments().catch(() => []),
+                    api.getDecks().catch(() => []),
+                    api.getClasses().catch(() => [])
                 ]);
                 setAssignments(assignData || []);
                 setDecks(decksData || []);

@@ -147,24 +147,14 @@ export default function Decks() {
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
-        console.log('[Home] loadData called', { isRefresh });
 
         try {
-            // Load all data in parallel for speed
-            console.log('[Home] Fetching decks, folders, tags, classes...');
             const [decksData, foldersData, tagsData, classesData] = await Promise.all([
-                api.getDecks(),
-                api.getFolders(),
-                api.getTags(),
-                api.getClasses()
+                api.getDecks().catch(() => []),
+                api.getFolders().catch(() => []),
+                api.getTags().catch(() => []),
+                api.getClasses().catch(() => [])
             ]);
-
-            console.log('[Home] Data loaded:', {
-                decks: decksData?.length,
-                folders: foldersData?.length,
-                tags: tagsData?.length,
-                classes: classesData?.length
-            });
 
             setDecks(decksData);
             setFolders(foldersData);
@@ -173,11 +163,9 @@ export default function Decks() {
             setError(null);
 
             if (decksData.length === 0 && foldersData.length === 0 && !localStorage.getItem('riven_onboarded')) {
-                console.log('[Home] Showing onboarding');
                 setShowOnboarding(true);
             }
         } catch (err) {
-            console.error('[Home] Failed to load data:', err);
             const errorMessage = err?.message || 'Failed to load data';
             setError(errorMessage);
         } finally {
@@ -189,6 +177,18 @@ export default function Decks() {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // Close search overlay with Escape key
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isSearchOpen) {
+                setIsSearchOpen(false);
+                setSearchQuery('');
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isSearchOpen]);
 
     const dismissOnboarding = () => {
         localStorage.setItem('riven_onboarded', 'true');

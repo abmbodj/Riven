@@ -13,6 +13,18 @@ module.exports = function registerAuthRoutes({
     isValidEmail,
     isValidUsername
 }) {
+    const rateLimit = require('express-rate-limit');
+    const isProdEnv = process.env.NODE_ENV === 'production';
+
+    // Stricter rate limiter for password reset (3 requests per hour in production)
+    const passwordResetLimiter = rateLimit({
+        windowMs: 60 * 60 * 1000, // 1 hour
+        max: isProdEnv ? 3 : 50,
+        message: { error: 'Too many password reset attempts, please try again later' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    });
+
     // Register
     app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
         const { username, email, password } = req.body;
@@ -554,7 +566,7 @@ module.exports = function registerAuthRoutes({
     const { sendPasswordResetEmail, sendEmailVerification, sendWelcomeEmail } = require('../utils/email');
 
     // Request password reset
-    app.post('/api/auth/forgot-password', speedLimiter, authLimiter, async (req, res) => {
+    app.post('/api/auth/forgot-password', speedLimiter, passwordResetLimiter, async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
@@ -590,7 +602,7 @@ module.exports = function registerAuthRoutes({
     });
 
     // Reset password with token
-    app.post('/api/auth/reset-password', speedLimiter, authLimiter, async (req, res) => {
+    app.post('/api/auth/reset-password', speedLimiter, passwordResetLimiter, async (req, res) => {
         const { token, password } = req.body;
         if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
         if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });

@@ -1,5 +1,3 @@
-const express = require('express');
-
 module.exports = function ({ app, db, authMiddleware }) {
 
     // 1. Save Canvas credentials (now just an iCal link)
@@ -77,22 +75,30 @@ module.exports = function ({ app, db, authMiddleware }) {
             let syncedClassesCount = 0;
             let syncedAssignmentsCount = 0;
 
-            // Simple cache for classes created during this sync
-            const mappedClasses = {};
+            // Batch-load existing classes and assignments to avoid N+1 queries
+            const existingClasses = await db.query(
+                'SELECT id, name FROM classes WHERE user_id = $1', [req.user.id]
+            );
+            const classMap = {};
+            for (const c of existingClasses) classMap[c.name] = c.id;
+
+            const existingAssignments = await db.query(
+                'SELECT canvas_assignment_id FROM assignments WHERE user_id = $1 AND canvas_assignment_id IS NOT NULL',
+                [req.user.id]
+            );
+            const assignmentUids = new Set(existingAssignments.map(a => a.canvas_assignment_id));
 
             for (const k in events) {
                 const ev = events[k];
                 if (ev.type !== 'VEVENT') continue;
 
-                // Canvas usually formats summary as "Assignment Name [Course Name]"
                 const summary = ev.summary || 'Untitled Event';
                 const description = ev.description || '';
-                const uid = ev.uid; // Unique ID from Canvas
-                const due_date = ev.end || ev.start; // iCal usually uses end/start for due dates
+                const uid = ev.uid;
+                const due_date = ev.end || ev.start;
 
                 if (!due_date) continue;
 
-                // Try to extract course name from summary "Assignment [Course]" -> "Course"
                 let courseName = 'Canvas Activities';
                 const courseMatch = summary.match(/\[(.*?)\]$/);
                 let assignmentTitle = summary;
@@ -102,52 +108,37 @@ module.exports = function ({ app, db, authMiddleware }) {
                     assignmentTitle = summary.replace(/\[.*?\]$/, '').trim();
                 }
 
-                // Get or create class
-                let classId;
-                if (mappedClasses[courseName]) {
-                    classId = mappedClasses[courseName];
-                } else {
-                    let existingClass = await db.queryOne(
-                        'SELECT id FROM classes WHERE user_id = $1 AND name = $2',
-                        [req.user.id, courseName]
+                // Get or create class (using pre-loaded map)
+                let classId = classMap[courseName];
+                if (!classId) {
+                    const newClass = await db.queryOne(
+                        `INSERT INTO classes (user_id, name, color)
+                         VALUES ($1, $2, $3) RETURNING id`,
+                        [req.user.id, courseName, '#4f46e5']
                     );
-
-                    if (!existingClass) {
-                        const newClass = await db.queryOne(
-                            `INSERT INTO classes (user_id, name, color) 
-                             VALUES ($1, $2, $3) RETURNING id`,
-                            [req.user.id, courseName, '#4f46e5']
-                        );
-                        classId = newClass.id;
-                        syncedClassesCount++;
-                    } else {
-                        classId = existingClass.id;
-                    }
-                    mappedClasses[courseName] = classId;
+                    classId = newClass.id;
+                    classMap[courseName] = classId;
+                    syncedClassesCount++;
                 }
 
-                // Get or create assignment
-                const existingAssig = await db.queryOne(
-                    'SELECT id FROM assignments WHERE user_id = $1 AND canvas_assignment_id = $2',
-                    [req.user.id, uid]
+                // Skip if assignment already exists (using pre-loaded set)
+                if (assignmentUids.has(uid)) continue;
+
+                await db.execute(
+                    `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [
+                        req.user.id,
+                        classId,
+                        assignmentTitle,
+                        description,
+                        new Date(due_date).toISOString(),
+                        'Todo',
+                        uid
+                    ]
                 );
-
-                if (!existingAssig) {
-                    await db.execute(
-                        `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                        [
-                            req.user.id,
-                            classId,
-                            assignmentTitle,
-                            description,
-                            new Date(due_date).toISOString(),
-                            'Todo',
-                            uid
-                        ]
-                    );
-                    syncedAssignmentsCount++;
-                }
+                assignmentUids.add(uid);
+                syncedAssignmentsCount++;
             }
 
             res.json({

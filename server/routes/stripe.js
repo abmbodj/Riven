@@ -63,7 +63,7 @@ module.exports = function ({ db }) {
             };
 
             // ── Test Coupon: set STRIPE_TEST_COUPON in .env to auto-apply 100% off ──
-            if (process.env.STRIPE_TEST_COUPON) {
+            if (process.env.STRIPE_TEST_COUPON && process.env.NODE_ENV !== 'production') {
                 console.warn(`[Stripe] ⚠️  TEST MODE: Applying coupon "${process.env.STRIPE_TEST_COUPON}" to checkout`);
                 sessionParams.discounts = [{ coupon: process.env.STRIPE_TEST_COUPON }];
             }

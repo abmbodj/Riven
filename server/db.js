@@ -25,6 +25,11 @@ if (global.__TEST_DB_MOCK__) {
         max: isProduction ? 5 : 10,
     });
 
+    // Handle unexpected pool errors to prevent silent crashes
+    pool.on('error', (err) => {
+        console.error('[DB] Unexpected pool error:', err.message);
+    });
+
     // Helper to create a clean interface
     db = {
         // Execute a query and return all rows

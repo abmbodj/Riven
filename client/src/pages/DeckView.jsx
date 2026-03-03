@@ -37,6 +37,7 @@ export default function DeckView() {
     const [showShareModal, setShowShareModal] = useState(false);
     const [friends, setFriends] = useState([]);
     const [sharingTo, setSharingTo] = useState(null);
+    const [exporting, setExporting] = useState(false);
     const touchStartX = useRef(0);
 
     const loadDeck = useCallback(() => {
@@ -59,7 +60,11 @@ export default function DeckView() {
 
     useEffect(() => {
         loadDeck();
-        Promise.all([api.getFolders(), api.getClasses(), api.getTags()]).then(([f, c, t]) => {
+        Promise.all([
+            api.getFolders().catch(() => []),
+            api.getClasses().catch(() => []),
+            api.getTags().catch(() => [])
+        ]).then(([f, c, t]) => {
             setFolders(f);
             setClasses(c);
             setTags(t);
@@ -122,6 +127,8 @@ export default function DeckView() {
     };
 
     const handleExport = async (format) => {
+        if (exporting) return;
+        setExporting(true);
         try {
             const data = await api.exportDeck(id, format);
 
@@ -147,6 +154,8 @@ export default function DeckView() {
             setShowExportMenu(false);
         } catch {
             toast.error('Failed to export deck');
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -261,9 +270,14 @@ export default function DeckView() {
         }
 
         try {
-            // Add all cards in parallel
-            await Promise.all(cards.map(card => api.addCard(id, card.front, card.back)));
-            toast.success(`Added ${cards.length} cards!`);
+            const results = await Promise.allSettled(cards.map(card => api.addCard(id, card.front, card.back)));
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            if (failed > 0) {
+                toast.error(`${succeeded} cards added, ${failed} failed`);
+            } else {
+                toast.success(`Added ${succeeded} cards!`);
+            }
             setBulkText('');
             setShowBulkImport(false);
             loadDeck();
@@ -513,15 +527,17 @@ export default function DeckView() {
                                             <div className="p-4 sm:p-1 flex flex-col">
                                                 <button
                                                     onClick={() => handleExport('json')}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors"
+                                                    disabled={exporting}
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors disabled:opacity-50"
                                                 >
-                                                    Export JSON
+                                                    {exporting ? 'Exporting...' : 'Export JSON'}
                                                 </button>
                                                 <button
                                                     onClick={() => handleExport('csv')}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors sm:border-t border-claude-border/50"
+                                                    disabled={exporting}
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors sm:border-t border-claude-border/50 disabled:opacity-50"
                                                 >
-                                                    Export CSV
+                                                    {exporting ? 'Exporting...' : 'Export CSV'}
                                                 </button>
                                                 <button
                                                     onClick={() => setShowExportMenu(false)}

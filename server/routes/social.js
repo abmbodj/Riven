@@ -1,4 +1,20 @@
 module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
+    // Admin middleware for moderation routes
+    async function adminMiddleware(req, res, next) {
+        try {
+            const user = await db.queryOne('SELECT role, is_admin FROM users WHERE id = $1', [req.user.id]);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            const role = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+            if (role !== 'admin' && role !== 'owner') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+            req.user.role = role;
+            next();
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to verify permissions' });
+        }
+    }
+
     // Search users by username or share code
     app.get('/api/users/search', authMiddleware, async (req, res) => {
         const { q } = req.query;
@@ -112,7 +128,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
             }
             // Check if user exists
             const targetUser = await db.queryOne('SELECT id, username FROM users WHERE id = $1', [userId]);
-            if (!targetUser) return res.status(404).json({ error: 'User not found' });
+            if (!targetUser) return res.status(400).json({ error: 'Unable to send friend request' });
 
             // Check existing friendship
             const existing = await db.queryOne(
@@ -253,6 +269,16 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
         if (!contentType || !reason) {
             return res.status(400).json({ error: 'Missing required report fields' });
         }
+        if (typeof reason !== 'string' || reason.length > 500) {
+            return res.status(400).json({ error: 'Reason must be a string under 500 characters' });
+        }
+        if (details && (typeof details !== 'string' || details.length > 2000)) {
+            return res.status(400).json({ error: 'Details must be under 2000 characters' });
+        }
+        const validContentTypes = ['user', 'deck', 'message', 'group', 'other'];
+        if (!validContentTypes.includes(contentType)) {
+            return res.status(400).json({ error: 'Invalid content type' });
+        }
 
         try {
             await db.execute(
@@ -272,11 +298,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
     // ==========================================
 
     // List all reports (Admin only)
-    app.get('/api/admin/reports', authMiddleware, async (req, res) => {
-        if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.is_admin !== 1) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
+    app.get('/api/admin/reports', authMiddleware, adminMiddleware, async (req, res) => {
         try {
             const reports = await db.query(`
                 SELECT r.*, 
@@ -297,11 +319,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
     });
 
     // Resolve a report (Admin only)
-    app.post('/api/admin/reports/:id/resolve', authMiddleware, async (req, res) => {
-        if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.is_admin !== 1) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
+    app.post('/api/admin/reports/:id/resolve', authMiddleware, adminMiddleware, async (req, res) => {
         try {
             await db.execute(
                 `UPDATE reports SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = $1 WHERE id = $2`,
@@ -315,11 +333,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
     });
 
     // Close a report (Admin only)
-    app.post('/api/admin/reports/:id/close', authMiddleware, async (req, res) => {
-        if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.is_admin !== 1) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
+    app.post('/api/admin/reports/:id/close', authMiddleware, adminMiddleware, async (req, res) => {
         try {
             await db.execute(
                 `UPDATE reports SET status = 'closed', resolved_at = CURRENT_TIMESTAMP, resolved_by = $1 WHERE id = $2`,
@@ -333,11 +347,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
     });
 
     // Ban a user (Admin only)
-    app.post('/api/admin/users/:id/ban', authMiddleware, async (req, res) => {
-        if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.is_admin !== 1) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
+    app.post('/api/admin/users/:id/ban', authMiddleware, adminMiddleware, async (req, res) => {
         const targetId = parseInt(req.params.id);
         if (targetId === req.user.id) return res.status(400).json({ error: 'Cannot ban yourself' });
 

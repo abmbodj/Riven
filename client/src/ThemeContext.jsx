@@ -43,16 +43,15 @@ export function ThemeProvider({ children }) {
     const switchTheme = useCallback(async (themeId) => {
         try {
             await api.activateTheme(themeId);
-            setThemes(prev => {
-                const theme = prev.find(t => t.id === themeId);
+            const theme = themes.find(t => t.id === themeId);
+            if (theme) {
                 setActiveTheme(theme);
                 applyTheme(theme);
-                return prev;
-            });
+            }
         } catch {
             // Failed to switch theme silently
         }
-    }, [applyTheme]);
+    }, [applyTheme, themes]);
 
     const addTheme = useCallback(async (themeData) => {
         const newTheme = await api.createTheme(themeData);
