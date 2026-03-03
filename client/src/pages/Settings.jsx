@@ -722,7 +722,7 @@ function BlockedUsersCard() {
             const { unblockUser } = await import('../api/authApi');
             await unblockUser(userId);
             setBlockedUsers(prev => prev.filter(u => u.id !== userId));
-            toast('User unblocked successfully.');
+            toast.success('User unblocked successfully.');
         } catch (err) {
             toast.error(err.message || 'Failed to unblock user.');
         } finally {
