@@ -15,7 +15,7 @@ export default function GroupCram() {
     const navigate = useNavigate();
     const haptics = useHaptics();
     const toast = useToast();
-    const { socket } = useAuth();
+    const { socket, user } = useAuth();
 
     // Session Data
     const [session, setSession] = useState(null);
@@ -175,7 +175,7 @@ export default function GroupCram() {
 
                 // If I was the session starter, technically they could end it here,
                 // but let's let standard users just wait on this screen or hit "End Session for Everyone"
-                if (session?.started_by === (api.getCurrentUser?.()?.id || 1)) {
+                if (session?.started_by === user?.id) {
                     // Keep it active until they hit the manual button below
                 }
             }
@@ -332,7 +332,7 @@ export default function GroupCram() {
                     </div>
 
                     {/* Show end button if admin/creator */}
-                    {(groupRole === 'admin' || session?.started_by === (api.getCurrentUser?.()?.id || 1)) && (
+                    {(groupRole === 'admin' || session?.started_by === user?.id) && (
                         <button
                             onClick={handleEndSessionGlobally}
                             className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all tap-action"
@@ -376,7 +376,7 @@ export default function GroupCram() {
                     <div className="h-8 flex items-center justify-center rounded-2xl glass-panel/50 px-3">
                         <span className="font-mono text-[9px] font-bold text-claude-secondary">{currentIndex + 1}/{cards.length}</span>
                     </div>
-                    {(groupRole === 'admin' || session?.started_by === (api.getCurrentUser?.()?.id || 1)) && (
+                    {(groupRole === 'admin' || session?.started_by === user?.id) && (
                         <button
                             onClick={handleEndSessionGlobally}
                             className="w-8 h-8 flex items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all tap-action"
