@@ -219,9 +219,8 @@ export default function ClassView() {
     };
 
     const handleGenerateAI = async () => {
-        const hasText = assignForm.description && assignForm.description.trim() !== '';
-        if (!hasText && !aiFile) {
-            toast.error('Please add some notes or upload a file to generate flashcards from.');
+        if (!aiFile) {
+            toast.error('Please upload a file to generate flashcards from.');
             return;
         }
 
@@ -534,8 +533,8 @@ export default function ClassView() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Description / Notes & AI File</label>
-                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Paste your lecture notes/syllabus reading here to generate flashcards..." />
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Description</label>
+                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Add a description for this task..." />
 
                                     {aiFilePreview ? (
                                         <div className="flex items-center justify-between glass-panel rounded-xl p-3 mb-3">
@@ -564,7 +563,7 @@ export default function ClassView() {
                                     <button
                                         type="button"
                                         onClick={handleGenerateAI}
-                                        disabled={isGeneratingAI || (!assignForm.description?.trim() && !aiFile)}
+                                        disabled={isGeneratingAI || !aiFile}
                                         className="w-full h-12 flex items-center justify-center gap-2 glass-panel hover:glass-panel border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
                                     >
                                         {isGeneratingAI ? (
