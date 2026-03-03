@@ -388,6 +388,15 @@ export const acceptFriendRequest = (userId) => authFetch('/friends/accept', {
 });
 export const removeFriend = (userId) => authFetch(`/friends/${userId}`, { method: 'DELETE' });
 
+// ============ MODERATION (BLOCKS & REPORTS) ============
+export const blockUser = (userId) => authFetch(`/users/${userId}/block`, { method: 'POST' });
+export const unblockUser = (userId) => authFetch(`/users/${userId}/block`, { method: 'DELETE' });
+export const getBlockedUsers = () => safeFetchArray(authFetch('/blocked-users'));
+export const reportContent = (reportData) => authFetch('/reports', {
+    method: 'POST',
+    body: JSON.stringify(reportData)
+});
+
 // ============ DIRECT MESSAGES ============
 
 export const getConversations = () => safeFetchArray(authFetch('/messages/conversations'));
@@ -478,6 +487,12 @@ export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${us
 export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
 export const adminGetStats = () => safeFetchObject(authFetch('/admin/stats'));
 export const adminUpdateUserRole = (userId, role) => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
+
+// Admin moderation functions
+export const adminGetReports = () => safeFetchArray(authFetch('/admin/reports'));
+export const adminResolveReport = (reportId) => authFetch(`/admin/reports/${reportId}/resolve`, { method: 'POST' });
+export const adminCloseReport = (reportId) => authFetch(`/admin/reports/${reportId}/close`, { method: 'POST' });
+export const adminBanUser = (userId) => authFetch(`/admin/users/${userId}/ban`, { method: 'POST' });
 
 // Admin message functions
 export const adminGetMessages = () => safeFetchArray(authFetch('/admin/messages'));
@@ -654,6 +669,10 @@ export default {
     getGroupFiles,
     uploadGroupFile,
     deleteGroupFile,
+    blockUser,
+    unblockUser,
+    getBlockedUsers,
+    reportContent,
 
     // Hearts API
     getHeartsStatus,
