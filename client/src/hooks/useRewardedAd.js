@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import api from '../api';
+import { api } from '../api';
 
 /**
  * Shows a rewarded ad using Google Ad Placement API (web).
