@@ -417,13 +417,13 @@ export default function Settings() {
                             icon={Shield}
                             title="Privacy Policy"
                             description="How we protect your data"
-                            onClick={() => window.open('https://Riven.app/privacy', '_blank')}
+                            onClick={() => navigate('/privacy')}
                         />
                         <SettingItem
                             icon={BookOpen}
                             title="Terms of Service"
                             description="EULA and usage rules"
-                            onClick={() => window.open('https://Riven.app/terms', '_blank')}
+                            onClick={() => navigate('/terms')}
                             noBorder
                         />
                     </div>
