@@ -180,8 +180,8 @@ const StreakCounter: React.FC<{ frame: number; fps: number }> = ({
   ];
 
   // Screen shake on milestones
-  const currentMilestone = milestones.findLast(
-    (m) => frame >= m.showAt && frame < m.showAt + 15
+  const currentMilestone = [...milestones].reverse().find(
+    (m: { value: number; label: string; showAt: number }) => frame >= m.showAt && frame < m.showAt + 15
   );
   const shakeX = currentMilestone
     ? Math.sin((frame - currentMilestone.showAt) * 2) *
