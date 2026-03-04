@@ -2,22 +2,46 @@ import { useState, useCallback } from 'react';
 import { api } from '../api';
 
 /**
+ * Detect if running as a standalone PWA (home screen app).
+ * Google Ads SDK doesn't work in standalone mode — callbacks never fire.
+ */
+function isStandalonePWA() {
+    return window.navigator.standalone ||
+        window.matchMedia('(display-mode: standalone)').matches;
+}
+
+const AD_TIMEOUT_MS = 15000; // 15 second safety timeout
+
+/**
  * Shows a rewarded ad using Google Ad Placement API (web).
- * In development, shows a mock ad that auto-completes after 3 seconds.
+ * In dev mode or standalone PWA, skips the ad and resolves immediately.
  */
 function showRewardedAd() {
     return new Promise((resolve, reject) => {
-        // Development mock: simulate a 3-second ad
-        if (import.meta.env.DEV || !window.adBreak) {
-            console.log('[Ad] Showing mock rewarded ad (dev mode)...');
-            const timer = setTimeout(() => {
-                console.log('[Ad] Mock ad completed.');
-                resolve(true);
-            }, 3000);
-            // Store timer for cleanup if needed
-            window.__mockAdTimer = timer;
+        // Skip ad in dev, when adBreak is missing, or in standalone PWA
+        if (import.meta.env.DEV || !window.adBreak || isStandalonePWA()) {
+            console.log('[Ad] Skipping ad (dev/standalone/unavailable)');
+            resolve(true);
             return;
         }
+
+        // Safety timeout — if Google Ads never calls back, don't hang forever
+        let settled = false;
+        const timeout = setTimeout(() => {
+            if (!settled) {
+                settled = true;
+                console.warn('[Ad] Timed out waiting for ad callback');
+                reject(new Error('Ad timed out. Please try again.'));
+            }
+        }, AD_TIMEOUT_MS);
+
+        const settle = (fn) => (...args) => {
+            if (!settled) {
+                settled = true;
+                clearTimeout(timeout);
+                fn(...args);
+            }
+        };
 
         // Production: use Google Ad Placement API
         try {
@@ -27,20 +51,24 @@ function showRewardedAd() {
                 beforeReward: (showAdFn) => {
                     showAdFn();
                 },
-                adViewed: () => {
+                adViewed: settle(() => {
                     resolve(true);
-                },
-                adDismissed: () => {
+                }),
+                adDismissed: settle(() => {
                     reject(new Error('Ad was dismissed before completion.'));
-                },
-                adBreakDone: (placementInfo) => {
+                }),
+                adBreakDone: settle((placementInfo) => {
                     if (placementInfo.breakStatus === 'notReady') {
                         reject(new Error('No ads available right now. Try again later.'));
                     }
-                },
+                }),
             });
         } catch (err) {
-            reject(new Error('Failed to load ad. Try again later.'));
+            if (!settled) {
+                settled = true;
+                clearTimeout(timeout);
+                reject(new Error('Failed to load ad. Try again later.'));
+            }
         }
     });
 }
