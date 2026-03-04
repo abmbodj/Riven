@@ -48,7 +48,8 @@ export default function Layout({ children }) {
     }, [location.pathname]);
 
     const isAccountPage = location.pathname === '/account';
-    const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || hideNavFromContext || (!isLoggedIn && isAccountPage);
+    const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
+    const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || isLegalPage || hideNavFromContext || (!isLoggedIn && isAccountPage);
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text">
