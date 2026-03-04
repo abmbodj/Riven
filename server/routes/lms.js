@@ -56,12 +56,41 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.post('/api/lms/sync', authMiddleware, async (req, res) => {
         try {
             const user = await db.queryOne(
-                'SELECT canvas_ical_url FROM users WHERE id = $1',
+                'SELECT canvas_ical_url, subscription_tier, role, simulate_free_tier, lms_sync_count, lms_sync_reset_at FROM users WHERE id = $1',
                 [req.user.id]
             );
 
             if (!user?.canvas_ical_url) {
                 return res.status(400).json({ error: 'Canvas is not connected. Add your Canvas Calendar Link first.' });
+            }
+
+            // Premium gate: free users get 1 free sync per day, then need ad or upgrade
+            const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
+            const isPremium = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+
+            if (!isPremium) {
+                const now = new Date();
+                let syncCount = user.lms_sync_count || 0;
+                const resetAt = user.lms_sync_reset_at ? new Date(user.lms_sync_reset_at) : null;
+
+                // Reset daily counter
+                if (!resetAt || (now - resetAt > 24 * 60 * 60 * 1000)) {
+                    syncCount = 0;
+                    await db.execute('UPDATE users SET lms_sync_count = 0, lms_sync_reset_at = $1 WHERE id = $2', [now, req.user.id]);
+                }
+
+                // Check if ad-based sync was granted (from req body flag)
+                const adGranted = req.body?.adGranted === true;
+
+                if (syncCount >= 1 && !adGranted) {
+                    return res.status(429).json({
+                        error: 'Free sync limit reached for today. Watch an ad or upgrade for more syncs.',
+                        canWatchAd: true
+                    });
+                }
+
+                // Increment sync count
+                await db.execute('UPDATE users SET lms_sync_count = lms_sync_count + 1 WHERE id = $1', [req.user.id]);
             }
 
             const ical = require('node-ical');

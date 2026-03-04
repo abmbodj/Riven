@@ -283,7 +283,7 @@ export const connectCanvas = (icalUrl) => authFetch('/lms/canvas/connect', {
 });
 export const disconnectCanvas = () => authFetch('/lms/canvas/disconnect', { method: 'POST' });
 export const getCanvasSettings = () => authFetch('/lms/settings');
-export const syncCanvas = () => authFetch('/lms/sync', { method: 'POST' });
+export const syncCanvas = (adGranted = false) => authFetch('/lms/sync', { method: 'POST', body: JSON.stringify({ adGranted }) });
 
 // --- AI Generation ---
 export const getAILimits = () => authFetch('/ai/limits');
@@ -571,6 +571,11 @@ export const getReferralInfo = () => authFetch('/referrals/me');
 export const applyReferralCode = (code) => authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) });
 export const checkReferralQualification = () => authFetch('/referrals/check-qualification', { method: 'POST' });
 
+// Rewarded Ads API
+export const getAdStatus = () => authFetch('/ads/status');
+export const requestAdReward = (feature, options = {}) => authFetch('/ads/request-reward', { method: 'POST', body: JSON.stringify({ feature, ...options }) });
+export const claimAdReward = (rewardToken) => authFetch('/ads/claim-reward', { method: 'POST', body: JSON.stringify({ rewardToken }) });
+
 export default {
     getToken,
     setToken,
@@ -699,4 +704,9 @@ export default {
     // Email Verification
     sendVerificationEmail,
     verifyEmail,
+
+    // Rewarded Ads API
+    getAdStatus,
+    requestAdReward,
+    claimAdReward,
 };

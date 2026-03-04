@@ -330,5 +330,70 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
             res.status(500).json({ error: 'Failed to delete message' });
         }
     });
+
+    // ============ AD ANALYTICS ============
+
+    app.get('/api/admin/ad-analytics', authMiddleware, adminMiddleware, async (req, res) => {
+        try {
+            // Total ads watched (all time)
+            const totalAll = await db.queryOne(
+                `SELECT COUNT(*) as total, COUNT(DISTINCT user_id) as unique_users FROM ad_rewards WHERE status = 'completed'`
+            );
+
+            // Today's stats
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const totalToday = await db.queryOne(
+                `SELECT COUNT(*) as total, COUNT(DISTINCT user_id) as unique_users FROM ad_rewards WHERE status = 'completed' AND completed_at >= $1`,
+                [today]
+            );
+
+            // This week's stats
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const totalWeek = await db.queryOne(
+                `SELECT COUNT(*) as total, COUNT(DISTINCT user_id) as unique_users FROM ad_rewards WHERE status = 'completed' AND completed_at >= $1`,
+                [weekAgo]
+            );
+
+            // Breakdown by feature
+            const byFeature = await db.query(
+                `SELECT feature, COUNT(*) as count, COUNT(DISTINCT user_id) as unique_users
+                 FROM ad_rewards WHERE status = 'completed'
+                 GROUP BY feature ORDER BY count DESC`
+            );
+
+            // Top ad-watching users
+            const topUsers = await db.query(
+                `SELECT ar.user_id, u.username, COUNT(*) as ad_count
+                 FROM ad_rewards ar JOIN users u ON ar.user_id = u.id
+                 WHERE ar.status = 'completed'
+                 GROUP BY ar.user_id, u.username
+                 ORDER BY ad_count DESC LIMIT 10`
+            );
+
+            // Conversion rate: users who watched ads AND later upgraded
+            const convertedUsers = await db.queryOne(
+                `SELECT COUNT(DISTINCT ar.user_id) as converted
+                 FROM ad_rewards ar JOIN users u ON ar.user_id = u.id
+                 WHERE ar.status = 'completed' AND u.subscription_tier != 'free'`
+            );
+            const totalAdUsers = parseInt(totalAll.unique_users) || 0;
+            const conversionRate = totalAdUsers > 0
+                ? ((parseInt(convertedUsers.converted) / totalAdUsers) * 100).toFixed(1)
+                : '0.0';
+
+            res.json({
+                allTime: { total: parseInt(totalAll.total), uniqueUsers: parseInt(totalAll.unique_users) },
+                today: { total: parseInt(totalToday.total), uniqueUsers: parseInt(totalToday.unique_users) },
+                thisWeek: { total: parseInt(totalWeek.total), uniqueUsers: parseInt(totalWeek.unique_users) },
+                byFeature,
+                topUsers,
+                conversionRate: parseFloat(conversionRate),
+            });
+        } catch (error) {
+            console.error('Ad Analytics Error:', error);
+            res.status(500).json({ error: 'Failed to fetch ad analytics' });
+        }
+    });
 };
 

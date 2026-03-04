@@ -86,7 +86,7 @@ export const api = {
     connectCanvas: (icalUrl) => isLoggedIn() ? serverApi.connectCanvas(icalUrl) : Promise.reject(new Error('Must be logged in to connect LMS')),
     disconnectCanvas: () => isLoggedIn() ? serverApi.disconnectCanvas() : Promise.reject(new Error('Must be logged in')),
     getCanvasSettings: () => isLoggedIn() ? serverApi.getCanvasSettings() : Promise.resolve({ isConnected: false }),
-    syncCanvas: () => isLoggedIn() ? serverApi.syncCanvas() : Promise.reject(new Error('Must be logged in to sync LMS')),
+    syncCanvas: (adGranted) => isLoggedIn() ? serverApi.syncCanvas(adGranted) : Promise.reject(new Error('Must be logged in to sync LMS')),
 
     // AI Generation
     getAILimits: () => isLoggedIn()
@@ -230,4 +230,9 @@ export const api = {
     // Referrals API
     getReferralInfo: () => isLoggedIn() ? serverApi.getReferralInfo() : Promise.resolve(null),
     applyReferralCode: (code) => isLoggedIn() ? serverApi.applyReferralCode(code) : Promise.reject(new Error('Must be logged in')),
+
+    // Rewarded Ads API
+    getAdStatus: () => isLoggedIn() ? serverApi.getAdStatus() : Promise.resolve({ canWatchAds: false }),
+    requestAdReward: (feature, options) => isLoggedIn() ? serverApi.requestAdReward(feature, options) : Promise.reject(new Error('Must be logged in')),
+    claimAdReward: (rewardToken) => isLoggedIn() ? serverApi.claimAdReward(rewardToken) : Promise.reject(new Error('Must be logged in')),
 };

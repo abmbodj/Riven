@@ -9,6 +9,7 @@ import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
+import useRewardedAd from '../hooks/useRewardedAd';
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -26,6 +27,7 @@ export default function StudyMode() {
     const haptics = useHaptics();
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
+    const { watchAd } = useRewardedAd();
 
     // Initialize start time on mount
     useEffect(() => {
@@ -463,6 +465,19 @@ export default function StudyMode() {
                 }
             }} onUpgrade={() => {
                 setShowOutOfHearts(false);
+            }} onWatchAd={async () => {
+                try {
+                    const result = await watchAd('hearts_refill');
+                    if (result?.hearts !== undefined) {
+                        setHeartsStatus(prev => ({ ...prev, hearts: result.hearts }));
+                    } else {
+                        const updated = await api.getHeartsStatus();
+                        setHeartsStatus(updated);
+                    }
+                    setShowOutOfHearts(false);
+                } catch {
+                    // Error handled by hook
+                }
             }} />
         </div>
     );

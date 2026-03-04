@@ -557,6 +557,29 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            // Ad rewards table (rewarded ads system)
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS ad_rewards (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    feature TEXT NOT NULL,
+                    reward_token TEXT UNIQUE,
+                    status TEXT DEFAULT 'pending',
+                    granted_value TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    expires_at TIMESTAMP
+                )
+            `);
+
+            // Ad reward user columns (migration)
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ad_watches_today INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ad_watches_reset_at TIMESTAMP`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_trial_id INTEGER`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_trial_expires_at TIMESTAMP`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lms_sync_count INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lms_sync_reset_at TIMESTAMP`).catch(() => { });
+
             // Database schema initialized successfully
 
             // Create indexes for performance optimization
@@ -603,6 +626,14 @@ if (global.__TEST_DB_MOCK__) {
             `);
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_shared_decks_share_id ON shared_decks(share_id)
+            `);
+
+            // Indexes for ad rewards
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_ad_rewards_user_id ON ad_rewards(user_id)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_ad_rewards_token ON ad_rewards(reward_token)
             `);
 
             // Indexes for blocks and reports

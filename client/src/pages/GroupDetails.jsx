@@ -9,6 +9,9 @@ import ReportModal from '../components/ui/ReportModal';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
+import useRewardedAd from '../hooks/useRewardedAd';
+import AdRewardModal from '../components/ui/AdRewardModal';
+import PricingModal from '../components/ui/PricingModal';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -20,6 +23,9 @@ export default function GroupDetails() {
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showAiAdModal, setShowAiAdModal] = useState(false);
+    const [showPricingModal, setShowPricingModal] = useState(false);
+    const { watchAd, loading: adLoading } = useRewardedAd();
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
@@ -373,7 +379,11 @@ export default function GroupDetails() {
             await finalizeFileUpload();
 
         } catch (err) {
-            toast.error(err.message || 'AI Generation failed, falling back to upload-only');
+            if (err.status === 429 && err.message?.includes('Watch an ad')) {
+                setShowAiAdModal(true);
+            } else {
+                toast.error(err.message || 'AI Generation failed, falling back to upload-only');
+            }
             // If AI specifically fails, still save the file
             await finalizeFileUpload();
         }
@@ -1150,6 +1160,29 @@ export default function GroupDetails() {
                 onSubmit={handleReportUserSubmit}
                 isSubmitting={isReporting}
             />
+
+            <AdRewardModal
+                isOpen={showAiAdModal}
+                onClose={() => setShowAiAdModal(false)}
+                title="AI Limit Reached"
+                description="You've used all your AI generations. Watch a short ad to get 1 more, or upgrade for 50 per session."
+                adLabel="Watch Ad for +1 Generation"
+                loading={adLoading}
+                onWatchAd={async () => {
+                    try {
+                        await watchAd('ai_generation');
+                        setShowAiAdModal(false);
+                        toast.success('You earned 1 extra AI generation!');
+                    } catch {
+                        // Error handled by hook
+                    }
+                }}
+                onUpgrade={() => {
+                    setShowAiAdModal(false);
+                    setShowPricingModal(true);
+                }}
+            />
+            <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
         </>
     );
 }

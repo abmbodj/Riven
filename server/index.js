@@ -30,6 +30,7 @@ const registerHeartsRoutes = require('./routes/hearts');
 const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
 const registerStripeRoutes = require('./routes/stripe');
+const registerAdsRoutes = require('./routes/ads');
 
 const app = express();
 const server = http.createServer(app);
@@ -338,6 +339,7 @@ registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 registerHeartsRoutes({ app, db, authMiddleware });
 registerReferralRoutes({ app, db, authMiddleware });
+registerAdsRoutes({ app, db, authMiddleware });
 
 // ============ WEBHOOKS ============
 
@@ -1528,6 +1530,27 @@ app.put('/api/themes/:id/activate', authMiddleware, async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.id || null;
+
+        // Check if this is a PRO theme and if user has access
+        const theme = await db.queryOne('SELECT * FROM themes WHERE id = $1', [id]);
+        if (!theme) return res.status(404).json({ error: 'Theme not found' });
+
+        const FREE_THEMES = ['Riven', 'Riven Light'];
+        const isProTheme = theme.is_default && !FREE_THEMES.includes(theme.name);
+
+        if (isProTheme && userId) {
+            const user = await db.queryOne(
+                'SELECT subscription_tier, role, simulate_free_tier, theme_trial_id, theme_trial_expires_at FROM users WHERE id = $1',
+                [userId]
+            );
+            const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
+            const isPremium = isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+            const hasActiveTrial = user.theme_trial_id === parseInt(id) && user.theme_trial_expires_at && new Date(user.theme_trial_expires_at) > new Date();
+
+            if (!isPremium && !hasActiveTrial) {
+                return res.status(403).json({ error: 'Upgrade or watch an ad to use this theme.', canWatchAd: true });
+            }
+        }
 
         if (userId) {
             await db.execute('UPDATE themes SET is_active = 0 WHERE user_id = $1', [userId]);

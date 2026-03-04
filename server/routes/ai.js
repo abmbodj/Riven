@@ -32,8 +32,8 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
             if (count >= MAX_LIMIT) {
                 const errorMsg = isPremium
                     ? 'AI generation limit reached. Please try again later.'
-                    : 'AI generation limit reached. Please try again later or upgrade to Premium.';
-                return res.status(429).json({ error: errorMsg });
+                    : 'AI generation limit reached. Watch an ad or upgrade to Premium for more.';
+                return res.status(429).json({ error: errorMsg, canWatchAd: !isPremium });
             }
 
             // Consume 1 quota immediately
@@ -79,7 +79,8 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
                 remaining,
                 max: MAX_LIMIT,
                 characterLimit: isPremium ? 50000 : 15000,
-                flashcardRange: isPremium ? [5, 40] : [5, 15]
+                flashcardRange: isPremium ? [5, 40] : [5, 15],
+                canWatchAd: !isPremium && remaining === 0
             });
         } catch (error) {
             console.error('Error fetching AI limits:', error);

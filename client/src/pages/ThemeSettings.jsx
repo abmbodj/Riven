@@ -4,7 +4,9 @@ import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Sparkles, Type } from 'lucide
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import AdRewardModal from '../components/ui/AdRewardModal';
 import useHaptics from '../hooks/useHaptics';
+import useRewardedAd from '../hooks/useRewardedAd';
 import { useAuth } from '../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -63,6 +65,8 @@ export default function ThemeSettings() {
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, theme: null });
     const [editorMode, setEditorMode] = useState('simple');
     const [pricingOpen, setPricingOpen] = useState(false);
+    const [themeAdModal, setThemeAdModal] = useState({ open: false, themeId: null });
+    const { watchAd, loading: adLoading } = useRewardedAd();
 
     const [themeForm, setThemeForm] = useState({ ...DEFAULT_DARK, name: '' });
 
@@ -74,7 +78,7 @@ export default function ThemeSettings() {
             const tier = user?.subscription_tier || 'free';
             if (tier === 'free') {
                 haptics.error();
-                setPricingOpen(true);
+                setThemeAdModal({ open: true, themeId });
                 return;
             }
         }
@@ -258,6 +262,30 @@ export default function ThemeSettings() {
                 isOpen={pricingOpen}
                 onClose={() => setPricingOpen(false)}
                 currentTier={user?.subscription_tier || 'free'}
+            />
+
+            <AdRewardModal
+                isOpen={themeAdModal.open}
+                onClose={() => setThemeAdModal({ open: false, themeId: null })}
+                title="PRO Theme"
+                description="This is a PRO theme. Watch an ad to try it for 24 hours, or upgrade for permanent access to all themes."
+                adLabel="Watch Ad for 24hr Trial"
+                loading={adLoading}
+                icon={Sparkles}
+                onWatchAd={async () => {
+                    try {
+                        await watchAd('theme_trial', { themeId: themeAdModal.themeId });
+                        await switchTheme(themeAdModal.themeId);
+                        setThemeAdModal({ open: false, themeId: null });
+                        toast.success('Theme trial activated for 24 hours!');
+                    } catch {
+                        // Error handled by hook
+                    }
+                }}
+                onUpgrade={() => {
+                    setThemeAdModal({ open: false, themeId: null });
+                    setPricingOpen(true);
+                }}
             />
 
             {/* Theme Editor - Bottom Sheet for Mobile First */}
