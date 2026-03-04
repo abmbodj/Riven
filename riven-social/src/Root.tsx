@@ -14,12 +14,31 @@ import { SpacedRepSecret } from './videos/SpacedRepSecret';
 import { SemesterInSeconds } from './videos/SemesterInSeconds';
 import { DarkAcademiaStudy } from './videos/DarkAcademiaStudy';
 import { StreakChallenge } from './videos/StreakChallenge';
+import { Screenshot_AIGen, Screenshot_Syllabus } from './videos/AppStoreFrames';
 
 export const RemotionRoot: React.FC = () => {
   const { width, height, fps } = VIDEO;
 
   return (
     <>
+      {/* App Store Screenshots (Still images, 1284x2778 for 6.7" iPhone requirement) */}
+      <Composition
+        id="Screenshot_AIGen"
+        component={Screenshot_AIGen}
+        durationInFrames={1}
+        fps={fps}
+        width={1284}
+        height={2778}
+      />
+      <Composition
+        id="Screenshot_Syllabus"
+        component={Screenshot_Syllabus}
+        durationInFrames={1}
+        fps={fps}
+        width={1284}
+        height={2778}
+      />
+
       {/* Discovery & Hooks */}
       <Composition
         id="NobodyTalkingAbout"
