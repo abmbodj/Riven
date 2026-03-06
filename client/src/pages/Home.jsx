@@ -67,17 +67,21 @@ export default function Home() {
         return 'Good Evening';
     }, []);
 
-    // Filter and Sort Assignments (Show only Todo/Doing, sorted by nearest due date, max 5)
+    // Filter and Sort Assignments (Todo/Doing due from now through end of this week, max 5)
     const upcomingAssignments = useMemo(() => {
         const now = new Date();
-        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const endOfWeek = new Date(now);
+        const daysUntilSunday = (7 - now.getDay()) % 7;
+        endOfWeek.setDate(now.getDate() + daysUntilSunday);
+        endOfWeek.setHours(23, 59, 59, 999);
 
         return assignments
             .filter(a => {
                 if (a.status === 'Done') return false;
                 if (!a.due_date) return false;
                 const dueDate = new Date(a.due_date);
-                return dueDate <= nextWeek;
+                if (Number.isNaN(dueDate.getTime())) return false;
+                return dueDate >= now && dueDate <= endOfWeek;
             })
             .sort((a, b) => {
                 return new Date(a.due_date) - new Date(b.due_date);
