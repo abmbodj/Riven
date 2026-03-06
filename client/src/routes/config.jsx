@@ -33,7 +33,7 @@ const TermsOfService = lazy(() => import('../pages/TermsOfService.jsx'));
 
 export const routesConfig = [
   // Public Routes
-  { path: '/', element: <Home /> },
+  { path: '/', element: <Home mode="landing" /> },
   { path: '/decks', element: <Decks /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
@@ -45,6 +45,7 @@ export const routesConfig = [
   {
     element: <ProtectedRoute />,
     children: [
+      { path: '/dashboard', element: <Home mode="dashboard" /> },
       { path: '/classes', element: <Classes /> },
       { path: '/class/:id', element: <ClassView /> },
       { path: '/create', element: <CreateDeck /> },
