@@ -89,6 +89,24 @@ export default function Home() {
             .slice(0, 5);
     }, [assignments]);
 
+    // Past Due Assignments (Todo/Doing with due date before now, max 5)
+    const pastDueAssignments = useMemo(() => {
+        const now = new Date();
+
+        return assignments
+            .filter(a => {
+                if (a.status === 'Done') return false;
+                if (!a.due_date) return false;
+                const dueDate = new Date(a.due_date);
+                if (Number.isNaN(dueDate.getTime())) return false;
+                return dueDate < now;
+            })
+            .sort((a, b) => {
+                return new Date(a.due_date) - new Date(b.due_date);
+            })
+            .slice(0, 5);
+    }, [assignments]);
+
     // Recent Decks (limit to 4)
     const recentDecks = useMemo(() => {
         return [...decks].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 4);
@@ -266,6 +284,72 @@ export default function Home() {
                             </div>
                         )}
                     </div>
+
+                    {pastDueAssignments.length > 0 && (
+                        <div className="mt-8">
+                            <div className="flex items-center justify-between mb-4 px-1">
+                                <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-red-400/80 flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5" /> Past Due
+                                </h2>
+                            </div>
+
+                            <div className="relative glass-panel rounded-3xl p-5 md:p-6 overflow-hidden">
+                                <div className="space-y-2 relative z-10">
+                                    <AnimatePresence>
+                                        {pastDueAssignments.map((a, i) => {
+                                            const assocClass = classes.find(c => c.id === a.class_id);
+                                            const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+                                            return (
+                                                <motion.div
+                                                    layout key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: i * 0.05 }}
+                                                >
+                                                    <Link
+                                                        to={`/class/${a.class_id}`}
+                                                        className="group flex flex-col sm:flex-row sm:items-center gap-3 glass-panel rounded-2xl p-4 transition-all tap-action cursor-pointer min-h-[64px]"
+                                                    >
+                                                        <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
+                                                            <button
+                                                                onClick={(e) => toggleAssignStatus(e, a)}
+                                                                className={`mt-0.5 shrink-0 transition-all tap-action ${a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
+                                                            >
+                                                                {a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                                            </button>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="font-serif md:text-lg font-bold truncate text-botanical-parchment group-hover:text-white transition-colors">
+                                                                    {a.title}
+                                                                </h4>
+                                                                {assocClass && (
+                                                                    <div className="flex items-center gap-1.5 mt-1 font-mono text-[9px] uppercase tracking-widest font-bold" style={{ color: assocClass.color || '#7a9e72' }}>
+                                                                        <Layers className="w-3 h-3" /> {assocClass.name}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-2 sm:mt-0 shrink-0">
+                                                            {a.due_date && (
+                                                                <div className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest font-bold ${isOverdue ? 'text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
+                                                                    <Calendar className="w-3 h-3" />
+                                                                    {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                                </div>
+                                                            )}
+                                                            {a.type && (
+                                                                <div className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                                                                    a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                                        'border-[#8fa6a8]/30 text-claude-secondary glass-panel'
+                                                                    }`}>
+                                                                    {a.type}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Link>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Quick Continue - Decks */}
