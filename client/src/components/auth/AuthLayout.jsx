@@ -15,8 +15,8 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
             <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-[#223940]/30 rounded-full blur-[100px] pointer-events-none z-0" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#deb96a]/10 rounded-full blur-[100px] pointer-events-none z-0" />
 
-            {/* Mobile Form Container */}
-            <div className="relative z-10 w-full max-w-sm px-6 flex flex-col justify-center h-full">
+            {/* Form Container */}
+            <div className="relative z-10 w-full max-w-md px-6 flex flex-col justify-center h-full">
 
                 {/* Back Link */}
                 {showBackLink && (

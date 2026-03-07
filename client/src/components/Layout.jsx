@@ -58,7 +58,7 @@ export default function Layout({ children }) {
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text">
             {/* Main container */}
-            <div className="relative min-h-dvh w-full max-w-lg mx-auto bg-claude-bg md:border-x md:border-claude-border/50 md:shadow-2xl md:shadow-black/20">
+            <div className="relative min-h-dvh w-full bg-claude-bg">
                 {/* Offline banner */}
                 <AnimatePresence>
                     {isOffline && (
@@ -137,8 +137,8 @@ export default function Layout({ children }) {
 
                 {/* Bottom navigation */}
                 {!hideBottomNav && (
-                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto border-t border-white/5 md:border-x z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel" style={{ borderBottom: 'none' }}>
-                        <div className="flex items-stretch h-16 sm:h-20">
+                    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 w-full border-t border-white/5 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel" style={{ borderBottom: 'none' }}>
+                        <div className="flex items-stretch h-16 sm:h-20 max-w-5xl mx-auto">
                             {navItems.map((item) => {
                                 if (item.isFab) {
                                     return (
