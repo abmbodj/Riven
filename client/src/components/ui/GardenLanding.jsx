@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'motion/react';
-import OnboardingArt from '../OnboardingArt';
 
 const generateFireflies = () => {
     return [...Array(50)].map((_, i) => {
@@ -277,26 +276,33 @@ export default function GardenLanding() {
                 {/* Foreground Content */}
                 <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 lg:px-12">
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="flex flex-col items-center justify-center"
+                        initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)", letterSpacing: "0.2em" }}
+                        animate={{ opacity: 1, scale: 1, filter: "blur(0px)", letterSpacing: "normal" }}
+                        transition={{
+                            duration: 1.5,
+                            ease: [0.22, 1, 0.36, 1],
+                            opacity: { duration: 1 },
+                            filter: { duration: 1.2 }
+                        }}
+                        className="flex flex-col items-center justify-center pointer-events-none"
                     >
-                        <div className="mb-6 lg:mb-8 inline-flex items-center justify-center p-3 sm:p-4 lg:p-5 rounded-full bg-[#1e484a]/40 border border-[#deb96a]/30 backdrop-blur-md shadow-[0_0_30px_rgba(222,185,106,0.15)]">
-                            <OnboardingArt className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24" />
-                        </div>
-                        <h1 className="text-6xl sm:text-8xl lg:text-9xl font-bold tracking-tight text-white drop-shadow-xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+                        <h1 className="text-7xl sm:text-9xl lg:text-[12rem] font-bold tracking-tighter text-white drop-shadow-2xl selection:bg-white/10" style={{ textShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
                             Riven
                         </h1>
-                        <p className="mt-6 text-lg sm:text-xl lg:text-2xl text-[#b8d0d2] max-w-md lg:max-w-xl mx-auto tracking-wide italic">
+                        <motion.p
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 1, duration: 1 }}
+                            className="mt-4 text-xl sm:text-2xl lg:text-3xl text-[#b8d0d2] max-w-md lg:max-w-xl mx-auto tracking-widest italic font-light opacity-80"
+                        >
                             Grow your knowledge.
-                        </p>
+                        </motion.p>
                     </motion.div>
 
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+                        transition={{ duration: 1, delay: 1.2, ease: "easeOut" }}
                         className="mt-12 flex flex-col sm:flex-row gap-4 w-full max-w-sm lg:max-w-md"
                     >
                         <Link
@@ -415,9 +421,6 @@ export default function GardenLanding() {
                             transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
                             className="relative p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-all duration-500 scale-100 lg:scale-105 z-10"
                         >
-                            <div className="absolute top-0 right-0 p-6 opacity-20 pointer-events-none">
-                                <OnboardingArt className="w-24 h-24" />
-                            </div>
                             <span className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#deb96a] text-[#0d141e] text-[9px] font-sans font-bold px-3 py-1 rounded-b-lg uppercase tracking-widest">Most Popular</span>
                             <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2 mt-2">Supporter</h3>
                             <div className="text-4xl lg:text-5xl font-serif text-[#deb96a] mb-6">$5.99<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
@@ -474,9 +477,6 @@ export default function GardenLanding() {
 
             {/* Footer */}
             <footer className="w-full bg-[#0d141e] py-16 px-6 lg:px-12 text-center border-t border-[#1e3840]/30 font-sans mt-auto">
-                <div className="mb-6 opacity-40 inline-flex items-center justify-center">
-                    <OnboardingArt className="w-8 h-8" />
-                </div>
                 <p className="text-[#8fa6a8] text-xs tracking-widest uppercase mb-4">
                     Cultivated by Riven
                 </p>
