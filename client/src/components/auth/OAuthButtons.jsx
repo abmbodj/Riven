@@ -74,42 +74,24 @@ export default function OAuthButtons({ onSuccess, onError }) {
         <div className="flex flex-col gap-3 w-full mb-6">
             <button
                 type="button"
-                onClick={() => handleGoogleLogin()}
-                disabled={loading}
-                className="w-full flex items-center justify-center bg-white text-black font-semibold py-3.5 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98] shadow-sm border border-gray-200"
+                disabled={true}
+                className="w-full flex items-center justify-center bg-gray-100/50 text-black/40 font-semibold py-3.5 rounded-lg shadow-sm border border-gray-200/50 cursor-not-allowed"
             >
-                <GoogleIcon />
-                <span className="text-sm font-sans tracking-wide">Continue with Google</span>
+                <div className="opacity-50">
+                    <GoogleIcon />
+                </div>
+                <span className="text-sm font-sans tracking-wide">Continue with Google <span className="text-xs ml-1 opacity-70">(Coming Soon)</span></span>
             </button>
-            <AppleSignin
-                authOptions={{
-                    clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.example.web',
-                    scope: 'email name',
-                    redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI || 'https://google.com',
-                    state: 'state',
-                    nonce: 'nonce',
-                    usePopup: true,
-                }}
-                uiType="dark"
-                className="w-full flex items-center justify-center border border-transparent bg-black text-white font-semibold py-3.5 rounded-lg hover:bg-gray-900 transition-colors active:scale-[0.98] shadow-sm"
-                onSuccess={handleAppleSuccess}
-                onError={(err) => {
-                    haptics.error();
-                    console.error('Apple OAuth error', err);
-                    if (onError) onError(err);
-                }}
-                render={(props) => (
-                    <button
-                        type="button"
-                        onClick={props.onClick}
-                        disabled={loading}
-                        className="w-full flex items-center justify-center border border-transparent bg-black text-white font-semibold py-3.5 rounded-lg hover:bg-gray-900 transition-colors active:scale-[0.98] shadow-sm"
-                    >
-                        <AppleIcon />
-                        <span className="text-sm font-sans tracking-wide text-[#fcfaf2]">Continue with Apple</span>
-                    </button>
-                )}
-            />
+            <button
+                type="button"
+                disabled={true}
+                className="w-full flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-3.5 rounded-lg shadow-sm cursor-not-allowed"
+            >
+                <div className="opacity-50">
+                    <AppleIcon />
+                </div>
+                <span className="text-sm font-sans tracking-wide">Continue with Apple <span className="text-xs ml-1 opacity-70">(Coming Soon)</span></span>
+            </button>
 
             <div className="relative flex items-center py-5">
                 <div className="flex-grow border-t border-white/10"></div>
