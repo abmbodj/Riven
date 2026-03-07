@@ -26,7 +26,7 @@ export default function Account() {
                 setTempToken(null);
             }, 0);
         } else if (!tempToken) {
-            setTimeout(() => setAuthView('login'), 0);
+            setTimeout(() => setAuthView(prev => prev === 'profile' ? 'login' : prev), 0);
         }
     }, [isLoggedIn, tempToken]);
 
