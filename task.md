@@ -4,7 +4,7 @@
 Improve Riven's usability by fixing information architecture, reducing flow friction, and closing accessibility gaps in the highest-traffic screens.
 
 ## Tasks
-- [ ] Split the logged-out home from the logged-in dashboard.
+- [x] Split the logged-out home from the logged-in dashboard.
   Files: `client/src/routes/config.jsx`, `client/src/pages/Home.jsx`
   Verify: logged-out users see a clear onboarding/value page with sign-up and sign-in CTAs; logged-in users still land on the study dashboard.
 

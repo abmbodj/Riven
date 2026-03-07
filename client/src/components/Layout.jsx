@@ -51,6 +51,41 @@ export default function Layout({ children }) {
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || isLegalPage || hideNavFromContext || (!isLoggedIn && isAccountPage);
 
+    // Bypass layout constraints for full-screen unauthenticated views
+    const isLandingOrAuth = (!isLoggedIn && location.pathname === '/') || (!isLoggedIn && location.pathname === '/account');
+
+    // For landing and auth pages, we want a truly full-width, full-height experience without container constraints.
+    if (isLandingOrAuth) {
+        return (
+            <div className="min-h-dvh w-full bg-[#0d141e] text-claude-text flex flex-col">
+                <AnimatePresence>
+                    {isOffline && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            role="alert"
+                            aria-live="polite"
+                            className="sticky top-0 z-30 bg-yellow-600 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium safe-area-top overflow-hidden w-full m-0"
+                        >
+                            <WifiOff className="w-4 h-4" />
+                            <span className="font-mono text-xs tracking-wide">Offline — changes saved locally</span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <motion.div
+                    key={location.pathname}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    className="w-full flex-grow flex flex-col"
+                >
+                    {children}
+                </motion.div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text">
             {/* Main container */}
