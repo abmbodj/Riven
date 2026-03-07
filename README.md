@@ -1,114 +1,144 @@
 # Riven
 
-Riven is a feature-rich, full-stack flashcard and study application designed to help users learn efficiently. It combines powerful study tools like spaced repetition and deck organization with social features, gamification (streaks, pets), and a highly customizable UI.
+Riven is a full-stack flashcard and study platform built for students. It combines spaced-repetition study tools with class/assignment management, LMS integration (Canvas, iCal), AI-powered card generation, social features (friends, DMs, study groups), monetization (Stripe subscriptions + hearts system), and a deeply customizable "Botanical Journal" aesthetic.
 
 ## Key Features
 
-- **Advanced Card Management**: Create decks, folders, and tags. Support for image-based cards (front/back).
-- **Smart Study Modes**: Track study sessions, duration, and accuracy.
-- **Social Learning**: Friend system, direct messaging, and ability to share decks via unique codes.
-- **Gamification**: Maintain daily streaks and customize a virtual pet with accessories.
-- **Customizable UI**: Fully themable interface with user-defined colors and "Botanical Journal" aesthetic.
-- **Role-Based Access**: Granular permissions including User, Admin, and Owner roles.
-- **Security**: 2FA support using authenticator apps.
+- **Deck & Card Management** — Folders, tags, image-based cards (front/back), deck sharing via unique codes.
+- **Study Modes** — Standard study, test mode, and group cram sessions with real-time Socket.IO sync.
+- **Class & Assignment Tracker** — Full class schedule with weekly timetable, assignments with Canvas/iCal sync.
+- **AI Flashcard Generation** — Generate cards from text or document uploads via Google Gemini API.
+- **Social** — Friend system, direct messaging (text, images, deck sharing), user blocking, and reporting.
+- **Study Groups** — Create/join groups with shared decks, file folders, and live cram sessions.
+- **Gamification** — Daily streaks, virtual garden/pet system with accessories.
+- **Monetization** — Free / Supporter ($5.99/mo) / Lifetime ($29.99) tiers via Stripe. Hearts system for free-tier gating.
+- **Referral Program** — Invite friends via referral codes, track qualified signups.
+- **Full Theming** — User-defined color palettes, font pairs, and multiple saved themes.
+- **Security** — 2FA (TOTP via authenticator apps), email verification, password reset via Resend, XSS sanitization.
+- **Role-Based Access** — `user`, `admin`, `owner` roles. Admin panel with user management, analytics, global announcements.
+- **PWA + iOS** — Offline-capable PWA with Capacitor wrapper for native iOS builds.
+
+---
 
 ## Tech Stack
 
-- **Language**: JavaScript (Node.js)
-- **Frontend**: React 19 (Vite), Tailwind CSS, Framer Motion, Lucide React
-- **Backend**: Express.js
-- **Database**: PostgreSQL (via `pg` driver)
-- **Authentication**: JWT (JSON Web Tokens) + Bcrypt
-- **Testing**: Vitest (Unit & Integration)
-- **Deployment**: Vercel (Monorepo structure)
+| Layer | Technology |
+|-------|-----------|
+| **Runtime** | Node.js 20+ |
+| **Frontend** | React 19, Vite 7, React Router 7, Tailwind CSS 3, Motion (Framer), Lucide React |
+| **Backend** | Express 5 |
+| **Database** | PostgreSQL (via `pg` driver, auto-migrating schema) |
+| **Auth** | JWT + Bcrypt, Google OAuth, Apple Sign-In, 2FA (Speakeasy) |
+| **AI** | Google Gemini (`@google/genai`) |
+| **Payments** | Stripe (subscriptions + one-time purchases + webhooks) |
+| **Email** | Resend (password resets, email verification) |
+| **Real-time** | Socket.IO (DMs, group cram sessions) |
+| **LMS Sync** | Canvas API direct, iCal parsing (`node-ical`), Edlink OAuth |
+| **Testing** | Vitest + Testing Library (client), Vitest + Supertest (server) |
+| **Mobile** | Capacitor (iOS native wrapper) |
+| **Deployment** | Vercel (monorepo: `@vercel/node` for API, `@vercel/static-build` for client) |
+
+---
 
 ## Prerequisites
 
-Before starting, ensure you have the following installed:
+- **Node.js** 20+ (see `client/.nvmrc`)
+- **PostgreSQL** 15+ — local install, Docker, or cloud (Supabase, Railway, Neon, etc.)
+- **npm** (ships with Node)
 
-- **Node.js** 20 or higher
-- **PostgreSQL** 15 or higher (or a cloud provider like Supabase/Railway)
-- **npm** (comes with Node.js)
+---
 
 ## Getting Started
 
-### 1. Clone the Repository
+### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourusername/riven.git
+git clone <repo-url>
 cd riven
+
+# Root (concurrently)
+npm install
+
+# Server
+cd server && npm install && cd ..
+
+# Client
+cd client && npm install && cd ..
 ```
 
-### 2. Install Dependencies
+### 2. Environment Setup
 
-You need to install dependencies for both the root, server, and client.
+#### Server (`server/.env`)
 
-```bash
-# Install root dependencies (concurrently)
-npm install
-
-# Install server dependencies
-cd server
-npm install
-
-# Install client dependencies
-cd ../client
-npm install
-cd ..
-```
-
-### 3. Environment Setup
-
-#### Server Configuration
-Create a `.env` file in the `server/` directory:
+Copy the example and fill in your values:
 
 ```bash
 cp server/.env.example server/.env
 ```
 
-Update `server/.env` with your credentials:
+| Variable | Required | Description | Example / How to Get |
+|----------|:--------:|-------------|---------------------|
+| `DATABASE_URL` | **Yes** | Postgres connection string | `postgresql://user:pass@localhost:5432/riven` |
+| `JWT_SECRET` | **Yes** | Token signing key | `openssl rand -base64 32` |
+| `GEMINI_API_KEY` | No | Google Gemini for AI card generation | [Google AI Studio](https://aistudio.google.com/) |
+| `EDLINK_CLIENT_ID` | No | Edlink LMS OAuth (universal sync) | Edlink dashboard |
+| `EDLINK_SECRET` | No | Edlink LMS OAuth secret | Edlink dashboard |
+| `FRONTEND_URL` | No | Used for OAuth redirects | `http://localhost:5173` |
+| `NODE_ENV` | No | `development` or `production` | `development` |
+| `PORT` | No | API port | `3000` |
+| `ALLOWED_ORIGINS` | No | CORS origins (comma-separated) | `http://localhost:5173,http://localhost:3000` |
+| `STRIPE_SECRET_KEY` | No | Stripe server key | Stripe dashboard |
+| `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret | Stripe CLI / dashboard |
+| `RESEND_API_KEY` | No | Resend email API key | [Resend](https://resend.com) |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth client ID | GCP Console |
+| `APPLE_CLIENT_ID` | No | Apple Sign-In service ID | Apple Developer |
+| `APPLE_TEAM_ID` | No | Apple team identifier | Apple Developer |
+| `APPLE_KEY_ID` | No | Apple private key ID | Apple Developer |
+| `APPLE_PRIVATE_KEY` | No | Apple private key (PEM) | Apple Developer |
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/riven` |
-| `JWT_SECRET` | Secret key for signing tokens | `openssl rand -base64 32` output |
-| `PORT` | API Server port | `3000` |
-| `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:5173,http://localhost:3000` |
-
-#### Client Configuration
-Create a `.env` file in the `client/` directory:
+#### Client (`client/.env`)
 
 ```bash
 cp client/.env.example client/.env
 ```
 
-Update `client/.env`:
+| Variable | Required | Description | Default (Dev) |
+|----------|:--------:|-------------|:-------------:|
+| `VITE_API_URL` | No | Backend API URL. Leave blank for local dev (Vite proxies `/api`). | — |
+| `VITE_STRIPE_PRICE_MONTHLY` | No | Stripe Price ID for Supporter tier | — |
+| `VITE_STRIPE_PRICE_LIFETIME` | No | Stripe Price ID for Lifetime tier | — |
 
-| Variable | Description | Default (Dev) |
-|----------|-------------|---------------|
-| `VITE_API_URL` | Backend API URL | `http://localhost:3000/api` |
+### 3. Database Setup
 
-### 4. Database Setup
+The server **auto-creates all tables** on startup via `server/db.js`. No manual migrations needed.
 
-Riven handles database initialization automatically. When the server starts, it checks for the existence of tables and creates them if missing (including seeding initial roles).
-
-Ensure your PostgreSQL server is running and the database (e.g., `riven`) exists:
+Just make sure the database exists:
 
 ```bash
 createdb riven
 ```
 
-### 5. Start Development Server
+Then start the server and it handles the rest (schema creation, column migrations, index creation, role seeding).
 
-From the project root, run:
+### 4. Start Development
 
 ```bash
+# From the project root — runs both client + server concurrently
 npm start
 ```
 
-This uses `concurrently` to launch:
-- **Server**: `http://localhost:3000`
-- **Client**: `http://localhost:5173` (Vite)
+This launches:
+- **Server**: `http://localhost:3000` (Express, nodemon auto-reload)
+- **Client**: `http://localhost:5173` (Vite dev server, proxies `/api` to server)
+
+Or run them individually:
+
+```bash
+npm run server   # server only (nodemon)
+npm run client   # client only (vite)
+```
+
+---
 
 ## Architecture
 
@@ -116,100 +146,193 @@ This uses `concurrently` to launch:
 
 ```
 riven/
-├── client/                 # React Frontend
+├── client/                    # React Frontend (Vite)
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Route components
-│   │   └── ...
-│   ├── public/             # Static assets
-│   ├── vite.config.js      # Vite configuration
-│   └── tailwind.config.js  # Tailwind configuration
-├── server/                 # Express Backend
-│   ├── db.js               # Database connection & schema init
-│   ├── index.js            # Main application entry point
-│   ├── test/               # Backend tests
-│   └── package.json
-├── package.json            # Root scripts
-└── vercel.json             # Vercel deployment config
+│   │   ├── api/               # API client (fetch wrappers) + Stripe helpers
+│   │   ├── api.js             # Main API module (all endpoint calls)
+│   │   ├── components/        # Reusable UI components
+│   │   │   ├── auth/          # Login, Register, ForgotPassword, AppleSignIn, etc.
+│   │   │   ├── layout/        # Sidebar sub-components
+│   │   │   ├── ui/            # GardenLanding, HeartsDisplay, PricingModal, PageLoader, etc.
+│   │   │   ├── Garden.jsx     # Streak garden / virtual pet renderer
+│   │   │   ├── Layout.jsx     # App shell (sidebar, mobile nav, global providers)
+│   │   │   └── ...            # Toast, Modals, ErrorBoundary, PullToRefresh, etc.
+│   │   ├── context/           # React contexts (Auth, Socket, Theme, Offline, Hearts, etc.)
+│   │   ├── hooks/             # Custom hooks (useAuth, useStreak, useSocket, useToast, etc.)
+│   │   ├── pages/             # Route-level page components
+│   │   │   ├── Home.jsx       # Landing page (unauthenticated) + Dashboard (authenticated)
+│   │   │   ├── Decks.jsx      # Deck list with folder/tag filtering
+│   │   │   ├── DeckView.jsx   # Single deck view, card editor
+│   │   │   ├── CreateDeck.jsx # New deck: manual, AI generate, document import
+│   │   │   ├── StudyMode.jsx  # Flashcard study session
+│   │   │   ├── TestMode.jsx   # Quiz/test mode
+│   │   │   ├── Classes.jsx    # Class management + schedule
+│   │   │   ├── ClassView.jsx  # Single class: assignments, linked decks
+│   │   │   ├── StudyGroups.jsx # Group list + creation
+│   │   │   ├── GroupDetails.jsx# Group deck sharing, files, members
+│   │   │   ├── GroupCram.jsx  # Live collaborative cram session
+│   │   │   ├── Friends.jsx    # Friend list + requests
+│   │   │   ├── Messages.jsx   # Direct messaging
+│   │   │   ├── Settings.jsx   # App settings, integrations (Canvas, Edlink)
+│   │   │   ├── ThemeSettings.jsx # Theme editor + saved themes
+│   │   │   ├── AdminPanel.jsx # Admin: user management, analytics, announcements
+│   │   │   └── ...            # Account, EditProfile, UserProfile, GardenSettings, etc.
+│   │   ├── routes/            # React Router route definitions
+│   │   ├── db/                # IndexedDB helpers (offline storage)
+│   │   ├── utils/             # Utility functions
+│   │   ├── App.jsx            # Root app component
+│   │   ├── main.jsx           # Entry point
+│   │   └── index.css          # Global styles + Tailwind base
+│   ├── public/                # Static assets (icons, manifest, sounds)
+│   ├── ios/                   # Capacitor iOS project
+│   ├── capacitor.config.json  # Capacitor config
+│   ├── vite.config.js         # Vite config (proxy, PWA plugin)
+│   ├── tailwind.config.js     # Tailwind config (custom theme tokens)
+│   └── vitest.config.js       # Frontend test config
+│
+├── server/                    # Express Backend
+│   ├── index.js               # Main entry: Express app setup, middleware, all route registration
+│   ├── db.js                  # Database connection pool + full schema auto-init
+│   ├── routes/                # Modular route files
+│   │   ├── auth.js            # Register, login, logout, OAuth (Google/Apple), 2FA, password reset, email verify
+│   │   ├── admin.js           # Admin panel endpoints (user mgmt, analytics, announcements, bans)
+│   │   ├── ai.js              # AI card generation (Gemini), document parsing (Mammoth)
+│   │   ├── classes.js         # CRUD for classes
+│   │   ├── assignments.js     # CRUD for assignments
+│   │   ├── schedule.js        # Week schedule slots
+│   │   ├── groups.js          # Study groups, members, shared decks, files, cram sessions
+│   │   ├── social.js          # Friends, DMs, blocking, reporting
+│   │   ├── hearts.js          # Hearts system (free-tier gating, refills, practice rewards)
+│   │   ├── lms.js             # Canvas direct integration + iCal sync
+│   │   ├── stripe.js          # Checkout sessions, portal, subscription management
+│   │   ├── webhooks.js        # Stripe webhook handler (subscription lifecycle, idempotent)
+│   │   ├── referrals.js       # Referral code generation, tracking, qualification
+│   │   └── health.js          # Health check endpoint
+│   ├── utils/
+│   │   └── email.js           # Resend email helper
+│   ├── test/                  # Backend tests
+│   └── vitest.config.js       # Backend test config
+│
+├── riven-social/              # Standalone social landing page (separate Vite/TS app)
+│
+├── package.json               # Root scripts (concurrently runs client + server)
+├── vercel.json                # Vercel monorepo deployment config
+└── .gitignore
 ```
 
 ### Request Lifecycle
 
-1.  **Client**: User interacts with React UI.
-2.  **API Call**: Frontend makes request to `VITE_API_URL` (e.g., `/api/login`).
-3.  **Server**: Express receives request, parses JSON body/cookies.
-4.  **Database**: `db.js` executes SQL query via `pg` pool.
-5.  **Response**: Server returns JSON data to Client.
+1. **Client** — User interacts with React UI.
+2. **API Call** — `api.js` sends a fetch to `/api/*` (proxied by Vite in dev, routed by Vercel in prod).
+3. **Express Middleware** — `helmet`, `cors`, `cookie-parser`, `express-rate-limit`, `express-slow-down`, JWT auth extraction.
+4. **Route Handler** — Route files in `server/routes/` process the request.
+5. **Database** — `db.js` executes parameterized SQL via `pg` pool (`query`, `queryOne`, `execute`).
+6. **Response** — JSON response sent back to client.
 
-### Database Schema
+### Authentication Flow
 
-Key tables include:
-- `users`: Stores profile, auth info, and customization settings.
-- `decks` / `cards`: Core study content.
-- `study_sessions`: Analytics data.
-- `messages` / `friendships`: Social features.
+- **Register / Login** → Server issues JWT stored in an HttpOnly cookie + returns user object.
+- **Google/Apple OAuth** → Verified server-side via `google-auth-library` / `apple-signin-auth`, then same JWT flow.
+- **2FA** → TOTP setup via `speakeasy`, QR code via `qrcode`. Enforced on login if enabled.
+- **Protected Routes** → `authMiddleware` extracts JWT from cookie, attaches `req.user`.
 
-Database migrations are currently handled via auto-run SQL checks in `db.js`.
+### Database Schema (Key Tables)
 
-## Environment Variables
+The full schema is defined in `server/db.js` and auto-creates on startup. Key tables:
 
-### Server (`server/.env`)
+| Table | Purpose |
+|-------|---------|
+| `users` | Profiles, auth, subscription tier, streak data, pet customization, 2FA, Stripe IDs, LMS tokens, referral codes |
+| `decks` | Flashcard decks, linked to folders and classes |
+| `cards` | Individual cards with text/image front+back, spaced repetition fields (difficulty, next_review) |
+| `folders` | Organizational folders for decks |
+| `tags` / `deck_tags` | Tagging system for decks |
+| `study_sessions` | Study/test session analytics (cards studied, accuracy, duration) |
+| `classes` | User classes with color, professor, room, zoom link, Canvas/Edlink integration |
+| `assignments` | Assignments linked to classes with due dates, status, type, Canvas sync |
+| `schedule_slots` | Weekly class schedule (day_of_week, start/end time) |
+| `study_groups` | Groups with join codes, linked classes |
+| `group_members` | Group membership (admin/member roles) |
+| `group_decks` | Decks shared into groups |
+| `group_folders` / `group_files` | File sharing within groups |
+| `cram_sessions` / `cram_responses` | Live collaborative study sessions |
+| `themes` | User-created color themes with font pair customization |
+| `shared_decks` | Publicly shared deck snapshots |
+| `friendships` | Friend requests and connections |
+| `messages` | Direct messages (text, images, deck shares, edit tracking) |
+| `global_messages` / `user_dismissed_messages` | Admin announcements + dismiss tracking |
+| `referrals` | Referral tracking with qualification logic |
+| `user_blocks` / `reports` | Safety: blocking and content reporting |
+| `password_reset_tokens` / `email_verification_tokens` | Auth token lifecycle |
+| `stripe_processed_events` | Webhook idempotency |
 
-| Variable | Required | Description |
-|----------|:--------:|-------------|
-| `DATABASE_URL` | Yes | Postgres connection string. |
-| `JWT_SECRET` | Yes | Key for signing/verifying JWTs. |
-| `PORT` | No | Port to listen on (default: `3000`). |
-| `NODE_ENV` | No | `development` or `production`. |
-| `ALLOWED_ORIGINS`| No | Comma-separated list of allowed CORS origins. |
-
-### Client (`client/.env`)
-
-| Variable | Required | Description |
-|----------|:--------:|-------------|
-| `VITE_API_URL` | Yes | URL of the backend API. |
+---
 
 ## Available Scripts
 
-From the root directory:
+### Root
 
 | Command | Description |
 |---------|-------------|
-| `npm start` | Runs both client and server in parallel (Development mode). |
-| `npm run server` | Runs only the server (dev mode with nodemon). |
-| `npm run client` | Runs only the client (dev mode with Vite). |
+| `npm start` | Run client + server concurrently (dev mode) |
+| `npm run server` | Run server only (`nodemon`) |
+| `npm run client` | Run client only (`vite`) |
+
+### Server (`cd server`)
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start server (`node index.js`) |
+| `npm run dev` | Start server with auto-reload (`nodemon`) |
+| `npm test` | Run backend tests (`vitest`) |
+
+### Client (`cd client`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run frontend tests (`vitest`) |
+
+---
 
 ## Testing
 
-Testing is implemented using **Vitest**.
+Both client and server use **Vitest**.
 
-### Server Tests
 ```bash
-cd server
-npm test
+# Server tests (with Supertest for HTTP assertions)
+cd server && npm test
+
+# Client tests (with Testing Library + jsdom)
+cd client && npm test
 ```
 
-### Client Tests
-```bash
-cd client
-npm test
-```
+Server tests live in `server/test/`. Client tests live in `client/src/test/`.
+
+---
 
 ## Deployment
 
-### Vercel (Recommended)
+### Vercel (Current Setup)
 
-This repository is configured for monorepo deployment on Vercel.
+The project is configured as a Vercel monorepo. `vercel.json` at the root handles routing:
 
-1.  Push code to GitHub.
-2.  Import project into Vercel.
-3.  **Root Directory**: Leave as `./`.
-4.  **Framework Preset**: Vite (for Client).
-5.  **Environment Variables**: Add all variables from `server/.env` and `client/.env` to the Vercel project settings.
-    *   Note: For `VITE_API_URL`, use `/api` if deployed on the same domain or the full URL.
-6.  `vercel.json` at the root handles routing `/api/*` requests to the server and other requests to the client.
+- `/api/*` → `server/index.js` (deployed as a serverless function via `@vercel/node`)
+- `/*` → `client/` (built via `@vercel/static-build`, serves from `dist/`)
 
-**Configuration (`vercel.json`):**
+**Steps:**
+
+1. Push to GitHub.
+2. Import project in Vercel dashboard.
+3. Set **Root Directory** to `./`.
+4. Add all environment variables from `server/.env` and `client/.env` to Vercel project settings.
+   - For `VITE_API_URL`, use the full backend URL (e.g., `https://your-api.railway.app/api`) if the API is hosted separately, or leave blank if co-located.
+5. Deploy. Vercel will auto-build on each push.
+
+**`vercel.json`:**
 ```json
 {
   "builds": [
@@ -223,16 +346,41 @@ This repository is configured for monorepo deployment on Vercel.
 }
 ```
 
+### iOS (Capacitor)
+
+The client includes a Capacitor config for native iOS builds:
+
+```bash
+cd client
+npx cap sync ios
+npx cap open ios   # Opens in Xcode
+```
+
+---
+
 ## Troubleshooting
 
-### Connection Refused (PostgreSQL)
-**Error**: `connect ECONNREFUSED 127.0.0.1:5432`
-**Solution**: Ensure PostgreSQL service is running. If using Docker, check container status.
+### PostgreSQL Connection Refused
+**Error:** `connect ECONNREFUSED 127.0.0.1:5432`
+**Fix:** Ensure Postgres is running. Check `DATABASE_URL` format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE`.
 
-### JWT Error
-**Error**: `JsonWebTokenError: invalid signature`
-**Solution**: Ensure `JWT_SECRET` in `.env` matches the one used to generate the token (or just restart auth flow after changing secret).
+### JWT Invalid Signature
+**Error:** `JsonWebTokenError: invalid signature`
+**Fix:** `JWT_SECRET` changed? Users need to log out and back in (or clear cookies). The secret must stay consistent.
 
-### Client Build Failures
-**Error**: `Command not found: vite`
-**Solution**: Ensure you ran `npm install` inside the `client/` directory.
+### Client Can't Reach API
+**Error:** Network errors or CORS issues in dev.
+**Fix:** Ensure the server is running on port 3000. Vite proxies `/api` requests automatically in dev. Check `ALLOWED_ORIGINS` includes your frontend URL.
+
+### Vite Build Failures
+**Error:** `Command not found: vite`
+**Fix:** Run `npm install` inside `client/`.
+
+### Database Schema Issues
+The server auto-migrates columns on every startup. If you see column-not-found errors, just restart the server and it will run the `ALTER TABLE ADD COLUMN IF NOT EXISTS` migrations in `db.js`.
+
+### Stripe Webhooks Not Processing
+**Fix:** Ensure `STRIPE_WEBHOOK_SECRET` matches your Stripe dashboard. For local dev, use the Stripe CLI:
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
