@@ -286,7 +286,7 @@ export default function GardenLanding() {
                         }}
                         className="flex flex-col items-center justify-center pointer-events-none"
                     >
-                        <h1 className="text-7xl sm:text-9xl lg:text-[12rem] font-bold tracking-tighter text-white drop-shadow-2xl selection:bg-white/10" style={{ textShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
+                        <h1 className="text-6xl sm:text-8xl lg:text-[10rem] font-bold tracking-tighter text-white drop-shadow-2xl selection:bg-white/10" style={{ textShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
                             Riven
                         </h1>
                         <motion.p
