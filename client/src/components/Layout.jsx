@@ -65,7 +65,7 @@ export default function Layout({ children }) {
     const showDesktopSidebar = isLoggedIn && !isStudyOrTest && !isFullscreenPage;
 
     return (
-        <div className="min-h-dvh bg-claude-bg text-claude-text">
+        <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
             {/* Flex wrapper: sidebar + content on desktop */}
             <div className="relative min-h-dvh w-full bg-claude-bg flex">
 
@@ -145,7 +145,7 @@ export default function Layout({ children }) {
                 )}
 
                 {/* ===== Main Content Area ===== */}
-                <div className={`flex-1 min-h-dvh ${showDesktopSidebar ? 'lg:ml-[220px]' : ''}`}>
+                <div className={`flex-1 min-h-dvh overflow-x-hidden ${showDesktopSidebar ? 'lg:ml-[220px]' : ''}`}>
                     {/* Offline banner */}
                     <AnimatePresence>
                         {isOffline && (
