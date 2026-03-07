@@ -70,7 +70,8 @@ const ProfileView = () => {
     return (
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
             {/* Profile Header with Atmospheric Glassmorphism */}
-            <div className="relative mb-20 z-10 w-full max-w-xl mx-auto">
+            {/* Desktop: two-column layout for profile. Mobile: stacked single column */}
+            <div className="relative mb-20 z-10 w-full max-w-xl lg:max-w-4xl mx-auto">
                 {/* Atmospheric Deep Header */}
                 <div className="h-44 overflow-hidden relative rounded-b-[3rem] shadow-sm">
                     <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
@@ -120,182 +121,192 @@ const ProfileView = () => {
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
-                className="max-w-md mx-auto px-5"
+                className="max-w-md lg:max-w-4xl mx-auto px-5"
             >
                 {/* User Info */}
-                <motion.div variants={itemVariants} className="text-center mb-8 mt-4">
-                    <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center gap-2">
-                        {user?.displayName || user?.username}
-                        {user?.subscription_tier === 'lifetime' && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
-                                <Crown className="w-5 h-5 text-amber-500" strokeWidth={2.5} />
-                            </motion.div>
-                        )}
-                        {user?.subscription_tier === 'supporter' && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
-                                <Sparkles className="w-5 h-5 text-claude-accent" strokeWidth={2.5} />
-                            </motion.div>
-                        )}
-                    </h1>
-                    <div className="flex flex-col items-center justify-center gap-1 mb-4">
-                        <div className="flex items-center gap-2">
-                            <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
-                                <User className="w-3 h-3" />
-                                @{user?.username}
-                            </p>
-                            {user?.subscription_tier !== 'free' && (
-                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-widest font-bold ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'}`}>
-                                    {user?.subscription_tier}
-                                </span>
+                {/* Desktop: wrap info + menu in flex row */}
+                <div className="lg:flex lg:gap-10 lg:items-start">
+                    {/* Left column: user info */}
+                    <div className="lg:w-1/3 lg:sticky lg:top-6">
+                        <motion.div variants={itemVariants} className="text-center mb-8 mt-4">
+                            <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center gap-2">
+                                {user?.displayName || user?.username}
+                                {user?.subscription_tier === 'lifetime' && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                        <Crown className="w-5 h-5 text-amber-500" strokeWidth={2.5} />
+                                    </motion.div>
+                                )}
+                                {user?.subscription_tier === 'supporter' && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                        <Sparkles className="w-5 h-5 text-claude-accent" strokeWidth={2.5} />
+                                    </motion.div>
+                                )}
+                            </h1>
+                            <div className="flex flex-col items-center justify-center gap-1 mb-4">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                                        <User className="w-3 h-3" />
+                                        @{user?.username}
+                                    </p>
+                                    {user?.subscription_tier !== 'free' && (
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-widest font-bold ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'}`}>
+                                            {user?.subscription_tier}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {user?.bio && (
+                                <div className="relative inline-block">
+                                    <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                                    <p className="text-[15px] text-claude-secondary max-w-xs mx-auto italic font-serif leading-relaxed px-4">
+                                        {user.bio}
+                                    </p>
+                                    <span className="absolute -bottom-4 -right-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                                </div>
                             )}
-                        </div>
-                    </div>
-                    {user?.bio && (
-                        <div className="relative inline-block">
-                            <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                            <p className="text-[15px] text-claude-secondary max-w-xs mx-auto italic font-serif leading-relaxed px-4">
-                                {user.bio}
-                            </p>
-                            <span className="absolute -bottom-4 -right-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                        </div>
-                    )}
-                </motion.div>
+                        </motion.div>
 
-                {/* Stats / Quick Actions - Bento Grid */}
-                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-10">
-                    <Link
-                        to="/friends"
-                        onClick={() => haptics.light()}
-                        className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
-                    >
-                        {/* Glow effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        {/* Stats / Quick Actions - Bento Grid */}
+                        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-10 lg:mb-6">
+                            <Link
+                                to="/friends"
+                                onClick={() => haptics.light()}
+                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                            >
+                                {/* Glow effect */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                        <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
-                            <Users className="w-5 h-5 text-botanical-forest" />
-                        </div>
-                        <div className="text-center z-10">
-                            <span className="block text-2xl font-display font-bold text-claude-text">
-                                {stats.loading ? <div className="w-6 h-6 border-2 border-botanical-forest border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.friends}
-                            </span>
-                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
-                                Friends
-                            </span>
-                        </div>
-                    </Link>
+                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
+                                    <Users className="w-5 h-5 text-botanical-forest" />
+                                </div>
+                                <div className="text-center z-10">
+                                    <span className="block text-2xl font-display font-bold text-claude-text">
+                                        {stats.loading ? <div className="w-6 h-6 border-2 border-botanical-forest border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.friends}
+                                    </span>
+                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                        Friends
+                                    </span>
+                                </div>
+                            </Link>
 
-                    <Link
-                        to="/messages"
-                        onClick={() => haptics.light()}
-                        className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
-                    >
-                        {/* Glow effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <Link
+                                to="/messages"
+                                onClick={() => haptics.light()}
+                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                            >
+                                {/* Glow effect */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                        <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10 relative">
-                            <MessageCircle className="w-5 h-5 text-[#0ea5e9]" />
-                            {!stats.loading && stats.unread > 0 && (
-                                <motion.span
-                                    initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center border-2 border-claude-bg shadow-sm"
+                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10 relative">
+                                    <MessageCircle className="w-5 h-5 text-[#0ea5e9]" />
+                                    {!stats.loading && stats.unread > 0 && (
+                                        <motion.span
+                                            initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center border-2 border-claude-bg shadow-sm"
+                                        >
+                                            {stats.unread}
+                                        </motion.span>
+                                    )}
+                                </div>
+                                <div className="text-center z-10">
+                                    <span className="block text-2xl font-display font-bold text-claude-text">
+                                        {stats.loading ? <div className="w-6 h-6 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.unread}
+                                    </span>
+                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                        Messages
+                                    </span>
+                                </div>
+                            </Link>
+                        </motion.div>
+                    </div>{/* end left column */}
+
+                    {/* Right column: menu list (on desktop) */}
+                    <div className="lg:flex-1">
+                        {/* Menu List - Premium List */}
+                        <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
+                            {(isAdmin || isOwner) && (
+                                <Link
+                                    to="/admin"
+                                    onClick={() => haptics.light()}
+                                    className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
                                 >
-                                    {stats.unread}
-                                </motion.span>
+                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-amber-500/20">
+                                        <Shield className="w-5 h-5 text-amber-600" />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="font-display tracking-wide text-[16px] text-amber-700/80 group-hover:text-amber-600 font-semibold transition-colors">Admin Panel</p>
+                                        <p className="text-[11px] font-mono text-amber-700/50">Manage users and content</p>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-amber-500/30 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+                                </Link>
                             )}
-                        </div>
-                        <div className="text-center z-10">
-                            <span className="block text-2xl font-display font-bold text-claude-text">
-                                {stats.loading ? <div className="w-6 h-6 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.unread}
-                            </span>
-                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
-                                Messages
-                            </span>
-                        </div>
-                    </Link>
-                </motion.div>
 
-                {/* Menu List - Premium List */}
-                <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
-                    {(isAdmin || isOwner) && (
-                        <Link
-                            to="/admin"
-                            onClick={() => haptics.light()}
-                            className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-amber-500/20">
-                                <Shield className="w-5 h-5 text-amber-600" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="font-display tracking-wide text-[16px] text-amber-700/80 group-hover:text-amber-600 font-semibold transition-colors">Admin Panel</p>
-                                <p className="text-[11px] font-mono text-amber-700/50">Manage users and content</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-amber-500/30 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
-                        </Link>
-                    )}
+                            <Link
+                                to="/edit-profile"
+                                onClick={() => haptics.light()}
+                                className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
+                                    <Edit3 className="w-5 h-5 text-claude-text/70" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Edit Profile</p>
+                                    <p className="text-[11px] font-mono text-botanical-sepia">Update your avatar and bio</p>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
+                            </Link>
 
-                    <Link
-                        to="/edit-profile"
-                        onClick={() => haptics.light()}
-                        className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
-                            <Edit3 className="w-5 h-5 text-claude-text/70" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Edit Profile</p>
-                            <p className="text-[11px] font-mono text-botanical-sepia">Update your avatar and bio</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
-                    </Link>
+                            <Link
+                                to="/settings"
+                                onClick={() => haptics.light()}
+                                className="flex items-center gap-4 p-4 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
+                                    <Settings className="w-5 h-5 text-claude-text/70" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Settings</p>
+                                    <p className="text-[11px] font-mono text-botanical-sepia">Security, notifications, integrations</p>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
+                            </Link>
 
-                    <Link
-                        to="/settings"
-                        onClick={() => haptics.light()}
-                        className="flex items-center gap-4 p-4 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
-                            <Settings className="w-5 h-5 text-claude-text/70" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Settings</p>
-                            <p className="text-[11px] font-mono text-botanical-sepia">Security, notifications, integrations</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
-                    </Link>
+                            {user?.subscription_tier && user.subscription_tier !== 'free' && (
+                                <button
+                                    onClick={() => {
+                                        haptics.medium();
+                                        getManagementPortalUrl().then(url => {
+                                            if (url) window.location.href = url;
+                                            else toast.error('Failed to open management portal');
+                                        });
+                                    }}
+                                    className="w-full flex items-center gap-4 p-4 border-t border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-indigo-500/20">
+                                        <Shield className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-600 transition-colors">Manage Subscription</p>
+                                        <p className="text-[11px] font-mono text-botanical-sepia">Update or cancel your plan</p>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                                </button>
+                            )}
+                        </motion.div>
 
-                    {user?.subscription_tier && user.subscription_tier !== 'free' && (
-                        <button
-                            onClick={() => {
-                                haptics.medium();
-                                getManagementPortalUrl().then(url => {
-                                    if (url) window.location.href = url;
-                                    else toast.error('Failed to open management portal');
-                                });
-                            }}
-                            className="w-full flex items-center gap-4 p-4 border-t border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group"
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-indigo-500/20">
-                                <Shield className="w-5 h-5 text-indigo-600" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-600 transition-colors">Manage Subscription</p>
-                                <p className="text-[11px] font-mono text-botanical-sepia">Update or cancel your plan</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
-                        </button>
-                    )}
-                </motion.div>
+                        {/* Sign Out Button */}
+                        <motion.div variants={itemVariants} className="mt-6">
+                            <button
+                                onClick={handleSignOut}
+                                className="w-full bg-red-500/5 hover:bg-red-500/10 active:bg-red-500/20 border border-red-500/10 p-4 rounded-[2rem] flex items-center justify-center gap-3 transition-colors group"
+                            >
+                                <LogOut className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
+                                <span className="font-display tracking-wide font-medium text-red-500/80 group-hover:text-red-500 transition-colors">Sign Out</span>
+                            </button>
+                        </motion.div>
 
-                {/* Sign Out Button */}
-                <motion.div variants={itemVariants} className="mt-6">
-                    <button
-                        onClick={handleSignOut}
-                        className="w-full bg-red-500/5 hover:bg-red-500/10 active:bg-red-500/20 border border-red-500/10 p-4 rounded-[2rem] flex items-center justify-center gap-3 transition-colors group"
-                    >
-                        <LogOut className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
-                        <span className="font-display tracking-wide font-medium text-red-500/80 group-hover:text-red-500 transition-colors">Sign Out</span>
-                    </button>
-                </motion.div>
+                    </div>{/* end right column */}
+                </div>{/* end flex row */}
 
                 <motion.div variants={itemVariants} className="mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
                     <Leaf className="w-4 h-4 opacity-50" />

@@ -195,20 +195,20 @@ export default function GardenLanding() {
             <div className="absolute top-0 left-0 w-full h-[50vh] bg-gradient-to-b from-[#deb96a]/10 to-transparent pointer-events-none" />
 
             {/* Foreground Content */}
-            <div className="relative z-10 flex flex-col items-center justify-center text-center px-6">
+            <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 lg:px-12">
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="flex flex-col items-center justify-center"
                 >
-                    <div className="mb-6 inline-flex items-center justify-center p-3 sm:p-4 rounded-full bg-[#1e484a]/40 border border-[#deb96a]/30 backdrop-blur-md shadow-[0_0_30px_rgba(222,185,106,0.15)]">
-                        <OnboardingArt className="w-16 h-16 sm:w-20 sm:h-20" />
+                    <div className="mb-6 lg:mb-8 inline-flex items-center justify-center p-3 sm:p-4 lg:p-5 rounded-full bg-[#1e484a]/40 border border-[#deb96a]/30 backdrop-blur-md shadow-[0_0_30px_rgba(222,185,106,0.15)]">
+                        <OnboardingArt className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24" />
                     </div>
-                    <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-white drop-shadow-xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+                    <h1 className="text-6xl sm:text-8xl lg:text-9xl font-bold tracking-tight text-white drop-shadow-xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
                         Riven
                     </h1>
-                    <p className="mt-6 text-lg sm:text-xl text-[#b8d0d2] max-w-md mx-auto tracking-wide italic">
+                    <p className="mt-6 text-lg sm:text-xl lg:text-2xl text-[#b8d0d2] max-w-md lg:max-w-xl mx-auto tracking-wide italic">
                         Grow your knowledge.
                     </p>
                 </motion.div>
@@ -217,17 +217,17 @@ export default function GardenLanding() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-                    className="mt-12 flex flex-col sm:flex-row gap-4 w-full max-w-sm"
+                    className="mt-12 flex flex-col sm:flex-row gap-4 w-full max-w-sm lg:max-w-md"
                 >
                     <Link
                         to="/account?mode=signup"
-                        className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#deb96a] px-6 py-4 text-sm font-sans font-bold uppercase tracking-widest text-[#162a31] transition-all hover:bg-[#ebc97e] hover:shadow-[0_0_20px_rgba(222,185,106,0.4)] hover:-translate-y-0.5"
+                        className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#deb96a] px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#162a31] transition-all hover:bg-[#ebc97e] hover:shadow-[0_0_20px_rgba(222,185,106,0.4)] hover:-translate-y-0.5"
                     >
                         Sign Up
                     </Link>
                     <Link
                         to="/account?mode=login"
-                        className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#1e3840]/60 border border-[#8fa6a8]/30 px-6 py-4 text-sm font-sans font-bold uppercase tracking-widest text-[#fcfaf2] backdrop-blur-md transition-all hover:bg-[#1e3840]/90 hover:border-[#8fa6a8]/60 hover:-translate-y-0.5"
+                        className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#1e3840]/60 border border-[#8fa6a8]/30 px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#fcfaf2] backdrop-blur-md transition-all hover:bg-[#1e3840]/90 hover:border-[#8fa6a8]/60 hover:-translate-y-0.5"
                     >
                         Log In
                     </Link>

@@ -91,11 +91,14 @@ export default function Layout({ children }) {
                                     <Link
                                         key={item.to}
                                         to={item.to}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${isActive
-                                                ? 'bg-claude-accent/10 text-claude-accent'
-                                                : 'text-claude-secondary hover:text-claude-text hover:bg-white/5'
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative ${isActive
+                                            ? 'bg-claude-accent/10 text-claude-accent'
+                                            : 'text-claude-secondary hover:text-claude-text hover:bg-white/[0.06]'
                                             }`}
                                     >
+                                        {isActive && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-claude-accent" />
+                                        )}
                                         <item.icon className="w-[18px] h-[18px]" />
                                         <span className="font-mono text-xs tracking-wide uppercase">{item.label}</span>
                                         {isActive && (
@@ -124,6 +127,17 @@ export default function Layout({ children }) {
                                 </Link>
                             ))}
                         </nav>
+
+                        {/* Create Deck CTA */}
+                        <div className="px-3 py-4 mt-auto">
+                            <Link
+                                to="/create"
+                                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-botanical-forest/80 hover:bg-botanical-forest text-white font-mono text-xs font-bold uppercase tracking-widest transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-botanical-forest/20"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Create Deck
+                            </Link>
+                        </div>
 
                         {/* Bottom spacer */}
                         <div className="pb-safe" />

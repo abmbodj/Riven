@@ -547,16 +547,35 @@ export default function Decks() {
                             {SORT_OPTIONS.find(o => o.id === sortBy)?.label} <SlidersHorizontal className="w-3.5 h-3.5" />
                         </button>
                         {showSortMenu && (
-                            <div className="relative">
-                                <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
-                                <div className="fixed bottom-0 left-0 right-0 bg-claude-bg border-t border-claude-border rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
-                                    <div className="w-12 h-1 bg-[#233e46] rounded-full mx-auto mb-6" />
-                                    <div className="space-y-2">
+                            <>
+                                {/* Mobile: Full-screen bottom sheet */}
+                                <div className="lg:hidden relative">
+                                    <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
+                                    <div className="fixed bottom-0 left-0 right-0 bg-claude-bg border-t border-claude-border rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
+                                        <div className="w-12 h-1 bg-[#233e46] rounded-full mx-auto mb-6" />
+                                        <div className="space-y-2">
+                                            {SORT_OPTIONS.map(option => (
+                                                <button
+                                                    key={option.id}
+                                                    onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
+                                                    className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'glass-panel text-claude-secondary'}`}
+                                                >
+                                                    <option.icon className="w-4 h-4" />
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Desktop: Floating popover */}
+                                <div className="hidden lg:block relative">
+                                    <div className="fixed inset-0 z-[70]" onClick={() => setShowSortMenu(false)} />
+                                    <div className="absolute right-0 top-full mt-2 w-52 bg-claude-bg border border-claude-border rounded-xl z-[80] p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                                         {SORT_OPTIONS.map(option => (
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'glass-panel text-claude-secondary'}`}
+                                                className={`w-full p-3 rounded-lg flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'text-claude-secondary hover:bg-white/5 hover:text-claude-text'}`}
                                             >
                                                 <option.icon className="w-4 h-4" />
                                                 {option.label}
@@ -564,7 +583,7 @@ export default function Decks() {
                                         ))}
                                     </div>
                                 </div>
-                            </div>
+                            </>
                         )}
                     </div>
                 </div>
@@ -585,7 +604,7 @@ export default function Decks() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pb-20 px-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 pb-20 px-1">
                         {filteredDecks.map((deck, i) => (
                             <DeckCard key={deck.id} deck={deck} folders={folders} classes={classes} index={i} />
                         ))}

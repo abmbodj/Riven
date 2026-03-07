@@ -170,7 +170,7 @@ function DashboardHome() {
 
     return (
         <div className="min-h-screen p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-8 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:p-8">
+            <div className="relative mb-8 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:p-8 lg:p-10">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="relative z-10 flex items-center justify-between">
                     <div>
@@ -227,7 +227,7 @@ function DashboardHome() {
                             View All <ArrowRight className="h-3 w-3" />
                         </Link>
                     </div>
-                    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0">
+                    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible lg:gap-3">
                         {classes.map((classItem, index) => (
                             <Motion.div
                                 key={classItem.id}
