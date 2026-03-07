@@ -63,50 +63,21 @@ export default function GardenLanding() {
                         <style>
                             {`
                                 @keyframes sway {
-                                    0%, 100% { transform: rotate(-1deg); }
-                                    50% { transform: rotate(1.5deg); }
+                                    0%, 100% { transform: rotate(-2deg); }
+                                    50% { transform: rotate(2.5deg); }
                                 }
                                 @keyframes swaySlow {
-                                    0%, 100% { transform: rotate(-0.5deg); }
-                                    50% { transform: rotate(1deg); }
-                                }
-                                @keyframes swayFast {
                                     0%, 100% { transform: rotate(-1.5deg); }
                                     50% { transform: rotate(2deg); }
                                 }
-                                @keyframes floatOrbit {
-                                    0% { transform: rotate(0deg); }
-                                    100% { transform: rotate(360deg); }
-                                }
-                                @keyframes floatOrbitReverse {
-                                    0% { transform: rotate(360deg); }
-                                    100% { transform: rotate(0deg); }
-                                }
-                                @keyframes pulseAura {
-                                    0%, 100% { opacity: 0.3; transform: scale(1); }
-                                    50% { opacity: 0.45; transform: scale(1.05); }
-                                }
-                                @keyframes pulseCore {
-                                    0%, 100% { opacity: 0.15; transform: scale(1); }
-                                    50% { opacity: 0.3; transform: scale(1.2); }
-                                }
-                                @keyframes pulseRing {
-                                    0%, 100% { opacity: 0.4; stroke-width: 0.5; }
-                                    50% { opacity: 0.6; stroke-width: 1; }
+                                @keyframes swayFast {
+                                    0%, 100% { transform: rotate(-2.5deg); }
+                                    50% { transform: rotate(3deg); }
                                 }
                                 
                                 .sway { animation: sway 8s ease-in-out infinite; transform-origin: center bottom; }
                                 .sway-slow { animation: swaySlow 12s ease-in-out infinite; transform-origin: center bottom; }
                                 .sway-fast { animation: swayFast 6s ease-in-out infinite; transform-origin: center bottom; }
-                                
-                                .orbit { animation: floatOrbit 40s linear infinite; transform-origin: center; }
-                                .orbit-reverse { animation: floatOrbitReverse 30s linear infinite; transform-origin: center; }
-                                .orbit-fast { animation: floatOrbit 20s linear infinite; transform-origin: center; }
-                                .orbit-fast-reverse { animation: floatOrbitReverse 15s linear infinite; transform-origin: center; }
-                                
-                                .pulse-aura { animation: pulseAura 5s ease-in-out infinite; transform-origin: center; }
-                                .pulse-core { animation: pulseCore 3s ease-in-out infinite; transform-origin: center; }
-                                .pulse-ring { animation: pulseRing 4s ease-in-out infinite; }
                             `}
                         </style>
 
@@ -114,11 +85,11 @@ export default function GardenLanding() {
                         <g id="tree-sacred" className="sway">
                             <g transform="translate(0, -90)">
                                 {/* Golden Aura */}
-                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" className="pulse-aura" />
+                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" />
                                 <circle cx="0" cy="0" r="64" fill="none" stroke="#3d7276" strokeWidth="0.5" opacity="0.4" />
 
                                 {/* Seed of Life formulation */}
-                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6" className="orbit">
+                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6">
                                     <circle cx="0" cy="0" r="22" />
                                     <circle cx="0" cy="-22" r="22" />
                                     <circle cx="19.05" cy="-11" r="22" />
@@ -129,7 +100,7 @@ export default function GardenLanding() {
                                 </g>
 
                                 <circle cx="0" cy="0" r="38" fill="url(#leafGlowBright)" opacity="0.4" />
-                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" className="pulse-core" />
+                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" />
                             </g>
                             <path d="M0,0 Q-2,-45 0,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
                             {/* Subtle grounding roots */}
@@ -144,16 +115,16 @@ export default function GardenLanding() {
                             {/* Sweeping Symmetrical Crest */}
                             <path d="M0,-170 C-45,-120 -35,-55 0,-45 C35,-55 45,-120 0,-170 Z" fill="url(#leafGlowBright)" opacity="0.6" />
                             <path d="M0,-145 C-25,-105 -20,-65 0,-55 C20,-65 25,-105 0,-145 Z" fill="#2a5a5d" opacity="0.8" />
-                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" className="pulse-aura" />
+                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" />
 
                             {/* Orbital Rings - implying motion and celestial mechanics */}
                             <g transform="translate(0, -107.5)">
-                                <circle cx="0" cy="0" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" className="orbit-reverse" />
-                                <circle cx="0" cy="0" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" className="orbit" />
+                                <circle cx="0" cy="0" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" />
+                                <circle cx="0" cy="0" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" />
                             </g>
 
                             {/* Zenith point */}
-                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" className="pulse-core" />
+                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" />
                         </g>
 
                         {/* Tree 3: Resonance (Offset concentric ripples, mimicking a soundwave pine) */}
@@ -164,14 +135,14 @@ export default function GardenLanding() {
                             <g>
                                 <circle cx="0" cy="-135" r="60" fill="none" stroke="url(#leafGlow)" strokeWidth="0.5" opacity="0.6" />
                                 <circle cx="0" cy="-125" r="46" fill="url(#leafGlow)" opacity="0.3" />
-                                <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" className="pulse-ring" />
+                                <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" />
                                 <circle cx="0" cy="-115" r="32" fill="url(#leafGlowBright)" opacity="0.4" />
                                 <circle cx="0" cy="-115" r="32" fill="none" stroke="#4b868a" strokeWidth="1.5" opacity="0.8" />
                                 <circle cx="0" cy="-105" r="18" fill="#579296" opacity="0.5" />
-                                <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" className="pulse-ring" />
+                                <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" />
 
                                 {/* Core Energy */}
-                                <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" className="pulse-core" />
+                                <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" />
                             </g>
                         </g>
 
