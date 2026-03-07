@@ -11,6 +11,7 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
+import OnboardingArt from '../components/OnboardingArt';
 
 
 
@@ -597,12 +598,12 @@ export default function Decks() {
             {showOnboarding && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6">
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl">
-                        <div className="w-20 h-20 bg-claude-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-claude-accent/30">
-                            <Sparkles className="w-10 h-10 text-claude-accent" />
+                        <div className="w-full max-w-[240px] mx-auto mb-8">
+                            <OnboardingArt />
                         </div>
-                        <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome</h2>
+                        <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome to Riven</h2>
                         <p className="text-claude-secondary mb-8 font-serif italic text-lg leading-relaxed">
-                            Create your first deck to get started.
+                            A quiet place for your thoughts to grow. Create your first deck to get started.
                         </p>
                         <div className="space-y-4">
                             <Link to="/create" onClick={dismissOnboarding} className="claude-button-primary w-full py-4 block text-lg">
