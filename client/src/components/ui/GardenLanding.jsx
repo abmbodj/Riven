@@ -59,35 +59,72 @@ export default function GardenLanding() {
                             </feMerge>
                         </filter>
 
-                        {/* Minimalist Geometric Tree 1 (Tall Teardrop) */}
-                        <g id="geo-tree-tall">
-                            {/* Stem */}
-                            <line x1="0" y1="0" x2="0" y2="-120" stroke="url(#stemGrad)" strokeWidth="3" strokeLinecap="round" />
-                            {/* Base Glow */}
-                            <circle cx="0" cy="-60" r="15" fill="url(#leafGlow)" opacity="0.6" filter="blur(4px)" />
-                            {/* Geometric Crown */}
-                            <path d="M0,-140 C-30,-110 -25,-60 0,-40 C25,-60 30,-110 0,-140 Z" fill="url(#leafGlowBright)" />
-                            {/* Core Highlight */}
-                            <path d="M0,-130 C-15,-105 -10,-65 0,-50 C10,-65 15,-105 0,-130 Z" fill="#4b868a" opacity="0.4" />
+                        {/* Tree 1: Sacred Geometry (Flower of Life logic) */}
+                        <g id="tree-sacred">
+                            <g transform="translate(0, -90)">
+                                {/* Golden Aura */}
+                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" />
+                                <circle cx="0" cy="0" r="64" fill="none" stroke="#3d7276" strokeWidth="0.5" opacity="0.4" />
+
+                                {/* Seed of Life formulation */}
+                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6">
+                                    <circle cx="0" cy="0" r="22" />
+                                    <circle cx="0" cy="-22" r="22" />
+                                    <circle cx="19.05" cy="-11" r="22" />
+                                    <circle cx="19.05" cy="11" r="22" />
+                                    <circle cx="0" cy="22" r="22" />
+                                    <circle cx="-19.05" cy="11" r="22" />
+                                    <circle cx="-19.05" cy="-11" r="22" />
+                                </g>
+
+                                <circle cx="0" cy="0" r="38" fill="url(#leafGlowBright)" opacity="0.4" />
+                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" />
+                            </g>
+                            <path d="M0,0 Q-2,-45 0,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
+                            {/* Subtle grounding roots */}
+                            <path d="M0,0 Q-8,8 -12,10" fill="none" stroke="#112426" strokeWidth="1" strokeLinecap="round" />
+                            <path d="M0,0 Q8,8 12,10" fill="none" stroke="#112426" strokeWidth="1" strokeLinecap="round" />
                         </g>
 
-                        {/* Minimalist Geometric Tree 2 (Round Orb) */}
-                        <g id="geo-tree-round">
-                            {/* Stem */}
-                            <path d="M0,0 Q-10,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="3" strokeLinecap="round" />
-                            {/* Ambient Glow */}
-                            <circle cx="0" cy="-80" r="45" fill="url(#leafGlow)" opacity="0.6" />
-                            {/* Main Orb */}
-                            <circle cx="0" cy="-80" r="30" fill="url(#leafGlowBright)" />
-                            {/* Core Highlight */}
-                            <circle cx="-5" cy="-85" r="15" fill="#579296" opacity="0.3" />
-                            <circle cx="5" cy="-75" r="8" fill="#deb96a" opacity="0.15" />
+                        {/* Tree 2: Equilibrium (Perfectly balanced swept curves and orbital rings) */}
+                        <g id="tree-equilibrium">
+                            <path d="M0,0 Q4,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
+
+                            {/* Sweeping Symmetrical Crest */}
+                            <path d="M0,-170 C-45,-120 -35,-55 0,-45 C35,-55 45,-120 0,-170 Z" fill="url(#leafGlowBright)" opacity="0.6" />
+                            <path d="M0,-145 C-25,-105 -20,-65 0,-55 C20,-65 25,-105 0,-145 Z" fill="#2a5a5d" opacity="0.8" />
+                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" />
+
+                            {/* Orbital Rings - implying motion and celestial mechanics */}
+                            <circle cx="0" cy="-107.5" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" />
+                            <circle cx="0" cy="-107.5" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" />
+
+                            {/* Zenith point */}
+                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" />
+                        </g>
+
+                        {/* Tree 3: Resonance (Offset concentric ripples, mimicking a soundwave pine) */}
+                        <g id="tree-resonance">
+                            <line x1="0" y1="0" x2="0" y2="-100" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
+
+                            {/* Nested Ripples */}
+                            <circle cx="0" cy="-135" r="60" fill="none" stroke="url(#leafGlow)" strokeWidth="0.5" opacity="0.6" />
+                            <circle cx="0" cy="-125" r="46" fill="url(#leafGlow)" opacity="0.3" />
+                            <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" />
+                            <circle cx="0" cy="-115" r="32" fill="url(#leafGlowBright)" opacity="0.4" />
+                            <circle cx="0" cy="-115" r="32" fill="none" stroke="#4b868a" strokeWidth="1.5" opacity="0.8" />
+                            <circle cx="0" cy="-105" r="18" fill="#579296" opacity="0.5" />
+                            <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" />
+
+                            {/* Core Energy */}
+                            <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" />
                         </g>
 
                         {/* Distant Minimalist Silhouette */}
                         <g id="bg-tree">
-                            <line x1="0" y1="0" x2="0" y2="-50" stroke="#112426" strokeWidth="2" />
-                            <circle cx="0" cy="-50" r="20" fill="#142b2d" opacity="0.8" />
+                            <line x1="0" y1="0" x2="0" y2="-40" stroke="#112426" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M0,-65 C-15,-50 -12,-25 0,-20 C12,-25 15,-50 0,-65 Z" fill="#142b2d" opacity="0.8" />
+                            <circle cx="0" cy="-65" r="2" fill="#deb96a" opacity="0.2" />
                         </g>
                     </defs>
 
@@ -161,32 +198,40 @@ export default function GardenLanding() {
                         <animateTransform attributeName="transform" type="translate" from="-1440 0" to="0 0" dur="90s" repeatCount="indefinite" />
                     </rect>
 
-                    {/* Mid Trees (Simplistic Geometric) */}
-                    {/* Centered for mobile container viewport focus */}
-                    <use href="#geo-tree-tall" x="520" y="470" transform="scale(1.4)" />
-                    <use href="#geo-tree-round" x="680" y="500" transform="scale(1.2)" />
-
-                    <use href="#geo-tree-round" x="800" y="420" transform="scale(1.1)" />
-                    <use href="#geo-tree-tall" x="880" y="380" transform="scale(1.6)" />
-                    <use href="#geo-tree-round" x="920" y="450" transform="scale(1.4)" />
+                    {/* Mid Trees (Masterful Sacred Geometry) */}
+                    <g transform="translate(380, 580) scale(1.2)">
+                        <use href="#tree-equilibrium" />
+                    </g>
+                    <g transform="translate(520, 610) scale(1)">
+                        <use href="#tree-resonance" />
+                    </g>
+                    <g transform="translate(720, 610) scale(0.9)">
+                        <use href="#tree-sacred" />
+                    </g>
+                    <g transform="translate(920, 580) scale(1.3)">
+                        <use href="#tree-equilibrium" />
+                    </g>
+                    <g transform="translate(1080, 620) scale(1.1)">
+                        <use href="#tree-resonance" />
+                    </g>
 
                     {/* Foreground Hills */}
                     {/* Steeper dramatic sweeping path to frame the content */}
                     <path d="M-200,680 C150,500 500,750 800,600 C1100,450 1400,650 1600,550 L1600,800 L-200,800 Z" fill="url(#hillFront)" />
 
                     {/* Hero Foreground Trees on the sides */}
-                    <g transform="translate(480, 700) scale(1.6)">
-                        <use href="#geo-tree-tall" />
+                    <g transform="translate(420, 720) scale(1.7)">
+                        <use href="#tree-sacred" />
                     </g>
-                    <g transform="translate(600, 750) scale(1.3)">
-                        <use href="#geo-tree-round" />
+                    <g transform="translate(560, 780) scale(1.3)">
+                        <use href="#tree-resonance" />
                     </g>
 
-                    <g transform="translate(850, 680) scale(1.8)">
-                        <use href="#geo-tree-tall" />
+                    <g transform="translate(880, 710) scale(1.8)">
+                        <use href="#tree-equilibrium" />
                     </g>
-                    <g transform="translate(980, 730) scale(1.5)">
-                        <use href="#geo-tree-round" />
+                    <g transform="translate(1020, 760) scale(1.5)">
+                        <use href="#tree-sacred" />
                     </g>
                 </svg>
             </div>
