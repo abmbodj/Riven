@@ -93,32 +93,35 @@ const ProfileView = () => {
                 </div>
 
                 {/* Avatar */}
-                <div className="absolute -bottom-14 left-0 w-full z-20">
-                    <div className="max-w-md lg:max-w-4xl mx-auto px-5 w-full flex">
-                        {/* Mobile: centered, Desktop: aligned with left column (1/3 width) and centered within it */}
-                        <div className="w-full flex justify-center lg:w-1/3 lg:justify-center">
-                            <motion.div
-                                initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
-                                className="relative group cursor-pointer"
-                            >
-                                <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
-                                <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-2xl relative z-10 bg-claude-surface" />
-                                {isAdmin && (
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: 'spring', delay: 0.3 }}
-                                        className={`absolute bottom-1 right-1 w-8 h-8 ${isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg shadow-md z-20`}
-                                        title={isOwner ? "Owner" : "Admin"}
-                                    >
-                                        <Shield className="w-4 h-4 text-white" />
-                                    </motion.div>
-                                )}
-                            </motion.div>
+                <div className="absolute -bottom-14 left-0 w-full z-20 pointer-events-none">
+                    <div className="max-w-md lg:max-w-4xl mx-auto px-5 w-full pointer-events-auto">
+                        <div className="lg:flex lg:gap-10">
+                            {/* Mobile: centered, Desktop: perfectly aligned with the left text column */}
+                            <div className="flex justify-center lg:w-1/3">
+                                <motion.div
+                                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                                    transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
+                                    className="relative group cursor-pointer"
+                                >
+                                    <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
+                                    <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-2xl relative z-10 bg-claude-surface" />
+                                    {isAdmin && (
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: 'spring', delay: 0.3 }}
+                                            className={`absolute bottom-1 right-1 w-8 h-8 ${isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg shadow-md z-20`}
+                                            title={isOwner ? "Owner" : "Admin"}
+                                        >
+                                            <Shield className="w-4 h-4 text-white" />
+                                        </motion.div>
+                                    )}
+                                </motion.div>
+                            </div>
+                            {/* Spacer to mimic the flex-1 column of the layout below */}
+                            <div className="hidden lg:block lg:flex-1"></div>
                         </div>
-                        <div className="hidden lg:block lg:flex-1"></div>
                     </div>
                 </div>
             </div>
