@@ -593,6 +593,20 @@ if (global.__TEST_DB_MOCK__) {
                 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC)
             `);
 
+            // Composite indexes for message query performance
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_conversation
+                ON messages(sender_id, receiver_id, created_at DESC)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_unread
+                ON messages(receiver_id, sender_id, is_read) WHERE is_read = 0
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_messages_participants
+                ON messages(sender_id, created_at DESC)
+            `);
+
             // Create indexes for performance optimization
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards(deck_id)

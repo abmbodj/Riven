@@ -359,7 +359,13 @@ registerGroupsRoutes({ app, db, authMiddleware, io });
 app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
     try {
         const conversations = await db.query(
-            `SELECT DISTINCT ON (other_user_id) 
+            `WITH unread AS (
+                SELECT sender_id, COUNT(*) AS cnt
+                FROM messages
+                WHERE receiver_id = $1 AND is_read = 0
+                GROUP BY sender_id
+             )
+             SELECT DISTINCT ON (other_user_id)
                 other_user_id,
                 u.username,
                 u.avatar,
@@ -367,9 +373,9 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
                 m.message_type as last_message_type,
                 m.created_at as last_message_at,
                 m.sender_id,
-                (SELECT COUNT(*) FROM messages WHERE sender_id = other_user_id AND receiver_id = $1 AND is_read = 0) as unread_count
+                COALESCE(ur.cnt, 0) as unread_count
              FROM (
-                SELECT 
+                SELECT
                     CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as other_user_id,
                     id
                 FROM messages
@@ -377,8 +383,9 @@ app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
              ) sub
              JOIN messages m ON m.id = sub.id
              JOIN users u ON u.id = sub.other_user_id
+             LEFT JOIN unread ur ON ur.sender_id = sub.other_user_id
              WHERE NOT EXISTS (
-                 SELECT 1 FROM user_blocks 
+                 SELECT 1 FROM user_blocks
                  WHERE (blocker_id = $1 AND blocked_id = sub.other_user_id)
                     OR (blocked_id = $1 AND blocker_id = sub.other_user_id)
              )
@@ -409,7 +416,7 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
     const cappedLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
 
     try {
-        let query = `
+        let innerQuery = `
             SELECT m.*, u.username as sender_username, u.avatar as sender_avatar
             FROM messages m
             JOIN users u ON u.id = m.sender_id
@@ -418,22 +425,24 @@ app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
         const params = [req.user.id, userId];
 
         if (before) {
-            query += ` AND m.created_at < $3`;
+            innerQuery += ` AND m.created_at < $3`;
             params.push(before);
         }
 
-        query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+        innerQuery += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
         params.push(cappedLimit);
 
+        // Wrap in subquery to return chronological order without .reverse()
+        const query = `SELECT * FROM (${innerQuery}) sub ORDER BY sub.created_at ASC`;
         const messages = await db.query(query, params);
 
-        // Mark as read
-        await db.execute(
+        // Mark as read (fire-and-forget to not block response)
+        db.execute(
             `UPDATE messages SET is_read = 1 WHERE sender_id = $1 AND receiver_id = $2 AND is_read = 0`,
             [userId, req.user.id]
-        );
+        ).catch(() => { });
 
-        res.json(messages.reverse().map(m => ({
+        res.json(messages.map(m => ({
             id: m.id,
             senderId: m.sender_id,
             senderUsername: m.sender_username,
@@ -1006,7 +1015,7 @@ app.post('/api/decks/:id/duplicate', authMiddleware, async (req, res) => {
         await client.query('COMMIT');
         res.status(201).json(newDeck);
     } catch (error) {
-        await client.query('ROLLBACK').catch(() => {});
+        await client.query('ROLLBACK').catch(() => { });
         console.error('Duplicate deck error:', error);
         res.status(500).json({ error: 'Internal server error' });
     } finally {
@@ -1259,7 +1268,7 @@ app.post('/api/study-sessions', authMiddleware, async (req, res) => {
                 }
                 await client.query('COMMIT');
             } catch (e) {
-                await client.query('ROLLBACK').catch(() => {});
+                await client.query('ROLLBACK').catch(() => { });
                 console.error('Referral qualification check failed:', e);
             } finally {
                 client.release();

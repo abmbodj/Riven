@@ -601,14 +601,15 @@ export default function Messages() {
                             </p>
                         </motion.div>
                     ) : (
-                        <AnimatePresence mode="popLayout">
+                        <AnimatePresence initial={false}>
                             {messages.map((msg, i) => {
                                 const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
+                                const isNew = !loadedMsgIdsRef.current.has(msg.id);
 
                                 return (
                                     <motion.div
                                         key={msg.id}
-                                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                        initial={isNew ? { opacity: 0, y: 8, scale: 0.95 } : false}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.9 }}
                                         transition={{
