@@ -59,15 +59,66 @@ export default function GardenLanding() {
                             </feMerge>
                         </filter>
 
+                        {/* Animations */}
+                        <style>
+                            {`
+                                @keyframes sway {
+                                    0%, 100% { transform: rotate(-1deg); }
+                                    50% { transform: rotate(1.5deg); }
+                                }
+                                @keyframes swaySlow {
+                                    0%, 100% { transform: rotate(-0.5deg); }
+                                    50% { transform: rotate(1deg); }
+                                }
+                                @keyframes swayFast {
+                                    0%, 100% { transform: rotate(-1.5deg); }
+                                    50% { transform: rotate(2deg); }
+                                }
+                                @keyframes floatOrbit {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                                @keyframes floatOrbitReverse {
+                                    0% { transform: rotate(360deg); }
+                                    100% { transform: rotate(0deg); }
+                                }
+                                @keyframes pulseAura {
+                                    0%, 100% { opacity: 0.3; transform: scale(1); }
+                                    50% { opacity: 0.45; transform: scale(1.05); }
+                                }
+                                @keyframes pulseCore {
+                                    0%, 100% { opacity: 0.15; transform: scale(1); }
+                                    50% { opacity: 0.3; transform: scale(1.2); }
+                                }
+                                @keyframes pulseRing {
+                                    0%, 100% { opacity: 0.4; stroke-width: 0.5; }
+                                    50% { opacity: 0.6; stroke-width: 1; }
+                                }
+                                
+                                .sway { animation: sway 8s ease-in-out infinite; transform-origin: center bottom; }
+                                .sway-slow { animation: swaySlow 12s ease-in-out infinite; transform-origin: center bottom; }
+                                .sway-fast { animation: swayFast 6s ease-in-out infinite; transform-origin: center bottom; }
+                                
+                                .orbit { animation: floatOrbit 40s linear infinite; transform-origin: center; }
+                                .orbit-reverse { animation: floatOrbitReverse 30s linear infinite; transform-origin: center; }
+                                .orbit-fast { animation: floatOrbit 20s linear infinite; transform-origin: center; }
+                                .orbit-fast-reverse { animation: floatOrbitReverse 15s linear infinite; transform-origin: center; }
+                                
+                                .pulse-aura { animation: pulseAura 5s ease-in-out infinite; transform-origin: center; }
+                                .pulse-core { animation: pulseCore 3s ease-in-out infinite; transform-origin: center; }
+                                .pulse-ring { animation: pulseRing 4s ease-in-out infinite; }
+                            `}
+                        </style>
+
                         {/* Tree 1: Sacred Geometry (Flower of Life logic) */}
-                        <g id="tree-sacred">
+                        <g id="tree-sacred" className="sway">
                             <g transform="translate(0, -90)">
                                 {/* Golden Aura */}
-                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" />
+                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" className="pulse-aura" />
                                 <circle cx="0" cy="0" r="64" fill="none" stroke="#3d7276" strokeWidth="0.5" opacity="0.4" />
 
                                 {/* Seed of Life formulation */}
-                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6">
+                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6" className="orbit">
                                     <circle cx="0" cy="0" r="22" />
                                     <circle cx="0" cy="-22" r="22" />
                                     <circle cx="19.05" cy="-11" r="22" />
@@ -78,7 +129,7 @@ export default function GardenLanding() {
                                 </g>
 
                                 <circle cx="0" cy="0" r="38" fill="url(#leafGlowBright)" opacity="0.4" />
-                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" />
+                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" className="pulse-core" />
                             </g>
                             <path d="M0,0 Q-2,-45 0,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
                             {/* Subtle grounding roots */}
@@ -87,37 +138,41 @@ export default function GardenLanding() {
                         </g>
 
                         {/* Tree 2: Equilibrium (Perfectly balanced swept curves and orbital rings) */}
-                        <g id="tree-equilibrium">
+                        <g id="tree-equilibrium" className="sway-slow">
                             <path d="M0,0 Q4,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
 
                             {/* Sweeping Symmetrical Crest */}
                             <path d="M0,-170 C-45,-120 -35,-55 0,-45 C35,-55 45,-120 0,-170 Z" fill="url(#leafGlowBright)" opacity="0.6" />
                             <path d="M0,-145 C-25,-105 -20,-65 0,-55 C20,-65 25,-105 0,-145 Z" fill="#2a5a5d" opacity="0.8" />
-                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" />
+                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" className="pulse-aura" />
 
                             {/* Orbital Rings - implying motion and celestial mechanics */}
-                            <circle cx="0" cy="-107.5" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" />
-                            <circle cx="0" cy="-107.5" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" />
+                            <g transform="translate(0, -107.5)">
+                                <circle cx="0" cy="0" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" className="orbit-reverse" />
+                                <circle cx="0" cy="0" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" className="orbit" />
+                            </g>
 
                             {/* Zenith point */}
-                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" />
+                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" className="pulse-core" />
                         </g>
 
                         {/* Tree 3: Resonance (Offset concentric ripples, mimicking a soundwave pine) */}
-                        <g id="tree-resonance">
+                        <g id="tree-resonance" className="sway-fast">
                             <line x1="0" y1="0" x2="0" y2="-100" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
 
                             {/* Nested Ripples */}
-                            <circle cx="0" cy="-135" r="60" fill="none" stroke="url(#leafGlow)" strokeWidth="0.5" opacity="0.6" />
-                            <circle cx="0" cy="-125" r="46" fill="url(#leafGlow)" opacity="0.3" />
-                            <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" />
-                            <circle cx="0" cy="-115" r="32" fill="url(#leafGlowBright)" opacity="0.4" />
-                            <circle cx="0" cy="-115" r="32" fill="none" stroke="#4b868a" strokeWidth="1.5" opacity="0.8" />
-                            <circle cx="0" cy="-105" r="18" fill="#579296" opacity="0.5" />
-                            <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" />
+                            <g>
+                                <circle cx="0" cy="-135" r="60" fill="none" stroke="url(#leafGlow)" strokeWidth="0.5" opacity="0.6" />
+                                <circle cx="0" cy="-125" r="46" fill="url(#leafGlow)" opacity="0.3" />
+                                <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" className="pulse-ring" />
+                                <circle cx="0" cy="-115" r="32" fill="url(#leafGlowBright)" opacity="0.4" />
+                                <circle cx="0" cy="-115" r="32" fill="none" stroke="#4b868a" strokeWidth="1.5" opacity="0.8" />
+                                <circle cx="0" cy="-105" r="18" fill="#579296" opacity="0.5" />
+                                <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" className="pulse-ring" />
 
-                            {/* Core Energy */}
-                            <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" />
+                                {/* Core Energy */}
+                                <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" className="pulse-core" />
+                            </g>
                         </g>
 
                         {/* Distant Minimalist Silhouette */}
@@ -187,6 +242,12 @@ export default function GardenLanding() {
                     <use href="#bg-tree" x="850" y="520" transform="scale(1.3)" opacity="0.6" />
                     <use href="#bg-tree" x="960" y="560" transform="scale(1.5)" opacity="0.6" />
 
+                    {/* Additional Edge Back Trees */}
+                    <use href="#bg-tree" x="150" y="540" transform="scale(1.1)" opacity="0.4" />
+                    <use href="#bg-tree" x="300" y="510" transform="scale(1.3)" opacity="0.5" />
+                    <use href="#bg-tree" x="1150" y="540" transform="scale(1.2)" opacity="0.5" />
+                    <use href="#bg-tree" x="1300" y="520" transform="scale(1.4)" opacity="0.4" />
+
                     {/* Midground Hills */}
                     <path d="M-200,600 C200,450 450,650 850,500 C1150,350 1450,550 1600,500 L1600,800 L-200,800 Z" fill="url(#hillMid)" />
 
@@ -198,40 +259,69 @@ export default function GardenLanding() {
                         <animateTransform attributeName="transform" type="translate" from="-1440 0" to="0 0" dur="90s" repeatCount="indefinite" />
                     </rect>
 
-                    {/* Mid Trees (Masterful Sacred Geometry) */}
+                    {/* Mid Trees (Masterful Sacred Geometry) - Center Group */}
                     <g transform="translate(380, 580) scale(1.2)">
-                        <use href="#tree-equilibrium" />
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-2s' }} />
                     </g>
                     <g transform="translate(520, 610) scale(1)">
-                        <use href="#tree-resonance" />
+                        <use href="#tree-resonance" style={{ animationDelay: '-1s' }} />
                     </g>
                     <g transform="translate(720, 610) scale(0.9)">
-                        <use href="#tree-sacred" />
+                        <use href="#tree-sacred" style={{ animationDelay: '-4s' }} />
                     </g>
                     <g transform="translate(920, 580) scale(1.3)">
-                        <use href="#tree-equilibrium" />
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-5s' }} />
                     </g>
                     <g transform="translate(1080, 620) scale(1.1)">
-                        <use href="#tree-resonance" />
+                        <use href="#tree-resonance" style={{ animationDelay: '-3s' }} />
+                    </g>
+
+                    {/* Mid Trees - Edge Groups */}
+                    <g transform="translate(120, 560) scale(1.15)">
+                        <use href="#tree-sacred" style={{ animationDelay: '-6s' }} />
+                    </g>
+                    <g transform="translate(250, 630) scale(0.8)">
+                        <use href="#tree-resonance" style={{ animationDelay: '-7s' }} />
+                    </g>
+                    <g transform="translate(1250, 590) scale(1.05)">
+                        <use href="#tree-sacred" style={{ animationDelay: '-1s' }} />
+                    </g>
+                    <g transform="translate(1380, 550) scale(1.4)">
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-8s' }} />
                     </g>
 
                     {/* Foreground Hills */}
                     {/* Steeper dramatic sweeping path to frame the content */}
                     <path d="M-200,680 C150,500 500,750 800,600 C1100,450 1400,650 1600,550 L1600,800 L-200,800 Z" fill="url(#hillFront)" />
 
-                    {/* Hero Foreground Trees on the sides */}
-                    <g transform="translate(420, 720) scale(1.7)">
-                        <use href="#tree-sacred" />
+                    {/* Hero Foreground Trees - Left Side */}
+                    <g transform="translate(180, 710) scale(1.6)">
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-4s' }} />
                     </g>
-                    <g transform="translate(560, 780) scale(1.3)">
-                        <use href="#tree-resonance" />
+                    <g transform="translate(320, 680) scale(2.1)">
+                        <use href="#tree-sacred" style={{ animationDelay: '-2s' }} />
+                    </g>
+                    <g transform="translate(420, 760) scale(1.4)">
+                        <use href="#tree-resonance" style={{ animationDelay: '-6s' }} />
                     </g>
 
-                    <g transform="translate(880, 710) scale(1.8)">
-                        <use href="#tree-equilibrium" />
+                    {/* Hero Foreground Trees - Inner Left & Right frames */}
+                    <g transform="translate(560, 780) scale(1.3)">
+                        <use href="#tree-resonance" style={{ animationDelay: '-1s' }} />
                     </g>
+                    <g transform="translate(880, 710) scale(1.8)">
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-3s' }} />
+                    </g>
+
+                    {/* Hero Foreground Trees - Right Side */}
                     <g transform="translate(1020, 760) scale(1.5)">
-                        <use href="#tree-sacred" />
+                        <use href="#tree-sacred" style={{ animationDelay: '-7s' }} />
+                    </g>
+                    <g transform="translate(1180, 690) scale(2.2)">
+                        <use href="#tree-resonance" style={{ animationDelay: '-5s' }} />
+                    </g>
+                    <g transform="translate(1320, 750) scale(1.7)">
+                        <use href="#tree-equilibrium" style={{ animationDelay: '-2s' }} />
                     </g>
                 </svg>
             </div>
