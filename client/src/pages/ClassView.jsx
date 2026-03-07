@@ -11,7 +11,7 @@ import AdRewardModal from '../components/ui/AdRewardModal';
 import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
 
-const STATUSES = ['Todo', 'Doing', 'Done'];
+const STATUSES = ['Todo', 'Doing', 'Done', 'Archived'];
 
 export default function ClassView() {
     const { id } = useParams();
@@ -167,7 +167,7 @@ export default function ClassView() {
 
     const toggleAssignStatus = async (e, a) => {
         e.stopPropagation();
-        const nextStatus = a.status === 'Todo' ? 'Doing' : (a.status === 'Doing' ? 'Done' : 'Todo');
+        const nextStatus = a.status === 'Archived' ? 'Todo' : a.status === 'Todo' ? 'Doing' : (a.status === 'Doing' ? 'Done' : 'Todo');
         try {
             await api.updateAssignment(a.id, { status: nextStatus });
             loadData();
@@ -394,7 +394,7 @@ export default function ClassView() {
                     {groupedAssignments.map(group => group.items.length > 0 && (
                         <div key={group.status}>
                             <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
-                                {group.status === 'Todo' ? 'Assignments' : group.status === 'Doing' ? 'In Progress' : 'Completed'} <span className="opacity-40 text-[10px]">({group.items.length})</span>
+                                {group.status === 'Todo' ? 'Assignments' : group.status === 'Doing' ? 'In Progress' : group.status === 'Archived' ? 'Archived' : 'Completed'} <span className="opacity-40 text-[10px]">({group.items.length})</span>
                             </h3>
                             <div className="space-y-3">
                                 {group.items.map(a => (
@@ -405,7 +405,7 @@ export default function ClassView() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         onClick={() => openEditAssign(a)}
-                                        className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-all ${a.status === 'Done' ? 'opacity-60 saturate-50' : ''}`}
+                                        className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-all ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
                                     >
                                         <div className="flex items-start gap-4">
                                             <button
@@ -528,6 +528,7 @@ export default function ClassView() {
                                             <option value="Todo">To Do</option>
                                             <option value="Doing">Doing</option>
                                             <option value="Done">Done</option>
+                                            <option value="Archived">Archived</option>
                                         </select>
                                     </div>
                                     <div>

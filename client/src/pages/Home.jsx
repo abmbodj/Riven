@@ -115,7 +115,7 @@ function DashboardHome() {
 
         return assignments
             .filter((assignment) => {
-                if (assignment.status === 'Done' || !assignment.due_date) return false;
+                if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
                 const dueDate = new Date(assignment.due_date);
                 if (Number.isNaN(dueDate.getTime())) return false;
                 return dueDate >= now && dueDate <= endOfWeek;
@@ -129,7 +129,7 @@ function DashboardHome() {
 
         return assignments
             .filter((assignment) => {
-                if (assignment.status === 'Done' || !assignment.due_date) return false;
+                if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
                 const dueDate = new Date(assignment.due_date);
                 if (Number.isNaN(dueDate.getTime())) return false;
                 return dueDate < now;

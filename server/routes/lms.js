@@ -153,6 +153,14 @@ module.exports = function ({ app, db, authMiddleware }) {
                 // Skip if assignment already exists (using pre-loaded set)
                 if (assignmentUids.has(uid)) continue;
 
+                // Auto-archive assignments that are more than 7 days past due
+                // so they don't flood the Past Due section on the dashboard.
+                // Recently-past-due items (≤7 days) still appear as 'Todo'.
+                const now = new Date();
+                const parsedDue = new Date(due_date);
+                const daysPastDue = (now - parsedDue) / (1000 * 60 * 60 * 24);
+                const assignmentStatus = daysPastDue > 7 ? 'Archived' : 'Todo';
+
                 await db.execute(
                     `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -161,8 +169,8 @@ module.exports = function ({ app, db, authMiddleware }) {
                         classId,
                         assignmentTitle,
                         description,
-                        new Date(due_date).toISOString(),
-                        'Todo',
+                        parsedDue.toISOString(),
+                        assignmentStatus,
                         uid
                     ]
                 );
