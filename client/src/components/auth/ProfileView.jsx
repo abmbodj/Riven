@@ -96,8 +96,8 @@ const ProfileView = () => {
                 <div className="absolute -bottom-14 left-0 w-full z-20 pointer-events-none">
                     <div className="max-w-md lg:max-w-4xl mx-auto px-5 w-full pointer-events-auto">
                         <div className="lg:flex lg:gap-10">
-                            {/* Mobile: centered, Desktop: perfectly aligned with the left text column */}
-                            <div className="flex justify-center lg:w-1/3">
+                            {/* Mobile: centered, Desktop: left-aligned to match the user info text */}
+                            <div className="flex justify-center lg:w-1/3 lg:justify-start lg:pl-4">
                                 <motion.div
                                     initial={{ scale: 0.8, opacity: 0, y: 20 }}
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -137,8 +137,8 @@ const ProfileView = () => {
                 <div className="lg:flex lg:gap-10 lg:items-start">
                     {/* Left column: user info */}
                     <div className="lg:w-1/3 lg:sticky lg:top-6">
-                        <motion.div variants={itemVariants} className="text-center mb-8 mt-4">
-                            <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center gap-2">
+                        <motion.div variants={itemVariants} className="text-center lg:text-left mb-8 mt-4 lg:pl-4">
+                            <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center lg:justify-start gap-2">
                                 {user?.displayName || user?.username}
                                 {user?.subscription_tier === 'lifetime' && (
                                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
@@ -151,7 +151,7 @@ const ProfileView = () => {
                                     </motion.div>
                                 )}
                             </h1>
-                            <div className="flex flex-col items-center justify-center gap-1 mb-4">
+                            <div className="flex flex-col items-center justify-center lg:items-start lg:justify-start gap-1 mb-4">
                                 <div className="flex items-center gap-2">
                                     <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
                                         <User className="w-3 h-3" />
@@ -165,12 +165,12 @@ const ProfileView = () => {
                                 </div>
                             </div>
                             {user?.bio && (
-                                <div className="relative inline-block">
+                                <div className="relative inline-block lg:block lg:text-left">
                                     <span className="absolute -top-2 -left-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                                    <p className="text-[15px] text-claude-secondary max-w-xs mx-auto italic font-serif leading-relaxed px-4">
+                                    <p className="text-[15px] text-claude-secondary max-w-xs mx-auto lg:mx-0 italic font-serif leading-relaxed px-4 lg:px-0 lg:pl-4">
                                         {user.bio}
                                     </p>
-                                    <span className="absolute -bottom-4 -right-3 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                                    <span className="absolute -bottom-4 -right-3 lg:right-auto lg:left-[calc(100%-1rem)] text-2xl text-botanical-sepia/20 font-serif">"</span>
                                 </div>
                             )}
                         </motion.div>
