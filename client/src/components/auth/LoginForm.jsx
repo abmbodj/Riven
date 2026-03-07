@@ -61,8 +61,8 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                 />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
                     <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Email or Username</label>
                     <input
                         type="text"
@@ -71,12 +71,12 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                         autoComplete="username"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
-                        className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
+                        className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-4 py-3 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
                         placeholder="you@example.com"
                     />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Password</label>
                     <div className="relative group">
                         <input
@@ -86,7 +86,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                             autoComplete="current-password"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
-                            className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
+                            className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-4 py-3 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
                             placeholder="••••••••"
                         />
                         <button
@@ -114,7 +114,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-4 rounded-xl hover:bg-white active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[60px] flex items-center justify-center"
+                    className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-3 rounded-xl hover:bg-white active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[48px] flex items-center justify-center"
                 >
                     {loading ? (
                         <span className="flex items-center justify-center gap-3">
@@ -127,13 +127,13 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                 </button>
             </form>
 
-            <div className="mt-8 pt-8 border-t border-[#1e3840]/60 flex flex-col items-center gap-4">
+            <div className="mt-4 pt-4 border-t border-[#1e3840]/60 flex flex-col items-center gap-3">
                 <p className="text-sm font-sans text-[#8fa6a8] text-center">
                     A novel approach to retention.
                 </p>
                 <button
                     onClick={onSwitchToSignup}
-                    className="w-full py-4 border border-[#deb96a]/30 rounded-xl text-[#deb96a] font-sans font-medium hover:bg-[#deb96a]/5 transition-colors active:scale-[0.98]"
+                    className="w-full py-3 border border-[#deb96a]/30 rounded-xl text-[#deb96a] font-sans font-medium hover:bg-[#deb96a]/5 transition-colors active:scale-[0.98]"
                 >
                     Establish an account
                 </button>

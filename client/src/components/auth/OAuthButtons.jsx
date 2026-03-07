@@ -71,11 +71,11 @@ export default function OAuthButtons({ onSuccess, onError }) {
     };
 
     return (
-        <div className="flex flex-col gap-3 w-full mb-6">
+        <div className="flex flex-col gap-2.5 w-full mb-4">
             <button
                 type="button"
                 disabled={true}
-                className="w-full flex items-center justify-center bg-gray-100/50 text-black/40 font-semibold py-3.5 rounded-lg shadow-sm border border-gray-200/50 cursor-not-allowed"
+                className="w-full flex items-center justify-center bg-gray-100/50 text-black/40 font-semibold py-2.5 rounded-lg shadow-sm border border-gray-200/50 cursor-not-allowed"
             >
                 <div className="opacity-50">
                     <GoogleIcon />
@@ -85,7 +85,7 @@ export default function OAuthButtons({ onSuccess, onError }) {
             <button
                 type="button"
                 disabled={true}
-                className="w-full flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-3.5 rounded-lg shadow-sm cursor-not-allowed"
+                className="w-full flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-2.5 rounded-lg shadow-sm cursor-not-allowed"
             >
                 <div className="opacity-50">
                     <AppleIcon />
@@ -93,7 +93,7 @@ export default function OAuthButtons({ onSuccess, onError }) {
                 <span className="text-sm font-sans tracking-wide">Continue with Apple <span className="text-xs ml-1 opacity-70">(Coming Soon)</span></span>
             </button>
 
-            <div className="relative flex items-center py-5">
+            <div className="relative flex items-center py-3">
                 <div className="flex-grow border-t border-white/10"></div>
                 <span className="flex-shrink-0 mx-4 text-white/40 text-xs font-mono uppercase tracking-widest">or email</span>
                 <div className="flex-grow border-t border-white/10"></div>
