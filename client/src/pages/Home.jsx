@@ -169,7 +169,7 @@ function DashboardHome() {
     }
 
     return (
-        <div className="min-h-screen p-4 pb-32 pt-4 sm:p-6">
+        <div className="min-h-screen p-4 pb-32 pt-4 sm:p-6 overflow-x-hidden">
             <div className="relative mb-8 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:p-8 lg:p-10">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="relative z-10 flex items-center justify-between">
