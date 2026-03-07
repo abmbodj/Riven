@@ -1,5 +1,10 @@
-// A calming botanical theme
-const leafColor = 'var(--botanical-forest)'; // #7a9e72 
+```javascript
+import React from 'react';
+import { motion } from 'motion/react';
+
+export default function OnboardingArt() {
+  // A calming botanical theme
+  const leafColor = 'var(--botanical-forest)'; // #7a9e72 
 const stemColor = 'var(--botanical-sepia)';   // #8fa6a8
 const accentColor = 'var(--accent-color)';    // #deb96a
 
@@ -18,7 +23,7 @@ return (
             }}
             className="absolute inset-0 rounded-full"
             style={{
-                background: `radial - gradient(circle at center, ${leafColor} 0 %, transparent 60 %)`,
+                background: `radial - gradient(circle at center, ${ leafColor } 0 %, transparent 60 %)`,
                 filter: 'blur(20px)'
             }}
         />
@@ -66,7 +71,7 @@ return (
                 >
                     <motion.path
                         d="M 97 130 C 50 140 30 110 35 85 C 65 65 90 95 97 130"
-                        fill={`${leafColor} 60`}
+                        fill={`${ leafColor } 60`}
                         stroke={leafColor}
                         strokeWidth="2.5"
                         strokeLinejoin="round"
@@ -87,7 +92,7 @@ return (
                 >
                     <motion.path
                         d="M 94 85 C 145 75 165 45 150 20 C 115 15 95 55 94 85"
-                        fill={`${leafColor} 80`}
+                        fill={`${ leafColor } 80`}
                         stroke={leafColor}
                         strokeWidth="2.5"
                         strokeLinejoin="round"
@@ -123,7 +128,7 @@ return (
             {/* Ambient floating spores/light particles */}
             {[...Array(8)].map((_, i) => (
                 <motion.circle
-                    key={`spore - ${i} `}
+                    key={`spore - ${ i } `}
                     cx={40 + Math.random() * 120}
                     cy={20 + Math.random() * 140}
                     r={1.5 + Math.random() * 2}
@@ -152,7 +157,7 @@ return (
                 rx="75"
                 ry="30"
                 fill="none"
-                stroke={`${accentColor} 60`}
+                stroke={`${ accentColor } 60`}
                 strokeWidth="1.5"
                 strokeDasharray="2 8"
                 strokeLinecap="round"
@@ -169,7 +174,7 @@ return (
                 rx="90"
                 ry="35"
                 fill="none"
-                stroke={`${stemColor} 40`}
+                stroke={`${ stemColor } 40`}
                 strokeWidth="1"
                 strokeDasharray="4 6"
                 strokeLinecap="round"
