@@ -1,7 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'motion/react';
 import OnboardingArt from '../OnboardingArt';
+
+const generateFireflies = () => {
+    return [...Array(50)].map((_, i) => {
+        const startX = Math.random() * 1440;
+        const startY = Math.random() * 700;
+        const floatDur = Math.random() * 10 + 15;
+        const pulseDur = Math.random() * 3 + 2;
+        const delay = Math.random() * -20;
+        const r = Math.random() * 1.5 + 0.5;
+        const endX = startX + (Math.random() * 200 - 100);
+        const endY = startY - Math.random() * 150;
+        return { id: i, startX, startY, floatDur, pulseDur, delay, r, endX, endY };
+    });
+};
+
+const initialFireflies = generateFireflies();
 
 export default function GardenLanding() {
     return (
@@ -151,42 +168,35 @@ export default function GardenLanding() {
                         <rect width="100%" height="100%" fill="url(#skyGlow)" />
 
                         {/* Drifting Fireflies */}
-                        {[...Array(50)].map((_, i) => {
-                            const startX = Math.random() * 1440;
-                            const startY = Math.random() * 700;
-                            const floatDur = Math.random() * 10 + 15; // 15-25s
-                            const pulseDur = Math.random() * 3 + 2;   // 2-5s
-                            const delay = Math.random() * -20;
-                            return (
-                                <g key={`firefly-${i}`}>
-                                    <circle
-                                        cx="0"
-                                        cy="0"
-                                        r={Math.random() * 1.5 + 0.5}
-                                        fill="#deb96a"
-                                        opacity="0"
-                                        filter="url(#glow)"
-                                    >
-                                        <animateTransform
-                                            attributeName="transform"
-                                            type="translate"
-                                            from={`${startX} ${startY}`}
-                                            to={`${startX + (Math.random() * 200 - 100)} ${startY - Math.random() * 150}`}
-                                            dur={`${floatDur}s`}
-                                            repeatCount="indefinite"
-                                            begin={`${delay}s`}
-                                        />
-                                        <animate
-                                            attributeName="opacity"
-                                            values="0;0.7;0"
-                                            dur={`${pulseDur}s`}
-                                            repeatCount="indefinite"
-                                            begin={`${delay}s`}
-                                        />
-                                    </circle>
-                                </g>
-                            );
-                        })}
+                        {initialFireflies.map((firefly) => (
+                            <g key={`firefly-${firefly.id}`}>
+                                <circle
+                                    cx="0"
+                                    cy="0"
+                                    r={firefly.r}
+                                    fill="#deb96a"
+                                    opacity="0"
+                                    filter="url(#glow)"
+                                >
+                                    <animateTransform
+                                        attributeName="transform"
+                                        type="translate"
+                                        from={`${firefly.startX} ${firefly.startY}`}
+                                        to={`${firefly.endX} ${firefly.endY}`}
+                                        dur={`${firefly.floatDur}s`}
+                                        repeatCount="indefinite"
+                                        begin={`${firefly.delay}s`}
+                                    />
+                                    <animate
+                                        attributeName="opacity"
+                                        values="0;0.7;0"
+                                        dur={`${firefly.pulseDur}s`}
+                                        repeatCount="indefinite"
+                                        begin={`${firefly.delay}s`}
+                                    />
+                                </circle>
+                            </g>
+                        ))}
 
                         {/* Deep Background Hills & Mist */}
                         <path d="M-100,500 C300,450 500,600 900,500 C1200,400 1500,550 1600,530 L1600,800 L-100,800 Z" fill="url(#hillBack)" />
@@ -332,9 +342,9 @@ export default function GardenLanding() {
                 {/* Features Bento / List */}
                 <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
                     {[
-                        { title: "Rooted Retention", desc: "Spaced repetition algorithms that adapt to your unique memory decay rate, ensuring knowledge takes deep root." },
-                        { title: "Branching Thoughts", desc: "Organize the chaotic sprawl of ideas into coherent mental maps and interconnected flashcard decks." },
-                        { title: "Peaceful Progression", desc: "A minimalist interface devoid of gamified anxiety. Measure growth not in streaks, but in quiet mastery." }
+                        { title: "Rooted Retention", desc: "Spaced repetition algorithms that adapt to your memory, helping knowledge last." },
+                        { title: "Branching Thoughts", desc: "Organize the sprawl of your ideas into focused, interconnected flashcard decks." },
+                        { title: "Peaceful Progression", desc: "A minimal, anxiety-free learning experience. Measure growth in quiet mastery." }
                     ].map((feature, idx) => (
                         <motion.div
                             key={idx}
@@ -358,7 +368,7 @@ export default function GardenLanding() {
 
             {/* Pricing Section */}
             <section className="relative w-full bg-[#0a1017] border-y border-[#1e3840]/50 py-32 lg:py-48 shadow-[inset_0_20px_40px_rgba(0,0,0,0.5)]">
-                <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center">
+                <div className="max-w-7xl mx-auto px-4 lg:px-12 flex flex-col items-center">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -370,26 +380,26 @@ export default function GardenLanding() {
                         <p className="text-[#8fa6a8] font-sans tracking-wide uppercase text-sm">No hidden limits. Cultivate endlessly.</p>
                     </motion.div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 w-full max-w-4xl">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 w-full max-w-6xl">
                         {/* Free Tier */}
                         <motion.div
-                            initial={{ opacity: 0, x: -30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                            className="p-10 lg:p-14 rounded-3xl bg-[#0d141e] border border-[#1e3840] flex flex-col hover:border-[#3d7276]/50 transition-colors duration-500"
+                            className="p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-[#1e3840] flex flex-col hover:border-[#3d7276]/50 transition-colors duration-500"
                         >
-                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#8fa6a8] mb-2">Seedling</h3>
-                            <div className="text-5xl font-serif text-[#fcfaf2] mb-6">$0<span className="text-xl text-[#8fa6a8] font-sans">/mo</span></div>
+                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#8fa6a8] mb-2">Seedling (Free)</h3>
+                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">$0<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
                             <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Essential flashcards
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Create flashcards & decks
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Base spaced repetition
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Spaced repetition learning
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Serene interface
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Peaceful ad-supported interface
                                 </li>
                             </ul>
                             <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-[#3d7276]/50 text-[#b8d0d2] font-sans uppercase tracking-widest text-xs hover:bg-[#1e3840]/30 hover:text-[#deb96a] transition-all">
@@ -397,35 +407,65 @@ export default function GardenLanding() {
                             </Link>
                         </motion.div>
 
-                        {/* Pro Tier */}
+                        {/* Supporter Tier */}
                         <motion.div
-                            initial={{ opacity: 0, x: 30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                            className="relative p-10 lg:p-14 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-all duration-500"
+                            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
+                            className="relative p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-all duration-500 scale-100 lg:scale-105 z-10"
                         >
                             <div className="absolute top-0 right-0 p-6 opacity-20 pointer-events-none">
                                 <OnboardingArt className="w-24 h-24" />
                             </div>
-                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2">Canopy</h3>
-                            <div className="text-5xl font-serif text-[#deb96a] mb-6">$8<span className="text-xl text-[#8fa6a8] font-sans">/mo</span></div>
+                            <span className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#deb96a] text-[#0d141e] text-[9px] font-sans font-bold px-3 py-1 rounded-b-lg uppercase tracking-widest">Most Popular</span>
+                            <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2 mt-2">Supporter</h3>
+                            <div className="text-4xl lg:text-5xl font-serif text-[#deb96a] mb-6">$5.99<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
                             <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Everything in Seedling
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Unlimited Hearts & AI Gen
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Unlimited Decks & Sub-decks
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> All PRO Themes
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Advanced Analytics
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Ad-free Experience
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Priority Sync
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Advanced Study Groups
                                 </li>
                             </ul>
                             <Link to="/account?mode=signup" className="w-full py-4 relative z-10 text-center rounded-xl bg-[#deb96a] text-[#0d141e] font-sans font-bold uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(222,185,106,0.2)] hover:bg-[#ebc97e] hover:-translate-y-0.5 transition-all">
-                                Expand Root System
+                                Support Riven
+                            </Link>
+                        </motion.div>
+
+                        {/* Lifetime Tier */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-100px" }}
+                            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+                            className="relative p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-amber-500/20 flex flex-col hover:border-amber-500/40 transition-colors duration-500"
+                        >
+                            <h3 className="text-lg uppercase tracking-widest font-sans text-amber-500/80 mb-2">Lifetime</h3>
+                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">$29.99<span className="text-lg text-[#8fa6a8] font-sans"> once</span></div>
+                            <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
+                                <li className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> All Supporter Benefits
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> No Recurring Payments
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Exclusive Lifetime Badge
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Future Premium Features
+                                </li>
+                            </ul>
+                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-amber-500/30 text-amber-500/90 font-sans uppercase tracking-widest text-xs hover:bg-amber-500/10 hover:text-amber-400 transition-all">
+                                Plant Forever
                             </Link>
                         </motion.div>
                     </div>
