@@ -5,7 +5,6 @@ import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
 import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
-import PasswordStrengthMeter from './PasswordStrengthMeter';
 import AuthLayout from './AuthLayout';
 import OAuthButtons from './OAuthButtons';
 
@@ -14,47 +13,40 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const haptics = useHaptics();
     const toast = useToast();
 
-    const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
+    const [form, setForm] = useState({ username: '', email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [alert, setAlert] = useState({ show: false, title: '', message: '', type: 'info' });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!form.username || !form.email || !form.password) {
-            setAlert({ show: true, title: 'Missing Fields', message: 'Please fill in all fields', type: 'warning' });
+            setAlert({ show: true, title: 'Missing Fields', message: 'All fields are required', type: 'warning' });
             return;
         }
-        if (form.username.length < 2) {
-            setAlert({ show: true, title: 'Invalid Username', message: 'Username must be at least 2 characters', type: 'warning' });
-            return;
-        }
-        if (form.password !== form.confirmPassword) {
-            setAlert({ show: true, title: 'Password Mismatch', message: 'Passwords do not match', type: 'error' });
-            return;
-        }
+
         if (form.password.length < 6) {
-            setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters', type: 'warning' });
-            return;
-        }
-        if (!agreedToTerms) {
-            setAlert({ show: true, title: 'Agreement Required', message: 'You must agree to the Terms of Service and Privacy Policy to create an account. We have no tolerance for objectionable content or abusive users.', type: 'warning' });
+            setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters long', type: 'warning' });
             return;
         }
 
         setLoading(true);
         try {
             await signUp(form.username, form.email, form.password);
+            toast.success('Your sanctuary awaits.');
             haptics.success();
-            toast.success('Account created!');
+            if (navigator.vibrate) navigator.vibrate(50);
             onSignupSuccess();
         } catch (err) {
-            console.error('[SignupForm] Error:', err);
+            console.error('[SignupForm] Signup Error:', err);
             haptics.error();
-            const errorMessage = err?.message || 'An unexpected error occurred. Please try again.';
-            setAlert({ show: true, title: 'Signup Failed', message: errorMessage, type: 'error' });
+
+            let errorMessage = 'An unexpected error occurred. Please try again.';
+            if (err.message) errorMessage = err.message;
+            if (err.error) errorMessage = err.error;
+
+            setAlert({ show: true, title: 'Registration Failed', message: errorMessage, type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -62,27 +54,20 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
 
     return (
         <AuthLayout
-            title="Create account"
-            subtitle="Create your account to get started."
+            title="Sign up"
+            subtitle="Begin your cultivation."
             showBackLink={true}
-            backLinkText="RETURN TO LOGIN"
-            backLinkTo="#" // Handled by state switch in Account.jsx, but visual link style
         >
-            {/* Override the link behavior for "RETURN TO LOGIN" to use the prop */}
-            <div className="absolute top-6 left-6 md:hidden">
-                {/* This absolute positioning mimics the mobile layout in original Account.jsx */}
-            </div>
-
             <div className="w-full">
                 <OAuthButtons
                     onSuccess={onSignupSuccess}
-                    onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
+                    onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-up failed.', type: 'error' })}
                 />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5 -mt-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Username</label>
+                    <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Username</label>
                     <input
                         type="text"
                         name="username"
@@ -90,13 +75,13 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                         autoComplete="username"
                         value={form.username}
                         onChange={e => setForm({ ...form, username: e.target.value })}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="your_username"
+                        className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
+                        placeholder="e.g. scholar123"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email</label>
+                    <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Email</label>
                     <input
                         type="email"
                         name="email"
@@ -104,14 +89,14 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                         autoComplete="email"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                        className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
                         placeholder="you@example.com"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Password</label>
-                    <div className="relative">
+                    <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Password</label>
+                    <div className="relative group">
                         <input
                             type={showPassword ? 'text' : 'password'}
                             name="password"
@@ -119,45 +104,17 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                             autoComplete="new-password"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
-                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                            placeholder="••••••••"
+                            className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
+                            placeholder="At least 6 characters"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors p-2"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8fa6a8]/50 hover:text-[#deb96a] transition-colors p-2"
                         >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                     </div>
-                    <PasswordStrengthMeter password={form.password} />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Confirm Password</label>
-                    <input
-                        type={showPassword ? 'text' : 'password'}
-                        name="confirmPassword"
-                        id="confirmPassword"
-                        autoComplete="new-password"
-                        value={form.confirmPassword}
-                        onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="••••••••"
-                    />
-                </div>
-
-                <div className="flex items-start gap-3 mt-4">
-                    <input
-                        type="checkbox"
-                        id="terms"
-                        checked={agreedToTerms}
-                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                        className="mt-1 w-4 h-4 rounded border-white/20 bg-black/20 text-botanical-forest focus:ring-botanical-forest focus:ring-offset-black transition-colors cursor-pointer"
-                    />
-                    <label htmlFor="terms" className="text-[11px] text-claude-secondary leading-relaxed cursor-pointer">
-                        I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-claude-accent hover:underline">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-claude-accent hover:underline">Privacy Policy</a>. By creating an account, I acknowledge that Riven has zero tolerance for objectionable content or abusive users.
-                    </label>
                 </div>
 
                 <button

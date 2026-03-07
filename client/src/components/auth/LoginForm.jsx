@@ -30,12 +30,10 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
         try {
             const result = await signIn(form.email, form.password);
 
-            // Check if 2FA is required
             if (result?.require2FA) {
-                // Pass the tempToken to the parent to handle 2FA view switch
                 onLoginSuccess({ require2FA: true, tempToken: result.tempToken });
             } else {
-                toast.success('Welcome back!');
+                toast.success('Welcome back.');
                 haptics.success();
                 if (navigator.vibrate) navigator.vibrate(50);
                 onLoginSuccess({ require2FA: false });
@@ -52,8 +50,8 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
 
     return (
         <AuthLayout
-            title="Login"
-            subtitle="Sign in to your account."
+            title="Log in"
+            subtitle="Access your knowledge sanctuary."
             showBackLink={true}
         >
             <div className="w-full">
@@ -62,9 +60,10 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                     onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
                 />
             </div>
-            <form onSubmit={handleSubmit} className="space-y-6 -mt-2">
+
+            <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                    <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email or Username</label>
+                    <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Email or Username</label>
                     <input
                         type="text"
                         name="email"
@@ -72,15 +71,13 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                         autoComplete="username"
                         value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
-                        placeholder="email@example.com or username"
+                        className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
+                        placeholder="you@example.com"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center px-1">
-                        <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest">Password</label>
-                    </div>
+                    <label className="text-[10px] font-mono text-[#8fa6a8] uppercase tracking-widest pl-1">Password</label>
                     <div className="relative group">
                         <input
                             type={showPassword ? 'text' : 'password'}
@@ -89,13 +86,13 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                             autoComplete="current-password"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
-                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                            className="w-full bg-[#0d141e]/50 border border-[#2a3d46]/50 rounded-xl px-5 py-4 text-[#e4ddd0] placeholder:text-[#8fa6a8]/50 focus:border-[#deb96a]/70 focus:bg-[#131d26] focus:ring-1 focus:ring-[#deb96a]/20 outline-none transition-all duration-300"
                             placeholder="••••••••"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-claude-accent transition-colors p-2"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8fa6a8]/50 hover:text-[#deb96a] transition-colors p-2"
                         >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -107,7 +104,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                         <button
                             type="button"
                             onClick={onForgotPassword}
-                            className="text-xs text-claude-secondary hover:text-claude-accent transition-colors"
+                            className="text-xs font-sans text-[#8fa6a8] hover:text-[#deb96a] transition-colors"
                         >
                             Forgot password?
                         </button>
@@ -117,28 +114,28 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 md:py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm"
+                    className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-4 rounded-xl hover:bg-white active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[60px] flex items-center justify-center"
                 >
                     {loading ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <LoadingSpinner size="sm" color="text-botanical-ink" />
+                        <span className="flex items-center justify-center gap-3">
+                            <LoadingSpinner size="sm" color="text-[#0d141e]" />
                             <span>Validating...</span>
                         </span>
                     ) : (
-                        'Login'
+                        'Enter'
                     )}
                 </button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
-                <p className="text-sm text-claude-secondary text-center">
-                    Don't have an account?
+            <div className="mt-8 pt-8 border-t border-[#1e3840]/60 flex flex-col items-center gap-4">
+                <p className="text-sm font-sans text-[#8fa6a8] text-center">
+                    A novel approach to retention.
                 </p>
                 <button
                     onClick={onSwitchToSignup}
-                    className="w-full py-3 border border-claude-accent/30 rounded-lg text-claude-accent font-display tracking-wider text-xs uppercase hover:bg-claude-accent/5 transition-colors active:scale-[0.98]"
+                    className="w-full py-4 border border-[#deb96a]/30 rounded-xl text-[#deb96a] font-sans font-medium hover:bg-[#deb96a]/5 transition-colors active:scale-[0.98]"
                 >
-                    Create account
+                    Establish an account
                 </button>
             </div>
 
