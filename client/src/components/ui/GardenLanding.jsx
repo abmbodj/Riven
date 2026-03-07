@@ -63,94 +63,85 @@ export default function GardenLanding() {
                         <style>
                             {`
                                 @keyframes sway {
-                                    0%, 100% { transform: rotate(-2deg); }
-                                    50% { transform: rotate(2.5deg); }
+                                    0%, 100% { transform: rotate(-1.5deg); }
+                                    50% { transform: rotate(1.5deg); }
                                 }
                                 @keyframes swaySlow {
-                                    0%, 100% { transform: rotate(-1.5deg); }
-                                    50% { transform: rotate(2deg); }
+                                    0%, 100% { transform: rotate(-1deg); }
+                                    50% { transform: rotate(1deg); }
                                 }
                                 @keyframes swayFast {
-                                    0%, 100% { transform: rotate(-2.5deg); }
-                                    50% { transform: rotate(3deg); }
+                                    0%, 100% { transform: rotate(-2deg); }
+                                    50% { transform: rotate(2deg); }
                                 }
                                 
-                                .sway { animation: sway 8s ease-in-out infinite; transform-origin: center bottom; }
-                                .sway-slow { animation: swaySlow 12s ease-in-out infinite; transform-origin: center bottom; }
-                                .sway-fast { animation: swayFast 6s ease-in-out infinite; transform-origin: center bottom; }
+                                .sway { animation: sway 8s ease-in-out infinite; transform-origin: 0px 0px; }
+                                .sway-slow { animation: swaySlow 12s ease-in-out infinite; transform-origin: 0px 0px; }
+                                .sway-fast { animation: swayFast 6s ease-in-out infinite; transform-origin: 0px 0px; }
                             `}
                         </style>
 
-                        {/* Tree 1: Sacred Geometry (Flower of Life logic) */}
-                        <g id="tree-sacred" className="sway">
-                            <g transform="translate(0, -90)">
-                                {/* Golden Aura */}
-                                <circle cx="0" cy="0" r="65" fill="url(#leafGlow)" opacity="0.3" filter="url(#glow)" />
-                                <circle cx="0" cy="0" r="64" fill="none" stroke="#3d7276" strokeWidth="0.5" opacity="0.4" />
+                        {/* Tree 1: Gentle Oak (Welcoming and grounded) */}
+                        <g id="tree-oak" className="sway-slow">
+                            <path d="M0,0 Q3,-30 0,-60" fill="none" stroke="url(#stemGrad)" strokeWidth="3.5" strokeLinecap="round" />
+                            <path d="M0,-40 Q15,-50 20,-65" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M0,-30 Q-15,-40 -20,-55" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
 
-                                {/* Seed of Life formulation */}
-                                <g stroke="#4b868a" strokeWidth="0.5" fill="none" opacity="0.6">
-                                    <circle cx="0" cy="0" r="22" />
-                                    <circle cx="0" cy="-22" r="22" />
-                                    <circle cx="19.05" cy="-11" r="22" />
-                                    <circle cx="19.05" cy="11" r="22" />
-                                    <circle cx="0" cy="22" r="22" />
-                                    <circle cx="-19.05" cy="11" r="22" />
-                                    <circle cx="-19.05" cy="-11" r="22" />
-                                </g>
+                            <path d="M-25,-45 C-40,-45 -45,-60 -35,-70 C-45,-85 -25,-100 -10,-90 C-5,-110 20,-105 25,-85 C45,-90 45,-65 35,-55 C50,-45 35,-25 20,-35 C10,-25 -10,-25 -20,-35 C-30,-25 -45,-35 -25,-45 Z" fill="#1b4044" opacity="0.9" />
 
-                                <circle cx="0" cy="0" r="38" fill="url(#leafGlowBright)" opacity="0.4" />
-                                <circle cx="0" cy="0" r="12" fill="#deb96a" opacity="0.15" filter="url(#glow)" />
-                            </g>
-                            <path d="M0,0 Q-2,-45 0,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
-                            {/* Subtle grounding roots */}
-                            <path d="M0,0 Q-8,8 -12,10" fill="none" stroke="#112426" strokeWidth="1" strokeLinecap="round" />
-                            <path d="M0,0 Q8,8 12,10" fill="none" stroke="#112426" strokeWidth="1" strokeLinecap="round" />
+                            <path d="M-15,-55 C-30,-55 -35,-65 -25,-75 C-35,-85 -20,-95 -10,-85 C-5,-105 15,-100 20,-80 C35,-85 35,-65 25,-60 C35,-55 25,-40 15,-45 C5,-35 -5,-35 -15,-45 C-25,-35 -35,-45 -15,-55 Z" fill="#2a5a5d" opacity="0.9" />
+
+                            <ellipse cx="0" cy="-65" rx="45" ry="35" fill="url(#leafGlowBright)" opacity="0.2" filter="url(#glow)" />
                         </g>
 
-                        {/* Tree 2: Equilibrium (Perfectly balanced swept curves and orbital rings) */}
-                        <g id="tree-equilibrium" className="sway-slow">
-                            <path d="M0,0 Q4,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
+                        {/* Tree 2: Weeping Willow (Calm and flowing) */}
+                        <g id="tree-willow" className="sway">
+                            <path d="M0,0 Q-4,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="3" strokeLinecap="round" />
+                            <path d="M0,-50 Q-20,-70 -35,-65" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M0,-60 Q20,-80 35,-75" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M-20,-65 Q-15,-80 -5,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M10,-75 Q15,-85 25,-90" fill="none" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
 
-                            {/* Sweeping Symmetrical Crest */}
-                            <path d="M0,-170 C-45,-120 -35,-55 0,-45 C35,-55 45,-120 0,-170 Z" fill="url(#leafGlowBright)" opacity="0.6" />
-                            <path d="M0,-145 C-25,-105 -20,-65 0,-55 C20,-65 25,-105 0,-145 Z" fill="#2a5a5d" opacity="0.8" />
-                            <path d="M0,-120 C-10,-95 -8,-70 0,-65 C8,-70 10,-95 0,-120 Z" fill="#deb96a" opacity="0.25" filter="url(#glow)" />
-
-                            {/* Orbital Rings - implying motion and celestial mechanics */}
-                            <g transform="translate(0, -107.5)">
-                                <circle cx="0" cy="0" r="70" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="1 8" opacity="0.4" />
-                                <circle cx="0" cy="0" r="50" fill="none" stroke="#8fa6a8" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.2" />
+                            {/* Cascading leaves */}
+                            <g stroke="#2a5a5d" strokeWidth="2" strokeLinecap="round" opacity="0.8" fill="none">
+                                <path d="M-40,-60 Q-45,-20 -35,15" />
+                                <path d="M-30,-70 Q-35,-30 -25,25" />
+                                <path d="M-20,-85 Q-25,-40 -15,10" />
+                                <path d="M-10,-95 Q-15,-40 -5,30" />
+                                <path d="M0,-95 Q-5,-40 5,20" />
+                                <path d="M10,-95 Q15,-40 15,25" />
+                                <path d="M25,-85 Q30,-40 25,15" />
+                                <path d="M35,-75 Q40,-30 35,5" />
+                                <path d="M45,-65 Q50,-20 40,10" />
                             </g>
 
-                            {/* Zenith point */}
-                            <circle cx="0" cy="-185" r="1.5" fill="#deb96a" opacity="0.7" filter="url(#glow)" />
+                            <g stroke="#3d7276" strokeWidth="1.5" strokeLinecap="round" opacity="0.9" fill="none">
+                                <path d="M-35,-65 Q-40,-30 -30,5" />
+                                <path d="M-25,-75 Q-30,-30 -20,15" />
+                                <path d="M-15,-90 Q-20,-40 -10,20" />
+                                <path d="M-5,-100 Q-10,-40 0,35" />
+                                <path d="M5,-100 Q10,-40 10,25" />
+                                <path d="M20,-90 Q25,-40 20,10" />
+                                <path d="M30,-80 Q35,-30 30,20" />
+                                <path d="M40,-70 Q45,-20 35,0" />
+                            </g>
+
+                            <ellipse cx="0" cy="-65" rx="55" ry="40" fill="url(#leafGlowBright)" opacity="0.2" filter="url(#glow)" />
                         </g>
 
-                        {/* Tree 3: Resonance (Offset concentric ripples, mimicking a soundwave pine) */}
-                        <g id="tree-resonance" className="sway-fast">
-                            <line x1="0" y1="0" x2="0" y2="-100" stroke="url(#stemGrad)" strokeWidth="1.5" strokeLinecap="round" />
-
-                            {/* Nested Ripples */}
-                            <g>
-                                <circle cx="0" cy="-135" r="60" fill="none" stroke="url(#leafGlow)" strokeWidth="0.5" opacity="0.6" />
-                                <circle cx="0" cy="-125" r="46" fill="url(#leafGlow)" opacity="0.3" />
-                                <circle cx="0" cy="-125" r="46" fill="none" stroke="url(#leafGlowBright)" strokeWidth="1" opacity="0.7" />
-                                <circle cx="0" cy="-115" r="32" fill="url(#leafGlowBright)" opacity="0.4" />
-                                <circle cx="0" cy="-115" r="32" fill="none" stroke="#4b868a" strokeWidth="1.5" opacity="0.8" />
-                                <circle cx="0" cy="-105" r="18" fill="#579296" opacity="0.5" />
-                                <circle cx="0" cy="-105" r="18" fill="none" stroke="#deb96a" strokeWidth="1" opacity="0.4" />
-
-                                {/* Core Energy */}
-                                <circle cx="0" cy="-105" r="6" fill="#deb96a" opacity="0.3" filter="url(#glow)" />
-                            </g>
+                        {/* Tree 3: Soft Cypress / Tall Pine (Elegant and reaching) */}
+                        <g id="tree-cypress" className="sway-fast">
+                            <path d="M0,0 Q2,-50 0,-120" fill="none" stroke="url(#stemGrad)" strokeWidth="2.5" strokeLinecap="round" />
+                            <path d="M0,-140 C-20,-80 -30,-30 0,-10 C30,-30 20,-80 0,-140 Z" fill="#1b4044" opacity="0.9" />
+                            <path d="M0,-130 C-15,-80 -20,-35 0,-20 C20,-35 15,-80 0,-130 Z" fill="#2a5a5d" opacity="0.9" />
+                            <path d="M0,-120 C-10,-80 -12,-40 0,-30 C12,-40 10,-80 0,-120 Z" fill="#3d7276" opacity="0.9" />
+                            <ellipse cx="0" cy="-75" rx="20" ry="50" fill="url(#leafGlowBright)" opacity="0.25" filter="url(#glow)" />
                         </g>
 
                         {/* Distant Minimalist Silhouette */}
                         <g id="bg-tree">
-                            <line x1="0" y1="0" x2="0" y2="-40" stroke="#112426" strokeWidth="1.5" strokeLinecap="round" />
-                            <path d="M0,-65 C-15,-50 -12,-25 0,-20 C12,-25 15,-50 0,-65 Z" fill="#142b2d" opacity="0.8" />
-                            <circle cx="0" cy="-65" r="2" fill="#deb96a" opacity="0.2" />
+                            <path d="M0,0 L0,-30" stroke="#112426" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M-10,-25 C-15,-40 0,-55 0,-55 C0,-55 15,-40 10,-25 C5,-20 -5,-20 -10,-25 Z" fill="#142b2d" opacity="0.8" />
                         </g>
                     </defs>
 
@@ -205,19 +196,16 @@ export default function GardenLanding() {
                         <animateTransform attributeName="transform" type="translate" from="0 0" to="-1440 0" dur="120s" repeatCount="indefinite" />
                     </rect>
 
-                    {/* Back Trees */}
-                    <use href="#bg-tree" x="480" y="525" transform="scale(1.2)" opacity="0.6" />
-                    <use href="#bg-tree" x="550" y="540" transform="scale(1)" opacity="0.5" />
-                    <use href="#bg-tree" x="650" y="600" transform="scale(1.4)" opacity="0.6" />
-                    <use href="#bg-tree" x="780" y="580" transform="scale(1.1)" opacity="0.6" />
-                    <use href="#bg-tree" x="850" y="520" transform="scale(1.3)" opacity="0.6" />
-                    <use href="#bg-tree" x="960" y="560" transform="scale(1.5)" opacity="0.6" />
-
-                    {/* Additional Edge Back Trees */}
-                    <use href="#bg-tree" x="150" y="540" transform="scale(1.1)" opacity="0.4" />
-                    <use href="#bg-tree" x="300" y="510" transform="scale(1.3)" opacity="0.5" />
-                    <use href="#bg-tree" x="1150" y="540" transform="scale(1.2)" opacity="0.5" />
-                    <use href="#bg-tree" x="1300" y="520" transform="scale(1.4)" opacity="0.4" />
+                    {/* Background Silhouette Trees */}
+                    {[
+                        [80, 530, 1.1], [180, 545, 0.8], [300, 525, 1.3], [380, 550, 0.9], [500, 535, 1.2],
+                        [620, 520, 1], [750, 540, 1.4], [880, 530, 0.8], [980, 555, 1.1], [1100, 525, 1.3],
+                        [1220, 545, 0.9], [1300, 520, 1.2], [1400, 540, 1.5]
+                    ].map(([x, y, s], i) => (
+                        <g key={`bg-${i}`} transform={`translate(${x}, ${y}) scale(${s})`} opacity="0.5">
+                            <use href="#bg-tree" />
+                        </g>
+                    ))}
 
                     {/* Midground Hills */}
                     <path d="M-200,600 C200,450 450,650 850,500 C1150,350 1450,550 1600,500 L1600,800 L-200,800 Z" fill="url(#hillMid)" />
@@ -230,70 +218,44 @@ export default function GardenLanding() {
                         <animateTransform attributeName="transform" type="translate" from="-1440 0" to="0 0" dur="90s" repeatCount="indefinite" />
                     </rect>
 
-                    {/* Mid Trees (Masterful Sacred Geometry) - Center Group */}
-                    <g transform="translate(380, 580) scale(1.2)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-2s' }} />
-                    </g>
-                    <g transform="translate(520, 610) scale(1)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-1s' }} />
-                    </g>
-                    <g transform="translate(720, 610) scale(0.9)">
-                        <use href="#tree-sacred" style={{ animationDelay: '-4s' }} />
-                    </g>
-                    <g transform="translate(920, 580) scale(1.3)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-5s' }} />
-                    </g>
-                    <g transform="translate(1080, 620) scale(1.1)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-3s' }} />
-                    </g>
-
-                    {/* Mid Trees - Edge Groups */}
-                    <g transform="translate(120, 560) scale(1.15)">
-                        <use href="#tree-sacred" style={{ animationDelay: '-6s' }} />
-                    </g>
-                    <g transform="translate(250, 630) scale(0.8)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-7s' }} />
-                    </g>
-                    <g transform="translate(1250, 590) scale(1.05)">
-                        <use href="#tree-sacred" style={{ animationDelay: '-1s' }} />
-                    </g>
-                    <g transform="translate(1380, 550) scale(1.4)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-8s' }} />
-                    </g>
+                    {/* Mid Trees */}
+                    {[
+                        ['oak', 120, 580, 0.9, -2],
+                        ['cypress', 260, 610, 1.0, -5],
+                        ['willow', 400, 590, 1.2, -1],
+                        ['oak', 550, 615, 1.0, -4],
+                        ['cypress', 700, 585, 1.3, -7],
+                        ['willow', 850, 620, 0.9, -3],
+                        ['oak', 1000, 605, 1.1, -6],
+                        ['cypress', 1150, 580, 0.9, -2],
+                        ['willow', 1300, 610, 1.2, -5],
+                        ['oak', 1420, 590, 1.0, -1]
+                    ].map(([type, x, y, scale, delay], i) => (
+                        <g key={`mid-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
+                            <use href={`#tree-${type}`} style={{ animationDelay: `${delay}s` }} />
+                        </g>
+                    ))}
 
                     {/* Foreground Hills */}
                     {/* Steeper dramatic sweeping path to frame the content */}
                     <path d="M-200,680 C150,500 500,750 800,600 C1100,450 1400,650 1600,550 L1600,800 L-200,800 Z" fill="url(#hillFront)" />
 
-                    {/* Hero Foreground Trees - Left Side */}
-                    <g transform="translate(180, 710) scale(1.6)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-4s' }} />
-                    </g>
-                    <g transform="translate(320, 680) scale(2.1)">
-                        <use href="#tree-sacred" style={{ animationDelay: '-2s' }} />
-                    </g>
-                    <g transform="translate(420, 760) scale(1.4)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-6s' }} />
-                    </g>
-
-                    {/* Hero Foreground Trees - Inner Left & Right frames */}
-                    <g transform="translate(560, 780) scale(1.3)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-1s' }} />
-                    </g>
-                    <g transform="translate(880, 710) scale(1.8)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-3s' }} />
-                    </g>
-
-                    {/* Hero Foreground Trees - Right Side */}
-                    <g transform="translate(1020, 760) scale(1.5)">
-                        <use href="#tree-sacred" style={{ animationDelay: '-7s' }} />
-                    </g>
-                    <g transform="translate(1180, 690) scale(2.2)">
-                        <use href="#tree-resonance" style={{ animationDelay: '-5s' }} />
-                    </g>
-                    <g transform="translate(1320, 750) scale(1.7)">
-                        <use href="#tree-equilibrium" style={{ animationDelay: '-2s' }} />
-                    </g>
+                    {/* Foreground Trees */}
+                    {[
+                        ['willow', 80, 710, 1.8, -3],
+                        ['oak', 240, 750, 1.6, -1],
+                        ['cypress', 400, 780, 1.4, -6],
+                        ['willow', 580, 720, 1.5, -2],
+                        ['oak', 760, 770, 1.7, -5],
+                        ['willow', 940, 730, 1.6, -4],
+                        ['cypress', 1120, 790, 1.5, -2],
+                        ['oak', 1280, 720, 1.9, -7],
+                        ['willow', 1420, 760, 1.7, -1]
+                    ].map(([type, x, y, scale, delay], i) => (
+                        <g key={`fg-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
+                            <use href={`#tree-${type}`} style={{ animationDelay: `${delay}s` }} />
+                        </g>
+                    ))}
                 </svg>
             </div>
 
