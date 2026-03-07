@@ -10,6 +10,7 @@ import Palette from 'lucide-react/dist/esm/icons/palette';
 import Users from 'lucide-react/dist/esm/icons/users';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Leaf from 'lucide-react/dist/esm/icons/leaf';
+import OnboardingArt from './OnboardingArt';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { UIContext } from '../context/UIContext';
@@ -74,8 +75,8 @@ export default function Layout({ children }) {
                     <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-claude-surface/50 border-r border-claude-border/50 z-30 backdrop-blur-sm">
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-2.5 px-5 pt-6 pb-4">
-                            <div className="w-7 h-7 border border-claude-accent/30 rounded-full flex items-center justify-center bg-white/5">
-                                <Leaf className="w-3.5 h-3.5 text-claude-accent" />
+                            <div className="w-7 h-7 border border-claude-accent/30 rounded-full flex items-center justify-center bg-white/5 overflow-hidden">
+                                <OnboardingArt className="w-6 h-6 scale-[1.3] mt-1" />
                             </div>
                             <span className="font-display text-lg text-claude-text tracking-tight">Riven</span>
                         </Link>
