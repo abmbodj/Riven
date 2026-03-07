@@ -11,8 +11,6 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import PricingModal from '../components/ui/PricingModal';
-import WatchAdButton from '../components/ui/WatchAdButton';
-import useRewardedAd from '../hooks/useRewardedAd';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -71,7 +69,6 @@ export default function Settings() {
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
 
     const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
-    const { watchAd, loading: adLoading } = useRewardedAd();
 
     useEffect(() => {
         const loadSettings = async () => {
@@ -137,9 +134,7 @@ export default function Settings() {
         }
     };
 
-    const [syncLimitHit, setSyncLimitHit] = useState(false);
-
-    const handleSyncLms = async (adGranted = false) => {
+    const handleSyncLms = async () => {
         setLmsStatus(prev => ({ ...prev, syncing: true }));
         haptics.light();
         try {
@@ -149,8 +144,8 @@ export default function Settings() {
             setSyncLimitHit(false);
         } catch (err) {
             haptics.error();
-            if (err.status === 429 && err.message?.includes('Watch an ad')) {
-                setSyncLimitHit(true);
+            if (err.status === 429) {
+                openModal('pricing');
             } else {
                 toast.error(err.message || 'Canvas Sync Failed');
             }
@@ -371,22 +366,7 @@ export default function Settings() {
                                                 <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
                                                 {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Now'}
                                             </button>
-                                            {syncLimitHit && !isPremium && (
-                                                <WatchAdButton
-                                                    loading={adLoading}
-                                                    label="Watch Ad to Sync Again"
-                                                    onWatch={async () => {
-                                                        try {
-                                                            await watchAd('lms_sync');
-                                                            toast.success('Sync unlocked! Syncing now...');
-                                                            setSyncLimitHit(false);
-                                                            await handleSyncLms(true);
-                                                        } catch {
-                                                            // Error handled by hook
-                                                        }
-                                                    }}
-                                                />
-                                            )}
+
                                             <button
                                                 onClick={handleDisconnectCanvas}
                                                 className="w-full bg-claude-bg border border-botanical-sepia/10 text-botanical-sepia/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-all active:scale-[0.98]"
@@ -482,25 +462,7 @@ export default function Settings() {
                             </div>
                         )}
 
-                        {/* Watch Ad for extra AI generation */}
-                        {!aiLimits.loading && aiLimits.remaining === 0 && !isPremium && (
-                            <div className="relative z-10 mt-3">
-                                <WatchAdButton
-                                    loading={adLoading}
-                                    label="Watch Ad for +1 Generation"
-                                    onWatch={async () => {
-                                        try {
-                                            await watchAd('ai_generation');
-                                            const aiData = await api.getAILimits();
-                                            setAiLimits({ ...aiData, loading: false });
-                                            toast.success('You earned 1 extra AI generation!');
-                                        } catch {
-                                            // Error handled by hook
-                                        }
-                                    }}
-                                />
-                            </div>
-                        )}
+
                     </div>
                 </motion.div>
 

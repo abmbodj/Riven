@@ -6,7 +6,7 @@ import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
-import useRewardedAd from '../hooks/useRewardedAd';
+
 
 export default function TestMode() {
     const { id } = useParams();
@@ -23,7 +23,7 @@ export default function TestMode() {
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
     const [heartsLoading, setHeartsLoading] = useState(true);
-    const { watchAd } = useRewardedAd();
+
     const inputRef = useRef(null);
     const { incrementStreak } = useStreakContext();
     const haptics = useHaptics();
@@ -506,19 +506,6 @@ export default function TestMode() {
             }} onEnd={() => {
                 setShowOutOfHearts(false);
                 window.location.href = `/deck/${id}`;
-            }} onWatchAd={async () => {
-                try {
-                    const result = await watchAd('hearts_refill');
-                    if (result?.hearts !== undefined) {
-                        setHeartsStatus(prev => ({ ...prev, hearts: result.hearts }));
-                    } else {
-                        const updated = await api.getHeartsStatus();
-                        setHeartsStatus(updated);
-                    }
-                    setShowOutOfHearts(false);
-                } catch {
-                    // Error handled by hook
-                }
             }} />
         </div>
     );

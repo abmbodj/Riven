@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 import ConfirmModal from '../components/ConfirmModal';
-import useRewardedAd from '../hooks/useRewardedAd';
+
 
 export default function GroupCram() {
     const { groupId, sessionId } = useParams();
@@ -36,7 +36,7 @@ export default function GroupCram() {
     // Hearts State
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
-    const { watchAd } = useRewardedAd();
+
 
     // Network & Debounce State
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -598,19 +598,6 @@ export default function GroupCram() {
             }} onEnd={() => {
                 setShowOutOfHearts(false);
                 navigate(`/groups/${groupId}`);
-            }} onWatchAd={async () => {
-                try {
-                    const result = await watchAd('hearts_refill');
-                    if (result?.hearts !== undefined) {
-                        setHeartsStatus(prev => ({ ...prev, hearts: result.hearts }));
-                    } else {
-                        const updated = await api.getHeartsStatus();
-                        setHeartsStatus(updated);
-                    }
-                    setShowOutOfHearts(false);
-                } catch {
-                    // Error handled by hook
-                }
             }} />
 
             {confirmModal.show && (

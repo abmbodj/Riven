@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { HeartCrack, HeartPulse, X, Sparkles, Play } from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
-export default function OutOfHeartsModal({ isOpen, onClose, onPractice, onUpgrade, onWatchAd }) {
+export default function OutOfHeartsModal({ isOpen, onClose, onPractice, onUpgrade }) {
     useBodyScrollLock(isOpen);
 
     // Close on escape key
@@ -63,16 +63,6 @@ export default function OutOfHeartsModal({ isOpen, onClose, onPractice, onUpgrad
                                     Practice to Earn Hearts
                                 </button>
 
-                                {/* Option 2: Watch Ad (stubbed) */}
-                                {onWatchAd && (
-                                    <button
-                                        onClick={onWatchAd}
-                                        className="w-full py-4 rounded-xl border border-claude-border bg-white/5 font-semibold text-claude-text hover:bg-white/10 transition-colors flex items-center justify-center gap-2 tap-action"
-                                    >
-                                        <Play className="w-5 h-5 text-amber-400" />
-                                        Watch Ad for Free Refill
-                                    </button>
-                                )}
 
                                 {/* Option 3: Upgrade */}
                                 <button

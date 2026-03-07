@@ -98,29 +98,22 @@ export default function TermsOfService() {
                     </p>
                 </Section>
 
-                {/* Ads */}
-                <Section title="6. Advertisements">
-                    <p className="text-[13px] text-claude-secondary leading-relaxed">
-                        Free-tier users may be shown advertisements through Google AdSense. Rewarded ads are optional — watching them provides in-app rewards such as heart refills. Ads are served by third-party networks subject to their own privacy policies.
-                    </p>
-                </Section>
-
                 {/* AI Features */}
-                <Section title="7. AI-Generated Content">
+                <Section title="6. AI-Generated Content">
                     <p className="text-[13px] text-claude-secondary leading-relaxed">
                         Riven offers AI-powered flashcard generation. When using this feature, your notes are sent to a third-party AI service for processing. AI-generated flashcards are provided as-is and may contain inaccuracies. You are responsible for reviewing and verifying AI-generated content.
                     </p>
                 </Section>
 
                 {/* Intellectual Property */}
-                <Section title="8. Intellectual Property">
+                <Section title="7. Intellectual Property">
                     <p className="text-[13px] text-claude-secondary leading-relaxed">
                         The Service, including its design, code, graphics, logos, and features, is owned by Riven and protected by intellectual property laws. You may not copy, modify, distribute, or reverse-engineer any part of the Service without our written permission.
                     </p>
                 </Section>
 
                 {/* Limitation of Liability */}
-                <Section title="9. Limitation of Liability">
+                <Section title="8. Limitation of Liability">
                     <p className="text-[13px] text-claude-secondary leading-relaxed mb-3">
                         The Service is provided "as is" without warranties of any kind. To the fullest extent permitted by law:
                     </p>
@@ -133,28 +126,28 @@ export default function TermsOfService() {
                 </Section>
 
                 {/* Termination */}
-                <Section title="10. Termination">
+                <Section title="9. Termination">
                     <p className="text-[13px] text-claude-secondary leading-relaxed">
                         You may delete your account at any time through the Settings page. We may suspend or terminate your account if you violate these terms. Upon termination, your right to use the Service ceases immediately, and your data will be deleted per our Privacy Policy.
                     </p>
                 </Section>
 
                 {/* Governing Law */}
-                <Section title="11. Governing Law">
+                <Section title="10. Governing Law">
                     <p className="text-[13px] text-claude-secondary leading-relaxed">
                         These Terms shall be governed by and construed in accordance with the laws of the United States. Any disputes shall be resolved through binding arbitration, except where prohibited by law.
                     </p>
                 </Section>
 
                 {/* Changes */}
-                <Section title="12. Changes to These Terms">
+                <Section title="11. Changes to These Terms">
                     <p className="text-[13px] text-claude-secondary leading-relaxed">
                         We may revise these Terms at any time. Material changes will be communicated through the app or via email. Your continued use after changes take effect constitutes acceptance.
                     </p>
                 </Section>
 
                 {/* Contact */}
-                <Section title="13. Contact Us">
+                <Section title="12. Contact Us">
                     <p className="text-[13px] text-claude-secondary leading-relaxed mb-2">
                         If you have questions about these Terms, please contact us at:
                     </p>

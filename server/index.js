@@ -30,7 +30,6 @@ const registerHeartsRoutes = require('./routes/hearts');
 const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
 const registerStripeRoutes = require('./routes/stripe');
-const registerAdsRoutes = require('./routes/ads');
 
 const app = express();
 const server = http.createServer(app);
@@ -339,7 +338,6 @@ registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 registerHeartsRoutes({ app, db, authMiddleware });
 registerReferralRoutes({ app, db, authMiddleware });
-registerAdsRoutes({ app, db, authMiddleware });
 
 // ============ WEBHOOKS ============
 

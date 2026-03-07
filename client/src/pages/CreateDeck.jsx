@@ -7,8 +7,6 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
-import useRewardedAd from '../hooks/useRewardedAd';
-import AdRewardModal from '../components/ui/AdRewardModal';
 import PricingModal from '../components/ui/PricingModal';
 
 const MODES = [
@@ -35,14 +33,7 @@ export default function CreateDeck() {
     const [aiFile, setAiFile] = useState(null);
     const [aiFilePreview, setAiFilePreview] = useState('');
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-    const [showAiAdModal, setShowAiAdModal] = useState(false);
-    const [showPricingModal, setShowPricingModal] = useState(false);
-    const [aiLimits, setAiLimits] = useState(null);
-    const fileInputRef = useRef(null);
-
-    const navigate = useNavigate();
     const toast = useToast();
-    const { watchAd, loading: adLoading } = useRewardedAd();
 
     useEffect(() => {
         Promise.all([api.getFolders(), api.getClasses(), api.getTags(), api.getAILimits()])
@@ -126,8 +117,8 @@ export default function CreateDeck() {
             toast.success(`Generated ${result.card_count} flashcards!`);
             navigate(`/deck/${result.deck_id}`);
         } catch (err) {
-            if (err.status === 429 && err.message?.includes('Watch an ad')) {
-                setShowAiAdModal(true);
+            if (err.status === 429) {
+                setShowPricingModal(true);
             } else {
                 toast.error(err.message || 'Failed to generate flashcards');
             }
@@ -535,31 +526,7 @@ export default function CreateDeck() {
                 </div>
             </form>
 
-            {/* AI Limit Modals */}
-            <AdRewardModal
-                isOpen={showAiAdModal}
-                onClose={() => setShowAiAdModal(false)}
-                title="AI Limit Reached"
-                description="You've used all your AI generations. Watch a short ad to get 1 more, or upgrade for 50 per session."
-                adLabel="Watch Ad for +1 Generation"
-                loading={adLoading}
-                onWatchAd={async () => {
-                    try {
-                        await watchAd('ai_generation');
-                        setShowAiAdModal(false);
-                        toast.success('You earned 1 extra AI generation!');
-                        // Refresh limits
-                        const limits = await api.getAILimits();
-                        setAiLimits(limits);
-                    } catch {
-                        // Error handled by hook
-                    }
-                }}
-                onUpgrade={() => {
-                    setShowAiAdModal(false);
-                    setShowPricingModal(true);
-                }}
-            />
+
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
         </div>
     );

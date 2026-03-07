@@ -6,8 +6,6 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
-import useRewardedAd from '../hooks/useRewardedAd';
-import AdRewardModal from '../components/ui/AdRewardModal';
 import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -23,9 +21,7 @@ export default function ClassView() {
     const [decks, setDecks] = useState([]);
     const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showAiAdModal, setShowAiAdModal] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
-    const { watchAd, loading: adLoading } = useRewardedAd();
 
     // Modal state for editing Class
     const [showEditClassModal, setShowEditClassModal] = useState(false);
@@ -243,8 +239,8 @@ export default function ClassView() {
             loadData(); // Will refresh decks list
             navigate(`/deck/${result.deck_id}`);
         } catch (err) {
-            if (err.status === 429 && err.message?.includes('Watch an ad')) {
-                setShowAiAdModal(true);
+            if (err.status === 429) {
+                setShowPricingModal(true);
             } else {
                 toast.error(err.message || 'Failed to generate flashcards.');
             }
@@ -662,27 +658,7 @@ export default function ClassView() {
 
             <ConfirmModal isOpen={deleteAssignConfirm.show} title="Delete Task?" message="Are you sure you want to delete this task forever?" onConfirm={handleDeleteAssignment} onCancel={() => setDeleteAssignConfirm({ show: false, item: null })} />
 
-            <AdRewardModal
-                isOpen={showAiAdModal}
-                onClose={() => setShowAiAdModal(false)}
-                title="AI Limit Reached"
-                description="You've used all your AI generations. Watch a short ad to get 1 more, or upgrade for 50 per session."
-                adLabel="Watch Ad for +1 Generation"
-                loading={adLoading}
-                onWatchAd={async () => {
-                    try {
-                        await watchAd('ai_generation');
-                        setShowAiAdModal(false);
-                        toast.success('You earned 1 extra AI generation!');
-                    } catch {
-                        // Error handled by hook
-                    }
-                }}
-                onUpgrade={() => {
-                    setShowAiAdModal(false);
-                    setShowPricingModal(true);
-                }}
-            />
+
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
         </div>
     );

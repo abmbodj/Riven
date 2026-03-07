@@ -59,7 +59,6 @@ export default function PrivacyPolicy() {
                         <li>To sync your study data across devices</li>
                         <li>To send you important account notifications</li>
                         <li>To generate AI-powered flashcards from your notes</li>
-                        <li>To display relevant advertisements to free-tier users</li>
                         <li>To improve and optimize the Service</li>
                         <li>To detect and prevent fraud or abuse</li>
                     </ul>
@@ -72,7 +71,6 @@ export default function PrivacyPolicy() {
                     </p>
                     <ul className="text-[13px] text-claude-secondary space-y-2 list-disc list-inside leading-relaxed">
                         <li><span className="text-claude-text font-medium">Stripe & RevenueCat</span> — payment processing</li>
-                        <li><span className="text-claude-text font-medium">Google AdSense</span> — ads for free-tier users</li>
                         <li><span className="text-claude-text font-medium">Google Gemini AI</span> — flashcard generation</li>
                         <li><span className="text-claude-text font-medium">Resend</span> — transactional emails</li>
                     </ul>
