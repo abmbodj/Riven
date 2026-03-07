@@ -1,12 +1,12 @@
 import React from 'react';
 import { motion } from 'motion/react';
 
-export default function OnboardingArt() {
+export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
     const leafColor = 'var(--botanical-forest)'; // #7a9e72 
     const accentColor = 'var(--accent-color)';    // #deb96a
 
     return (
-        <div className="relative w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center">
+        <div className={`relative aspect-square mx-auto flex items-center justify-center ${className}`}>
             {/* Deep inner glow */}
             <motion.div
                 animate={{

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Leaf } from 'lucide-react';
+import OnboardingArt from '../OnboardingArt';
 
 export default function GardenLanding() {
     return (
@@ -96,7 +96,7 @@ export default function GardenLanding() {
                     className="flex flex-col items-center justify-center"
                 >
                     <div className="mb-6 inline-flex items-center justify-center p-3 sm:p-4 rounded-full bg-[#1e484a]/40 border border-[#deb96a]/30 backdrop-blur-md shadow-[0_0_30px_rgba(222,185,106,0.15)]">
-                        <Leaf className="w-8 h-8 sm:w-10 sm:h-10 text-[#deb96a]" />
+                        <OnboardingArt className="w-16 h-16 sm:w-20 sm:h-20" />
                     </div>
                     <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-white drop-shadow-xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
                         Riven
