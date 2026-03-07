@@ -6,9 +6,14 @@ import { Leaf } from 'lucide-react';
 export default function GardenLanding() {
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#0d141e] text-[#fcfaf2] flex flex-col items-center justify-center font-serif">
-            {/* Procedural SVG Background */}
-            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                <svg className="absolute w-full h-full" preserveAspectRatio="xMidYMax slice" viewBox="0 0 1440 800" xmlns="http://www.w3.org/2000/svg">
+            {/* Procedural Garden Background */}
+            <div className="absolute inset-0 w-full h-full overflow-hidden bg-black pointer-events-none">
+                <svg
+                    className="absolute min-w-full min-h-full w-auto h-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-cover opacity-80"
+                    viewBox="0 0 1440 800"
+                    preserveAspectRatio="xMidYMid slice"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
                     <defs>
                         <radialGradient id="skyGlow" cx="50%" cy="40%" r="60%">
                             <stop offset="0%" stopColor="#1e3840" />
