@@ -141,6 +141,24 @@ export const login = async (email, password) => {
     return data;
 };
 
+export const loginWithGoogle = async (credential) => {
+    const data = await authFetch('/auth/oauth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential }),
+    });
+    if (data.token) setToken(data.token);
+    return data;
+};
+
+export const loginWithApple = async (identityToken, user) => {
+    const data = await authFetch('/auth/oauth/apple', {
+        method: 'POST',
+        body: JSON.stringify({ identityToken, user }),
+    });
+    if (data.token) setToken(data.token);
+    return data;
+};
+
 export const logout = async () => {
     // Call server to clear httpOnly cookie
     try {
@@ -581,6 +599,8 @@ export default {
     setToken,
     register,
     login,
+    loginWithGoogle,
+    loginWithApple,
     login2FA,
     logout,
     getMe,

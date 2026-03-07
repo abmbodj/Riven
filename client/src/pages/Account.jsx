@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LoginForm from '../components/auth/LoginForm';
@@ -11,7 +12,10 @@ import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 // No complex logic, just state switching
 export default function Account() {
     const { isLoggedIn, loading } = useAuth();
-    const [authView, setAuthView] = useState('login'); // 'login', 'signup', 'forgot', or '2fa'
+    const [searchParams] = useSearchParams();
+    const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
+
+    const [authView, setAuthView] = useState(initialMode); // 'login', 'signup', 'forgot', or '2fa'
     const [tempToken, setTempToken] = useState(null);
 
     // Reset view when auth state changes

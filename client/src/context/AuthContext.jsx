@@ -112,6 +112,34 @@ export function AuthProvider({ children }) {
         return userData;
     }, []);
 
+    const signInWithGoogle = useCallback(async (credential) => {
+        try {
+            const data = await authApi.loginWithGoogle(credential);
+            if (data.user) {
+                setUser(data.user);
+                return data.user;
+            }
+            throw new Error('Google Login passed but no user returned');
+        } catch (error) {
+            console.error('[AuthContext] Google Login failed:', error);
+            throw error;
+        }
+    }, []);
+
+    const signInWithApple = useCallback(async (identityToken, appleUser) => {
+        try {
+            const data = await authApi.loginWithApple(identityToken, appleUser);
+            if (data.user) {
+                setUser(data.user);
+                return data.user;
+            }
+            throw new Error('Apple Login passed but no user returned');
+        } catch (error) {
+            console.error('[AuthContext] Apple Login failed:', error);
+            throw error;
+        }
+    }, []);
+
     const signInWith2FA = useCallback(async (tempToken, code) => {
         const userData = await authApi.login2FA(tempToken, code);
         setUser(userData);
@@ -199,6 +227,8 @@ export function AuthProvider({ children }) {
     const actionsValue = useMemo(() => ({
         signIn,
         signUp,
+        signInWithGoogle,
+        signInWithApple,
         signInWith2FA,
         signOut,
         updateProfile,
@@ -225,7 +255,7 @@ export function AuthProvider({ children }) {
         dismissMessage,
         toggleSimulateFree
     }), [
-        signIn, signUp, signInWith2FA, signOut, updateProfile, changePassword,
+        signIn, signUp, signInWithGoogle, signInWithApple, signInWith2FA, signOut, updateProfile, changePassword,
         deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser,
         adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
         adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,

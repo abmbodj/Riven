@@ -16,6 +16,12 @@ module.exports = function registerAuthRoutes({
     const rateLimit = require('express-rate-limit');
     const isProdEnv = process.env.NODE_ENV === 'production';
 
+    const { OAuth2Client } = require('google-auth-library');
+    const appleSigninAuth = require('apple-signin-auth');
+
+    // The Google Client ID must match the one sent from the frontend
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'PLACEHOLDER_GOOGLE_CLIENT_ID');
+
     // Stricter rate limiter for password reset (3 requests per hour in production)
     const passwordResetLimiter = rateLimit({
         windowMs: 60 * 60 * 1000, // 1 hour
@@ -165,6 +171,150 @@ module.exports = function registerAuthRoutes({
             });
         } catch (error) {
             res.status(500).json({ error: 'Login failed' });
+        }
+    });
+
+    const handleOAuthUser = async (email, name) => {
+        let user = await db.queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+
+        if (!user) {
+            const baseUsername = (name || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+            let username = baseUsername;
+            let counter = 1;
+            while (await db.queryOne('SELECT id FROM users WHERE username = $1', [username])) {
+                username = `${baseUsername}${counter}`;
+                counter++;
+            }
+
+            const shareCode = generateShareCode();
+            const displayName = name || username;
+
+            const result = await db.queryOne(
+                "INSERT INTO users (username, display_name, email, password, share_code, email_verified) VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id",
+                [username, displayName, email.toLowerCase(), 'OAUTH_MANAGED', shareCode]
+            );
+            const userId = result.id;
+
+            // Create default themes
+            await db.execute(
+                'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                [userId, 'Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 1, 1]
+            );
+            await db.execute(
+                'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                [userId, 'Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 0, 1]
+            );
+
+            // Create preset tags
+            const presetTags = [
+                ['Language', '#3b82f6'], ['Science', '#22c55e'], ['Math', '#f59e0b'], ['History', '#8b5cf6'],
+                ['Programming', '#06b6d4'], ['Medical', '#ef4444'], ['Business', '#ec4899'], ['Art', '#f97316']
+            ];
+            for (const [tagName, color] of presetTags) {
+                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, tagName, color]);
+            }
+
+            user = await db.queryOne('SELECT * FROM users WHERE id = $1', [userId]);
+
+            // Welcome email
+            try {
+                const { sendWelcomeEmail } = require('../utils/email');
+                const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+                sendWelcomeEmail(email.toLowerCase(), username, baseUrl).catch(() => { });
+            } catch (e) { }
+        }
+        return user;
+    };
+
+    const processOAuthLogin = async (user, res) => {
+        if (user.is_banned) {
+            return res.status(403).json({ error: 'Your account has been banned due to violations of our terms of service.' });
+        }
+        if (user.two_fa_enabled) {
+            const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending' }, jwtSecret, { expiresIn: '5m' });
+            return res.json({ require2FA: true, tempToken });
+        }
+
+        const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+        const token = jwt.sign({ id: user.id, email: user.email, role: userRole }, jwtSecret, { expiresIn: '30d' });
+
+        const isProd = process.env.NODE_ENV === 'production';
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? 'none' : 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+
+        const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
+
+        res.json({
+            token,
+            require2FA: false,
+            user: {
+                id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
+                avatar: user.avatar, bio: user.bio || '', role: userRole,
+                isAdmin: userRole === 'admin' || userRole === 'owner',
+                isOwner: userRole === 'owner',
+                streakData: JSON.parse(user.streak_data || '{}'),
+                twoFAEnabled: !!user.two_fa_enabled,
+                subscription_tier: effectiveTier,
+                simulate_free_tier: !!user.simulate_free_tier,
+                email_verified: !!user.email_verified
+            }
+        });
+    };
+
+    app.post('/api/auth/oauth/google', speedLimiter, authLimiter, async (req, res) => {
+        const { credential } = req.body;
+        if (!credential) return res.status(400).json({ error: 'Credential is required' });
+
+        try {
+            // Verify access token/ID token
+            // The frontend is configured for standard GoogleOAuthProvider which can return access_token OR id_token
+            // Here we assume it might be an info fetching requirement if it's an access_token.
+            let payload;
+            try {
+                const ticket = await googleClient.verifyIdToken({
+                    idToken: credential,
+                    audience: process.env.GOOGLE_CLIENT_ID || 'PLACEHOLDER_GOOGLE_CLIENT_ID'
+                });
+                payload = ticket.getPayload();
+            } catch (err) {
+                // Fallback for access_token fetching user info
+                const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`);
+                if (!userInfoRes.ok) throw new Error("Invalid credential");
+                payload = await userInfoRes.json();
+            }
+
+            if (!payload.email) return res.status(400).json({ error: 'Could not extract email from Google identity' });
+
+            const user = await handleOAuthUser(payload.email, payload.name);
+            await processOAuthLogin(user, res);
+        } catch (error) {
+            console.error('[Auth] Google OAuth Error:', error);
+            res.status(500).json({ error: 'Google authentication failed' });
+        }
+    });
+
+    app.post('/api/auth/oauth/apple', speedLimiter, authLimiter, async (req, res) => {
+        const { identityToken, user: appleUser } = req.body;
+        if (!identityToken) return res.status(400).json({ error: 'Identity token is required' });
+
+        try {
+            const payload = await appleSigninAuth.verifyIdToken(identityToken, {
+                audience: process.env.APPLE_CLIENT_ID || 'com.example.web',
+                ignoreExpiration: true,
+            });
+
+            if (!payload.email) return res.status(400).json({ error: 'Could not extract email from Apple identity' });
+
+            const name = appleUser && appleUser.name ? `${appleUser.name.firstName} ${appleUser.name.lastName}`.trim() : null;
+            const user = await handleOAuthUser(payload.email, name);
+            await processOAuthLogin(user, res);
+        } catch (error) {
+            console.error('[Auth] Apple OAuth Error:', error);
+            res.status(500).json({ error: 'Apple authentication failed' });
         }
     });
 

@@ -6,6 +6,7 @@ import useHaptics from '../../hooks/useHaptics';
 import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import AuthLayout from './AuthLayout';
+import OAuthButtons from './OAuthButtons';
 
 const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     const { signIn } = useAuth();
@@ -55,7 +56,13 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
             subtitle="Sign in to your account."
             showBackLink={true}
         >
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="w-full">
+                <OAuthButtons
+                    onSuccess={onLoginSuccess}
+                    onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
+                />
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-6 -mt-2">
                 <div className="space-y-2">
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Email or Username</label>
                     <input

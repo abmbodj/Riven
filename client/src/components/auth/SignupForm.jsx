@@ -7,6 +7,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 import AuthLayout from './AuthLayout';
+import OAuthButtons from './OAuthButtons';
 
 const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const { signUp } = useAuth();
@@ -72,7 +73,14 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                 {/* This absolute positioning mimics the mobile layout in original Account.jsx */}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="w-full">
+                <OAuthButtons
+                    onSuccess={onSignupSuccess}
+                    onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
+                />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5 -mt-2">
                 <div className="space-y-2">
                     <label className="text-xs font-mono text-claude-accent/80 uppercase tracking-widest ml-1">Username</label>
                     <input
