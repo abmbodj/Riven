@@ -85,7 +85,7 @@ export default function OAuthButtons({ onSuccess, onError }) {
             <button
                 type="button"
                 disabled={true}
-                className="w-full flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-2.5 rounded-lg shadow-sm cursor-not-allowed"
+                className="w-full md:hidden flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-2.5 rounded-lg shadow-sm cursor-not-allowed"
             >
                 <div className="opacity-50">
                     <AppleIcon />
