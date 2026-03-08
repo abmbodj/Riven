@@ -71,9 +71,9 @@ const ProfileView = () => {
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
             {/* Profile Header with Atmospheric Glassmorphism */}
             {/* Desktop: two-column layout for profile. Mobile: stacked single column */}
-            <div className="relative border-b lg:border-none border-botanical-sepia/5 mb-20 lg:mb-16 z-10 w-full max-w-xl lg:max-w-3xl mx-auto lg:pt-8 bg-transparent">
+            <div className="relative mb-20 lg:mb-16 z-10 w-full max-w-xl lg:max-w-3xl mx-auto lg:pt-8 bg-transparent">
                 {/* Atmospheric Deep Header */}
-                <div className="h-44 lg:h-52 overflow-hidden relative rounded-b-[3rem] lg:rounded-[3rem] shadow-sm border-0 lg:border lg:border-white/5">
+                <div className="mx-4 lg:mx-0 mt-4 lg:mt-0 h-44 lg:h-52 overflow-hidden relative rounded-[3rem] shadow-lg border border-white/5 lg:border-white/5">
                     <div className="absolute inset-0 bg-[#0f2026]"></div>
                     <motion.div
                         initial={{ opacity: 0, scale: 0.8 }}
