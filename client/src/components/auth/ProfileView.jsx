@@ -180,7 +180,7 @@ const ProfileView = () => {
                             <Link
                                 to="/friends"
                                 onClick={() => haptics.light()}
-                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95"
                             >
                                 {/* Glow effect */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -201,7 +201,7 @@ const ProfileView = () => {
                             <Link
                                 to="/messages"
                                 onClick={() => haptics.light()}
-                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                                className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95"
                             >
                                 {/* Glow effect */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -246,7 +246,7 @@ const ProfileView = () => {
                                         <p className="font-display tracking-wide text-[16px] text-amber-700/80 group-hover:text-amber-600 font-semibold transition-colors">Admin Panel</p>
                                         <p className="text-[11px] font-mono text-amber-700/50">Manage users and content</p>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-amber-500/30 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+                                    <ChevronRight className="w-5 h-5 text-amber-500/30 group-hover:text-amber-500 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]" />
                                 </Link>
                             )}
 
@@ -262,7 +262,7 @@ const ProfileView = () => {
                                     <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Edit Profile</p>
                                     <p className="text-[11px] font-mono text-botanical-sepia">Update your avatar and bio</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]" />
                             </Link>
 
                             <Link
@@ -277,7 +277,7 @@ const ProfileView = () => {
                                     <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Settings</p>
                                     <p className="text-[11px] font-mono text-botanical-sepia">Security, notifications, integrations</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all" />
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]" />
                             </Link>
 
                             {user?.subscription_tier && user.subscription_tier !== 'free' && (
@@ -298,7 +298,7 @@ const ProfileView = () => {
                                         <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-600 transition-colors">Manage Subscription</p>
                                         <p className="text-[11px] font-mono text-botanical-sepia">Update or cancel your plan</p>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                                    <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-500 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]" />
                                 </button>
                             )}
                         </motion.div>

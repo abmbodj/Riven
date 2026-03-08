@@ -192,7 +192,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                             key={plan.id}
                                             onClick={() => !isDisabled && setSelectedPlan(plan.id)}
                                             whileTap={{ scale: isDisabled ? 1 : 0.98 }}
-                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${isSelected && !isDisabled
+                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative overflow-hidden ${isSelected && !isDisabled
                                                 ? `border-${plan.accent} bg-${plan.accentBg}`
                                                 : 'border-claude-border/30 bg-white/[0.03]'
                                                 } ${isDisabled ? 'opacity-50' : ''}`}

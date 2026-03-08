@@ -152,7 +152,7 @@ export default function CreateDeck() {
                                     key={m.id}
                                     type="button"
                                     onClick={() => setMode(m.id)}
-                                    className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 tap-action z-10
+                                    className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 tap-action z-10
                                         ${isActive ? 'text-[#162a31]' : 'text-claude-secondary'}`}
                                 >
                                     <Icon className="w-4 h-4" />
@@ -326,7 +326,7 @@ export default function CreateDeck() {
                                                 key={tag.id}
                                                 type="button"
                                                 onClick={() => toggleTag(tag.id)}
-                                                className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-all active:scale-95 ${selectedTags.includes(tag.id)
+                                                className={`px-4 py-2.5 rounded-full flex items-center gap-2 text-sm font-medium transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-95 ${selectedTags.includes(tag.id)
                                                     ? 'text-white shadow-md'
                                                     : 'glass-panel'
                                                     }`}
@@ -422,7 +422,7 @@ export default function CreateDeck() {
                                         </button>
                                     </motion.div>
                                 ) : (
-                                    <label className="flex items-center justify-center w-full py-8 glass-panel border border-dashed border-claude-border/60 rounded-xl cursor-pointer hover:border-claude-accent/40 transition-all group">
+                                    <label className="flex items-center justify-center w-full py-8 glass-panel border border-dashed border-claude-border/60 rounded-xl cursor-pointer hover:border-claude-accent/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] group">
                                         <div className="flex flex-col items-center gap-2 text-claude-secondary group-hover:text-claude-accent transition-colors">
                                             <Upload className="w-6 h-6" />
                                             <span className="font-mono text-[11px] uppercase tracking-widest font-bold">

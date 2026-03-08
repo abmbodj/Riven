@@ -496,7 +496,7 @@ export default function GroupDetails() {
                                             <Users className="w-3.5 h-3.5" /> {members.length} Members
                                         </p>
                                         <div
-                                            className="inline-flex items-center justify-center gap-3 px-5 py-3 glass-panel rounded-xl cursor-pointer hover:border-claude-accent/40 transition-all tap-action group/code"
+                                            className="inline-flex items-center justify-center gap-3 px-5 py-3 glass-panel rounded-xl cursor-pointer hover:border-claude-accent/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action group/code"
                                             onClick={handleCopyCode}
                                         >
                                             <div>
@@ -520,7 +520,7 @@ export default function GroupDetails() {
                                 <div className="w-full">
                                     <button
                                         onClick={() => setShowShareDeckModal(true)}
-                                        className="w-full py-3.5 bg-claude-accent rounded-xl text-botanical-ink font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 text-[11px]"
+                                        className="w-full py-3.5 bg-claude-accent rounded-xl text-botanical-ink font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 text-[11px]"
                                     >
                                         Initiate Cram
                                     </button>
@@ -547,7 +547,7 @@ export default function GroupDetails() {
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         onClick={() => navigate(`/groups/${id}/cram/${session.id}`)}
-                                        className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-all group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+                                        className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-[transform,opacity,color,background-color,border-color,box-shadow] group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]"
                                     >
                                         <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent animate-scan" />
                                         <div className="flex-1 min-w-0 pr-4">
@@ -558,13 +558,13 @@ export default function GroupDetails() {
                                                 <Users className="w-3 h-3" /> {session.active_members || 1} reading now
                                             </p>
                                         </div>
-                                        <button className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(239,68,68,0.4)] group-hover:bg-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)] transition-all transform group-hover:-translate-y-0.5 whitespace-nowrap">
+                                        <button className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(239,68,68,0.4)] group-hover:bg-red-400 group-hover:shadow-[0_0_25px_rgba(239,68,68,0.6)] transition-[transform,opacity,color,background-color,border-color,box-shadow] transform group-hover:-translate-y-0.5 whitespace-nowrap">
                                             Join
                                         </button>
                                         {isAdmin && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleEndSession(session.id); }}
-                                                className="ml-3 px-3 py-2.5 bg-claude-bg/50 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold transition-all whitespace-nowrap tap-action"
+                                                className="ml-3 px-3 py-2.5 bg-claude-bg/50 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] whitespace-nowrap tap-action"
                                             >
                                                 End
                                             </button>
@@ -604,7 +604,7 @@ export default function GroupDetails() {
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.95 }}
                                             transition={{ delay: i * 0.05 }}
-                                            className="group/deck relative glass-panel rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-all duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5"
+                                            className="group/deck relative glass-panel rounded-[1.25rem] p-5 overflow-hidden shadow-sm hover:shadow-claude-accent/5 hover:border-claude-accent/30 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 tap-action flex items-start gap-4 hover:-translate-y-0.5"
                                         >
                                             <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
@@ -713,7 +713,7 @@ export default function GroupDetails() {
                                                 </div>
                                             </div>
                                             {isAdmin && (
-                                                <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all tap-action">
+                                                <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             )}
@@ -739,7 +739,7 @@ export default function GroupDetails() {
                                                 </div>
                                             </div>
                                             {(isAdmin || file.uploaded_by === currentUserId) && (
-                                                <button onClick={(e) => handleDeleteFile(e, file.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0 tap-action">
+                                                <button onClick={(e) => handleDeleteFile(e, file.id)} className="w-8 h-8 flex items-center justify-center rounded-lg sm:opacity-0 sm:group-hover:opacity-100 text-claude-secondary hover:text-red-400 hover:bg-red-500/10 transition-[transform,opacity,color,background-color,border-color,box-shadow] shrink-0 tap-action">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             )}
@@ -901,7 +901,7 @@ export default function GroupDetails() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                                    className="flex-1 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
                                 >
                                     Save Changes
                                 </button>
@@ -985,7 +985,7 @@ export default function GroupDetails() {
                             <button
                                 type="submit"
                                 disabled={!newFolderName.trim()}
-                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
                             >
                                 Create
                             </button>
@@ -1050,7 +1050,7 @@ export default function GroupDetails() {
                                                             }));
                                                         }
                                                     }}
-                                                    className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:uppercase file:tracking-widest file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 transition-all"
+                                                    className="w-full glass-panel border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] rounded-2xl px-5 py-4 font-mono text-sm text-botanical-parchment focus:border-claude-accent/50 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:uppercase file:tracking-widest file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                                                 />
                                             </div>
                                             <div>
@@ -1070,7 +1070,7 @@ export default function GroupDetails() {
                                         <button
                                             type="submit"
                                             disabled={!uploadData.name.trim() || !uploadData.file}
-                                            className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                                            className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
                                         >
                                             Next Step
                                         </button>
@@ -1096,7 +1096,7 @@ export default function GroupDetails() {
                                         <div className="w-full space-y-3">
                                             <button
                                                 onClick={handleUploadWithAi}
-                                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action flex items-center justify-center gap-2 shadow-lg shadow-claude-accent/20"
+                                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action flex items-center justify-center gap-2 shadow-lg shadow-claude-accent/20"
                                             >
                                                 <span>✨</span> Yes, create a deck
                                             </button>

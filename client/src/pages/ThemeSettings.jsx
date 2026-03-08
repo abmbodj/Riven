@@ -205,7 +205,7 @@ export default function ThemeSettings() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleCreateNew}
-                    className="flex items-center justify-center gap-3 px-8 py-4 bg-claude-text text-claude-bg rounded-full font-bold shadow-2xl transition-all active:shadow-md border border-claude-text/10"
+                    className="flex items-center justify-center gap-3 px-8 py-4 bg-claude-text text-claude-bg rounded-full font-bold shadow-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] active:shadow-md border border-claude-text/10"
                 >
                     <Plus className="w-5 h-5" />
                     <span>Create Custom</span>
@@ -311,7 +311,7 @@ export default function ThemeSettings() {
                                         type="text"
                                         value={themeForm.name}
                                         onChange={e => setThemeForm({ ...themeForm, name: e.target.value })}
-                                        className="w-full bg-transparent border-b-2 px-0 py-3 outline-none text-4xl md:text-5xl font-display transition-all placeholder:opacity-20"
+                                        className="w-full bg-transparent border-b-2 px-0 py-3 outline-none text-4xl md:text-5xl font-display transition-[transform,opacity,color,background-color,border-color,box-shadow] placeholder:opacity-20"
                                         style={{
                                             borderColor: themeForm.border_color,
                                             color: themeForm.text_color,
@@ -320,7 +320,7 @@ export default function ThemeSettings() {
                                         placeholder="Name it..."
                                         autoFocus
                                     />
-                                    <div className="absolute bottom-0 left-0 h-[2px] w-0 transition-all duration-300" style={{ backgroundColor: themeForm.accent_color, width: themeForm.name ? '100%' : '0%' }} />
+                                    <div className="absolute bottom-0 left-0 h-[2px] w-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300" style={{ backgroundColor: themeForm.accent_color, width: themeForm.name ? '100%' : '0%' }} />
                                 </div>
 
                                 <div className="space-y-6">
@@ -330,7 +330,7 @@ export default function ThemeSettings() {
                                             <button
                                                 type="button"
                                                 onClick={() => setEditorMode('simple')}
-                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${editorMode === 'simple' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] ${editorMode === 'simple' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
                                                 style={{
                                                     backgroundColor: editorMode === 'simple' ? themeForm.text_color : 'transparent',
                                                     color: editorMode === 'simple' ? themeForm.bg_color : themeForm.text_color
@@ -339,7 +339,7 @@ export default function ThemeSettings() {
                                             <button
                                                 type="button"
                                                 onClick={() => setEditorMode('advanced')}
-                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${editorMode === 'advanced' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] ${editorMode === 'advanced' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
                                                 style={{
                                                     backgroundColor: editorMode === 'advanced' ? themeForm.text_color : 'transparent',
                                                     color: editorMode === 'advanced' ? themeForm.bg_color : themeForm.text_color
@@ -351,13 +351,13 @@ export default function ThemeSettings() {
                                     {editorMode === 'simple' ? (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             <div className="grid grid-cols-2 gap-4">
-                                                <button type="button" onClick={() => applyBaseTheme('dark')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-all duration-300 ${themeForm.bg_color === DEFAULT_DARK.bg_color ? 'scale-[1.02] shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_DARK.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
+                                                <button type="button" onClick={() => applyBaseTheme('dark')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_DARK.bg_color ? 'scale-[1.02] shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_DARK.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
                                                     <div className="p-3 rounded-full bg-[#1a1a18] text-[#e8e8e3] w-fit shadow-inner">
                                                         <Moon className="w-6 h-6" />
                                                     </div>
                                                     <span className="font-display font-bold text-xl text-left tracking-tight" style={{ fontFamily: themeForm.font_family_display }}>Obsidian</span>
                                                 </button>
-                                                <button type="button" onClick={() => applyBaseTheme('light')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-all duration-300 ${themeForm.bg_color === DEFAULT_LIGHT.bg_color ? 'scale-[1.02] shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_LIGHT.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
+                                                <button type="button" onClick={() => applyBaseTheme('light')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_LIGHT.bg_color ? 'scale-[1.02] shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_LIGHT.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
                                                     <div className="p-3 rounded-full bg-[#fafaf9] text-[#1c1c1a] border border-black/10 w-fit shadow-sm">
                                                         <Sun className="w-6 h-6" />
                                                     </div>
@@ -376,7 +376,7 @@ export default function ThemeSettings() {
                                                                 haptics.light();
                                                                 setThemeForm({ ...themeForm, accent_color: p.color });
                                                             }}
-                                                            className={`shrink-0 w-16 h-16 rounded-full border-4 transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] snap-center outline-none ${themeForm.accent_color === p.color ? 'scale-[1.15] shadow-xl' : 'scale-100 opacity-80 hover:scale-105'}`}
+                                                            className={`shrink-0 w-16 h-16 rounded-full border-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] snap-center outline-none ${themeForm.accent_color === p.color ? 'scale-[1.15] shadow-xl' : 'scale-100 opacity-80 hover:scale-105'}`}
                                                             style={{
                                                                 backgroundColor: p.color,
                                                                 borderColor: themeForm.accent_color === p.color ? themeForm.bg_color : 'transparent',
@@ -421,7 +421,7 @@ export default function ThemeSettings() {
                                                     haptics.light();
                                                     setThemeForm({ ...themeForm, font_family_display: f.display, font_family_body: f.body })
                                                 }}
-                                                className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-all duration-300 ${themeForm.font_family_display === f.display ? 'scale-[1.01] shadow-lg' : 'border-transparent hover:scale-[1.01]'}`}
+                                                className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.font_family_display === f.display ? 'scale-[1.01] shadow-lg' : 'border-transparent hover:scale-[1.01]'}`}
                                                 style={{
                                                     backgroundColor: themeForm.surface_color,
                                                     borderColor: themeForm.font_family_display === f.display ? themeForm.accent_color : themeForm.border_color
@@ -449,7 +449,7 @@ export default function ThemeSettings() {
                                 <button
                                     type="submit"
                                     onClick={handleSaveTheme}
-                                    className="w-full py-5 rounded-full font-bold text-lg transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 border border-black/10"
+                                    className="w-full py-5 rounded-full font-bold text-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-xl active:scale-95 flex items-center justify-center gap-2 border border-black/10"
                                     style={{
                                         backgroundColor: themeForm.text_color,
                                         color: themeForm.bg_color,
@@ -527,7 +527,7 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
     return (
         <div
             onClick={onSelect}
-            className={`group relative overflow-hidden rounded-[2.5rem] p-8 transition-all duration-700 cursor-pointer h-[30rem] flex flex-col justify-between select-none ${isActive
+            className={`group relative overflow-hidden rounded-[2.5rem] p-8 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-700 cursor-pointer h-[30rem] flex flex-col justify-between select-none ${isActive
                 ? 'scale-[1.02]'
                 : 'hover:scale-[1.01] active:scale-[0.98]'
                 }`}
@@ -602,17 +602,17 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
 
                 {/* Custom Actions */}
                 {isCustom && (
-                    <div className="flex gap-2 opacity-100 md:opacity-0 md:translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500">
+                    <div className="flex gap-2 opacity-100 md:opacity-0 md:translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500">
                         <button
                             onClick={(e) => onEdit(e, theme)}
-                            className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border hover:scale-110 active:scale-95 transition-all shadow-xl"
+                            className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border hover:scale-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-xl"
                             style={{ color: theme.text_color, backgroundColor: `${theme.surface_color}E6`, borderColor: theme.border_color }}
                         >
                             <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                             onClick={(e) => onDelete(e, theme)}
-                            className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border hover:scale-110 active:scale-95 transition-all text-red-500 shadow-xl"
+                            className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border hover:scale-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] text-red-500 shadow-xl"
                             style={{ backgroundColor: `${theme.surface_color}E6`, borderColor: theme.border_color }}
                         >
                             <Trash2 className="w-4 h-4" />

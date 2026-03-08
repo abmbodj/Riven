@@ -48,7 +48,7 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
 
-            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-all duration-300 overflow-hidden active:scale-[0.97] touch-target">
+            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target">
                 {/* Subtle paper grain and texture */}
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
@@ -374,7 +374,7 @@ export default function Decks() {
                                     <div className="grid grid-cols-1 gap-2">
                                         <button
                                             onClick={() => { setActiveFolder(null); setIsMenuOpen(false); }}
-                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                                            className={`p-4 rounded-xl border flex items-center gap-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === null ? 'bg-claude-accent/20 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                         >
                                             <Library className="w-4 h-4" />
                                             <span className="font-mono text-xs font-bold uppercase tracking-wider">All Decks</span>
@@ -383,7 +383,7 @@ export default function Decks() {
                                             <button
                                                 key={folder.id}
                                                 onClick={() => { setActiveFolder(activeFolder === folder.id ? null : folder.id); setIsMenuOpen(false); }}
-                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeFolder === folder.id ? { borderColor: folder.color, color: folder.color, backgroundColor: folder.color + '15' } : {}}
                                             >
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }} />
@@ -404,7 +404,7 @@ export default function Decks() {
                                             <button
                                                 key={tag.id}
                                                 onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
-                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
                                             >
                                                 # {tag.name}
@@ -486,13 +486,13 @@ export default function Decks() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
                     <Link
                         to="/create"
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#7a9e72] border border-[#d1c9b8]/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:bg-[#688a61] transition-all tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg hover:shadow-[#7a9e72]/20 active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#7a9e72] border border-[#d1c9b8]/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:bg-[#688a61] transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg hover:shadow-[#7a9e72]/20 active:scale-95"
                     >
                         <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
                     </Link>
@@ -504,14 +504,14 @@ export default function Decks() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSearchOpen(true)}
-                        className="flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action"
+                        className="flex-1 flex items-center gap-3 p-3 glass-panel rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                     >
                         <Search className="w-5 h-5 opacity-60 ml-1" />
                         <span className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">Search collection...</span>
                     </button>
                     <button
                         onClick={() => setIsMenuOpen(true)}
-                        className={`p-3.5 border rounded-2xl transition-all tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                        className={`p-3.5 border rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${activeFolder || activeTag ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
                     >
                         {activeFolder || activeTag ? <Filter className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
@@ -558,7 +558,7 @@ export default function Decks() {
                                                 <button
                                                     key={option.id}
                                                     onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                    className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'glass-panel text-claude-secondary'}`}
+                                                    className={`w-full p-4 rounded-xl flex items-center gap-4 font-mono text-xs font-bold uppercase tracking-widest transition-[transform,opacity,color,background-color,border-color,box-shadow] ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'glass-panel text-claude-secondary'}`}
                                                 >
                                                     <option.icon className="w-4 h-4" />
                                                     {option.label}
@@ -575,7 +575,7 @@ export default function Decks() {
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                className={`w-full p-3 rounded-lg flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-widest transition-all ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'text-claude-secondary hover:bg-white/5 hover:text-claude-text'}`}
+                                                className={`w-full p-3 rounded-lg flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-widest transition-[transform,opacity,color,background-color,border-color,box-shadow] ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'text-claude-secondary hover:bg-white/5 hover:text-claude-text'}`}
                                             >
                                                 <option.icon className="w-4 h-4" />
                                                 {option.label}
@@ -664,7 +664,7 @@ export default function Decks() {
                                 </div>
                                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
                                     {FOLDER_COLORS.map(color => (
-                                        <button key={color} type="button" onClick={() => setNewFolder({ ...newFolder, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${newFolder.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
+                                        <button key={color} type="button" onClick={() => setNewFolder({ ...newFolder, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newFolder.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Folder</button>
@@ -700,7 +700,7 @@ export default function Decks() {
                                 </div>
                                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
                                     {FOLDER_COLORS.map(color => (
-                                        <button key={color} type="button" onClick={() => setNewTag({ ...newTag, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all ${newTag.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
+                                        <button key={color} type="button" onClick={() => setNewTag({ ...newTag, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newTag.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Tag</button>

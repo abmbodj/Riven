@@ -31,7 +31,7 @@ const ClassCard = memo(({ cls, index, onClick }) => {
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm pointer-events-none" />
 
-            <div className="relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-all duration-300 overflow-hidden active:scale-[0.97]">
+            <div className="relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97]">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
                 <div className="relative z-10">
@@ -394,14 +394,14 @@ export default function Classes() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={openCreateModal}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent/20 border border-claude-accent/40 rounded-xl sm:rounded-2xl text-claude-accent hover:text-white hover:bg-claude-accent/40 transition-all tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent/20 border border-claude-accent/40 rounded-xl sm:rounded-2xl text-claude-accent hover:text-white hover:bg-claude-accent/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -411,12 +411,12 @@ export default function Classes() {
             {/* Classes List */}
             <div className="px-4 sm:px-6">
                 {/* Segmented Control */}
-                <div className="flex glass-panel rounded-xl p-1 mb-6 max-w-xs transition-all">
+                <div className="flex glass-panel rounded-xl p-1 mb-6 max-w-xs transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                     {['Timetable', 'Roster'].map(mode => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-all tap-action ${viewMode === mode ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
+                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${viewMode === mode ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
                         >
                             {mode}
                         </button>
@@ -435,7 +435,7 @@ export default function Classes() {
                                     <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                     <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
                                     <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Track your courses by adding a class.</p>
-                                    <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-all">
+                                    <button onClick={openCreateModal} className="mt-6 px-6 py-3 bg-claude-accent/20 border border-claude-accent/30 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold tap-action hover:bg-claude-accent hover:text-[#162a31] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                         Add First Class
                                     </button>
                                 </div>
@@ -565,7 +565,7 @@ export default function Classes() {
                                                                 <div
                                                                     key={slot.id}
                                                                     onClick={() => navigate(`/class/${cls.id}`)}
-                                                                    className="absolute left-1 right-1 rounded-xl p-2 cursor-pointer shadow-md overflow-hidden transform-style-3d hover:scale-[1.02] hover:z-10 transition-all border group"
+                                                                    className="absolute left-1 right-1 rounded-xl p-2 cursor-pointer shadow-md overflow-hidden transform-style-3d hover:scale-[1.02] hover:z-10 transition-[transform,opacity,color,background-color,border-color,box-shadow] border group"
                                                                     style={{
                                                                         top: `${top}px`,
                                                                         height: `${height}px`,
@@ -665,7 +665,7 @@ export default function Classes() {
                                                                 setCreationMethod(method.id);
                                                             }
                                                         }}
-                                                        className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-mono text-[10px] uppercase font-bold tracking-widest transition-all ${isActive ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
+                                                        className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-mono text-[10px] uppercase font-bold tracking-widest transition-[transform,opacity,color,background-color,border-color,box-shadow] ${isActive ? 'bg-claude-accent text-[#162a31] shadow-sm' : 'text-claude-secondary hover:text-botanical-parchment'}`}
                                                     >
                                                         <Icon className="w-3.5 h-3.5" />
                                                         <span className="truncate">{method.label}</span>
@@ -702,7 +702,7 @@ export default function Classes() {
                                                                     type="button"
                                                                     onClick={() => { haptics.medium(); handleCanvasSync(); }}
                                                                     disabled={canvasStatus.syncing}
-                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
+                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
                                                                 >
                                                                     {canvasStatus.syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                                                     {canvasStatus.syncing ? 'Syncing...' : 'Sync Now'}
@@ -724,7 +724,7 @@ export default function Classes() {
                                                                     type="button"
                                                                     onClick={() => { haptics.medium(); handleCanvasConnect(); }}
                                                                     disabled={canvasStatus.loading || !canvasFormUrl.trim()}
-                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
+                                                                    className="w-full h-11 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 active:scale-[0.98] shadow-md shadow-blue-500/20"
                                                                 >
                                                                     {canvasStatus.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                                                                     {canvasStatus.loading ? 'Connecting...' : 'Connect & Sync'}
@@ -778,7 +778,7 @@ export default function Classes() {
                                                             type="button"
                                                             onClick={handleGenerateAI}
                                                             disabled={isGeneratingAI || !aiFile}
-                                                            className="w-full h-11 flex items-center justify-center gap-2 bg-claude-accent/10 hover:bg-claude-accent/20 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                                            className="w-full h-11 flex items-center justify-center gap-2 bg-claude-accent/10 hover:bg-claude-accent/20 border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
                                                         >
                                                             {isGeneratingAI ? (
                                                                 <>
@@ -941,12 +941,12 @@ export default function Classes() {
                                                 <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Color Label</label>
                                                 <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
                                                     {CLASS_COLORS.map(color => (
-                                                        <button key={color} type="button" onClick={() => setFormData({ ...formData, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-all tap-action ${formData.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110 shadow-md' : 'opacity-40 hover:opacity-80'}`} style={{ backgroundColor: color }} />
+                                                        <button key={color} type="button" onClick={() => setFormData({ ...formData, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${formData.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110 shadow-md' : 'opacity-40 hover:opacity-80'}`} style={{ backgroundColor: color }} />
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4 shadow-lg active:scale-[0.98] transition-all">
+                                            <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4 shadow-lg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                                 {editingClass ? 'Save Changes' : 'Create Class'}
                                             </button>
                                         </motion.div>

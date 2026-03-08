@@ -290,7 +290,7 @@ export default function GroupCram() {
 
                         <button
                             onClick={() => navigate(`/groups/${groupId}`)}
-                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-all hover:opacity-90 active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
                         >
                             Return to Group Vault
                         </button>
@@ -337,7 +337,7 @@ export default function GroupCram() {
                     {(groupRole === 'admin' || session?.started_by === user?.id) && (
                         <button
                             onClick={handleEndSessionGlobally}
-                            className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all tap-action"
+                            className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                         >
                             End Session for Everyone
                         </button>
@@ -381,7 +381,7 @@ export default function GroupCram() {
                     {(groupRole === 'admin' || session?.started_by === user?.id) && (
                         <button
                             onClick={handleEndSessionGlobally}
-                            className="w-8 h-8 flex items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all tap-action"
+                            className="w-8 h-8 flex items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                             title="End Session"
                         >
                             <Power className="w-4 h-4" />
@@ -419,7 +419,7 @@ export default function GroupCram() {
                                         className="relative z-10"
                                         style={{ zIndex: 10 - idx }}
                                     >
-                                        <div className={`w-8 h-8 rounded-full border-2 overflow-hidden transition-all duration-300 ${member.isPulsing ? 'border-claude-accent scale-110 shadow-[0_0_15px_rgba(222,185,106,0.5)]' : 'border-claude-bg opacity-70'}`}>
+                                        <div className={`w-8 h-8 rounded-full border-2 overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${member.isPulsing ? 'border-claude-accent scale-110 shadow-[0_0_15px_rgba(222,185,106,0.5)]' : 'border-claude-bg opacity-70'}`}>
                                             <img
                                                 src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username || member.id}`}
                                                 alt="Member"
@@ -569,13 +569,13 @@ export default function GroupCram() {
                             >
                                 <button
                                     onClick={() => handleAnswer(false)}
-                                    className="flex-1 h-14 rounded-[1.25rem] glass-panel border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-red-500/10 tap-action backdrop-blur-md"
+                                    className="flex-1 h-14 rounded-[1.25rem] glass-panel border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-red-500/10 tap-action backdrop-blur-md"
                                 >
                                     <ThumbsDown className="w-4 h-4 mb-0.5" /> Forgot
                                 </button>
                                 <button
                                     onClick={() => handleAnswer(true)}
-                                    className="flex-1 h-14 rounded-[1.25rem] bg-claude-accent text-botanical-ink flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-all hover:bg-opacity-90 shadow-[0_0_20px_rgba(222,185,106,0.3)] tap-action"
+                                    className="flex-1 h-14 rounded-[1.25rem] bg-claude-accent text-botanical-ink flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-opacity-90 shadow-[0_0_20px_rgba(222,185,106,0.3)] tap-action"
                                 >
                                     <ThumbsUp className="w-4 h-4 mb-0.5" /> Got It
                                 </button>

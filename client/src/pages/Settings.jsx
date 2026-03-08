@@ -40,10 +40,10 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
 
         {toggle !== null ? (
             <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest shadow-inner' : 'glass-panel border border-botanical-sepia/30'}`}>
-                <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-all duration-300 shadow-sm ${toggleValue ? 'left-[24px]' : 'left-[3px]'}`} />
+                <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shadow-sm ${toggleValue ? 'left-[24px]' : 'left-[3px]'}`} />
             </div>
         ) : (
-            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-all'}`} />
+            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]'}`} />
         )}
     </button>
 );
@@ -177,7 +177,7 @@ export default function Settings() {
             {/* Minimalist Floating Header */}
             <div className="sticky top-0 z-50 bg-claude-bg/80 backdrop-blur-xl border-b border-botanical-sepia/5 pb-2 pt-12">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-botanical-sepia/5 pb-4">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-botanical-sepia/5 hover:bg-botanical-sepia/10 active:scale-95 transition-all">
+                    <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-botanical-sepia/5 hover:bg-botanical-sepia/10 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                         <ArrowLeft className="w-5 h-5 text-claude-text" />
                     </button>
                     <h1 className="font-display text-xl tracking-wider text-claude-text font-bold">Settings</h1>
@@ -230,7 +230,7 @@ export default function Settings() {
                         <div className="relative z-10 pt-2 flex gap-3">
                             <button
                                 onClick={() => openModal('pricing')}
-                                className="flex-1 bg-gradient-to-r from-claude-accent to-indigo-500 hover:from-indigo-500 hover:to-claude-accent text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-claude-accent/20"
+                                className="flex-1 bg-gradient-to-r from-claude-accent to-indigo-500 hover:from-indigo-500 hover:to-claude-accent text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-claude-accent/20"
                             >
                                 <Sparkles className="w-4 h-4" />
                                 Upgrade Riven
@@ -305,7 +305,7 @@ export default function Settings() {
                                 </p>
                                 <button
                                     onClick={() => { haptics.medium(); openModal('pricing'); }}
-                                    className="w-full bg-gradient-to-r from-amber-500 to-amber-400 text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-amber-500/20"
+                                    className="w-full bg-gradient-to-r from-amber-500 to-amber-400 text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-amber-500/20"
                                 >
                                     <Crown className="w-4 h-4" />
                                     Upgrade to Connect Canvas
@@ -344,7 +344,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleConnectCanvas}
                                                 disabled={connectingCanvas}
-                                                className="w-full bg-claude-text hover:bg-botanical-forest text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
+                                                className="w-full bg-claude-text hover:bg-botanical-forest text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
                                             >
                                                 <Lock className="w-4 h-4" />
                                                 {connectingCanvas ? 'Connecting...' : 'Secure Connect'}
@@ -361,7 +361,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleSyncLms}
                                                 disabled={lmsStatus.syncing}
-                                                className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-all font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-[#0ea5e9]/20"
+                                                className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-[#0ea5e9]/20"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
                                                 {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Now'}
@@ -369,7 +369,7 @@ export default function Settings() {
 
                                             <button
                                                 onClick={handleDisconnectCanvas}
-                                                className="w-full bg-claude-bg border border-botanical-sepia/10 text-botanical-sepia/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-all active:scale-[0.98]"
+                                                className="w-full bg-claude-bg border border-botanical-sepia/10 text-botanical-sepia/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
                                             >
                                                 Disconnect Integration
                                             </button>
@@ -499,7 +499,7 @@ export default function Settings() {
                     </h2>
                     <button
                         onClick={() => { haptics.light(); navigate('/themes'); }}
-                        className="w-full relative overflow-hidden rounded-[2rem] p-7 text-left group transition-all duration-500 active:scale-[0.98]"
+                        className="w-full relative overflow-hidden rounded-[2rem] p-7 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
                         style={{
                             backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
                             border: isLightMode ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
@@ -518,7 +518,7 @@ export default function Settings() {
 
                         <div className="relative z-10 flex items-center justify-between">
                             <div className="flex items-center gap-6">
-                                <div className={`p-4 rounded-2xl transition-all duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-[#f4f1eb] text-amber-500 border border-amber-900/5' : 'bg-[#1c211f] text-indigo-400 border border-indigo-100/5'}`}>
+                                <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-[#f4f1eb] text-amber-500 border border-amber-900/5' : 'bg-[#1c211f] text-indigo-400 border border-indigo-100/5'}`}>
                                     {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
                                 </div>
                                 <div>
@@ -531,7 +531,7 @@ export default function Settings() {
                                 </div>
                             </div>
 
-                            <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/10 text-[#2c2825]/40 bg-white/50' : 'border-[#e8e4dc]/10 text-[#e8e4dc]/40 bg-black/20'} shadow-sm`}>
+                            <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/10 text-[#2c2825]/40 bg-white/50' : 'border-[#e8e4dc]/10 text-[#e8e4dc]/40 bg-black/20'} shadow-sm`}>
                                 <ChevronRight className="w-5 h-5" />
                             </div>
                         </div>
@@ -643,7 +643,7 @@ function ReferralCard() {
                         </div>
                         <button
                             onClick={handleCopy}
-                            className="p-3 rounded-xl bg-claude-bg border border-claude-border hover:border-pink-400/30 hover:bg-pink-400/5 transition-all"
+                            className="p-3 rounded-xl bg-claude-bg border border-claude-border hover:border-pink-400/30 hover:bg-pink-400/5 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                         >
                             {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
                         </button>
@@ -658,7 +658,7 @@ function ReferralCard() {
                     </div>
                     <div className="w-full h-2 bg-claude-bg rounded-full overflow-hidden border border-claude-border">
                         <div
-                            className="h-full bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full transition-all duration-700"
+                            className="h-full bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-700"
                             style={{ width: `${Math.min(100, (referralInfo.qualifiedCount / referralInfo.targetCount) * 100)}%` }}
                         />
                     </div>
@@ -684,7 +684,7 @@ function ReferralCard() {
                         <button
                             onClick={handleApply}
                             disabled={applying || !applyCode.trim()}
-                            className="px-4 py-2.5 rounded-xl bg-pink-500/10 text-pink-400 font-mono text-[11px] uppercase tracking-wider font-bold hover:bg-pink-500/20 disabled:opacity-30 transition-all"
+                            className="px-4 py-2.5 rounded-xl bg-pink-500/10 text-pink-400 font-mono text-[11px] uppercase tracking-wider font-bold hover:bg-pink-500/20 disabled:opacity-30 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                         >
                             {applying ? '...' : 'Apply'}
                         </button>
@@ -743,7 +743,7 @@ function BlockedUsersCard() {
             <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary mb-3 pl-2">
                 Privacy & Safety
             </h2>
-            <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm transition-all duration-300">
+            <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="w-full py-4 px-5 flex items-center gap-4 active:bg-claude-surface/40 transition-colors group"

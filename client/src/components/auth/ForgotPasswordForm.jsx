@@ -59,7 +59,7 @@ const ForgotPasswordForm = ({ onBackToLogin }) => {
                         </button>
                         <button
                             onClick={onBackToLogin}
-                            className="w-full py-3 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all font-display tracking-widest uppercase text-sm"
+                            className="w-full py-3 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-display tracking-widest uppercase text-sm"
                         >
                             Back to login
                         </button>
@@ -77,7 +77,7 @@ const ForgotPasswordForm = ({ onBackToLogin }) => {
                                 autoComplete="email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300"
                                 placeholder="email@example.com"
                                 autoFocus
                             />
@@ -86,7 +86,7 @@ const ForgotPasswordForm = ({ onBackToLogin }) => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-2 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm"
+                            className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 mt-2 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">

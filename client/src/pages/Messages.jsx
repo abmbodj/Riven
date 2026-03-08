@@ -476,7 +476,7 @@ export default function Messages() {
                                 >
                                     <Link
                                         to={`/messages/${conv.userId}`}
-                                        className="glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-all block group relative overflow-hidden"
+                                        className="glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] block group relative overflow-hidden"
                                     >
                                         {/* Decorative corner accent */}
                                         <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-botanical-forest/20 rounded-tr group-hover:border-claude-accent/40 transition-colors" />
@@ -549,7 +549,7 @@ export default function Messages() {
                 {chatUser && (
                     <Link
                         to={`/profile/${chatUser.id}`}
-                        className="flex items-center gap-3 flex-1 min-w-0 p-2 -my-2 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-all"
+                        className="flex items-center gap-3 flex-1 min-w-0 p-2 -my-2 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     >
                         <div className="relative">
                             <Avatar src={chatUser.avatar} size="md" />
@@ -667,7 +667,7 @@ export default function Messages() {
                                                             <button
                                                                 onClick={() => handleAcceptDeck(msg.id)}
                                                                 disabled={acceptingDeck === msg.id}
-                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest text-white hover:brightness-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
                                                             >
                                                                 {acceptingDeck === msg.id ? 'Adding...' : 'Add to Collection'}
                                                             </button>
@@ -878,7 +878,7 @@ export default function Messages() {
                                 type="submit"
                                 disabled={(!newMessage.trim() && !imagePreview) || sending}
                                 whileTap={{ scale: 0.9 }}
-                                className="w-8 h-8 ml-2 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all relative overflow-hidden group focus-ring shrink-0"
+                                className="w-8 h-8 ml-2 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-[transform,opacity,color,background-color,border-color,box-shadow] relative overflow-hidden group focus-ring shrink-0"
                                 aria-label={sending ? 'Sending message' : 'Send message'}
                                 style={{
                                     background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',

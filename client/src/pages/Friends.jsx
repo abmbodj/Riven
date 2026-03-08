@@ -338,7 +338,7 @@ export default function Friends() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search by username or share code"
-                            className="w-full pl-12 pr-4 py-4 glass-panel focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-all font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
+                            className="w-full pl-12 pr-4 py-4 glass-panel focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-[transform,opacity,color,background-color,border-color,box-shadow] font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
                             autoFocus
                         />
                     </div>

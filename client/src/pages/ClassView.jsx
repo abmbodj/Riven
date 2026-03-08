@@ -270,20 +270,20 @@ export default function ClassView() {
             <div className="sticky top-0 z-40 glass-panel backdrop-blur-xl border-b border-claude-border px-4 sm:px-6 py-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate('/classes')}
-                    className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-all tap-action"
+                    className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowEditClassModal(true)}
-                        className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-botanical-parchment transition-all tap-action"
+                        className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-botanical-parchment transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                     >
                         <Settings className="w-5 h-5" />
                     </button>
                     <button
                         onClick={openCreateAssign}
-                        className="h-10 px-4 bg-claude-accent/20 border border-claude-accent/40 rounded-xl text-claude-accent font-mono text-xs uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-[#162a31] transition-all tap-action flex items-center gap-2"
+                        className="h-10 px-4 bg-claude-accent/20 border border-claude-accent/40 rounded-xl text-claude-accent font-mono text-xs uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-[#162a31] transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center gap-2"
                     >
                         <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Add Task</span>
                     </button>
@@ -364,7 +364,7 @@ export default function ClassView() {
                                 <a
                                     key={deck.id}
                                     href={`/deck/${deck.id}`}
-                                    className="group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-all tap-action flex items-start gap-4"
+                                    className="group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-start gap-4"
                                 >
                                     <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
                                         style={{ backgroundColor: `${cls.color || '#7a9e72'}15`, borderColor: `${cls.color || '#7a9e72'}30`, color: cls.color || '#7a9e72' }}
@@ -401,18 +401,18 @@ export default function ClassView() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         onClick={() => openEditAssign(a)}
-                                        className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-all ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                                        className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
                                     >
                                         <div className="flex items-start gap-4">
                                             <button
                                                 onClick={(e) => toggleAssignStatus(e, a)}
-                                                className={`mt-0.5 shrink-0 transition-all tap-action ${a.status === 'Done' ? 'text-claude-accent' : a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
+                                                className={`mt-0.5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${a.status === 'Done' ? 'text-claude-accent' : a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
                                             >
                                                 {a.status === 'Done' ? <CheckCircle2 className="w-5 h-5" /> : a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                                             </button>
 
                                             <div className="flex-1 min-w-0">
-                                                <h4 className={`font-serif text-lg font-bold truncate transition-all ${a.status === 'Done' ? 'text-botanical-parchment/60 line-through' : 'text-botanical-parchment group-hover:text-white'}`}>
+                                                <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-botanical-parchment/60 line-through' : 'text-botanical-parchment group-hover:text-white'}`}>
                                                     {a.title}
                                                 </h4>
                                                 {a.description && (
@@ -571,7 +571,7 @@ export default function ClassView() {
                                         type="button"
                                         onClick={handleGenerateAI}
                                         disabled={isGeneratingAI || !aiFile}
-                                        className="w-full h-12 flex items-center justify-center gap-2 glass-panel hover:glass-panel border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                                        className="w-full h-12 flex items-center justify-center gap-2 glass-panel hover:glass-panel border border-claude-accent/40 text-claude-accent rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 disabled:cursor-not-allowed group"
                                     >
                                         {isGeneratingAI ? (
                                             <>

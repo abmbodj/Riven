@@ -147,7 +147,7 @@ export default function GardenGallery({ pastStreaks = [], longestStreak = 0, cur
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: index * 0.05 }}
                                             onClick={() => setSelectedStreak(selectedStreak === index ? null : index)}
-                                            className={`w-full p-4 rounded-xl border-2 text-left transition-all ${isRecord
+                                            className={`w-full p-4 rounded-xl border-2 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${isRecord
                                                 ? 'border-yellow-500/50 bg-yellow-500/5'
                                                 : 'border-claude-border active:border-claude-secondary'
                                                 }`}

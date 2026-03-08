@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
                 <div className="flex items-center gap-3 px-4 py-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="p-2.5 rounded-full glass-panel border border-botanical-sepia/5 tap-action active:scale-95 transition-all"
+                        className="p-2.5 rounded-full glass-panel border border-botanical-sepia/5 tap-action active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     >
                         <ArrowLeft className="w-5 h-5 text-claude-text" />
                     </button>

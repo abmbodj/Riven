@@ -280,12 +280,12 @@ function DashboardHome() {
                                             >
                                                 <Link
                                                     to={`/class/${assignment.class_id}`}
-                                                    className="tap-action group flex min-h-[64px] cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-all glass-panel sm:flex-row sm:items-center"
+                                                    className="tap-action group flex min-h-[64px] cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-panel sm:flex-row sm:items-center"
                                                 >
                                                     <div className="flex min-w-0 flex-1 items-start gap-3">
                                                         <button
                                                             onClick={(event) => toggleAssignStatus(event, assignment)}
-                                                            className={`tap-action mt-0.5 shrink-0 transition-all ${assignment.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
+                                                            className={`tap-action mt-0.5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${assignment.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
                                                             aria-label={`Set ${assignment.title} status`}
                                                         >
                                                             {assignment.status === 'Doing' ? <Clock className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
@@ -370,12 +370,12 @@ function DashboardHome() {
                                                 >
                                                     <Link
                                                         to={`/class/${assignment.class_id}`}
-                                                        className="tap-action group flex min-h-[64px] cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-all glass-panel sm:flex-row sm:items-center"
+                                                        className="tap-action group flex min-h-[64px] cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-panel sm:flex-row sm:items-center"
                                                     >
                                                         <div className="flex min-w-0 flex-1 items-start gap-3">
                                                             <button
                                                                 onClick={(event) => toggleAssignStatus(event, assignment)}
-                                                                className={`tap-action mt-0.5 shrink-0 transition-all ${assignment.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
+                                                                className={`tap-action mt-0.5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${assignment.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
                                                                 aria-label={`Set ${assignment.title} status`}
                                                             >
                                                                 {assignment.status === 'Doing' ? <Clock className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
@@ -452,10 +452,10 @@ function DashboardHome() {
                                     >
                                         <Link
                                             to={`/deck/${deck.id}`}
-                                            className="tap-action group relative block cursor-pointer overflow-hidden rounded-2xl border border-[#d1c9b8]/80 bg-[#fcfaf2]/[0.98] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#deb96a]/60 hover:shadow-lg active:bg-[#f4f1e8] active:shadow-inner"
+                                            className="tap-action group relative block cursor-pointer overflow-hidden rounded-2xl border border-[#d1c9b8]/80 bg-[#fcfaf2]/[0.98] p-5 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-[#deb96a]/60 hover:shadow-lg active:bg-[#f4f1e8] active:shadow-inner"
                                         >
                                             <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                                            <div className="absolute right-2 top-2 translate-x-2 transform text-claude-accent opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100">
+                                            <div className="absolute right-2 top-2 translate-x-2 transform text-claude-accent opacity-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] group-hover:translate-x-0 group-hover:opacity-100">
                                                 <Play className="h-4 w-4 fill-current" />
                                             </div>
 

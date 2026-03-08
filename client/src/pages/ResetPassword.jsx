@@ -73,7 +73,7 @@ export default function ResetPassword() {
                     </div>
                     <button
                         onClick={() => navigate('/account')}
-                        className="w-full py-4 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all font-display tracking-widest uppercase text-sm"
+                        className="w-full py-4 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-display tracking-widest uppercase text-sm"
                     >
                         Go to login
                     </button>
@@ -90,7 +90,7 @@ export default function ResetPassword() {
                                 autoComplete="new-password"
                                 value={form.password}
                                 onChange={e => setForm({ ...form, password: e.target.value })}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300"
                                 placeholder="••••••••"
                                 autoFocus
                             />
@@ -114,7 +114,7 @@ export default function ResetPassword() {
                             autoComplete="new-password"
                             value={form.confirmPassword}
                             onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-all duration-300"
+                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-4 text-base text-claude-parchment placeholder:text-white/20 focus:border-claude-accent/60 focus:bg-black/30 outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300"
                             placeholder="••••••••"
                         />
                     </div>
@@ -122,7 +122,7 @@ export default function ResetPassword() {
                     <button
                         type="submit"
                         disabled={loading || !token}
-                        className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 mt-4 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm disabled:opacity-50"
+                        className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 mt-4 shadow-[0_4px_20px_rgba(222,185,106,0.15)] min-h-[56px] flex items-center justify-center font-display tracking-widest uppercase text-sm disabled:opacity-50"
                     >
                         {loading ? (
                             <span className="flex items-center justify-center gap-2">

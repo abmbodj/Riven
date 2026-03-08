@@ -108,7 +108,7 @@ export default function EditProfile() {
                 <div className="sticky top-0 z-50 pt-12 pb-4 px-4 flex items-center justify-between">
                     <button
                         onClick={() => navigate('/account')}
-                        className="p-3 bg-black/20 backdrop-blur-md border border-white/5 rounded-full text-white/90 hover:bg-black/30 active:scale-95 transition-all shadow-sm"
+                        className="p-3 bg-black/20 backdrop-blur-md border border-white/5 rounded-full text-white/90 hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -120,7 +120,7 @@ export default function EditProfile() {
                     <button
                         onClick={handleSave}
                         disabled={saving || !hasChanges}
-                        className={`px-5 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase flex items-center gap-2 transition-all shadow-lg ${hasChanges && !saving
+                        className={`px-5 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase flex items-center gap-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-lg ${hasChanges && !saving
                             ? 'bg-botanical-forest text-white shadow-botanical-forest/30 active:scale-95 hover:bg-[#2b4c3e]'
                             : 'bg-white/10 text-white/50 backdrop-blur-md cursor-not-allowed border border-white/5'
                             }`}
@@ -233,7 +233,7 @@ export default function EditProfile() {
                         <motion.div
                             animate={bioError ? { x: [-8, 8, -5, 5, 0] } : {}}
                             transition={{ duration: 0.4 }}
-                            className={`bg-[#fdfbf7] dark:bg-[#1a1d1c] border ${bioError ? 'border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.15)] bg-red-50/50' : 'border-botanical-sepia/15 shadow-inner'} rounded-[2rem] p-6 relative overflow-hidden transition-all duration-300`}
+                            className={`bg-[#fdfbf7] dark:bg-[#1a1d1c] border ${bioError ? 'border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.15)] bg-red-50/50' : 'border-botanical-sepia/15 shadow-inner'} rounded-[2rem] p-6 relative overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300`}
                         >
                             <label className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-forest font-semibold mb-6">
                                 <PenTool className="w-4 h-4" />

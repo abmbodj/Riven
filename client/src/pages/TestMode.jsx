@@ -218,7 +218,7 @@ export default function TestMode() {
                         <button
                             onClick={() => startTest('multiple')}
                             disabled={cards.length < 4}
-                            className={`w-full p-6 rounded-2xl border text-left transition-all ${cards.length < 4
+                            className={`w-full p-6 rounded-2xl border text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${cards.length < 4
                                 ? 'border-claude-border/50 opacity-50'
                                 : 'glass-panel active:scale-[0.98]'
                                 }`}
@@ -241,7 +241,7 @@ export default function TestMode() {
 
                         <button
                             onClick={() => startTest('typed')}
-                            className="w-full p-6 rounded-2xl glass-panel active:scale-[0.98] text-left transition-all"
+                            className="w-full p-6 rounded-2xl glass-panel active:scale-[0.98] text-left transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                         >
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
@@ -330,7 +330,7 @@ export default function TestMode() {
                     <div className="flex-1 mx-4">
                         <div className="h-1.5 bg-claude-border rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-claude-accent transition-all duration-300"
+                                className="h-full bg-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
@@ -357,7 +357,7 @@ export default function TestMode() {
                 {/* Answer Input */}
                 <div className="flex-1 px-4 pb-8">
                     <form onSubmit={handleTypedSubmit} className="space-y-4">
-                        <div className={`relative rounded-2xl border transition-all ${isCorrect ? 'border-green-500 bg-green-500/10' :
+                        <div className={`relative rounded-2xl border transition-[transform,opacity,color,background-color,border-color,box-shadow] ${isCorrect ? 'border-green-500 bg-green-500/10' :
                             isWrong ? 'border-red-500 bg-red-500/10' :
                                 'glass-panel'
                             }`}>
@@ -377,7 +377,7 @@ export default function TestMode() {
                             <button
                                 type="submit"
                                 disabled={showFeedback || !typedAnswer.trim()}
-                                className={`absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${typedAnswer.trim() && !showFeedback
+                                className={`absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] ${typedAnswer.trim() && !showFeedback
                                     ? 'bg-claude-accent text-white'
                                     : 'bg-claude-border/50 text-claude-secondary'
                                     }`}
@@ -431,7 +431,7 @@ export default function TestMode() {
                 <div className="flex-1 mx-4">
                     <div className="h-1.5 bg-claude-border rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-claude-accent transition-all duration-300"
+                            className="h-full bg-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -468,7 +468,7 @@ export default function TestMode() {
                             key={idx}
                             onClick={() => handleMultipleAnswer(option)}
                             disabled={showFeedback}
-                            className={`w-full text-left p-4 rounded-2xl border transition-all ${showCorrect
+                            className={`w-full text-left p-4 rounded-2xl border transition-[transform,opacity,color,background-color,border-color,box-shadow] ${showCorrect
                                 ? 'border-green-500 bg-green-500/10'
                                 : showWrong
                                     ? 'border-red-500 bg-red-500/10'

@@ -170,7 +170,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                         <button
                             onClick={triggerFileInput}
                             disabled={loading}
-                            className="flex items-center gap-3 px-6 py-3 bg-claude-accent text-white rounded-xl font-semibold transition-all active:scale-95 disabled:opacity-50"
+                            className="flex items-center gap-3 px-6 py-3 bg-claude-accent text-white rounded-xl font-semibold transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-95 disabled:opacity-50"
                         >
                             <Upload className="w-5 h-5" />
                             Choose Photo
@@ -195,7 +195,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                         <button
                             onClick={handleSave}
                             disabled={loading}
-                            className="w-full py-3 bg-claude-accent text-white rounded-xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                            className="w-full py-3 bg-claude-accent text-white rounded-xl font-semibold transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] disabled:opacity-50"
                         >
                             Save Avatar
                         </button>

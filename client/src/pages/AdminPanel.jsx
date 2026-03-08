@@ -698,7 +698,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                                             <button
                                                 disabled={changingRole === u.id}
                                                 onClick={() => handleRoleChange(u.id, role === 'admin' ? 'user' : 'admin')}
-                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all touch-target tap-action native-press ${role === 'admin'
+                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-[transform,opacity,color,background-color,border-color,box-shadow] touch-target tap-action native-press ${role === 'admin'
                                                     ? 'bg-claude-accent/10 text-claude-accent'
                                                     : 'bg-botanical-forest/10 text-botanical-forest'
                                                     }`}
@@ -711,7 +711,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                                             <button
                                                 disabled={changingRole === u.id}
                                                 onClick={() => handleRoleChange(u.id, role === 'friends' ? 'user' : 'friends')}
-                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all touch-target tap-action native-press ${role === 'friends'
+                                                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-[transform,opacity,color,background-color,border-color,box-shadow] touch-target tap-action native-press ${role === 'friends'
                                                     ? 'bg-purple-500/10 text-purple-400'
                                                     : 'bg-purple-500/10 text-purple-400/60'
                                                     }`}
@@ -744,14 +744,14 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-all border border-claude-border touch-target tap-action native-press"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-[transform,opacity,color,background-color,border-color,box-shadow] border border-claude-border touch-target tap-action native-press"
                         >
                             Prev
                         </button>
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-all border border-claude-border touch-target tap-action native-press"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-claude-surface/50 text-claude-text disabled:opacity-30 transition-[transform,opacity,color,background-color,border-color,box-shadow] border border-claude-border touch-target tap-action native-press"
                         >
                             Next
                         </button>
@@ -776,7 +776,7 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
             {!showForm && (
                 <button
                     onClick={() => setShowForm(true)}
-                    className="w-full py-4 rounded-xl border border-dashed border-claude-border text-claude-secondary hover:text-claude-accent active:text-claude-accent active:border-claude-accent/50 active:bg-claude-accent/5 transition-all flex items-center justify-center gap-2 font-medium touch-target tap-action native-press"
+                    className="w-full py-4 rounded-xl border border-dashed border-claude-border text-claude-secondary hover:text-claude-accent active:text-claude-accent active:border-claude-accent/50 active:bg-claude-accent/5 transition-[transform,opacity,color,background-color,border-color,box-shadow] flex items-center justify-center gap-2 font-medium touch-target tap-action native-press"
                 >
                     <Plus className="w-5 h-5" />
                     Create New Broadcast
@@ -811,7 +811,7 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                                                 key={type}
                                                 type="button"
                                                 onClick={() => setForm({ ...form, type })}
-                                                className={`flex-1 py-2.5 rounded-lg text-xs font-medium capitalize border transition-all touch-target tap-action ${isSelected
+                                                className={`flex-1 py-2.5 rounded-lg text-xs font-medium capitalize border transition-[transform,opacity,color,background-color,border-color,box-shadow] touch-target tap-action ${isSelected
                                                     ? `${colors.bg} ${colors.text} border-current`
                                                     : 'border-transparent bg-claude-surface/40 text-claude-secondary active:bg-claude-surface/60'
                                                     }`}
@@ -860,7 +860,7 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                     messages.map(msg => {
                         const colors = MSG_TYPE_COLORS[msg.type] || MSG_TYPE_COLORS.info;
                         return (
-                            <div key={msg.id} className={`p-4 rounded-xl transition-all ${msg.isActive ? 'botanical-card' : 'bg-claude-surface/20 border border-claude-border/30 opacity-50'}`}>
+                            <div key={msg.id} className={`p-4 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] ${msg.isActive ? 'botanical-card' : 'bg-claude-surface/20 border border-claude-border/30 opacity-50'}`}>
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
@@ -971,12 +971,12 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                             <button
                                 onClick={handleToggle}
                                 disabled={toggling}
-                                className={`relative w-14 h-8 rounded-full transition-all duration-300 shrink-0 tap-action ${simulatingFree
+                                className={`relative w-14 h-8 rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shrink-0 tap-action ${simulatingFree
                                     ? 'bg-claude-accent shadow-botanical-glow'
                                     : 'bg-claude-border'
                                     } ${toggling ? 'opacity-50' : ''}`}
                             >
-                                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${simulatingFree ? 'left-7' : 'left-1'}`} />
+                                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${simulatingFree ? 'left-7' : 'left-1'}`} />
                             </button>
                         </div>
 
@@ -1015,7 +1015,7 @@ function ReportsTab({ reports, onResolve, onClose, onBan }) {
                     <button
                         key={status}
                         onClick={() => setFilter(status)}
-                        className={`capitalize px-4 py-2 rounded-lg text-[11px] font-bold tracking-widest font-mono transition-all whitespace-nowrap touch-target tap-action ${filter === status
+                        className={`capitalize px-4 py-2 rounded-lg text-[11px] font-bold tracking-widest font-mono transition-[transform,opacity,color,background-color,border-color,box-shadow] whitespace-nowrap touch-target tap-action ${filter === status
                             ? 'bg-claude-accent text-botanical-ink shadow-botanical-glow'
                             : 'text-claude-secondary hover:text-claude-text'
                             }`}

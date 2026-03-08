@@ -142,7 +142,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                                     type="submit"
                                     disabled={!selectedReason || isSubmitting}
                                     className={`
-                                        w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
+                                        w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-[transform,opacity,color,background-color,border-color,box-shadow]
                                         ${!selectedReason
                                             ? 'bg-claude-border text-claude-secondary cursor-not-allowed'
                                             : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'

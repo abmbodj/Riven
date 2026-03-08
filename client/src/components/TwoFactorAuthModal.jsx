@@ -136,7 +136,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                 <button
                                     onClick={startSetup}
                                     disabled={loading}
-                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-70 flex items-center justify-center gap-2"
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enable 2FA'}
                                 </button>
@@ -183,7 +183,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                 <button
                                     type="submit"
                                     disabled={loading || verifyCode.length !== 6}
-                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify & Enable'}
                                 </button>
@@ -225,7 +225,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                     <button
                                         type="submit"
                                         disabled={loading || !password}
-                                        className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-50"
+                                        className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
                                     >
                                         {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Disable 2FA'}
                                     </button>

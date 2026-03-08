@@ -229,13 +229,15 @@
   .claude-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
-    @apply rounded-2xl shadow-sm transition-all duration-200;
+    @apply rounded-2xl shadow-sm;
+    transition: transform 200ms, opacity 200ms, box-shadow 200ms, border-color 200ms;
   }
 
   .claude-button-primary {
     background-color: var(--accent-color);
     color: #162a31;
-    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] active:opacity-90 transition-all duration-150 min-h-[52px] flex items-center justify-center;
+    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] active:opacity-90 min-h-[52px] flex items-center justify-center;
+    transition: transform 150ms, opacity 150ms;
     box-shadow: 0 4px 24px rgba(222, 185, 106, 0.2), 0 0 0 1px rgba(222, 185, 106, 0.08);
   }
 
@@ -247,7 +249,8 @@
     background-color: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-color);
-    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] transition-all duration-150 min-h-[52px] flex items-center justify-center;
+    @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] min-h-[52px] flex items-center justify-center;
+    transition: transform 150ms, opacity 150ms;
   }
 
   .claude-button-secondary:hover {
@@ -310,7 +313,8 @@
 
   /* Native button press states */
   .native-press {
-    @apply active:scale-[0.96] active:opacity-80 transition-all duration-100 ease-out;
+    @apply active:scale-[0.96] active:opacity-80 ease-out;
+    transition: transform 100ms ease-out, opacity 100ms ease-out;
   }
 
   /* Smooth list item */
@@ -324,7 +328,8 @@
   }
 
   .segmented-item {
-    @apply flex-1 py-2 px-4 rounded-lg text-sm font-medium text-center transition-all duration-150;
+    @apply flex-1 py-2 px-4 rounded-lg text-sm font-medium text-center;
+    transition: color 150ms, background-color 150ms, box-shadow 150ms;
   }
 
   .segmented-item-active {
@@ -441,7 +446,7 @@
     @apply rounded-xl;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.05);
     position: relative;
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s, background 0.4s, box-shadow 0.4s;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s;
   }
 
   .botanical-card:hover {
@@ -460,7 +465,7 @@
 
   /* Fluid transitions */
   .transition-fluid {
-    transition: all 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   /* Herbarium Paper Texture */

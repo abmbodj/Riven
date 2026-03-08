@@ -180,7 +180,7 @@ export default function UserProfile() {
             <div className="relative mb-20 z-10 w-full max-w-xl mx-auto">
                 {/* Back Button Overlay */}
                 <div className="absolute top-0 left-0 right-0 z-50 p-4 safe-area-top">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-black/20 backdrop-blur-md rounded-full shadow-sm hover:bg-black/30 active:scale-95 transition-all outline-none border border-white/5">
+                    <button onClick={() => navigate(-1)} className="p-3 bg-black/20 backdrop-blur-md rounded-full shadow-sm hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] outline-none border border-white/5">
                         <ArrowLeft className="w-5 h-5 text-white/90" />
                     </button>
                 </div>
@@ -284,7 +284,7 @@ export default function UserProfile() {
                                 <Link
                                     to={`/messages/${profile.id}`}
                                     onClick={() => haptics.light()}
-                                    className="flex-1 py-4 bg-[#0ea5e9] hover:bg-[#0284c7] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-[#0ea5e9]/20"
+                                    className="flex-1 py-4 bg-[#0ea5e9] hover:bg-[#0284c7] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-md shadow-[#0ea5e9]/20"
                                 >
                                     <MessageCircle className="w-5 h-5" />
                                     Message
@@ -292,7 +292,7 @@ export default function UserProfile() {
                                 <button
                                     onClick={handleRemoveFriend}
                                     disabled={actionLoading}
-                                    className="px-5 py-4 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 border border-red-500/20"
+                                    className="px-5 py-4 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 border border-red-500/20"
                                 >
                                     {actionLoading ? <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" /> : <UserMinus className="w-5 h-5" />}
                                 </button>
@@ -302,7 +302,7 @@ export default function UserProfile() {
                                 <button
                                     onClick={handleAcceptRequest}
                                     disabled={actionLoading}
-                                    className="flex-1 py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-botanical-forest/20"
+                                    className="flex-1 py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-botanical-forest/20"
                                 >
                                     <Check className="w-5 h-5" />
                                     Accept Request
@@ -310,7 +310,7 @@ export default function UserProfile() {
                                 <button
                                     onClick={handleRemoveFriend}
                                     disabled={actionLoading}
-                                    className="px-5 py-4 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 border border-red-500/20"
+                                    className="px-5 py-4 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 border border-red-500/20"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -320,7 +320,7 @@ export default function UserProfile() {
                                 key="outgoing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                 onClick={handleRemoveFriend}
                                 disabled={actionLoading}
-                                className="w-full py-4 glass-panel border border-botanical-sepia/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-all hover:border-red-500/30 hover:text-red-500"
+                                className="w-full py-4 glass-panel border border-botanical-sepia/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-red-500/30 hover:text-red-500"
                             >
                                 <Clock className="w-5 h-5" />
                                 Request Pending
@@ -330,7 +330,7 @@ export default function UserProfile() {
                                 key="add" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                 onClick={handleSendRequest}
                                 disabled={actionLoading}
-                                className="w-full py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-botanical-forest/20"
+                                className="w-full py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-botanical-forest/20"
                             >
                                 {actionLoading ? <div className="w-5 h-5 border-2 border-white/60 border-t-white rounded-full animate-spin" /> : <UserPlus className="w-5 h-5" />}
                                 Add Friend

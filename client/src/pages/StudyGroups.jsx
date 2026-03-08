@@ -124,7 +124,7 @@ export default function StudyGroups() {
                     <button
                         onClick={() => loadData(true)}
                         disabled={refreshing}
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-all tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] glass-panel rounded-xl sm:rounded-2xl text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action disabled:opacity-50 flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg active:scale-95"
                     >
                         <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
@@ -147,7 +147,7 @@ export default function StudyGroups() {
                         }
                         setShowCreateModal(true);
                     }}
-                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-all duration-300 hover:-translate-y-1 hover:border-claude-accent/40 shadow-sm hover:shadow-claude-accent/10"
+                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-claude-accent/40 shadow-sm hover:shadow-claude-accent/10"
                 >
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                     <div className="absolute top-0 right-0 w-24 h-24 bg-claude-accent/5 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-claude-accent/10 transition-colors duration-500" />
@@ -160,7 +160,7 @@ export default function StudyGroups() {
 
                 <button
                     onClick={() => { haptics.light(); setShowJoinModal(true); }}
-                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-all duration-300 hover:-translate-y-1 hover:border-claude-secondary/40 shadow-sm"
+                    className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-claude-secondary/40 shadow-sm"
                 >
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
@@ -215,7 +215,7 @@ export default function StudyGroups() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                                     onClick={() => navigate(`/groups/${group.id}`)}
-                                    className="glass-panel rounded-[1.5rem] p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(222,185,106,0.1)] hover:border-claude-accent/30 transition-all duration-300 cursor-pointer tap-action group relative overflow-hidden flex flex-col justify-between min-h-[160px]"
+                                    className="glass-panel rounded-[1.5rem] p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(222,185,106,0.1)] hover:border-claude-accent/30 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 cursor-pointer tap-action group relative overflow-hidden flex flex-col justify-between min-h-[160px]"
                                 >
                                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                                     {/* Subtle gradient hover effect */}
@@ -317,7 +317,7 @@ export default function StudyGroups() {
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             >
                                 {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Create Vault'}
                             </button>
@@ -367,7 +367,7 @@ export default function StudyGroups() {
                             <button
                                 type="submit"
                                 disabled={!joinCode.trim() || joinCode.length < 3 || isSubmitting}
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-all active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
                             >
                                 {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Join Vault'}
                             </button>

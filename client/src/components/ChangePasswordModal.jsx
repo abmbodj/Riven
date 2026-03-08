@@ -120,7 +120,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

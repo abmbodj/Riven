@@ -59,7 +59,7 @@ const TwoFAChallenge = ({ tempToken, onBack, onLoginSuccess }) => {
                             autoComplete="one-time-code"
                             value={code}
                             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            className="w-full bg-black/20 border-b-2 border-white/10 py-4 text-3xl text-claude-parchment text-center tracking-[0.5em] focus:border-claude-accent/60 outline-none transition-all duration-300 font-mono"
+                            className="w-full bg-black/20 border-b-2 border-white/10 py-4 text-3xl text-claude-parchment text-center tracking-[0.5em] focus:border-claude-accent/60 outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 font-mono"
                             placeholder="000000"
                             autoFocus
                             required
@@ -70,7 +70,7 @@ const TwoFAChallenge = ({ tempToken, onBack, onLoginSuccess }) => {
                         <button
                             type="submit"
                             disabled={loading || code.length !== 6}
-                            className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all duration-200 shadow-[0_4px_20px_rgba(222,185,106,0.15)] flex items-center justify-center font-display tracking-widest uppercase text-sm disabled:opacity-50"
+                            className="w-full bg-claude-accent text-botanical-ink font-semibold py-4 rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 shadow-[0_4px_20px_rgba(222,185,106,0.15)] flex items-center justify-center font-display tracking-widest uppercase text-sm disabled:opacity-50"
                         >
                             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify & Sign In'}
                         </button>

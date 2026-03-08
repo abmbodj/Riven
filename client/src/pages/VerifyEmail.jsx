@@ -59,7 +59,7 @@ export default function VerifyEmail() {
                         </div>
                         <button
                             onClick={() => navigate('/account')}
-                            className="w-full py-4 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-all font-display tracking-widest uppercase text-sm"
+                            className="w-full py-4 bg-claude-accent text-botanical-ink font-semibold rounded-lg hover:bg-[#c9a24e] active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-display tracking-widest uppercase text-sm"
                         >
                             Continue
                         </button>

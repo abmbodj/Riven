@@ -94,7 +94,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-transparent border-b-2 border-red-500/10 py-3 px-1 text-red-950 placeholder-red-900/20 focus:outline-none focus:border-red-500 transition-all font-mono text-lg"
+                                    className="w-full bg-transparent border-b-2 border-red-500/10 py-3 px-1 text-red-950 placeholder-red-900/20 focus:outline-none focus:border-red-500 transition-[transform,opacity,color,background-color,border-color,box-shadow] font-mono text-lg"
                                     placeholder="Enter password..."
                                     required
                                 />
@@ -104,7 +104,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                                 <button
                                     type="submit"
                                     disabled={loading || !password}
-                                    className="w-full sm:order-2 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 tap-action touch-target"
+                                    className="w-full sm:order-2 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 tap-action touch-target"
                                 >
                                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Delete Forever'}
                                 </button>

@@ -307,13 +307,13 @@ export default function GardenLanding() {
                     >
                         <Link
                             to="/account?mode=signup"
-                            className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#deb96a] px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#162a31] transition-all hover:bg-[#ebc97e] hover:shadow-[0_0_20px_rgba(222,185,106,0.4)] hover:-translate-y-0.5"
+                            className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#deb96a] px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#162a31] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-[#ebc97e] hover:shadow-[0_0_20px_rgba(222,185,106,0.4)] hover:-translate-y-0.5"
                         >
                             Sign Up
                         </Link>
                         <Link
                             to="/account?mode=login"
-                            className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#1e3840]/60 border border-[#8fa6a8]/30 px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#fcfaf2] backdrop-blur-md transition-all hover:bg-[#1e3840]/90 hover:border-[#8fa6a8]/60 hover:-translate-y-0.5"
+                            className="flex-1 inline-flex items-center justify-center rounded-2xl bg-[#1e3840]/60 border border-[#8fa6a8]/30 px-6 py-4 lg:px-8 lg:py-5 text-sm lg:text-base font-sans font-bold uppercase tracking-widest text-[#fcfaf2] backdrop-blur-md transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-[#1e3840]/90 hover:border-[#8fa6a8]/60 hover:-translate-y-0.5"
                         >
                             Log In
                         </Link>
@@ -358,7 +358,7 @@ export default function GardenLanding() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, delay: idx * 0.2, ease: "easeOut" }}
-                            className="p-8 lg:p-10 rounded-2xl bg-[#1e3840]/20 border border-[#8fa6a8]/10 hover:border-[#deb96a]/30 hover:bg-[#1e3840]/40 transition-all duration-500 flex flex-col"
+                            className="p-8 lg:p-10 rounded-2xl bg-[#1e3840]/20 border border-[#8fa6a8]/10 hover:border-[#deb96a]/30 hover:bg-[#1e3840]/40 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 flex flex-col"
                         >
                             <div className="w-12 h-12 mb-6 rounded-full bg-[#1b4044] border border-[#2a5a5d]/50 shadow-inner flex items-center justify-center text-[#deb96a]">
                                 <span className="font-sans text-xs tracking-widest uppercase opacity-80">{idx + 1}</span>
@@ -408,7 +408,7 @@ export default function GardenLanding() {
                                     <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Peaceful ad-supported interface
                                 </li>
                             </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-[#3d7276]/50 text-[#b8d0d2] font-sans uppercase tracking-widest text-xs hover:bg-[#1e3840]/30 hover:text-[#deb96a] transition-all">
+                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-[#3d7276]/50 text-[#b8d0d2] font-sans uppercase tracking-widest text-xs hover:bg-[#1e3840]/30 hover:text-[#deb96a] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                 Begin Journey
                             </Link>
                         </motion.div>
@@ -419,7 +419,7 @@ export default function GardenLanding() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-                            className="relative p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-all duration-500 scale-100 lg:scale-105 z-10"
+                            className="relative p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 scale-100 lg:scale-105 z-10"
                         >
                             <span className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#deb96a] text-[#0d141e] text-[9px] font-sans font-bold px-3 py-1 rounded-b-lg uppercase tracking-widest">Most Popular</span>
                             <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2 mt-2">Supporter</h3>
@@ -438,7 +438,7 @@ export default function GardenLanding() {
                                     <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Advanced Study Groups
                                 </li>
                             </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 relative z-10 text-center rounded-xl bg-[#deb96a] text-[#0d141e] font-sans font-bold uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(222,185,106,0.2)] hover:bg-[#ebc97e] hover:-translate-y-0.5 transition-all">
+                            <Link to="/account?mode=signup" className="w-full py-4 relative z-10 text-center rounded-xl bg-[#deb96a] text-[#0d141e] font-sans font-bold uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(222,185,106,0.2)] hover:bg-[#ebc97e] hover:-translate-y-0.5 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                 Support Riven
                             </Link>
                         </motion.div>
@@ -467,7 +467,7 @@ export default function GardenLanding() {
                                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Future Premium Features
                                 </li>
                             </ul>
-                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-amber-500/30 text-amber-500/90 font-sans uppercase tracking-widest text-xs hover:bg-amber-500/10 hover:text-amber-400 transition-all">
+                            <Link to="/account?mode=signup" className="w-full py-4 text-center rounded-xl border border-amber-500/30 text-amber-500/90 font-sans uppercase tracking-widest text-xs hover:bg-amber-500/10 hover:text-amber-400 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                 Plant Forever
                             </Link>
                         </motion.div>
