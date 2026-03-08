@@ -15,6 +15,7 @@ const MODES = [
 ];
 
 export default function CreateDeck() {
+    const navigate = useNavigate();
     const [mode, setMode] = useState('manual');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -29,10 +30,13 @@ export default function CreateDeck() {
     const [showClassPicker, setShowClassPicker] = useState(false);
 
     // AI state
+    const [aiLimits, setAiLimits] = useState(null);
     const [aiNotes, setAiNotes] = useState('');
+    const fileInputRef = useRef(null);
     const [aiFile, setAiFile] = useState(null);
     const [aiFilePreview, setAiFilePreview] = useState('');
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [showPricingModal, setShowPricingModal] = useState(false);
     const toast = useToast();
 
     useEffect(() => {
