@@ -90,6 +90,7 @@ app.use(cors({
             return callback(null, true);
         }
 
+        // Check if origin exactly matches allowed list or ends with a trusted domain suffix
         if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
             callback(null, true);
         } else {
@@ -117,13 +118,7 @@ app.use(helmet({
 
 const io = new Server(server, {
     cors: {
-        origin: function (origin, callback) {
-            if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
+        origin: allowedOrigins,
         methods: ["GET", "POST"],
         credentials: true
     }

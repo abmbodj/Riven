@@ -1,14 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 
 // Authentication API - communicates with server for cross-device sync
-// Use '/api' in dev so Vite proxy keeps requests same-origin (cookies work).
-// Set VITE_API_URL for production or when server is on a different host.
+// Set VITE_API_URL for production (e.g. Render backend URL)
 let API_BASE = import.meta.env.VITE_API_URL;
 
-// Prevent Vercel network errors if a localhost VITE_API_URL was baked into a production web build
-if (import.meta.env.PROD && !Capacitor.isNativePlatform() && API_BASE && API_BASE.includes('localhost')) {
-    API_BASE = '/api';
-} else if (!API_BASE) {
+if (!API_BASE) {
     if (Capacitor.isNativePlatform()) {
         // On iOS Simulator, localhost correctly resolving to the Mac's host IP for servers
         // (Note: For physical devices, VITE_API_URL must be explicitly set to the Mac's local network IP in .env)
