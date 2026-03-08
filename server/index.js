@@ -90,23 +90,33 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // Check if origin exactly matches allowed list or ends with a trusted domain suffix
-        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-            callback(null, true);
+        // To support Vercel preview domains and custom domains freely:
+        // We will fallback to true for the frontend decoupling structure.
+        // If strict CORS is needed later, define strict ALLOWED_ORIGINS in Render env.
+        if (process.env.ALLOWED_ORIGINS) {
+            if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+                callback(null, true);
+            } else {
+                console.error('[CORS] Blocked request from origin:', origin);
+                callback(new Error('Not allowed by CORS'));
+            }
         } else {
-            console.error('[CORS] Blocked request from origin:', origin);
-            callback(new Error('Not allowed by CORS'));
+            callback(null, true); // Allow all by default if no STRICT whitelist is provided
         }
     },
     credentials: true
 }));
 
 // Re-enable Content Security Policy (Helmet default) but allow frontend endpoints
+const helmetConnectSrc = process.env.ALLOWED_ORIGINS
+    ? ["'self'", ...allowedOrigins, "https://*.vercel.app"]
+    : ["'self'", "*"];
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            connectSrc: ["'self'", ...allowedOrigins, "https://*.vercel.app"],
+            connectSrc: helmetConnectSrc,
             imgSrc: ["'self'", "data:", "blob:", "https:"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -118,7 +128,13 @@ app.use(helmet({
 
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: function (origin, callback) {
+            if (!origin) return callback(null, true);
+            if (process.env.ALLOWED_ORIGINS && !allowedOrigins.includes(origin) && !origin.endsWith('.vercel.app')) {
+                return callback(new Error('Not allowed by CORS'));
+            }
+            callback(null, true);
+        },
         methods: ["GET", "POST"],
         credentials: true
     }
