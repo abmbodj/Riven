@@ -22,7 +22,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
 
         try {
             const users = await db.query(
-                `SELECT id, username, avatar, bio, share_code, role, is_admin FROM users 
+                `SELECT id, username, avatar, banner, bio, share_code, role, is_admin FROM users 
              WHERE id != $1 AND (LOWER(username) LIKE LOWER($2) OR UPPER(share_code) = UPPER($3))
              LIMIT 20`,
                 [req.user.id, `%${q}%`, q]
@@ -30,7 +30,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
             res.json(users.map(u => {
                 const r = u.role || (u.is_admin === 1 ? 'admin' : 'user');
                 return {
-                    id: u.id, username: u.username, avatar: u.avatar, bio: u.bio, shareCode: u.share_code,
+                    id: u.id, username: u.username, avatar: u.avatar, banner: u.banner, bio: u.bio, shareCode: u.share_code,
                     role: r, isAdmin: r === 'admin' || r === 'owner', isOwner: r === 'owner'
                 };
             }));
@@ -44,7 +44,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
     app.get('/api/users/:id', authMiddleware, async (req, res) => {
         try {
             const user = await db.queryOne(
-                'SELECT id, username, avatar, bio, share_code, role, is_admin, created_at FROM users WHERE id = $1',
+                'SELECT id, username, avatar, banner, bio, share_code, role, is_admin, created_at FROM users WHERE id = $1',
                 [req.params.id]
             );
             if (!user) return res.status(404).json({ error: 'User not found' });
@@ -65,6 +65,7 @@ module.exports = function registerSocialRoutes({ app, db, authMiddleware }) {
                 id: user.id,
                 username: user.username,
                 avatar: user.avatar,
+                banner: user.banner,
                 bio: user.bio,
                 shareCode: user.share_code,
                 createdAt: user.created_at,

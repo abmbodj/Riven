@@ -104,7 +104,7 @@ module.exports = function registerAuthRoutes({
 
             res.status(201).json({
                 token,
-                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: false }
+                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, banner: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: false }
             });
 
             // Send welcome email (fire-and-forget, don't block registration)
@@ -159,7 +159,7 @@ module.exports = function registerAuthRoutes({
                 require2FA: false,
                 user: {
                     id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
-                    avatar: user.avatar, bio: user.bio || '', role: userRole,
+                    avatar: user.avatar, banner: user.banner, bio: user.bio || '', role: userRole,
                     isAdmin: userRole === 'admin' || userRole === 'owner',
                     isOwner: userRole === 'owner',
                     streakData: JSON.parse(user.streak_data || '{}'),
@@ -253,7 +253,7 @@ module.exports = function registerAuthRoutes({
             require2FA: false,
             user: {
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
-                avatar: user.avatar, bio: user.bio || '', role: userRole,
+                avatar: user.avatar, banner: user.banner, bio: user.bio || '', role: userRole,
                 isAdmin: userRole === 'admin' || userRole === 'owner',
                 isOwner: userRole === 'owner',
                 streakData: JSON.parse(user.streak_data || '{}'),
@@ -415,7 +415,7 @@ module.exports = function registerAuthRoutes({
                     token: newToken,
                     user: {
                         id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
-                        avatar: user.avatar, bio: user.bio || '', role: userRole,
+                        avatar: user.avatar, banner: user.banner, bio: user.bio || '', role: userRole,
                         isAdmin: userRole === 'admin' || userRole === 'owner',
                         isOwner: userRole === 'owner',
                         streakData: JSON.parse(user.streak_data || '{}'),
@@ -468,7 +468,7 @@ module.exports = function registerAuthRoutes({
 
             res.json({
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
-                avatar: user.avatar, bio: user.bio || '',
+                avatar: user.avatar, banner: user.banner, bio: user.bio || '',
                 streakData,
                 petCustomization,
                 role: userRole, isAdmin: userRole === 'admin' || userRole === 'owner',
@@ -486,7 +486,7 @@ module.exports = function registerAuthRoutes({
 
     // Update profile
     app.put('/api/auth/profile', authMiddleware, async (req, res) => {
-        const { username, displayName, bio, avatar } = req.body;
+        const { username, displayName, bio, avatar, banner } = req.body;
         try {
             // Uniqueness check for username if it's changing
             if (username) {
@@ -498,8 +498,8 @@ module.exports = function registerAuthRoutes({
             }
 
             await db.execute(
-                'UPDATE users SET username = COALESCE($1, username), display_name = COALESCE($2, display_name), bio = COALESCE($3, bio), avatar = COALESCE($4, avatar) WHERE id = $5',
-                [username, displayName, bio, avatar, req.user.id]
+                'UPDATE users SET username = COALESCE($1, username), display_name = COALESCE($2, display_name), bio = COALESCE($3, bio), avatar = COALESCE($4, avatar), banner = COALESCE($5, banner) WHERE id = $6',
+                [username, displayName, bio, avatar, banner, req.user.id]
             );
 
             const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
@@ -507,7 +507,7 @@ module.exports = function registerAuthRoutes({
             const effectiveTierProfile = (updatedRole === 'owner' || updatedRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
             res.json({
                 id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
-                avatar: user.avatar, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
+                avatar: user.avatar, banner: user.banner, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
                 role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
                 isOwner: updatedRole === 'owner', createdAt: user.created_at,
                 twoFAEnabled: !!user.two_fa_enabled,

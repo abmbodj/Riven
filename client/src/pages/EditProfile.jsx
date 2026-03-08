@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
-import Avatar from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
+import BannerPicker from '../components/BannerPicker';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const containerVariants = {
@@ -32,8 +32,10 @@ export default function EditProfile() {
     const [displayName, setDisplayName] = useState(user?.displayName || user?.username || '');
     const [bio, setBio] = useState(user?.bio || '');
     const [avatar, setAvatar] = useState(user?.avatar || '');
+    const [banner, setBanner] = useState(user?.banner || '');
     const [saving, setSaving] = useState(false);
     const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [showBannerPicker, setShowBannerPicker] = useState(false);
     const [bioError, setBioError] = useState(false);
 
     const handleSave = async () => {
@@ -63,7 +65,7 @@ export default function EditProfile() {
         haptics.medium();
 
         try {
-            await updateProfile({ username: username.trim(), displayName: displayName.trim(), bio: bio.trim(), avatar });
+            await updateProfile({ username: username.trim(), displayName: displayName.trim(), bio: bio.trim(), avatar, banner });
             toast.success('Journal updated');
             haptics.success();
             navigate('/account');
@@ -77,31 +79,51 @@ export default function EditProfile() {
 
     if (!user) return <div className="min-h-screen flex items-center justify-center bg-claude-bg"><LoadingSpinner /></div>;
 
-    const hasChanges = bio.trim() !== (user?.bio || '') || avatar !== (user?.avatar || '') || username.trim() !== (user?.username || '') || displayName.trim() !== (user?.displayName || user?.username || '');
+    const hasChanges = bio.trim() !== (user?.bio || '') || avatar !== (user?.avatar || '') || banner !== (user?.banner || '') || username.trim() !== (user?.username || '') || displayName.trim() !== (user?.displayName || user?.username || '');
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
             {/* Organic Header wrapper to allow for absolute positioning behind content */}
             <div className="relative">
                 {/* Organic Header Background */}
-                <div className="absolute top-0 left-0 right-0 h-56 overflow-hidden rounded-b-[3rem] z-0 shadow-sm pointer-events-none">
-                    <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 2 }}
-                        className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
-                    />
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+                <div className="absolute top-0 left-0 right-0 h-56 overflow-hidden rounded-b-[3rem] z-0 shadow-sm">
+                    {banner ? (
+                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
+                            <div className="absolute inset-0 bg-black/40"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 2 }}
+                                className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
+                            />
+                            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+                        </>
+                    )}
 
-                    {/* Animated Decorative Element */}
-                    <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 100, repeat: Infinity, ease: 'linear' }}
-                        className="absolute -right-20 -top-20 opacity-5"
+                    {/* Banner Edit Overlay */}
+                    <button
+                        onClick={() => { haptics.light(); setShowBannerPicker(true); }}
+                        className="absolute inset-0 z-20 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 backdrop-blur-sm transition-all duration-300 group"
                     >
-                        <Leaf className="w-96 h-96 text-botanical-forest" />
-                    </motion.div>
+                        <div className="p-3 bg-white/10 rounded-full md:backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform">
+                            <Camera className="w-6 h-6 text-white" />
+                        </div>
+                    </button>
+
+                    {/* Animated Decorative Element (only show if no banner to reduce clutter) */}
+                    {!banner && (
+                        <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 100, repeat: Infinity, ease: 'linear' }}
+                            className="absolute -right-20 -top-20 opacity-5 pointer-events-none"
+                        >
+                            <Leaf className="w-96 h-96 text-botanical-forest" />
+                        </motion.div>
+                    )}
                 </div>
 
                 {/* Navigation / Actions Sticky Header */}
@@ -144,10 +166,10 @@ export default function EditProfile() {
                     variants={containerVariants}
                     initial="hidden"
                     animate="show"
-                    className="relative z-10 px-6 max-w-md mx-auto pt-8 space-y-12"
+                    className="relative z-10 px-6 max-w-md mx-auto pt-8 space-y-12 pointer-events-none"
                 >
                     {/* Avatar Selection Section */}
-                    <motion.div variants={itemVariants} className="flex justify-center flex-col items-center">
+                    <motion.div variants={itemVariants} className="flex justify-center flex-col items-center pointer-events-auto">
                         <button
                             onClick={() => { haptics.light(); setShowAvatarPicker(true); }}
                             className="relative group block"
@@ -169,7 +191,7 @@ export default function EditProfile() {
                     </motion.div>
 
                     {/* Form Fields - Bento Style */}
-                    <motion.div variants={itemVariants} className="space-y-6">
+                    <motion.div variants={itemVariants} className="space-y-6 pointer-events-auto">
 
                         {/* Read-Only Account Info Bento */}
                         <div className="bg-claude-surface/50 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-6 shadow-sm flex flex-col gap-6">
@@ -295,6 +317,17 @@ export default function EditProfile() {
                             haptics.success();
                         }}
                         onClose={() => setShowAvatarPicker(false)}
+                    />
+                )}
+                {showBannerPicker && (
+                    <BannerPicker
+                        currentBanner={banner}
+                        onSelect={(url) => {
+                            setBanner(url);
+                            setShowBannerPicker(false);
+                            haptics.success();
+                        }}
+                        onClose={() => setShowBannerPicker(false)}
                     />
                 )}
             </AnimatePresence>

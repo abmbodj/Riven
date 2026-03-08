@@ -87,6 +87,11 @@ if (global.__TEST_DB_MOCK__) {
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT
             `).catch(() => { });
 
+            // Add banner column (migration)
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS banner TEXT
+            `).catch(() => { });
+
             // Add pet_customization column if it doesn't exist (migration)
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS pet_customization TEXT DEFAULT '{}'

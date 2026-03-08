@@ -186,19 +186,27 @@ export default function UserProfile() {
                 </div>
 
                 <div className="h-44 overflow-hidden relative rounded-b-[3rem] shadow-sm">
-                    <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1.2 }}
-                        transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
-                        className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
-                    />
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+                    {profile.banner ? (
+                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${profile.banner})` }}>
+                            <div className="absolute inset-0 bg-black/20"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1.2 }}
+                                transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+                                className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
+                            />
+                            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
 
-                    {/* Floating Leaves */}
-                    <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
-                        <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5" />
-                    </motion.div>
+                            {/* Floating Leaves */}
+                            <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5" />
+                            </motion.div>
+                        </>
+                    )}
                 </div>
 
                 {/* Avatar */}
