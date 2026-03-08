@@ -43,7 +43,7 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
             className="relative tap-action"
         >
             {/* Specimen Tape/Pin Accent */}
-            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm pointer-events-none" />
+            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
             <div className="absolute -top-1 right-1/4 w-4 h-4 bg-[#d1c9b8]/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center pointer-events-none">
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
@@ -347,16 +347,16 @@ export default function Decks() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsMenuOpen(false)}
-                            className="fixed inset-0 bg-[#0d1a1f]/80 backdrop-blur-md z-[60]"
+                            className="fixed inset-0 bg-[#0d1a1f]/80 md:backdrop-blur-md z-[60]"
                         />
                         <motion.div
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-claude-bg border-t border-claude-border z-[70] shadow-2xl overflow-y-auto rounded-t-[3rem]"
+                            className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-claude-bg border-t border-claude-border z-[70] shadow-md md:shadow-2xl overflow-y-auto rounded-t-[3rem]"
                         >
-                            <div className="sticky top-0 right-0 left-0 glass-panel backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
+                            <div className="sticky top-0 right-0 left-0 glass-panel md:backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
                                 <div className="w-12 h-1.5 bg-[#233e46] rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
                                 <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
                                 <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-claude-secondary hover:text-claude-accent tap-action">
@@ -425,7 +425,7 @@ export default function Decks() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="fixed inset-0 z-[100] bg-[#0d1a1f]/95 backdrop-blur-2xl p-6 pt-safe flex flex-col"
+                        className="fixed inset-0 z-[100] bg-[#0d1a1f]/95 md:backdrop-blur-2xl p-6 pt-safe flex flex-col"
                     >
                         <div className="flex items-center gap-4 mb-8">
                             <div className="relative flex-1">
@@ -500,7 +500,7 @@ export default function Decks() {
             </div>
 
             {/* Quick Actions Bar — Thumb-reachable controls */}
-            <div className="sticky top-safe z-30 mb-8 py-2 -mx-4 px-4 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10">
+            <div className="sticky top-safe z-30 mb-8 py-2 -mx-4 px-4 bg-claude-bg/80 md:backdrop-blur-md border-b border-claude-border/10">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSearchOpen(true)}
@@ -550,7 +550,7 @@ export default function Decks() {
                             <>
                                 {/* Mobile: Full-screen bottom sheet */}
                                 <div className="lg:hidden relative">
-                                    <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
+                                    <div className="fixed inset-0 z-[70] bg-black/40 md:backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
                                     <div className="fixed bottom-0 left-0 right-0 bg-claude-bg border-t border-claude-border rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
                                         <div className="w-12 h-1 bg-[#233e46] rounded-full mx-auto mb-6" />
                                         <div className="space-y-2">
@@ -570,7 +570,7 @@ export default function Decks() {
                                 {/* Desktop: Floating popover */}
                                 <div className="hidden lg:block relative">
                                     <div className="fixed inset-0 z-[70]" onClick={() => setShowSortMenu(false)} />
-                                    <div className="absolute right-0 top-full mt-2 w-52 bg-claude-bg border border-claude-border rounded-xl z-[80] p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute right-0 top-full mt-2 w-52 bg-claude-bg border border-claude-border rounded-xl z-[80] p-2 shadow-md md:shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                                         {SORT_OPTIONS.map(option => (
                                             <button
                                                 key={option.id}
@@ -615,8 +615,8 @@ export default function Decks() {
 
             {/* Onboarding modal — Kept but positioned normally */}
             {showOnboarding && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl">
+                <div className="fixed inset-0 bg-black/80 md:backdrop-blur-xl z-[200] flex items-center justify-center p-6">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-md md:shadow-2xl">
                         <div className="w-full max-w-[240px] mx-auto mb-8">
                             <OnboardingArt />
                         </div>
@@ -640,7 +640,7 @@ export default function Decks() {
             <AnimatePresence>
                 {showFolderModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFolderModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFolderModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateFolder}
@@ -677,7 +677,7 @@ export default function Decks() {
             <AnimatePresence>
                 {showTagModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTagModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTagModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateTag}

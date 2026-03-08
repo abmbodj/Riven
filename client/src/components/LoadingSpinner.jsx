@@ -39,7 +39,7 @@ export default function LoadingSpinner({ size = 'md', className = '' }) {
 // Full page loading overlay
 export function LoadingOverlay({ message = 'Loading...' }) {
     return (
-        <div role="status" aria-label={message} className="fixed inset-0 bg-claude-bg/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
+        <div role="status" aria-label={message} className="fixed inset-0 bg-claude-bg/80 md:backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-4">
             <LoadingSpinner size="xl" />
             <p className="text-claude-secondary text-sm">{message}</p>
         </div>

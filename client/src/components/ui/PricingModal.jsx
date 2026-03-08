@@ -131,7 +131,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -142,7 +142,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-                        className="relative glass-panel w-full max-w-md rounded-t-[2rem] shadow-2xl overflow-hidden flex flex-col"
+                        className="relative glass-panel w-full max-w-md rounded-t-[2rem] shadow-md md:shadow-2xl overflow-hidden flex flex-col"
                         style={{ maxHeight: '92vh' }}
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -252,7 +252,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 onClick={() => handlePurchase(selectedPlan)}
                                 disabled={loading || currentTier === selectedPlan || (selectedPlan === 'supporter' && currentTier === 'lifetime')}
                                 whileTap={{ scale: 0.97 }}
-                                className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-claude-accent to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-claude-accent/20 tap-action"
+                                className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-claude-accent to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm md:shadow-lg shadow-claude-accent/20 tap-action"
                             >
                                 {loading ? (
                                     <span className="animate-spin text-xl">↻</span>

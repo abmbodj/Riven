@@ -368,7 +368,7 @@ export default function DeckView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                             onClick={() => setShowStats(false)}
                         />
                         <motion.div
@@ -376,7 +376,7 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-md md:shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto -mt-2 mb-4" />
@@ -512,7 +512,7 @@ export default function DeckView() {
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            className="fixed inset-0 bg-black/40 backdrop-blur-sm sm:hidden"
+                                            className="fixed inset-0 bg-black/40 md:backdrop-blur-sm sm:hidden"
                                             onClick={() => setShowExportMenu(false)}
                                         />
 
@@ -521,7 +521,7 @@ export default function DeckView() {
                                             animate={{ y: 0, opacity: 1 }}
                                             exit={{ y: '100%', opacity: 0 }}
                                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md border-t sm:border border-claude-border rounded-t-[2rem] sm:rounded-xl shadow-2xl overflow-hidden z-20"
+                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md border-t sm:border border-claude-border rounded-t-[2rem] sm:rounded-xl shadow-md md:shadow-2xl overflow-hidden z-20"
                                         >
                                             <div className="sm:hidden w-10 h-1 bg-claude-border rounded-full mx-auto mt-3 mb-1" />
                                             <div className="p-4 sm:p-1 flex flex-col">
@@ -784,7 +784,7 @@ export default function DeckView() {
             {/* Bulk Import Modal */}
             {showBulkImport && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
+                    className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowBulkImport(false);
                     }}
@@ -827,7 +827,7 @@ export default function DeckView() {
             {/* Add card modal */}
             {showAddCard && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end"
+                    className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setShowAddCard(false);
                     }}
@@ -1002,7 +1002,7 @@ export default function DeckView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                             onClick={() => setShowShareModal(false)}
                         />
                         <motion.div
@@ -1010,7 +1010,7 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-md md:shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="p-6 pb-2 shrink-0">

@@ -103,7 +103,7 @@ export default function Garden({
                 viewBox="0 0 400 400"
                 width={width}
                 height={height}
-                className="rounded-3xl shadow-2xl overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-1000 ease-in-out"
+                className="rounded-3xl shadow-md md:shadow-2xl overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-1000 ease-in-out"
                 style={{ background: `linear-gradient(145deg, ${clr.bg1}, ${clr.bg2})` }}
             >
                 <defs>

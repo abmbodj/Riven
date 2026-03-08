@@ -487,7 +487,7 @@ export default function Messages() {
                                                 <motion.div
                                                     initial={{ scale: 0 }}
                                                     animate={{ scale: 1 }}
-                                                    className="absolute -top-1 -right-1 w-6 h-6 bg-botanical-forest rounded-full flex items-center justify-center shadow-lg"
+                                                    className="absolute -top-1 -right-1 w-6 h-6 bg-botanical-forest rounded-full flex items-center justify-center shadow-sm md:shadow-lg"
                                                 >
                                                     <span className="text-xs text-white font-bold">
                                                         {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
@@ -533,7 +533,7 @@ export default function Messages() {
             className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl"
         >
             {/* Botanical Chat Header with decorative elements */}
-            <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 backdrop-blur-xl">
+            <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 md:backdrop-blur-xl">
                 {/* Decorative corner marks */}
                 <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-botanical-forest/20 rounded-tl" />
                 <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-botanical-forest/20 rounded-br" />
@@ -678,7 +678,7 @@ export default function Messages() {
                                                 /* Text/Image Message Bubble */
                                                 <div
                                                     className={`relative group px-4 py-3 rounded-2xl ${msg.isMine
-                                                        ? 'bg-botanical-forest text-white rounded-br-sm shadow-lg shadow-botanical-forest/20'
+                                                        ? 'bg-botanical-forest text-white rounded-br-sm shadow-sm md:shadow-lg shadow-botanical-forest/20'
                                                         : 'glass-panel rounded-bl-sm text-botanical-parchment'
                                                         }`}
                                                     style={msg.isMine ? {
@@ -700,7 +700,7 @@ export default function Messages() {
                                                                 <MoreVertical className="w-4 h-4" />
                                                             </button>
                                                             {activeMenuId === msg.id && (
-                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[120px] z-50`}>
+                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 glass-panel rounded-xl shadow-sm md:shadow-xl overflow-hidden min-w-[120px] z-50`}>
                                                                     {msg.isMine ? (
                                                                         <>
                                                                             <button
@@ -803,7 +803,7 @@ export default function Messages() {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
                 onSubmit={handleSendMessage}
-                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 backdrop-blur-xl border-t border-claude-border/50"
+                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
                     paddingTop: '8px'
@@ -816,7 +816,7 @@ export default function Messages() {
                             <button
                                 type="button"
                                 onClick={() => setImagePreview(null)}
-                                className="absolute -top-2 -right-2 bg-red-500/90 backdrop-blur-md text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
+                                className="absolute -top-2 -right-2 bg-red-500/90 md:backdrop-blur-md text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
                             >
                                 <X className="w-3 h-3" />
                             </button>

@@ -97,9 +97,9 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 md:backdrop-blur-sm animate-in fade-in duration-200">
             <div
-                className="w-full max-w-md bg-[#e4ddd0] rounded-lg shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 border border-[#8fa6a8]/20"
+                className="w-full max-w-md bg-[#e4ddd0] rounded-lg shadow-sm md:shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 border border-[#8fa6a8]/20"
                 style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
                 }}
@@ -150,7 +150,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                             <div className="space-y-4 text-center">
                                 <p className="text-sm text-[#6b7d7f]">Scan this QR code with your authenticator app</p>
                                 <div className="bg-white p-4 rounded-xl shadow-inner inline-block relative group">
-                                    <img src={qrCode} alt="QR Code" className="w-48 h-48 mix-blend-multiply" />
+                                    <img src={qrCode} alt="QR Code" className="w-48 h-48 md:mix-blend-multiply" />
                                     {loading && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><Loader2 className="animate-spin text-[#233e46]" /></div>}
                                 </div>
 

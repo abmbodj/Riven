@@ -92,7 +92,7 @@ export default function EditProfile() {
                         transition={{ duration: 2 }}
                         className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
                     />
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
 
                     {/* Animated Decorative Element */}
                     <motion.div
@@ -108,7 +108,7 @@ export default function EditProfile() {
                 <div className="sticky top-0 z-50 pt-12 pb-4 px-4 flex items-center justify-between">
                     <button
                         onClick={() => navigate('/account')}
-                        className="p-3 bg-black/20 backdrop-blur-md border border-white/5 rounded-full text-white/90 hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm"
+                        className="p-3 bg-black/20 md:backdrop-blur-md border border-white/5 rounded-full text-white/90 hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -120,9 +120,9 @@ export default function EditProfile() {
                     <button
                         onClick={handleSave}
                         disabled={saving || !hasChanges}
-                        className={`px-5 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase flex items-center gap-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-lg ${hasChanges && !saving
+                        className={`px-5 py-2.5 rounded-full text-sm font-bold tracking-widest uppercase flex items-center gap-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm md:shadow-lg ${hasChanges && !saving
                             ? 'bg-botanical-forest text-white shadow-botanical-forest/30 active:scale-95 hover:bg-[#2b4c3e]'
-                            : 'bg-white/10 text-white/50 backdrop-blur-md cursor-not-allowed border border-white/5'
+                            : 'bg-white/10 text-white/50 md:backdrop-blur-md cursor-not-allowed border border-white/5'
                             }`}
                     >
                         {saving ? (
@@ -153,14 +153,14 @@ export default function EditProfile() {
                             className="relative group block"
                         >
                             <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100 z-0"></div>
-                            <div className="relative z-10 p-1.5 rounded-full border border-dashed border-white/30 group-hover:border-white/50 transition-colors bg-claude-bg shadow-2xl">
+                            <div className="relative z-10 p-1.5 rounded-full border border-dashed border-white/30 group-hover:border-white/50 transition-colors bg-claude-bg shadow-md md:shadow-2xl">
                                 <Avatar src={avatar} size="4xl" className="border-[6px] border-claude-bg" />
                             </div>
 
                             <motion.div
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
-                                className="absolute bottom-2 right-2 p-3 bg-botanical-forest text-white rounded-full shadow-xl border-2 border-claude-bg z-20"
+                                className="absolute bottom-2 right-2 p-3 bg-botanical-forest text-white rounded-full shadow-sm md:shadow-xl border-2 border-claude-bg z-20"
                             >
                                 <Camera className="w-5 h-5" />
                             </motion.div>
@@ -172,7 +172,7 @@ export default function EditProfile() {
                     <motion.div variants={itemVariants} className="space-y-6">
 
                         {/* Read-Only Account Info Bento */}
-                        <div className="bg-claude-surface/50 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-6 shadow-sm flex flex-col gap-6">
+                        <div className="bg-claude-surface/50 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-6 shadow-sm flex flex-col gap-6">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-claude-bg rounded-xl border border-botanical-sepia/5 shadow-inner">
                                     <User className="w-5 h-5 text-botanical-sepia/70" />
@@ -242,7 +242,7 @@ export default function EditProfile() {
 
                             <div className="relative">
                                 {/* Elegant Lines background */}
-                                <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-multiply"
+                                <div className="absolute inset-0 pointer-events-none opacity-40 md:mix-blend-multiply"
                                     style={{
                                         backgroundImage: 'linear-gradient(transparent 39px, rgba(143, 166, 168, 0.3) 40px)',
                                         backgroundSize: '100% 40px',

@@ -7,7 +7,7 @@ export default function TermsOfService() {
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-50 bg-claude-bg/80 backdrop-blur-xl border-b border-botanical-sepia/5 safe-area-top">
+            <div className="sticky top-0 z-50 bg-claude-bg/80 md:backdrop-blur-xl border-b border-botanical-sepia/5 safe-area-top">
                 <div className="flex items-center gap-3 px-4 py-3">
                     <button
                         onClick={() => navigate(-1)}

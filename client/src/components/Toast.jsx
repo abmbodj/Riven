@@ -45,7 +45,7 @@ export function ToastProvider({ children }) {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, x: 60, scale: 0.95 }}
                             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${toast.type === 'success'
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-sm md:shadow-lg ${toast.type === 'success'
                                 ? 'bg-green-500 text-white'
                                 : 'bg-red-500 text-white'
                                 }`}

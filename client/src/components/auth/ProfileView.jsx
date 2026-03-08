@@ -73,7 +73,7 @@ const ProfileView = () => {
             {/* Desktop: two-column layout for profile. Mobile: stacked single column */}
             <div className="relative mb-20 lg:mb-16 z-10 w-full max-w-xl lg:max-w-3xl mx-auto lg:pt-8 bg-transparent">
                 {/* Atmospheric Deep Header */}
-                <div className="mx-4 lg:mx-0 mt-4 lg:mt-0 h-44 lg:h-52 overflow-hidden relative rounded-[3rem] shadow-lg border border-white/5 lg:border-white/5">
+                <div className="mx-4 lg:mx-0 mt-4 lg:mt-0 h-44 lg:h-52 overflow-hidden relative rounded-[3rem] shadow-sm md:shadow-lg border border-white/5 lg:border-white/5">
                     <div className="absolute inset-0 bg-[#0f2026]"></div>
                     <motion.div
                         initial={{ opacity: 0, scale: 0.8 }}
@@ -81,7 +81,7 @@ const ProfileView = () => {
                         transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
                         className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl"
                     />
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
 
                     {/* Floating Leaves */}
                     <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
@@ -102,7 +102,7 @@ const ProfileView = () => {
                             className="relative group cursor-pointer"
                         >
                             <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
-                            <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-2xl relative z-10 bg-claude-surface" />
+                            <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-md md:shadow-2xl relative z-10 bg-claude-surface" />
                             {isAdmin && (
                                 <motion.div
                                     initial={{ scale: 0 }}

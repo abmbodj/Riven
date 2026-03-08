@@ -155,7 +155,7 @@ export default function UserProfile() {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[70vh] bg-claude-bg">
-                <div className="w-10 h-10 border-4 border-botanical-forest border-t-transparent rounded-full animate-spin shadow-lg" />
+                <div className="w-10 h-10 border-4 border-botanical-forest border-t-transparent rounded-full animate-spin shadow-sm md:shadow-lg" />
             </div>
         );
     }
@@ -180,7 +180,7 @@ export default function UserProfile() {
             <div className="relative mb-20 z-10 w-full max-w-xl mx-auto">
                 {/* Back Button Overlay */}
                 <div className="absolute top-0 left-0 right-0 z-50 p-4 safe-area-top">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-black/20 backdrop-blur-md rounded-full shadow-sm hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] outline-none border border-white/5">
+                    <button onClick={() => navigate(-1)} className="p-3 bg-black/20 md:backdrop-blur-md rounded-full shadow-sm hover:bg-black/30 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] outline-none border border-white/5">
                         <ArrowLeft className="w-5 h-5 text-white/90" />
                     </button>
                 </div>
@@ -193,7 +193,7 @@ export default function UserProfile() {
                         transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
                         className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
                     />
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
 
                     {/* Floating Leaves */}
                     <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
@@ -209,7 +209,7 @@ export default function UserProfile() {
                         transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
                         className="relative"
                     >
-                        <Avatar src={profile.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-2xl relative z-10 bg-claude-surface" />
+                        <Avatar src={profile.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-md md:shadow-2xl relative z-10 bg-claude-surface" />
                         {(profile.isAdmin || profile.isOwner) && (
                             <motion.div
                                 initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }}
@@ -260,14 +260,14 @@ export default function UserProfile() {
 
                 {/* Stats Bento */}
                 <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
+                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
                         <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold text-claude-text mb-1">
                             <Layers className="w-5 h-5 text-botanical-forest" />
                             {profile.deckCount}
                         </div>
                         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">Decks</p>
                     </div>
-                    <div className="bg-claude-surface/40 backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
+                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
                         <div className="flex items-center justify-center gap-2 text-[16px] font-display font-bold text-claude-text mb-1 h-[32px]">
                             <Calendar className="w-4 h-4 text-botanical-sepia/80" />
                             {formatDate(profile.createdAt)}

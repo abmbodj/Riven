@@ -37,7 +37,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -46,7 +46,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full sm:max-w-md bg-[#e4ddd0] rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl overflow-hidden border-t sm:border border-red-500/20 touch-pan-y"
+                        className="relative w-full sm:max-w-md bg-[#e4ddd0] rounded-t-[2.5rem] sm:rounded-2xl shadow-md md:shadow-2xl overflow-hidden border-t sm:border border-red-500/20 touch-pan-y"
                         style={{
                             backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
                         }}
@@ -104,7 +104,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                                 <button
                                     type="submit"
                                     disabled={loading || !password}
-                                    className="w-full sm:order-2 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 tap-action touch-target"
+                                    className="w-full sm:order-2 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm md:shadow-lg shadow-red-500/20 tap-action touch-target"
                                 >
                                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Delete Forever'}
                                 </button>

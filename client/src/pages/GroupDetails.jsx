@@ -460,15 +460,15 @@ export default function GroupDetails() {
                     <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23deb96a' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
                     <div className="absolute inset-0 bg-gradient-to-t from-claude-bg to-transparent" />
                     <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20">
-                        <button onClick={() => navigate('/groups')} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action backdrop-blur-md border border-white/20">
+                        <button onClick={() => navigate('/groups')} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action md:backdrop-blur-md border border-white/20">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
                         {isAdmin ? (
-                            <button onClick={() => setShowSettings(!showSettings)} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action backdrop-blur-md border border-white/20">
+                            <button onClick={() => setShowSettings(!showSettings)} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors tap-action md:backdrop-blur-md border border-white/20">
                                 <Settings className="w-5 h-5" />
                             </button>
                         ) : (
-                            <button onClick={handleLeave} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-red-300 hover:text-red-200 hover:bg-red-500/20 transition-colors tap-action backdrop-blur-md border border-red-500/30">
+                            <button onClick={handleLeave} className="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-red-300 hover:text-red-200 hover:bg-red-500/20 transition-colors tap-action md:backdrop-blur-md border border-red-500/30">
                                 <LogOut className="w-5 h-5" />
                             </button>
                         )}
@@ -520,7 +520,7 @@ export default function GroupDetails() {
                                 <div className="w-full">
                                     <button
                                         onClick={() => setShowShareDeckModal(true)}
-                                        className="w-full py-3.5 bg-claude-accent rounded-xl text-botanical-ink font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 text-[11px]"
+                                        className="w-full py-3.5 bg-claude-accent rounded-xl text-botanical-ink font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20 text-[11px]"
                                     >
                                         Initiate Cram
                                     </button>
@@ -547,7 +547,7 @@ export default function GroupDetails() {
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         onClick={() => navigate(`/groups/${id}/cram/${session.id}`)}
-                                        className="bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-[transform,opacity,color,background-color,border-color,box-shadow] group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+                                        className="bg-red-500/10 md:backdrop-blur-md border border-red-500/30 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-red-500/20 transition-[transform,opacity,color,background-color,border-color,box-shadow] group overflow-hidden relative shadow-[0_0_20px_rgba(239,68,68,0.1)]"
                                     >
                                         <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent animate-scan" />
                                         <div className="flex-1 min-w-0 pr-4">
@@ -797,7 +797,7 @@ export default function GroupDetails() {
                                             </button>
 
                                             {activeMemberMenuId === member.id && (
-                                                <div className="absolute right-0 top-full mt-2 glass-panel rounded-xl shadow-xl overflow-hidden min-w-[140px] z-50 py-1">
+                                                <div className="absolute right-0 top-full mt-2 glass-panel rounded-xl shadow-sm md:shadow-xl overflow-hidden min-w-[140px] z-50 py-1">
                                                     {isAdmin && member.role !== 'admin' && (
                                                         <button
                                                             onClick={() => {
@@ -843,7 +843,7 @@ export default function GroupDetails() {
             <AnimatePresence>
                 {showSettings && isAdmin && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSettings(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSettings(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleUpdateGroup}
@@ -901,7 +901,7 @@ export default function GroupDetails() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                                    className="flex-1 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20"
                                 >
                                     Save Changes
                                 </button>
@@ -916,7 +916,7 @@ export default function GroupDetails() {
             < AnimatePresence >
                 {showShareDeckModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowShareDeckModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowShareDeckModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe max-h-[85vh] flex flex-col"
@@ -957,7 +957,7 @@ export default function GroupDetails() {
             < AnimatePresence >
                 {showCreateFolderModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreateFolderModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreateFolderModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateFolder}
@@ -985,7 +985,7 @@ export default function GroupDetails() {
                             <button
                                 type="submit"
                                 disabled={!newFolderName.trim()}
-                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                                className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20 disabled:opacity-50"
                             >
                                 Create
                             </button>
@@ -998,7 +998,7 @@ export default function GroupDetails() {
             < AnimatePresence >
                 {showUploadModal && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             className="relative bg-claude-bg w-full max-w-lg p-6 rounded-t-[3rem] sm:rounded-[3rem] border border-claude-border pb-safe overflow-hidden"
@@ -1070,7 +1070,7 @@ export default function GroupDetails() {
                                         <button
                                             type="submit"
                                             disabled={!uploadData.name.trim() || !uploadData.file}
-                                            className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20 disabled:opacity-50"
+                                            className="w-full mt-8 py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20 disabled:opacity-50"
                                         >
                                             Next Step
                                         </button>
@@ -1096,7 +1096,7 @@ export default function GroupDetails() {
                                         <div className="w-full space-y-3">
                                             <button
                                                 onClick={handleUploadWithAi}
-                                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action flex items-center justify-center gap-2 shadow-lg shadow-claude-accent/20"
+                                                className="w-full py-4 bg-claude-accent rounded-2xl text-[#162a31] font-mono font-bold uppercase tracking-widest hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action flex items-center justify-center gap-2 shadow-sm md:shadow-lg shadow-claude-accent/20"
                                             >
                                                 <span>✨</span> Yes, create a deck
                                             </button>

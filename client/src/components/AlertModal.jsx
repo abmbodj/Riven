@@ -91,7 +91,7 @@ export default function AlertModal({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -104,7 +104,7 @@ export default function AlertModal({
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-3xl border border-claude-border shadow-2xl p-6 overflow-hidden touch-pan-y"
+                        className="relative w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-3xl border border-claude-border shadow-md md:shadow-2xl p-6 overflow-hidden touch-pan-y"
                         style={{ backgroundColor: 'var(--surface-color, #162a31)' }}
                         onClick={e => e.stopPropagation()}
                     >
@@ -141,7 +141,7 @@ export default function AlertModal({
                             {actionLabel && onAction && (
                                 <button
                                     onClick={onAction}
-                                    className={`w-full py-4.5 rounded-2xl font-bold ${buttonColors[type]} active:scale-[0.97] transition-transform tap-action touch-target shadow-lg`}
+                                    className={`w-full py-4.5 rounded-2xl font-bold ${buttonColors[type]} active:scale-[0.97] transition-transform tap-action touch-target shadow-sm md:shadow-lg`}
                                 >
                                     {actionLabel}
                                 </button>

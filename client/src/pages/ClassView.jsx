@@ -267,7 +267,7 @@ export default function ClassView() {
     return (
         <div className="relative min-h-screen pb-24">
             {/* Header */}
-            <div className="sticky top-0 z-40 glass-panel backdrop-blur-xl border-b border-claude-border px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-40 glass-panel md:backdrop-blur-xl border-b border-claude-border px-4 sm:px-6 py-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate('/classes')}
                     className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
@@ -454,7 +454,7 @@ export default function ClassView() {
             <AnimatePresence>
                 {showEditClassModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEditClassModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEditClassModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveClass} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-8 sticky top-0 bg-claude-bg pt-2 pb-4 z-10">
                                 <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Edit Class</h3>
@@ -493,7 +493,7 @@ export default function ClassView() {
             <AnimatePresence>
                 {showAssignModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAssignModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAssignModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveAssignment} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-8 sticky top-0 bg-claude-bg pt-2 pb-4 z-10">
                                 <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingAssign ? 'Edit Task' : 'New Task'}</h3>
@@ -594,7 +594,7 @@ export default function ClassView() {
 
                 {showScheduleModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScheduleModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScheduleModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleSaveScheduleSlot}

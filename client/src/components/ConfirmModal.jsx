@@ -58,7 +58,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onCancel}
                     />
 
@@ -71,7 +71,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative glass-panel w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl overflow-hidden touch-pan-y"
+                        className="relative glass-panel w-full sm:max-w-sm rounded-t-[2.5rem] sm:rounded-2xl shadow-md md:shadow-2xl overflow-hidden touch-pan-y"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Drag Handle for mobile */}

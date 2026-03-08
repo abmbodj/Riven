@@ -175,7 +175,7 @@ export default function Settings() {
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text pb-24 font-sans">
             {/* Minimalist Floating Header */}
-            <div className="sticky top-0 z-50 bg-claude-bg/80 backdrop-blur-xl border-b border-botanical-sepia/5 pb-2 pt-12">
+            <div className="sticky top-0 z-50 bg-claude-bg/80 md:backdrop-blur-xl border-b border-botanical-sepia/5 pb-2 pt-12">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-botanical-sepia/5 pb-4">
                     <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-botanical-sepia/5 hover:bg-botanical-sepia/10 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                         <ArrowLeft className="w-5 h-5 text-claude-text" />
@@ -507,7 +507,7 @@ export default function Settings() {
                         }}
                     >
                         {/* Noise Texture */}
-                        <div className="absolute inset-0 pointer-events-none opacity-[0.25] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+                        <div className="absolute inset-0 pointer-events-none opacity-[0.25] md:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
 
                         {/* Animated Glow */}
                         <motion.div

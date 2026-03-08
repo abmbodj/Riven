@@ -29,7 +29,7 @@ const ClassCard = memo(({ cls, index, onClick }) => {
             onClick={onClick}
             className="relative tap-action group cursor-pointer"
         >
-            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 backdrop-blur-sm pointer-events-none" />
+            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
 
             <div className="relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97]">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
@@ -621,7 +621,7 @@ export default function Classes() {
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCloseModal} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCloseModal} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleSave}
@@ -946,7 +946,7 @@ export default function Classes() {
                                                 </div>
                                             </div>
 
-                                            <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4 shadow-lg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
+                                            <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4 shadow-sm md:shadow-lg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                                                 {editingClass ? 'Save Changes' : 'Create Class'}
                                             </button>
                                         </motion.div>

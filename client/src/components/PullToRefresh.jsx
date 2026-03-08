@@ -63,7 +63,7 @@ export default function PullToRefresh({ onRefresh, children, disabled = false })
                     opacity: pullDistance > 10 ? 1 : 0
                 }}
             >
-                <div className={`w-10 h-10 rounded-full glass-panel flex items-center justify-center shadow-lg ${isRefreshing ? 'animate-spin' : ''}`}>
+                <div className={`w-10 h-10 rounded-full glass-panel flex items-center justify-center shadow-sm md:shadow-lg ${isRefreshing ? 'animate-spin' : ''}`}>
                     <RefreshCw
                         className="w-5 h-5 text-claude-accent transition-transform duration-200"
                         style={{

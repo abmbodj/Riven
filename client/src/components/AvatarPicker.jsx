@@ -104,7 +104,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
 
     return (
         <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-end"
+            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[70] flex items-end"
             onClick={onClose}
         >
             <div
@@ -127,7 +127,7 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }) {
                     <div className="flex flex-col items-center gap-6">
                         {/* Preview */}
                         <div className="relative">
-                            <div className="w-32 h-32 rounded-full overflow-hidden bg-claude-bg border-4 border-claude-border shadow-lg">
+                            <div className="w-32 h-32 rounded-full overflow-hidden bg-claude-bg border-4 border-claude-border shadow-sm md:shadow-lg">
                                 {loading ? (
                                     <div className="w-full h-full flex items-center justify-center">
                                         <LoadingSpinner size="md" />

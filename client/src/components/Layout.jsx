@@ -72,7 +72,7 @@ export default function Layout({ children }) {
 
                 {/* ===== Desktop Sidebar (hidden on mobile) ===== */}
                 {showDesktopSidebar && (
-                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-claude-surface/50 border-r border-claude-border/50 z-30 backdrop-blur-sm">
+                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-claude-surface/50 border-r border-claude-border/50 z-30 md:backdrop-blur-sm">
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-2.5 px-5 pt-6 pb-4">
                             <div className="w-7 h-7 border border-claude-accent/30 rounded-full flex items-center justify-center bg-white/5 overflow-hidden">
@@ -191,7 +191,7 @@ export default function Layout({ children }) {
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                     onClick={() => setIsFabMenuOpen(false)}
-                                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-10 cursor-pointer"
+                                    className="fixed inset-0 bg-black/50 md:backdrop-blur-sm z-10 cursor-pointer"
                                 />
                                 <motion.div
                                     initial={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}

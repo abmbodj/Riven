@@ -24,7 +24,7 @@ export default function OutOfHeartsModal({ isOpen, onClose, onPractice, onUpgrad
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -35,7 +35,7 @@ export default function OutOfHeartsModal({ isOpen, onClose, onPractice, onUpgrad
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative glass-panel w-full sm:max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+                        className="relative glass-panel w-full sm:max-w-md rounded-3xl shadow-md md:shadow-2xl overflow-hidden flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Drag Handle for mobile */}

@@ -232,7 +232,7 @@ export default function GroupCram() {
             <div className="fullscreen-page pb-24 px-4 pt-12 relative overflow-y-auto">
                 <div className="max-w-xl mx-auto space-y-8 relative z-10">
                     <div className="text-center">
-                        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-botanical-forest/10 text-botanical-forest rounded-full flex items-center justify-center mx-auto mb-6 border border-botanical-forest/20 shadow-[0_0_30px_rgba(45,90,62,0.15)] relative backdrop-blur-sm">
+                        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-botanical-forest/10 text-botanical-forest rounded-full flex items-center justify-center mx-auto mb-6 border border-botanical-forest/20 shadow-[0_0_30px_rgba(45,90,62,0.15)] relative md:backdrop-blur-sm">
                             <CheckCircle2 className="w-12 h-12 relative z-10" />
                             <div className="absolute inset-0 bg-botanical-forest/5 rounded-full blur-md animate-pulse" />
                         </motion.div>
@@ -290,7 +290,7 @@ export default function GroupCram() {
 
                         <button
                             onClick={() => navigate(`/groups/${groupId}`)}
-                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 active:scale-[0.98] tap-action shadow-lg shadow-claude-accent/20"
+                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20"
                         >
                             Return to Group Vault
                         </button>
@@ -440,7 +440,7 @@ export default function GroupCram() {
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md opacity-60"
+                        className="flex items-center gap-2 px-4 py-1.5 rounded-full md:backdrop-blur-md opacity-60"
                     >
                         <span className="w-1 h-1 rounded-full bg-amber-400/50 animate-pulse" />
                         <span className="text-[8px] font-mono text-claude-secondary tracking-[0.2em] uppercase">Group syncing...</span>
@@ -569,7 +569,7 @@ export default function GroupCram() {
                             >
                                 <button
                                     onClick={() => handleAnswer(false)}
-                                    className="flex-1 h-14 rounded-[1.25rem] glass-panel border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-red-500/10 tap-action backdrop-blur-md"
+                                    className="flex-1 h-14 rounded-[1.25rem] glass-panel border border-red-500/20 text-red-400 flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-red-500/10 tap-action md:backdrop-blur-md"
                                 >
                                     <ThumbsDown className="w-4 h-4 mb-0.5" /> Forgot
                                 </button>

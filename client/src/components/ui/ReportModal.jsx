@@ -48,7 +48,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -59,7 +59,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = 
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full max-h-[90vh] bg-claude-bg shadow-2xl flex flex-col z-[999] rounded-t-[32px] border-t border-white/10"
+                        className="relative w-full max-h-[90vh] bg-claude-bg shadow-md md:shadow-2xl flex flex-col z-[999] rounded-t-[32px] border-t border-white/10"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Mobile Drag Handle Indicator */}

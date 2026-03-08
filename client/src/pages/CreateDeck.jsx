@@ -132,7 +132,7 @@ export default function CreateDeck() {
     return (
         <div className="min-h-full flex flex-col safe-area-top">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-claude-bg/95 backdrop-blur-md border-b border-claude-border/50">
+            <div className="sticky top-0 z-10 bg-claude-bg/95 md:backdrop-blur-md border-b border-claude-border/50">
                 <div className="flex items-center justify-between py-3">
                     <Link to="/" className="touch-target text-claude-secondary active:text-claude-text -ml-2">
                         <X className="w-6 h-6" />

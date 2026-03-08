@@ -28,7 +28,7 @@ export default function MobileWarning() {
 
     return (
         <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={handleDismiss}
         >
             <div 

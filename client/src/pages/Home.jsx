@@ -210,7 +210,7 @@ function DashboardHome() {
                                 <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                             </div>
                         </Motion.div>
-                        <div className="absolute -bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-claude-border bg-claude-surface px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-claude-accent opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                        <div className="absolute -bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-claude-border bg-claude-surface px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-claude-accent opacity-0 shadow-sm md:shadow-lg transition-opacity group-hover:opacity-100">
                             <Leaf className="h-2 w-2" /> {streak.currentStreak} Day
                         </div>
                     </Link>

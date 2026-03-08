@@ -60,7 +60,7 @@ export default function HeartsDisplay({ onClick }) {
     return (
         <button
             onClick={onClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-bg/80 backdrop-blur-md border border-red-500/20 rounded-full shadow-sm hover:bg-red-500/5 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action relative z-10"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-bg/80 md:backdrop-blur-md border border-red-500/20 rounded-full shadow-sm hover:bg-red-500/5 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action relative z-10"
         >
             <Heart className={`w-4 h-4 ${status.isUnlimited ? 'text-indigo-500 fill-indigo-500' : 'text-red-500 fill-red-500'}`} />
             <span className={`font-mono font-bold text-sm ${status.isUnlimited ? 'text-indigo-500' : 'text-red-500'}`}>
