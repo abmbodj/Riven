@@ -90,15 +90,24 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // To support Vercel preview domains and custom domains freely:
-        // We will fallback to true for the frontend decoupling structure.
-        // If strict CORS is needed later, define strict ALLOWED_ORIGINS in Render env.
+        // Clean origin (remove trailing slash just in case)
+        const cleanOrigin = origin.replace(/\/$/, '');
+
         if (process.env.ALLOWED_ORIGINS) {
-            if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            // Check if origin matches allowed list or ends with .vercel.app
+            const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) ||
+                cleanOrigin.endsWith('.vercel.app');
+
+            if (isAllowed) {
                 callback(null, true);
             } else {
-                console.error('[CORS] Blocked request from origin:', origin);
-                callback(new Error('Not allowed by CORS'));
+                console.error(`[CORS] Blocked request from origin: ${cleanOrigin} (Not in ALLOWED_ORIGINS)`);
+                // Passing false instead of new Error() prevents Express from returning a 500 status code.
+                // It just omits the CORS headers, resulting in a cleaner browser 403/CORS error if needed.
+                // However, let's actually just allow it and log the warning for now to prevent users from getting permanently stuck if they misconfigure strings!
+                // To be fully safe in production you would pass false, but to fix this issue let's accept it but heavily log.
+                // Actually, since they explicitly want strict (Option 1), let's block it securely but without 500ing:
+                callback(null, false);
             }
         } else {
             callback(null, true); // Allow all by default if no STRICT whitelist is provided
@@ -130,10 +139,19 @@ const io = new Server(server, {
     cors: {
         origin: function (origin, callback) {
             if (!origin) return callback(null, true);
-            if (process.env.ALLOWED_ORIGINS && !allowedOrigins.includes(origin) && !origin.endsWith('.vercel.app')) {
-                return callback(new Error('Not allowed by CORS'));
+
+            const cleanOrigin = origin.replace(/\/$/, '');
+
+            if (process.env.ALLOWED_ORIGINS) {
+                const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) || cleanOrigin.endsWith('.vercel.app');
+                if (isAllowed) {
+                    callback(null, true);
+                } else {
+                    return callback(new Error('Not allowed by CORS'));
+                }
+            } else {
+                callback(null, true);
             }
-            callback(null, true);
         },
         methods: ["GET", "POST"],
         credentials: true
