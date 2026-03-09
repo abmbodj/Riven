@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical, MoreVertical, Settings2 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
@@ -32,7 +32,8 @@ export default function DeckView() {
     const [bulkText, setBulkText] = useState('');
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
-    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [optionsMenuState, setOptionsMenuState] = useState('main');
     const [reorderMode, setReorderMode] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [friends, setFriends] = useState([]);
@@ -151,7 +152,8 @@ export default function DeckView() {
             }
 
             toast.success(`Exported as ${format.toUpperCase()}`);
-            setShowExportMenu(false);
+            setOptionsMenuState('main');
+            setShowOptionsMenu(false);
         } catch {
             toast.error('Failed to export deck');
         } finally {
@@ -483,105 +485,121 @@ export default function DeckView() {
             </AnimatePresence>
 
             {/* Header */}
-            <div className="px-4 mb-6">
+            <div className="px-4 mb-6 relative">
                 <div className="flex items-center justify-between mb-4">
-                    <Link to="/" className="p-2 -ml-2 text-claude-secondary active:text-claude-text">
-                        <ArrowLeft className="w-6 h-6" />
+                    <Link to="/" className="p-2 -ml-2 text-claude-secondary hover:bg-claude-bg rounded-full active:scale-95 transition-all">
+                        <ArrowLeft className="w-6 h-6 text-botanical-ink" />
                     </Link>
+
                     <div className="flex items-center gap-1">
                         <button
-                            onClick={loadStats}
-                            className="p-2 text-claude-secondary active:text-claude-text"
-                            title="Statistics"
+                            onClick={() => {
+                                setOptionsMenuState('main');
+                                setShowOptionsMenu(true);
+                            }}
+                            className="p-2 text-claude-secondary hover:bg-claude-bg rounded-full active:scale-95 transition-all relative z-10"
+                            title="Options"
                         >
-                            <BarChart3 className="w-5 h-5" />
+                            <MoreVertical className="w-6 h-6 text-botanical-ink" />
                         </button>
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowExportMenu(!showExportMenu)}
-                                className="p-2 text-claude-secondary active:text-claude-text tap-action"
-                                title="Export"
-                            >
-                                <Download className="w-5 h-5" />
-                            </button>
-                            <AnimatePresence>
-                                {showExportMenu && (
-                                    <div className="fixed inset-0 z-[60] flex items-end sm:items-start sm:justify-end sm:p-4">
-                                        {/* Mobile backdrop */}
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="fixed inset-0 bg-black/40 md:backdrop-blur-sm sm:hidden"
-                                            onClick={() => setShowExportMenu(false)}
-                                        />
+                    </div>
+                </div>
 
-                                        <motion.div
-                                            initial={{ y: '100%', opacity: 0 }}
-                                            animate={{ y: 0, opacity: 1 }}
-                                            exit={{ y: '100%', opacity: 0 }}
-                                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md lg:bg-white/[0.02] lg:backdrop-blur-2xl border-t sm:border border-claude-border lg:border-white/[0.05] rounded-t-[2rem] sm:rounded-xl lg:rounded-2xl shadow-md md:shadow-2xl lg:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden z-20"
-                                        >
-                                            <div className="sm:hidden w-10 h-1 bg-claude-border rounded-full mx-auto mt-3 mb-1" />
-                                            <div className="p-4 sm:p-1 lg:p-1.5 flex flex-col space-y-0.5">
+                {/* Options Menu Modal */}
+                <AnimatePresence>
+                    {showOptionsMenu && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/20 sm:bg-transparent z-40 sm:z-10"
+                                onClick={() => setShowOptionsMenu(false)}
+                            />
+
+                            {/* Mobile Bottom Sheet & Desktop Dropdown */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="fixed sm:absolute bottom-0 sm:bottom-auto sm:top-14 right-0 sm:right-4 w-full sm:w-64 glass-panel paper-texture border border-claude-border/50 rounded-t-3xl sm:rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col"
+                            >
+                                <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto mt-4 mb-2" />
+
+                                <div className="px-5 py-6 sm:p-2 flex flex-col space-y-1">
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-botanical-ink/40 mb-3 sm:hidden px-2">Deck Options</h3>
+
+                                    <AnimatePresence mode="wait">
+                                        {optionsMenuState === 'main' ? (
+                                            <motion.div
+                                                key="main"
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="flex flex-col space-y-1"
+                                            >
+                                                {!editingDeck && (
+                                                    <button onClick={() => { setShowOptionsMenu(false); setEditingDeck(true); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
+                                                        <Pencil className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Edit Details
+                                                    </button>
+                                                )}
+                                                <button onClick={() => { setShowOptionsMenu(false); handleShareDeck(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
+                                                    <Share2 className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Share with Friends
+                                                </button>
+                                                <button onClick={() => { setShowOptionsMenu(false); loadStats(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
+                                                    <BarChart3 className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> View Statistics
+                                                </button>
+                                                <button onClick={() => { setShowOptionsMenu(false); handleDuplicate(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
+                                                    <Copy className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Duplicate Deck
+                                                </button>
+                                                <button onClick={() => { setOptionsMenuState('export'); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center justify-between active:scale-[0.98]">
+                                                    <div className="flex items-center gap-3">
+                                                        <Download className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Export Options
+                                                    </div>
+                                                    <span className="text-botanical-ink/30 text-xs text-right">&gt;</span>
+                                                </button>
+
+                                                <div className="h-px bg-claude-border/50 my-2 mx-2" />
+
+                                                <button onClick={() => { setShowOptionsMenu(false); setDeleteConfirm({ show: true, type: 'deck', id: id }); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium text-red-600 hover:bg-red-50 active:bg-red-100 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
+                                                    <Trash2 className="w-5 h-5 sm:w-4 sm:h-4 opacity-80" /> Delete Deck
+                                                </button>
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key="export"
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="flex flex-col space-y-1"
+                                            >
+                                                <button onClick={() => setOptionsMenuState('main')} className="w-full px-4 py-3 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] mb-2">
+                                                    <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Back
+                                                </button>
                                                 <button
                                                     onClick={() => handleExport('json')}
                                                     disabled={exporting}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 lg:py-3 lg:px-4 text-sm lg:text-[11px] uppercase tracking-widest text-left font-bold lg:font-mono active:bg-claude-bg sm:hover:bg-claude-bg lg:hover:bg-white/5 lg:text-claude-secondary lg:hover:text-white border border-transparent lg:hover:border-white/10 rounded-xl lg:rounded-xl transition-all disabled:opacity-50"
+                                                    className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium bg-botanical-forest/10 hover:bg-botanical-forest/20 text-botanical-forest active:bg-botanical-forest/30 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] disabled:opacity-50"
                                                 >
-                                                    {exporting ? 'Exporting...' : 'Export JSON'}
+                                                    {exporting ? 'Exporting...' : 'Export as JSON'}
                                                 </button>
                                                 <button
                                                     onClick={() => handleExport('csv')}
                                                     disabled={exporting}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 lg:py-3 lg:px-4 text-sm lg:text-[11px] uppercase tracking-widest text-left font-bold lg:font-mono active:bg-claude-bg sm:hover:bg-claude-bg lg:hover:bg-white/5 lg:text-claude-secondary lg:hover:text-white border border-transparent lg:hover:border-white/10 rounded-xl lg:rounded-xl transition-all sm:border-t sm:border-claude-border/50 lg:border-t-transparent disabled:opacity-50"
+                                                    className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium bg-botanical-forest/10 hover:bg-botanical-forest/20 text-botanical-forest active:bg-botanical-forest/30 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] disabled:opacity-50"
                                                 >
-                                                    {exporting ? 'Exporting...' : 'Export CSV'}
+                                                    {exporting ? 'Exporting...' : 'Export as CSV'}
                                                 </button>
-                                                <button
-                                                    onClick={() => setShowExportMenu(false)}
-                                                    className="w-full px-6 py-4 sm:hidden text-center text-xs font-bold uppercase tracking-widest text-claude-secondary mt-2"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                            <div className="h-safe-bottom sm:hidden" />
-                                        </motion.div>
-                                    </div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                        <button
-                            onClick={handleDuplicate}
-                            className="p-2 text-claude-secondary active:text-claude-text"
-                            title="Duplicate"
-                        >
-                            <Copy className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={handleShareDeck}
-                            className="p-2 text-claude-secondary active:text-purple-500"
-                            title="Share"
-                        >
-                            <Share2 className="w-5 h-5" />
-                        </button>
-                        {!editingDeck && (
-                            <button
-                                onClick={() => setEditingDeck(true)}
-                                className="p-2 text-claude-secondary active:text-claude-text"
-                            >
-                                <Pencil className="w-5 h-5" />
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setDeleteConfirm({ show: true, type: 'deck', id: id })}
-                            className="p-2 text-claude-secondary active:text-red-500"
-                        >
-                            <Trash2 className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                <div className="h-safe-bottom sm:hidden" />
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
 
                 {editingDeck ? (
                     <div className="space-y-3">
@@ -782,105 +800,109 @@ export default function DeckView() {
             </div>
 
             {/* Bulk Import Modal */}
-            {showBulkImport && (
-                <div
-                    className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setShowBulkImport(false);
-                    }}
-                >
-                    <form
-                        onSubmit={handleBulkImport}
-                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] flex flex-col overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
-                        onClick={(e) => e.stopPropagation()}
+            {
+                showBulkImport && (
+                    <div
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setShowBulkImport(false);
+                        }}
                     >
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-display font-bold">Import Cards</h3>
-                            <button type="button" onClick={() => setShowBulkImport(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
-                                <X className="w-6 h-6 text-claude-secondary" />
+                        <form
+                            onSubmit={handleBulkImport}
+                            className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[80vh] flex flex-col overflow-y-auto overscroll-contain touch-pan-y"
+                            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-display font-bold">Import Cards</h3>
+                                <button type="button" onClick={() => setShowBulkImport(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
+                                    <X className="w-6 h-6 text-claude-secondary" />
+                                </button>
+                            </div>
+                            <p className="text-claude-secondary text-sm mb-4">
+                                Paste multiple cards, one per line. Use <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">-</code> or <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">|</code> to separate front and back.
+                            </p>
+                            <div className="text-xs text-claude-secondary mb-3 bg-claude-bg rounded-lg p-3">
+                                <strong>Example:</strong><br />
+                                hello - hola<br />
+                                goodbye - adiós<br />
+                                thank you - gracias
+                            </div>
+                            <textarea
+                                value={bulkText}
+                                onChange={e => setBulkText(e.target.value)}
+                                className="flex-1 min-h-[150px] px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none resize-none text-sm font-mono"
+                                placeholder="Paste your cards here..."
+                                autoFocus
+                            />
+                            <button type="submit" className="w-full claude-button-primary py-4 mt-4">
+                                Import Cards
                             </button>
-                        </div>
-                        <p className="text-claude-secondary text-sm mb-4">
-                            Paste multiple cards, one per line. Use <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">-</code> or <code className="px-1.5 py-0.5 bg-claude-bg rounded text-xs">|</code> to separate front and back.
-                        </p>
-                        <div className="text-xs text-claude-secondary mb-3 bg-claude-bg rounded-lg p-3">
-                            <strong>Example:</strong><br />
-                            hello - hola<br />
-                            goodbye - adiós<br />
-                            thank you - gracias
-                        </div>
-                        <textarea
-                            value={bulkText}
-                            onChange={e => setBulkText(e.target.value)}
-                            className="flex-1 min-h-[150px] px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none resize-none text-sm font-mono"
-                            placeholder="Paste your cards here..."
-                            autoFocus
-                        />
-                        <button type="submit" className="w-full claude-button-primary py-4 mt-4">
-                            Import Cards
-                        </button>
-                    </form>
-                </div>
-            )}
+                        </form>
+                    </div>
+                )
+            }
 
             {/* Add card modal */}
-            {showAddCard && (
-                <div
-                    className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setShowAddCard(false);
-                    }}
-                >
-                    <form
-                        onSubmit={handleAddCard}
-                        className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
-                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
-                        onClick={(e) => e.stopPropagation()}
+            {
+                showAddCard && (
+                    <div
+                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setShowAddCard(false);
+                        }}
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-display font-bold">New Card</h3>
-                            <button type="button" onClick={() => setShowAddCard(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
-                                <X className="w-6 h-6 text-claude-secondary" />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Front</label>
-                                <textarea
-                                    placeholder="Question or term"
-                                    value={newCard.front}
-                                    onChange={e => setNewCard({ ...newCard, front: e.target.value })}
-                                    className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
-                                    autoFocus
-                                />
-                                <CardImageUpload
-                                    label="Front Image (optional)"
-                                    value={newCard.front_image}
-                                    onChange={(img) => setNewCard({ ...newCard, front_image: img })}
-                                    className="mt-3"
-                                />
+                        <form
+                            onSubmit={handleAddCard}
+                            className="bg-claude-surface w-full p-6 rounded-t-3xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+                            style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px) + 16px)' }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-display font-bold">New Card</h3>
+                                <button type="button" onClick={() => setShowAddCard(false)} className="p-2 -mr-2 active:bg-claude-bg rounded-full">
+                                    <X className="w-6 h-6 text-claude-secondary" />
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</label>
-                                <textarea
-                                    placeholder="Answer or definition"
-                                    value={newCard.back}
-                                    onChange={e => setNewCard({ ...newCard, back: e.target.value })}
-                                    className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
-                                />
-                                <CardImageUpload
-                                    label="Back Image (optional)"
-                                    value={newCard.back_image}
-                                    onChange={(img) => setNewCard({ ...newCard, back_image: img })}
-                                    className="mt-3"
-                                />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Front</label>
+                                    <textarea
+                                        placeholder="Question or term"
+                                        value={newCard.front}
+                                        onChange={e => setNewCard({ ...newCard, front: e.target.value })}
+                                        className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
+                                        autoFocus
+                                    />
+                                    <CardImageUpload
+                                        label="Front Image (optional)"
+                                        value={newCard.front_image}
+                                        onChange={(img) => setNewCard({ ...newCard, front_image: img })}
+                                        className="mt-3"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Back</label>
+                                    <textarea
+                                        placeholder="Answer or definition"
+                                        value={newCard.back}
+                                        onChange={e => setNewCard({ ...newCard, back: e.target.value })}
+                                        className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl focus:border-claude-accent outline-none min-h-[80px] resize-none"
+                                    />
+                                    <CardImageUpload
+                                        label="Back Image (optional)"
+                                        value={newCard.back_image}
+                                        onChange={(img) => setNewCard({ ...newCard, back_image: img })}
+                                        className="mt-3"
+                                    />
+                                </div>
+                                <button type="submit" className="w-full claude-button-primary py-4">Add Card</button>
                             </div>
-                            <button type="submit" className="w-full claude-button-primary py-4">Add Card</button>
-                        </div>
-                    </form>
-                </div>
-            )}
+                        </form>
+                    </div>
+                )
+            }
 
             {/* Cards list with swipe to delete */}
             <div className="px-4 space-y-3">
@@ -1056,6 +1078,6 @@ export default function DeckView() {
                     </div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }
