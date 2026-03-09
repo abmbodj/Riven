@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical, MoreVertical, Settings2 } from 'lucide-react';
+import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
@@ -32,8 +32,6 @@ export default function DeckView() {
     const [bulkText, setBulkText] = useState('');
     const [showStats, setShowStats] = useState(false);
     const [stats, setStats] = useState(null);
-    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-    const [optionsMenuState, setOptionsMenuState] = useState('main');
     const [reorderMode, setReorderMode] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [friends, setFriends] = useState([]);
@@ -152,8 +150,6 @@ export default function DeckView() {
             }
 
             toast.success(`Exported as ${format.toUpperCase()}`);
-            setOptionsMenuState('main');
-            setShowOptionsMenu(false);
         } catch {
             toast.error('Failed to export deck');
         } finally {
@@ -484,122 +480,34 @@ export default function DeckView() {
                 )}
             </AnimatePresence>
 
-            {/* Header */}
-            <div className="px-4 mb-6 relative">
+            {/* Elegant Header Area */}
+            <div className="px-4 mb-6 pt-4 relative">
                 <div className="flex items-center justify-between mb-4">
-                    <Link to="/" className="p-2 -ml-2 text-claude-secondary hover:bg-claude-bg rounded-full active:scale-95 transition-all">
-                        <ArrowLeft className="w-6 h-6 text-botanical-ink" />
+                    <Link to="/" className="p-2 -ml-2 text-claude-secondary hover:text-claude-text active:scale-95 transition-all">
+                        <ArrowLeft className="w-5 h-5" />
                     </Link>
-
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => {
-                                setOptionsMenuState('main');
-                                setShowOptionsMenu(true);
-                            }}
-                            className="p-2 text-claude-secondary hover:bg-claude-bg rounded-full active:scale-95 transition-all relative z-10"
-                            title="Options"
-                        >
-                            <MoreVertical className="w-6 h-6 text-botanical-ink" />
-                        </button>
-                    </div>
                 </div>
 
-                {/* Options Menu Modal */}
-                <AnimatePresence>
-                    {showOptionsMenu && (
-                        <>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black/20 sm:bg-transparent z-40 sm:z-10"
-                                onClick={() => setShowOptionsMenu(false)}
-                            />
-
-                            {/* Mobile Bottom Sheet & Desktop Dropdown */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                className="fixed sm:absolute bottom-0 sm:bottom-auto sm:top-14 right-0 sm:right-4 w-full sm:w-64 glass-panel paper-texture border border-claude-border/50 rounded-t-3xl sm:rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col"
-                            >
-                                <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto mt-4 mb-2" />
-
-                                <div className="px-5 py-6 sm:p-2 flex flex-col space-y-1">
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-botanical-ink/40 mb-3 sm:hidden px-2">Deck Options</h3>
-
-                                    <AnimatePresence mode="wait">
-                                        {optionsMenuState === 'main' ? (
-                                            <motion.div
-                                                key="main"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -20 }}
-                                                className="flex flex-col space-y-1"
-                                            >
-                                                {!editingDeck && (
-                                                    <button onClick={() => { setShowOptionsMenu(false); setEditingDeck(true); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
-                                                        <Pencil className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Edit Details
-                                                    </button>
-                                                )}
-                                                <button onClick={() => { setShowOptionsMenu(false); handleShareDeck(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
-                                                    <Share2 className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Share with Friends
-                                                </button>
-                                                <button onClick={() => { setShowOptionsMenu(false); loadStats(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
-                                                    <BarChart3 className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> View Statistics
-                                                </button>
-                                                <button onClick={() => { setShowOptionsMenu(false); handleDuplicate(); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
-                                                    <Copy className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Duplicate Deck
-                                                </button>
-                                                <button onClick={() => { setOptionsMenuState('export'); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center justify-between active:scale-[0.98]">
-                                                    <div className="flex items-center gap-3">
-                                                        <Download className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Export Options
-                                                    </div>
-                                                    <span className="text-botanical-ink/30 text-xs text-right">&gt;</span>
-                                                </button>
-
-                                                <div className="h-px bg-claude-border/50 my-2 mx-2" />
-
-                                                <button onClick={() => { setShowOptionsMenu(false); setDeleteConfirm({ show: true, type: 'deck', id: id }); }} className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium text-red-600 hover:bg-red-50 active:bg-red-100 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98]">
-                                                    <Trash2 className="w-5 h-5 sm:w-4 sm:h-4 opacity-80" /> Delete Deck
-                                                </button>
-                                            </motion.div>
-                                        ) : (
-                                            <motion.div
-                                                key="export"
-                                                initial={{ opacity: 0, x: 20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 20 }}
-                                                className="flex flex-col space-y-1"
-                                            >
-                                                <button onClick={() => setOptionsMenuState('main')} className="w-full px-4 py-3 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium hover:bg-white/50 active:bg-white/70 text-botanical-ink rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] mb-2">
-                                                    <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4 text-botanical-forest/70" /> Back
-                                                </button>
-                                                <button
-                                                    onClick={() => handleExport('json')}
-                                                    disabled={exporting}
-                                                    className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium bg-botanical-forest/10 hover:bg-botanical-forest/20 text-botanical-forest active:bg-botanical-forest/30 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] disabled:opacity-50"
-                                                >
-                                                    {exporting ? 'Exporting...' : 'Export as JSON'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleExport('csv')}
-                                                    disabled={exporting}
-                                                    className="w-full px-4 py-3.5 sm:py-2.5 text-left text-[15px] sm:text-sm font-medium bg-botanical-forest/10 hover:bg-botanical-forest/20 text-botanical-forest active:bg-botanical-forest/30 rounded-xl transition-colors flex items-center gap-3 active:scale-[0.98] disabled:opacity-50"
-                                                >
-                                                    {exporting ? 'Exporting...' : 'Export as CSV'}
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                                <div className="h-safe-bottom sm:hidden" />
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
+                <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                    <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-[#7a9e72] hover:bg-[#7a9e72]/10 transition-colors whitespace-nowrap active:scale-95">
+                        <Pencil className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button onClick={handleShareDeck} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors whitespace-nowrap active:scale-95">
+                        <Share2 className="w-3.5 h-3.5" /> Share
+                    </button>
+                    <button onClick={loadStats} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors whitespace-nowrap active:scale-95">
+                        <BarChart3 className="w-3.5 h-3.5" /> Stats
+                    </button>
+                    <button onClick={handleDuplicate} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors whitespace-nowrap active:scale-95">
+                        <Copy className="w-3.5 h-3.5" /> Dup
+                    </button>
+                    <button onClick={() => handleExport('json')} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors whitespace-nowrap active:scale-95">
+                        <Download className="w-3.5 h-3.5" /> Export
+                    </button>
+                    <button onClick={() => setDeleteConfirm({ show: true, type: 'deck', id: id })} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-red-500/20 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-colors whitespace-nowrap active:scale-95">
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                </div>
 
                 {editingDeck ? (
                     <div className="space-y-3">
@@ -700,46 +608,48 @@ export default function DeckView() {
                         </div>
                     </div>
                 ) : (
-                    <>
-                        <h1 className="text-2xl font-display font-bold mb-1">{deck.title}</h1>
-                        <p className="text-claude-secondary text-sm mb-3">{deck.description || 'No description'} · {deck.cards.length} cards</p>
-
-                        {/* Folder & Tags display */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
                             {classes.find(c => c.id === deck?.class_id) && (
-                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 border"
+                                <span className="px-2 py-0.5 rounded-sm border shadow-sm flex items-center gap-1.5"
                                     style={{
                                         borderColor: `${classes.find(c => c.id === deck?.class_id).color}40`,
                                         backgroundColor: `${classes.find(c => c.id === deck?.class_id).color}10`,
                                         color: classes.find(c => c.id === deck?.class_id).color
                                     }}>
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    {classes.find(c => c.id === deck?.class_id).name}
+                                    <Calendar className="w-3 h-3" />
+                                    <span className="font-mono text-[9px] font-bold uppercase tracking-wider">{classes.find(c => c.id === deck?.class_id).name}</span>
                                 </span>
                             )}
                             {currentFolder && (
-                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 glass-panel">
-                                    <Folder className="w-3.5 h-3.5" style={{ color: currentFolder.color }} />
-                                    {currentFolder.name}
+                                <span className="px-2 py-0.5 rounded-sm border border-[#e8e4d8] bg-[#f4f1e8] shadow-sm flex items-center gap-1.5">
+                                    <Folder className="w-3 h-3" style={{ color: currentFolder.color }} />
+                                    <span className="font-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: currentFolder.color }}>{currentFolder.name}</span>
                                 </span>
                             )}
                             {deck.tags?.map(tag => (
                                 <span
                                     key={tag.id}
-                                    className="px-2.5 py-1 rounded-full text-xs font-medium text-white flex items-center gap-1"
-                                    style={{ backgroundColor: tag.color }}
+                                    className="px-2 py-0.5 rounded-sm border bg-current/5 flex items-center gap-1"
+                                    style={{ color: tag.color, borderColor: `${tag.color}40` }}
                                 >
-                                    <Hash className="w-3 h-3" />
-                                    {tag.name}
+                                    <Hash className="w-2.5 h-2.5" />
+                                    <span className="font-mono text-[9px] font-bold uppercase tracking-wider">{tag.name}</span>
                                 </span>
                             ))}
                         </div>
-                    </>
+
+                        <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tight leading-[1.1] mb-5">{deck.title}</h1>
+
+                        {deck.description && (
+                            <p className="text-claude-secondary text-sm md:text-base font-serif italic mb-6 border-l-2 border-claude-border/40 pl-4">{deck.description}</p>
+                        )}
+                    </div>
                 )}
             </div>
 
             {/* Action buttons */}
-            <div className="px-4 flex gap-3 mb-6">
+            <div className="px-4 flex gap-3 mb-10">
                 <Link
                     to={deck.cards.length > 0 ? `/deck/${id}/study` : '#'}
                     onClick={e => {
@@ -748,13 +658,14 @@ export default function DeckView() {
                             toast.error('Add some cards first');
                         }
                     }}
-                    className={`flex-1 p-5 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-botanical ${deck.cards.length > 0
-                        ? 'bg-botanical-forest text-botanical-parchment font-display text-lg tracking-wide hover:brightness-110 border border-botanical-forest/20'
-                        : 'bg-botanical-forest/50 text-botanical-parchment/70 font-display text-lg tracking-wide border border-transparent'
+                    className={`flex-1 relative group overflow-hidden p-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action ${deck.cards.length > 0
+                        ? 'bg-[#7a9e72] text-white shadow-[0_8px_32px_rgba(122,158,114,0.25)] hover:shadow-[0_8px_32px_rgba(122,158,114,0.4)] hover:-translate-y-1'
+                        : 'bg-[#7a9e72]/30 text-white/50 cursor-not-allowed border border-[#7a9e72]/10'
                         }`}
                 >
-                    <BookOpen className="w-5 h-5" />
-                    <span className="font-semibold">Study</span>
+                    {deck.cards.length > 0 && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />}
+                    <BookOpen className="w-6 h-6" strokeWidth={2.5} />
+                    <span className="font-mono text-sm font-bold uppercase tracking-widest">Study Now</span>
                 </Link>
                 <Link
                     to={deck.cards.length >= 4 ? `/deck/${id}/test` : '#'}
@@ -764,37 +675,41 @@ export default function DeckView() {
                             toast.error('Need 4+ cards for test mode');
                         }
                     }}
-                    className={`flex-1 p-5 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-botanical ${deck.cards.length >= 4
-                        ? 'glass-panel text-botanical-parchment font-display text-lg tracking-wide hover:border-botanical-forest/30'
-                        : 'glass-panel opacity-50 text-claude-secondary font-display text-lg tracking-wide'
+                    className={`flex-1 relative group overflow-hidden p-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action border ${deck.cards.length >= 4
+                        ? 'bg-[#1a1c1d]/40 border-claude-accent/20 text-claude-accent shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:bg-[#1a1c1d]/60 hover:border-claude-accent/40 hover:-translate-y-1'
+                        : 'bg-claude-surface/30 border-claude-border/20 text-claude-secondary cursor-not-allowed'
                         }`}
                 >
-                    <Play className="w-5 h-5" />
-                    <span className="font-semibold">Test</span>
+                    {deck.cards.length >= 4 && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />}
+                    <Play className="w-6 h-6" strokeWidth={2.5} />
+                    <span className="font-mono text-sm font-bold uppercase tracking-widest">Test Mode</span>
                 </Link>
             </div>
 
             {/* Cards header */}
-            <div className="px-4 flex items-center justify-between mb-4">
-                <h2 className="text-lg font-display font-bold">Cards</h2>
+            <div className="px-4 flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-[#f4f1e8] text-[#8a7f6a] text-[10px] font-mono font-bold uppercase tracking-widest rounded-sm border border-[#e8e4d8] shadow-sm">{deck.cards.length}</span>
+                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Cards</h2>
+                </div>
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => setReorderMode(!reorderMode)}
-                        className={`flex items-center gap-1.5 font-semibold text-sm ${reorderMode ? 'text-claude-accent' : 'text-claude-secondary'}`}
+                        className={`p-2 sm:px-3 sm:py-2 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${reorderMode ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary hover:text-claude-text'}`}
                     >
-                        <GripVertical className="w-4 h-4" /> {reorderMode ? 'Done' : 'Reorder'}
+                        <GripVertical className="w-4 h-4" /> <span className="hidden sm:inline">{reorderMode ? 'Done' : 'Reorder'}</span>
                     </button>
                     <button
                         onClick={() => setShowBulkImport(true)}
-                        className="flex items-center gap-1.5 text-claude-secondary font-semibold text-sm"
+                        className="p-2 sm:px-3 sm:py-2 rounded-xl glass-panel border border-claude-border text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors flex items-center gap-2"
                     >
-                        <FileText className="w-4 h-4" /> Import
+                        <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Import</span>
                     </button>
                     <button
                         onClick={() => setShowAddCard(true)}
-                        className="flex items-center gap-1.5 text-claude-accent font-semibold text-sm"
+                        className="p-2 sm:px-3 sm:py-2 rounded-xl bg-claude-accent text-white border border-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest hover:brightness-110 transition-all shadow-botanical flex items-center gap-2"
                     >
-                        <Plus className="w-4 h-4" /> Add
+                        <Plus className="w-4 h-4" strokeWidth={3} /> <span className="hidden sm:inline">Add</span>
                     </button>
                 </div>
             </div>
@@ -926,17 +841,17 @@ export default function DeckView() {
                             </button>
                         </div>
 
-                        {/* Card content */}
-                        <div
-                            className={`glass-panel paper-texture text-botanical-ink p-4 transition-transform duration-200 ${swipedCard === card.id ? '-translate-x-20' : 'translate-x-0'
-                                }`}
-                        >
+                        {/* Card Body */}
+                        <div className={`relative bg-[#fcfaf2] border border-[#d1c9b8] p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
+                            {/* Subtle paper grain */}
+                            <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
                             {editingCard === card.id ? (
-                                <div className="space-y-3">
+                                <div className="space-y-4 relative z-10">
                                     <textarea
                                         value={editCardData.front}
                                         onChange={e => setEditCardData({ ...editCardData, front: e.target.value })}
-                                        className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-accent resize-none text-sm"
+                                        className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
                                         rows={2}
                                         autoFocus
                                     />
@@ -948,7 +863,7 @@ export default function DeckView() {
                                     <textarea
                                         value={editCardData.back}
                                         onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
-                                        className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-accent resize-none text-sm"
+                                        className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
                                         rows={2}
                                     />
                                     <CardImageUpload
@@ -956,62 +871,76 @@ export default function DeckView() {
                                         value={editCardData.back_image}
                                         onChange={(img) => setEditCardData({ ...editCardData, back_image: img })}
                                     />
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-2 text-sm">
-                                            Save
+                                    <div className="flex gap-3">
+                                        <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-3 text-sm">
+                                            Save Edits
                                         </button>
-                                        <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-2 px-4 text-sm">
+                                        <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-3 px-6 text-sm bg-white/50">
                                             Cancel
                                         </button>
                                     </div>
                                 </div>
                             ) : reorderMode ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-4 relative z-10 bg-white/40 rounded-xl p-2 -m-2">
+                                    <div className="flex flex-col gap-1 items-center bg-claude-bg/50 rounded-lg p-1 border border-claude-border/30">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
                                             disabled={idx === 0}
-                                            className="p-1 text-claude-secondary disabled:opacity-30"
+                                            className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
                                         >
                                             <ChevronUp className="w-5 h-5" />
                                         </button>
+                                        <div className="w-4 h-px bg-claude-border/50" />
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
                                             disabled={idx === deck.cards.length - 1}
-                                            className="p-1 text-claude-secondary disabled:opacity-30"
+                                            className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
                                         >
                                             <ChevronDown className="w-5 h-5" />
                                         </button>
                                     </div>
-                                    <span className="text-botanical-forest font-display font-bold text-sm">{idx + 1}</span>
+                                    <span className="font-serif italic text-claude-accent font-bold text-lg leading-none w-6 text-center">{idx + 1}</span>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm mb-1">{card.front}</p>
-                                        <p className="text-botanical-ink/70 text-sm">{card.back}</p>
+                                        <p className="font-serif text-lg text-botanical-ink leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
+                                        <p className="font-serif text-md text-botanical-ink/60 leading-snug break-words line-clamp-1">{card.back}</p>
                                     </div>
-                                    <GripVertical className="w-5 h-5 text-botanical-ink/50 shrink-0" />
+                                    <GripVertical className="w-6 h-6 text-botanical-ink/30 shrink-0 cursor-grab" />
                                 </div>
                             ) : (
-                                <div className="flex gap-3" onClick={() => handleEditCard(card)}>
-                                    <span className="text-botanical-forest font-display font-bold text-sm mt-0.5">{idx + 1}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm mb-1">
-                                            {card.front}
-                                            {(card.front_image || card.back_image) && (
-                                                <span className="ml-2 text-xs text-claude-accent">📷</span>
-                                            )}
-                                        </p>
-                                        <p className="text-botanical-ink/70 text-sm">{card.back}</p>
+                                <div className="flex gap-4 relative z-10" onClick={() => handleEditCard(card)}>
+                                    <div className="shrink-0 flex flex-col items-center gap-2">
+                                        <span className="font-serif italic text-claude-accent font-bold text-lg leading-none">{idx + 1}</span>
                                     </div>
-                                    <Pencil className="w-4 h-4 text-botanical-ink/50 shrink-0 mt-1" />
+                                    <div className="flex-1 min-w-0 flex flex-col gap-3">
+                                        <div>
+                                            <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Front</h4>
+                                            <p className="font-serif text-lg text-botanical-ink leading-snug break-words">
+                                                {card.front}
+                                                {card.front_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
+                                            </p>
+                                        </div>
+                                        <div className="w-8 h-px bg-[#d1c9b8]/60" />
+                                        <div>
+                                            <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Back</h4>
+                                            <p className="font-serif text-lg text-botanical-ink/80 leading-snug break-words">
+                                                {card.back}
+                                                {card.back_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-black/5">
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
                 ))}
                 {deck.cards.length === 0 && (
-                    <div className="text-center py-12 bg-claude-surface/50 border border-dashed border-claude-border rounded-2xl">
-                        <p className="text-claude-secondary text-sm mb-1">No cards yet</p>
-                        <p className="text-claude-secondary text-xs">Tap "Add" to create your first card</p>
+                    <div className="text-center py-16 px-4 bg-[#fcfaf2]/50 border-2 border-dashed border-[#d1c9b8] rounded-sm">
+                        <BookOpen className="w-10 h-10 text-claude-secondary/30 mx-auto mb-4" />
+                        <h3 className="font-serif italic text-xl text-botanical-ink/50 mb-2">No Cards Yet</h3>
+                        <p className="text-[11px] font-mono uppercase tracking-widest text-[#8a7f6a]">Tap "Add" to begin your collection</p>
                     </div>
                 )}
             </div>
