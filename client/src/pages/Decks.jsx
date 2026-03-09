@@ -570,14 +570,19 @@ export default function Decks() {
                                 {/* Desktop: Floating popover */}
                                 <div className="hidden lg:block relative">
                                     <div className="fixed inset-0 z-[70]" onClick={() => setShowSortMenu(false)} />
-                                    <div className="absolute right-0 top-full mt-2 w-52 bg-claude-bg border border-claude-border rounded-xl z-[80] p-2 shadow-md md:shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute right-0 top-full mt-3 w-56 lg:bg-white/[0.02] lg:backdrop-blur-2xl border border-white/[0.05] rounded-2xl z-[80] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200">
                                         {SORT_OPTIONS.map(option => (
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
-                                                className={`w-full p-3 rounded-lg flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-widest transition-[transform,opacity,color,background-color,border-color,box-shadow] ${sortBy === option.id ? 'bg-claude-accent/20 text-claude-accent' : 'text-claude-secondary hover:bg-white/5 hover:text-claude-text'}`}
+                                                className={`w-full p-3 rounded-xl flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-widest transition-all
+                                                    ${sortBy === option.id
+                                                        ? 'bg-claude-accent/10 border-claude-accent/20 text-claude-accent border lg:bg-white/10 lg:border-white/20 lg:text-white'
+                                                        : 'text-claude-secondary hover:bg-white/5 hover:text-white border border-transparent'
+                                                    }
+                                                `}
                                             >
-                                                <option.icon className="w-4 h-4" />
+                                                <option.icon className={`w-4 h-4 ${sortBy === option.id ? 'lg:text-white' : 'opacity-70'}`} />
                                                 {option.label}
                                             </button>
                                         ))}

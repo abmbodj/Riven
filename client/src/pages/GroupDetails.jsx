@@ -797,16 +797,16 @@ export default function GroupDetails() {
                                             </button>
 
                                             {activeMemberMenuId === member.id && (
-                                                <div className="absolute right-0 top-full mt-2 glass-panel rounded-xl shadow-sm md:shadow-xl overflow-hidden min-w-[140px] z-50 py-1">
+                                                <div className="absolute right-0 top-full mt-2 lg:bg-white/[0.02] lg:backdrop-blur-2xl border-white/[0.05] glass-panel rounded-xl shadow-sm md:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden min-w-[140px] z-50 py-1">
                                                     {isAdmin && member.role !== 'admin' && (
                                                         <button
                                                             onClick={() => {
                                                                 handleRemoveMember(member.id, member.username);
                                                                 setActiveMemberMenuId(null);
                                                             }}
-                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                            className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-red-500/80 hover:text-red-500 transition-colors"
                                                         >
-                                                            <X className="w-4 h-4" /> Remove
+                                                            <LogOut className="w-4 h-4 opacity-70" /> Remove
                                                         </button>
                                                     )}
                                                     <button
@@ -814,9 +814,9 @@ export default function GroupDetails() {
                                                             handleBlockUser(member.id, member.username);
                                                             setActiveMemberMenuId(null);
                                                         }}
-                                                        className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                        className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 lg:hover:bg-white/5 text-red-400/80 hover:text-red-400 transition-colors"
                                                     >
-                                                        <Shield className="w-4 h-4" /> Block
+                                                        <Shield className="w-4 h-4 opacity-70" /> Block
                                                     </button>
                                                     <button
                                                         onClick={() => {
@@ -824,9 +824,9 @@ export default function GroupDetails() {
                                                             setIsReportModalOpen(true);
                                                             setActiveMemberMenuId(null);
                                                         }}
-                                                        className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-400 transition-colors"
+                                                        className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 lg:hover:bg-white/5 text-claude-secondary hover:text-claude-text transition-colors"
                                                     >
-                                                        <ShieldAlert className="w-4 h-4" /> Report
+                                                        <ShieldAlert className="w-4 h-4 opacity-70" /> Report
                                                     </button>
                                                 </div>
                                             )}

@@ -521,21 +521,21 @@ export default function DeckView() {
                                             animate={{ y: 0, opacity: 1 }}
                                             exit={{ y: '100%', opacity: 0 }}
                                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md border-t sm:border border-claude-border rounded-t-[2rem] sm:rounded-xl shadow-md md:shadow-2xl overflow-hidden z-20"
+                                            className="relative w-full sm:w-48 bg-claude-surface sm:bg-claude-surface/90 sm:backdrop-blur-md lg:bg-white/[0.02] lg:backdrop-blur-2xl border-t sm:border border-claude-border lg:border-white/[0.05] rounded-t-[2rem] sm:rounded-xl lg:rounded-2xl shadow-md md:shadow-2xl lg:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden z-20"
                                         >
                                             <div className="sm:hidden w-10 h-1 bg-claude-border rounded-full mx-auto mt-3 mb-1" />
-                                            <div className="p-4 sm:p-1 flex flex-col">
+                                            <div className="p-4 sm:p-1 lg:p-1.5 flex flex-col space-y-0.5">
                                                 <button
                                                     onClick={() => handleExport('json')}
                                                     disabled={exporting}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors disabled:opacity-50"
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 lg:py-3 lg:px-4 text-sm lg:text-[11px] uppercase tracking-widest text-left font-bold lg:font-mono active:bg-claude-bg sm:hover:bg-claude-bg lg:hover:bg-white/5 lg:text-claude-secondary lg:hover:text-white border border-transparent lg:hover:border-white/10 rounded-xl lg:rounded-xl transition-all disabled:opacity-50"
                                                 >
                                                     {exporting ? 'Exporting...' : 'Export JSON'}
                                                 </button>
                                                 <button
                                                     onClick={() => handleExport('csv')}
                                                     disabled={exporting}
-                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 text-sm text-left font-semibold active:bg-claude-bg sm:hover:bg-claude-bg rounded-xl transition-colors sm:border-t border-claude-border/50 disabled:opacity-50"
+                                                    className="w-full px-6 py-4 sm:px-4 sm:py-2.5 lg:py-3 lg:px-4 text-sm lg:text-[11px] uppercase tracking-widest text-left font-bold lg:font-mono active:bg-claude-bg sm:hover:bg-claude-bg lg:hover:bg-white/5 lg:text-claude-secondary lg:hover:text-white border border-transparent lg:hover:border-white/10 rounded-xl lg:rounded-xl transition-all sm:border-t sm:border-claude-border/50 lg:border-t-transparent disabled:opacity-50"
                                                 >
                                                     {exporting ? 'Exporting...' : 'Export CSV'}
                                                 </button>

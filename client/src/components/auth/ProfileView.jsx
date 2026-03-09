@@ -233,14 +233,15 @@ const ProfileView = () => {
                     {/* Right Column: Menu */}
                     <div className="lg:w-[55%] flex flex-col">
                         {/* Menu List - Premium List */}
-                        <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] overflow-hidden shadow-sm mb-6 lg:mb-0">
+                        <motion.div variants={itemVariants} className="glass-panel lg:bg-transparent lg:border-none lg:shadow-none lg:p-0 rounded-[2rem] overflow-hidden shadow-sm mb-6 lg:mb-0 lg:space-y-2">
                             {(isAdmin || isOwner) && (
                                 <Link
                                     to="/admin"
                                     onClick={() => haptics.light()}
-                                    className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group relative"
+                                    className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-amber-500/[0.04] lg:hover:border-amber-500/20 transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(245,158,11,0.1)] lg:border lg:border-white/[0.04]"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-amber-500/20 relative z-10">
+                                    <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-amber-500/20 transition-all duration-300 shrink-0 border border-amber-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                                         <Shield className="w-5 h-5 text-amber-600" />
                                     </div>
                                     <div className="flex-1 text-left relative z-10">
@@ -254,31 +255,33 @@ const ProfileView = () => {
                             <Link
                                 to="/edit-profile"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group relative"
+                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-white/[0.04] transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-white/[0.04]"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 relative z-10">
-                                    <Edit3 className="w-5 h-5 text-claude-text/70" />
+                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-botanical-forest/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/5 shadow-sm border border-botanical-sepia/5 lg:border-white/10 flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-botanical-forest/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                                    <Edit3 className="w-5 h-5 text-claude-text/70 lg:group-hover:text-botanical-forest" />
                                 </div>
                                 <div className="flex-1 text-left relative z-10">
-                                    <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Edit Profile</p>
-                                    <p className="text-[11px] font-mono text-botanical-sepia">Update your avatar and bio</p>
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-white group-hover:text-botanical-forest transition-colors">Edit Profile</p>
+                                    <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-claude-secondary">Update your avatar and bio</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 lg:text-white/20 group-hover:text-botanical-forest lg:group-hover:text-white group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                             </Link>
 
                             <Link
                                 to="/settings"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group relative"
+                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-white/[0.04] transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-white/[0.04]"
                             >
-                                <div className="w-10 h-10 rounded-xl bg-claude-bg shadow-sm border border-botanical-sepia/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 relative z-10">
-                                    <Settings className="w-5 h-5 text-claude-text/70" />
+                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-botanical-forest/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/5 shadow-sm border border-botanical-sepia/5 lg:border-white/10 flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-botanical-forest/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                                    <Settings className="w-5 h-5 text-claude-text/70 lg:group-hover:text-botanical-forest" />
                                 </div>
                                 <div className="flex-1 text-left relative z-10">
-                                    <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-botanical-forest transition-colors">Settings</p>
-                                    <p className="text-[11px] font-mono text-botanical-sepia">Security, notifications, integrations</p>
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-white group-hover:text-botanical-forest transition-colors">Settings</p>
+                                    <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-claude-secondary">Security, notifications, integrations</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
+                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 lg:text-white/20 group-hover:text-botanical-forest lg:group-hover:text-white group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                             </Link>
 
                             {user?.subscription_tier && user.subscription_tier !== 'free' && (
@@ -290,14 +293,15 @@ const ProfileView = () => {
                                             else toast.error('Failed to open management portal');
                                         });
                                     }}
-                                    className="w-full flex items-center gap-4 p-4 border-b border-botanical-sepia/10 hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 transition-colors group relative"
+                                    className="w-full flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-indigo-500/[0.04] lg:hover:border-indigo-500/20 transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(99,102,241,0.1)] lg:border lg:border-white/[0.04]"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-indigo-500/20 relative z-10">
+                                    <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-indigo-500/20 transition-all duration-300 shrink-0 border border-indigo-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                                         <Shield className="w-5 h-5 text-indigo-400" />
                                     </div>
                                     <div className="flex-1 text-left relative z-10">
                                         <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-400 transition-colors">Manage Subscription</p>
-                                        <p className="text-[11px] font-mono text-botanical-sepia">Update or cancel your plan</p>
+                                        <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-indigo-400/70 transition-colors">Update or cancel your plan</p>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-400 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                                 </button>
@@ -305,14 +309,14 @@ const ProfileView = () => {
 
                             <button
                                 onClick={handleSignOut}
-                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-colors group relative`}
+                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.1)] lg:border lg:border-white/[0.04]`}
                             >
-                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-red-500/5 to-transparent pointer-events-none"></div>
-                                <div className="w-10 h-10 rounded-xl bg-red-500/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-red-500/10 relative z-10 shadow-sm shadow-red-500/5">
+                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-red-500/10 lg:from-red-500/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                <div className="w-10 h-10 rounded-xl bg-red-500/5 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-red-500/10 transition-all duration-300 shrink-0 border border-red-500/10 relative z-10 shadow-sm lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                                     <LogOut className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
                                 </div>
                                 <div className="flex-1 text-left relative z-10">
-                                    <p className="font-display tracking-wide text-[16px] text-red-500/80 group-hover:text-red-500 font-medium transition-colors">Sign Out</p>
+                                    <p className="font-display tracking-wide text-[16px] text-red-500/80 lg:text-red-500/70 group-hover:text-red-500 font-medium transition-colors">Sign Out</p>
                                     <p className="text-[11px] font-mono text-red-500/40 group-hover:text-red-500/60 transition-colors">End your current session</p>
                                 </div>
                                 <ChevronRight className="w-5 h-5 text-red-500/20 group-hover:text-red-500 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />

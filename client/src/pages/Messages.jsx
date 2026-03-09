@@ -700,20 +700,20 @@ export default function Messages() {
                                                                 <MoreVertical className="w-4 h-4" />
                                                             </button>
                                                             {activeMenuId === msg.id && (
-                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 glass-panel rounded-xl shadow-sm md:shadow-xl overflow-hidden min-w-[120px] z-50`}>
+                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 lg:bg-white/[0.02] lg:backdrop-blur-2xl border-white/[0.05] glass-panel rounded-xl shadow-sm md:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden min-w-[120px] z-50 py-1`}>
                                                                     {msg.isMine ? (
                                                                         <>
                                                                             <button
                                                                                 onClick={() => startEditing(msg)}
-                                                                                className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-claude-bg/50 text-claude-text transition-colors"
+                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-claude-secondary hover:text-claude-text transition-colors group"
                                                                             >
-                                                                                <Edit2 className="w-4 h-4" /> Edit
+                                                                                <Edit2 className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Edit
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => handleDeleteMessage(msg.id)}
-                                                                                className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-red-500/80 hover:text-red-500 transition-colors group"
                                                                             >
-                                                                                <Trash2 className="w-4 h-4" /> Delete
+                                                                                <Trash2 className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Delete
                                                                             </button>
                                                                         </>
                                                                     ) : (
@@ -723,9 +723,9 @@ export default function Messages() {
                                                                                 setIsReportModalOpen(true);
                                                                                 setActiveMenuId(null);
                                                                             }}
-                                                                            className="w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
+                                                                            className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-red-400/80 hover:text-red-400 transition-colors group"
                                                                         >
-                                                                            <ShieldAlert className="w-4 h-4" /> Report
+                                                                            <ShieldAlert className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Report
                                                                         </button>
                                                                     )}
                                                                 </div>
