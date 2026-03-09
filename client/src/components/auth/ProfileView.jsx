@@ -123,58 +123,6 @@ const ProfileView = () => {
                                 </motion.div>
                             )}
                         </motion.div>
-                    </div>
-                </div>
-            </div>
-
-            <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-                className="max-w-md lg:max-w-3xl mx-auto px-5 lg:px-10"
-            >
-                <div className="lg:flex lg:gap-12 lg:items-start">
-
-                    {/* Left Column: Identity & Stats */}
-                    <div className="lg:w-[45%] flex flex-col">
-                        {/* User Info */}
-                        <motion.div variants={itemVariants} className="text-center lg:text-left mb-8 lg:mb-10 mt-4 lg:mt-2">
-                            <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center lg:justify-start gap-2">
-                                {user?.displayName || user?.username}
-                                {user?.subscription_tier === 'lifetime' && (
-                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
-                                        <Crown className="w-5 h-5 text-amber-500" strokeWidth={2.5} />
-                                    </motion.div>
-                                )}
-                                {user?.subscription_tier === 'supporter' && (
-                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
-                                        <Sparkles className="w-5 h-5 text-claude-accent" strokeWidth={2.5} />
-                                    </motion.div>
-                                )}
-                            </h1>
-                            <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-1 mb-4">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
-                                        <User className="w-3 h-3" />
-                                        @{user?.username}
-                                    </p>
-                                    {user?.subscription_tier !== 'free' && (
-                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-widest font-bold ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'}`}>
-                                            {user?.subscription_tier}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            {user?.bio && (
-                                <div className="relative inline-block text-center lg:text-left mt-2">
-                                    <span className="absolute -top-2 -left-3 lg:-left-4 text-2xl text-botanical-sepia/20 font-serif">"</span>
-                                    <p className="text-[15px] text-claude-secondary max-w-xs mx-auto lg:mx-0 italic font-serif leading-relaxed px-4 lg:px-0 lg:pl-1">
-                                        {user.bio}
-                                    </p>
-                                    <span className="absolute -bottom-4 -right-3 lg:right-auto lg:left-[calc(100%-2rem)] text-2xl text-botanical-sepia/20 font-serif">"</span>
-                                </div>
-                            )}
-                        </motion.div>
 
                         {/* Stats / Quick Actions - Bento Grid */}
                         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-8 lg:mb-0">
@@ -228,6 +176,60 @@ const ProfileView = () => {
                                 </div>
                             </Link>
                         </motion.div>
+                    </div>
+                </div>
+            </div>
+
+            <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="max-w-md lg:max-w-3xl mx-auto px-5 lg:px-10"
+            >
+                <div className="lg:flex lg:gap-12 lg:items-start">
+
+                    {/* Left Column: Identity & Stats */}
+                    <div className="lg:w-[45%] flex flex-col">
+                        {/* User Info */}
+                        <motion.div variants={itemVariants} className="text-center lg:text-left mb-8 lg:mb-10 mt-4 lg:mt-2">
+                            <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center lg:justify-start gap-2">
+                                {user?.displayName || user?.username}
+                                {user?.subscription_tier === 'lifetime' && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                        <Crown className="w-5 h-5 text-amber-500" strokeWidth={2.5} />
+                                    </motion.div>
+                                )}
+                                {user?.subscription_tier === 'supporter' && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center">
+                                        <Sparkles className="w-5 h-5 text-claude-accent" strokeWidth={2.5} />
+                                    </motion.div>
+                                )}
+                            </h1>
+                            <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-1 mb-4">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                                        <User className="w-3 h-3" />
+                                        @{user?.username}
+                                    </p>
+                                    {user?.subscription_tier !== 'free' && (
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-widest font-bold ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'}`}>
+                                            {user?.subscription_tier}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {user?.bio && (
+                                <div className="relative inline-block text-center lg:text-left mt-2">
+                                    <span className="absolute -top-2 -left-3 lg:-left-4 text-2xl text-botanical-sepia/20 font-serif">"</span>
+                                    <p className="text-[15px] text-claude-secondary max-w-xs mx-auto lg:mx-0 italic font-serif leading-relaxed px-4 lg:px-0 lg:pl-1">
+                                        {user.bio}
+                                    </p>
+                                    <span className="absolute -bottom-4 -right-3 lg:right-auto lg:left-[calc(100%-2rem)] text-2xl text-botanical-sepia/20 font-serif">"</span>
+                                </div>
+                            )}
+                        </motion.div>
+
+                        {/* User Info is the only thing left in this column now that Stats moved */}
                     </div>{/* End Left Column */}
 
                     {/* Right Column: Menu */}
