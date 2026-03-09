@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
+import Avatar from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
 import LoadingSpinner from '../components/LoadingSpinner';
