@@ -68,21 +68,21 @@ export default function Layout({ children }) {
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
             {/* Flex wrapper: sidebar + content on desktop */}
-            <div className="relative min-h-dvh w-full bg-claude-bg flex">
+            <div className="relative w-full bg-claude-bg flex">
 
                 {/* ===== Desktop Sidebar (hidden on mobile) ===== */}
                 {showDesktopSidebar && (
-                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-claude-surface/50 border-r border-claude-border/50 z-30 md:backdrop-blur-sm">
+                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-claude-bg/60 border-r border-white/[0.04] z-30 backdrop-blur-2xl shadow-[4px_0_24px_-12px_rgba(0,0,0,0.5)]">
                         {/* Logo */}
-                        <Link to="/" className="flex items-center gap-2.5 px-5 pt-6 pb-4">
-                            <div className="w-7 h-7 border border-claude-accent/30 rounded-full flex items-center justify-center bg-white/5 overflow-hidden">
-                                <OnboardingArt className="w-6 h-6 scale-[1.3] mt-1" />
+                        <Link to="/" className="flex items-center gap-3 px-6 pt-8 pb-6 group">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.02] border border-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.04] group-hover:border-claude-accent/20">
+                                <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
                             </div>
-                            <span className="font-display text-lg text-claude-text tracking-tight">Riven</span>
+                            <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white">Riven</span>
                         </Link>
 
                         {/* Main Nav */}
-                        <nav className="flex-1 px-3 py-2 space-y-1">
+                        <nav className="flex-1 px-3 py-2 space-y-1.5">
                             {navItems.filter(item => !item.isFab).map((item) => {
                                 const isActive = item.matchExact
                                     ? location.pathname === item.to
@@ -92,51 +92,58 @@ export default function Layout({ children }) {
                                     <Link
                                         key={item.to}
                                         to={item.to}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-150 relative ${isActive
-                                            ? 'bg-claude-accent/10 text-claude-accent'
-                                            : 'text-claude-secondary hover:text-claude-text hover:bg-white/[0.06]'
+                                        className={`group flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden ${isActive
+                                            ? 'text-white bg-white/[0.03]'
+                                            : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.02] hover:translate-x-1'
                                             }`}
                                     >
                                         {isActive && (
-                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-claude-accent" />
+                                            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-claude-accent shadow-[0_0_12px_rgba(var(--claude-accent-rgb),0.8)]" />
                                         )}
-                                        <item.icon className="w-[18px] h-[18px]" />
-                                        <span className="font-mono text-xs tracking-wide uppercase">{item.label}</span>
-                                        {isActive && (
-                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-claude-accent" />
-                                        )}
+                                        <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
+                                            <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
+                                        </div>
+                                        <span className={`font-mono text-[11px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
                                     </Link>
                                 );
                             })}
                         </nav>
 
                         {/* Divider */}
-                        <div className="mx-5 h-px bg-claude-border/50" />
+                        <div className="mx-6 h-px bg-white/[0.03] my-2" />
 
                         {/* Quick Links */}
-                        <nav className="px-3 py-3 space-y-1">
-                            <span className="px-3 text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/50">Quick Access</span>
-                            {sidebarQuickLinks.map((item) => (
-                                <Link
-                                    key={item.to}
-                                    to={item.to}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors hover:bg-white/5 ${location.pathname === item.to ? item.color : 'text-claude-secondary hover:text-claude-text'
-                                        }`}
-                                >
-                                    <item.icon className="w-4 h-4" />
-                                    <span className="font-mono text-xs tracking-wide uppercase">{item.label}</span>
-                                </Link>
-                            ))}
+                        <nav className="px-3 py-4 space-y-1">
+                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-white/30 font-semibold selection:bg-transparent">Quick Access</h3>
+                            {sidebarQuickLinks.map((item) => {
+                                const isActive = location.pathname === item.to;
+                                return (
+                                    <Link
+                                        key={item.to}
+                                        to={item.to}
+                                        className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 ${isActive
+                                            ? `bg-white/[0.03] ${item.color}`
+                                            : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.02] hover:translate-x-1'
+                                            }`}
+                                    >
+                                        <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? item.color : 'text-claude-secondary/40 group-hover:text-claude-secondary'}`}>
+                                            <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
+                                        </div>
+                                        <span className={`font-mono text-[10px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                    </Link>
+                                );
+                            })}
                         </nav>
 
                         {/* Create Deck CTA */}
-                        <div className="px-3 py-4 mt-auto">
+                        <div className="px-4 py-6 mt-auto">
                             <Link
                                 to="/create"
-                                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-botanical-forest/80 hover:bg-botanical-forest text-white font-mono text-xs font-bold uppercase tracking-widest transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-botanical-forest/20"
+                                className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-[#7a9e72]/10 border border-[#7a9e72]/20 text-[#7a9e72] font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-[#7a9e72] hover:border-[#7a9e72] hover:text-white hover:shadow-[0_0_20px_rgba(122,158,114,0.3)] hover:-translate-y-0.5 overflow-hidden"
                             >
-                                <Plus className="w-4 h-4" />
-                                Create Deck
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                                <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
+                                <span>Create Deck</span>
                             </Link>
                         </div>
 
@@ -146,7 +153,7 @@ export default function Layout({ children }) {
                 )}
 
                 {/* ===== Main Content Area ===== */}
-                <div className={`flex-1 min-h-dvh overflow-x-hidden ${showDesktopSidebar ? 'lg:ml-[220px]' : ''}`}>
+                <div className={`flex-1 min-h-dvh overflow-x-hidden ${showDesktopSidebar ? 'lg:ml-[240px]' : ''}`}>
                     {/* Offline banner */}
                     <AnimatePresence>
                         {isOffline && (
