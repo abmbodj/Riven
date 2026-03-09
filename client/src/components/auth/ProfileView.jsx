@@ -107,7 +107,7 @@ const ProfileView = () => {
                             initial={{ scale: 0.8, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
-                            className="relative group cursor-pointer"
+                            className="relative group cursor-pointer lg:ml-5"
                         >
                             <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
                             <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-md md:shadow-2xl relative z-10 bg-claude-surface" />
@@ -138,7 +138,7 @@ const ProfileView = () => {
                     {/* Left Column: Identity & Stats */}
                     <div className="lg:w-[45%] flex flex-col">
                         {/* User Info */}
-                        <motion.div variants={itemVariants} className="text-center lg:text-left mb-8 lg:mb-10 mt-4 lg:mt-2">
+                        <motion.div variants={itemVariants} className="text-center lg:text-left mb-8 lg:mb-10 mt-4 lg:mt-2 lg:ml-5">
                             <h1 className="text-3xl font-display font-bold text-claude-text tracking-tight mb-1 flex items-center justify-center lg:justify-start gap-2">
                                 {user?.displayName || user?.username}
                                 {user?.subscription_tier === 'lifetime' && (
