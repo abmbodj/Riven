@@ -1,9 +1,18 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Layout from './Layout.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { UIContext } from '../context/UIContext.jsx';
+
+vi.mock('../api', () => ({
+  api: {
+    getDecks: vi.fn().mockResolvedValue([]),
+    getClasses: vi.fn().mockResolvedValue([]),
+    getFriends: vi.fn().mockResolvedValue([]),
+    getGroups: vi.fn().mockResolvedValue([]),
+  },
+}));
 
 vi.mock('./OnboardingArt.jsx', () => ({
   default: () => <div data-testid="onboarding-art" />,
@@ -31,5 +40,13 @@ describe('Layout primary navigation', () => {
     expect(screen.getAllByText('Study').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Plan').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Social').length).toBeGreaterThan(0);
+  });
+
+  it('opens the command palette from the keyboard shortcut', async () => {
+    renderLayout();
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+
+    expect(await screen.findByPlaceholderText('Search anything in Riven...')).toBeInTheDocument();
   });
 });

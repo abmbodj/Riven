@@ -10,6 +10,7 @@ import Palette from 'lucide-react/dist/esm/icons/palette';
 import Users from 'lucide-react/dist/esm/icons/users';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Settings from 'lucide-react/dist/esm/icons/settings';
+import Search from 'lucide-react/dist/esm/icons/search';
 import OnboardingArt from './OnboardingArt';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,6 +18,7 @@ import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
+import GlobalCommandPalette from './GlobalCommandPalette.jsx';
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
     pathname === matcher || pathname.startsWith(`${matcher}/`)
@@ -67,6 +69,7 @@ export default function Layout({ children }) {
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const pageContentRef = useRef(null);
 
     // GSAP page enter animation on route change
@@ -89,6 +92,29 @@ export default function Layout({ children }) {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            const targetTag = event.target?.tagName;
+            const isTypingField = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || event.target?.isContentEditable;
+
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                setIsCommandPaletteOpen(true);
+                return;
+            }
+
+            if (isTypingField) return;
+
+            if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+                event.preventDefault();
+                setIsCommandPaletteOpen(true);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const isAccountPage = location.pathname === '/account';
@@ -116,6 +142,25 @@ export default function Layout({ children }) {
                             </div>
                             <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white">Riven</span>
                         </Link>
+
+                        <div className="px-4 pb-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsCommandPaletteOpen(true)}
+                                className="flex w-full items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.02] px-3 py-3 text-left transition-colors hover:border-white/15 hover:bg-white/[0.04]"
+                            >
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-claude-accent">
+                                    <Search className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-botanical-parchment">Search Riven</p>
+                                    <p className="text-xs text-claude-secondary">Jump anywhere fast</p>
+                                </div>
+                                <span className="rounded-full border border-white/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
+                                    ⌘K
+                                </span>
+                            </button>
+                        </div>
 
                         {/* Main Nav */}
                         <nav className="flex-1 px-3 py-2 space-y-1.5">
@@ -239,6 +284,17 @@ export default function Layout({ children }) {
                                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
                                     className="fixed bottom-24 left-1/2 glass-panel rounded-2xl z-20 flex flex-col gap-2 p-3 min-w-[220px]"
                                 >
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsFabMenuOpen(false);
+                                            setIsCommandPaletteOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03] transition-colors font-mono text-xs font-bold uppercase tracking-widest text-botanical-parchment cursor-pointer touch-target"
+                                    >
+                                        <Search className="w-5 h-5 text-claude-accent" />
+                                        <span>Search</span>
+                                    </button>
                                     <Link
                                         to="/create"
                                         onClick={() => setIsFabMenuOpen(false)}
@@ -332,6 +388,11 @@ export default function Layout({ children }) {
                     )}
                 </div>
             </div>
+            <GlobalCommandPalette
+                isOpen={isCommandPaletteOpen}
+                isLoggedIn={isLoggedIn}
+                onClose={() => setIsCommandPaletteOpen(false)}
+            />
         </div>
     );
 }
