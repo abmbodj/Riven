@@ -81,6 +81,60 @@ const StatusNotice = ({ tone = 'info', title, detail }) => {
     );
 };
 
+const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
+    const eyebrowTone = tone === 'accent'
+        ? 'text-claude-accent'
+        : tone === 'info'
+            ? 'text-[#38bdf8]'
+            : tone === 'success'
+                ? 'text-emerald-400'
+                : tone === 'warning'
+                    ? 'text-amber-500'
+                    : tone === 'danger'
+                        ? 'text-red-400'
+                        : tone === 'pink'
+                            ? 'text-pink-400'
+                            : 'text-botanical-sepia';
+
+    return (
+        <div className="mb-3 px-1">
+            <p className={`text-[10px] font-mono uppercase tracking-[0.22em] ${eyebrowTone}`}>
+                {eyebrow}
+            </p>
+            <div className="mt-1">
+                <h2 className="font-display text-xl font-semibold tracking-[0.01em] text-claude-text">
+                    {title}
+                </h2>
+                {description && (
+                    <p className="mt-1 text-[11px] font-mono text-botanical-sepia/75">
+                        {description}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const SectionCard = ({ children, tone = 'default', className = '' }) => {
+    const toneClasses = tone === 'accent'
+        ? 'border-claude-accent/20 bg-claude-surface/95'
+        : tone === 'info'
+            ? 'border-[#0ea5e9]/20 bg-claude-surface/95'
+            : tone === 'warning'
+                ? 'border-amber-500/20 bg-claude-surface/95'
+                : tone === 'danger'
+                    ? 'border-red-500/15 bg-red-500/[0.03]'
+                    : tone === 'pink'
+                        ? 'border-pink-500/20 bg-claude-surface/95'
+                        : 'border-claude-border/70 bg-claude-surface/95';
+
+    return (
+        <div className={`rounded-[1.75rem] border shadow-sm backdrop-blur ${toneClasses} ${className}`}>
+            {children}
+        </div>
+    );
+};
+
 export default function Settings() {
     const { signOut, user, refreshUser } = useAuth();
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
@@ -272,28 +326,29 @@ export default function Settings() {
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
-                className="max-w-lg mx-auto px-5 py-6 space-y-8"
+                className="mx-auto flex max-w-lg flex-col gap-6 px-5 py-6"
             >
-                {/* Account Section Bento */}
                 <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
-                        Account Security
-                    </h2>
-                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
+                    <SectionHeader
+                        eyebrow="Account"
+                        title="Security"
+                        description="Protect your login and recovery options."
+                    />
+                    <SectionCard className="overflow-hidden">
                         <SettingItem icon={Lock} title="Change Password" description="Update your credentials" onClick={() => openModal('password')} />
                         <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — Manage 2FA' : 'Add extra security'} onClick={() => openModal('twoFactor')} noBorder />
-                    </div>
+                    </SectionCard>
                 </motion.div>
 
-                {/* Subscription Bento */}
                 <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-accent mb-3 pl-2">
-                        Subscription
-                    </h2>
-                    <div className="flex flex-col glass-panel border-claude-accent/20 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                        <div className="flex items-center gap-4 relative z-10">
+                    <SectionHeader
+                        eyebrow="Membership"
+                        title="Plan & access"
+                        description="Manage your subscription, restore purchases, and check premium status."
+                        tone="accent"
+                    />
+                    <SectionCard tone="accent" className="space-y-4 p-6">
+                        <div className="flex items-center gap-4">
                             <div className="p-3 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 shadow-inner">
                                 <Sparkles className="w-6 h-6 text-claude-accent" />
                             </div>
@@ -305,12 +360,12 @@ export default function Settings() {
                                     </span>
                                 </h3>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Limited daily usage' : 'Pro active'}
+                                    {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Free plan currently active' : 'Premium access active'}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="relative z-10 pt-2 flex gap-3">
+                        <div className="pt-2 flex gap-3">
                             <button
                                 onClick={() => openModal('pricing')}
                                 className="flex-1 bg-gradient-to-r from-claude-accent to-indigo-500 hover:from-indigo-500 hover:to-claude-accent text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-claude-accent/20"
@@ -325,46 +380,40 @@ export default function Settings() {
                                 <RefreshCw className="w-4 h-4" />
                             </button>
                         </div>
-                    </div>
+                        {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') && (
+                            <div className={`rounded-[1.25rem] border px-4 py-4 flex items-center gap-4 ${user?.subscription_tier === 'lifetime' ? 'border-amber-500/20 bg-amber-500/5' : 'border-indigo-500/20 bg-indigo-500/5'}`}>
+                                <div className={`p-3 rounded-2xl ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shadow-inner`}>
+                                    {user?.subscription_tier === 'lifetime'
+                                        ? <Crown className="w-6 h-6 text-amber-400" />
+                                        : <Award className="w-6 h-6 text-indigo-400" />}
+                                </div>
+                                <div>
+                                    <h3 className="font-display text-base font-bold text-claude-text flex items-center gap-2">
+                                        {user?.subscription_tier === 'lifetime' ? 'Lifetime Member' : 'Supporter'}
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+                                            {user?.subscription_tier === 'lifetime' ? '∞ LIFETIME' : '⭐ PRO'}
+                                        </span>
+                                    </h3>
+                                    <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
+                                        {user?.subscription_tier === 'lifetime' ? 'All features unlocked forever' : 'Thank you for supporting Riven.'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </SectionCard>
                 </motion.div>
 
-                {/* Subscriber Badge */}
-                {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') && (
-                    <motion.div variants={itemVariants}>
-                        <div className="glass-panel rounded-[2rem] p-5 flex items-center gap-4 relative overflow-hidden">
-                            <div className={`p-3 rounded-2xl ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shadow-inner`}>
-                                {user?.subscription_tier === 'lifetime'
-                                    ? <Crown className="w-6 h-6 text-amber-400" />
-                                    : <Award className="w-6 h-6 text-indigo-400" />}
-                            </div>
-                            <div>
-                                <h3 className="font-display text-base font-bold text-claude-text flex items-center gap-2">
-                                    {user?.subscription_tier === 'lifetime' ? 'Lifetime Member' : 'Supporter'}
-                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
-                                        {user?.subscription_tier === 'lifetime' ? '∞ LIFETIME' : '⭐ PRO'}
-                                    </span>
-                                </h3>
-                                <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
-                                    {user?.subscription_tier === 'lifetime' ? 'All features unlocked forever' : 'Thank you for supporting Riven!'}
-                                </p>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* Referral Program */}
                 <ReferralCard />
 
-                {/* Integrations Bento */}
                 <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#0ea5e9] mb-3 pl-2">
-                        Integrations
-                    </h2>
-                    <div className="flex flex-col glass-panel border-[#0ea5e9]/20 rounded-[2rem] p-6 shadow-sm space-y-5 relative overflow-hidden group">
-                        {/* Glow */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#0ea5e9]/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                        <div className="flex items-center gap-4 relative z-10">
+                    <SectionHeader
+                        eyebrow="Workspace"
+                        title="Integrations"
+                        description="Connect external systems that keep your classes and assignments in sync."
+                        tone="info"
+                    />
+                    <SectionCard tone="info" className="flex flex-col p-6 space-y-5">
+                        <div className="flex items-center gap-4">
                             <div className="p-3 rounded-2xl bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 shadow-inner">
                                 <Network className="w-6 h-6 text-[#0ea5e9]" />
                             </div>
@@ -402,7 +451,7 @@ export default function Settings() {
                         </div>
 
                         {canvasCardState === 'locked' ? (
-                            <div className="relative z-10 pt-2">
+                            <div className="pt-2">
                                 <p className="text-[11px] font-mono text-botanical-sepia/70 leading-relaxed mb-4">
                                     Automatically import your courses and assignments from Canvas. Upgrade to unlock this integration.
                                 </p>
@@ -415,12 +464,12 @@ export default function Settings() {
                                 </button>
                             </div>
                         ) : canvasCardState === 'loading' ? (
-                            <div className="relative z-10 pt-2 space-y-3" aria-label="Canvas status loading">
+                            <div className="pt-2 space-y-3" aria-label="Canvas status loading">
                                 <div className="h-12 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
                                 <div className="h-24 rounded-2xl bg-white/[0.03] border border-white/10 animate-pulse" />
                             </div>
                         ) : (
-                            <div className="relative z-10">
+                            <div>
                                 <AnimatePresence mode="wait">
                                     {canvasCardState === 'ready' ? (
                                         <motion.div
@@ -522,15 +571,139 @@ export default function Settings() {
                                 </AnimatePresence>
                             </div>
                         )}
-                    </div>
+                    </SectionCard>
                 </motion.div>
 
-                {/* Support & Legal Bento */}
                 <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary mb-3 pl-2">
-                        Support & Legal
-                    </h2>
-                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
+                    <SectionHeader
+                        eyebrow="Workspace"
+                        title="AI limits"
+                        description="See your current generation allowance and request boundaries."
+                        tone="warning"
+                    />
+                    <SectionCard tone="warning" className="flex flex-col p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
+                                <Sun className="w-6 h-6 text-amber-500" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
+                                    AI Generations
+                                    {!aiLimits.loading && (
+                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                                            {`${aiLimits.remaining} / ${aiLimits.max} Left`}
+                                        </span>
+                                    )}
+                                </h3>
+                                <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                    Resets every 2 hours
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Max Input</p>
+                                <p className="text-sm font-medium text-claude-text">~3,000 words</p>
+                                <p className="text-[9px] text-botanical-sepia mt-0.5">15,000 chars</p>
+                            </div>
+                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Output Size</p>
+                                <p className="text-sm font-medium text-claude-text">Flashcards or Class</p>
+                                <p className="text-[9px] text-botanical-sepia mt-0.5">per request limit</p>
+                            </div>
+                        </div>
+
+                        {!aiLimits.loading && (
+                            <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 border border-botanical-sepia/5 shadow-inner">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(aiLimits.remaining / aiLimits.max) * 100}%` }}
+                                    transition={{ duration: 1, ease: 'easeOut' }}
+                                    className={`h-full ${aiLimits.remaining > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-red-500'} rounded-full`}
+                                />
+                            </div>
+                        )}
+                    </SectionCard>
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
+                    <SectionHeader
+                        eyebrow="Preferences"
+                        title="Notifications"
+                        description="Control reminders and system alerts."
+                    />
+                    <SectionCard className="overflow-hidden">
+                        <SettingItem
+                            icon={Bell}
+                            title="Notifications"
+                            description="Reminders & system updates"
+                            toggle={true}
+                            toggleValue={true}
+                            onClick={() => {
+                                haptics.light();
+                                toast('Notification settings saved');
+                            }}
+                            noBorder={true}
+                        />
+                    </SectionCard>
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
+                    <BlockedUsersCard />
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
+                    <SectionHeader
+                        eyebrow="Appearance"
+                        title="Theme & atmosphere"
+                        description="Adjust the visual mood of the workspace."
+                    />
+                    <SectionCard className="overflow-hidden">
+                        <button
+                            onClick={() => { haptics.light(); navigate('/themes'); }}
+                            className="w-full relative overflow-hidden p-6 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
+                            style={{
+                                backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
+                            }}
+                        >
+                            <div className="absolute inset-0 pointer-events-none opacity-[0.18] md:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+                            <motion.div
+                                animate={{ opacity: [0.2, 0.45, 0.2], scale: [1, 1.08, 1] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                                className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none ${isLightMode ? 'bg-amber-100/40' : 'bg-indigo-500/10'}`}
+                            />
+
+                            <div className="relative z-10 flex items-center justify-between">
+                                <div className="flex items-center gap-5">
+                                    <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-[#f4f1eb] text-amber-500 border border-amber-900/5' : 'bg-[#1c211f] text-indigo-400 border border-indigo-100/5'}`}>
+                                        {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
+                                    </div>
+                                    <div>
+                                        <p className={`font-display text-2xl font-medium tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                            {activeTheme?.name || 'Theme'}
+                                        </p>
+                                        <p className={`text-[11px] font-mono uppercase tracking-[0.15em] mt-1.5 opacity-60 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                            Current Atmosphere
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/10 text-[#2c2825]/40 bg-white/50' : 'border-[#e8e4dc]/10 text-[#e8e4dc]/40 bg-black/20'} shadow-sm`}>
+                                    <ChevronRight className="w-5 h-5" />
+                                </div>
+                            </div>
+                        </button>
+                    </SectionCard>
+                </motion.div>
+
+                <motion.div variants={itemVariants}>
+                    <SectionHeader
+                        eyebrow="Support"
+                        title="Help & policies"
+                        description="Reach support and review the documents that govern your account."
+                    />
+                    <SectionCard className="overflow-hidden">
                         <SettingItem
                             icon={Mail}
                             title="Contact Support"
@@ -550,150 +723,23 @@ export default function Settings() {
                             onClick={() => navigate('/terms')}
                             noBorder
                         />
-                    </div>
+                    </SectionCard>
                 </motion.div>
 
-                {/* AI Capabilities Bento */}
-                <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-500 mb-3 pl-2">
-                        AI Capabilities
-                    </h2>
-                    <div className="flex flex-col glass-panel border-amber-500/20 rounded-[2rem] p-6 shadow-sm space-y-4 relative overflow-hidden group">
-                        {/* Glow */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                        <div className="flex items-center gap-4 relative z-10">
-                            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
-                                <Sun className="w-6 h-6 text-amber-500" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
-                                    AI Generations
-                                    {!aiLimits.loading && (
-                                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                                            {`${aiLimits.remaining} / ${aiLimits.max} Left`}
-                                        </span>
-                                    )}
-                                </h3>
-                                <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    Resets every 2 hours
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="relative z-10 pt-2 grid grid-cols-2 gap-3">
-                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Max Input</p>
-                                <p className="text-sm font-medium text-claude-text">~3,000 words</p>
-                                <p className="text-[9px] text-botanical-sepia mt-0.5">15,000 chars</p>
-                            </div>
-                            <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Output Size</p>
-                                <p className="text-sm font-medium text-claude-text">Flashcards or Class</p>
-                                <p className="text-[9px] text-botanical-sepia mt-0.5">per request limit</p>
-                            </div>
-                        </div>
-
-                        {/* Progress Bar for Limits */}
-                        {!aiLimits.loading && (
-                            <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 relative z-10 border border-botanical-sepia/5 shadow-inner">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(aiLimits.remaining / aiLimits.max) * 100}%` }}
-                                    transition={{ duration: 1, ease: 'easeOut' }}
-                                    className={`h-full ${aiLimits.remaining > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-red-500'} rounded-full`}
-                                />
-                            </div>
-                        )}
-
-
-                    </div>
-                </motion.div>
-
-                {/* Preferences Bento */}
-                <motion.div variants={itemVariants}>
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
-                        Preferences
-                    </h2>
-                    <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm">
-                        <SettingItem
-                            icon={Bell}
-                            title="Notifications"
-                            description="Reminders & system updates"
-                            toggle={true}
-                            toggleValue={true}
-                            onClick={() => {
-                                haptics.light();
-                                toast('Notification settings saved');
-                            }}
-                            noBorder={true}
-                        />
-                    </div>
-                </motion.div>
-
-                {/* Privacy & Safety Bento */}
-                <motion.div variants={itemVariants}>
-                    <BlockedUsersCard />
-                </motion.div>
-
-                {/* Atmosphere Setting - Premium Standalone Card */}
-                <motion.div variants={itemVariants} className="pt-2">
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-sepia mb-3 pl-2">
-                        Environment
-                    </h2>
-                    <button
-                        onClick={() => { haptics.light(); navigate('/themes'); }}
-                        className="w-full relative overflow-hidden rounded-[2rem] p-7 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
-                        style={{
-                            backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
-                            border: isLightMode ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-                            boxShadow: isLightMode ? '0 10px 40px -10px rgba(0,0,0,0.08)' : '0 10px 40px -10px rgba(0,0,0,0.5)'
-                        }}
-                    >
-                        {/* Noise Texture */}
-                        <div className="absolute inset-0 pointer-events-none opacity-[0.25] md:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-
-                        {/* Animated Glow */}
-                        <motion.div
-                            animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.1, 1] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                            className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl pointer-events-none ${isLightMode ? 'bg-amber-100/40' : 'bg-indigo-500/10'}`}
-                        />
-
-                        <div className="relative z-10 flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                                <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-[#f4f1eb] text-amber-500 border border-amber-900/5' : 'bg-[#1c211f] text-indigo-400 border border-indigo-100/5'}`}>
-                                    {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
-                                </div>
-                                <div>
-                                    <p className={`font-display text-2xl font-medium tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                        {activeTheme?.name || 'Theme'}
-                                    </p>
-                                    <p className={`text-[11px] font-mono uppercase tracking-[0.15em] mt-1.5 opacity-60 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                        Current Atmosphere
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/10 text-[#2c2825]/40 bg-white/50' : 'border-[#e8e4dc]/10 text-[#e8e4dc]/40 bg-black/20'} shadow-sm`}>
-                                <ChevronRight className="w-5 h-5" />
-                            </div>
-                        </div>
-                    </button>
-                </motion.div>
-
-                {/* Danger Zone Bento */}
-                <motion.div variants={itemVariants} className="pt-4">
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-red-500/70 mb-3 pl-2">
-                        Danger Zone
-                    </h2>
-                    <div className="bg-red-500/5 border border-red-500/10 rounded-[2rem] overflow-hidden shadow-sm">
+                <motion.div variants={itemVariants} className="pt-1">
+                    <SectionHeader
+                        eyebrow="Danger"
+                        title="Danger zone"
+                        description="Actions here affect access to the account itself."
+                        tone="danger"
+                    />
+                    <SectionCard tone="danger" className="overflow-hidden">
                         <SettingItem icon={LogOut} title="Sign Out" onClick={handleSignOut} destructive />
                         <SettingItem icon={Trash2} title="Delete Account" description="Permanently erase all data" onClick={() => openModal('delete')} destructive noBorder />
-                    </div>
+                    </SectionCard>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="text-center pt-8 pb-4 opacity-40">
+                <motion.div variants={itemVariants} className="text-center pt-4 pb-4 opacity-40">
                     <Leaf className="w-6 h-6 text-botanical-forest mx-auto mb-3" />
                     <p className="text-[10px] text-botanical-sepia font-mono tracking-widest uppercase">
                         Riven OS v1.0.0
@@ -779,14 +825,14 @@ function ReferralCard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
         >
-            <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-pink-400 mb-3 pl-2">
-                Invite Friends
-            </h2>
-            <div className="glass-panel rounded-[2rem] p-6 space-y-5 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-pink-400/5 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
-
-                {/* Header */}
-                <div className="flex items-center gap-4 relative z-10">
+            <SectionHeader
+                eyebrow="Membership"
+                title="Invite friends"
+                description="Track referral progress and share or apply referral codes."
+                tone="pink"
+            />
+            <SectionCard tone="pink" className="p-6 space-y-5">
+                <div className="flex items-center gap-4">
                     <div className="p-3 rounded-2xl bg-pink-500/10 border border-pink-500/20 shadow-inner">
                         <Gift className="w-6 h-6 text-pink-400" />
                     </div>
@@ -808,7 +854,7 @@ function ReferralCard() {
                 />
 
                 {/* Your Code */}
-                <div className="relative z-10 rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
+                <div className="rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Your Referral Code</p>
@@ -833,7 +879,7 @@ function ReferralCard() {
                 </div>
 
                 {/* Progress */}
-                <div className="relative z-10 rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
+                <div className="rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
                     <div className="flex items-center justify-between mb-2 gap-3">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
@@ -857,7 +903,7 @@ function ReferralCard() {
                 </div>
 
                 {/* Apply someone else's code */}
-                <div className="relative z-10 pt-2 border-t border-claude-border">
+                <div className="pt-2 border-t border-claude-border">
                     <div className="mb-3">
                         <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Have a referral code?</p>
                         <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
@@ -891,7 +937,7 @@ function ReferralCard() {
                         </div>
                     )}
                 </div>
-            </div>
+            </SectionCard>
         </motion.div>
     );
 }
@@ -940,11 +986,13 @@ function BlockedUsersCard() {
     };
 
     return (
-        <div className="pt-2">
-            <h2 className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-secondary mb-3 pl-2">
-                Privacy & Safety
-            </h2>
-            <div className="glass-panel rounded-[2rem] overflow-hidden shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300">
+        <div>
+            <SectionHeader
+                eyebrow="Privacy"
+                title="Safety controls"
+                description="Review blocked accounts and manage who can reach you."
+            />
+            <SectionCard className="overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="w-full py-4 px-5 flex items-center gap-4 active:bg-claude-surface/40 transition-colors group"
@@ -1003,7 +1051,7 @@ function BlockedUsersCard() {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </div>
+            </SectionCard>
         </div>
     );
 }

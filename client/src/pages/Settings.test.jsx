@@ -67,6 +67,39 @@ vi.mock('../components/ui/PricingModal', () => ({
 const { api } = await import('../api');
 
 describe('Settings LMS sync', () => {
+  it('renders the unified settings section hierarchy for premium users', async () => {
+    mockUser.subscription_tier = 'supporter';
+    mockUser.twoFAEnabled = false;
+    api.getCanvasSettings.mockResolvedValue({
+      isConnected: false,
+      canvasUrl: '',
+    });
+    api.getAILimits.mockResolvedValue({
+      remaining: 10,
+      max: 10,
+    });
+    api.getReferralInfo.mockResolvedValue({
+      referralCode: 'RIVEN123',
+      qualifiedCount: 0,
+      targetCount: 3,
+      rewardEarned: false,
+    });
+
+    render(
+      <ThemeContext.Provider value={{ activeTheme: { name: 'Riven Dark' } }}>
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      </ThemeContext.Provider>
+    );
+
+    expect(await screen.findByText('Security')).toBeInTheDocument();
+    expect(screen.getByText('Plan & access')).toBeInTheDocument();
+    expect(screen.getByText('Integrations')).toBeInTheDocument();
+    expect(screen.getByText('Theme & atmosphere')).toBeInTheDocument();
+    expect(screen.getByText('Help & policies')).toBeInTheDocument();
+  });
+
   it('keeps connect CTA disabled until a Canvas feed URL is entered', async () => {
     mockUser.subscription_tier = 'supporter';
     mockUser.twoFAEnabled = false;
