@@ -125,7 +125,7 @@ function QuickActionCard({ to, icon, label }) {
     );
 }
 
-function QueueItem({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) {
+function CompactQueueCard({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) {
     const toneClasses = tone === 'danger'
         ? 'border-red-500/20 bg-red-500/[0.08]'
         : tone === 'accent'
@@ -135,7 +135,7 @@ function QueueItem({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) 
     return (
         <Link
             to={to}
-            className={`tap-action group rounded-2xl border p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
+            className={`tap-action group rounded-[24px] border p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 gap-3">
@@ -152,8 +152,49 @@ function QueueItem({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) 
                 </div>
                 <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
             </div>
-            <div className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
+            <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
                 {cta}
+            </div>
+        </Link>
+    );
+}
+
+function FeaturedQueueCard({ icon, eyebrow, title, detail, to, cta, tone = 'accent', meta }) {
+    const toneClasses = tone === 'danger'
+        ? 'border-red-500/20 bg-red-500/[0.08]'
+        : 'border-claude-accent/20 bg-white/[0.04]';
+
+    return (
+        <Link
+            to={to}
+            className={`tap-action group flex h-full min-h-[258px] flex-col justify-between rounded-[28px] border p-5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
+        >
+            <div>
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-2xl border border-white/10 bg-black/15 p-3 text-claude-accent">
+                            {React.createElement(icon, { className: 'h-5 w-5' })}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{eyebrow}</p>
+                            {meta ? (
+                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-accent/80">{meta}</p>
+                            ) : null}
+                        </div>
+                    </div>
+                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
+                </div>
+
+                <h3 className="mt-5 max-w-xl font-serif text-[2rem] font-bold italic leading-[1.02] text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                    {title}
+                </h3>
+                <p className="mt-4 max-w-xl text-base leading-relaxed text-white/65">
+                    {detail}
+                </p>
+            </div>
+
+            <div className="mt-6 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
+                {cta} <ArrowRight className="h-3.5 w-3.5" />
             </div>
         </Link>
     );
@@ -492,7 +533,8 @@ function DashboardHome() {
             to: focusDeck ? `/deck/${focusDeck.id}/study` : '/create',
             cta: focusDeck ? 'Open study session' : 'Create deck',
             icon: focusDeck ? Play : BookOpen,
-            tone: 'accent'
+            tone: 'accent',
+            meta: focusDeck ? `${focusDeck.cardCount || focusDeck.cards?.length || 0} cards ready` : 'New deck setup'
         },
         {
             eyebrow: pastDueAssignments.length > 0 ? 'Needs attention' : 'Plan next',
@@ -606,10 +648,13 @@ function DashboardHome() {
                             </span>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-3">
-                            {todayQueue.map((item) => (
-                                <QueueItem key={item.eyebrow + item.title} {...item} />
-                            ))}
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
+                            <FeaturedQueueCard {...todayQueue[0]} />
+                            <div className="grid gap-3">
+                                {todayQueue.slice(1).map((item) => (
+                                    <CompactQueueCard key={item.eyebrow + item.title} {...item} />
+                                ))}
+                            </div>
                         </div>
                     </div>
 
