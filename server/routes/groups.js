@@ -785,7 +785,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1', [sessionId]);
             if (!session) return res.status(404).json({ error: 'Session not found' });
 
-            if (session.started_by !== req.user.id) {
+            if (session.started_by != req.user.id) {
                 const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
                 if (!memberCheck || memberCheck.role !== 'admin') {
                     return res.status(403).json({ error: 'Only the session starter or an admin can end the session' });
@@ -796,6 +796,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
 
             if (io) {
                 io.to(`session-${sessionId}`).emit('session-ended');
+                io.emit(`group-${session.group_id}-session-ended`);
             }
 
             res.json({ message: 'Session ended' });

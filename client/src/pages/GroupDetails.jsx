@@ -10,6 +10,8 @@ import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
 import PricingModal from '../components/ui/PricingModal';
+import { useGSAP } from '../hooks/useGSAP';
+import gsap from 'gsap';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -110,13 +112,13 @@ export default function GroupDetails() {
 
         if (socket) {
             socket.on(`group-${id}-session-started`, onSessionStarted);
-            socket.on('session-ended', onSessionEnded); // if this socket was also in the room
+            socket.on(`group-${id}-session-ended`, onSessionEnded); // if this socket was also in the room
         }
 
         return () => {
             if (socket) {
                 socket.off(`group-${id}-session-started`, onSessionStarted);
-                socket.off('session-ended', onSessionEnded);
+                socket.off(`group-${id}-session-ended`, onSessionEnded);
             }
         };
 
@@ -134,6 +136,59 @@ export default function GroupDetails() {
             api.getDecks().then(res => setMyDecks(res || []));
         }
     }, [showShareDeckModal]);
+
+    const { container } = useGSAP(() => {
+        if (loading || !group) return;
+
+        // Animate Header
+        gsap.fromTo('.gsap-header',
+            { y: -20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
+        );
+
+        // Animate Left Column items
+        gsap.fromTo('.gsap-left-item',
+            { x: -30, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.1 }
+        );
+
+        // Animate Right Column items (Decks, Library)
+        gsap.fromTo('.gsap-right-item',
+            { y: 30, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
+        );
+
+        // Mobile list items
+        gsap.fromTo('.gsap-mobile-item',
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out', delay: 0.1 }
+        );
+
+        // GSAP Micro-interactions
+        const cards = gsap.utils.toArray('.gsap-hover-card');
+        cards.forEach(card => {
+            const onEnter = () => gsap.to(card, { y: -2, scale: 1.01, duration: 0.3, ease: 'power2.out' });
+            const onLeave = () => gsap.to(card, { y: 0, scale: 1, duration: 0.4, ease: 'power2.out' });
+            const onDown = () => gsap.to(card, { scale: 0.98, duration: 0.1, ease: 'power1.inOut' });
+            const onUp = () => gsap.to(card, { scale: 1.01, duration: 0.2, ease: 'power1.inOut' });
+
+            card.addEventListener('mouseenter', onEnter);
+            card.addEventListener('mouseleave', onLeave);
+            card.addEventListener('mousedown', onDown);
+            card.addEventListener('mouseup', onUp);
+            card.addEventListener('touchstart', onDown, { passive: true });
+            card.addEventListener('touchend', onUp, { passive: true });
+
+            return () => {
+                card.removeEventListener('mouseenter', onEnter);
+                card.removeEventListener('mouseleave', onLeave);
+                card.removeEventListener('mousedown', onDown);
+                card.removeEventListener('mouseup', onUp);
+                card.removeEventListener('touchstart', onDown);
+                card.removeEventListener('touchend', onUp);
+            }
+        });
+    }, [loading, group, sharedDecks, sessions, folders, files]);
 
     const handleCopyCode = async () => {
         if (!group?.join_code) return;
@@ -452,11 +507,11 @@ export default function GroupDetails() {
     if (!group) return null;
 
     return (
-        <div className="min-h-screen bg-claude-bg text-claude-text font-sans pb-24 md:pb-0">
+        <div className="min-h-screen bg-claude-bg text-claude-text font-sans pb-24 md:pb-0" ref={container}>
             {/* --- DESKTOP VIEW --- */}
             <div className="hidden md:flex flex-col max-w-[1400px] mx-auto px-6 py-6 h-screen overflow-hidden">
                 {/* Desktop Header */}
-                <header className="flex items-center justify-between shrink-0 mb-6 bg-claude-surface/30 p-4 rounded-3xl border border-claude-border/50">
+                <header className="gsap-header flex items-center justify-between shrink-0 mb-6 bg-claude-surface/30 p-4 rounded-3xl border border-claude-border/50">
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate('/groups')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-claude-surface border border-claude-border hover:bg-claude-border/50 transition-colors">
                             <ChevronLeft className="w-5 h-5 text-claude-secondary" />
@@ -482,12 +537,12 @@ export default function GroupDetails() {
                 <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                     {/* LEFT COLUMN */}
                     <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">
-                        <div className="p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm relative overflow-hidden group">
+                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
                             <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Invite Code</h2>
                             <div
                                 onClick={handleCopyCode}
-                                className="flex items-center justify-between p-4 rounded-2xl border border-claude-border/80 bg-claude-bg cursor-pointer hover:border-claude-accent/40 transition-colors"
+                                className="gsap-hover-card flex items-center justify-between p-4 rounded-2xl border border-claude-border/80 bg-claude-bg cursor-pointer hover:border-claude-accent/40 transition-colors"
                             >
                                 <span className="font-mono text-2xl tracking-[0.25em] font-bold text-claude-text">{group.join_code}</span>
                                 {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
@@ -496,13 +551,13 @@ export default function GroupDetails() {
 
                         <button
                             onClick={() => setShowShareDeckModal(true)}
-                            className="w-full py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
+                            className="gsap-left-item gsap-hover-card w-full py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
                         >
                             <Zap className="w-4 h-4 fill-current" /> Start Cram Session
                         </button>
 
                         {sessions.length > 0 && (
-                            <div className="p-5 rounded-3xl bg-red-500/5 border border-red-500/10">
+                            <div className="gsap-left-item p-5 rounded-3xl bg-red-500/5 border border-red-500/10">
                                 <h2 className="text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 mb-4">
                                     <span className="relative flex h-2 w-2">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -512,7 +567,7 @@ export default function GroupDetails() {
                                 </h2>
                                 <div className="space-y-3">
                                     {sessions.map(session => (
-                                        <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="p-4 rounded-2xl bg-claude-bg border border-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer flex items-center justify-between shadow-sm">
+                                        <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="gsap-hover-card p-4 rounded-2xl bg-claude-bg border border-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer flex items-center justify-between shadow-sm">
                                             <div className="min-w-0 pr-3">
                                                 <div className="font-bold text-sm text-claude-text truncate">{session.deck_title}</div>
                                                 <div className="text-xs text-red-400 mt-1 font-medium">{session.active_members || 1} members active</div>
@@ -531,7 +586,7 @@ export default function GroupDetails() {
                             </div>
                         )}
 
-                        <div className="p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm">
+                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm">
                             <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-4">Members ({members.length})</h2>
                             <div className="space-y-2">
                                 {members.map(member => (
@@ -567,7 +622,7 @@ export default function GroupDetails() {
 
                     {/* RIGHT COLUMN */}
                     <div className="col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar">
-                        <div className="flex flex-col h-[45%] min-h-[300px]">
+                        <div className="gsap-right-item flex flex-col h-[45%] min-h-[300px]">
                             <div className="flex items-center justify-between mb-4 shrink-0 px-2">
                                 <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Shared Decks</h2>
                                 <button onClick={() => setShowShareDeckModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
@@ -583,7 +638,7 @@ export default function GroupDetails() {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-4">
                                         {sharedDecks.map(deck => (
-                                            <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
+                                            <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
                                                 <div className="pr-8">
                                                     <h3 className="font-bold text-claude-text truncate" title={deck.title}>{deck.title}</h3>
                                                     <p className="text-xs text-claude-secondary mt-1 font-medium">Shared by @{deck.shared_by_name}</p>
@@ -608,7 +663,7 @@ export default function GroupDetails() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col flex-1 min-h-[300px]">
+                        <div className="gsap-right-item flex flex-col flex-1 min-h-[300px]">
                             <div className="flex items-center justify-between mb-4 shrink-0 px-2">
                                 <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
                                 <div className="flex items-center gap-3">
@@ -639,7 +694,7 @@ export default function GroupDetails() {
                                     ) : (
                                         <div className="space-y-1.5">
                                             {!currentFolderId && folders.map(folder => (
-                                                <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 cursor-pointer group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60">
+                                                <div key={folder.id} onClick={() => setCurrentFolderId(folder.id)} className="gsap-hover-card flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 cursor-pointer group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                                                             <Folder className="w-5 h-5 text-amber-500" fill="currentColor" />
@@ -657,7 +712,7 @@ export default function GroupDetails() {
                                                 </div>
                                             ))}
                                             {files.map(file => (
-                                                <div key={file.id} className="flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60">
+                                                <div key={file.id} className="gsap-hover-card cursor-pointer flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60" onClick={() => window.open(file.file_url, '_blank')}>
                                                     <div className="flex items-center gap-4 min-w-0 pr-4">
                                                         <div className="w-10 h-10 rounded-lg bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
                                                             <FileText className="w-5 h-5 text-claude-secondary" />
@@ -691,7 +746,7 @@ export default function GroupDetails() {
 
             {/* --- MOBILE VIEW --- */}
             <div className="md:hidden flex flex-col min-h-screen bg-claude-bg text-claude-text font-sans">
-                <header className="sticky top-0 z-40 bg-claude-bg/90 backdrop-blur-xl border-b border-claude-border/60 px-4 py-3 flex items-center justify-between">
+                <header className="gsap-header sticky top-0 z-40 bg-claude-bg/90 backdrop-blur-xl border-b border-claude-border/60 px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-text hover:bg-claude-surface rounded-xl transition-colors">
                             <ChevronLeft className="w-6 h-6" />
@@ -715,7 +770,7 @@ export default function GroupDetails() {
                 <div className="flex-1 p-4 space-y-6 pb-36">
                     <div
                         onClick={handleCopyCode}
-                        className="flex items-center justify-between p-5 rounded-3xl bg-claude-surface border border-claude-border/60 active:scale-95 transition-transform shadow-sm"
+                        className="gsap-mobile-item gsap-hover-card flex items-center justify-between p-5 rounded-3xl bg-claude-surface border border-claude-border/60 transition-transform shadow-sm"
                     >
                         <div>
                             <div className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-1">Invite Code</div>
@@ -726,11 +781,11 @@ export default function GroupDetails() {
 
                     {sessions.length > 0 && (
                         <div className="space-y-3">
-                            <h2 className="text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 pl-2">
+                            <h2 className="gsap-mobile-item text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 pl-2">
                                 <Activity className="w-4 h-4" /> Live Sessions
                             </h2>
                             {sessions.map(session => (
-                                <div key={session.id} className="p-5 rounded-3xl bg-red-500/5 border border-red-500/20 flex flex-col gap-4">
+                                <div key={session.id} className="gsap-mobile-item gsap-hover-card p-5 rounded-3xl bg-red-500/5 border border-red-500/20 flex flex-col gap-4">
                                     <div>
                                         <div className="font-bold text-lg text-claude-text">{session.deck_title}</div>
                                         <div className="text-xs font-medium text-red-400 mt-1">{session.active_members || 1} members active</div>
@@ -747,16 +802,16 @@ export default function GroupDetails() {
                     )}
 
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between pl-2 pr-1">
+                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
                             <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Layers className="w-5 h-5 text-claude-accent" /> Decks</h2>
                             <button onClick={() => setShowShareDeckModal(true)} className="text-xs font-bold text-claude-accent px-4 py-2 bg-claude-accent/10 rounded-xl active:bg-claude-accent/20 transition-colors">Share</button>
                         </div>
-                        <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x no-scrollbar">
+                        <div className="gsap-mobile-item flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x no-scrollbar">
                             {sharedDecks.length === 0 ? (
                                 <div className="w-full py-8 text-center text-claude-secondary text-sm font-medium border border-dashed border-claude-border/80 rounded-3xl bg-claude-surface/50">No decks shared yet</div>
                             ) : (
                                 sharedDecks.map(deck => (
-                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col justify-between active:scale-95 transition-transform shadow-sm">
+                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col justify-between transition-transform shadow-sm">
                                         <div>
                                             <h3 className="font-bold text-base truncate text-claude-text mb-1">{deck.title}</h3>
                                             <p className="text-xs font-medium text-claude-secondary truncate">@{deck.shared_by_name}</p>
@@ -774,11 +829,11 @@ export default function GroupDetails() {
                     </div>
 
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between pl-2 pr-1">
+                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
                             <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
                             <button onClick={() => setShowCreateFolderModal(true)} className="text-xs font-bold text-claude-secondary bg-claude-surface border border-claude-border px-4 py-2 rounded-xl active:bg-claude-border/50 transition-colors">New Folder</button>
                         </div>
-                        <div className="rounded-3xl border border-claude-border/60 overflow-hidden bg-claude-surface shadow-sm">
+                        <div className="gsap-mobile-item rounded-3xl border border-claude-border/60 overflow-hidden bg-claude-surface shadow-sm">
                             {currentFolderId && (
                                 <div onClick={() => setCurrentFolderId(null)} className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 active:bg-claude-bg">
                                     <ChevronLeft className="w-5 h-5 text-claude-secondary" />
@@ -836,11 +891,11 @@ export default function GroupDetails() {
                     </div>
 
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between pl-2 pr-1">
+                        <div className="gsap-mobile-item flex items-center justify-between pl-2 pr-1">
                             <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Users className="w-5 h-5 text-claude-accent" /> Members</h2>
                             <span className="text-xs font-bold text-claude-text bg-claude-surface border border-claude-border px-3 py-1.5 rounded-xl">{members.length}</span>
                         </div>
-                        <div className="divide-y divide-claude-border/60 bg-claude-surface rounded-3xl border border-claude-border/60 shadow-sm">
+                        <div className="gsap-mobile-item divide-y divide-claude-border/60 bg-claude-surface rounded-3xl border border-claude-border/60 shadow-sm">
                             {members.map(member => (
                                 <div key={member.id} className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0">
@@ -870,12 +925,12 @@ export default function GroupDetails() {
                     </div>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-claude-bg/90 backdrop-blur-2xl z-30 border-t border-claude-border/50">
+                <div className="gsap-mobile-item fixed bottom-0 left-0 right-0 p-4 pb-safe bg-claude-bg/90 backdrop-blur-2xl z-30 border-t border-claude-border/50">
                     <div className="flex gap-3">
-                        <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border bg-claude-surface font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text active:scale-95 transition-transform">
+                        <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border bg-claude-surface font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text gsap-hover-card">
                             <Upload className="w-5 h-5" /> Upload File
                         </button>
-                        <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform">
+                        <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold text-sm flex items-center justify-center gap-2 shadow-sm gsap-hover-card">
                             <Zap className="w-5 h-5 fill-current" /> Start Cram
                         </button>
                     </div>
