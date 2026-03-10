@@ -12,6 +12,7 @@ import * as authApi from '../api/authApi';
 import PricingModal from '../components/ui/PricingModal';
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
+import FileViewer from '../components/FileViewer';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -65,6 +66,10 @@ export default function GroupDetails() {
     const [activeMemberMenuId, setActiveMemberMenuId] = useState(null);
 
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
+
+    // File Viewer State
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
 
     const loadGroup = useCallback(async () => {
         try {
@@ -465,6 +470,16 @@ export default function GroupDetails() {
         });
     };
 
+    const handleViewFile = (file) => {
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        setSelectedFile({
+            ...file,
+            extension: fileExtension,
+            url: file.file_url
+        });
+        setIsFileViewerOpen(true);
+    };
+
     const handleStartSession = async (deckId) => {
         try {
             haptics.medium();
@@ -712,13 +727,13 @@ export default function GroupDetails() {
                                                 </div>
                                             ))}
                                             {files.map(file => (
-                                                <div key={file.id} className="gsap-hover-card cursor-pointer flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60" onClick={() => window.open(file.file_url, '_blank')}>
+                                                <div key={file.id} className="gsap-hover-card cursor-pointer flex items-center justify-between p-4 rounded-xl hover:bg-claude-border/40 group transition-colors bg-claude-surface border border-transparent hover:border-claude-border/60" onClick={() => handleViewFile(file)}>
                                                     <div className="flex items-center gap-4 min-w-0 pr-4">
                                                         <div className="w-10 h-10 rounded-lg bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
                                                             <FileText className="w-5 h-5 text-claude-secondary" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <a href={file.file_url} target="_blank" rel="noreferrer" className="font-bold text-sm hover:text-claude-accent transition-colors truncate block text-claude-text">{file.name}</a>
+                                                            <span className="font-bold text-sm hover:text-claude-accent transition-colors truncate block text-claude-text">{file.name}</span>
                                                             <div className="text-xs font-bold text-claude-secondary uppercase tracking-wider">{file.file_type}</div>
                                                         </div>
                                                     </div>
@@ -864,13 +879,13 @@ export default function GroupDetails() {
                                             </div>
                                         ))}
                                         {files.map(file => (
-                                            <div key={file.id} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
+                                            <div key={file.id} onClick={() => handleViewFile(file)} className="p-4 flex items-center justify-between active:bg-claude-border/50 transition-colors">
                                                 <div className="flex items-center gap-4 min-w-0 pr-2">
                                                     <div className="w-10 h-10 rounded-xl bg-claude-border/50 border border-claude-border flex items-center justify-center shrink-0">
                                                         <FileText className="w-5 h-5 text-claude-secondary" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <a href={file.file_url} target="_blank" rel="noreferrer" className="font-bold text-sm truncate block text-claude-text">{file.name}</a>
+                                                        <span className="font-bold text-sm truncate block text-claude-text">{file.name}</span>
                                                         <div className="text-xs font-bold uppercase tracking-wider text-claude-secondary">{file.file_type}</div>
                                                     </div>
                                                 </div>
@@ -1143,6 +1158,7 @@ export default function GroupDetails() {
             <ConfirmModal isOpen={confirmModal.show} title={confirmModal.title} message={confirmModal.message} onConfirm={handleConfirmAction} onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => { setIsReportModalOpen(false); setReportingUserId(null); }} onSubmit={handleReportUserSubmit} isSubmitting={isReporting} />
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
+            <FileViewer file={selectedFile} isOpen={isFileViewerOpen} onClose={() => setIsFileViewerOpen(false)} />
         </div>
     );
 }

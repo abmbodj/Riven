@@ -14,6 +14,7 @@ import ReportModal from '../components/ui/ReportModal';
 import * as authApi from '../api/authApi';
 import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
+import FileViewer from '../components/FileViewer';
 
 // Session-aware message cache — clears on user change, bounded to prevent memory leaks
 const CACHE_TTL = 30000;
@@ -79,6 +80,10 @@ export default function Messages() {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isReporting, setIsReporting] = useState(false);
     const [reportingMessageId, setReportingMessageId] = useState(null);
+
+    // File Viewer State
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -427,6 +432,17 @@ export default function Messages() {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
+    const handleViewFile = (url, name) => {
+        const fileExtension = url.split('?')[0].split('.').pop().toLowerCase();
+        setSelectedFile({
+            name: name || 'Attached Image',
+            url: url,
+            extension: fileExtension,
+            type: 'image' // Currently messages mostly handle images
+        });
+        setIsFileViewerOpen(true);
+    };
+
     // Conversations List View
     if (!userId) {
         if (user?.is_banned) {
@@ -755,14 +771,14 @@ export default function Messages() {
                                                     </div>
 
                                                     {msg.imageUrl && (
-                                                        <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
+                                                        <div className="block mb-2 cursor-pointer" onClick={() => handleViewFile(msg.imageUrl, 'Attached Image')}>
                                                             <img
                                                                 src={msg.imageUrl}
                                                                 alt="Attached"
                                                                 className="rounded-lg max-h-[250px] object-cover hover:opacity-90 transition-opacity"
                                                                 loading="lazy"
                                                             />
-                                                        </a>
+                                                        </div>
                                                     )}
 
                                                     {msg.content && (
@@ -942,6 +958,7 @@ export default function Messages() {
                 onSubmit={handleReportMessageSubmit}
                 isSubmitting={isReporting}
             />
+            <FileViewer file={selectedFile} isOpen={isFileViewerOpen} onClose={() => setIsFileViewerOpen(false)} />
         </div>
     );
 }
