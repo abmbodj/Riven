@@ -112,9 +112,12 @@ function QuickActionCard({ to, icon, label }) {
     return (
         <Link
             to={to}
-            className="tap-action group glass-panel flex min-h-[56px] items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+            className="tap-action group glass-panel flex min-h-[88px] flex-col items-start justify-between gap-3 rounded-2xl border border-white/10 px-4 py-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
         >
-            {React.createElement(icon, { className: 'h-4 w-4 text-claude-accent transition-transform group-hover:scale-110' })}
+            <div className="flex w-full items-center justify-between gap-3">
+                {React.createElement(icon, { className: 'h-4 w-4 text-claude-accent transition-transform group-hover:scale-110' })}
+                <ArrowRight className="h-3.5 w-3.5 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
+            </div>
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-botanical-parchment">
                 {label}
             </span>
@@ -403,6 +406,47 @@ function DashboardHome() {
     );
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
+    const focusDeck = recentDecks[0] ?? null;
+    const focusAssignment = pastDueAssignments[0] ?? upcomingAssignments[0] ?? null;
+    const focusClass = focusAssignment ? classesById.get(focusAssignment.class_id) : (classes[0] ?? null);
+
+    const heroSummary = useMemo(() => {
+        if (focusAssignment) {
+            const dueLabel = getRelativeDueLabel(focusAssignment.due_date);
+            const className = classesById.get(focusAssignment.class_id)?.name;
+            const parts = [dueLabel, focusAssignment.title || focusAssignment.name || 'Upcoming work', className].filter(Boolean);
+            return parts.join(' • ');
+        }
+
+        if (focusDeck) {
+            return `Resume ${focusDeck.title} or capture a new deck while your study session is fresh.`;
+        }
+
+        return 'You are caught up. Use today to study, plan classes, or reconnect with your study circle.';
+    }, [classesById, focusAssignment, focusDeck]);
+
+    const priorityActions = useMemo(() => ([
+        {
+            to: focusDeck ? `/deck/${focusDeck.id}/study` : '/create',
+            icon: Play,
+            label: 'Resume Study',
+        },
+        {
+            to: '/create',
+            icon: BookOpen,
+            label: 'Create Deck',
+        },
+        {
+            to: focusClass ? `/class/${focusClass.id}` : '/classes',
+            icon: Calendar,
+            label: 'Plan Classes',
+        },
+        {
+            to: '/messages',
+            icon: MessageCircle,
+            label: 'Open Social',
+        },
+    ]), [focusClass, focusDeck]);
 
     const classInsights = useMemo(() => {
         const now = new Date();
@@ -467,17 +511,24 @@ function DashboardHome() {
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
             <div className="relative mb-6 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:mb-8 sm:p-8 lg:p-10">
                 <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="gsap-hero relative z-10 flex items-center justify-between">
+                <div className="gsap-hero relative z-10 flex items-start justify-between gap-6">
                     <div>
-                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-[#1a1c1d] sm:text-5xl">
-                            {greeting},
-                            <br className="sm:hidden" /> {user?.username || 'Student'}
-                        </h1>
-                        <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8a7f6a]">
+                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8a7f6a]">
                             <CalendarDays className="h-4 w-4" />
-                            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                            {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                         </p>
-                        <HeartsDisplay onClick={() => setPricingOpen(true)} />
+                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-[#1a1c1d] sm:text-5xl">
+                            Today
+                        </h1>
+                        <p className="mb-4 max-w-xl text-sm leading-relaxed text-[#5d6466] sm:text-base">
+                            {heroSummary}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <HeartsDisplay onClick={() => setPricingOpen(true)} />
+                            <span className="rounded-full border border-[#d1c9b8] bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#5d6466]">
+                                {user?.username || 'Student'}
+                            </span>
+                        </div>
                     </div>
 
                     <Link to="/garden" className="tap-action group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
@@ -495,17 +546,20 @@ function DashboardHome() {
                 </div>
             </div>
 
-            <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-                {stats.map((stat) => (
-                    <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
+            <div className="mb-4">
+                <SectionHeading icon={Sparkles} title="Focus Actions" />
+            </div>
+
+            <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {priorityActions.map((action) => (
+                    <QuickActionCard key={action.label} to={action.to} icon={action.icon} label={action.label} />
                 ))}
             </div>
 
-            <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <QuickActionCard to="/create" icon={BookOpen} label="New Deck" />
-                <QuickActionCard to="/decks" icon={Layers} label="Open Decks" />
-                <QuickActionCard to="/classes" icon={Library} label="Classes" />
-                <QuickActionCard to="/messages" icon={MessageCircle} label="Messages" />
+            <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {stats.map((stat) => (
+                    <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
+                ))}
             </div>
 
             {classes.length > 0 ? (

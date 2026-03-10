@@ -9,7 +9,7 @@ import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
 import Users from 'lucide-react/dist/esm/icons/users';
 import Plus from 'lucide-react/dist/esm/icons/plus';
-import Leaf from 'lucide-react/dist/esm/icons/leaf';
+import Settings from 'lucide-react/dist/esm/icons/settings';
 import OnboardingArt from './OnboardingArt';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,24 +18,50 @@ import { AuthContext } from '../context/AuthContext';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
 
-const navItems = [
-    { to: '/', icon: Home, label: 'Home', matchExact: true },
-    { to: '/classes', icon: Calendar, label: 'Classes' },
+const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
+    pathname === matcher || pathname.startsWith(`${matcher}/`)
+));
+
+const getPrimaryNavItems = (isLoggedIn) => [
+    {
+        to: isLoggedIn ? '/dashboard' : '/',
+        icon: Home,
+        label: 'Today',
+        matchers: isLoggedIn ? ['/dashboard'] : ['/']
+    },
+    {
+        to: '/decks',
+        icon: Layers,
+        label: 'Study',
+        matchers: ['/decks', '/deck', '/create']
+    },
     { id: 'fab', isFab: true },
-    { to: '/decks', icon: Layers, label: 'Decks', alsoMatch: '/deck' },
-    { to: '/account', icon: User, label: 'Account', alsoMatch: '/shared' },
+    {
+        to: '/classes',
+        icon: Calendar,
+        label: 'Plan',
+        matchers: ['/classes', '/class']
+    },
+    {
+        to: '/messages',
+        icon: Users,
+        label: 'Social',
+        matchers: ['/messages', '/friends', '/groups', '/profile']
+    },
 ];
 
-const sidebarQuickLinks = [
+const utilityLinks = [
     { to: '/garden', icon: Sprout, label: 'Garden', color: 'text-[#7a9e72]' },
     { to: '/themes', icon: Palette, label: 'Themes', color: 'text-claude-accent' },
-    { to: '/groups', icon: Users, label: 'Study Groups', color: 'text-claude-secondary' },
+    { to: '/settings', icon: Settings, label: 'Settings', color: 'text-claude-secondary' },
+    { to: '/account', icon: User, label: 'Profile', color: 'text-claude-secondary' },
 ];
 
 export default function Layout({ children }) {
     const location = useLocation();
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
     const { isLoggedIn } = useContext(AuthContext) || {};
+    const primaryNavItems = getPrimaryNavItems(isLoggedIn);
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
     const isCreatePage = location.pathname === '/create';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
@@ -65,10 +91,6 @@ export default function Layout({ children }) {
         };
     }, []);
 
-    useEffect(() => {
-        setIsFabMenuOpen(false);
-    }, [location.pathname]);
-
     const isAccountPage = location.pathname === '/account';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
@@ -97,10 +119,8 @@ export default function Layout({ children }) {
 
                         {/* Main Nav */}
                         <nav className="flex-1 px-3 py-2 space-y-1.5">
-                            {navItems.filter(item => !item.isFab).map((item) => {
-                                const isActive = item.matchExact
-                                    ? location.pathname === item.to
-                                    : location.pathname === item.to || location.pathname.startsWith(item.to) || (item.alsoMatch && location.pathname === item.alsoMatch);
+                            {primaryNavItems.filter(item => !item.isFab).map((item) => {
+                                const isActive = routeMatches(location.pathname, item.matchers);
 
                                 return (
                                     <Link
@@ -128,9 +148,9 @@ export default function Layout({ children }) {
 
                         {/* Quick Links */}
                         <nav className="px-3 py-4 space-y-1">
-                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-white/30 font-semibold selection:bg-transparent">Quick Access</h3>
-                            {sidebarQuickLinks.map((item) => {
-                                const isActive = location.pathname === item.to;
+                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-white/30 font-semibold selection:bg-transparent">Utilities</h3>
+                            {utilityLinks.map((item) => {
+                                const isActive = routeMatches(location.pathname, [item.to]);
                                 return (
                                     <Link
                                         key={item.to}
@@ -217,8 +237,16 @@ export default function Layout({ children }) {
                                     animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
                                     exit={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
                                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                    className="fixed bottom-24 left-1/2 glass-panel rounded-2xl z-20 flex flex-col gap-2 p-3 min-w-[180px]"
+                                    className="fixed bottom-24 left-1/2 glass-panel rounded-2xl z-20 flex flex-col gap-2 p-3 min-w-[220px]"
                                 >
+                                    <Link
+                                        to="/create"
+                                        onClick={() => setIsFabMenuOpen(false)}
+                                        className="flex items-center gap-3 p-3 rounded-xl bg-[#7a9e72]/10 border border-[#7a9e72]/20 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72] cursor-pointer touch-target"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        <span>Create Deck</span>
+                                    </Link>
                                     <Link
                                         to="/garden"
                                         onClick={() => setIsFabMenuOpen(false)}
@@ -236,12 +264,20 @@ export default function Layout({ children }) {
                                         <span>Themes</span>
                                     </Link>
                                     <Link
-                                        to="/groups"
+                                        to="/settings"
                                         onClick={() => setIsFabMenuOpen(false)}
                                         className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary cursor-pointer touch-target"
                                     >
-                                        <Users className="w-5 h-5 shrink-0" />
-                                        <span className="leading-tight">Study Groups</span>
+                                        <Settings className="w-5 h-5 shrink-0" />
+                                        <span className="leading-tight">Settings</span>
+                                    </Link>
+                                    <Link
+                                        to="/account"
+                                        onClick={() => setIsFabMenuOpen(false)}
+                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary cursor-pointer touch-target"
+                                    >
+                                        <User className="w-5 h-5 shrink-0" />
+                                        <span className="leading-tight">Profile</span>
                                     </Link>
                                 </motion.div>
                             </>
@@ -252,7 +288,7 @@ export default function Layout({ children }) {
                     {!hideBottomNav && (
                         <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 w-full border-t border-white/5 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel lg:hidden" style={{ borderBottom: 'none' }}>
                             <div className="flex items-stretch h-16 sm:h-20 max-w-5xl mx-auto">
-                                {navItems.map((item) => {
+                                {primaryNavItems.map((item) => {
                                     if (item.isFab) {
                                         return (
                                             <button key="fab" onClick={() => setIsFabMenuOpen(!isFabMenuOpen)} aria-label={isFabMenuOpen ? 'Close menu' : 'Open quick actions'} aria-expanded={isFabMenuOpen} className="flex-1 flex items-center justify-center tap-action">
@@ -269,9 +305,7 @@ export default function Layout({ children }) {
                                         );
                                     }
 
-                                    const isActive = item.matchExact
-                                        ? location.pathname === item.to
-                                        : location.pathname === item.to || location.pathname.startsWith(item.to) || (item.alsoMatch && location.pathname === item.alsoMatch);
+                                    const isActive = routeMatches(location.pathname, item.matchers);
 
                                     return (
                                         <Link

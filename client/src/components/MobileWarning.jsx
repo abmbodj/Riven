@@ -3,7 +3,6 @@ import X from 'lucide-react/dist/esm/icons/x';
 import Smartphone from 'lucide-react/dist/esm/icons/smartphone';
 import Share from 'lucide-react/dist/esm/icons/share';
 import PlusSquare from 'lucide-react/dist/esm/icons/plus-square';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 
 export default function MobileWarning() {
     const [isVisible, setIsVisible] = useState(() => {
@@ -27,45 +26,46 @@ export default function MobileWarning() {
     if (!isVisible) return null;
 
     return (
-        <div 
-            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
-            onClick={handleDismiss}
-        >
-            <div 
-                className="w-full max-w-sm glass-panel rounded-3xl border border-claude-accent/30 p-6 animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
-                onClick={e => e.stopPropagation()}
-            >
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6">
+            <div className="pointer-events-auto w-full max-w-sm glass-panel rounded-3xl border border-claude-accent/30 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] animate-in slide-in-from-bottom-4 duration-200 max-h-[75vh] overflow-y-auto">
                 {!showInstructions ? (
                     <>
-                        {/* Icon */}
-                        <div className="flex justify-center mb-4">
-                            <div className="w-16 h-16 rounded-full bg-claude-accent/20 flex items-center justify-center">
-                                <Smartphone className="w-8 h-8 text-claude-accent" />
+                        <div className="mb-4 flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-claude-accent/20 flex items-center justify-center shrink-0">
+                                    <Smartphone className="w-6 h-6 text-claude-accent" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-display font-bold">Install Riven</h3>
+                                    <p className="text-claude-secondary text-sm leading-relaxed">
+                                        Add it to your home screen for faster launch, offline support, and a more app-like study flow.
+                                    </p>
+                                </div>
                             </div>
+
+                            <button
+                                onClick={handleDismiss}
+                                className="touch-target shrink-0 rounded-xl text-claude-secondary hover:text-claude-text"
+                                aria-label="Dismiss install prompt"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-
-                        {/* Title */}
-                        <h3 className="text-xl font-display font-bold text-center mb-2">Install Riven</h3>
-
-                        {/* Message */}
-                        <p className="text-claude-secondary text-center text-sm leading-relaxed mb-6">
-                            Add Riven to your home screen for the best experience — faster access, offline support, and a native app feel!
-                        </p>
 
                         {/* Actions */}
                         <div className="space-y-3">
                             <button
                                 onClick={() => setShowInstructions(true)}
-                                className="w-full py-4 rounded-xl font-semibold bg-claude-accent text-white active:scale-[0.97] transition-transform flex items-center justify-center gap-2"
+                                className="w-full py-3.5 rounded-xl font-semibold bg-claude-accent text-white active:scale-[0.97] transition-transform flex items-center justify-center gap-2"
                             >
                                 <PlusSquare className="w-5 h-5" />
-                                How to Install
+                                Show Install Steps
                             </button>
                             <button
                                 onClick={handleDismiss}
-                                className="w-full py-3 text-claude-secondary font-medium text-sm"
+                                className="w-full py-2 text-claude-secondary font-medium text-sm"
                             >
-                                Maybe Later
+                                Continue in Browser
                             </button>
                         </div>
                     </>
