@@ -93,11 +93,13 @@ describe('Settings LMS sync', () => {
       </ThemeContext.Provider>
     );
 
-    expect(await screen.findByText('Security')).toBeInTheDocument();
-    expect(screen.getByText('Plan & access')).toBeInTheDocument();
-    expect(screen.getByText('Integrations')).toBeInTheDocument();
-    expect(screen.getByText('Theme & atmosphere')).toBeInTheDocument();
-    expect(screen.getByText('Help & policies')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Workspace snapshot' })).toBeInTheDocument();
+    expect(screen.getByText('Control center')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Plan & access' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Theme & atmosphere' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
   });
 
   it('keeps connect CTA disabled until a Canvas feed URL is entered', async () => {
