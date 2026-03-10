@@ -71,6 +71,15 @@ export default function Settings() {
 
     const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
 
+    const hasCanvasUrl = canvasForm.url.trim().length > 0;
+    const canvasCardState = !isPremium
+        ? 'locked'
+        : lmsStatus.loading
+            ? 'loading'
+            : lmsStatus.isConnected
+                ? 'connected'
+                : 'ready';
+
     useEffect(() => {
         const loadSettings = async () => {
             try {
@@ -288,17 +297,37 @@ export default function Settings() {
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold">Canvas Sync</h3>
-                                    {!isPremium && (
-                                        <span className="text-[9px] font-mono px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full uppercase tracking-widest font-bold">PRO</span>
-                                    )}
+                                    <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest font-bold border ${
+                                        canvasCardState === 'locked'
+                                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                            : canvasCardState === 'connected'
+                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                : canvasCardState === 'loading'
+                                                    ? 'bg-white/5 text-claude-secondary border-white/10'
+                                                    : 'bg-[#0ea5e9]/10 text-[#38bdf8] border-[#0ea5e9]/20'
+                                    }`}>
+                                        {canvasCardState === 'locked'
+                                            ? 'PRO'
+                                            : canvasCardState === 'connected'
+                                                ? 'CONNECTED'
+                                                : canvasCardState === 'loading'
+                                                    ? 'LOADING'
+                                                    : 'READY'}
+                                    </span>
                                 </div>
                                 <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
-                                    {lmsStatus.isConnected ? `Connected via Calendar Feed` : 'Import courses & assignments'}
+                                    {canvasCardState === 'locked'
+                                        ? 'Premium automation for courses and assignments'
+                                        : canvasCardState === 'loading'
+                                            ? 'Checking your Canvas connection'
+                                            : canvasCardState === 'connected'
+                                                ? 'Connected via Calendar Feed'
+                                                : 'Paste your Canvas feed to import courses and assignments'}
                                 </p>
                             </div>
                         </div>
 
-                        {!isPremium ? (
+                        {canvasCardState === 'locked' ? (
                             <div className="relative z-10 pt-2">
                                 <p className="text-[11px] font-mono text-botanical-sepia/70 leading-relaxed mb-4">
                                     Automatically import your courses and assignments from Canvas. Upgrade to unlock this integration.
@@ -311,10 +340,15 @@ export default function Settings() {
                                     Upgrade to Connect Canvas
                                 </button>
                             </div>
-                        ) : !lmsStatus.loading && (
+                        ) : canvasCardState === 'loading' ? (
+                            <div className="relative z-10 pt-2 space-y-3" aria-label="Canvas status loading">
+                                <div className="h-12 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+                                <div className="h-24 rounded-2xl bg-white/[0.03] border border-white/10 animate-pulse" />
+                            </div>
+                        ) : (
                             <div className="relative z-10">
                                 <AnimatePresence mode="wait">
-                                    {!lmsStatus.isConnected ? (
+                                    {canvasCardState === 'ready' ? (
                                         <motion.div
                                             key="connect"
                                             initial={{ opacity: 0, height: 0 }}
@@ -337,17 +371,23 @@ export default function Settings() {
                                                 </motion.div>
                                             </div>
 
-                                            <p className="text-[10px] font-mono text-botanical-sepia/70 leading-relaxed text-center px-2">
-                                                Go to Canvas Calendar → Click 'Calendar Feed' → Copy the link
+                                            <div className="rounded-2xl border border-[#0ea5e9]/15 bg-[#0ea5e9]/5 px-4 py-3">
+                                                <p className="text-[10px] font-mono text-botanical-sepia/80 leading-relaxed text-center">
+                                                    Go to Canvas Calendar, open `Calendar Feed`, then paste the `.ics` link here.
+                                                </p>
+                                            </div>
+
+                                            <p className="text-[10px] font-mono text-botanical-sepia/60 leading-relaxed text-center px-2">
+                                                Riven only needs the read-only calendar feed.
                                             </p>
 
                                             <button
                                                 onClick={handleConnectCanvas}
-                                                disabled={connectingCanvas}
+                                                disabled={connectingCanvas || !hasCanvasUrl}
                                                 className="w-full bg-claude-text hover:bg-botanical-forest text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
                                             >
                                                 <Lock className="w-4 h-4" />
-                                                {connectingCanvas ? 'Connecting...' : 'Secure Connect'}
+                                                {connectingCanvas ? 'Connecting...' : 'Connect Calendar Feed'}
                                             </button>
                                         </motion.div>
                                     ) : (
@@ -358,13 +398,19 @@ export default function Settings() {
                                             exit={{ opacity: 0, height: 0 }}
                                             className="pt-4 flex flex-col gap-3"
                                         >
+                                            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-emerald-400">Canvas feed active</p>
+                                                <p className="mt-1 text-[11px] font-mono text-botanical-sepia/80">
+                                                    {lmsStatus.canvasUrl || 'Calendar Feed Connected'}
+                                                </p>
+                                            </div>
                                             <button
                                                 onClick={handleSyncLms}
                                                 disabled={lmsStatus.syncing}
                                                 className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-[#0ea5e9]/20"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
-                                                {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Now'}
+                                                {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Canvas Now'}
                                             </button>
 
                                             <button

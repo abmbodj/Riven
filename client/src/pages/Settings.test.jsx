@@ -61,6 +61,40 @@ vi.mock('../components/ui/PricingModal', () => ({
 const { api } = await import('../api');
 
 describe('Settings LMS sync', () => {
+  it('keeps connect CTA disabled until a Canvas feed URL is entered', async () => {
+    api.getCanvasSettings.mockResolvedValue({
+      isConnected: false,
+      canvasUrl: '',
+    });
+    api.getAILimits.mockResolvedValue({
+      remaining: 10,
+      max: 10,
+    });
+    api.getReferralInfo.mockResolvedValue({
+      referralCode: 'RIVEN123',
+      qualifiedCount: 0,
+      targetCount: 3,
+      rewardEarned: false,
+    });
+
+    render(
+      <ThemeContext.Provider value={{ activeTheme: { name: 'Riven Dark' } }}>
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      </ThemeContext.Provider>
+    );
+
+    const connectButton = await screen.findByRole('button', { name: /connect calendar feed/i });
+    expect(connectButton).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/canvas calendar link/i), {
+      target: { value: 'https://canvas.example.edu/feed.ics' },
+    });
+
+    expect(screen.getByRole('button', { name: /connect calendar feed/i })).not.toBeDisabled();
+  });
+
   it('syncs Canvas without relying on undefined local state', async () => {
     api.getCanvasSettings.mockResolvedValue({
       isConnected: true,
@@ -89,7 +123,7 @@ describe('Settings LMS sync', () => {
       </ThemeContext.Provider>
     );
 
-    const syncButton = await screen.findByRole('button', { name: /sync now/i });
+    const syncButton = await screen.findByRole('button', { name: /sync canvas now/i });
     fireEvent.click(syncButton);
 
     await waitFor(() => {
