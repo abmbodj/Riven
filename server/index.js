@@ -34,6 +34,7 @@ const registerStripeRoutes = require('./routes/stripe');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Trust the first proxy (Render/Vercel load balancer)
 // Required for successful rate limiting behind a proxy
@@ -1725,8 +1726,13 @@ app.post('/api/messages/:id/dismiss', authMiddleware, async (req, res) => {
 registerHealthRoutes({ app, db });
 
 if (process.env.NODE_ENV !== 'test') {
-    server.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    server.on('error', (error) => {
+        console.error('Server startup error:', error);
+        process.exit(1);
+    });
+
+    server.listen(PORT, HOST, () => {
+        console.log(`Server running on ${HOST}:${PORT}`);
     });
 }
 
