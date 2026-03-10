@@ -71,6 +71,7 @@ describe('StudyMode', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    window.localStorage.clear();
 
     api.getDeck.mockResolvedValue({
       cards: [
@@ -161,5 +162,37 @@ describe('StudyMode', () => {
     });
 
     expect(screen.getByText('Session complete')).toBeInTheDocument();
+  });
+
+  it('restores the last study session state for the same deck', async () => {
+    window.localStorage.setItem('riven-study-session:42', JSON.stringify({
+      currentIndex: 1,
+      isShuffled: true,
+      spacedRepetitionMode: true,
+      cardsStudied: 3,
+      cardsCorrect: 2,
+      startedAt: new Date('2026-03-10T09:00:00.000Z').getTime(),
+      cardOrder: ['2', '1'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/study/42']}>
+        <Routes>
+          <Route path="/study/:id" element={<StudyMode />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('Resumed session')).toBeInTheDocument();
+    expect(screen.getByText('You are back where you left off.')).toBeInTheDocument();
+    expect(screen.getByText('Front 1')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /spaced repetition on/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start fresh/i })).toBeInTheDocument();
   });
 });

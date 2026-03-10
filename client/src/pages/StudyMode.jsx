@@ -10,6 +10,23 @@ import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
 
+const SESSION_STORAGE_PREFIX = 'riven-study-session';
+
+function getSessionStorageKey(deckId) {
+    return `${SESSION_STORAGE_PREFIX}:${deckId}`;
+}
+
+function buildShuffledCards(cards, orderedCardIds = []) {
+    if (!orderedCardIds.length) return cards;
+
+    const cardMap = new Map(cards.map((card) => [String(card.id), card]));
+    const orderedCards = orderedCardIds
+        .map((cardId) => cardMap.get(String(cardId)))
+        .filter(Boolean);
+    const remainingCards = cards.filter((card) => !orderedCardIds.includes(String(card.id)));
+
+    return [...orderedCards, ...remainingCards];
+}
 
 export default function StudyMode() {
     const { id } = useParams();
@@ -29,6 +46,10 @@ export default function StudyMode() {
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
     const [isSessionComplete, setIsSessionComplete] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [sessionStartedAt, setSessionStartedAt] = useState(0);
+    const [elapsedMinutes, setElapsedMinutes] = useState(1);
+    const [resumeAvailable, setResumeAvailable] = useState(false);
+    const [didResumeSession, setDidResumeSession] = useState(false);
     const cardInnerRef = useRef(null);
     const progressBarRef = useRef(null);
     const flipTl = useRef(null);
@@ -99,10 +120,17 @@ export default function StudyMode() {
     }, [currentIndex, cards.length]);
 
 
-    // Initialize start time on mount
     useEffect(() => {
-        startTime.current = Date.now();
-    }, []);
+        if (!sessionStartedAt) return;
+
+        const syncElapsedMinutes = () => {
+            setElapsedMinutes(Math.max(1, Math.round((Date.now() - sessionStartedAt) / 60000)));
+        };
+
+        syncElapsedMinutes();
+        const intervalId = window.setInterval(syncElapsedMinutes, 30000);
+        return () => window.clearInterval(intervalId);
+    }, [sessionStartedAt]);
 
     // Keep ref in sync with state for cleanup
     useEffect(() => {
@@ -120,11 +148,47 @@ export default function StudyMode() {
                 if (!b.next_review) return 1;
                 return new Date(a.next_review) - new Date(b.next_review);
             });
-            setCards(sortedCards);
-            setCurrentIndex(0);
+            let nextCards = sortedCards;
+            let nextIndex = 0;
+            let nextShuffled = false;
+            let nextSpacedMode = false;
+            let nextCardsStudied = 0;
+            let nextCardsCorrect = 0;
+            let nextStartedAt = Date.now();
+            let hasResumedSession = false;
+
+            if (typeof window !== 'undefined') {
+                const rawSnapshot = window.localStorage.getItem(getSessionStorageKey(id));
+                if (rawSnapshot) {
+                    try {
+                        const snapshot = JSON.parse(rawSnapshot);
+                        nextCards = buildShuffledCards(sortedCards, snapshot.cardOrder || []);
+                        nextIndex = Math.min(snapshot.currentIndex || 0, Math.max(nextCards.length - 1, 0));
+                        nextShuffled = Boolean(snapshot.isShuffled);
+                        nextSpacedMode = Boolean(snapshot.spacedRepetitionMode);
+                        nextCardsStudied = snapshot.cardsStudied || 0;
+                        nextCardsCorrect = snapshot.cardsCorrect || 0;
+                        nextStartedAt = snapshot.startedAt || Date.now();
+                        hasResumedSession = Boolean(snapshot.cardsStudied || snapshot.currentIndex || snapshot.isShuffled || snapshot.spacedRepetitionMode);
+                    } catch {
+                        window.localStorage.removeItem(getSessionStorageKey(id));
+                    }
+                }
+            }
+
+            setCards(nextCards);
+            setCurrentIndex(nextIndex);
+            setIsShuffled(nextShuffled);
+            setSpacedRepetitionMode(nextSpacedMode);
+            setCardsStudied(nextCardsStudied);
+            setCardsCorrect(nextCardsCorrect);
             setIsFlipped(false);
             setIsSessionComplete(false);
             setIsTransitioning(false);
+            setResumeAvailable(hasResumedSession);
+            setDidResumeSession(hasResumedSession);
+            setSessionStartedAt(nextStartedAt);
+            startTime.current = nextStartedAt;
             setHeartsStatus(heartsData);
             if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
                 setShowOutOfHearts(true);
@@ -134,6 +198,31 @@ export default function StudyMode() {
             setLoading(false);
         });
     }, [id]);
+
+    useEffect(() => {
+        if (loading || !id || cards.length === 0 || isSessionComplete || typeof window === 'undefined') return;
+
+        window.localStorage.setItem(getSessionStorageKey(id), JSON.stringify({
+            currentIndex,
+            isShuffled,
+            spacedRepetitionMode,
+            cardsStudied,
+            cardsCorrect,
+            startedAt: startTime.current || sessionStartedAt,
+            cardOrder: cards.map((card) => String(card.id)),
+        }));
+    }, [
+        cards,
+        cardsCorrect,
+        cardsStudied,
+        currentIndex,
+        id,
+        isSessionComplete,
+        isShuffled,
+        loading,
+        sessionStartedAt,
+        spacedRepetitionMode,
+    ]);
 
     // Save session when leaving (using ref to avoid stale closure)
     useEffect(() => {
@@ -149,20 +238,29 @@ export default function StudyMode() {
         };
     }, [id, incrementStreak]);
 
+    const clearPersistedSession = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(getSessionStorageKey(id));
+        }
+        setResumeAvailable(false);
+        setDidResumeSession(false);
+    }, [id]);
+
     const queueCardTransition = useCallback((nextIndex = null) => {
         if (navigationTimeoutRef.current) {
             clearTimeout(navigationTimeoutRef.current);
         }
 
         const completeTransition = () => {
-            if (typeof nextIndex === 'number') {
-                setCurrentIndex(nextIndex);
-                setIsSessionComplete(false);
-            } else {
-                setIsSessionComplete(true);
-            }
-            setIsTransitioning(false);
-        };
+        if (typeof nextIndex === 'number') {
+            setCurrentIndex(nextIndex);
+            setIsSessionComplete(false);
+        } else {
+            clearPersistedSession();
+            setIsSessionComplete(true);
+        }
+        setIsTransitioning(false);
+    };
 
         setIsTransitioning(true);
         setIsFlipped(false);
@@ -174,7 +272,7 @@ export default function StudyMode() {
         }
 
         navigationTimeoutRef.current = setTimeout(completeTransition, delay);
-    }, [getFlipResetDelay, isFlipped]);
+    }, [clearPersistedSession, getFlipResetDelay, isFlipped]);
 
     const handleKnew = async () => {
         if (!isFlipped || isTransitioning) return;
@@ -314,11 +412,48 @@ export default function StudyMode() {
         if (navigationTimeoutRef.current) {
             clearTimeout(navigationTimeoutRef.current);
         }
+        const now = Date.now();
+        clearPersistedSession();
         setCurrentIndex(0);
         setIsFlipped(false);
         setIsSessionComplete(false);
         setIsTransitioning(false);
+        setIsShuffled(false);
+        setSpacedRepetitionMode(false);
+        setCardsStudied(0);
+        setCardsCorrect(0);
+        setSessionStartedAt(now);
+        startTime.current = now;
     };
+
+    const handleFreshStart = () => {
+        const now = Date.now();
+        clearPersistedSession();
+        const sortedCards = [...cards].sort((a, b) => {
+            if (!a.next_review && !b.next_review) return 0;
+            if (!a.next_review) return -1;
+            if (!b.next_review) return 1;
+            return new Date(a.next_review) - new Date(b.next_review);
+        });
+
+        setCards(sortedCards);
+        setCurrentIndex(0);
+        setIsFlipped(false);
+        setIsSessionComplete(false);
+        setIsTransitioning(false);
+        setIsShuffled(false);
+        setSpacedRepetitionMode(false);
+        setCardsStudied(0);
+        setCardsCorrect(0);
+        setDidResumeSession(false);
+        setSessionStartedAt(now);
+        startTime.current = now;
+    };
+
+    const currentModeLabel = spacedRepetitionMode ? 'Recall grading' : 'Free review';
+    const currentModeDescription = spacedRepetitionMode
+        ? 'Grade each revealed answer to train future review timing.'
+        : 'Flip and browse at your own pace. Shuffle when you want variety.';
 
     return (
         <div className="fullscreen-page">
@@ -349,25 +484,78 @@ export default function StudyMode() {
                 </div>
             </div>
 
-            {/* Keyboard hints - only show on desktop */}
-            <div className="hidden md:flex justify-center gap-4 text-[10px] font-mono text-claude-secondary px-4 py-1">
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">←</kbd> Previous</span>
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">Space</kbd> Flip</span>
-                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">→</kbd> Next</span>
-            </div>
+            <div className="px-4 pt-2 pb-3 shrink-0">
+                <div className="max-w-4xl mx-auto grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="space-y-1.5">
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-botanical-sepia/80">
+                                    <span>{didResumeSession ? 'Resumed session' : 'Current session'}</span>
+                                    <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/60">
+                                        {currentModeLabel}
+                                    </span>
+                                </div>
+                                <p className="font-display text-lg font-semibold text-white">
+                                    {didResumeSession ? 'You are back where you left off.' : 'Stay in flow and work the next card.'}
+                                </p>
+                                <p className="text-sm text-white/68">
+                                    {currentModeDescription}
+                                </p>
+                            </div>
 
-            {/* Spaced Repetition Toggle */}
-            <div className="flex justify-center mb-2">
-                <button
-                    onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
-                        ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
-                        : 'glass-panel text-claude-secondary'
-                        }`}
-                >
-                    <Brain className="w-3.5 h-3.5" />
-                    Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
-                </button>
+                            <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72 sm:min-w-[290px]">
+                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Studied</div>
+                                    <div className="mt-1 text-sm text-white">{cardsStudied}</div>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Correct</div>
+                                    <div className="mt-1 text-sm text-white">{cardsCorrect}</div>
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Minutes</div>
+                                    <div className="mt-1 text-sm text-white">{elapsedMinutes}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {resumeAvailable ? (
+                            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-xs text-white/58">
+                                    Resume is saved on this device until the session finishes.
+                                </p>
+                                <button
+                                    onClick={handleFreshStart}
+                                    className="rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
+                                >
+                                    Start fresh
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-2 lg:flex-col lg:items-stretch lg:justify-start">
+                        <button
+                            onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
+                            className={`flex items-center justify-center gap-2 rounded-full px-3 py-2 text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
+                                ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
+                                : 'glass-panel text-claude-secondary'
+                                }`}
+                        >
+                            <Brain className="w-3.5 h-3.5" />
+                            Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
+                        </button>
+
+                        <div className="hidden rounded-[22px] border border-white/10 bg-black/15 px-3 py-2 md:block">
+                            <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/40">Desktop controls</div>
+                            <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-mono text-claude-secondary">
+                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">←</kbd> Previous</span>
+                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">Space</kbd> Flip</span>
+                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">→</kbd> Next</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Card area */}
@@ -432,7 +620,7 @@ export default function StudyMode() {
                                     {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
                                 </span>
                             )}
-                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap to reveal</span>
+                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
                         </div>
 
                         {/* Back — forest green with dramatic shadow */}
@@ -476,7 +664,7 @@ export default function StudyMode() {
                                 />
                             )}
                             <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
-                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap to flip back</span>
+                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
                         </div>
                     </div>
                 </div>
@@ -484,6 +672,13 @@ export default function StudyMode() {
 
             {/* Navigation */}
             <div className="px-4 pb-8 shrink-0">
+                <div className="mx-auto mb-3 flex max-w-sm items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
+                    <span>Swipe</span>
+                    <span className="h-1 w-1 rounded-full bg-white/25" />
+                    <span>Tap</span>
+                    <span className="h-1 w-1 rounded-full bg-white/25" />
+                    <span>Thumb controls</span>
+                </div>
                 {showSessionComplete ? (
                     <div
                         initial={{ opacity: 0, y: 12 }}
