@@ -16,7 +16,9 @@ export function useSwipeGesture(options = {}) {
 
     const handleTouchStart = useCallback((e) => {
         const touch = e.touches[0];
-        touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        const touchPoint = { x: touch.clientX, y: touch.clientY };
+        touchStartRef.current = touchPoint;
+        touchEndRef.current = touchPoint;
     }, []);
 
     const handleTouchMove = useCallback((e) => {
@@ -27,7 +29,12 @@ export function useSwipeGesture(options = {}) {
         touchEndRef.current = { x: touch.clientX, y: touch.clientY };
     }, [preventDefault]);
 
-    const handleTouchEnd = useCallback(() => {
+    const handleTouchEnd = useCallback((e) => {
+        const touch = e.changedTouches?.[0];
+        if (touch) {
+            touchEndRef.current = { x: touch.clientX, y: touch.clientY };
+        }
+
         const deltaX = touchEndRef.current.x - touchStartRef.current.x;
         const deltaY = touchEndRef.current.y - touchStartRef.current.y;
         const absX = Math.abs(deltaX);

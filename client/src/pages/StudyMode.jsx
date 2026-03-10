@@ -27,14 +27,26 @@ export default function StudyMode() {
     const haptics = useHaptics();
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
+    const [isSessionComplete, setIsSessionComplete] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const cardInnerRef = useRef(null);
     const progressBarRef = useRef(null);
     const flipTl = useRef(null);
+    const navigationTimeoutRef = useRef(null);
+
+    const getFlipResetDelay = useCallback(() => {
+        if (typeof window === 'undefined') return 0;
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 0
+            : DURATION.slow * 1000;
+    }, []);
 
     // Build GSAP card flip timeline
     useEffect(() => {
         if (!cardInnerRef.current) return;
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+        gsap.set(cardInnerRef.current, { rotateY: 0 });
         if (motionQuery.matches) return;
 
         flipTl.current = gsap.timeline({ paused: true })
@@ -49,13 +61,25 @@ export default function StudyMode() {
 
     // Play/reverse flip animation
     useEffect(() => {
-        if (!flipTl.current) return;
+        if (!cardInnerRef.current) return;
+        if (!flipTl.current) {
+            gsap.set(cardInnerRef.current, { rotateY: isFlipped ? 180 : 0 });
+            return;
+        }
         if (isFlipped) {
             flipTl.current.play();
         } else {
             flipTl.current.reverse();
         }
     }, [isFlipped]);
+
+    useEffect(() => {
+        return () => {
+            if (navigationTimeoutRef.current) {
+                clearTimeout(navigationTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Animate progress bar
     useEffect(() => {
@@ -91,11 +115,16 @@ export default function StudyMode() {
             api.getHeartsStatus()
         ]).then(([data, heartsData]) => {
             const sortedCards = [...data.cards].sort((a, b) => {
+                if (!a.next_review && !b.next_review) return 0;
                 if (!a.next_review) return -1;
                 if (!b.next_review) return 1;
                 return new Date(a.next_review) - new Date(b.next_review);
             });
             setCards(sortedCards);
+            setCurrentIndex(0);
+            setIsFlipped(false);
+            setIsSessionComplete(false);
+            setIsTransitioning(false);
             setHeartsStatus(heartsData);
             if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
                 setShowOutOfHearts(true);
@@ -120,8 +149,35 @@ export default function StudyMode() {
         };
     }, [id, incrementStreak]);
 
+    const queueCardTransition = useCallback((nextIndex = null) => {
+        if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+        }
+
+        const completeTransition = () => {
+            if (typeof nextIndex === 'number') {
+                setCurrentIndex(nextIndex);
+                setIsSessionComplete(false);
+            } else {
+                setIsSessionComplete(true);
+            }
+            setIsTransitioning(false);
+        };
+
+        setIsTransitioning(true);
+        setIsFlipped(false);
+
+        const delay = isFlipped ? getFlipResetDelay() : 0;
+        if (delay === 0) {
+            completeTransition();
+            return;
+        }
+
+        navigationTimeoutRef.current = setTimeout(completeTransition, delay);
+    }, [getFlipResetDelay, isFlipped]);
+
     const handleKnew = async () => {
-        if (!isFlipped) return;
+        if (!isFlipped || isTransitioning) return;
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
         setCardsCorrect(c => c + 1);
@@ -131,16 +187,14 @@ export default function StudyMode() {
         }
 
         if (currentIndex < cards.length - 1) {
-            setIsFlipped(false);
-            setTimeout(() => setCurrentIndex(c => c + 1), 150);
+            queueCardTransition(currentIndex + 1);
         } else {
-            // End of deck
-            setIsFlipped(false);
+            queueCardTransition();
         }
     };
 
     const handleDidntKnow = async () => {
-        if (!isFlipped) return;
+        if (!isFlipped || isTransitioning) return;
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
 
@@ -165,40 +219,45 @@ export default function StudyMode() {
         }
 
         if (currentIndex < cards.length - 1) {
-            setIsFlipped(false);
-            setTimeout(() => setCurrentIndex(c => c + 1), 150);
+            queueCardTransition(currentIndex + 1);
         } else {
-            setIsFlipped(false);
+            queueCardTransition();
         }
     };
 
     const handleNext = useCallback(() => {
+        if (isTransitioning || isSessionComplete) return;
         if (currentIndex < cards.length - 1) {
             haptics.light();
-            setIsFlipped(false);
-            setTimeout(() => setCurrentIndex(c => c + 1), 150);
+            queueCardTransition(currentIndex + 1);
         }
-    }, [currentIndex, cards.length, haptics]);
+    }, [currentIndex, cards.length, haptics, isSessionComplete, isTransitioning, queueCardTransition]);
 
     const handlePrev = useCallback(() => {
+        if (isTransitioning || isSessionComplete) return;
         if (currentIndex > 0) {
             haptics.light();
-            setIsFlipped(false);
-            setTimeout(() => setCurrentIndex(c => c - 1), 150);
+            queueCardTransition(currentIndex - 1);
         }
-    }, [currentIndex, haptics]);
+    }, [currentIndex, haptics, isSessionComplete, isTransitioning, queueCardTransition]);
 
     const handleFlip = useCallback(() => {
+        if (isTransitioning) return;
         haptics.selection();
         setIsFlipped(f => !f);
-    }, [haptics]);
+    }, [haptics, isTransitioning]);
 
     const handleShuffle = () => {
+        if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+        }
         haptics.medium();
         const shuffled = [...cards].sort(() => Math.random() - 0.5);
         setCards(shuffled);
         setCurrentIndex(0);
         setIsFlipped(false);
+        setIsSessionComplete(false);
+        setIsTransitioning(false);
         setIsShuffled(true);
     };
 
@@ -248,12 +307,17 @@ export default function StudyMode() {
     );
 
     const currentCard = cards[currentIndex];
-    const progress = ((currentIndex + 1) / cards.length) * 100;
     const isLastCard = currentIndex === cards.length - 1;
+    const showSessionComplete = isSessionComplete || (!spacedRepetitionMode && isLastCard && isFlipped);
 
     const handleRestart = () => {
+        if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+        }
         setCurrentIndex(0);
         setIsFlipped(false);
+        setIsSessionComplete(false);
+        setIsTransitioning(false);
     };
 
     return (
@@ -314,6 +378,7 @@ export default function StudyMode() {
                     onClick={handleFlip}
                 >
                     <div
+                        key={currentCard.id}
                         ref={cardInnerRef}
                         className="relative w-full h-full"
                         style={{ transformStyle: 'preserve-3d' }}
@@ -419,7 +484,7 @@ export default function StudyMode() {
 
             {/* Navigation */}
             <div className="px-4 pb-8 shrink-0">
-                {isLastCard && isFlipped ? (
+                {showSessionComplete ? (
                     <div
                         initial={{ opacity: 0, y: 12 }}
                         className="space-y-3 max-w-sm mx-auto gsap-session-complete"
@@ -467,7 +532,7 @@ export default function StudyMode() {
                     <div className="flex items-center justify-center gap-4">
                         <button
                             onClick={handlePrev}
-                            disabled={currentIndex === 0}
+                            disabled={currentIndex === 0 || isTransitioning}
                             className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
                         >
                             <ChevronLeft className="w-6 h-6" />
@@ -475,6 +540,7 @@ export default function StudyMode() {
 
                         <button
                             onClick={handleFlip}
+                            disabled={isTransitioning}
                             className="h-14 px-8 rounded-xl glass-panel flex items-center gap-3 font-display font-semibold active:scale-[0.95] transition-transform"
                         >
                             <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
@@ -483,7 +549,7 @@ export default function StudyMode() {
 
                         <button
                             onClick={handleNext}
-                            disabled={isLastCard}
+                            disabled={isLastCard || isTransitioning}
                             className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
                         >
                             <ChevronRight className="w-6 h-6" />
