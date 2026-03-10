@@ -45,10 +45,10 @@ const getPrimaryNavItems = (isLoggedIn) => [
         matchers: ['/classes', '/class']
     },
     {
-        to: '/messages',
-        icon: Users,
-        label: 'Social',
-        matchers: ['/messages', '/friends', '/groups', '/profile']
+        to: '/account',
+        icon: User,
+        label: 'Account',
+        matchers: ['/account']
     },
 ];
 
@@ -56,7 +56,6 @@ const utilityLinks = [
     { to: '/garden', icon: Sprout, label: 'Garden', color: 'text-[#7a9e72]' },
     { to: '/themes', icon: Palette, label: 'Themes', color: 'text-claude-accent' },
     { to: '/settings', icon: Settings, label: 'Settings', color: 'text-claude-secondary' },
-    { to: '/account', icon: User, label: 'Profile', color: 'text-claude-secondary' },
 ];
 
 export default function Layout({ children }) {

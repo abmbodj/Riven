@@ -33,13 +33,13 @@ function renderLayout(pathname = '/dashboard') {
 }
 
 describe('Layout primary navigation', () => {
-  it('uses the shared Today/Study/Plan/Social job-based navigation model', () => {
+  it('uses the shared Today/Study/Plan/Account job-based navigation model', () => {
     renderLayout();
 
     expect(screen.getAllByText('Today').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Study').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Plan').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Social').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Account').length).toBeGreaterThan(0);
   });
 
   it('opens the command palette from the keyboard shortcut', async () => {

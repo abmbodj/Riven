@@ -500,7 +500,7 @@ export default function StudyMode() {
                 </div>
             </div>
 
-            <div className="px-4 pt-2 pb-3 shrink-0">
+            <div className="px-4 pt-2 pb-2 shrink-0 sm:pb-3">
                 <div className="max-w-4xl mx-auto grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                     <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -580,11 +580,11 @@ export default function StudyMode() {
             </div>
 
             {/* Card area */}
-            <div className="flex-1 px-4 py-4">
-                <div className="mx-auto grid h-full w-full max-w-6xl items-center gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="flex items-center justify-center" {...swipeHandlers}>
+            <div className="flex-1 min-h-0 px-4 py-3 sm:py-4">
+                <div className="mx-auto grid h-full min-h-0 w-full max-w-6xl items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-center xl:gap-6">
+                    <div className="flex min-h-0 items-center justify-center" {...swipeHandlers}>
                         <div
-                            className="w-full max-w-sm aspect-[3/4] cursor-pointer touch-none"
+                            className="h-full max-h-[min(100%,34rem)] w-auto max-w-full aspect-[3/4] cursor-pointer touch-none"
                             style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
                             onClick={handleFlip}
                         >
@@ -596,7 +596,7 @@ export default function StudyMode() {
                             >
                                 {/* Front — warm surface with paper grain */}
                                 <div
-                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                     style={{
                                         backfaceVisibility: 'hidden',
                                         background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
@@ -646,7 +646,7 @@ export default function StudyMode() {
 
                                 {/* Back — forest green with dramatic shadow */}
                                 <div
-                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                     style={{
                                         backfaceVisibility: 'hidden',
                                         transform: 'rotateY(180deg)',
@@ -755,7 +755,7 @@ export default function StudyMode() {
             </div>
 
             {/* Navigation */}
-            <div className="px-4 pb-8 shrink-0">
+            <div className="px-4 pb-4 shrink-0 sm:pb-6">
                 <div className="mx-auto mb-3 flex max-w-sm items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
                     <span>Swipe</span>
                     <span className="h-1 w-1 rounded-full bg-white/25" />
