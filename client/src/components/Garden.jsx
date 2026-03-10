@@ -10,9 +10,9 @@ const sizeMap = {
     xl: { width: 320, height: 320 }
 };
 
-const LEAF_PATH = 'M0 0 C -12 -8 -24 -32 0 -56 C 24 -32 12 -8 0 0 Z';
-const PETAL_PATH = 'M0 0 C -11 -10 -17 -34 0 -58 C 17 -34 11 -10 0 0 Z';
-const STAR_PATH = 'M0 -8 L3 -3 L8 0 L3 3 L0 8 L-3 3 L-8 0 L-3 -3 Z';
+const LEAF_PATH = 'M0 0 C -14 -10 -22 -34 0 -54 C 22 -34 14 -10 0 0 Z';
+const PETAL_PATH = 'M0 0 C -13 -12 -16 -36 0 -56 C 16 -36 13 -12 0 0 Z';
+const STAR_PATH = 'M0 -7 Q3 -3 7 0 Q3 3 0 7 Q-3 3 -7 0 Q-3 -3 0 -7 Z';
 
 const palettes = [
     { bg1: '#EFEAE1', bg2: '#D8D1C0', ground: '#9B8F75', accent: '#7E6A4A', leaf: '#8AA17D', energy: '#F2E7C9' },
@@ -113,8 +113,8 @@ function Sprig({
     showBloom = false,
     showSeed = false,
     swayOrigin,
-    sway = 1.8,
-    duration = 5.4
+    sway = 0.9,
+    duration = 9.0
 }) {
     const tipX = x + lean;
     const tipY = y - height;
@@ -188,6 +188,9 @@ export default function Garden({
         mist: `garden-mist-${uniqueId}`,
         blur: `garden-blur-${uniqueId}`,
         glow: `garden-glow-${uniqueId}`,
+        vignette: `garden-vignette-${uniqueId}`,
+        softFocus: `garden-soft-focus-${uniqueId}`,
+        haze: `garden-haze-${uniqueId}`,
         title: `garden-title-${uniqueId}`,
         desc: `garden-desc-${uniqueId}`,
     };
@@ -217,8 +220,8 @@ export default function Garden({
 
         q('.garden-sway').forEach((element) => {
             gsap.to(element, {
-                rotate: Number(element.dataset.rotate ?? 1.8),
-                duration: Number(element.dataset.duration ?? 5.4),
+                rotate: Number(element.dataset.rotate ?? 0.9),
+                duration: Number(element.dataset.duration ?? 9.0),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
@@ -229,21 +232,21 @@ export default function Garden({
         q('.garden-drift').forEach((element, index) => {
             gsap.to(element, {
                 x: Number(element.dataset.x ?? 0),
-                y: Number(element.dataset.y ?? -8),
-                duration: Number(element.dataset.duration ?? 6) + ((index % 3) * 0.4),
+                y: Number(element.dataset.y ?? -4),
+                duration: Number(element.dataset.duration ?? 11) + ((index % 3) * 0.7),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                delay: index * 0.08,
+                delay: index * 0.15,
             });
         });
 
         q('.garden-breath').forEach((element, index) => {
             const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 1);
             gsap.to(element, {
-                scale: 1.04 + ((index % 3) * 0.02),
-                opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.08 : 0.05)),
-                duration: 2.8 + ((index % 4) * 0.35),
+                scale: 1.02 + ((index % 3) * 0.01),
+                opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.04 : 0.025)),
+                duration: 4.5 + ((index % 4) * 0.6),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
@@ -253,13 +256,13 @@ export default function Garden({
 
         q('.garden-twinkle').forEach((element, index) => {
             gsap.to(element, {
-                opacity: 0.28 + ((index % 5) * 0.13),
-                scale: 0.82 + ((index % 4) * 0.11),
-                duration: 1.6 + ((index % 6) * 0.22),
+                opacity: 0.35 + ((index % 5) * 0.08),
+                scale: 0.9 + ((index % 4) * 0.05),
+                duration: 3.2 + ((index % 6) * 0.5),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                delay: index * 0.04,
+                delay: index * 0.12,
                 transformOrigin: element.dataset.origin ?? 'center center',
             });
         });
@@ -267,7 +270,7 @@ export default function Garden({
         q('.garden-orbit').forEach((element, index) => {
             gsap.to(element, {
                 rotation: index % 2 === 0 ? 360 : -360,
-                duration: Number(element.dataset.duration ?? 26) + (index * 4),
+                duration: Number(element.dataset.duration ?? 42) + (index * 6),
                 ease: 'none',
                 repeat: -1,
                 transformOrigin: element.dataset.origin ?? '200px 200px',
@@ -276,8 +279,8 @@ export default function Garden({
 
         q('.garden-core').forEach((element) => {
             gsap.to(element, {
-                scale: stageIndex >= 14 ? 1.08 : 1.05,
-                duration: stageIndex >= 14 ? 2.8 : 3.2,
+                scale: stageIndex >= 14 ? 1.04 : 1.025,
+                duration: stageIndex >= 14 ? 5.0 : 5.6,
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
@@ -303,12 +306,12 @@ export default function Garden({
             return undefined;
         }
 
-        const farX = gsap.quickTo(far, 'x', { duration: 1.1, ease: 'power3.out' });
-        const farY = gsap.quickTo(far, 'y', { duration: 1.1, ease: 'power3.out' });
-        const midX = gsap.quickTo(mid, 'x', { duration: 0.95, ease: 'power3.out' });
-        const midY = gsap.quickTo(mid, 'y', { duration: 0.95, ease: 'power3.out' });
-        const nearX = gsap.quickTo(near, 'x', { duration: 0.8, ease: 'power3.out' });
-        const nearY = gsap.quickTo(near, 'y', { duration: 0.8, ease: 'power3.out' });
+        const farX = gsap.quickTo(far, 'x', { duration: 1.8, ease: 'power3.out' });
+        const farY = gsap.quickTo(far, 'y', { duration: 1.8, ease: 'power3.out' });
+        const midX = gsap.quickTo(mid, 'x', { duration: 1.5, ease: 'power3.out' });
+        const midY = gsap.quickTo(mid, 'y', { duration: 1.5, ease: 'power3.out' });
+        const nearX = gsap.quickTo(near, 'x', { duration: 1.2, ease: 'power3.out' });
+        const nearY = gsap.quickTo(near, 'y', { duration: 1.2, ease: 'power3.out' });
 
         const reset = () => {
             farX(0);
@@ -324,12 +327,12 @@ export default function Garden({
             const xProgress = ((event.clientX - rect.left) / rect.width) - 0.5;
             const yProgress = ((event.clientY - rect.top) / rect.height) - 0.5;
 
-            farX(xProgress * 10);
-            farY(yProgress * 8);
-            midX(xProgress * 18);
-            midY(yProgress * 14);
-            nearX(xProgress * 26);
-            nearY(yProgress * 18);
+            farX(xProgress * 6);
+            farY(yProgress * 5);
+            midX(xProgress * 10);
+            midY(yProgress * 8);
+            nearX(xProgress * 14);
+            nearY(yProgress * 10);
         };
 
         node.addEventListener('pointermove', onMove);
@@ -366,8 +369,8 @@ export default function Garden({
                         filter={`url(#${ids.blur})`}
                         className="garden-drift"
                         data-x="0"
-                        data-y="-10"
-                        data-duration="9"
+                        data-y="-5"
+                        data-duration="16"
                         data-parallax="far"
                     />
                     {stars.map((star, index) => (
@@ -398,23 +401,58 @@ export default function Garden({
                     data-parallax="far"
                 />
                 <path
-                    d="M-24 246 C 32 208 98 202 156 225 C 207 244 280 248 424 210 L424 400 L-24 400 Z"
+                    d="M-24 252 C 48 220 120 214 180 234 C 240 252 310 256 424 224 L424 400 L-24 400 Z"
                     fill={`url(#${ids.mist})`}
                     opacity="0.62"
                     className="garden-drift"
                     data-x="0"
-                    data-y="-8"
-                    data-duration="8"
+                    data-y="-4"
+                    data-duration="14"
                     data-parallax="far"
                 />
                 <path
-                    d="M-24 278 C 46 236 112 234 180 256 C 238 274 312 282 424 248 L424 400 L-24 400 Z"
+                    d="M-24 282 C 52 244 124 242 186 260 C 244 276 316 282 424 252 L424 400 L-24 400 Z"
                     fill={palette.bg2}
                     opacity="0.48"
                     className="garden-drift"
                     data-x="0"
-                    data-y="-6"
-                    data-duration="7.2"
+                    data-y="-3"
+                    data-duration="12"
+                    data-parallax="far"
+                />
+                {/* Cloud wisps */}
+                {stageIndex >= 4 ? (
+                    <g data-parallax="far">
+                        <ellipse cx="80" cy="60" rx="50" ry="12" fill={palette.energy} opacity="0.06"
+                            filter={`url(#${ids.blur})`} className="garden-drift"
+                            data-x="15" data-y="0" data-duration="30" />
+                        <ellipse cx="300" cy="90" rx="40" ry="10" fill={palette.bg1} opacity="0.05"
+                            filter={`url(#${ids.blur})`} className="garden-drift"
+                            data-x="-12" data-y="0" data-duration="28" />
+                    </g>
+                ) : null}
+                {/* Soft light rays */}
+                {stageIndex >= 5 ? (
+                    <g opacity="0.04" data-parallax="far">
+                        <polygon points="140,0 170,0 240,400 210,400" fill={palette.energy} className="garden-breath" />
+                        <polygon points="250,0 275,0 320,400 295,400" fill={palette.energy} className="garden-breath" />
+                    </g>
+                ) : null}
+                {/* Mist layers */}
+                <ellipse
+                    cx="200" cy="320" rx="220" ry="30"
+                    fill={palette.energy} opacity="0.08"
+                    filter={`url(#${ids.blur})`}
+                    className="garden-drift"
+                    data-x="8" data-y="0" data-duration="18"
+                    data-parallax="far"
+                />
+                <ellipse
+                    cx="180" cy="280" rx="200" ry="24"
+                    fill={palette.bg2} opacity="0.06"
+                    filter={`url(#${ids.blur})`}
+                    className="garden-drift"
+                    data-x="-6" data-y="0" data-duration="22"
                     data-parallax="far"
                 />
             </>
@@ -471,7 +509,7 @@ export default function Garden({
                     <ellipse cx="220" cy="306" rx="56" ry="14" fill={energyFill} opacity="0.18" className="garden-breath" />
                 ) : null}
 
-                <g className="garden-sway" data-origin="200px 308px" data-rotate={stageIndex >= 8 ? '1.3' : '1.8'} data-duration={stageIndex >= 8 ? '6.4' : '5.2'}>
+                <g className="garden-sway" data-origin="200px 308px" data-rotate={stageIndex >= 8 ? '0.7' : '0.9'} data-duration={stageIndex >= 8 ? '11.0' : '9.0'}>
                     <path
                         d={`M200 314 C 188 282 190 250 198 220 C 206 184 210 156 202 ${trunkTopY}`}
                         fill="none"
@@ -504,7 +542,7 @@ export default function Garden({
                     <g key={`canopy-${node.x}-${node.y}`}>
                         <path d={node.branch} fill="none" stroke={trunkStroke} strokeWidth={stageIndex >= 8 ? '2.6' : '2'} strokeLinecap="round" opacity="0.86" />
                         {stageIndex < 4 ? (
-                            <g className="garden-sway" data-origin={`${node.x}px ${node.y}px`} data-rotate="3" data-duration={4.6 + (index * 0.3)}>
+                            <g className="garden-sway" data-origin={`${node.x}px ${node.y}px`} data-rotate="1.5" data-duration={8.0 + (index * 0.5)}>
                                 <LeafBlade x={node.x - 7} y={node.y + 4} rotate={-80 + node.rotate} scale={0.48 * node.scale} fill={leafFill} />
                                 <LeafBlade x={node.x + 6} y={node.y + 3} rotate={62 + node.rotate} scale={0.42 * node.scale} fill={leafFill} opacity="0.82" />
                             </g>
@@ -531,14 +569,14 @@ export default function Garden({
                 {stageIndex >= 7 ? (
                     <>
                         <path d="M134 188 C 126 204 122 218 124 232" fill="none" stroke={palette.energy} strokeWidth="1.6" opacity="0.56" />
-                        <circle cx="124" cy="238" r="7" fill={stageIndex >= 9 ? energyFill : petalFill} className="garden-drift" data-x="0" data-y="-5" data-duration="4.2" />
+                        <circle cx="124" cy="238" r="7" fill={stageIndex >= 9 ? energyFill : petalFill} className="garden-drift" data-x="0" data-y="-3" data-duration="7.5" />
                         <path d="M260 174 C 272 194 276 208 276 222" fill="none" stroke={palette.energy} strokeWidth="1.4" opacity="0.56" />
-                        <circle cx="276" cy="228" r="6" fill={energyFill} className="garden-drift" data-x="0" data-y="-4" data-duration="4.8" />
+                        <circle cx="276" cy="228" r="6" fill={energyFill} className="garden-drift" data-x="0" data-y="-2" data-duration="8.2" />
                     </>
                 ) : null}
 
                 {stageIndex >= 9 ? (
-                    <g className="garden-orbit" data-duration={stageIndex >= 10 ? '22' : '28'} data-origin="200px 184px" data-parallax="near">
+                    <g className="garden-orbit" data-duration={stageIndex >= 10 ? '36' : '46'} data-origin="200px 184px" data-parallax="near">
                         <circle cx="200" cy="184" r="72" fill="none" stroke={palette.energy} strokeWidth="1.4" strokeDasharray="5 16" opacity="0.45" />
                         <circle cx="272" cy="184" r="5" fill={palette.energy} className="garden-twinkle" />
                         <circle cx="128" cy="184" r="4" fill={palette.leaf} className="garden-twinkle" />
@@ -559,8 +597,8 @@ export default function Garden({
                         coreFill={palette.energy}
                         showBloom={stageIndex >= 4}
                         showSeed={stageIndex < 4}
-                        sway={1.6 + (index * 0.2)}
-                        duration={5.2 + (index * 0.3)}
+                        sway={0.8 + (index * 0.1)}
+                        duration={9.0 + (index * 0.5)}
                     />
                 ))}
             </g>
@@ -569,7 +607,7 @@ export default function Garden({
 
     const renderAstralHero = () => (
         <g data-parallax="mid">
-            <g className="garden-drift garden-island" data-x="0" data-y="-9" data-duration="6.8">
+            <g className="garden-drift garden-island" data-x="0" data-y="-5" data-duration="12.0">
                 <path
                     d="M98 274 C 126 254 172 248 224 258 C 268 266 304 268 322 282 C 306 312 266 330 202 334 C 142 328 104 312 98 274 Z"
                     fill={`url(#${ids.ground})`}
@@ -593,20 +631,20 @@ export default function Garden({
                             opacity="0.76"
                             className="garden-sway"
                             data-origin={`${rootX}px 310px`}
-                            data-rotate={index % 2 === 0 ? '-3' : '3'}
-                            data-duration={5.4 + (index * 0.4)}
+                            data-rotate={index % 2 === 0 ? '-1.5' : '1.5'}
+                            data-duration={9.5 + (index * 0.6)}
                         />
                     );
                 })}
             </g>
 
             <ellipse cx="198" cy="160" rx="120" ry="86" fill={energyFill} opacity="0.2" className="garden-breath" data-parallax="far" />
-            <g className="garden-orbit" data-duration="28" data-origin="200px 176px" data-parallax="near">
+            <g className="garden-orbit" data-duration="46" data-origin="200px 176px" data-parallax="near">
                 <circle cx="200" cy="176" r="86" fill="none" stroke={palette.energy} strokeWidth="1.5" strokeDasharray="5 18" opacity="0.58" />
                 <circle cx="200" cy="176" r="106" fill="none" stroke={palette.accent} strokeWidth="1.2" strokeDasharray="2 16" opacity="0.42" />
             </g>
 
-            <g className="garden-sway" data-origin="200px 286px" data-rotate="1.1" data-duration="7.2">
+            <g className="garden-sway" data-origin="200px 286px" data-rotate="0.6" data-duration="12.0">
                 <path
                     d="M200 286 C 184 252 176 220 184 192 C 194 154 210 126 206 92"
                     fill="none"
@@ -698,11 +736,11 @@ export default function Garden({
             <path d="M110 320 C 148 298 252 298 290 320 C 252 342 148 342 110 320 Z" fill={`url(#${ids.ground})`} opacity="0.7" className="garden-breath" />
             <path d="M200 294 C 194 258 194 228 200 206" fill="none" stroke={trunkStroke} strokeWidth="8" strokeLinecap="round" opacity="0.9" />
 
-            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '18' : '24'} data-origin="200px 188px" data-parallax="near">
+            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '32' : '42'} data-origin="200px 188px" data-parallax="near">
                 <circle cx="200" cy="188" r={stageIndex >= 15 ? '124' : '106'} fill="none" stroke={palette.energy} strokeWidth="1.5" strokeDasharray="6 18" opacity="0.42" />
                 <circle cx="200" cy="188" r={stageIndex >= 15 ? '88' : '76'} fill="none" stroke={palette.accent} strokeWidth="1.3" strokeDasharray="2 12" opacity="0.5" />
             </g>
-            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '26' : '32'} data-origin="200px 188px" data-parallax="near">
+            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '42' : '52'} data-origin="200px 188px" data-parallax="near">
                 <polygon points="200,38 324,112 324,266 200,340 76,266 76,112" fill="none" stroke={palette.leaf} strokeWidth="1.3" opacity="0.36" />
             </g>
 
@@ -751,7 +789,7 @@ export default function Garden({
                 const x = 200 + (Math.cos(radians) * radius);
                 const y = 188 + (Math.sin(radians) * radius);
                 return (
-                    <g key={`orbit-node-${index}`} className="garden-drift" data-x={index % 2 === 0 ? '5' : '-5'} data-y={index % 2 === 0 ? '-4' : '4'} data-duration={4.8 + (index * 0.3)}>
+                    <g key={`orbit-node-${index}`} className="garden-drift" data-x={index % 2 === 0 ? '2.5' : '-2.5'} data-y={index % 2 === 0 ? '-2' : '2'} data-duration={8.0 + (index * 0.5)}>
                         <circle cx={x} cy={y} r={stageIndex >= 15 ? '8' : '6'} fill={index % 2 === 0 ? energyFill : petalFill} className="garden-twinkle" />
                         <circle cx={x} cy={y} r={stageIndex >= 15 ? '16' : '12'} fill={energyFill} opacity="0.14" className="garden-breath" />
                     </g>
@@ -760,15 +798,37 @@ export default function Garden({
         </g>
     );
 
+    const renderDustMotes = () => {
+        if (stageIndex < 3) return null;
+        const count = stageIndex >= 10 ? 10 : stageIndex >= 6 ? 8 : 5;
+        return (
+            <g data-parallax="near" opacity="0.4">
+                {range(count).map((i) => (
+                    <circle
+                        key={`mote-${i}`}
+                        cx={40 + ((i * 67) % 320)}
+                        cy={60 + ((i * 43) % 280)}
+                        r={0.8 + ((i % 3) * 0.3)}
+                        fill={palette.energy}
+                        className="garden-drift"
+                        data-x={i % 2 === 0 ? '3' : '-3'}
+                        data-y={-6 - (i % 3)}
+                        data-duration={14 + ((i % 4) * 2)}
+                    />
+                ))}
+            </g>
+        );
+    };
+
     const renderForegroundParticles = () => (
         <g data-parallax="near">
             {particlePoints.map((point, index) => (
                 <g
                     key={`particle-${index}`}
                     className="garden-drift"
-                    data-x={((index % 2 === 0 ? 1 : -1) * (4 + (index % 4)))}
-                    data-y={-4 - ((index % 3) * 2)}
-                    data-duration={3.4 + ((index % 5) * 0.35)}
+                    data-x={((index % 2 === 0 ? 1 : -1) * (2 + (index % 3)))}
+                    data-y={-2 - (index % 3)}
+                    data-duration={6.0 + ((index % 5) * 0.7)}
                 >
                     <circle
                         cx={point.x}
@@ -804,11 +864,13 @@ export default function Garden({
                 <defs>
                     <linearGradient id={ids.sky} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={palette.bg1} />
+                        <stop offset="55%" stopColor={palette.bg1} stopOpacity="0.5" />
                         <stop offset="100%" stopColor={palette.bg2} />
                     </linearGradient>
-                    <radialGradient id={ids.atmosphere} cx="50%" cy="45%" r="55%">
-                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0.85" />
-                        <stop offset="65%" stopColor={palette.leaf} stopOpacity="0.22" />
+                    <radialGradient id={ids.atmosphere} cx="50%" cy="42%" r="65%">
+                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0.6" />
+                        <stop offset="40%" stopColor={palette.energy} stopOpacity="0.3" />
+                        <stop offset="75%" stopColor={palette.leaf} stopOpacity="0.12" />
                         <stop offset="100%" stopColor={palette.bg2} stopOpacity="0" />
                     </radialGradient>
                     <linearGradient id={ids.ground} x1="0" y1="0" x2="0" y2="1">
@@ -833,9 +895,10 @@ export default function Garden({
                         <stop offset="0%" stopColor={palette.accent} />
                         <stop offset="100%" stopColor={palette.energy} />
                     </linearGradient>
-                    <radialGradient id={ids.energy} cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor={palette.energy} stopOpacity="1" />
-                        <stop offset="65%" stopColor={palette.leaf} stopOpacity="0.45" />
+                    <radialGradient id={ids.energy} cx="50%" cy="50%" r="55%">
+                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0.85" />
+                        <stop offset="35%" stopColor={palette.energy} stopOpacity="0.5" />
+                        <stop offset="70%" stopColor={palette.leaf} stopOpacity="0.2" />
                         <stop offset="100%" stopColor={palette.bg2} stopOpacity="0" />
                     </radialGradient>
                     <linearGradient id={ids.mist} x1="0" y1="0" x2="1" y2="0">
@@ -846,13 +909,35 @@ export default function Garden({
                     <filter id={ids.blur}>
                         <feGaussianBlur stdDeviation="12" />
                     </filter>
-                    <filter id={ids.glow}>
-                        <feGaussianBlur stdDeviation="3.5" result="blurred" />
+                    <filter id={ids.glow} x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4.5" result="blurred" />
+                        <feColorMatrix in="blurred" type="saturate" values="0.6" result="desatBlur" />
                         <feMerge>
+                            <feMergeNode in="desatBlur" />
                             <feMergeNode in="blurred" />
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
+                    <filter id={ids.softFocus} x="-10%" y="-10%" width="120%" height="120%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="softBlur" />
+                        <feBlend in="SourceGraphic" in2="softBlur" mode="screen" result="softened" />
+                        <feComposite in="softened" in2="SourceGraphic" operator="atop" />
+                    </filter>
+                    <filter id={ids.haze} x="-5%" y="-5%" width="110%" height="110%">
+                        <feGaussianBlur stdDeviation="6" result="hazed" />
+                        <feComponentTransfer in="hazed" result="faded">
+                            <feFuncA type="linear" slope="0.7" />
+                        </feComponentTransfer>
+                        <feMerge>
+                            <feMergeNode in="faded" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <radialGradient id={ids.vignette} cx="50%" cy="50%" r="60%">
+                        <stop offset="0%" stopColor={palette.bg1} stopOpacity="0" />
+                        <stop offset="80%" stopColor={palette.bg2} stopOpacity="0" />
+                        <stop offset="100%" stopColor={palette.ground} stopOpacity="0.15" />
+                    </radialGradient>
                 </defs>
 
                 <rect x="0" y="0" width="400" height="400" fill={`url(#${ids.sky})`} />
@@ -861,12 +946,12 @@ export default function Garden({
                 {stageIndex < 11 ? (
                     <>
                         <path
-                            d="M-24 304 C 54 264 126 258 198 282 C 264 304 338 306 424 270 L424 400 L-24 400 Z"
+                            d="M-24 308 C 40 272 110 264 198 284 C 278 302 348 304 424 276 L424 400 L-24 400 Z"
                             fill={`url(#${ids.ground})`}
                             data-parallax="mid"
                         />
                         <path
-                            d="M-24 330 C 68 292 136 296 212 314 C 274 328 342 332 424 304 L424 400 L-24 400 Z"
+                            d="M-24 334 C 56 300 130 302 212 316 C 282 326 350 330 424 308 L424 400 L-24 400 Z"
                             fill={`url(#${ids.soil})`}
                             opacity="0.34"
                             data-parallax="mid"
@@ -877,7 +962,9 @@ export default function Garden({
                 {stageIndex < 11 ? renderEarthHero() : null}
                 {stageIndex >= 11 && stageIndex < 13 ? renderAstralHero() : null}
                 {stageIndex >= 13 ? renderCosmicHero() : null}
+                {renderDustMotes()}
                 {stageIndex >= 2 ? renderForegroundParticles() : null}
+                <rect x="0" y="0" width="400" height="400" fill={`url(#${ids.vignette})`} pointerEvents="none" />
             </svg>
 
             {showInfo ? (
