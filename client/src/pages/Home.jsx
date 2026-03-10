@@ -153,9 +153,9 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
 
                 <Link
                     to={`/class/${assignment.class_id}`}
-                    className="min-w-0 flex-1 rounded-lg pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                    className="block min-w-0 w-full flex-1 rounded-lg pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                 >
-                    <h4 className="truncate font-serif text-botanical-parchment transition-colors group-hover:text-white md:text-lg">
+                    <h4 className="line-clamp-2 font-serif leading-tight text-botanical-parchment transition-colors group-hover:text-white md:text-lg">
                         {assignment.title}
                     </h4>
                     {associatedClass ? (
