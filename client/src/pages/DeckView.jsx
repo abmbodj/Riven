@@ -688,7 +688,7 @@ export default function DeckView() {
             </div>
 
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_340px]">
-                <div>
+                <div className="min-w-0">
                     <div className="px-4 mb-6">
                         <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -946,7 +946,7 @@ export default function DeckView() {
             }
 
             {/* Cards list with swipe to delete */}
-            <div className="px-4 space-y-3 xl:max-w-[calc(100%-372px)]">
+            <div className="px-4 space-y-3">
                 {deck.cards.length > 0 && (
                     <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
                 )}

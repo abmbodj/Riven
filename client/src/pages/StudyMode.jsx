@@ -30,6 +30,7 @@ function buildShuffledCards(cards, orderedCardIds = []) {
 
 export default function StudyMode() {
     const { id } = useParams();
+    const [deck, setDeck] = useState(null);
     const [cards, setCards] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
@@ -176,6 +177,7 @@ export default function StudyMode() {
                 }
             }
 
+            setDeck(data);
             setCards(nextCards);
             setCurrentIndex(nextIndex);
             setIsShuffled(nextShuffled);
@@ -454,6 +456,20 @@ export default function StudyMode() {
     const currentModeDescription = spacedRepetitionMode
         ? 'Grade each revealed answer to train future review timing.'
         : 'Flip and browse at your own pace. Shuffle when you want variety.';
+    const accuracyRate = cardsStudied > 0 ? Math.round((cardsCorrect / cardsStudied) * 100) : 0;
+    const remainingCards = Math.max(cards.length - currentIndex - 1, 0);
+    const sessionPhaseLabel = showSessionComplete
+        ? 'Wrap-up'
+        : isFlipped
+            ? (spacedRepetitionMode ? 'Grade recall' : 'Review answer')
+            : 'Reveal prompt';
+    const sessionCue = showSessionComplete
+        ? 'Restart the deck or jump back to editing once you are done.'
+        : isFlipped
+            ? (spacedRepetitionMode
+                ? 'Choose whether you knew the answer to train the next review.'
+                : 'Use the controls below to move on or flip back for another look.')
+            : 'Read the prompt, then tap the card or press space to reveal the answer.';
 
     return (
         <div className="fullscreen-page">
@@ -491,6 +507,11 @@ export default function StudyMode() {
                             <div className="space-y-1.5">
                                 <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-botanical-sepia/80">
                                     <span>{didResumeSession ? 'Resumed session' : 'Current session'}</span>
+                                    {deck?.title ? (
+                                        <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/55">
+                                            {deck.title}
+                                        </span>
+                                    ) : null}
                                     <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/60">
                                         {currentModeLabel}
                                     </span>
@@ -534,7 +555,7 @@ export default function StudyMode() {
                         ) : null}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-center gap-2 lg:flex-col lg:items-stretch lg:justify-start">
+                    <div className="flex flex-wrap items-center justify-center gap-2 xl:hidden lg:flex-col lg:items-stretch lg:justify-start">
                         <button
                             onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
                             className={`flex items-center justify-center gap-2 rounded-full px-3 py-2 text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
@@ -559,114 +580,177 @@ export default function StudyMode() {
             </div>
 
             {/* Card area */}
-            <div className="flex-1 flex items-center justify-center px-4 py-4" {...swipeHandlers}>
-                <div
-                    className="w-full max-w-sm aspect-[3/4] cursor-pointer touch-none"
-                    style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
-                    onClick={handleFlip}
-                >
-                    <div
-                        key={currentCard.id}
-                        ref={cardInnerRef}
-                        className="relative w-full h-full"
-                        style={{ transformStyle: 'preserve-3d' }}
-                    >
-                        {/* Front — warm surface with paper grain */}
+            <div className="flex-1 px-4 py-4">
+                <div className="mx-auto grid h-full w-full max-w-6xl items-center gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="flex items-center justify-center" {...swipeHandlers}>
                         <div
-                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
-                            style={{
-                                backfaceVisibility: 'hidden',
-                                background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
-                                border: '1px solid var(--border-color)',
-                                boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
-                            }}
+                            className="w-full max-w-sm aspect-[3/4] cursor-pointer touch-none"
+                            style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
+                            onClick={handleFlip}
                         >
-                            {/* Paper grain overlay */}
                             <div
-                                className="absolute inset-0 pointer-events-none opacity-[0.015]"
-                                style={{
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
-                                    backgroundSize: '128px 128px',
-                                }}
-                            />
-                            {/* Decorative corner marks */}
-                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border/50" />
-                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border/50" />
-                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border/50" />
-                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
-
-                            {/* Rotated label */}
-                            <span
-                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
-                                style={{ transform: 'rotate(-2deg)' }}
+                                key={currentCard.id}
+                                ref={cardInnerRef}
+                                className="relative w-full h-full"
+                                style={{ transformStyle: 'preserve-3d' }}
                             >
-                                Question
-                            </span>
-                            {currentCard.front_image && (
-                                <img
-                                    src={currentCard.front_image}
-                                    alt="Card front"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
-                                />
-                            )}
-                            <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
-                            {currentCard.difficulty > 0 && (
-                                <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
-                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
-                                        'bg-green-500/15 text-green-400'
-                                    }`}>
-                                    {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
-                                </span>
-                            )}
-                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
-                        </div>
+                                {/* Front — warm surface with paper grain */}
+                                <div
+                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                                    style={{
+                                        backfaceVisibility: 'hidden',
+                                        background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
+                                        border: '1px solid var(--border-color)',
+                                        boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+                                    }}
+                                >
+                                    {/* Paper grain overlay */}
+                                    <div
+                                        className="absolute inset-0 pointer-events-none opacity-[0.015]"
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                            backgroundSize: '128px 128px',
+                                        }}
+                                    />
+                                    <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border/50" />
+                                    <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border/50" />
+                                    <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border/50" />
+                                    <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
 
-                        {/* Back — forest green with dramatic shadow */}
-                        <div
-                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
-                            style={{
-                                backfaceVisibility: 'hidden',
-                                transform: 'rotateY(180deg)',
-                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
-                                border: '1px solid rgba(122,158,114,0.25)',
-                                boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
-                            }}
-                        >
-                            {/* Paper grain overlay */}
-                            <div
-                                className="absolute inset-0 pointer-events-none opacity-[0.02]"
-                                style={{
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
-                                    backgroundSize: '128px 128px',
-                                }}
-                            />
-                            {/* Decorative corner marks */}
-                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
-                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
-                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
-                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+                                    <span
+                                        className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
+                                        style={{ transform: 'rotate(-2deg)' }}
+                                    >
+                                        Question
+                                    </span>
+                                    {currentCard.front_image && (
+                                        <img
+                                            src={currentCard.front_image}
+                                            alt="Card front"
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
+                                        />
+                                    )}
+                                    <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
+                                    {currentCard.difficulty > 0 && (
+                                        <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
+                                            currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
+                                                'bg-green-500/15 text-green-400'
+                                            }`}>
+                                            {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
+                                        </span>
+                                    )}
+                                    <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
+                                </div>
 
-                            <span
-                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
-                                style={{ transform: 'rotate(-2deg)' }}
-                            >
-                                Answer
-                            </span>
-                            {currentCard.back_image && (
-                                <img
-                                    src={currentCard.back_image}
-                                    alt="Card back"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
-                                />
-                            )}
-                            <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
-                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
+                                {/* Back — forest green with dramatic shadow */}
+                                <div
+                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center p-8 overflow-hidden"
+                                    style={{
+                                        backfaceVisibility: 'hidden',
+                                        transform: 'rotateY(180deg)',
+                                        background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
+                                        border: '1px solid rgba(122,158,114,0.25)',
+                                        boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                    }}
+                                >
+                                    <div
+                                        className="absolute inset-0 pointer-events-none opacity-[0.02]"
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                            backgroundSize: '128px 128px',
+                                        }}
+                                    />
+                                    <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
+                                    <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
+                                    <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
+                                    <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+
+                                    <span
+                                        className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
+                                        style={{ transform: 'rotate(-2deg)' }}
+                                    >
+                                        Answer
+                                    </span>
+                                    {currentCard.back_image && (
+                                        <img
+                                            src={currentCard.back_image}
+                                            alt="Card back"
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
+                                        />
+                                    )}
+                                    <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
+                                    <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <aside className="hidden xl:block">
+                        <div className="sticky top-6 space-y-4">
+                            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(18,38,44,0.96),rgba(27,49,56,0.92))] px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.26em] text-botanical-sepia/70">Study Focus</div>
+                                <p className="mt-3 font-display text-2xl font-semibold text-white">
+                                    {deck?.title || 'Current deck'}
+                                </p>
+                                <p className="mt-2 text-sm text-white/65">
+                                    {deck?.description || 'Work the current card, keep momentum, and finish the session without losing context.'}
+                                </p>
+
+                                <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] font-mono text-white/72">
+                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Remaining</div>
+                                        <div className="mt-1 text-lg text-white">{remainingCards}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Accuracy</div>
+                                        <div className="mt-1 text-lg text-white">{accuracyRate}%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-[22px] border border-white/10 bg-black/15 px-4 py-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/45">Session Phase</div>
+                                        <p className="mt-1 font-display text-lg text-white">{sessionPhaseLabel}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
+                                        className={`flex items-center justify-center gap-2 rounded-full px-3 py-2 text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
+                                            ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
+                                            : 'glass-panel text-claude-secondary'
+                                            }`}
+                                    >
+                                        <Brain className="w-3.5 h-3.5" />
+                                        {spacedRepetitionMode ? 'Recall ON' : 'Recall OFF'}
+                                    </button>
+                                </div>
+                                <p className="mt-3 text-sm text-white/62">{sessionCue}</p>
+
+                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                                    <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/40">Desktop controls</div>
+                                    <div className="mt-3 space-y-2 text-[11px] font-mono text-white/68">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span>Previous card</span>
+                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">←</kbd>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span>Flip current card</span>
+                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">Space</kbd>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span>Next card</span>
+                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">→</kbd>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
 

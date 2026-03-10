@@ -74,6 +74,8 @@ describe('StudyMode', () => {
     window.localStorage.clear();
 
     api.getDeck.mockResolvedValue({
+      title: 'Biology Midterm',
+      description: 'Memorize the pathways and energy exchange terms.',
       cards: [
         {
           id: 1,
@@ -190,6 +192,9 @@ describe('StudyMode', () => {
 
     expect(screen.getByText('Resumed session')).toBeInTheDocument();
     expect(screen.getByText('You are back where you left off.')).toBeInTheDocument();
+    expect(screen.getByText('Study Focus')).toBeInTheDocument();
+    expect(screen.getByText('Session Phase')).toBeInTheDocument();
+    expect(screen.getAllByText('Biology Midterm').length).toBeGreaterThan(0);
     expect(screen.getByText('Front 1')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /spaced repetition on/i })).toBeInTheDocument();
