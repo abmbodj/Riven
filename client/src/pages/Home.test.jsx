@@ -85,10 +85,13 @@ describe('DashboardHome', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Resume Study')).toBeInTheDocument();
+      expect(screen.getByText('Today Queue')).toBeInTheDocument();
     });
 
+    expect(screen.queryByText('Assessment Workbench')).not.toBeInTheDocument();
+    expect(screen.getByText('Check your study circle')).toBeInTheDocument();
     expect(screen.getByText('Plan Classes')).toBeInTheDocument();
     expect(screen.getByText('Open Social')).toBeInTheDocument();
+    expect(screen.getByText('Garden streak')).toBeInTheDocument();
   });
 });

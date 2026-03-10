@@ -125,6 +125,40 @@ function QuickActionCard({ to, icon, label }) {
     );
 }
 
+function QueueItem({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) {
+    const toneClasses = tone === 'danger'
+        ? 'border-red-500/20 bg-red-500/[0.08]'
+        : tone === 'accent'
+            ? 'border-claude-accent/20 bg-claude-accent/[0.08]'
+            : 'border-white/10 bg-white/[0.03]';
+
+    return (
+        <Link
+            to={to}
+            className={`tap-action group rounded-2xl border p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 gap-3">
+                    <div className="mt-0.5 shrink-0 rounded-xl border border-white/10 bg-black/15 p-2 text-claude-accent">
+                        {React.createElement(icon, { className: 'h-4 w-4' })}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{eyebrow}</p>
+                        <h3 className="mt-1 font-serif text-lg font-bold leading-tight text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                            {title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-relaxed text-white/62">{detail}</p>
+                    </div>
+                </div>
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
+            </div>
+            <div className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
+                {cta}
+            </div>
+        </Link>
+    );
+}
+
 function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
     const rawTitle = assignment?.title ?? assignment?.name ?? assignment?.assignment_title ?? '';
     const assignmentTitle = String(rawTitle).trim() || 'Untitled Assignment';
@@ -448,6 +482,40 @@ function DashboardHome() {
         },
     ]), [focusClass, focusDeck]);
 
+    const todayQueue = useMemo(() => ([
+        {
+            eyebrow: focusDeck ? 'Resume study' : 'Start studying',
+            title: focusDeck ? focusDeck.title : 'Create your next study deck',
+            detail: focusDeck
+                ? `Pick up where you left off with ${focusDeck.cardCount || focusDeck.cards?.length || 0} cards ready to review.`
+                : 'Capture notes, import material, or build a fresh deck before the week gets busier.',
+            to: focusDeck ? `/deck/${focusDeck.id}/study` : '/create',
+            cta: focusDeck ? 'Open study session' : 'Create deck',
+            icon: focusDeck ? Play : BookOpen,
+            tone: 'accent'
+        },
+        {
+            eyebrow: pastDueAssignments.length > 0 ? 'Needs attention' : 'Plan next',
+            title: focusAssignment ? (focusAssignment.title || focusAssignment.name || 'Review assignments') : 'Review your class workload',
+            detail: focusAssignment
+                ? `${getRelativeDueLabel(focusAssignment.due_date) || 'Upcoming'}${focusClass ? ` • ${focusClass.name}` : ''}`
+                : 'Check upcoming deadlines, update statuses, and keep class work moving.',
+            to: focusClass ? `/class/${focusClass.id}` : '/classes',
+            cta: focusClass ? 'Open class view' : 'View classes',
+            icon: Calendar,
+            tone: pastDueAssignments.length > 0 ? 'danger' : 'default'
+        },
+        {
+            eyebrow: 'Stay connected',
+            title: 'Check your study circle',
+            detail: 'Open messages, catch shared decks, and keep group momentum moving.',
+            to: '/messages',
+            cta: 'Open social',
+            icon: MessageCircle,
+            tone: 'default'
+        }
+    ]), [focusAssignment, focusClass, focusDeck, pastDueAssignments.length]);
+
     const classInsights = useMemo(() => {
         const now = new Date();
         const insights = new Map();
@@ -509,40 +577,73 @@ function DashboardHome() {
 
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-6 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:mb-8 sm:p-8 lg:p-10">
-                <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="gsap-hero relative z-10 flex items-start justify-between gap-6">
-                    <div>
-                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8a7f6a]">
+            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(25,70,82,0.9),rgba(13,27,32,0.98)_62%)] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.24)] sm:mb-8 sm:p-8 lg:p-10">
+                <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/8 to-transparent" />
+                <div className="gsap-hero relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_320px] xl:items-start">
+                    <div className="min-w-0">
+                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-botanical-sepia">
                             <CalendarDays className="h-4 w-4" />
                             {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                         </p>
-                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-[#1a1c1d] sm:text-5xl">
-                            Today
+                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-botanical-parchment sm:text-5xl">
+                            Today Queue
                         </h1>
-                        <p className="mb-4 max-w-xl text-sm leading-relaxed text-[#5d6466] sm:text-base">
+                        <p className="mb-5 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
                             {heroSummary}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3">
+
+                        <div className="mb-5 flex flex-wrap items-center gap-3">
+                            <Link
+                                to={todayQueue[0].to}
+                                className="tap-action inline-flex items-center gap-3 rounded-2xl bg-[#a8c07f] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#102228] shadow-[0_10px_30px_rgba(168,192,127,0.28)] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(168,192,127,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8c07f]/60"
+                            >
+                                <Play className="h-4 w-4" /> {todayQueue[0].cta}
+                            </Link>
                             <HeartsDisplay onClick={() => setPricingOpen(true)} />
-                            <span className="rounded-full border border-[#d1c9b8] bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#5d6466]">
+                            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
                                 {user?.username || 'Student'}
                             </span>
                         </div>
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                            {todayQueue.map((item) => (
+                                <QueueItem key={item.eyebrow + item.title} {...item} />
+                            ))}
+                        </div>
                     </div>
 
-                    <Link to="/garden" className="tap-action group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
-                        <div className="relative flex h-16 w-16 items-end justify-center overflow-hidden rounded-2xl border border-[#d1c9b8] bg-white shadow-sm transition-transform group-hover:-translate-y-1 sm:h-20 sm:w-20">
-                            <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
-                            <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-[#e8e4d8] shadow-sm" />
-                            <div className="origin-bottom translate-y-3 scale-[0.6] transform sm:scale-[0.75]">
-                                <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
+                    <div className="space-y-4 xl:pt-1">
+                        <Link to="/garden" className="tap-action group block rounded-[28px] border border-white/10 bg-white/[0.04] p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Garden streak</p>
+                                    <p className="mt-2 font-serif text-2xl font-bold italic text-botanical-parchment">
+                                        {streak.currentStreak} day rhythm
+                                    </p>
+                                    <p className="mt-2 text-sm text-white/62">
+                                        Keep the habit alive while you move between study and planning.
+                                    </p>
+                                </div>
+                                <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/10 shadow-sm transition-transform group-hover:-translate-y-1">
+                                    <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
+                                    <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-[#e8e4d8] shadow-sm" />
+                                    <div className="origin-bottom translate-y-3 scale-[0.75] transform">
+                                        <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
+                                    </div>
+                                </div>
                             </div>
+                            <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-claude-accent">
+                                <Leaf className="h-2 w-2" /> Open garden
+                            </div>
+                        </Link>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            {stats.map((stat) => (
+                                <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
+                            ))}
                         </div>
-                        <div className="absolute -bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-claude-border bg-claude-surface px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-claude-accent opacity-0 shadow-sm transition-opacity group-hover:opacity-100 md:shadow-lg">
-                            <Leaf className="h-2 w-2" /> {streak.currentStreak} Day
-                        </div>
-                    </Link>
+                    </div>
                 </div>
             </div>
 
@@ -553,12 +654,6 @@ function DashboardHome() {
             <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {priorityActions.map((action) => (
                     <QuickActionCard key={action.label} to={action.to} icon={action.icon} label={action.label} />
-                ))}
-            </div>
-
-            <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
-                {stats.map((stat) => (
-                    <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
                 ))}
             </div>
 
