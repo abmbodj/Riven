@@ -584,7 +584,7 @@ export default function StudyMode() {
                 <div className="mx-auto grid h-full min-h-0 w-full max-w-6xl items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-center xl:gap-6">
                     <div className="flex min-h-0 items-center justify-center" {...swipeHandlers}>
                         <div
-                            className="h-full max-h-[min(100%,34rem)] w-auto max-w-full aspect-[3/4] cursor-pointer touch-none"
+                            className="w-full max-w-sm aspect-[3/4] max-h-[min(34rem,calc(var(--app-height)-21rem))] cursor-pointer touch-none"
                             style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
                             onClick={handleFlip}
                         >
