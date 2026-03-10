@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
 import StudyHeartsDisplay from '../components/ui/StudyHeartsDisplay';
+import gsap from 'gsap';
+import { EASE, DURATION } from '../utils/animations';
 
 
 export default function StudyMode() {
@@ -27,6 +27,52 @@ export default function StudyMode() {
     const haptics = useHaptics();
     const [heartsStatus, setHeartsStatus] = useState(null);
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
+    const cardInnerRef = useRef(null);
+    const progressBarRef = useRef(null);
+    const flipTl = useRef(null);
+
+    // Build GSAP card flip timeline
+    useEffect(() => {
+        if (!cardInnerRef.current) return;
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        flipTl.current = gsap.timeline({ paused: true })
+            .to(cardInnerRef.current, {
+                rotateY: 180,
+                duration: DURATION.slow,
+                ease: 'back.out(1.2)',
+            });
+
+        return () => { flipTl.current?.kill(); };
+    }, [cards, currentIndex]);
+
+    // Play/reverse flip animation
+    useEffect(() => {
+        if (!flipTl.current) return;
+        if (isFlipped) {
+            flipTl.current.play();
+        } else {
+            flipTl.current.reverse();
+        }
+    }, [isFlipped]);
+
+    // Animate progress bar
+    useEffect(() => {
+        if (!progressBarRef.current || cards.length === 0) return;
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const progress = ((currentIndex + 1) / cards.length) * 100;
+
+        if (motionQuery.matches) {
+            gsap.set(progressBarRef.current, { width: `${progress}%` });
+            return;
+        }
+        gsap.to(progressBarRef.current, {
+            width: `${progress}%`,
+            duration: DURATION.normal,
+            ease: EASE.organic,
+        });
+    }, [currentIndex, cards.length]);
 
 
     // Initialize start time on mount
@@ -219,11 +265,10 @@ export default function StudyMode() {
                 </Link>
                 <div className="flex-1 mx-4">
                     <div className="h-1 bg-claude-border rounded-full overflow-hidden">
-                        <motion.div
+                        <div
+                            ref={progressBarRef}
                             className="h-full rounded-full"
-                            style={{ background: 'linear-gradient(90deg, var(--botanical-forest), var(--accent-color))' }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            style={{ background: 'linear-gradient(90deg, var(--botanical-forest), var(--accent-color))', width: '0%' }}
                         />
                     </div>
                     <p className="text-center text-[10px] font-mono text-botanical-sepia mt-1.5 tracking-wide">{currentIndex + 1} / {cards.length}</p>
@@ -249,17 +294,16 @@ export default function StudyMode() {
 
             {/* Spaced Repetition Toggle */}
             <div className="flex justify-center mb-2">
-                <motion.button
-                    whileTap={{ scale: 0.95 }}
+                <button
                     onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors ${spacedRepetitionMode
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
                         ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
                         : 'glass-panel text-claude-secondary'
                         }`}
                 >
                     <Brain className="w-3.5 h-3.5" />
                     Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
-                </motion.button>
+                </button>
             </div>
 
             {/* Card area */}
@@ -269,11 +313,10 @@ export default function StudyMode() {
                     style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
                     onClick={handleFlip}
                 >
-                    <motion.div
+                    <div
+                        ref={cardInnerRef}
                         className="relative w-full h-full"
                         style={{ transformStyle: 'preserve-3d' }}
-                        animate={{ rotateY: isFlipped ? 180 : 0 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
                     >
                         {/* Front — warm surface with paper grain */}
                         <div
@@ -370,17 +413,16 @@ export default function StudyMode() {
                             <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
                             <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap to flip back</span>
                         </div>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
 
             {/* Navigation */}
             <div className="px-4 pb-8 shrink-0">
                 {isLastCard && isFlipped ? (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-3 max-w-sm mx-auto"
+                        className="space-y-3 max-w-sm mx-auto gsap-session-complete"
                     >
                         <div className="text-center mb-4">
                             <p className="font-display text-lg font-semibold italic">Session complete</p>
@@ -390,68 +432,62 @@ export default function StudyMode() {
                                 </p>
                             )}
                         </div>
-                        <motion.button
-                            whileTap={{ scale: 0.97 }}
+                        <button
                             onClick={handleRestart}
-                            className="w-full py-4 rounded-xl bg-claude-accent font-display font-semibold"
+                            className="w-full py-4 rounded-xl bg-claude-accent font-display font-semibold active:scale-[0.97] transition-transform"
                             style={{ color: 'var(--bg-color)' }}
                         >
                             Study Again
-                        </motion.button>
+                        </button>
                         <Link
                             to={`/deck/${id}`}
                             className="block w-full py-4 rounded-xl glass-panel text-center font-display font-semibold active:scale-[0.98] transition-transform"
                         >
                             Back to Deck
                         </Link>
-                    </motion.div>
+                    </div>
                 ) : spacedRepetitionMode && isFlipped ? (
                     <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
-                        <motion.button
-                            whileTap={{ scale: 0.93 }}
+                        <button
                             onClick={handleDidntKnow}
-                            className="flex-1 h-14 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 flex items-center justify-center gap-2 font-display font-semibold"
+                            className="flex-1 h-14 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.93] transition-transform"
                         >
                             <ThumbsDown className="w-5 h-5" />
                             Didn't Know
-                        </motion.button>
-                        <motion.button
-                            whileTap={{ scale: 0.93 }}
+                        </button>
+                        <button
                             onClick={handleKnew}
-                            className="flex-1 h-14 rounded-xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center gap-2 font-display font-semibold"
+                            className="flex-1 h-14 rounded-xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.93] transition-transform"
                         >
                             <ThumbsUp className="w-5 h-5" />
                             Knew It
-                        </motion.button>
+                        </button>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-4">
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
+                        <button
                             onClick={handlePrev}
                             disabled={currentIndex === 0}
-                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30"
+                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
                         >
                             <ChevronLeft className="w-6 h-6" />
-                        </motion.button>
+                        </button>
 
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
+                        <button
                             onClick={handleFlip}
-                            className="h-14 px-8 rounded-xl glass-panel flex items-center gap-3 font-display font-semibold"
+                            className="h-14 px-8 rounded-xl glass-panel flex items-center gap-3 font-display font-semibold active:scale-[0.95] transition-transform"
                         >
                             <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
                             Flip
-                        </motion.button>
+                        </button>
 
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
+                        <button
                             onClick={handleNext}
                             disabled={isLastCard}
-                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30"
+                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
                         >
                             <ChevronRight className="w-6 h-6" />
-                        </motion.button>
+                        </button>
                     </div>
                 )}
             </div>

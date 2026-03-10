@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Layers from 'lucide-react/dist/esm/icons/layers';
@@ -15,6 +15,8 @@ import OnboardingArt from './OnboardingArt';
 import { motion, AnimatePresence } from 'motion/react';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
+import gsap from 'gsap';
+import { EASE, DURATION } from '../utils/animations';
 
 const navItems = [
     { to: '/', icon: Home, label: 'Home', matchExact: true },
@@ -39,6 +41,18 @@ export default function Layout({ children }) {
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+    const pageContentRef = useRef(null);
+
+    // GSAP page enter animation on route change
+    useEffect(() => {
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches || !pageContentRef.current) return;
+
+        gsap.fromTo(pageContentRef.current,
+            { opacity: 0, y: 10 },
+            { opacity: 1, y: 0, duration: DURATION.normal, ease: EASE.organic, clearProps: 'all' }
+        );
+    }, [location.pathname]);
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
@@ -178,14 +192,12 @@ export default function Layout({ children }) {
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
                         <div className={isFullscreenPage ? '' : 'lg:max-w-5xl lg:mx-auto'}>
-                            <motion.div
+                            <div
+                                ref={pageContentRef}
                                 key={location.pathname}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                             >
                                 {children}
-                            </motion.div>
+                            </div>
                         </div>
                     </main>
 

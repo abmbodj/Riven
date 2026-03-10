@@ -12,6 +12,8 @@ import useHaptics from '../hooks/useHaptics';
 import Avatar from '../components/Avatar';
 import ReportModal from '../components/ui/ReportModal';
 import * as authApi from '../api/authApi';
+import gsap from 'gsap';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
 
 // Session-aware message cache — clears on user change, bounded to prevent memory leaks
 const CACHE_TTL = 30000;
@@ -81,7 +83,33 @@ export default function Messages() {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
-    const loadedMsgIdsRef = useRef(new Set()); // track already-rendered message IDs to skip entrance animation
+    const loadedMsgIdsRef = useRef(new Set());
+    const convListRef = useRef(null);
+    const chatViewRef = useRef(null);
+
+    // GSAP reveal for conversations list
+    useEffect(() => {
+        if (userId || !convListRef.current) return;
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        gsap.fromTo(convListRef.current,
+            { opacity: 0, y: 12 },
+            { opacity: 1, y: 0, duration: DURATION.normal, ease: EASE.organic, clearProps: 'all' }
+        );
+    }, [userId, conversations.length]);
+
+    // GSAP reveal for chat view
+    useEffect(() => {
+        if (!userId || !chatViewRef.current) return;
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        gsap.fromTo(chatViewRef.current,
+            { opacity: 0 },
+            { opacity: 1, duration: DURATION.normal, ease: EASE.organic, clearProps: 'all' }
+        );
+    }, [userId]);
 
     // Load conversations list
     const loadConversations = useCallback(async () => {
@@ -416,11 +444,9 @@ export default function Messages() {
         }
 
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="pb-24 sm:max-w-md sm:mx-auto w-full"
+            <div
+                ref={convListRef}
+                className="pb-24 sm:max-w-md sm:mx-auto w-full gsap-conv-list"
             >
                 {/* Decorative Header */}
                 <div className="mb-6 relative">
@@ -432,10 +458,7 @@ export default function Messages() {
                 </div>
 
                 {conversations.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
+                    <div
                         className="text-center py-12"
                     >
                         <div className="relative mx-auto mb-6 w-20 h-20">
@@ -458,7 +481,7 @@ export default function Messages() {
                             <Leaf className="w-4 h-4" />
                             Find Friends
                         </Link>
-                    </motion.div>
+                    </div>
                 ) : (
                     <div className="space-y-3">
                         <AnimatePresence mode="popLayout">
@@ -520,16 +543,14 @@ export default function Messages() {
                         </AnimatePresence>
                     </div>
                 )}
-            </motion.div>
+            </div>
         );
     }
 
     // Chat View
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+        <div
+            ref={chatViewRef}
             className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl"
         >
             {/* Botanical Chat Header with decorative elements */}
@@ -921,6 +942,6 @@ export default function Messages() {
                 onSubmit={handleReportMessageSubmit}
                 isSubmitting={isReporting}
             />
-        </motion.div>
+        </div>
     );
 }

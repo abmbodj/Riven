@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
@@ -12,19 +12,11 @@ import Avatar from '../components/Avatar';
 import ReportModal from '../components/ui/ReportModal';
 import ConfirmModal from '../components/ConfirmModal';
 import * as authApi from '../api/authApi';
+import gsap from 'gsap';
+import { useGSAP } from '../hooks/useGSAP';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.1 }
-    }
-};
 
-const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
-};
 
 export default function UserProfile() {
     const { userId } = useParams();
@@ -37,11 +29,26 @@ export default function UserProfile() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
 
-    // Repot & Block state
+    // Report & Block state
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isReporting, setIsReporting] = useState(false);
     const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
     const [isBlocking, setIsBlocking] = useState(false);
+    const profileContentRef = useRef(null);
+
+    // GSAP staggered profile sections reveal
+    useGSAP(() => {
+        if (loading || !profile || !profileContentRef.current) return;
+
+        gsap.from(profileContentRef.current.querySelectorAll('.gsap-profile-item'), {
+            y: 20,
+            opacity: 0,
+            duration: DURATION.slow,
+            stagger: STAGGER.relaxed,
+            ease: EASE.spring,
+            delay: 0.15,
+        });
+    }, [loading, profile]);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -211,33 +218,27 @@ export default function UserProfile() {
 
                 {/* Avatar */}
                 <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 z-20">
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
-                        className="relative"
+                    <div
+                        className="relative gsap-profile-item"
                     >
                         <Avatar src={profile.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-md md:shadow-2xl relative z-10 bg-claude-surface" />
                         {(profile.isAdmin || profile.isOwner) && (
-                            <motion.div
-                                initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }}
+                            <div
                                 className={`absolute bottom-1 right-1 w-8 h-8 ${profile.isOwner ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-red-500 to-orange-500'} rounded-full flex items-center justify-center border-2 border-claude-bg shadow-md z-20`}
                             >
                                 <Shield className="w-4 h-4 text-white" />
-                            </motion.div>
+                            </div>
                         )}
-                    </motion.div>
+                    </div>
                 </div>
             </div>
 
-            <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
+            <div
+                ref={profileContentRef}
                 className="max-w-md mx-auto px-5"
             >
                 {/* Profile Info */}
-                <motion.div variants={itemVariants} className="flex flex-col items-center mb-8 text-center mt-4">
+                <div className="gsap-profile-item flex flex-col items-center mb-8 text-center mt-4">
                     <div className="flex items-center gap-2 mb-1 justify-center">
                         <h2 className="text-3xl font-display font-bold tracking-tight text-claude-text">
                             {profile.display_name || profile.username}
@@ -264,10 +265,10 @@ export default function UserProfile() {
                     {profile.bio && (
                         <p className="text-botanical-sepia text-sm italic font-serif leading-relaxed px-4">"{profile.bio}"</p>
                     )}
-                </motion.div>
+                </div>
 
                 {/* Stats Bento */}
-                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-8">
+                <div className="gsap-profile-item grid grid-cols-2 gap-4 mb-8">
                     <div className="bg-claude-surface/40 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
                         <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold text-claude-text mb-1">
                             <Layers className="w-5 h-5 text-botanical-forest" />
@@ -282,10 +283,10 @@ export default function UserProfile() {
                         </div>
                         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">Joined</p>
                     </div>
-                </motion.div>
+                </div>
 
                 {/* Action Buttons */}
-                <motion.div variants={itemVariants} className="flex gap-4 mb-10">
+                <div className="gsap-profile-item flex gap-4 mb-10">
                     <AnimatePresence mode="popLayout">
                         {isFriend ? (
                             <motion.div key="friend" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex gap-3 w-full">
@@ -345,9 +346,9 @@ export default function UserProfile() {
                             </motion.button>
                         )}
                     </AnimatePresence>
-                </motion.div>
+                </div>
 
-                <motion.div variants={itemVariants} className="mt-8 pt-8 border-t border-botanical-sepia/10 flex flex-col gap-2">
+                <div className="gsap-profile-item mt-8 pt-8 border-t border-botanical-sepia/10 flex flex-col gap-2">
                     <button
                         onClick={() => setIsReportModalOpen(true)}
                         className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
@@ -362,12 +363,12 @@ export default function UserProfile() {
                         <Ban className="w-4 h-4" />
                         Block User
                     </button>
-                </motion.div>
+                </div>
 
-                <motion.div variants={itemVariants} className="mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
+                <div className="gsap-profile-item mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
                     <Leaf className="w-4 h-4 opacity-50" />
-                </motion.div>
-            </motion.div>
+                </div>
+            </div>
 
             <ReportModal
                 isOpen={isReportModalOpen}

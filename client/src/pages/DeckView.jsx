@@ -9,6 +9,8 @@ import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
 import AlertModal from '../components/AlertModal';
 import CardImageUpload from '../components/CardImageUpload';
+import gsap from 'gsap';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
 
 export default function DeckView() {
     const { id } = useParams();
@@ -38,6 +40,27 @@ export default function DeckView() {
     const [sharingTo, setSharingTo] = useState(null);
     const [exporting, setExporting] = useState(false);
     const touchStartX = useRef(0);
+    const deckPageRef = useRef(null);
+
+    // GSAP staggered card reveal on load
+    useEffect(() => {
+        if (loading || !deck || !deckPageRef.current) return;
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        const cards = deckPageRef.current.querySelectorAll('.gsap-deck-card-item');
+        if (cards.length === 0) return;
+
+        gsap.from(cards, {
+            y: 20,
+            opacity: 0,
+            duration: DURATION.normal,
+            stagger: STAGGER.tight,
+            ease: EASE.organic,
+            delay: 0.1,
+            clearProps: 'transform',
+        });
+    }, [loading, deck]);
 
     const loadDeck = useCallback(() => {
         api.getDeck(id)
@@ -338,7 +361,7 @@ export default function DeckView() {
     if (!deck) return <div className="text-center py-20 text-claude-secondary">Deck not found</div>;
 
     return (
-        <div className="animate-in fade-in duration-500">
+        <div ref={deckPageRef} className="animate-in fade-in duration-500">
             {/* Delete confirmation modal */}
             <ConfirmModal
                 isOpen={deleteConfirm.show}
@@ -827,7 +850,7 @@ export default function DeckView() {
                 {deck.cards.map((card, idx) => (
                     <div
                         key={card.id}
-                        className="relative overflow-hidden rounded-2xl"
+                        className="relative overflow-hidden rounded-2xl gsap-deck-card-item"
                         onTouchStart={(e) => handleTouchStart(card.id, e)}
                         onTouchEnd={(e) => handleTouchEnd(card.id, e)}
                     >

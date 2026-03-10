@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
 import {
@@ -26,6 +26,12 @@ import HeartsDisplay from '../components/ui/HeartsDisplay';
 import PricingModal from '../components/ui/PricingModal';
 import { PageLoader } from '../components/ui/PageLoader.jsx';
 import GardenLanding from '../components/ui/GardenLanding';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '../hooks/useGSAP';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Home({ mode = 'landing' }) {
     const { isLoggedIn, loading } = useAuth();
@@ -49,12 +55,66 @@ function DashboardHome() {
     const { user } = useAuth();
     const toast = useToast();
     const streak = useStreak();
+    const pageRef = useRef(null);
 
     const [loading, setLoading] = useState(true);
     const [assignments, setAssignments] = useState([]);
     const [decks, setDecks] = useState([]);
     const [classes, setClasses] = useState([]);
     const [pricingOpen, setPricingOpen] = useState(false);
+
+    // GSAP staggered reveals on mount
+    useGSAP(() => {
+        if (loading || !pageRef.current) return;
+
+        const ctx = gsap.context(() => {
+            // Hero header elements
+            gsap.from('.gsap-hero > *', {
+                y: 20,
+                opacity: 0,
+                duration: DURATION.slow,
+                stagger: STAGGER.relaxed,
+                ease: EASE.reveal,
+            });
+
+            // Class pills slide in from right
+            gsap.from('.gsap-class-pill', {
+                x: 30,
+                opacity: 0,
+                duration: DURATION.normal,
+                stagger: STAGGER.tight,
+                ease: EASE.organic,
+                delay: 0.3,
+            });
+
+            // Assignments section — scroll-triggered
+            gsap.utils.toArray('.gsap-section').forEach((section) => {
+                gsap.from(section, {
+                    y: 30,
+                    opacity: 0,
+                    duration: DURATION.slow,
+                    ease: EASE.reveal,
+                    scrollTrigger: {
+                        trigger: section,
+                        start: 'top 88%',
+                        toggleActions: 'play none none none',
+                    },
+                });
+            });
+
+            // Deck cards staggered scale-in
+            gsap.from('.gsap-deck-card', {
+                scale: 0.92,
+                opacity: 0,
+                duration: DURATION.slow,
+                stagger: STAGGER.normal,
+                ease: EASE.spring,
+                delay: 0.2,
+            });
+        }, pageRef.current);
+
+        return () => ctx.revert();
+    }, [loading]);
 
     useEffect(() => {
         const loadDashboard = async () => {
@@ -169,39 +229,30 @@ function DashboardHome() {
     }
 
     return (
-        <div className="min-h-screen p-4 pb-32 pt-4 sm:p-6 overflow-x-hidden">
+        <div ref={pageRef} className="min-h-screen p-4 pb-32 pt-4 sm:p-6 overflow-x-hidden">
             <div className="relative mb-8 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:p-8 lg:p-10">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="relative z-10 flex items-center justify-between">
+                <div className="gsap-hero relative z-10 flex items-center justify-between">
                     <div>
-                        <Motion.h1
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5 }}
+                        <h1
                             className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-[#1a1c1d] sm:text-5xl"
                         >
                             {greeting},
                             <br className="sm:hidden" /> {user?.username || 'Student'}
-                        </Motion.h1>
-                        <Motion.p
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.1 }}
+                        </h1>
+                        <p
                             className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8a7f6a]"
                         >
                             <CalendarDays className="h-4 w-4" />
                             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-                        </Motion.p>
-                        <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                        </p>
+                        <div>
                             <HeartsDisplay onClick={() => setPricingOpen(true)} />
-                        </Motion.div>
+                        </div>
                     </div>
 
                     <Link to="/garden" className="tap-action relative shrink-0 group">
-                        <Motion.div
-                            initial={{ opacity: 0, scale: 0.9, rotate: 2 }}
-                            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                            transition={{ type: 'spring', delay: 0.2 }}
+                        <div
                             className="relative flex h-16 w-16 items-end justify-center overflow-hidden rounded-2xl border border-[#d1c9b8] bg-white shadow-sm transition-transform group-hover:-translate-y-1 sm:h-20 sm:w-20"
                         >
                             <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
@@ -209,7 +260,7 @@ function DashboardHome() {
                             <div className="origin-bottom translate-y-3 scale-[0.6] transform sm:scale-[0.75]">
                                 <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                             </div>
-                        </Motion.div>
+                        </div>
                         <div className="absolute -bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-claude-border bg-claude-surface px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-claude-accent opacity-0 shadow-sm md:shadow-lg transition-opacity group-hover:opacity-100">
                             <Leaf className="h-2 w-2" /> {streak.currentStreak} Day
                         </div>
@@ -229,11 +280,9 @@ function DashboardHome() {
                     </div>
                     <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible lg:gap-3">
                         {classes.map((classItem, index) => (
-                            <Motion.div
+                            <div
                                 key={classItem.id}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
+                                className="gsap-class-pill"
                             >
                                 <Link
                                     to={`/class/${classItem.id}`}
@@ -247,7 +296,7 @@ function DashboardHome() {
                                         {classItem.name}
                                     </span>
                                 </Link>
-                            </Motion.div>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -261,7 +310,7 @@ function DashboardHome() {
                         </h2>
                     </div>
 
-                    <div className="glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
+                    <div className="gsap-section glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
                         {upcomingAssignments.length > 0 ? (
                             <div className="relative z-10 space-y-2">
                                 <AnimatePresence>
@@ -352,7 +401,7 @@ function DashboardHome() {
                                 </h2>
                             </div>
 
-                            <div className="glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
+                            <div className="gsap-section glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
                                 <div className="relative z-10 space-y-2">
                                     <AnimatePresence>
                                         {pastDueAssignments.map((assignment, index) => {
@@ -444,11 +493,9 @@ function DashboardHome() {
                                 const associatedClass = classes.find((classItem) => classItem.id === deck.class_id);
 
                                 return (
-                                    <Motion.div
+                                    <div
                                         key={deck.id}
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: index * 0.1 }}
+                                        className="gsap-deck-card"
                                     >
                                         <Link
                                             to={`/deck/${deck.id}`}
@@ -488,7 +535,7 @@ function DashboardHome() {
                                                 </div>
                                             </div>
                                         </Link>
-                                    </Motion.div>
+                                    </div>
                                 );
                             })
                         ) : (

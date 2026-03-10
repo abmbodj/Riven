@@ -1,27 +1,56 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
+import gsap from 'gsap';
 
 export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
     const leafColor = 'var(--botanical-forest)'; // #7a9e72 
     const accentColor = 'var(--accent-color)';    // #deb96a
+    const glowRef = useRef(null);
+    const bloomRef = useRef(null);
+
+    // GSAP breathing animations
+    useEffect(() => {
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        const ctx = gsap.context(() => {
+            // Inner glow breathing
+            if (glowRef.current) {
+                gsap.to(glowRef.current, {
+                    scale: 1.15,
+                    opacity: 0.4,
+                    duration: 4,
+                    ease: 'power1.inOut',
+                    yoyo: true,
+                    repeat: -1,
+                });
+            }
+
+            // Central bloom breathing
+            if (bloomRef.current) {
+                gsap.to(bloomRef.current, {
+                    scale: 1.02,
+                    duration: 4,
+                    ease: 'power1.inOut',
+                    yoyo: true,
+                    repeat: -1,
+                });
+            }
+        });
+
+        return () => ctx.revert();
+    }, []);
 
     return (
         <div className={`relative aspect-square mx-auto flex items-center justify-center ${className}`}>
-            {/* Deep inner glow */}
-            <motion.div
-                animate={{
-                    scale: [1, 1.15, 1],
-                    opacity: [0.15, 0.4, 0.15],
-                }}
-                transition={{
-                    duration: 8,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
+            {/* Deep inner glow — GSAP breathing */}
+            <div
+                ref={glowRef}
                 className="absolute inset-0 rounded-full"
                 style={{
                     background: `radial-gradient(circle at center, ${leafColor} 0%, transparent 60%)`,
-                    filter: 'blur(24px)'
+                    filter: 'blur(24px)',
+                    opacity: 0.15,
                 }}
             />
 
