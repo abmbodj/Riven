@@ -10,27 +10,283 @@ const sizeMap = {
     xl: { width: 320, height: 320 }
 };
 
-const LEAF_PATH = 'M0 0 C -14 -10 -22 -34 0 -54 C 22 -34 14 -10 0 0 Z';
-const PETAL_PATH = 'M0 0 C -13 -12 -16 -36 0 -56 C 16 -36 13 -12 0 0 Z';
-const STAR_PATH = 'M0 -7 Q3 -3 7 0 Q3 3 0 7 Q-3 3 -7 0 Q-3 -3 0 -7 Z';
+const LEAF_PATH = 'M0 0 C -10 -12 -14 -34 0 -56 C 14 -34 10 -12 0 0 Z';
+const PETAL_PATH = 'M0 0 C -14 -12 -19 -38 0 -62 C 19 -38 14 -12 0 0 Z';
+const STAR_PATH = 'M0 -6 Q2.8 -2.2 6 0 Q2.8 2.2 0 6 Q-2.8 2.2 -6 0 Q-2.8 -2.2 0 -6 Z';
 
 const palettes = [
-    { bg1: '#EFEAE1', bg2: '#D8D1C0', ground: '#9B8F75', accent: '#7E6A4A', leaf: '#8AA17D', energy: '#F2E7C9' },
-    { bg1: '#E8F1E0', bg2: '#BDD3A9', ground: '#758E62', accent: '#4F6B39', leaf: '#9BBE72', energy: '#F3F9D6' },
-    { bg1: '#DCEFD8', bg2: '#A9CF99', ground: '#5F8553', accent: '#3A6434', leaf: '#76B56B', energy: '#D8F5C4' },
-    { bg1: '#D8F0DF', bg2: '#88C59C', ground: '#4B8663', accent: '#285E44', leaf: '#51A86C', energy: '#C9F0D7' },
-    { bg1: '#E6F2DF', bg2: '#A7D5B8', ground: '#5C9276', accent: '#2D725A', leaf: '#4DBA83', energy: '#FFD39B' },
-    { bg1: '#D8EEE8', bg2: '#80C9C1', ground: '#2C7A77', accent: '#145D5C', leaf: '#29B8A8', energy: '#FFCAB8' },
-    { bg1: '#D4EBEA', bg2: '#5AB4BB', ground: '#1B6772', accent: '#0D4650', leaf: '#0DB2BE', energy: '#FFA7AC' },
-    { bg1: '#D6DDF5', bg2: '#7892EC', ground: '#324B96', accent: '#192D63', leaf: '#5A7FE3', energy: '#FFE0A8' },
-    { bg1: '#E1D4F5', bg2: '#9A7BDA', ground: '#58358F', accent: '#2F1A56', leaf: '#8A58EA', energy: '#FFBFD9' },
-    { bg1: '#F2E3FA', bg2: '#D296E3', ground: '#8E3DA2', accent: '#4E1B67', leaf: '#C06BDA', energy: '#FFE3F1' },
-    { bg1: '#171120', bg2: '#47245E', ground: '#1B1028', accent: '#E4AFF8', leaf: '#F7CAF6', energy: '#FFD861' },
-    { bg1: '#0F182C', bg2: '#1F314C', ground: '#06101F', accent: '#4DCBF7', leaf: '#89DFFF', energy: '#D7F6FF' },
-    { bg1: '#060B16', bg2: '#1A2B58', ground: '#050913', accent: '#8AF3FF', leaf: '#D8FBFF', energy: '#FFFFFF' },
-    { bg1: '#0F0C20', bg2: '#32204E', ground: '#070311', accent: '#FF82C2', leaf: '#FDAFC2', energy: '#FFF4FB' },
-    { bg1: '#090414', bg2: '#4A1B90', ground: '#010103', accent: '#A073FF', leaf: '#D1BFFF', energy: '#FAF2FF' },
-    { bg1: '#020204', bg2: '#152035', ground: '#000000', accent: '#3BDEA0', leaf: '#82F0C7', energy: '#E5FFF5' }
+    {
+        skyTop: '#f2ecdf',
+        skyBottom: '#d8cdb8',
+        mist: '#fff5e5',
+        hillFar: '#b8b09d',
+        hillNear: '#8f8876',
+        pond: '#8a9a97',
+        pondGlow: '#dfe5d2',
+        island: '#7c705c',
+        bark: '#665744',
+        leaf: '#8aa07b',
+        leafLight: '#dce5c4',
+        blossom: '#f4e6d8',
+        blossomCore: '#d4b88e',
+        light: '#fff8e6',
+        star: '#f7edda'
+    },
+    {
+        skyTop: '#eef0e2',
+        skyBottom: '#cfd8bc',
+        mist: '#f8fde7',
+        hillFar: '#a9b29a',
+        hillNear: '#738468',
+        pond: '#7b9389',
+        pondGlow: '#e2edd5',
+        island: '#6d7058',
+        bark: '#5a523f',
+        leaf: '#7fa06f',
+        leafLight: '#d7e9bf',
+        blossom: '#f7ead9',
+        blossomCore: '#cda978',
+        light: '#fdf9df',
+        star: '#f8f4df'
+    },
+    {
+        skyTop: '#e5efe1',
+        skyBottom: '#bfd2bf',
+        mist: '#eef9ea',
+        hillFar: '#96b09d',
+        hillNear: '#62816d',
+        pond: '#6f9186',
+        pondGlow: '#d4eee1',
+        island: '#65705d',
+        bark: '#4f5642',
+        leaf: '#68a07a',
+        leafLight: '#d0f0cf',
+        blossom: '#f5ebdf',
+        blossomCore: '#d6b792',
+        light: '#f3fae8',
+        star: '#eff8ef'
+    },
+    {
+        skyTop: '#deede7',
+        skyBottom: '#a5c8bd',
+        mist: '#dff8f0',
+        hillFar: '#86a8a0',
+        hillNear: '#4e786f',
+        pond: '#5b847b',
+        pondGlow: '#cbe8dd',
+        island: '#5d6658',
+        bark: '#474f42',
+        leaf: '#5a9c74',
+        leafLight: '#c8eccd',
+        blossom: '#f6e7e1',
+        blossomCore: '#d8a790',
+        light: '#e8fbf4',
+        star: '#e8f8f3'
+    },
+    {
+        skyTop: '#d9ece8',
+        skyBottom: '#90c2bb',
+        mist: '#d4f4f2',
+        hillFar: '#709d9d',
+        hillNear: '#3f7070',
+        pond: '#4b7b76',
+        pondGlow: '#bde4de',
+        island: '#4d6259',
+        bark: '#394d46',
+        leaf: '#4f9d7f',
+        leafLight: '#c1ebd7',
+        blossom: '#f2e4df',
+        blossomCore: '#dfac95',
+        light: '#def8f4',
+        star: '#e2faf5'
+    },
+    {
+        skyTop: '#d8e7ea',
+        skyBottom: '#7eb4be',
+        mist: '#d0f0f4',
+        hillFar: '#648d97',
+        hillNear: '#355d6c',
+        pond: '#416e7a',
+        pondGlow: '#b8dfe4',
+        island: '#46575d',
+        bark: '#314047',
+        leaf: '#4a9a92',
+        leafLight: '#baede4',
+        blossom: '#f0e0e4',
+        blossomCore: '#daa3b1',
+        light: '#dcf7ff',
+        star: '#def9ff'
+    },
+    {
+        skyTop: '#d8e0ef',
+        skyBottom: '#7898be',
+        mist: '#dce8ff',
+        hillFar: '#62749b',
+        hillNear: '#384a73',
+        pond: '#3d597b',
+        pondGlow: '#c6d7ef',
+        island: '#455069',
+        bark: '#31384c',
+        leaf: '#6f98b6',
+        leafLight: '#d0e9ff',
+        blossom: '#f1e5f1',
+        blossomCore: '#d7aed8',
+        light: '#edf5ff',
+        star: '#edf5ff'
+    },
+    {
+        skyTop: '#d6dbf2',
+        skyBottom: '#6678b1',
+        mist: '#dde4ff',
+        hillFar: '#566490',
+        hillNear: '#2e3a61',
+        pond: '#354b74',
+        pondGlow: '#bdcaec',
+        island: '#404b66',
+        bark: '#2b3246',
+        leaf: '#7da0c6',
+        leafLight: '#d9ebff',
+        blossom: '#f0e3f6',
+        blossomCore: '#cfabd8',
+        light: '#f2f6ff',
+        star: '#eff5ff'
+    },
+    {
+        skyTop: '#d9d6f2',
+        skyBottom: '#665f9a',
+        mist: '#e2dcff',
+        hillFar: '#5b5686',
+        hillNear: '#312c53',
+        pond: '#38385d',
+        pondGlow: '#c5c0eb',
+        island: '#49425e',
+        bark: '#31293d',
+        leaf: '#92a0d0',
+        leafLight: '#e1e7ff',
+        blossom: '#f3e2f6',
+        blossomCore: '#d7a6d8',
+        light: '#f4edff',
+        star: '#f4efff'
+    },
+    {
+        skyTop: '#ded6f5',
+        skyBottom: '#6f5aa4',
+        mist: '#ece4ff',
+        hillFar: '#66578a',
+        hillNear: '#39274e',
+        pond: '#403663',
+        pondGlow: '#d4c2f1',
+        island: '#524263',
+        bark: '#3b2944',
+        leaf: '#a68fd1',
+        leafLight: '#efe2ff',
+        blossom: '#f8e4f2',
+        blossomCore: '#dc9fc5',
+        light: '#faf0ff',
+        star: '#fbf4ff'
+    },
+    {
+        skyTop: '#1f2036',
+        skyBottom: '#423057',
+        mist: '#8ea2d0',
+        hillFar: '#3f4060',
+        hillNear: '#24263c',
+        pond: '#243549',
+        pondGlow: '#7d8bb3',
+        island: '#4f4251',
+        bark: '#7f6991',
+        leaf: '#b5b9e0',
+        leafLight: '#eef3ff',
+        blossom: '#f5e6f3',
+        blossomCore: '#e5bdd9',
+        light: '#f5eeff',
+        star: '#fff7d8'
+    },
+    {
+        skyTop: '#161c31',
+        skyBottom: '#2b375a',
+        mist: '#7c9cc9',
+        hillFar: '#314864',
+        hillNear: '#1d2739',
+        pond: '#1b3247',
+        pondGlow: '#7194b8',
+        island: '#3e4650',
+        bark: '#65778b',
+        leaf: '#9fc8df',
+        leafLight: '#e5f6ff',
+        blossom: '#f0e8f8',
+        blossomCore: '#d2bfeb',
+        light: '#edf7ff',
+        star: '#f5f9ff'
+    },
+    {
+        skyTop: '#11172b',
+        skyBottom: '#243b61',
+        mist: '#7ca4c9',
+        hillFar: '#274563',
+        hillNear: '#162334',
+        pond: '#16354f',
+        pondGlow: '#6ea5c7',
+        island: '#30424d',
+        bark: '#4c6d7f',
+        leaf: '#8fd0cc',
+        leafLight: '#ddfff7',
+        blossom: '#eff1fb',
+        blossomCore: '#bdd1ef',
+        light: '#f0fbff',
+        star: '#fbffff'
+    },
+    {
+        skyTop: '#0d1327',
+        skyBottom: '#1f3057',
+        mist: '#87a4d0',
+        hillFar: '#1f3c63',
+        hillNear: '#131c30',
+        pond: '#14354f',
+        pondGlow: '#7faad2',
+        island: '#263746',
+        bark: '#3d6072',
+        leaf: '#8ac7b3',
+        leafLight: '#dbfff0',
+        blossom: '#f4effa',
+        blossomCore: '#d4c4f5',
+        light: '#f5fdff',
+        star: '#ffffff'
+    },
+    {
+        skyTop: '#090f1f',
+        skyBottom: '#182745',
+        mist: '#90aed8',
+        hillFar: '#1a3658',
+        hillNear: '#0e1727',
+        pond: '#102d46',
+        pondGlow: '#87a9d3',
+        island: '#223242',
+        bark: '#365366',
+        leaf: '#97d0c2',
+        leafLight: '#e4fff5',
+        blossom: '#f7effd',
+        blossomCore: '#d8c3f9',
+        light: '#f9fdff',
+        star: '#ffffff'
+    },
+    {
+        skyTop: '#060b17',
+        skyBottom: '#121d33',
+        mist: '#92b8df',
+        hillFar: '#142b4a',
+        hillNear: '#09111d',
+        pond: '#0b2237',
+        pondGlow: '#8ab2d7',
+        island: '#1b2b3c',
+        bark: '#314e63',
+        leaf: '#9dddd2',
+        leafLight: '#ebfff9',
+        blossom: '#fbf2ff',
+        blossomCore: '#e4d2ff',
+        light: '#fcfeff',
+        star: '#ffffff'
+    }
 ];
 
 const range = (count) => Array.from({ length: count }, (_, index) => index);
@@ -42,8 +298,7 @@ const radialScatter = (count, centerX, centerY, radiusX, radiusY, angleOffset = 
         return {
             x: centerX + (Math.cos(angle) * radiusX * ratio),
             y: centerY + (Math.sin(angle) * radiusY * ratio),
-            angle: angle * (180 / Math.PI),
-            size: 0.65 + ((index % 4) * 0.14),
+            scale: 0.68 + ((index % 4) * 0.14),
         };
     })
 );
@@ -68,39 +323,41 @@ function LeafBlade({
     );
 }
 
-function Rosette({
+function LotusBloom({
     x,
     y,
-    petals = 6,
+    petals = 7,
     radius = 16,
-    petalScale = 0.35,
+    petalScale = 0.34,
     petalFill,
     coreFill,
-    coreRadius = 5,
+    coreRadius = 4.5,
     rotate = 0,
-    className = '',
-    ringStroke,
+    ringStroke = null,
     ringRadius = 0,
     glowFill = null,
-    glowOpacity = 0.18
+    glowOpacity = 0.18,
+    className = ''
 }) {
     return (
         <g transform={`translate(${x} ${y}) rotate(${rotate})`} className={className} data-origin={`${x}px ${y}px`}>
-            {glowFill ? <circle r={radius * 1.5} fill={glowFill} opacity={glowOpacity} className="garden-breath" /> : null}
+            {glowFill ? (
+                <circle r={radius * 1.6} fill={glowFill} opacity={glowOpacity} className="garden-breath" />
+            ) : null}
             {range(petals).map((index) => (
                 <g key={index} transform={`rotate(${(360 / petals) * index}) translate(0 ${-radius})`}>
-                    <path d={PETAL_PATH} fill={petalFill} opacity={index % 2 === 0 ? 0.95 : 0.8} transform={`scale(${petalScale})`} />
+                    <path d={PETAL_PATH} fill={petalFill} opacity={index % 2 === 0 ? 0.95 : 0.78} transform={`scale(${petalScale})`} />
                 </g>
             ))}
             {ringStroke && ringRadius ? (
-                <circle r={ringRadius} fill="none" stroke={ringStroke} strokeWidth="1.6" opacity="0.8" />
+                <circle r={ringRadius} fill="none" stroke={ringStroke} strokeWidth="1.4" opacity="0.55" />
             ) : null}
-            <circle r={coreRadius} fill={coreFill} />
+            <circle r={coreRadius} fill={coreFill} className="garden-breath" />
         </g>
     );
 }
 
-function Sprig({
+function Reed({
     x,
     y,
     height = 42,
@@ -108,51 +365,103 @@ function Sprig({
     scale = 1,
     stemStroke,
     leafFill,
-    petalFill,
+    blossomFill,
     coreFill,
     showBloom = false,
     showSeed = false,
-    swayOrigin,
-    sway = 0.9,
-    duration = 9.0
+    sway = 0.7,
+    duration = 10
 }) {
     const tipX = x + lean;
     const tipY = y - height;
 
     return (
-        <g className="garden-sway" data-origin={swayOrigin ?? `${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
+        <g className="garden-sway" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
             <path
-                d={`M${x} ${y} C ${x - 4} ${y - (height * 0.35)} ${x + (lean * 0.45)} ${y - (height * 0.7)} ${tipX} ${tipY}`}
+                d={`M${x} ${y} C ${x - 4} ${y - (height * 0.3)} ${x + (lean * 0.42)} ${y - (height * 0.72)} ${tipX} ${tipY}`}
                 fill="none"
                 stroke={stemStroke}
-                strokeWidth={2.4 * scale}
+                strokeWidth={2.1 * scale}
                 strokeLinecap="round"
             />
-            <LeafBlade x={x - 6} y={y - (height * 0.6)} rotate={-70 + (lean * 0.35)} scale={0.32 * scale} fill={leafFill} opacity="0.92" />
-            <LeafBlade x={x + 9} y={y - (height * 0.42)} rotate={55 + (lean * 0.2)} scale={0.28 * scale} fill={leafFill} opacity="0.82" />
+            <LeafBlade x={x - 5} y={y - (height * 0.58)} rotate={-74 + (lean * 0.25)} scale={0.26 * scale} fill={leafFill} opacity="0.88" />
+            <LeafBlade x={x + 8} y={y - (height * 0.38)} rotate={56 + (lean * 0.18)} scale={0.22 * scale} fill={leafFill} opacity="0.74" />
             {showBloom ? (
-                <Rosette
+                <LotusBloom
                     x={tipX}
                     y={tipY}
                     petals={5}
-                    radius={11 * scale}
-                    petalScale={0.24 * scale}
-                    petalFill={petalFill}
+                    radius={10 * scale}
+                    petalScale={0.2 * scale}
+                    petalFill={blossomFill}
                     coreFill={coreFill}
-                    coreRadius={2.8 * scale}
-                    className="garden-breath"
+                    coreRadius={2.4 * scale}
                     glowFill={coreFill}
-                    glowOpacity="0.12"
+                    glowOpacity={0.1}
+                    className="garden-breath"
                 />
             ) : null}
             {showSeed ? (
-                <ellipse
-                    cx={tipX}
-                    cy={tipY}
-                    rx={5 * scale}
-                    ry={7 * scale}
-                    fill={coreFill}
-                    opacity="0.92"
+                <ellipse cx={tipX} cy={tipY} rx={4 * scale} ry={6 * scale} fill={coreFill} opacity="0.86" className="garden-breath" />
+            ) : null}
+        </g>
+    );
+}
+
+function WillowFrond({
+    x,
+    y,
+    length = 56,
+    curve = 10,
+    leafFill,
+    blossomFill,
+    coreFill,
+    withBloom = false,
+    sway = 0.45,
+    duration = 11
+}) {
+    const nodes = [0.22, 0.42, 0.62, 0.82].map((ratio, index) => ({
+        x: x + ((index % 2 === 0 ? -1 : 1) * curve * (0.18 + (index * 0.08))),
+        y: y + (length * ratio),
+        rotate: index % 2 === 0 ? -70 : 56,
+        scale: 0.18 + (index * 0.03)
+    }));
+    const tipX = x + (curve * 0.14);
+    const tipY = y + length;
+
+    return (
+        <g className="garden-sway" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
+            <path
+                d={`M${x} ${y} C ${x + (curve * 0.4)} ${y + (length * 0.18)} ${x - (curve * 0.55)} ${y + (length * 0.65)} ${tipX} ${tipY}`}
+                fill="none"
+                stroke={leafFill}
+                strokeOpacity="0.34"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+            />
+            {nodes.map((node, index) => (
+                <LeafBlade
+                    key={`${x}-${y}-${index}`}
+                    x={node.x}
+                    y={node.y}
+                    rotate={node.rotate}
+                    scale={node.scale}
+                    fill={leafFill}
+                    opacity={0.9 - (index * 0.1)}
+                />
+            ))}
+            {withBloom ? (
+                <LotusBloom
+                    x={tipX}
+                    y={tipY + 4}
+                    petals={5}
+                    radius={8}
+                    petalScale={0.18}
+                    petalFill={blossomFill}
+                    coreFill={coreFill}
+                    coreRadius={2.2}
+                    glowFill={coreFill}
+                    glowOpacity={0.08}
                     className="garden-breath"
                 />
             ) : null}
@@ -164,7 +473,8 @@ export default function Garden({
     streak = 0,
     status = 'active',
     size = 'md',
-    showInfo = true
+    showInfo = true,
+    svgClassName = ''
 }) {
     const uniqueId = useId();
     const { width, height } = sizeMap[size] || sizeMap.md;
@@ -174,58 +484,129 @@ export default function Garden({
     const stageName = stageMeta.name;
     const isWilting = status === 'broken';
     const isAtRisk = status === 'at-risk';
-    const statusFilter = isWilting ? 'grayscale(0.82) saturate(0.78) opacity(0.72)' : isAtRisk ? 'saturate(0.82) sepia(0.14)' : 'none';
+    const statusFilter = isWilting ? 'grayscale(0.82) saturate(0.78) opacity(0.72)' : isAtRisk ? 'saturate(0.84) sepia(0.12)' : 'none';
 
     const ids = {
         sky: `garden-sky-${uniqueId}`,
-        atmosphere: `garden-atmosphere-${uniqueId}`,
-        ground: `garden-ground-${uniqueId}`,
-        soil: `garden-soil-${uniqueId}`,
-        trunk: `garden-trunk-${uniqueId}`,
-        leaf: `garden-leaf-${uniqueId}`,
-        petal: `garden-petal-${uniqueId}`,
-        energy: `garden-energy-${uniqueId}`,
         mist: `garden-mist-${uniqueId}`,
+        hills: `garden-hills-${uniqueId}`,
+        hillsNear: `garden-hills-near-${uniqueId}`,
+        pond: `garden-pond-${uniqueId}`,
+        reflection: `garden-reflection-${uniqueId}`,
+        island: `garden-island-${uniqueId}`,
+        bark: `garden-bark-${uniqueId}`,
+        leaf: `garden-leaf-${uniqueId}`,
+        blossom: `garden-blossom-${uniqueId}`,
+        light: `garden-light-${uniqueId}`,
+        vignette: `garden-vignette-${uniqueId}`,
         blur: `garden-blur-${uniqueId}`,
         glow: `garden-glow-${uniqueId}`,
-        vignette: `garden-vignette-${uniqueId}`,
-        softFocus: `garden-soft-focus-${uniqueId}`,
-        haze: `garden-haze-${uniqueId}`,
         title: `garden-title-${uniqueId}`,
         desc: `garden-desc-${uniqueId}`,
     };
 
     const leafFill = `url(#${ids.leaf})`;
-    const petalFill = `url(#${ids.petal})`;
-    const energyFill = `url(#${ids.energy})`;
-    const trunkStroke = `url(#${ids.trunk})`;
-    const particlePoints = radialScatter(
-        stageIndex >= 13 ? 30 : stageIndex >= 10 ? 24 : stageIndex >= 5 ? 16 : 8,
-        200,
-        stageIndex >= 13 ? 190 : 168,
-        stageIndex >= 13 ? 170 : 145,
-        stageIndex >= 13 ? 148 : 108,
-        stageIndex * 13
+    const blossomFill = `url(#${ids.blossom})`;
+    const barkStroke = `url(#${ids.bark})`;
+    const lightFill = `url(#${ids.light})`;
+    const moonX = stageIndex >= 10 ? 284 : 264;
+    const moonY = stageIndex >= 8 ? 84 : 72;
+    const moonRadius = stageIndex >= 12 ? 48 : stageIndex >= 8 ? 40 : 28 + (stageIndex * 2);
+    const fireflyCount = stageIndex >= 13 ? 18 : stageIndex >= 9 ? 12 : stageIndex >= 5 ? 8 : stageIndex >= 2 ? 4 : 0;
+    const fireflies = radialScatter(
+        fireflyCount,
+        220,
+        stageIndex >= 8 ? 180 : 196,
+        stageIndex >= 12 ? 164 : 138,
+        stageIndex >= 12 ? 116 : 90,
+        stageIndex * 11
     );
-    const starCount = stageIndex >= 13 ? 18 : stageIndex >= 11 ? 12 : stageIndex >= 8 ? 7 : 0;
-    const stars = range(starCount).map((index) => ({
-        x: 28 + ((index * 53) % 344),
-        y: 24 + ((index * 31) % 140),
-        scale: 0.68 + ((index % 4) * 0.12),
-        opacity: 0.45 + ((index % 3) * 0.18),
+    const pollen = radialScatter(
+        stageIndex >= 12 ? 24 : stageIndex >= 7 ? 18 : stageIndex >= 3 ? 10 : 4,
+        198,
+        222,
+        168,
+        126,
+        stageIndex * 17
+    );
+    const stars = range(stageIndex >= 10 ? 16 : stageIndex >= 8 ? 9 : 0).map((index) => ({
+        x: 34 + ((index * 47) % 320),
+        y: 26 + ((index * 29) % 118),
+        scale: 0.58 + ((index % 4) * 0.12),
+        opacity: 0.3 + ((index % 3) * 0.14)
     }));
+
+    const reeds = [
+        { x: 112, y: 304, lean: -10, height: 34, min: 1, scale: 0.82 },
+        { x: 142, y: 314, lean: 7, height: 28, min: 2, scale: 0.68 },
+        { x: 272, y: 308, lean: -8, height: 36, min: 1, scale: 0.78 },
+        { x: 306, y: 316, lean: 10, height: 44, min: 3, scale: 0.88 },
+        { x: 92, y: 320, lean: -5, height: 24, min: 4, scale: 0.52 },
+        { x: 332, y: 320, lean: 6, height: 26, min: 4, scale: 0.56 }
+    ];
+
+    const pondBlooms = [
+        { x: 134, y: 296, scale: 0.68, min: 4, rotate: -14 },
+        { x: 166, y: 316, scale: 0.54, min: 6, rotate: 8 },
+        { x: 252, y: 306, scale: 0.76, min: 5, rotate: 18 },
+        { x: 286, y: 292, scale: 0.58, min: 7, rotate: -8 }
+    ];
+
+    const fronds = [
+        { x: 156, y: 146, length: 64, curve: -10, min: 6, bloom: false, sway: 0.5 },
+        { x: 176, y: 126, length: 78, curve: -8, min: 7, bloom: stageIndex >= 10, sway: 0.45 },
+        { x: 204, y: 112, length: 92, curve: 3, min: 8, bloom: stageIndex >= 12, sway: 0.4 },
+        { x: 234, y: 116, length: 88, curve: 8, min: 8, bloom: stageIndex >= 10, sway: 0.42 },
+        { x: 264, y: 130, length: 78, curve: 12, min: 9, bloom: stageIndex >= 11, sway: 0.48 },
+        { x: 294, y: 150, length: 58, curve: 14, min: 11, bloom: stageIndex >= 13, sway: 0.52 }
+    ];
+
+    const canopyBlooms = [
+        { x: 152, y: 148, min: 7, scale: 0.68, rotate: -18 },
+        { x: 186, y: 122, min: 8, scale: 0.8, rotate: -6 },
+        { x: 228, y: 112, min: 9, scale: 0.9, rotate: 8 },
+        { x: 268, y: 126, min: 10, scale: 0.82, rotate: 18 },
+        { x: 298, y: 156, min: 11, scale: 0.68, rotate: 26 }
+    ];
+
+    const orbitNodes = range(stageIndex >= 14 ? 8 : stageIndex >= 11 ? 6 : 0).map((index) => {
+        const angle = (360 / (stageIndex >= 14 ? 8 : 6)) * index;
+        const radius = stageIndex >= 14 ? 84 : 72;
+        const radians = angle * (Math.PI / 180);
+        return {
+            x: moonX + (Math.cos(radians) * radius),
+            y: moonY + (Math.sin(radians) * radius),
+            light: index % 2 === 0
+        };
+    });
 
     const { container } = useGSAP(({ selector }) => {
         const q = selector;
 
+        const revealTargets = q('.garden-reveal');
+        if (revealTargets.length) {
+            gsap.fromTo(
+                revealTargets,
+                { opacity: 0, y: 8, scale: 0.985 },
+                {
+                    opacity: (_, element) => Number(element.dataset.revealOpacity ?? element.getAttribute('opacity') ?? 1),
+                    y: 0,
+                    scale: 1,
+                    duration: 1.35,
+                    ease: 'power2.out',
+                    stagger: 0.06
+                }
+            );
+        }
+
         q('.garden-sway').forEach((element) => {
             gsap.to(element, {
-                rotate: Number(element.dataset.rotate ?? 0.9),
-                duration: Number(element.dataset.duration ?? 9.0),
+                rotate: Number(element.dataset.rotate ?? 0.6),
+                duration: Number(element.dataset.duration ?? 10),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                transformOrigin: element.dataset.origin ?? 'center bottom',
+                transformOrigin: element.dataset.origin ?? 'center bottom'
             });
         });
 
@@ -233,61 +614,64 @@ export default function Garden({
             gsap.to(element, {
                 x: Number(element.dataset.x ?? 0),
                 y: Number(element.dataset.y ?? -4),
-                duration: Number(element.dataset.duration ?? 11) + ((index % 3) * 0.7),
+                duration: Number(element.dataset.duration ?? 12) + ((index % 4) * 0.55),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                delay: index * 0.15,
+                delay: index * 0.12
             });
         });
 
         q('.garden-breath').forEach((element, index) => {
             const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 1);
             gsap.to(element, {
-                scale: 1.02 + ((index % 3) * 0.01),
-                opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.04 : 0.025)),
-                duration: 4.5 + ((index % 4) * 0.6),
+                scale: 1.02 + ((index % 3) * 0.012),
+                opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.06 : 0.03)),
+                duration: 4.8 + ((index % 4) * 0.55),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                transformOrigin: element.dataset.origin ?? 'center center',
+                transformOrigin: element.dataset.origin ?? 'center center'
             });
         });
 
         q('.garden-twinkle').forEach((element, index) => {
             gsap.to(element, {
-                opacity: 0.35 + ((index % 5) * 0.08),
-                scale: 0.9 + ((index % 4) * 0.05),
-                duration: 3.2 + ((index % 6) * 0.5),
+                opacity: 0.3 + ((index % 5) * 0.08),
+                scale: 0.88 + ((index % 4) * 0.06),
+                duration: 3.4 + ((index % 6) * 0.45),
                 ease: 'sine.inOut',
                 yoyo: true,
                 repeat: -1,
-                delay: index * 0.12,
-                transformOrigin: element.dataset.origin ?? 'center center',
+                delay: index * 0.1,
+                transformOrigin: element.dataset.origin ?? 'center center'
+            });
+        });
+
+        q('.garden-ripple').forEach((element, index) => {
+            const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 0.24);
+            gsap.to(element, {
+                scaleX: 1.035 + ((index % 2) * 0.02),
+                scaleY: 0.972,
+                opacity: baseOpacity + 0.08,
+                duration: 5.8 + (index * 0.7),
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                transformOrigin: 'center center'
             });
         });
 
         q('.garden-orbit').forEach((element, index) => {
             gsap.to(element, {
                 rotation: index % 2 === 0 ? 360 : -360,
-                duration: Number(element.dataset.duration ?? 42) + (index * 6),
+                duration: Number(element.dataset.duration ?? 48) + (index * 8),
                 ease: 'none',
                 repeat: -1,
-                transformOrigin: element.dataset.origin ?? '200px 200px',
+                transformOrigin: element.dataset.origin ?? `${moonX}px ${moonY}px`
             });
         });
-
-        q('.garden-core').forEach((element) => {
-            gsap.to(element, {
-                scale: stageIndex >= 14 ? 1.04 : 1.025,
-                duration: stageIndex >= 14 ? 5.0 : 5.6,
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                transformOrigin: element.dataset.origin ?? '200px 200px',
-            });
-        });
-    }, [stageIndex, size]);
+    }, [stageIndex, size, moonX, moonY]);
 
     useEffect(() => {
         const node = container.current;
@@ -308,10 +692,10 @@ export default function Garden({
 
         const farX = gsap.quickTo(far, 'x', { duration: 1.8, ease: 'power3.out' });
         const farY = gsap.quickTo(far, 'y', { duration: 1.8, ease: 'power3.out' });
-        const midX = gsap.quickTo(mid, 'x', { duration: 1.5, ease: 'power3.out' });
-        const midY = gsap.quickTo(mid, 'y', { duration: 1.5, ease: 'power3.out' });
-        const nearX = gsap.quickTo(near, 'x', { duration: 1.2, ease: 'power3.out' });
-        const nearY = gsap.quickTo(near, 'y', { duration: 1.2, ease: 'power3.out' });
+        const midX = gsap.quickTo(mid, 'x', { duration: 1.45, ease: 'power3.out' });
+        const midY = gsap.quickTo(mid, 'y', { duration: 1.45, ease: 'power3.out' });
+        const nearX = gsap.quickTo(near, 'x', { duration: 1.1, ease: 'power3.out' });
+        const nearY = gsap.quickTo(near, 'y', { duration: 1.1, ease: 'power3.out' });
 
         const reset = () => {
             farX(0);
@@ -327,12 +711,12 @@ export default function Garden({
             const xProgress = ((event.clientX - rect.left) / rect.width) - 0.5;
             const yProgress = ((event.clientY - rect.top) / rect.height) - 0.5;
 
-            farX(xProgress * 6);
-            farY(yProgress * 5);
-            midX(xProgress * 10);
-            midY(yProgress * 8);
-            nearX(xProgress * 14);
-            nearY(yProgress * 10);
+            farX(xProgress * 4);
+            farY(yProgress * 3.5);
+            midX(xProgress * 7);
+            midY(yProgress * 5.5);
+            nearX(xProgress * 10);
+            nearY(yProgress * 7);
         };
 
         node.addEventListener('pointermove', onMove);
@@ -345,503 +729,7 @@ export default function Garden({
         };
     }, [container, size, stageIndex]);
 
-    const renderTerrainBackdrop = () => {
-        if (stageIndex >= 11) {
-            return (
-                <>
-                    <ellipse
-                        cx="132"
-                        cy="118"
-                        rx="110"
-                        ry="70"
-                        fill={`url(#${ids.atmosphere})`}
-                        opacity="0.28"
-                        className="garden-breath"
-                        data-parallax="far"
-                    />
-                    <ellipse
-                        cx="280"
-                        cy="176"
-                        rx="122"
-                        ry="74"
-                        fill={`url(#${ids.energy})`}
-                        opacity={stageIndex >= 13 ? '0.22' : '0.12'}
-                        filter={`url(#${ids.blur})`}
-                        className="garden-drift"
-                        data-x="0"
-                        data-y="-5"
-                        data-duration="16"
-                        data-parallax="far"
-                    />
-                    {stars.map((star, index) => (
-                        <path
-                            key={`star-${index}`}
-                            d={STAR_PATH}
-                            transform={`translate(${star.x} ${star.y}) scale(${star.scale})`}
-                            fill={palette.energy}
-                            opacity={star.opacity}
-                            className="garden-twinkle"
-                            data-parallax="far"
-                        />
-                    ))}
-                </>
-            );
-        }
-
-        return (
-            <>
-                <ellipse
-                    cx="220"
-                    cy="110"
-                    rx={stageIndex >= 7 ? '132' : '112'}
-                    ry={stageIndex >= 7 ? '84' : '68'}
-                    fill={`url(#${ids.atmosphere})`}
-                    opacity={stageIndex >= 4 ? '0.26' : '0.14'}
-                    className="garden-breath"
-                    data-parallax="far"
-                />
-                <path
-                    d="M-24 252 C 48 220 120 214 180 234 C 240 252 310 256 424 224 L424 400 L-24 400 Z"
-                    fill={`url(#${ids.mist})`}
-                    opacity="0.62"
-                    className="garden-drift"
-                    data-x="0"
-                    data-y="-4"
-                    data-duration="14"
-                    data-parallax="far"
-                />
-                <path
-                    d="M-24 282 C 52 244 124 242 186 260 C 244 276 316 282 424 252 L424 400 L-24 400 Z"
-                    fill={palette.bg2}
-                    opacity="0.48"
-                    className="garden-drift"
-                    data-x="0"
-                    data-y="-3"
-                    data-duration="12"
-                    data-parallax="far"
-                />
-                {/* Cloud wisps */}
-                {stageIndex >= 4 ? (
-                    <g data-parallax="far">
-                        <ellipse cx="80" cy="60" rx="50" ry="12" fill={palette.energy} opacity="0.06"
-                            filter={`url(#${ids.blur})`} className="garden-drift"
-                            data-x="15" data-y="0" data-duration="30" />
-                        <ellipse cx="300" cy="90" rx="40" ry="10" fill={palette.bg1} opacity="0.05"
-                            filter={`url(#${ids.blur})`} className="garden-drift"
-                            data-x="-12" data-y="0" data-duration="28" />
-                    </g>
-                ) : null}
-                {/* Soft light rays */}
-                {stageIndex >= 5 ? (
-                    <g opacity="0.04" data-parallax="far">
-                        <polygon points="140,0 170,0 240,400 210,400" fill={palette.energy} className="garden-breath" />
-                        <polygon points="250,0 275,0 320,400 295,400" fill={palette.energy} className="garden-breath" />
-                    </g>
-                ) : null}
-                {/* Mist layers */}
-                <ellipse
-                    cx="200" cy="320" rx="220" ry="30"
-                    fill={palette.energy} opacity="0.08"
-                    filter={`url(#${ids.blur})`}
-                    className="garden-drift"
-                    data-x="8" data-y="0" data-duration="18"
-                    data-parallax="far"
-                />
-                <ellipse
-                    cx="180" cy="280" rx="200" ry="24"
-                    fill={palette.bg2} opacity="0.06"
-                    filter={`url(#${ids.blur})`}
-                    className="garden-drift"
-                    data-x="-6" data-y="0" data-duration="22"
-                    data-parallax="far"
-                />
-            </>
-        );
-    };
-
-    const renderEarthHero = () => {
-        if (stageIndex === 0) {
-            return (
-                <g data-parallax="mid">
-                    <path d="M110 292 C 160 278 238 280 290 294" fill="none" stroke={palette.accent} strokeOpacity="0.25" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M146 304 C 152 292 160 288 172 284" fill="none" stroke={palette.accent} strokeOpacity="0.22" strokeWidth="1.6" strokeLinecap="round" />
-                    <path d="M220 304 C 226 292 236 288 252 284" fill="none" stroke={palette.accent} strokeOpacity="0.22" strokeWidth="1.6" strokeLinecap="round" />
-                    <ellipse cx="200" cy="298" rx="18" ry="8" fill={palette.accent} opacity="0.9" className="garden-breath" />
-                </g>
-            );
-        }
-
-        const trunkTopY = stageIndex < 4 ? 272 - (stageIndex * 22) : stageIndex < 7 ? 218 - ((stageIndex - 4) * 14) : 116;
-        const canopyNodes = [
-            { x: 172, y: 214, min: 2, rotate: -22, scale: 0.72, branch: 'M200 286 C 184 262 178 236 172 214' },
-            { x: 236, y: 202, min: 3, rotate: 18, scale: 0.74, branch: 'M200 258 C 214 236 228 216 236 202' },
-            { x: 120, y: 176, min: 4, rotate: -34, scale: 0.78, branch: 'M194 242 C 170 214 146 192 120 176' },
-            { x: 278, y: 168, min: 5, rotate: 34, scale: 0.8, branch: 'M210 228 C 234 204 254 182 278 168' },
-            { x: 202, y: 146, min: 5, rotate: 0, scale: 0.9, branch: 'M202 208 C 204 186 205 166 202 146' },
-            { x: 156, y: 132, min: 7, rotate: -18, scale: 0.68, branch: 'M190 186 C 176 164 166 146 156 132' },
-            { x: 246, y: 126, min: 8, rotate: 18, scale: 0.68, branch: 'M212 180 C 228 156 236 142 246 126' }
-        ];
-        const edgePlants = [
-            { x: 66, y: 318, lean: -10, height: 40, min: 1, scale: 0.86 },
-            { x: 118, y: 324, lean: 8, height: 36, min: 2, scale: 0.75 },
-            { x: 282, y: 322, lean: -7, height: 40, min: 2, scale: 0.82 },
-            { x: 336, y: 316, lean: 10, height: 48, min: 3, scale: 0.92 },
-            { x: 40, y: 328, lean: -4, height: 30, min: 5, scale: 0.6 },
-            { x: 360, y: 326, lean: 6, height: 34, min: 5, scale: 0.64 }
-        ];
-
-        return (
-            <g data-parallax="mid">
-                {stageIndex >= 4 ? (
-                    <ellipse
-                        cx="200"
-                        cy={stageIndex >= 7 ? '144' : '176'}
-                        rx={stageIndex >= 7 ? '118' : '88'}
-                        ry={stageIndex >= 7 ? '76' : '56'}
-                        fill={energyFill}
-                        opacity={stageIndex >= 8 ? '0.18' : '0.12'}
-                        className="garden-breath"
-                        data-parallax="far"
-                    />
-                ) : null}
-
-                {stageIndex >= 6 ? (
-                    <ellipse cx="220" cy="306" rx="56" ry="14" fill={energyFill} opacity="0.18" className="garden-breath" />
-                ) : null}
-
-                <g className="garden-sway" data-origin="200px 308px" data-rotate={stageIndex >= 8 ? '0.7' : '0.9'} data-duration={stageIndex >= 8 ? '11.0' : '9.0'}>
-                    <path
-                        d={`M200 314 C 188 282 190 250 198 220 C 206 184 210 156 202 ${trunkTopY}`}
-                        fill="none"
-                        stroke={trunkStroke}
-                        strokeWidth={stageIndex >= 8 ? '18' : stageIndex >= 5 ? '14' : stageIndex >= 3 ? '9' : '5'}
-                        strokeLinecap="round"
-                    />
-                    {stageIndex >= 3 ? (
-                        <>
-                            <path d="M196 276 C 178 260 164 248 146 240" fill="none" stroke={trunkStroke} strokeWidth="5.8" strokeLinecap="round" />
-                            <path d="M204 250 C 220 236 236 222 252 214" fill="none" stroke={trunkStroke} strokeWidth="5.2" strokeLinecap="round" />
-                        </>
-                    ) : null}
-                    {stageIndex >= 5 ? (
-                        <>
-                            <path d="M194 244 C 170 214 146 194 118 176" fill="none" stroke={trunkStroke} strokeWidth="4.4" strokeLinecap="round" />
-                            <path d="M208 228 C 232 202 252 186 280 166" fill="none" stroke={trunkStroke} strokeWidth="4" strokeLinecap="round" />
-                            <path d="M204 214 C 206 190 206 172 204 146" fill="none" stroke={trunkStroke} strokeWidth="4.2" strokeLinecap="round" />
-                        </>
-                    ) : null}
-                    {stageIndex >= 8 ? (
-                        <>
-                            <path d="M188 204 C 172 176 162 154 154 130" fill="none" stroke={trunkStroke} strokeWidth="3" strokeLinecap="round" />
-                            <path d="M214 196 C 230 170 238 150 248 126" fill="none" stroke={trunkStroke} strokeWidth="3" strokeLinecap="round" />
-                        </>
-                    ) : null}
-                </g>
-
-                {canopyNodes.filter((node) => stageIndex >= node.min).map((node, index) => (
-                    <g key={`canopy-${node.x}-${node.y}`}>
-                        <path d={node.branch} fill="none" stroke={trunkStroke} strokeWidth={stageIndex >= 8 ? '2.6' : '2'} strokeLinecap="round" opacity="0.86" />
-                        {stageIndex < 4 ? (
-                            <g className="garden-sway" data-origin={`${node.x}px ${node.y}px`} data-rotate="1.5" data-duration={8.0 + (index * 0.5)}>
-                                <LeafBlade x={node.x - 7} y={node.y + 4} rotate={-80 + node.rotate} scale={0.48 * node.scale} fill={leafFill} />
-                                <LeafBlade x={node.x + 6} y={node.y + 3} rotate={62 + node.rotate} scale={0.42 * node.scale} fill={leafFill} opacity="0.82" />
-                            </g>
-                        ) : (
-                            <Rosette
-                                x={node.x}
-                                y={node.y}
-                                petals={stageIndex >= 8 ? 8 : 6}
-                                radius={(stageIndex >= 8 ? 18 : 14) * node.scale}
-                                petalScale={(stageIndex >= 8 ? 0.34 : 0.28) * node.scale}
-                                petalFill={stageIndex >= 8 ? energyFill : petalFill}
-                                coreFill={stageIndex >= 8 ? palette.energy : palette.accent}
-                                coreRadius={(stageIndex >= 8 ? 4.8 : 3.6) * node.scale}
-                                rotate={node.rotate}
-                                className="garden-breath"
-                                ringStroke={stageIndex >= 9 ? palette.energy : null}
-                                ringRadius={stageIndex >= 9 ? 8 * node.scale : 0}
-                                glowFill={energyFill}
-                            />
-                        )}
-                    </g>
-                ))}
-
-                {stageIndex >= 7 ? (
-                    <>
-                        <path d="M134 188 C 126 204 122 218 124 232" fill="none" stroke={palette.energy} strokeWidth="1.6" opacity="0.56" />
-                        <circle cx="124" cy="238" r="7" fill={stageIndex >= 9 ? energyFill : petalFill} className="garden-drift" data-x="0" data-y="-3" data-duration="7.5" />
-                        <path d="M260 174 C 272 194 276 208 276 222" fill="none" stroke={palette.energy} strokeWidth="1.4" opacity="0.56" />
-                        <circle cx="276" cy="228" r="6" fill={energyFill} className="garden-drift" data-x="0" data-y="-2" data-duration="8.2" />
-                    </>
-                ) : null}
-
-                {stageIndex >= 9 ? (
-                    <g className="garden-orbit" data-duration={stageIndex >= 10 ? '36' : '46'} data-origin="200px 184px" data-parallax="near">
-                        <circle cx="200" cy="184" r="72" fill="none" stroke={palette.energy} strokeWidth="1.4" strokeDasharray="5 16" opacity="0.45" />
-                        <circle cx="272" cy="184" r="5" fill={palette.energy} className="garden-twinkle" />
-                        <circle cx="128" cy="184" r="4" fill={palette.leaf} className="garden-twinkle" />
-                    </g>
-                ) : null}
-
-                {edgePlants.filter((plant) => stageIndex >= plant.min).map((plant, index) => (
-                    <Sprig
-                        key={`edge-${plant.x}`}
-                        x={plant.x}
-                        y={plant.y}
-                        height={plant.height}
-                        lean={plant.lean}
-                        scale={plant.scale}
-                        stemStroke={trunkStroke}
-                        leafFill={leafFill}
-                        petalFill={stageIndex >= 8 ? energyFill : petalFill}
-                        coreFill={palette.energy}
-                        showBloom={stageIndex >= 4}
-                        showSeed={stageIndex < 4}
-                        sway={0.8 + (index * 0.1)}
-                        duration={9.0 + (index * 0.5)}
-                    />
-                ))}
-            </g>
-        );
-    };
-
-    const renderAstralHero = () => (
-        <g data-parallax="mid">
-            <g className="garden-drift garden-island" data-x="0" data-y="-5" data-duration="12.0">
-                <path
-                    d="M98 274 C 126 254 172 248 224 258 C 268 266 304 268 322 282 C 306 312 266 330 202 334 C 142 328 104 312 98 274 Z"
-                    fill={`url(#${ids.ground})`}
-                />
-                <path
-                    d="M114 278 C 158 264 220 266 286 280 C 268 296 228 304 192 302 C 150 300 126 294 114 278 Z"
-                    fill={palette.accent}
-                    opacity="0.55"
-                />
-                {range(4).map((index) => {
-                    const rootX = 138 + (index * 34);
-                    const rootEnd = 356 + ((index % 2) * 16);
-                    return (
-                        <path
-                            key={`root-${index}`}
-                            d={`M${rootX} 310 C ${rootX - 8} 326 ${rootX + 4} 340 ${rootX - 2} ${rootEnd}`}
-                            fill="none"
-                            stroke={palette.accent}
-                            strokeWidth={index === 1 ? '3.2' : '2.3'}
-                            strokeLinecap="round"
-                            opacity="0.76"
-                            className="garden-sway"
-                            data-origin={`${rootX}px 310px`}
-                            data-rotate={index % 2 === 0 ? '-1.5' : '1.5'}
-                            data-duration={9.5 + (index * 0.6)}
-                        />
-                    );
-                })}
-            </g>
-
-            <ellipse cx="198" cy="160" rx="120" ry="86" fill={energyFill} opacity="0.2" className="garden-breath" data-parallax="far" />
-            <g className="garden-orbit" data-duration="46" data-origin="200px 176px" data-parallax="near">
-                <circle cx="200" cy="176" r="86" fill="none" stroke={palette.energy} strokeWidth="1.5" strokeDasharray="5 18" opacity="0.58" />
-                <circle cx="200" cy="176" r="106" fill="none" stroke={palette.accent} strokeWidth="1.2" strokeDasharray="2 16" opacity="0.42" />
-            </g>
-
-            <g className="garden-sway" data-origin="200px 286px" data-rotate="0.6" data-duration="12.0">
-                <path
-                    d="M200 286 C 184 252 176 220 184 192 C 194 154 210 126 206 92"
-                    fill="none"
-                    stroke={trunkStroke}
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                />
-                <path d="M188 210 C 160 190 146 172 136 148" fill="none" stroke={trunkStroke} strokeWidth="4.4" strokeLinecap="round" />
-                <path d="M204 190 C 228 174 250 154 266 132" fill="none" stroke={trunkStroke} strokeWidth="4" strokeLinecap="round" />
-                <path d="M202 158 C 210 138 226 120 246 102" fill="none" stroke={trunkStroke} strokeWidth="3.4" strokeLinecap="round" />
-            </g>
-
-            <Rosette
-                x="206"
-                y="82"
-                petals={stageIndex >= 12 ? 10 : 8}
-                radius={28}
-                petalScale={0.42}
-                petalFill={energyFill}
-                coreFill={palette.energy}
-                coreRadius="8"
-                className="garden-core"
-                glowFill={energyFill}
-                ringStroke={palette.accent}
-                ringRadius="20"
-            />
-            <Rosette
-                x="138"
-                y="146"
-                petals={7}
-                radius={18}
-                petalScale={0.32}
-                petalFill={petalFill}
-                coreFill={palette.energy}
-                coreRadius="5"
-                rotate="-20"
-                className="garden-breath"
-                glowFill={energyFill}
-            />
-            <Rosette
-                x="268"
-                y="128"
-                petals={7}
-                radius={18}
-                petalScale={0.32}
-                petalFill={petalFill}
-                coreFill={palette.energy}
-                coreRadius="5"
-                rotate="20"
-                className="garden-breath"
-                glowFill={energyFill}
-            />
-            <Rosette
-                x="246"
-                y="104"
-                petals={6}
-                radius={14}
-                petalScale={0.28}
-                petalFill={energyFill}
-                coreFill={palette.energy}
-                coreRadius="4"
-                className="garden-breath"
-            />
-
-            <LeafBlade x="172" y="182" rotate="-62" scale="0.7" fill={leafFill} className="garden-sway" />
-            <LeafBlade x="224" y="164" rotate="48" scale="0.68" fill={leafFill} className="garden-sway" />
-            <LeafBlade x="146" y="218" rotate="-78" scale="0.54" fill={leafFill} className="garden-sway" />
-            <LeafBlade x="264" y="186" rotate="65" scale="0.52" fill={leafFill} className="garden-sway" />
-
-            {range(stageIndex >= 12 ? 6 : 4).map((index) => {
-                const crystalX = 130 + (index * 28);
-                const crystalHeight = 18 + ((index % 3) * 8);
-                return (
-                    <path
-                        key={`crystal-${index}`}
-                        d={`M${crystalX} 272 L${crystalX + 8} ${272 - crystalHeight} L${crystalX + 16} 272 L${crystalX + 8} ${278 + (index % 2 === 0 ? 8 : 5)} Z`}
-                        fill={index % 2 === 0 ? petalFill : energyFill}
-                        opacity="0.82"
-                        className="garden-breath"
-                    />
-                );
-            })}
-        </g>
-    );
-
-    const renderCosmicHero = () => (
-        <g data-parallax="mid">
-            <ellipse cx="200" cy="318" rx="120" ry="24" fill={energyFill} opacity="0.2" className="garden-breath" />
-            <path d="M110 320 C 148 298 252 298 290 320 C 252 342 148 342 110 320 Z" fill={`url(#${ids.ground})`} opacity="0.7" className="garden-breath" />
-            <path d="M200 294 C 194 258 194 228 200 206" fill="none" stroke={trunkStroke} strokeWidth="8" strokeLinecap="round" opacity="0.9" />
-
-            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '32' : '42'} data-origin="200px 188px" data-parallax="near">
-                <circle cx="200" cy="188" r={stageIndex >= 15 ? '124' : '106'} fill="none" stroke={palette.energy} strokeWidth="1.5" strokeDasharray="6 18" opacity="0.42" />
-                <circle cx="200" cy="188" r={stageIndex >= 15 ? '88' : '76'} fill="none" stroke={palette.accent} strokeWidth="1.3" strokeDasharray="2 12" opacity="0.5" />
-            </g>
-            <g className="garden-orbit" data-duration={stageIndex >= 15 ? '42' : '52'} data-origin="200px 188px" data-parallax="near">
-                <polygon points="200,38 324,112 324,266 200,340 76,266 76,112" fill="none" stroke={palette.leaf} strokeWidth="1.3" opacity="0.36" />
-            </g>
-
-            <Rosette
-                x="200"
-                y="188"
-                petals={stageIndex >= 15 ? 16 : stageIndex >= 14 ? 14 : 12}
-                radius={stageIndex >= 15 ? 58 : 48}
-                petalScale={stageIndex >= 15 ? 0.5 : 0.42}
-                petalFill={energyFill}
-                coreFill={palette.energy}
-                coreRadius={stageIndex >= 15 ? '13' : '11'}
-                className="garden-core"
-                glowFill={energyFill}
-                ringStroke={palette.energy}
-                ringRadius={stageIndex >= 15 ? '36' : '30'}
-            />
-            <Rosette
-                x="200"
-                y="188"
-                petals={stageIndex >= 15 ? 10 : 8}
-                radius={stageIndex >= 15 ? 26 : 22}
-                petalScale={0.28}
-                petalFill={petalFill}
-                coreFill={palette.accent}
-                coreRadius="6"
-                rotate="22"
-                className="garden-core"
-                glowFill={energyFill}
-            />
-
-            {range(stageIndex >= 15 ? 10 : 8).map((index) => {
-                const angle = (360 / (stageIndex >= 15 ? 10 : 8)) * index;
-                const translateY = stageIndex >= 15 ? -92 : -80;
-                return (
-                    <g key={`crown-${angle}`} transform={`translate(200 188) rotate(${angle}) translate(0 ${translateY})`}>
-                        <LeafBlade x="0" y="0" rotate="0" scale={stageIndex >= 15 ? 0.66 : 0.58} fill={leafFill} className="garden-breath" />
-                    </g>
-                );
-            })}
-
-            {range(stageIndex >= 15 ? 8 : 6).map((index) => {
-                const angle = (360 / (stageIndex >= 15 ? 8 : 6)) * index;
-                const radius = stageIndex >= 15 ? 124 : 106;
-                const radians = angle * (Math.PI / 180);
-                const x = 200 + (Math.cos(radians) * radius);
-                const y = 188 + (Math.sin(radians) * radius);
-                return (
-                    <g key={`orbit-node-${index}`} className="garden-drift" data-x={index % 2 === 0 ? '2.5' : '-2.5'} data-y={index % 2 === 0 ? '-2' : '2'} data-duration={8.0 + (index * 0.5)}>
-                        <circle cx={x} cy={y} r={stageIndex >= 15 ? '8' : '6'} fill={index % 2 === 0 ? energyFill : petalFill} className="garden-twinkle" />
-                        <circle cx={x} cy={y} r={stageIndex >= 15 ? '16' : '12'} fill={energyFill} opacity="0.14" className="garden-breath" />
-                    </g>
-                );
-            })}
-        </g>
-    );
-
-    const renderDustMotes = () => {
-        if (stageIndex < 3) return null;
-        const count = stageIndex >= 10 ? 10 : stageIndex >= 6 ? 8 : 5;
-        return (
-            <g data-parallax="near" opacity="0.4">
-                {range(count).map((i) => (
-                    <circle
-                        key={`mote-${i}`}
-                        cx={40 + ((i * 67) % 320)}
-                        cy={60 + ((i * 43) % 280)}
-                        r={0.8 + ((i % 3) * 0.3)}
-                        fill={palette.energy}
-                        className="garden-drift"
-                        data-x={i % 2 === 0 ? '3' : '-3'}
-                        data-y={-6 - (i % 3)}
-                        data-duration={14 + ((i % 4) * 2)}
-                    />
-                ))}
-            </g>
-        );
-    };
-
-    const renderForegroundParticles = () => (
-        <g data-parallax="near">
-            {particlePoints.map((point, index) => (
-                <g
-                    key={`particle-${index}`}
-                    className="garden-drift"
-                    data-x={((index % 2 === 0 ? 1 : -1) * (2 + (index % 3)))}
-                    data-y={-2 - (index % 3)}
-                    data-duration={6.0 + ((index % 5) * 0.7)}
-                >
-                    <circle
-                        cx={point.x}
-                        cy={point.y}
-                        r={(stageIndex >= 13 ? 2.4 : 1.8) * point.size}
-                        fill={index % 3 === 0 ? palette.leaf : palette.energy}
-                        opacity={stageIndex >= 13 ? 0.74 : 0.52}
-                        className="garden-twinkle"
-                    />
-                </g>
-            ))}
-        </g>
-    );
+    const trunkTop = stageIndex >= 13 ? 108 : stageIndex >= 9 ? 118 : 136;
 
     return (
         <div
@@ -856,120 +744,397 @@ export default function Garden({
                 role="img"
                 aria-labelledby={ids.title}
                 aria-describedby={ids.desc}
-                className="rounded-3xl shadow-md md:shadow-2xl overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-1000 ease-in-out"
+                className={`overflow-hidden rounded-3xl shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-1000 ease-in-out md:shadow-2xl ${svgClassName}`.trim()}
             >
                 <title id={ids.title}>{`${stageName} garden`}</title>
-                <desc id={ids.desc}>{`Illustrated study streak garden for a ${streak} day streak.`}</desc>
+                <desc id={ids.desc}>{`A serene study streak garden rendered as a moonlit sanctuary for a ${streak} day streak.`}</desc>
 
                 <defs>
                     <linearGradient id={ids.sky} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={palette.bg1} />
-                        <stop offset="55%" stopColor={palette.bg1} stopOpacity="0.5" />
-                        <stop offset="100%" stopColor={palette.bg2} />
+                        <stop offset="0%" stopColor={palette.skyTop} />
+                        <stop offset="58%" stopColor={palette.skyTop} stopOpacity="0.68" />
+                        <stop offset="100%" stopColor={palette.skyBottom} />
                     </linearGradient>
-                    <radialGradient id={ids.atmosphere} cx="50%" cy="42%" r="65%">
-                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0.6" />
-                        <stop offset="40%" stopColor={palette.energy} stopOpacity="0.3" />
-                        <stop offset="75%" stopColor={palette.leaf} stopOpacity="0.12" />
-                        <stop offset="100%" stopColor={palette.bg2} stopOpacity="0" />
+                    <linearGradient id={ids.hills} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={palette.hillFar} stopOpacity="0.4" />
+                        <stop offset="100%" stopColor={palette.hillFar} />
+                    </linearGradient>
+                    <linearGradient id={ids.hillsNear} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={palette.hillNear} stopOpacity="0.26" />
+                        <stop offset="100%" stopColor={palette.hillNear} />
+                    </linearGradient>
+                    <linearGradient id={ids.mist} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={palette.mist} stopOpacity="0" />
+                        <stop offset="50%" stopColor={palette.mist} stopOpacity="0.34" />
+                        <stop offset="100%" stopColor={palette.mist} stopOpacity="0" />
+                    </linearGradient>
+                    <radialGradient id={ids.pond} cx="50%" cy="45%" r="70%">
+                        <stop offset="0%" stopColor={palette.pondGlow} stopOpacity="0.8" />
+                        <stop offset="28%" stopColor={palette.pond} stopOpacity="0.86" />
+                        <stop offset="100%" stopColor={palette.hillNear} />
                     </radialGradient>
-                    <linearGradient id={ids.ground} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={palette.ground} />
-                        <stop offset="100%" stopColor={palette.accent} />
+                    <linearGradient id={ids.reflection} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={palette.light} stopOpacity="0.52" />
+                        <stop offset="100%" stopColor={palette.light} stopOpacity="0" />
                     </linearGradient>
-                    <linearGradient id={ids.soil} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor={palette.accent} />
-                        <stop offset="50%" stopColor={palette.ground} />
-                        <stop offset="100%" stopColor={palette.accent} />
+                    <linearGradient id={ids.island} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={palette.island} />
+                        <stop offset="100%" stopColor={palette.bark} />
                     </linearGradient>
-                    <linearGradient id={ids.trunk} x1="0" y1="1" x2="0.8" y2="0">
-                        <stop offset="0%" stopColor={palette.ground} />
-                        <stop offset="50%" stopColor={palette.accent} />
-                        <stop offset="100%" stopColor={palette.energy} />
+                    <linearGradient id={ids.bark} x1="0" y1="1" x2="1" y2="0">
+                        <stop offset="0%" stopColor={palette.bark} />
+                        <stop offset="100%" stopColor={palette.light} />
                     </linearGradient>
                     <linearGradient id={ids.leaf} x1="0" y1="1" x2="0.8" y2="0">
                         <stop offset="0%" stopColor={palette.leaf} />
-                        <stop offset="100%" stopColor={palette.energy} />
+                        <stop offset="100%" stopColor={palette.leafLight} />
                     </linearGradient>
-                    <linearGradient id={ids.petal} x1="0" y1="1" x2="0.7" y2="0">
-                        <stop offset="0%" stopColor={palette.accent} />
-                        <stop offset="100%" stopColor={palette.energy} />
+                    <linearGradient id={ids.blossom} x1="0" y1="1" x2="0.75" y2="0">
+                        <stop offset="0%" stopColor={palette.blossom} />
+                        <stop offset="100%" stopColor={palette.light} />
                     </linearGradient>
-                    <radialGradient id={ids.energy} cx="50%" cy="50%" r="55%">
-                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0.85" />
-                        <stop offset="35%" stopColor={palette.energy} stopOpacity="0.5" />
-                        <stop offset="70%" stopColor={palette.leaf} stopOpacity="0.2" />
-                        <stop offset="100%" stopColor={palette.bg2} stopOpacity="0" />
+                    <radialGradient id={ids.light} cx="50%" cy="42%" r="62%">
+                        <stop offset="0%" stopColor={palette.light} stopOpacity="0.9" />
+                        <stop offset="44%" stopColor={palette.light} stopOpacity="0.44" />
+                        <stop offset="100%" stopColor={palette.light} stopOpacity="0" />
                     </radialGradient>
-                    <linearGradient id={ids.mist} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor={palette.energy} stopOpacity="0" />
-                        <stop offset="50%" stopColor={palette.energy} stopOpacity="0.26" />
-                        <stop offset="100%" stopColor={palette.energy} stopOpacity="0" />
-                    </linearGradient>
                     <filter id={ids.blur}>
                         <feGaussianBlur stdDeviation="12" />
                     </filter>
                     <filter id={ids.glow} x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="4.5" result="blurred" />
-                        <feColorMatrix in="blurred" type="saturate" values="0.6" result="desatBlur" />
                         <feMerge>
-                            <feMergeNode in="desatBlur" />
                             <feMergeNode in="blurred" />
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
-                    <filter id={ids.softFocus} x="-10%" y="-10%" width="120%" height="120%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="softBlur" />
-                        <feBlend in="SourceGraphic" in2="softBlur" mode="screen" result="softened" />
-                        <feComposite in="softened" in2="SourceGraphic" operator="atop" />
-                    </filter>
-                    <filter id={ids.haze} x="-5%" y="-5%" width="110%" height="110%">
-                        <feGaussianBlur stdDeviation="6" result="hazed" />
-                        <feComponentTransfer in="hazed" result="faded">
-                            <feFuncA type="linear" slope="0.7" />
-                        </feComponentTransfer>
-                        <feMerge>
-                            <feMergeNode in="faded" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
                     <radialGradient id={ids.vignette} cx="50%" cy="50%" r="60%">
-                        <stop offset="0%" stopColor={palette.bg1} stopOpacity="0" />
-                        <stop offset="80%" stopColor={palette.bg2} stopOpacity="0" />
-                        <stop offset="100%" stopColor={palette.ground} stopOpacity="0.15" />
+                        <stop offset="0%" stopColor={palette.skyTop} stopOpacity="0" />
+                        <stop offset="82%" stopColor={palette.hillNear} stopOpacity="0" />
+                        <stop offset="100%" stopColor={palette.hillNear} stopOpacity="0.16" />
                     </radialGradient>
                 </defs>
 
                 <rect x="0" y="0" width="400" height="400" fill={`url(#${ids.sky})`} />
-                {renderTerrainBackdrop()}
 
-                {stageIndex < 11 ? (
-                    <>
-                        <path
-                            d="M-24 308 C 40 272 110 264 198 284 C 278 302 348 304 424 276 L424 400 L-24 400 Z"
-                            fill={`url(#${ids.ground})`}
-                            data-parallax="mid"
-                        />
-                        <path
-                            d="M-24 334 C 56 300 130 302 212 316 C 282 326 350 330 424 308 L424 400 L-24 400 Z"
-                            fill={`url(#${ids.soil})`}
-                            opacity="0.34"
-                            data-parallax="mid"
-                        />
-                    </>
+                <ellipse
+                    cx={moonX}
+                    cy={moonY}
+                    rx={moonRadius * 1.7}
+                    ry={moonRadius * 1.45}
+                    fill={lightFill}
+                    opacity={stageIndex >= 8 ? '0.34' : '0.22'}
+                    className="garden-breath garden-reveal"
+                    data-parallax="far"
+                />
+                <circle
+                    cx={moonX}
+                    cy={moonY}
+                    r={moonRadius}
+                    fill={palette.light}
+                    opacity={stageIndex >= 8 ? '0.9' : '0.75'}
+                    className="garden-breath garden-reveal"
+                    data-parallax="far"
+                />
+
+                {stars.map((star, index) => (
+                    <path
+                        key={`star-${index}`}
+                        d={STAR_PATH}
+                        transform={`translate(${star.x} ${star.y}) scale(${star.scale})`}
+                        fill={palette.star}
+                        opacity={star.opacity}
+                        className="garden-twinkle garden-reveal"
+                        data-parallax="far"
+                    />
+                ))}
+
+                <path
+                    d="M-24 216 C 46 176 110 170 176 190 C 234 208 298 212 424 182 L424 400 L-24 400 Z"
+                    fill={`url(#${ids.hills})`}
+                    className="garden-reveal"
+                    data-parallax="far"
+                />
+                <path
+                    d="M-24 246 C 36 214 108 208 180 222 C 250 236 318 240 424 220 L424 400 L-24 400 Z"
+                    fill={`url(#${ids.hillsNear})`}
+                    opacity="0.92"
+                    className="garden-reveal"
+                    data-parallax="mid"
+                />
+                <path
+                    d="M-24 234 C 52 204 142 206 240 226 C 312 242 360 244 424 230"
+                    fill="none"
+                    stroke={`url(#${ids.mist})`}
+                    strokeWidth="20"
+                    strokeLinecap="round"
+                    className="garden-drift garden-reveal"
+                    data-x="6"
+                    data-y="0"
+                    data-duration="20"
+                    data-parallax="far"
+                />
+
+                <ellipse
+                    cx="200"
+                    cy="314"
+                    rx="168"
+                    ry="54"
+                    fill={`url(#${ids.pond})`}
+                    className="garden-reveal"
+                    data-parallax="mid"
+                />
+                <ellipse
+                    cx={moonX - 12}
+                    cy="278"
+                    rx="26"
+                    ry="74"
+                    fill={`url(#${ids.reflection})`}
+                    opacity={stageIndex >= 8 ? '0.38' : '0.22'}
+                    filter={`url(#${ids.blur})`}
+                    className="garden-breath garden-reveal"
+                    data-parallax="mid"
+                />
+                <ellipse
+                    cx="206"
+                    cy="290"
+                    rx="128"
+                    ry="22"
+                    fill={palette.light}
+                    opacity="0.08"
+                    filter={`url(#${ids.blur})`}
+                    className="garden-breath garden-reveal"
+                    data-parallax="mid"
+                />
+                {range(stageIndex >= 11 ? 4 : stageIndex >= 4 ? 3 : 2).map((index) => (
+                    <ellipse
+                        key={`ripple-${index}`}
+                        cx="200"
+                        cy={304 + (index * 10)}
+                        rx={54 + (index * 26)}
+                        ry={8 + (index * 2.4)}
+                        fill="none"
+                        stroke={palette.light}
+                        strokeOpacity={0.16 - (index * 0.024)}
+                        strokeWidth="1.25"
+                        className="garden-ripple garden-reveal"
+                        data-opacity={0.16 - (index * 0.024)}
+                        data-parallax="near"
+                    />
+                ))}
+
+                <g data-parallax="mid" className="garden-reveal">
+                    <path
+                        d="M88 286 C 130 262 190 254 254 262 C 304 268 332 284 328 302 C 312 324 266 338 198 338 C 138 334 98 320 88 286 Z"
+                        fill={`url(#${ids.island})`}
+                    />
+                    <path
+                        d="M116 284 C 154 270 204 270 258 278 C 236 292 198 298 160 296 C 136 294 122 290 116 284 Z"
+                        fill={palette.pondGlow}
+                        opacity="0.18"
+                    />
+                    <ellipse cx="200" cy="298" rx="104" ry="18" fill={palette.light} opacity="0.05" className="garden-breath" />
+                </g>
+
+                {stageIndex === 0 ? (
+                    <g data-parallax="mid" className="garden-reveal">
+                        <ellipse cx="200" cy="288" rx="16" ry="7" fill={palette.bark} opacity="0.9" />
+                        <circle cx="200" cy="280" r="6" fill={palette.light} opacity="0.82" className="garden-breath" />
+                        <circle cx="200" cy="280" r="18" fill={lightFill} opacity="0.18" className="garden-breath" />
+                    </g>
                 ) : null}
 
-                {stageIndex < 11 ? renderEarthHero() : null}
-                {stageIndex >= 11 && stageIndex < 13 ? renderAstralHero() : null}
-                {stageIndex >= 13 ? renderCosmicHero() : null}
-                {renderDustMotes()}
-                {stageIndex >= 2 ? renderForegroundParticles() : null}
+                {reeds.filter((reed) => stageIndex >= reed.min).map((reed, index) => (
+                    <Reed
+                        key={`reed-${reed.x}`}
+                        x={reed.x}
+                        y={reed.y}
+                        height={reed.height}
+                        lean={reed.lean}
+                        scale={reed.scale}
+                        stemStroke={barkStroke}
+                        leafFill={leafFill}
+                        blossomFill={blossomFill}
+                        coreFill={palette.light}
+                        showBloom={stageIndex >= 4}
+                        showSeed={stageIndex < 4}
+                        sway={0.6 + (index * 0.08)}
+                        duration={9.6 + (index * 0.45)}
+                    />
+                ))}
+
+                {stageIndex >= 2 ? (
+                    <g data-parallax="mid" className="garden-reveal">
+                        <Reed
+                            x={200}
+                            y={300}
+                            height={stageIndex >= 4 ? 44 : 34}
+                            lean={stageIndex >= 4 ? 3 : 0}
+                            scale={0.92}
+                            stemStroke={barkStroke}
+                            leafFill={leafFill}
+                            blossomFill={blossomFill}
+                            coreFill={palette.light}
+                            showBloom={stageIndex >= 4}
+                            showSeed={stageIndex < 4}
+                            sway={0.48}
+                            duration={11}
+                        />
+                    </g>
+                ) : null}
+
+                {pondBlooms.filter((bloom) => stageIndex >= bloom.min).map((bloom, index) => (
+                    <g key={`pond-bloom-${bloom.x}`} data-parallax="near" className="garden-reveal">
+                        <ellipse
+                            cx={bloom.x}
+                            cy={bloom.y + 10}
+                            rx={18 * bloom.scale}
+                            ry={7 * bloom.scale}
+                            fill={leafFill}
+                            opacity="0.72"
+                            className="garden-breath"
+                        />
+                        <LotusBloom
+                            x={bloom.x}
+                            y={bloom.y}
+                            petals={index % 2 === 0 ? 6 : 7}
+                            radius={14 * bloom.scale}
+                            petalScale={0.26 * bloom.scale}
+                            petalFill={blossomFill}
+                            coreFill={palette.blossomCore}
+                            coreRadius={3 * bloom.scale}
+                            rotate={bloom.rotate}
+                            glowFill={lightFill}
+                            glowOpacity={0.08}
+                            className="garden-breath"
+                        />
+                    </g>
+                ))}
+
+                {stageIndex >= 5 ? (
+                    <g data-parallax="mid" className="garden-reveal">
+                        <ellipse
+                            cx={226}
+                            cy={stageIndex >= 11 ? 146 : 162}
+                            rx={stageIndex >= 11 ? 108 : 82}
+                            ry={stageIndex >= 11 ? 58 : 44}
+                            fill={lightFill}
+                            opacity={stageIndex >= 10 ? '0.18' : '0.1'}
+                            className="garden-breath"
+                            data-parallax="far"
+                        />
+                        <g className="garden-sway" data-origin="202px 300px" data-rotate={stageIndex >= 12 ? '0.4' : '0.52'} data-duration="12.4">
+                            <path
+                                d={`M200 300 C 194 266 198 232 214 194 C 226 166 244 140 246 ${trunkTop}`}
+                                fill="none"
+                                stroke={barkStroke}
+                                strokeWidth={stageIndex >= 10 ? '11' : '8'}
+                                strokeLinecap="round"
+                            />
+                            <path d="M214 202 C 194 184 174 168 150 152" fill="none" stroke={barkStroke} strokeWidth="4.1" strokeLinecap="round" />
+                            <path d="M224 178 C 246 162 270 154 298 156" fill="none" stroke={barkStroke} strokeWidth="3.8" strokeLinecap="round" />
+                            {stageIndex >= 8 ? (
+                                <>
+                                    <path d="M232 152 C 248 136 270 122 294 112" fill="none" stroke={barkStroke} strokeWidth="2.8" strokeLinecap="round" />
+                                    <path d="M206 230 C 178 220 148 216 118 224" fill="none" stroke={barkStroke} strokeWidth="3.2" strokeLinecap="round" />
+                                </>
+                            ) : null}
+                        </g>
+
+                        {fronds.filter((frond) => stageIndex >= frond.min).map((frond, index) => (
+                            <WillowFrond
+                                key={`frond-${frond.x}-${frond.y}`}
+                                x={frond.x}
+                                y={frond.y}
+                                length={frond.length}
+                                curve={frond.curve}
+                                leafFill={leafFill}
+                                blossomFill={blossomFill}
+                                coreFill={palette.light}
+                                withBloom={frond.bloom}
+                                sway={frond.sway + (index * 0.03)}
+                                duration={11 + (index * 0.45)}
+                            />
+                        ))}
+
+                        {canopyBlooms.filter((bloom) => stageIndex >= bloom.min).map((bloom) => (
+                            <LotusBloom
+                                key={`canopy-bloom-${bloom.x}`}
+                                x={bloom.x}
+                                y={bloom.y}
+                                petals={7}
+                                radius={14 * bloom.scale}
+                                petalScale={0.25 * bloom.scale}
+                                petalFill={blossomFill}
+                                coreFill={palette.blossomCore}
+                                coreRadius={3.2 * bloom.scale}
+                                rotate={bloom.rotate}
+                                glowFill={lightFill}
+                                glowOpacity={0.1}
+                                ringStroke={stageIndex >= 12 ? palette.light : null}
+                                ringRadius={stageIndex >= 12 ? 10 * bloom.scale : 0}
+                                className="garden-breath"
+                            />
+                        ))}
+                    </g>
+                ) : null}
+
+                {stageIndex >= 11 ? (
+                    <g className="garden-orbit garden-reveal" data-duration={stageIndex >= 14 ? '54' : '66'} data-origin={`${moonX}px ${moonY}px`} data-parallax="near">
+                        <circle cx={moonX} cy={moonY} r={stageIndex >= 14 ? '84' : '72'} fill="none" stroke={palette.light} strokeWidth="1.2" strokeDasharray="4 18" opacity="0.28" />
+                        {orbitNodes.map((node, index) => (
+                            <g key={`orbit-node-${index}`} className="garden-drift" data-x={node.light ? '2.2' : '-2.2'} data-y={node.light ? '-1.8' : '1.8'} data-duration={8.4 + (index * 0.6)}>
+                                <circle cx={node.x} cy={node.y} r={node.light ? '4.4' : '3.4'} fill={node.light ? palette.light : palette.leafLight} className="garden-twinkle" />
+                                <circle cx={node.x} cy={node.y} r={node.light ? '10' : '8'} fill={lightFill} opacity="0.16" className="garden-breath" />
+                            </g>
+                        ))}
+                    </g>
+                ) : null}
+
+                {fireflies.map((point, index) => (
+                    <g
+                        key={`firefly-${index}`}
+                        className="garden-drift garden-reveal"
+                        data-x={index % 2 === 0 ? '2.5' : '-2.5'}
+                        data-y={-3 - (index % 3)}
+                        data-duration={7 + ((index % 5) * 0.7)}
+                        data-parallax="near"
+                    >
+                        <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={2.1 * point.scale}
+                            fill={palette.light}
+                            opacity={stageIndex >= 9 ? 0.8 : 0.58}
+                            filter={`url(#${ids.glow})`}
+                            className="garden-twinkle"
+                        />
+                    </g>
+                ))}
+
+                <g data-parallax="near">
+                    {pollen.map((point, index) => (
+                        <circle
+                            key={`pollen-${index}`}
+                            cx={point.x}
+                            cy={point.y}
+                            r={1.2 * point.scale}
+                            fill={index % 3 === 0 ? palette.leafLight : palette.light}
+                            opacity={stageIndex >= 10 ? 0.44 : 0.28}
+                            className="garden-drift garden-twinkle garden-reveal"
+                            data-x={index % 2 === 0 ? '1.8' : '-1.8'}
+                            data-y={-2 - (index % 2)}
+                            data-duration={10 + ((index % 4) * 0.9)}
+                        />
+                    ))}
+                </g>
+
                 <rect x="0" y="0" width="400" height="400" fill={`url(#${ids.vignette})`} pointerEvents="none" />
             </svg>
 
             {showInfo ? (
-                <div className="flex flex-col items-center mt-2 gap-0.5">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]" style={{ color: palette.leaf }}>
+                <div className="mt-2 flex flex-col items-center gap-0.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]" style={{ color: palette.leafLight }}>
                         {stageName}
                     </span>
                     <span className="text-[9px] font-mono opacity-50 text-botanical-sepia">{streak} day streak</span>

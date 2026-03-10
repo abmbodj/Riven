@@ -124,6 +124,7 @@ export default function GardenSettings() {
                         status={streak.status}
                         size="xl"
                         showInfo={true}
+                        svgClassName="md:h-[420px] md:w-[420px] lg:h-[460px] lg:w-[460px] xl:h-[500px] xl:w-[500px]"
                     />
 
                     <div className="mt-4 text-center">
