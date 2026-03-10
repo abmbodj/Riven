@@ -396,6 +396,33 @@ function DashboardHome() {
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
 
+    const classInsights = useMemo(() => {
+        const now = new Date();
+        const insights = new Map();
+
+        for (const classItem of classes) {
+            const classAssignments = assignments.filter((assignment) => assignment.class_id === classItem.id);
+            const activeAssignments = classAssignments.filter(
+                (assignment) => assignment.status !== 'Done' && assignment.status !== 'Archived'
+            );
+
+            const nextDue = activeAssignments
+                .filter((assignment) => assignment.due_date && !Number.isNaN(new Date(assignment.due_date).getTime()))
+                .map((assignment) => new Date(assignment.due_date))
+                .filter((dueDate) => dueDate >= now)
+                .sort((left, right) => left - right)[0];
+
+            insights.set(classItem.id, {
+                activeCount: activeAssignments.length,
+                nextDueLabel: nextDue
+                    ? nextDue.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : null
+            });
+        }
+
+        return insights;
+    }, [classes, assignments]);
+
     const stats = useMemo(() => ([
         { label: 'This Week', value: upcomingAssignments.length },
         { label: 'Past Due', value: pastDueAssignments.length, tone: 'danger' },
@@ -476,23 +503,52 @@ function DashboardHome() {
             {classes.length > 0 ? (
                 <div className="mb-10">
                     <SectionHeading icon={Library} title="Your Classes" to="/classes" />
-                    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible lg:gap-3">
-                        {classes.map((classItem) => (
-                            <div key={classItem.id} className="gsap-class-pill">
-                                <Link
-                                    to={`/class/${classItem.id}`}
-                                    className="tap-action touch-target group flex h-[56px] min-w-[140px] cursor-pointer items-center gap-3 rounded-2xl border border-white/5 p-3 px-5 glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                                >
-                                    <div
-                                        className="h-3 w-3 shrink-0 rounded-full shadow-sm transition-transform group-hover:scale-125"
-                                        style={{ backgroundColor: classItem.color || '#7a9e72' }}
-                                    />
-                                    <span className="truncate font-serif text-sm font-bold text-botanical-parchment transition-colors group-hover:text-claude-accent">
-                                        {classItem.name}
-                                    </span>
-                                </Link>
-                            </div>
-                        ))}
+                    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0 lg:grid lg:grid-cols-2 lg:gap-3 lg:overflow-visible lg:px-0 xl:grid-cols-3">
+                        {classes.map((classItem) => {
+                            const insight = classInsights.get(classItem.id);
+                            const activeCount = insight?.activeCount ?? 0;
+                            const nextDueLabel = insight?.nextDueLabel;
+
+                            return (
+                                <div key={classItem.id} className="gsap-class-pill">
+                                    <Link
+                                        to={`/class/${classItem.id}`}
+                                        className="tap-action touch-target group relative flex min-h-[92px] min-w-[220px] cursor-pointer flex-col justify-between gap-3 overflow-hidden rounded-2xl border border-white/10 p-4 glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                    >
+                                        <div
+                                            className="pointer-events-none absolute inset-y-0 left-0 w-1.5"
+                                            style={{ backgroundColor: classItem.color || '#7a9e72' }}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+                                        <div className="relative z-10 flex items-start justify-between gap-3">
+                                            <span className="truncate pr-2 font-serif text-base font-bold text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                                                {classItem.name}
+                                            </span>
+                                            <div
+                                                className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full shadow-sm ring-2 ring-white/10 transition-transform group-hover:scale-125"
+                                                style={{ backgroundColor: classItem.color || '#7a9e72' }}
+                                            />
+                                        </div>
+
+                                        <div className="relative z-10 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                                {activeCount} Active
+                                            </span>
+                                            {nextDueLabel ? (
+                                                <span className="rounded-md border border-claude-accent/20 bg-claude-accent/10 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-accent">
+                                                    Next {nextDueLabel}
+                                                </span>
+                                            ) : (
+                                                <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                                    No Due Date
+                                                </span>
+                                            )}
+                                        </div>
+                                    </Link>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             ) : null}
