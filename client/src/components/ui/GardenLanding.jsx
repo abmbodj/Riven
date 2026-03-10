@@ -128,33 +128,6 @@ export default function GardenLanding() {
         // (No y shift so they stay anchored, or slight negative y to parallax over mid)
         scrollTl.to('.hills-front', { y: -20, duration: 1 }, 0);
 
-        // 5. Interactive Mouse Parallax Effect
-        const handleMouseMove = (e) => {
-            const { clientX, clientY } = e;
-            const xPos = (clientX / window.innerWidth - 0.5);
-            const yPos = (clientY / window.innerHeight - 0.5);
-
-            // Shift layers based on depth
-            gsap.to('.hills-back', { x: xPos * 20, y: `+=${yPos * 10}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
-            gsap.to('.hills-mid', { x: xPos * 40, y: `+=${yPos * 20}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
-            gsap.to('.hills-front', { x: xPos * 80, y: `+=${yPos * 40}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
-
-            // Fireflies react to mouse (subtle scatter)
-            gsap.to('.fireflyGroup', {
-                x: `+=${xPos * -30}`,
-                y: `+=${yPos * -30}`,
-                duration: 2,
-                ease: 'power1.out',
-                overwrite: 'auto'
-            });
-        };
-
-        // Add mouse listener to the hero section (or window)
-        window.addEventListener('mousemove', handleMouseMove);
-
-        // Cleanup mouse listener (useGSAP handles Timeline cleanup automatically, but custom events need manual removal)
-        return () => window.removeEventListener('mousemove', handleMouseMove);
-
     }, { scope: containerRef });
 
     return (
