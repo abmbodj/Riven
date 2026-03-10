@@ -179,7 +179,7 @@ export default function ThemeSettings() {
     }, [themes]);
 
     return (
-        <div className="max-w-4xl mx-auto pb-24 md:px-0 relative mb-safe min-h-screen">
+        <div className="max-w-4xl md:max-w-7xl mx-auto pb-32 md:px-12 lg:px-24 relative mb-safe min-h-screen">
             {/* Soft background noise for the whole page to feel physical */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.15] z-0 md:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
 
@@ -494,18 +494,18 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                 <p className="text-sm text-claude-secondary mt-2 max-w-sm">{subtitle}</p>
             </div>
 
-            {/* Horizontal Snap Scroll Container - Mobile First Pattern */}
+            {/* Hybrid Layout: Snap Horizontal on Mobile, Asymmetrical Grid on Desktop */}
             <motion.div
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="flex overflow-x-auto snap-x snap-mandatory gap-6 pt-6 pb-20 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
+                className="flex md:grid md:grid-cols-2 lg:grid-cols-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none gap-6 lg:gap-10 xl:gap-14 pt-6 md:pt-12 pb-20 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
             >
                 {themes.map((theme, index) => (
                     <motion.div
                         key={theme.id}
                         variants={item}
-                        className="snap-center md:snap-start shrink-0 w-[85vw] md:w-[24rem]"
+                        className="snap-center md:snap-align-none shrink-0 w-[85vw] md:w-auto md:shrink md:[&:nth-child(even)]:mt-16 lg:[&:nth-child(even)]:mt-0 lg:[&:nth-child(3n+2)]:mt-24 lg:[&:nth-child(3n+3)]:mt-12"
                     >
                         <ThemeCard
                             theme={theme}
@@ -527,14 +527,17 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
     return (
         <div
             onClick={onSelect}
-            className={`group relative overflow-hidden rounded-[2.5rem] p-8 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-700 cursor-pointer h-[30rem] flex flex-col justify-between select-none ${isActive
-                ? 'scale-[1.02]'
-                : 'hover:scale-[1.01] active:scale-[0.98]'
+            className={`group relative overflow-hidden rounded-[2.5rem] p-8 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-700 cursor-pointer h-[30rem] lg:h-[34rem] flex flex-col justify-between select-none ${isActive
+                ? 'scale-[1.02] md:scale-[1.05] z-20'
+                : 'hover:scale-[1.01] md:hover:scale-[1.03] md:hover:-translate-y-4 active:scale-[0.98] z-10 md:hover:z-20 md:hover:shadow-[0_40px_80px_-20px_var(--theme-glow)]'
                 }`}
             style={{
                 backgroundColor: theme.bg_color,
                 border: isActive ? `2px solid ${theme.text_color}` : `1px solid ${theme.border_color}`,
-                boxShadow: isActive ? `0 30px 60px -15px ${theme.accent_color}40, inset 0 0 0 1px ${theme.border_color}40` : `0 10px 30px -15px rgba(0,0,0,0.1)`,
+                boxShadow: isActive
+                    ? `0 30px 60px -15px ${theme.accent_color}50, inset 0 0 0 1px ${theme.border_color}40`
+                    : `0 10px 40px -20px ${theme.text_color}10`,
+                '--theme-glow': `${theme.accent_color}30`
             }}
         >
             {/* Texture Noise Overlay for Physicality */}
