@@ -511,7 +511,7 @@ export default function GroupDetails() {
             {/* --- DESKTOP VIEW --- */}
             <div className="hidden md:flex flex-col max-w-[1400px] mx-auto px-6 py-6 h-screen overflow-hidden">
                 {/* Desktop Header */}
-                <header className="gsap-header flex items-center justify-between shrink-0 mb-6 bg-claude-surface/30 p-4 rounded-3xl border border-claude-border/50">
+                <header className="gsap-header flex items-center justify-between shrink-0 mb-6 bg-claude-surface/30 backdrop-blur-2xl p-4 rounded-3xl border border-claude-border/50">
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate('/groups')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-claude-surface border border-claude-border hover:bg-claude-border/50 transition-colors">
                             <ChevronLeft className="w-5 h-5 text-claude-secondary" />
@@ -537,7 +537,7 @@ export default function GroupDetails() {
                 <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                     {/* LEFT COLUMN */}
                     <div className="col-span-4 flex flex-col gap-5 overflow-y-auto pr-2 no-scrollbar">
-                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm relative overflow-hidden group">
+                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
                             <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Invite Code</h2>
                             <div
@@ -586,7 +586,7 @@ export default function GroupDetails() {
                             </div>
                         )}
 
-                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm">
+                        <div className="gsap-left-item p-6 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 shadow-sm">
                             <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-4">Members ({members.length})</h2>
                             <div className="space-y-2">
                                 {members.map(member => (
@@ -629,7 +629,7 @@ export default function GroupDetails() {
                                     <Plus className="w-4 h-4" /> Share Deck
                                 </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface border border-claude-border/60 p-4 shadow-sm">
+                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 p-4 shadow-sm">
                                 {sharedDecks.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
                                         <Layers className="w-8 h-8 mb-3 opacity-30" />
@@ -675,7 +675,7 @@ export default function GroupDetails() {
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col shadow-sm">
+                            <div className="flex-1 overflow-y-auto rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col shadow-sm">
                                 {currentFolderId && (
                                     <div className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 shrink-0">
                                         <button onClick={() => setCurrentFolderId(null)} className="flex items-center gap-1 text-sm font-bold text-claude-secondary hover:text-claude-text transition-colors">
@@ -746,7 +746,7 @@ export default function GroupDetails() {
 
             {/* --- MOBILE VIEW --- */}
             <div className="md:hidden flex flex-col min-h-screen bg-claude-bg text-claude-text font-sans">
-                <header className="gsap-header sticky top-0 z-40 bg-claude-bg/90 backdrop-blur-xl border-b border-claude-border/60 px-4 py-3 flex items-center justify-between">
+                <header className="gsap-header sticky top-0 z-40 bg-claude-bg/70 backdrop-blur-3xl border-b border-claude-border/50 px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate('/groups')} className="p-2 -ml-2 text-claude-text hover:bg-claude-surface rounded-xl transition-colors">
                             <ChevronLeft className="w-6 h-6" />
@@ -770,7 +770,7 @@ export default function GroupDetails() {
                 <div className="flex-1 p-4 space-y-6 pb-36">
                     <div
                         onClick={handleCopyCode}
-                        className="gsap-mobile-item gsap-hover-card flex items-center justify-between p-5 rounded-3xl bg-claude-surface border border-claude-border/60 transition-transform shadow-sm"
+                        className="gsap-mobile-item gsap-hover-card flex items-center justify-between p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 transition-transform shadow-sm"
                     >
                         <div>
                             <div className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-1">Invite Code</div>
@@ -811,7 +811,7 @@ export default function GroupDetails() {
                                 <div className="w-full py-8 text-center text-claude-secondary text-sm font-medium border border-dashed border-claude-border/80 rounded-3xl bg-claude-surface/50">No decks shared yet</div>
                             ) : (
                                 sharedDecks.map(deck => (
-                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col justify-between transition-transform shadow-sm">
+                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="gsap-hover-card snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 flex flex-col justify-between transition-transform shadow-sm">
                                         <div>
                                             <h3 className="font-bold text-base truncate text-claude-text mb-1">{deck.title}</h3>
                                             <p className="text-xs font-medium text-claude-secondary truncate">@{deck.shared_by_name}</p>
@@ -833,7 +833,7 @@ export default function GroupDetails() {
                             <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Folder className="w-5 h-5 text-claude-accent" /> Library</h2>
                             <button onClick={() => setShowCreateFolderModal(true)} className="text-xs font-bold text-claude-secondary bg-claude-surface border border-claude-border px-4 py-2 rounded-xl active:bg-claude-border/50 transition-colors">New Folder</button>
                         </div>
-                        <div className="gsap-mobile-item rounded-3xl border border-claude-border/60 overflow-hidden bg-claude-surface shadow-sm">
+                        <div className="gsap-mobile-item rounded-3xl border border-claude-border/50 overflow-hidden bg-claude-surface/40 backdrop-blur-xl shadow-sm">
                             {currentFolderId && (
                                 <div onClick={() => setCurrentFolderId(null)} className="p-4 border-b border-claude-border/60 flex items-center gap-2 bg-claude-bg/50 active:bg-claude-bg">
                                     <ChevronLeft className="w-5 h-5 text-claude-secondary" />
@@ -895,7 +895,7 @@ export default function GroupDetails() {
                             <h2 className="text-lg font-bold flex items-center gap-2 text-claude-text"><Users className="w-5 h-5 text-claude-accent" /> Members</h2>
                             <span className="text-xs font-bold text-claude-text bg-claude-surface border border-claude-border px-3 py-1.5 rounded-xl">{members.length}</span>
                         </div>
-                        <div className="gsap-mobile-item divide-y divide-claude-border/60 bg-claude-surface rounded-3xl border border-claude-border/60 shadow-sm">
+                        <div className="gsap-mobile-item divide-y divide-claude-border/50 bg-claude-surface/40 backdrop-blur-xl rounded-3xl border border-claude-border/50 shadow-sm">
                             {members.map(member => (
                                 <div key={member.id} className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0">
@@ -925,9 +925,9 @@ export default function GroupDetails() {
                     </div>
                 </div>
 
-                <div className="gsap-mobile-item fixed bottom-0 left-0 right-0 p-4 pb-safe bg-claude-bg/90 backdrop-blur-2xl z-30 border-t border-claude-border/50">
+                <div className="gsap-mobile-item fixed bottom-0 left-0 right-0 p-4 pb-safe bg-claude-bg/70 backdrop-blur-3xl z-30 border-t border-claude-border/50">
                     <div className="flex gap-3">
-                        <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border bg-claude-surface font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text gsap-hover-card">
+                        <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border/50 bg-claude-surface/40 backdrop-blur-xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text gsap-hover-card">
                             <Upload className="w-5 h-5" /> Upload File
                         </button>
                         <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold text-sm flex items-center justify-center gap-2 shadow-sm gsap-hover-card">
@@ -945,7 +945,7 @@ export default function GroupDetails() {
                         <motion.form
                             initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
                             onSubmit={handleUpdateGroup}
-                            className="relative bg-claude-bg w-full max-w-md p-6 md:p-8 rounded-[2rem] border border-claude-border shadow-2xl"
+                            className="relative bg-claude-bg/70 backdrop-blur-3xl w-full max-w-md p-6 md:p-8 rounded-[2rem] border border-claude-border/50 shadow-2xl"
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-xl md:text-2xl font-bold font-sans text-claude-text">Group Settings</h3>
@@ -956,11 +956,11 @@ export default function GroupDetails() {
                             <div className="space-y-5 mb-8">
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">Group Name</label>
-                                    <input type="text" value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} className="w-full bg-claude-surface border border-claude-border/80 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none transition-colors" />
+                                    <input type="text" value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none transition-colors" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">Class</label>
-                                    <select value={editData.class_id || ''} onChange={e => setEditData({ ...editData, class_id: e.target.value })} className="w-full bg-claude-surface border border-claude-border/80 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none appearance-none transition-colors">
+                                    <select value={editData.class_id || ''} onChange={e => setEditData({ ...editData, class_id: e.target.value })} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none appearance-none transition-colors">
                                         <option value="">Independent Study</option>
                                         {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                                     </select>
@@ -990,7 +990,7 @@ export default function GroupDetails() {
                             initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
                             animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }}
                             exit={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
-                            className="relative bg-claude-bg w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border shadow-2xl max-h-[85vh] md:max-h-[75vh] flex flex-col"
+                            className="relative bg-claude-bg/70 backdrop-blur-3xl w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border/50 shadow-2xl max-h-[85vh] md:max-h-[75vh] flex flex-col"
                         >
                             <div className="flex justify-between items-center mb-6 shrink-0">
                                 <h3 className="text-xl md:text-2xl font-bold font-sans text-claude-text">Share Deck</h3>
@@ -998,7 +998,7 @@ export default function GroupDetails() {
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto min-h-[300px] border border-claude-border/60 rounded-2xl bg-claude-surface no-scrollbar">
+                            <div className="flex-1 overflow-y-auto min-h-[300px] border border-claude-border/50 rounded-2xl bg-claude-surface/40 backdrop-blur-xl no-scrollbar">
                                 {myDecks.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center text-claude-secondary p-6 text-center">
                                         <Layers className="w-10 h-10 mb-4 opacity-30" />
@@ -1030,7 +1030,7 @@ export default function GroupDetails() {
                         <motion.form
                             initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
                             onSubmit={handleCreateFolder}
-                            className="relative bg-claude-bg w-full max-w-sm p-6 md:p-8 rounded-[2rem] border border-claude-border shadow-2xl"
+                            className="relative bg-claude-bg/70 backdrop-blur-3xl w-full max-w-sm p-6 md:p-8 rounded-[2rem] border border-claude-border/50 shadow-2xl"
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-xl md:text-2xl font-bold font-sans text-claude-text">New Folder</h3>
@@ -1040,7 +1040,7 @@ export default function GroupDetails() {
                             </div>
                             <div className="mb-8">
                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">Folder Name</label>
-                                <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} className="w-full bg-claude-surface border border-claude-border/80 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none transition-colors" autoFocus placeholder="e.g. Midterm Reviews" />
+                                <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none transition-colors" autoFocus placeholder="e.g. Midterm Reviews" />
                             </div>
                             <button type="submit" disabled={!newFolderName.trim()} className="w-full py-4 bg-claude-accent text-botanical-ink font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
                                 Create Folder
@@ -1058,7 +1058,7 @@ export default function GroupDetails() {
                             initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
                             animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }}
                             exit={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
-                            className="relative bg-claude-bg w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border shadow-2xl overflow-hidden"
+                            className="relative bg-claude-bg/70 backdrop-blur-3xl w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border/50 shadow-2xl overflow-hidden"
                         >
                             <AnimatePresence mode="popLayout">
                                 {uploadStep === 'form' && (
@@ -1074,7 +1074,7 @@ export default function GroupDetails() {
                                         <div className="space-y-5 mb-8">
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">File Name</label>
-                                                <input type="text" value={uploadData.name} onChange={e => setUploadData({ ...uploadData, name: e.target.value })} className="w-full bg-claude-surface border border-claude-border/80 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none" placeholder="e.g. Chapter 1 Notes" />
+                                                <input type="text" value={uploadData.name} onChange={e => setUploadData({ ...uploadData, name: e.target.value })} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none" placeholder="e.g. Chapter 1 Notes" />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">Select File</label>
@@ -1086,11 +1086,11 @@ export default function GroupDetails() {
                                                         else if (file.type.includes('word') || file.name.endsWith('.docx')) typeString = 'docx';
                                                         setUploadData(prev => ({ ...prev, file: file, file_type: typeString, name: prev.name || file.name.split('.')[0] }));
                                                     }
-                                                }} className="w-full file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 bg-claude-surface border border-claude-border/80 rounded-2xl p-2.5 text-sm" />
+                                                }} className="w-full file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-claude-accent/10 file:text-claude-accent hover:file:bg-claude-accent/20 bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl p-2.5 text-sm" />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">File Type</label>
-                                                <select value={uploadData.file_type} onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })} className="w-full bg-claude-surface border border-claude-border/80 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none appearance-none">
+                                                <select value={uploadData.file_type} onChange={e => setUploadData({ ...uploadData, file_type: e.target.value })} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none appearance-none">
                                                     <option value="pdf">PDF Document</option>
                                                     <option value="image">Image (PNG/JPG)</option>
                                                     <option value="docx">Word Document</option>
