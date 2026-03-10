@@ -768,6 +768,131 @@ export default function DeckView() {
                             </button>
                         </div>
                     </div>
+                    {/* Cards list with swipe to delete */}
+                    <div className="px-4 space-y-3">
+                        {deck.cards.length > 0 && (
+                            <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
+                        )}
+                        {deck.cards.map((card, idx) => (
+                            <div
+                                key={card.id}
+                                className="relative overflow-hidden rounded-2xl gsap-deck-card-item"
+                                onTouchStart={(e) => handleTouchStart(card.id, e)}
+                                onTouchEnd={(e) => handleTouchEnd(card.id, e)}
+                            >
+                                {/* Delete button behind card */}
+                                <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center">
+                                    <button
+                                        onClick={() => setDeleteConfirm({ show: true, type: 'card', id: card.id })}
+                                        className="p-3"
+                                    >
+                                        <Trash2 className="w-6 h-6 text-white" />
+                                    </button>
+                                </div>
+
+                                {/* Card Body */}
+                                <div className={`relative bg-[#fcfaf2] border border-[#d1c9b8] p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
+                                    {/* Subtle paper grain */}
+                                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+
+                                    {editingCard === card.id ? (
+                                        <div className="space-y-4 relative z-10">
+                                            <textarea
+                                                value={editCardData.front}
+                                                onChange={e => setEditCardData({ ...editCardData, front: e.target.value })}
+                                                className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
+                                                rows={2}
+                                                autoFocus
+                                            />
+                                            <CardImageUpload
+                                                label="Front Image"
+                                                value={editCardData.front_image}
+                                                onChange={(img) => setEditCardData({ ...editCardData, front_image: img })}
+                                            />
+                                            <textarea
+                                                value={editCardData.back}
+                                                onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
+                                                className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
+                                                rows={2}
+                                            />
+                                            <CardImageUpload
+                                                label="Back Image"
+                                                value={editCardData.back_image}
+                                                onChange={(img) => setEditCardData({ ...editCardData, back_image: img })}
+                                            />
+                                            <div className="flex gap-3">
+                                                <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-3 text-sm">
+                                                    Save Edits
+                                                </button>
+                                                <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-3 px-6 text-sm bg-white/50">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : reorderMode ? (
+                                        <div className="flex items-center gap-4 relative z-10 bg-white/40 rounded-xl p-2 -m-2">
+                                            <div className="flex flex-col gap-1 items-center bg-claude-bg/50 rounded-lg p-1 border border-claude-border/30">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
+                                                    disabled={idx === 0}
+                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
+                                                >
+                                                    <ChevronUp className="w-5 h-5" />
+                                                </button>
+                                                <div className="w-4 h-px bg-claude-border/50" />
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
+                                                    disabled={idx === deck.cards.length - 1}
+                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
+                                                >
+                                                    <ChevronDown className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <span className="font-serif italic text-claude-accent font-bold text-lg leading-none w-6 text-center">{idx + 1}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-serif text-lg text-botanical-ink leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
+                                                <p className="font-serif text-md text-botanical-ink/60 leading-snug break-words line-clamp-1">{card.back}</p>
+                                            </div>
+                                            <GripVertical className="w-6 h-6 text-botanical-ink/30 shrink-0 cursor-grab" />
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-4 relative z-10" onClick={() => handleEditCard(card)}>
+                                            <div className="shrink-0 flex flex-col items-center gap-2">
+                                                <span className="font-serif italic text-claude-accent font-bold text-lg leading-none">{idx + 1}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col gap-3">
+                                                <div>
+                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Front</h4>
+                                                    <p className="font-serif text-lg text-botanical-ink leading-snug break-words">
+                                                        {card.front}
+                                                        {card.front_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
+                                                    </p>
+                                                </div>
+                                                <div className="w-8 h-px bg-[#d1c9b8]/60" />
+                                                <div>
+                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Back</h4>
+                                                    <p className="font-serif text-lg text-botanical-ink/80 leading-snug break-words">
+                                                        {card.back}
+                                                        {card.back_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-black/5">
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {deck.cards.length === 0 && (
+                            <div className="text-center py-16 px-4 bg-[#fcfaf2]/50 border-2 border-dashed border-[#d1c9b8] rounded-sm">
+                                <BookOpen className="w-10 h-10 text-claude-secondary/30 mx-auto mb-4" />
+                                <h3 className="font-serif italic text-xl text-botanical-ink/50 mb-2">No Cards Yet</h3>
+                                <p className="text-[11px] font-mono uppercase tracking-widest text-[#8a7f6a]">Tap "Add" to begin your collection</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <aside className="hidden xl:block xl:pr-4">
@@ -944,132 +1069,6 @@ export default function DeckView() {
                     </div>
                 )
             }
-
-            {/* Cards list with swipe to delete */}
-            <div className="px-4 space-y-3">
-                {deck.cards.length > 0 && (
-                    <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
-                )}
-                {deck.cards.map((card, idx) => (
-                    <div
-                        key={card.id}
-                        className="relative overflow-hidden rounded-2xl gsap-deck-card-item"
-                        onTouchStart={(e) => handleTouchStart(card.id, e)}
-                        onTouchEnd={(e) => handleTouchEnd(card.id, e)}
-                    >
-                        {/* Delete button behind card */}
-                        <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center">
-                            <button
-                                onClick={() => setDeleteConfirm({ show: true, type: 'card', id: card.id })}
-                                className="p-3"
-                            >
-                                <Trash2 className="w-6 h-6 text-white" />
-                            </button>
-                        </div>
-
-                        {/* Card Body */}
-                        <div className={`relative bg-[#fcfaf2] border border-[#d1c9b8] p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
-                            {/* Subtle paper grain */}
-                            <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-
-                            {editingCard === card.id ? (
-                                <div className="space-y-4 relative z-10">
-                                    <textarea
-                                        value={editCardData.front}
-                                        onChange={e => setEditCardData({ ...editCardData, front: e.target.value })}
-                                        className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
-                                        rows={2}
-                                        autoFocus
-                                    />
-                                    <CardImageUpload
-                                        label="Front Image"
-                                        value={editCardData.front_image}
-                                        onChange={(img) => setEditCardData({ ...editCardData, front_image: img })}
-                                    />
-                                    <textarea
-                                        value={editCardData.back}
-                                        onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
-                                        className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
-                                        rows={2}
-                                    />
-                                    <CardImageUpload
-                                        label="Back Image"
-                                        value={editCardData.back_image}
-                                        onChange={(img) => setEditCardData({ ...editCardData, back_image: img })}
-                                    />
-                                    <div className="flex gap-3">
-                                        <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-3 text-sm">
-                                            Save Edits
-                                        </button>
-                                        <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-3 px-6 text-sm bg-white/50">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : reorderMode ? (
-                                <div className="flex items-center gap-4 relative z-10 bg-white/40 rounded-xl p-2 -m-2">
-                                    <div className="flex flex-col gap-1 items-center bg-claude-bg/50 rounded-lg p-1 border border-claude-border/30">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
-                                            disabled={idx === 0}
-                                            className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
-                                        >
-                                            <ChevronUp className="w-5 h-5" />
-                                        </button>
-                                        <div className="w-4 h-px bg-claude-border/50" />
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
-                                            disabled={idx === deck.cards.length - 1}
-                                            className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
-                                        >
-                                            <ChevronDown className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                    <span className="font-serif italic text-claude-accent font-bold text-lg leading-none w-6 text-center">{idx + 1}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-serif text-lg text-botanical-ink leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
-                                        <p className="font-serif text-md text-botanical-ink/60 leading-snug break-words line-clamp-1">{card.back}</p>
-                                    </div>
-                                    <GripVertical className="w-6 h-6 text-botanical-ink/30 shrink-0 cursor-grab" />
-                                </div>
-                            ) : (
-                                <div className="flex gap-4 relative z-10" onClick={() => handleEditCard(card)}>
-                                    <div className="shrink-0 flex flex-col items-center gap-2">
-                                        <span className="font-serif italic text-claude-accent font-bold text-lg leading-none">{idx + 1}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0 flex flex-col gap-3">
-                                        <div>
-                                            <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Front</h4>
-                                            <p className="font-serif text-lg text-botanical-ink leading-snug break-words">
-                                                {card.front}
-                                                {card.front_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
-                                            </p>
-                                        </div>
-                                        <div className="w-8 h-px bg-[#d1c9b8]/60" />
-                                        <div>
-                                            <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Back</h4>
-                                            <p className="font-serif text-lg text-botanical-ink/80 leading-snug break-words">
-                                                {card.back}
-                                                {card.back_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-black/5">
-                                        <Pencil className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                {deck.cards.length === 0 && (
-                    <div className="text-center py-16 px-4 bg-[#fcfaf2]/50 border-2 border-dashed border-[#d1c9b8] rounded-sm">
-                        <BookOpen className="w-10 h-10 text-claude-secondary/30 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-botanical-ink/50 mb-2">No Cards Yet</h3>
-                        <p className="text-[11px] font-mono uppercase tracking-widest text-[#8a7f6a]">Tap "Add" to begin your collection</p>
-                    </div>
-                )}
-            </div>
 
             {/* Share Modal */}
             <AnimatePresence>
