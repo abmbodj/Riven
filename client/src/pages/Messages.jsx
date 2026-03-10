@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Send, Search, Image, Layers,
-    Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X, ShieldAlert
+    Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X, ShieldAlert, ChevronDown
 } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,24 +15,57 @@ import * as authApi from '../api/authApi';
 import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
 import FileViewer from '../components/FileViewer';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
-// Session-aware message cache — clears on user change, bounded to prevent memory leaks
-const CACHE_TTL = 30000;
+// Persistent session-aware message cache — survives page reloads via sessionStorage
+const CACHE_KEY = 'riven_msg_cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (socket events keep state live in real-time)
 const MAX_CACHED_CONVERSATIONS = 50;
 const messageCache = {
     _userId: null,
+    _loaded: false,
     messages: {},
     users: {},
     conversations: null,
     times: {},
+    /** Hydrate from sessionStorage on first access */
+    _hydrate(userId) {
+        if (this._loaded) return;
+        this._loaded = true;
+        try {
+            const raw = sessionStorage.getItem(CACHE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed._userId === userId) {
+                    this.messages = parsed.messages || {};
+                    this.users = parsed.users || {};
+                    this.conversations = parsed.conversations || null;
+                    this.times = parsed.times || {};
+                }
+            }
+        } catch { /* corrupt cache, ignore */ }
+    },
+    _persist() {
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+                _userId: this._userId,
+                messages: this.messages,
+                users: this.users,
+                conversations: this.conversations,
+                times: this.times,
+            }));
+        } catch { /* storage full, ignore */ }
+    },
     /** Reset cache if user changed, or clear entirely */
     ensure(userId) {
+        this._hydrate(userId);
         if (this._userId !== userId) {
             this.messages = {};
             this.users = {};
             this.conversations = null;
             this.times = {};
             this._userId = userId;
+            this._persist();
         }
     },
     /** Evict oldest entries if cache is too large */
@@ -51,6 +84,15 @@ const messageCache = {
         this.messages[targetId] = data;
         this.times[targetId] = Date.now();
         this._trim();
+        this._persist();
+    },
+    setConversations(data) {
+        this.conversations = data;
+        this._persist();
+    },
+    setUser(targetId, data) {
+        this.users[targetId] = data;
+        this._persist();
     },
 };
 
@@ -87,12 +129,19 @@ export default function Messages() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
 
-    const messagesEndRef = useRef(null);
+    const scrollParentRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
     const loadedMsgIdsRef = useRef(new Set());
     const convListRef = useRef(null);
     const chatViewRef = useRef(null);
+
+    // Infinite scroll state
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    // "New messages" pill — shown when user is scrolled up and new messages arrive
+    const [showNewMessagesPill, setShowNewMessagesPill] = useState(false);
+    const isNearBottomRef = useRef(true);
 
     // GSAP reveal for conversations list
     useEffect(() => {
@@ -125,7 +174,7 @@ export default function Messages() {
                 setConversations(messageCache.conversations);
             }
             const data = await authApi.getConversations();
-            messageCache.conversations = data;
+            messageCache.setConversations(data);
             setConversations(data);
         } catch {
             // Failed to load conversations silently
@@ -134,7 +183,7 @@ export default function Messages() {
 
     // Invalidate conversations cache so the list refreshes on next visit
     const invalidateConversations = useCallback(() => {
-        messageCache.conversations = null;
+        messageCache.setConversations(null);
     }, []);
 
     // Load messages for specific user
@@ -164,7 +213,7 @@ export default function Messages() {
             ]);
 
             messageCache.setMessages(targetUserId, messagesData);
-            messageCache.users[targetUserId] = userData;
+            messageCache.setUser(targetUserId, userData);
 
             // Seed loaded IDs so fetched messages don't animate
             loadedMsgIdsRef.current = new Set(messagesData.map(m => m.id));
@@ -194,10 +243,136 @@ export default function Messages() {
         }
     }, [isLoggedIn, userId, loadConversations, loadMessages, navigate]);
 
-    // Scroll to bottom when messages change
+    // Virtualizer for message list
+    const virtualizer = useVirtualizer({
+        count: messages.length,
+        getScrollElement: () => scrollParentRef.current,
+        estimateSize: () => 72,
+        overscan: 15,
+    });
+
+    // Track whether user is near the bottom of the scroll
+    const checkNearBottom = useCallback(() => {
+        const el = scrollParentRef.current;
+        if (!el) return;
+        const threshold = 150;
+        isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+        if (isNearBottomRef.current) setShowNewMessagesPill(false);
+    }, []);
+
+    // Scroll to bottom (used for new messages, initial load)
+    const scrollToBottom = useCallback((behavior = 'smooth') => {
+        if (messages.length > 0) {
+            virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior });
+        }
+        setShowNewMessagesPill(false);
+    }, [messages.length, virtualizer]);
+
+    // Auto-scroll to bottom on new messages (only if user is near bottom)
+    const prevMsgCountRef = useRef(messages.length);
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isTyping]);
+        if (messages.length > prevMsgCountRef.current) {
+            if (isNearBottomRef.current) {
+                // Small delay so virtualizer measures the new item first
+                requestAnimationFrame(() => scrollToBottom('smooth'));
+            } else {
+                setShowNewMessagesPill(true);
+            }
+        }
+        prevMsgCountRef.current = messages.length;
+    }, [messages.length, scrollToBottom]);
+
+    // Scroll to bottom on initial load / conversation switch
+    const prevUserIdRef = useRef(userId);
+    useEffect(() => {
+        if (userId !== prevUserIdRef.current) {
+            prevUserIdRef.current = userId;
+            setHasMore(true);
+            setShowNewMessagesPill(false);
+        }
+    }, [userId]);
+    useEffect(() => {
+        if (!loading && messages.length > 0) {
+            // Instant scroll on initial load
+            requestAnimationFrame(() => scrollToBottom('auto'));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, userId]);
+
+    // Scroll to bottom when typing indicator appears (if near bottom)
+    useEffect(() => {
+        if (isTyping && isNearBottomRef.current) {
+            requestAnimationFrame(() => scrollToBottom('smooth'));
+        }
+    }, [isTyping, scrollToBottom]);
+
+    // Infinite scroll — load older messages when scrolled near top
+    const loadOlderMessages = useCallback(async () => {
+        if (!hasMore || loadingMore || messages.length === 0 || !userId) return;
+        setLoadingMore(true);
+        const oldestMessage = messages[0];
+        const prevHeight = scrollParentRef.current?.scrollHeight || 0;
+        try {
+            const olderMessages = await authApi.getMessages(userId, 50, oldestMessage.createdAt);
+            if (olderMessages.length < 50) setHasMore(false);
+            if (olderMessages.length > 0) {
+                // Mark old messages as loaded so they don't animate
+                olderMessages.forEach(m => loadedMsgIdsRef.current.add(m.id));
+                setMessages(prev => {
+                    const combined = [...olderMessages, ...prev];
+                    messageCache.setMessages(userId, combined);
+                    return combined;
+                });
+                // Preserve scroll position after prepend
+                requestAnimationFrame(() => {
+                    const el = scrollParentRef.current;
+                    if (el) {
+                        const newHeight = el.scrollHeight;
+                        el.scrollTop += newHeight - prevHeight;
+                    }
+                });
+            }
+        } catch {
+            toast.error('Failed to load older messages');
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [hasMore, loadingMore, messages, userId, toast]);
+
+    // Detect scroll near top to trigger loading older messages
+    useEffect(() => {
+        const el = scrollParentRef.current;
+        if (!el) return;
+        const handleScroll = () => {
+            checkNearBottom();
+            if (el.scrollTop < 100 && !loadingMore && hasMore && messages.length > 0) {
+                loadOlderMessages();
+            }
+        };
+        el.addEventListener('scroll', handleScroll, { passive: true });
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, [checkNearBottom, loadOlderMessages, loadingMore, hasMore, messages.length]);
+
+    // Background prefetching of top conversations
+    useEffect(() => {
+        if (!conversations.length || userId) return;
+        const toPrefetch = conversations
+            .slice(0, 5)
+            .filter(c => !messageCache.messages[c.userId] ||
+                Date.now() - (messageCache.times[c.userId] || 0) > CACHE_TTL);
+        toPrefetch.forEach(conv => {
+            setTimeout(async () => {
+                try {
+                    const [msgs, profile] = await Promise.all([
+                        authApi.getMessages(conv.userId),
+                        authApi.getUserProfile(conv.userId)
+                    ]);
+                    messageCache.setMessages(conv.userId, msgs);
+                    messageCache.setUser(conv.userId, profile);
+                } catch { /* prefetch failure is non-critical */ }
+            }, 0);
+        });
+    }, [conversations, userId]);
 
     // Socket listeners
     useEffect(() => {
@@ -208,7 +383,7 @@ export default function Messages() {
                 setMessages(prev => {
                     if (prev.find(m => m.id === msg.id)) return prev;
                     const updated = [...prev, msg];
-                    messageCache.messages[userId] = updated;
+                    messageCache.setMessages(userId, updated);
                     return updated;
                 });
 
@@ -225,7 +400,7 @@ export default function Messages() {
             if (userId) {
                 setMessages(prev => {
                     const updated = prev.map(m => m.id === msg.id ? { ...m, ...msg } : m);
-                    messageCache.messages[userId] = updated;
+                    messageCache.setMessages(userId, updated);
                     return updated;
                 });
             } else {
@@ -238,7 +413,7 @@ export default function Messages() {
             if (userId) {
                 setMessages(prev => {
                     const updated = prev.filter(m => m.id !== id);
-                    messageCache.messages[userId] = updated;
+                    messageCache.setMessages(userId, updated);
                     return updated;
                 });
             } else {
@@ -307,7 +482,7 @@ export default function Messages() {
                 const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim());
                 setMessages(prev => {
                     const updated = prev.map(m => m.id === editingMessageId ? updatedMsg : m);
-                    if (userId) messageCache.messages[userId] = updated;
+                    if (userId) messageCache.setMessages(userId, updated);
                     return updated;
                 });
                 invalidateConversations();
@@ -334,7 +509,7 @@ export default function Messages() {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
             setMessages(prev => {
                 const updated = [...prev, message];
-                messageCache.messages[userId] = updated;
+                messageCache.setMessages(userId, updated);
                 return updated;
             });
             invalidateConversations();
@@ -355,7 +530,7 @@ export default function Messages() {
             await authApi.deleteMessage(msgId);
             setMessages(prev => {
                 const updated = prev.filter(m => m.id !== msgId);
-                if (userId) messageCache.messages[userId] = updated;
+                if (userId) messageCache.setMessages(userId, updated);
                 return updated;
             });
             invalidateConversations();
@@ -697,71 +872,79 @@ export default function Messages() {
                     </div>
 	            </div>
 
-            {/* Messages Container with subtle botanical background pattern */}
+            {/* Messages Container — virtualized for performance */}
             <div
-                className="flex-1 overflow-y-auto scroll-container"
+                ref={scrollParentRef}
+                className="flex-1 overflow-y-auto scroll-container relative"
                 style={{
                     paddingBottom: '96px',
                     backgroundImage: `radial-gradient(circle at 20% 80%, rgba(122, 158, 114, 0.03) 0%, transparent 50%)`
                 }}
             >
-                <div className="p-4 space-y-4 w-full">
-                    {loading ? (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex justify-center py-12"
-                        >
-                            <div className="relative w-12 h-12">
-                                <div className="absolute inset-0 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
-                                <Leaf className="absolute inset-0 m-auto w-5 h-5 text-botanical-forest/60" />
+                {loading ? (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex justify-center py-12"
+                    >
+                        <div className="relative w-12 h-12">
+                            <div className="absolute inset-0 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
+                            <Leaf className="absolute inset-0 m-auto w-5 h-5 text-botanical-forest/60" />
+                        </div>
+                    </motion.div>
+                ) : messages.length === 0 ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-12 px-4"
+                    >
+                        <div className="relative mx-auto mb-4 w-16 h-16">
+                            <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
+                                <Send className="w-7 h-7 text-botanical-sepia" />
                             </div>
-                        </motion.div>
-                    ) : messages.length === 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-center py-12"
-                        >
-                            <div className="relative mx-auto mb-4 w-16 h-16">
-                                <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
-                                    <Send className="w-7 h-7 text-botanical-sepia" />
+                        </div>
+                        <p className="text-botanical-sepia font-mono">No messages yet</p>
+                        <p className="text-sm text-botanical-sepia/70 mt-1 font-mono">
+                            Say hi to {chatUser?.username}!
+                        </p>
+                    </motion.div>
+                ) : (
+                    <div className="p-4" style={{ height: virtualizer.getTotalSize() + (isTyping ? 54 : 0), position: 'relative' }}>
+                        {/* Loading older messages indicator */}
+                        {loadingMore && (
+                            <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-10">
+                                <div className="relative w-8 h-8">
+                                    <div className="absolute inset-0 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
                                 </div>
                             </div>
-                            <p className="text-botanical-sepia font-mono">No messages yet</p>
-                            <p className="text-sm text-botanical-sepia/70 mt-1 font-mono">
-                                Say hi to {chatUser?.username}! 👋
-                            </p>
-                        </motion.div>
-                    ) : (
-                        <AnimatePresence initial={false}>
-                            {messages.map((msg, i) => {
-                                const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
-                                const isNew = !loadedMsgIdsRef.current.has(msg.id);
+                        )}
 
-                                return (
-                                    <motion.div
-                                        key={msg.id}
-                                        initial={isNew ? { opacity: 0, y: 8, scale: 0.95 } : false}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        transition={{
-                                            duration: 0.25,
-                                            ease: [0.25, 0.1, 0.25, 1]
-                                        }}
-                                        className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}
-                                    >
+                        {virtualizer.getVirtualItems().map(virtualRow => {
+                            const i = virtualRow.index;
+                            const msg = messages[i];
+                            const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
+                            const isNew = !loadedMsgIdsRef.current.has(msg.id);
+
+                            return (
+                                <div
+                                    key={msg.id}
+                                    ref={virtualizer.measureElement}
+                                    data-index={i}
+                                    className={`pb-4 ${isNew ? 'animate-msg-in' : ''}`}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    <div className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`flex items-end gap-2 max-w-[85%] ${msg.isMine ? 'flex-row-reverse' : ''}`}>
                                             {!msg.isMine && (
                                                 <div className="w-8 shrink-0 mb-1">
                                                     {showAvatar && (
-                                                        <motion.div
-                                                            initial={{ scale: 0 }}
-                                                            animate={{ scale: 1 }}
-                                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                                        >
-                                                            <Avatar src={msg.senderAvatar} size="xs" />
-                                                        </motion.div>
+                                                        <Avatar src={msg.senderAvatar} size="xs" />
                                                     )}
                                                 </div>
                                             )}
@@ -794,7 +977,7 @@ export default function Messages() {
                                                             </Link>
                                                         ) : msg.deckData.acceptedDeckId ? (
                                                             <Link to={`/deck/${msg.deckData.acceptedDeckId}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest/10 text-botanical-forest hover:bg-botanical-forest/20 transition-colors">
-                                                                ✓ View in Collection
+                                                                View in Collection
                                                             </Link>
                                                         ) : (
                                                             <button
@@ -889,45 +1072,62 @@ export default function Messages() {
                                                 </div>
                                             )}
                                         </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </AnimatePresence>
-                    )}
-
-                    {isTyping && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                            className="flex justify-start mb-4"
-                        >
-                            <div className="flex items-end gap-2 max-w-[85%]">
-                                <div className="w-8 shrink-0 mb-1">
-                                    <Avatar src={chatUser?.avatar} size="xs" />
+                                    </div>
                                 </div>
-                                <div className="glass-panel rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
-                                    <motion.div
-                                        className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
-                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                        transition={{ duration: 1, repeat: Infinity, delay: 0, ease: "easeInOut" }}
-                                    />
-                                    <motion.div
-                                        className="w-1.5 h-1.5 bg-botanical-sepia/70 rounded-full"
-                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                        transition={{ duration: 1, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
-                                    />
-                                    <motion.div
-                                        className="w-1.5 h-1.5 bg-botanical-sepia/80 rounded-full"
-                                        animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                        transition={{ duration: 1, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
-                                    />
+                            );
+                        })}
+
+                        {/* Typing indicator — positioned after last virtual item */}
+                        {isTyping && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualizer.getTotalSize()}px)`,
+                                }}
+                                className="pb-4"
+                            >
+                                <div className="flex justify-start">
+                                    <div className="flex items-end gap-2 max-w-[85%]">
+                                        <div className="w-8 shrink-0 mb-1">
+                                            <Avatar src={chatUser?.avatar} size="xs" />
+                                        </div>
+                                        <div className="glass-panel rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
+                                            <motion.div
+                                                className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
+                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                                transition={{ duration: 1, repeat: Infinity, delay: 0, ease: "easeInOut" }}
+                                            />
+                                            <motion.div
+                                                className="w-1.5 h-1.5 bg-botanical-sepia/70 rounded-full"
+                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                                transition={{ duration: 1, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
+                                            />
+                                            <motion.div
+                                                className="w-1.5 h-1.5 bg-botanical-sepia/80 rounded-full"
+                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                                                transition={{ duration: 1, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </motion.div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
+                        )}
+                    </div>
+                )}
+
+                {/* "New messages" pill — shown when scrolled up and new messages arrive */}
+                {showNewMessagesPill && (
+                    <button
+                        onClick={() => scrollToBottom('smooth')}
+                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-botanical-forest text-white text-xs font-mono shadow-lg shadow-botanical-forest/30 hover:brightness-110 active:scale-95 transition-all animate-msg-in"
+                    >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                        New messages
+                    </button>
+                )}
             </div>
 
             {/* Native PWA Docked Message Input */}

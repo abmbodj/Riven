@@ -14,6 +14,7 @@
     "@capacitor/core": "^8.1.0",
     "@react-oauth/google": "^0.13.4",
     "@revenuecat/purchases-js": "^1.26.3",
+    "@tanstack/react-virtual": "^3.13.21",
     "docx-preview": "^0.3.7",
     "gsap": "^3.14.2",
     "idb": "^8.0.3",
