@@ -1,16 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'motion/react';
-import {
-    ArrowLeft,
-    AtSign,
-    Camera,
-    Check,
-    Mail,
-    PenTool,
-    Save,
-    Type
-} from 'lucide-react';
+import { ArrowLeft, Save, Camera, User, Mail, Leaf, PenTool, AtSign, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
@@ -18,84 +9,11 @@ import Avatar from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
 import LoadingSpinner from '../components/LoadingSpinner';
+import gsap from 'gsap';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
+import { useGSAP } from '../hooks/useGSAP';
 
-const SectionHeader = ({ eyebrow, title, description }) => (
-    <div className="mb-3 px-1">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-botanical-sepia">
-            {eyebrow}
-        </p>
-        <div className="mt-1">
-            <h2 className="font-display text-xl font-semibold tracking-[0.01em] text-claude-text">
-                {title}
-            </h2>
-            {description && (
-                <p className="mt-1 text-[11px] font-mono text-botanical-sepia/75">
-                    {description}
-                </p>
-            )}
-        </div>
-    </div>
-);
-
-const SectionCard = ({ children, className = '' }) => (
-    <div className={`rounded-[1.75rem] border border-claude-border/70 bg-claude-surface/95 shadow-sm backdrop-blur ${className}`}>
-        {children}
-    </div>
-);
-
-const StatTile = ({ label, value, accent = 'default' }) => {
-    const accentClasses = accent === 'success'
-        ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400'
-        : accent === 'accent'
-            ? 'border-claude-accent/20 bg-claude-accent/[0.08] text-claude-accent'
-            : 'border-claude-border bg-claude-bg/70 text-claude-text';
-
-    return (
-        <div className={`rounded-[1.25rem] border p-4 ${accentClasses}`}>
-            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                {label}
-            </p>
-            <p className="mt-1 font-display text-lg text-claude-text">
-                {value}
-            </p>
-        </div>
-    );
-};
-
-const FieldRow = ({
-    icon,
-    label,
-    hint,
-    children,
-    tone = 'default'
-}) => {
-    const iconTone = tone === 'accent'
-        ? 'border-claude-accent/20 bg-claude-accent/10 text-claude-accent'
-        : tone === 'danger'
-            ? 'border-red-500/20 bg-red-500/10 text-red-400'
-            : 'border-botanical-sepia/10 bg-claude-bg text-claude-text/70';
-
-    return (
-        <div className="flex items-start gap-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/60 p-4">
-            <div className={`mt-0.5 rounded-2xl border p-3 shadow-sm ${iconTone}`}>
-                {React.createElement(icon, { className: 'h-5 w-5' })}
-            </div>
-            <div className="min-w-0 flex-1">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/80">
-                        {label}
-                    </label>
-                    {hint && (
-                        <span className="text-[10px] font-mono text-claude-secondary/70">
-                            {hint}
-                        </span>
-                    )}
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-};
+const MotionDiv = motion.div;
 
 export default function EditProfile() {
     const { user, updateProfile } = useAuth();
@@ -113,20 +31,40 @@ export default function EditProfile() {
     const [showBannerPicker, setShowBannerPicker] = useState(false);
     const [bioError, setBioError] = useState(false);
 
+    const containerRef = useRef(null);
+    const bioContainerRef = useRef(null);
     const bioLimit = 160;
     const usernameLimit = 30;
 
-    const hasChanges = useMemo(() => (
-        bio.trim() !== (user?.bio || '')
-        || avatar !== (user?.avatar || '')
-        || banner !== (user?.banner || '')
-        || username.trim() !== (user?.username || '')
-        || displayName.trim() !== (user?.displayName || user?.username || '')
-    ), [avatar, banner, bio, displayName, user, username]);
+    useGSAP(() => {
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
 
-    const bannerStyle = banner
-        ? { backgroundImage: `linear-gradient(180deg, rgba(10,13,12,0.12), rgba(10,13,12,0.52)), url(${banner})` }
-        : { backgroundImage: 'radial-gradient(circle at top right, rgba(122,158,114,0.28), transparent 42%), linear-gradient(135deg, rgba(19,28,26,0.98), rgba(28,39,36,0.92) 55%, rgba(40,56,49,0.9))' };
+        if (containerRef.current) {
+            const items = containerRef.current.querySelectorAll('.gsap-edit-item');
+            gsap.from(items, {
+                y: 20,
+                opacity: 0,
+                duration: DURATION.normal,
+                stagger: STAGGER.tight,
+                ease: EASE.organic,
+                clearProps: 'all'
+            });
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (bioError && bioContainerRef.current) {
+            const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+            if (motionQuery.matches) return;
+
+            gsap.fromTo(
+                bioContainerRef.current,
+                { x: 0 },
+                { x: 5, duration: 0.05, ease: 'none', yoyo: true, repeat: 5, clearProps: 'x' }
+            );
+        }
+    }, [bioError]);
 
     const handleSave = async () => {
         if (!bio.trim()) {
@@ -139,7 +77,7 @@ export default function EditProfile() {
 
         if (!username.trim() || !displayName.trim()) {
             haptics.error();
-            toast.error('Username and display name are required');
+            toast.error('Username and Display Name are required');
             return;
         }
 
@@ -150,7 +88,6 @@ export default function EditProfile() {
         }
 
         if (saving) return;
-
         setSaving(true);
         haptics.medium();
 
@@ -162,7 +99,7 @@ export default function EditProfile() {
                 avatar,
                 banner
             });
-            toast.success('Profile updated');
+            toast.success('Journal updated');
             haptics.success();
             navigate('/account');
         } catch (err) {
@@ -173,246 +110,341 @@ export default function EditProfile() {
         }
     };
 
-    if (!user) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-claude-bg">
-                <LoadingSpinner />
-            </div>
-        );
-    }
+    if (!user) return <div className="min-h-screen flex items-center justify-center bg-claude-bg"><LoadingSpinner /></div>;
+
+    const hasChanges =
+        bio.trim() !== (user?.bio || '') ||
+        avatar !== (user?.avatar || '') ||
+        banner !== (user?.banner || '') ||
+        username.trim() !== (user?.username || '') ||
+        displayName.trim() !== (user?.displayName || user?.username || '');
+
+    const trimmedBio = bio.trim();
+    const usernameValue = username.trim() || 'username';
+    const displayValue = displayName.trim() || user?.username || 'Your name';
+    const statusTone = hasChanges ? 'pending' : 'saved';
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
-            <div className="sticky top-0 z-50 border-b border-botanical-sepia/5 bg-claude-bg/80 pb-2 pt-12 md:backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-botanical-sepia/5 px-4 py-2 pb-4">
+            <div className="relative">
+                <div className="mx-4 mt-4 h-52 overflow-hidden rounded-[3rem] border border-white/5 shadow-sm md:shadow-lg">
+                    {banner ? (
+                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
+                            <div className="absolute inset-0 bg-black/20"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="absolute inset-0 bg-[#0f2026]"></div>
+                            <MotionDiv
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1.2 }}
+                                transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+                                className="absolute top-[-50%] left-[-20%] h-[140%] w-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl"
+                            />
+                            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+
+                            <MotionDiv
+                                animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }}
+                                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                            >
+                                <Leaf className="absolute -bottom-8 -right-8 h-40 w-40 text-botanical-forest/5" />
+                            </MotionDiv>
+                            <MotionDiv
+                                animate={{ y: [0, 10, 0], rotate: [-12, -15, -12] }}
+                                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                            >
+                                <Leaf className="absolute -left-6 -top-4 h-32 w-32 text-botanical-forest/5 opacity-40" />
+                            </MotionDiv>
+                        </>
+                    )}
+
                     <button
-                        onClick={() => navigate(-1)}
-                        className="rounded-full border border-botanical-sepia/5 bg-claude-surface p-3 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-botanical-sepia/10 active:scale-95"
+                        onClick={() => { haptics.light(); setShowBannerPicker(true); }}
+                        className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 opacity-0 backdrop-blur-sm transition-all duration-300 hover:opacity-100 group"
                     >
-                        <ArrowLeft className="h-5 w-5 text-claude-text" />
+                        <div className="rounded-full border border-white/20 bg-white/10 p-3 transition-transform group-hover:scale-110 md:backdrop-blur-md">
+                            <Camera className="h-6 w-6 text-white" />
+                        </div>
+                    </button>
+                </div>
+
+                <div className="sticky top-0 z-50 mx-4 -mt-16 rounded-[2rem] border border-white/5 bg-[#10201e]/55 px-4 pb-4 pt-12 shadow-lg backdrop-blur-xl">
+                    <div className="flex items-center justify-between">
+                    <button
+                        onClick={() => navigate('/account')}
+                        className="rounded-full border border-white/5 bg-black/20 p-3 text-white/90 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 md:backdrop-blur-md"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
                     </button>
 
-                    <h1 className="font-display text-xl font-bold tracking-wider text-claude-text">
+                    <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-display font-bold tracking-wide text-white opacity-90 drop-shadow-md">
                         Edit Profile
                     </h1>
 
                     <button
                         onClick={handleSave}
-                        disabled={!hasChanges || saving}
-                        className={`flex min-w-12 items-center justify-center rounded-full px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
-                            hasChanges && !saving
-                                ? 'bg-claude-text text-claude-bg active:scale-95'
-                                : 'border border-claude-border bg-claude-surface text-claude-secondary/60'
-                        }`}
+                        disabled={saving || !hasChanges}
+                        className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold uppercase tracking-widest shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] md:shadow-lg ${hasChanges && !saving
+                            ? 'bg-botanical-forest text-white shadow-botanical-forest/30 hover:bg-[#2b4c3e] active:scale-95'
+                            : 'cursor-not-allowed border border-white/5 bg-white/10 text-white/50 md:backdrop-blur-md'
+                            }`}
                     >
                         {saving ? (
-                            <div className="h-4 w-4 rounded-full border-2 border-claude-bg/30 border-t-claude-bg animate-spin" />
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         ) : (
-                            <Save className="h-4 w-4" />
+                            <>
+                                <Save className="h-4 w-4" />
+                                Save
+                            </>
                         )}
                     </button>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-[1.35rem] border border-white/10 bg-black/20 px-4 py-3 text-white/90">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/55">
+                                Profile Status
+                            </p>
+                            <p className="mt-1 font-display text-base tracking-wide text-white">
+                                {statusTone === 'pending' ? 'Unsaved changes ready to publish' : 'Everything is up to date'}
+                            </p>
+                        </div>
+                        <div className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-mono uppercase tracking-[0.16em] ${
+                            statusTone === 'pending'
+                                ? 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+                                : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100'
+                        }`}>
+                            {statusTone === 'pending' ? 'Needs Save' : 'Saved'}
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
-                <div className="grid gap-6 xl:grid-cols-[360px,minmax(0,1fr)] xl:items-start xl:gap-8">
-                    <div className="space-y-6 xl:sticky xl:top-28">
-                        <div>
-                            <SectionHeader
-                                eyebrow="Overview"
-                                title="Profile snapshot"
-                                description="Preview how your identity reads across the app before you publish changes."
-                            />
-                            <SectionCard className="overflow-hidden">
-                                <div
-                                    className="relative min-h-[240px] bg-cover bg-center p-6"
-                                    style={bannerStyle}
-                                >
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,15,14,0.08),rgba(11,15,14,0.68))]" />
+                <div
+                    ref={containerRef}
+                    className="relative z-10 mx-auto max-w-md space-y-8 px-6 pt-8 pointer-events-none"
+                >
+                    <div className="gsap-edit-item pointer-events-auto flex flex-col items-center justify-center">
+                        <button
+                            onClick={() => { haptics.light(); setShowAvatarPicker(true); }}
+                            className="group relative block"
+                        >
+                            <div className="absolute inset-0 z-0 scale-110 rounded-full bg-botanical-forest/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100"></div>
+                            <div className="relative z-10 rounded-full border border-dashed border-white/30 bg-claude-bg p-1.5 shadow-md transition-colors group-hover:border-white/50 md:shadow-2xl">
+                                <Avatar src={avatar} size="4xl" className="border-[6px] border-claude-bg" />
+                            </div>
 
-                                    <button
-                                        onClick={() => {
-                                            haptics.light();
-                                            setShowBannerPicker(true);
-                                        }}
-                                        className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/90 transition-colors hover:bg-black/30"
-                                    >
-                                        <Camera className="h-3.5 w-3.5" />
-                                        Banner
-                                    </button>
+                            <div className="absolute bottom-2 right-2 z-20 rounded-full border-2 border-claude-bg bg-botanical-forest p-3 text-white shadow-sm transition-transform duration-300 hover:scale-110 active:scale-95 md:shadow-xl">
+                                <Camera className="h-5 w-5" />
+                            </div>
+                        </button>
+                        <p className="mt-4 text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia/70">Tap to change avatar</p>
+                    </div>
 
-                                    <div className="relative z-10 flex h-full flex-col justify-end">
-                                        <button
-                                            onClick={() => {
-                                                haptics.light();
-                                                setShowAvatarPicker(true);
-                                            }}
-                                            className="group inline-flex w-fit flex-col items-start"
-                                        >
-                                            <div className="relative">
-                                                <Avatar src={avatar} size="4xl" className="border-[5px] border-claude-bg shadow-md" />
-                                                <div className="absolute -bottom-1 -right-1 rounded-full border border-claude-bg bg-claude-text p-2 text-claude-bg shadow-sm transition-transform group-hover:scale-105">
-                                                    <Camera className="h-4 w-4" />
-                                                </div>
-                                            </div>
-                                        </button>
-
-                                        <div className="mt-4">
-                                            <p className="font-display text-2xl font-semibold text-white">
-                                                {displayName.trim() || 'Your display name'}
-                                            </p>
-                                            <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-white/70">
-                                                @{username.trim() || 'username'}
-                                            </p>
-                                            <p className="mt-3 max-w-[28rem] text-sm leading-relaxed text-white/80">
-                                                {bio.trim() || 'Your short profile note will appear here once you add it.'}
-                                            </p>
-                                        </div>
-                                    </div>
+                    <div className="gsap-edit-item pointer-events-auto rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/50 p-5 shadow-sm md:backdrop-blur-md">
+                        <div className="flex items-start gap-3">
+                            <div className="rounded-2xl border border-botanical-sepia/10 bg-claude-bg p-3 shadow-inner">
+                                {statusTone === 'pending' ? (
+                                    <PenTool className="h-5 w-5 text-botanical-forest" />
+                                ) : (
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/65">
+                                    Public Preview
+                                </p>
+                                <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-claude-text">
+                                    {displayValue}
+                                </h2>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-botanical-sepia/15 bg-claude-bg px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-botanical-forest/90">
+                                        <AtSign className="h-3 w-3" />
+                                        {usernameValue}
+                                    </span>
+                                    <span className="rounded-full border border-botanical-sepia/15 bg-claude-bg px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-botanical-sepia/75">
+                                        {trimmedBio.length}/{bioLimit} bio
+                                    </span>
                                 </div>
-
-                                <div className="grid grid-cols-1 gap-3 border-t border-white/5 p-4 md:grid-cols-3">
-                                    <StatTile label="Status" value={hasChanges ? 'Unsaved changes' : 'Up to date'} accent={hasChanges ? 'accent' : 'success'} />
-                                    <StatTile label="Bio" value={`${bio.length}/${bioLimit}`} />
-                                    <StatTile label="Handle" value={`${username.trim().length}/${usernameLimit}`} />
-                                </div>
-                            </SectionCard>
+                                <p className="mt-3 text-sm leading-relaxed text-claude-secondary">
+                                    {trimmedBio || 'Add a short line so your profile feels complete when people visit it.'}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="space-y-6">
-                        <div>
-                            <SectionHeader
-                                eyebrow="Identity"
-                                title="Public-facing details"
-                                description="These fields shape how other people see you in Riven."
-                            />
-                            <SectionCard className="space-y-4 p-4 sm:p-5">
-                                <FieldRow icon={Type} label="Display Name" hint="Shown across decks, journals, and profile surfaces">
+                    <div className="gsap-edit-item pointer-events-auto space-y-6">
+                        <div className="flex flex-col gap-6 rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/50 p-6 shadow-sm md:backdrop-blur-md">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/65">
+                                        Identity
+                                    </p>
+                                    <h2 className="mt-1 font-display text-xl font-semibold tracking-wide text-claude-text">
+                                        Core profile details
+                                    </h2>
+                                    <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
+                                        These are the first things people see in Riven.
+                                    </p>
+                                </div>
+                                <div className="rounded-full border border-botanical-sepia/15 bg-claude-bg px-3 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-botanical-sepia/75">
+                                    Public
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-xl border border-botanical-sepia/5 bg-claude-bg p-3 shadow-inner">
+                                    <User className="h-5 w-5 text-botanical-sepia/70" />
+                                </div>
+                                <div className="w-full">
+                                    <label className="mb-0.5 block text-[10px] font-mono uppercase tracking-[0.15em] text-botanical-sepia/60">
+                                        Display Name
+                                    </label>
                                     <input
                                         type="text"
                                         value={displayName}
                                         onChange={(e) => setDisplayName(e.target.value)}
+                                        className="w-full border-b border-botanical-sepia/10 bg-transparent pb-1 font-display text-lg font-medium tracking-wide text-claude-text outline-none transition-colors placeholder:text-botanical-sepia/40 focus:border-botanical-forest/50"
                                         placeholder="Your chosen name"
-                                        className="w-full border-none bg-transparent p-0 font-display text-xl tracking-[0.01em] text-claude-text outline-none placeholder:text-claude-secondary/40"
                                     />
-                                </FieldRow>
+                                    <p className="mt-2 text-[10px] font-mono text-botanical-sepia/60">
+                                        Use the name you want shown on your profile and shared content.
+                                    </p>
+                                </div>
+                            </div>
 
-                                <FieldRow icon={AtSign} label="Username" hint="Lowercase letters, numbers, and underscores">
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-botanical-sepia/10 to-transparent"></div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-xl border border-botanical-sepia/5 bg-claude-bg p-3 shadow-inner">
+                                    <User className="h-5 w-5 text-botanical-sepia/70" />
+                                </div>
+                                <div className="w-full">
+                                    <label className="mb-0.5 block text-[10px] font-mono uppercase tracking-[0.15em] text-botanical-sepia/60">
+                                        @Username (Unique)
+                                    </label>
                                     <input
                                         type="text"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                        className="w-full border-b border-botanical-sepia/10 bg-transparent pb-1 font-mono text-sm font-medium tracking-wide text-claude-text outline-none transition-colors placeholder:text-botanical-sepia/40 focus:border-botanical-forest/50"
                                         placeholder="unique_username"
                                         maxLength={usernameLimit}
-                                        className="w-full border-none bg-transparent p-0 font-mono text-sm tracking-[0.12em] text-claude-text outline-none placeholder:text-claude-secondary/40"
                                     />
-                                    <div className="mt-3 flex items-center justify-between text-[10px] font-mono">
-                                        <span className="text-botanical-sepia/75">Minimum 2 characters</span>
-                                        <span className="text-claude-secondary">{username.length}/{usernameLimit}</span>
+                                    <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-mono">
+                                        <span className="text-botanical-sepia/60">Lowercase letters, numbers, underscores</span>
+                                        <span className={`${username.length >= usernameLimit - 5 ? 'text-amber-500' : 'text-botanical-sepia/60'}`}>
+                                            {username.length}/{usernameLimit}
+                                        </span>
                                     </div>
-                                </FieldRow>
+                                </div>
+                            </div>
 
-                                <FieldRow icon={Mail} label="Email" hint="Read only">
-                                    <div className="font-display text-[15px] tracking-wide text-claude-text">
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-botanical-sepia/10 to-transparent"></div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-xl border border-botanical-sepia/5 bg-claude-bg p-3 shadow-inner">
+                                    <Mail className="h-5 w-5 text-botanical-sepia/70" />
+                                </div>
+                                <div>
+                                    <label className="mb-0.5 block text-[10px] font-mono uppercase tracking-[0.15em] text-botanical-sepia/60">
+                                        Email
+                                    </label>
+                                    <div className="font-display text-[15px] font-medium tracking-wide text-claude-text">
                                         {user.email}
                                     </div>
-                                </FieldRow>
-                            </SectionCard>
+                                </div>
+                            </div>
                         </div>
 
-                        <div>
-                            <SectionHeader
-                                eyebrow="About"
-                                title="Journal note"
-                                description="A short line that gives your profile some personality."
-                            />
-                            <SectionCard className={`p-4 sm:p-5 ${bioError ? 'border-red-500/30 bg-red-500/[0.03]' : ''}`}>
-                                <FieldRow
-                                    icon={PenTool}
-                                    label="Bio"
-                                    hint="Required"
-                                    tone={bioError ? 'danger' : 'accent'}
+                        <div
+                            ref={bioContainerRef}
+                            className={`relative overflow-hidden rounded-[2rem] border p-6 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${bioError ? 'border-red-400 bg-red-50/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-botanical-sepia/15 bg-[#fdfbf7] shadow-inner dark:bg-[#1a1d1c]'}`}
+                        >
+                            <div className="mb-6 flex items-start justify-between gap-4">
+                                <div>
+                                    <label className="flex items-center gap-2 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-botanical-forest">
+                                        <PenTool className="h-4 w-4" />
+                                        Your Bio
+                                    </label>
+                                    <p className="mt-2 text-[11px] font-mono text-botanical-sepia/75">
+                                        Keep it short, specific, and recognizably you.
+                                    </p>
+                                </div>
+                                <div className="rounded-full border border-botanical-sepia/15 bg-white/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-botanical-sepia/75 dark:bg-black/10">
+                                    Required
+                                </div>
+                            </div>
+
+                            <div className="relative">
+                                <div
+                                    className="pointer-events-none absolute inset-0 opacity-40 md:mix-blend-multiply"
+                                    style={{
+                                        backgroundImage: 'linear-gradient(transparent 39px, rgba(143, 166, 168, 0.3) 40px)',
+                                        backgroundSize: '100% 40px',
+                                        marginTop: '4px'
+                                    }}
+                                />
+
+                                <textarea
+                                    value={bio}
+                                    onChange={(e) => {
+                                        setBio(e.target.value);
+                                        if (bioError) setBioError(false);
+                                    }}
+                                    maxLength={bioLimit}
+                                    rows={4}
+                                    placeholder="Reflect on your journey..."
+                                    className={`relative z-10 w-full resize-none border-none bg-transparent px-1 font-serif text-[19px] leading-[40px] outline-none placeholder:text-botanical-sepia/40 ${bioError ? 'text-red-900' : 'text-claude-text'}`}
+                                    style={{ lineHeight: '40px' }}
+                                />
+                            </div>
+
+                            <div className="mt-4 flex items-end justify-between">
+                                <AnimatePresence>
+                                    {bioError && (
+                                        <motion.span
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            className="rounded bg-red-500/10 px-2 py-1 text-[10px] font-mono text-red-500"
+                                        >
+                                            Bio cannot be empty
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                                <div className={`ml-auto text-[11px] font-mono ${bioError ? 'text-red-400' : 'text-botanical-sepia/60'} ${bio.length >= 150 ? 'text-amber-500' : ''}`}>
+                                    {bio.length} / {bioLimit}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/40 p-4 shadow-sm">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/65">
+                                        Save changes
+                                    </p>
+                                    <p className="mt-1 text-sm text-claude-secondary">
+                                        {hasChanges ? 'You have profile updates waiting to be saved.' : 'No pending edits right now.'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving || !hasChanges}
+                                    className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
+                                        hasChanges && !saving
+                                            ? 'bg-botanical-forest text-white shadow-botanical-forest/25 hover:bg-[#2b4c3e] active:scale-95'
+                                            : 'cursor-not-allowed border border-botanical-sepia/10 bg-claude-bg text-botanical-sepia/45'
+                                    }`}
                                 >
-                                    <textarea
-                                        value={bio}
-                                        onChange={(e) => {
-                                            setBio(e.target.value);
-                                            if (bioError) setBioError(false);
-                                        }}
-                                        maxLength={bioLimit}
-                                        rows={5}
-                                        placeholder="Reflect on your journey..."
-                                        className={`w-full resize-none border-none bg-transparent p-0 font-serif text-lg leading-8 outline-none placeholder:text-botanical-sepia/35 ${
-                                            bioError ? 'text-red-300' : 'text-claude-text'
-                                        }`}
-                                    />
-
-                                    <div className="mt-4 flex items-center justify-between gap-3">
-                                        <div className="min-h-5 text-[10px] font-mono">
-                                            {bioError && (
-                                                <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-red-400">
-                                                    Bio cannot be empty
-                                                </span>
-                                            )}
-                                        </div>
-                                        <span className={`text-[10px] font-mono ${bio.length >= 150 ? 'text-amber-400' : 'text-claude-secondary'}`}>
-                                            {bio.length}/{bioLimit}
-                                        </span>
-                                    </div>
-                                </FieldRow>
-                            </SectionCard>
-                        </div>
-
-                        <div>
-                            <SectionHeader
-                                eyebrow="Actions"
-                                title="Review and publish"
-                                description="Save when your profile preview looks right."
-                            />
-                            <SectionCard className="p-4 sm:p-5">
-                                <div className="flex flex-col gap-3 sm:flex-row">
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={!hasChanges || saving}
-                                        className={`flex-1 rounded-xl px-4 py-3.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
-                                            hasChanges && !saving
-                                                ? 'bg-claude-text text-claude-bg active:scale-[0.98]'
-                                                : 'border border-claude-border bg-claude-bg text-claude-secondary/60'
-                                        }`}
-                                    >
-                                        <span className="flex items-center justify-center gap-2">
-                                            {saving ? (
-                                                <div className="h-4 w-4 rounded-full border-2 border-claude-bg/30 border-t-claude-bg animate-spin" />
-                                            ) : (
-                                                <Save className="h-4 w-4" />
-                                            )}
-                                            {saving ? 'Saving' : 'Save Profile'}
-                                        </span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => navigate('/account')}
-                                        className="flex-1 rounded-xl border border-claude-border bg-claude-bg px-4 py-3.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
-                                    >
-                                        Back to Account
-                                    </button>
-                                </div>
-
-                                <div className="mt-4 flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
-                                    <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 p-2 text-emerald-400">
-                                        <Check className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-emerald-400">
-                                            Current standard
-                                        </p>
-                                        <p className="mt-1 text-sm leading-relaxed text-claude-text">
-                                            This layout now matches the cleaner sectioned account experience used across the latest Riven settings surfaces.
-                                        </p>
-                                    </div>
-                                </div>
-                            </SectionCard>
+                                    {saving ? (
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    {saving ? 'Saving' : 'Save'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -430,7 +462,6 @@ export default function EditProfile() {
                         onClose={() => setShowAvatarPicker(false)}
                     />
                 )}
-
                 {showBannerPicker && (
                     <BannerPicker
                         currentBanner={banner}
