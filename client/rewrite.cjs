@@ -1,457 +1,19 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { useToast } from '../hooks/useToast';
-import { api } from '../api';
-import ConfirmModal from '../components/ConfirmModal';
-import ReportModal from '../components/ui/ReportModal';
-import useHaptics from '../hooks/useHaptics';
-import { useAuth } from '../hooks/useAuth';
-import * as authApi from '../api/authApi';
-import PricingModal from '../components/ui/PricingModal';
+const fs = require('fs');
+const path = require('path');
 
-export default function GroupDetails() {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const haptics = useHaptics();
-    const toast = useToast();
-    const { socket, user } = useAuth();
-    const [group, setGroup] = useState(null);
-    const [members, setMembers] = useState([]);
-    const [sharedDecks, setSharedDecks] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showPricingModal, setShowPricingModal] = useState(false);
+const filePath = path.join(__dirname, 'src', 'pages', 'GroupDetails.jsx');
+let content = fs.readFileSync(filePath, 'utf8');
 
-    const currentUserId = user?.id;
-    const isAdmin = group?.my_role === 'admin';
-    const isBanned = user?.is_banned;
+const returnStartIndex = content.indexOf('    return (\n        <>\n            <div className="relative min-h-screen pb-24">');
 
-    const [showSettings, setShowSettings] = useState(false);
-    const [showShareDeckModal, setShowShareDeckModal] = useState(false);
+if (returnStartIndex === -1) {
+    console.error("Could not find the return block start");
+    process.exit(1);
+}
 
-    // Files & Folders
-    const [folders, setFolders] = useState([]);
-    const [files, setFiles] = useState([]);
-    const [currentFolderId, setCurrentFolderId] = useState(null);
-    const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+const beforeReturn = content.substring(0, returnStartIndex);
 
-    // Upload & AI Flow
-    const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadStep, setUploadStep] = useState('form'); // form, ai_prompt, generating
-    const [uploadData, setUploadData] = useState({ name: '', file_url: '', file_type: 'pdf' });
-    const [newFolderName, setNewFolderName] = useState('');
-
-    // Decks user currently owns and can share
-    const [myDecks, setMyDecks] = useState([]);
-
-    // Active Cram Sessions
-    const [sessions, setSessions] = useState([]);
-
-    const [editData, setEditData] = useState({ name: '', class_id: '' });
-    const [classes, setClasses] = useState([]);
-    const [copied, setCopied] = useState(false);
-
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
-
-    // Reporting & Blocking
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [isReporting, setIsReporting] = useState(false);
-    const [reportingUserId, setReportingUserId] = useState(null);
-    const [isBlocking, setIsBlocking] = useState(false);
-    const [activeMemberMenuId, setActiveMemberMenuId] = useState(null);
-
-    const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
-
-    const loadGroup = useCallback(async () => {
-        try {
-            const [groupRes, membersRes, decksRes, sessionsRes] = await Promise.all([
-                api.getGroupInfo(id),
-                api.getGroupMembers(id),
-                api.getGroupDecks(id),
-                api.getGroupSessions(id)
-            ]);
-            setGroup(groupRes);
-            setMembers(membersRes || []);
-            setSharedDecks(decksRes || []);
-            setSessions(sessionsRes || []);
-
-            // Load folders and files
-            const fetchedFolders = await api.getGroupFolders(id);
-            setFolders(fetchedFolders || []);
-            const fetchedFiles = await api.getGroupFiles(id, currentFolderId);
-            setFiles(fetchedFiles || []);
-
-        } catch (err) {
-            console.error(err);
-            toast.error('Failed to load group details');
-            navigate('/groups');
-        } finally {
-            setLoading(false);
-        }
-    }, [id, currentFolderId, navigate, toast]);
-
-    useEffect(() => {
-        loadGroup();
-
-        // Listen for real-time session events
-        const onSessionStarted = (data) => {
-            // New session started in this group
-            if (data && data.sessionId) {
-                loadGroup(); // refresh to get full session details from DB
-                toast('A live cram session just started!', { icon: '🔥' });
-            }
-        };
-
-        const onSessionEnded = () => {
-            loadGroup(); // refresh
-        };
-
-        if (socket) {
-            socket.on(`group-${id}-session-started`, onSessionStarted);
-            socket.on('session-ended', onSessionEnded); // if this socket was also in the room
-        }
-
-        return () => {
-            if (socket) {
-                socket.off(`group-${id}-session-started`, onSessionStarted);
-                socket.off('session-ended', onSessionEnded);
-            }
-        };
-
-    }, [id, loadGroup, socket]);
-
-    useEffect(() => {
-        if (showSettings) {
-            api.getClasses().then(res => setClasses(res || []));
-            setEditData({ name: group?.name || '', class_id: group?.class_id || '' });
-        }
-    }, [showSettings, group]);
-
-    useEffect(() => {
-        if (showShareDeckModal) {
-            api.getDecks().then(res => setMyDecks(res || []));
-        }
-    }, [showShareDeckModal]);
-
-    const handleCopyCode = async () => {
-        if (!group?.join_code) return;
-        try {
-            await navigator.clipboard.writeText(group.join_code);
-            haptics.light();
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            toast.success('Join code copied!');
-        } catch (err) {
-            toast.error('Failed to copy');
-        }
-    };
-
-    const handleUpdateGroup = async (e) => {
-        e.preventDefault();
-        if (!editData.name.trim()) return toast.error('Name is required');
-
-        try {
-            await api.updateGroup(id, { name: editData.name, class_id: editData.class_id || null });
-            toast.success('Group updated');
-            setShowSettings(false);
-
-            // Clear current group state to avoid stale class labels
-            setGroup(null);
-            loadGroup();
-        } catch (err) {
-            toast.error(err.message || 'Failed to update');
-        }
-    };
-
-    const handleRegenerateCode = async () => {
-        try {
-            await api.updateGroup(id, { regenerate_code: true });
-            toast.success('Join code regenerated');
-            loadGroup();
-        } catch (err) {
-            toast.error(err.message || 'Failed to regenerate code');
-        }
-    };
-
-    const confirmAction = (title, message, action) => {
-        if (haptics && haptics.medium) haptics.medium();
-        setConfirmModal({ show: true, title, message, action });
-    };
-
-    const handleConfirmAction = async () => {
-        try {
-            await confirmModal.action();
-            setConfirmModal({ show: false, title: '', message: '', action: null });
-        } catch (err) {
-            toast.error(err.message || 'Action failed');
-            setConfirmModal({ show: false, title: '', message: '', action: null });
-        }
-    };
-
-    const handleLeave = () => {
-        confirmAction('Leave Group', 'Are you sure you want to leave this group?', async () => {
-            await api.leaveGroup(id);
-            toast.success('Left group');
-            navigate('/groups');
-        });
-    };
-
-    const handleDelete = () => {
-        confirmAction('Delete Group', 'This will permanently remove the group and all its contents.', async () => {
-            await api.deleteGroup(id);
-            toast.success('Group deleted');
-            navigate('/groups');
-        });
-    };
-
-    const handleRemoveMember = (userId, name) => {
-        confirmAction('Remove Member', `Remove ${name} from the group?`, async () => {
-            // Optimistic UI
-            const prevMembers = [...members];
-            setMembers(members.filter(m => m.id !== userId));
-            try {
-                await api.removeGroupMember(id, userId);
-                toast.success('Member removed');
-                loadGroup(); // Silent background sync
-            } catch (err) {
-                setMembers(prevMembers); // Rollback
-                toast.error('Failed to remove member');
-            }
-        });
-    };
-
-    const handleBlockUser = (userId, name) => {
-        confirmAction('Block User', `Are you sure you want to block ${name}? They will no longer be able to interact with you.`, async () => {
-            setIsBlocking(true);
-            try {
-                await authApi.blockUser(userId);
-                toast.success('User blocked successfully');
-                // Refresh group to potentially clear blocked user's content (if backend filters it)
-                loadGroup();
-            } catch (err) {
-                toast.error(err.message || 'Failed to block user');
-            } finally {
-                setIsBlocking(false);
-            }
-        });
-    };
-
-    const handleReportUserSubmit = async (reason, details) => {
-        setIsReporting(true);
-        try {
-            await authApi.reportContent({
-                reportedUserId: reportingUserId,
-                contentType: 'user',
-                contentId: reportingUserId,
-                reason,
-                details
-            });
-            toast.success('Report submitted successfully. Thank you for keeping Riven safe.');
-            setIsReportModalOpen(false);
-            setReportingUserId(null);
-        } catch (err) {
-            toast.error(err.message || 'Failed to submit report');
-        } finally {
-            setIsReporting(false);
-        }
-    };
-
-    const handleShareDeck = async (deckId) => {
-        try {
-            haptics.medium();
-            await api.shareDeckToGroup(id, deckId);
-            toast.success('Deck shared with group!');
-            setShowShareDeckModal(false);
-            loadGroup();
-        } catch (err) {
-            toast.error(err.message || 'Failed to share deck');
-        }
-    };
-
-    const handleRemoveDeck = (deckId) => {
-        confirmAction('Remove Deck', 'Are you sure you want to remove this deck from the group?', async () => {
-            // Optimistic UI
-            const prevDecks = [...sharedDecks];
-            setSharedDecks(sharedDecks.filter(d => d.id !== deckId));
-            try {
-                await api.removeDeckFromGroup(id, deckId);
-                toast.success('Deck removed');
-                loadGroup(); // Sync
-            } catch (err) {
-                setSharedDecks(prevDecks); // Rollback
-                toast.error('Failed to remove deck');
-            }
-        });
-    };
-
-    const handleEndSession = (sessionId) => {
-        confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
-            await api.endGroupSession(sessionId);
-            toast.success('Session ended');
-            loadGroup();
-        });
-    };
-
-    const handleCreateFolder = async (e) => {
-        e.preventDefault();
-        if (!newFolderName.trim()) return;
-        try {
-            await api.createGroupFolder(id, newFolderName.trim());
-            toast.success('Folder created');
-            setShowCreateFolderModal(false);
-            setNewFolderName('');
-            loadGroup();
-        } catch (err) {
-            toast.error('Failed to create folder');
-        }
-    };
-
-
-    const handleDeleteFolder = (e, folderId) => {
-        e.stopPropagation();
-        confirmAction('Delete Folder', 'This will delete the folder and all files inside it.', async () => {
-            // Optimistic UI
-            const prevFolders = [...folders];
-            setFolders(folders.filter(f => f.id !== folderId));
-            try {
-                await api.deleteGroupFolder(id, folderId);
-                toast.success('Folder deleted');
-                if (currentFolderId === folderId) setCurrentFolderId(null);
-                loadGroup(); // Sync
-            } catch (err) {
-                setFolders(prevFolders); // Rollback
-                toast.error('Failed to delete folder');
-            }
-        });
-    };
-
-    const handleUploadInitialSubmit = (e) => {
-        e.preventDefault();
-        if (!uploadData.name.trim() || !uploadData.file) return toast.error('Name and file required');
-        setUploadStep('ai_prompt');
-    };
-
-    const finalizeFileUpload = async () => {
-        try {
-            // TODO: Implement real file storage (S3/Supabase Storage) for actual file hosting.
-            // Currently stores a metadata-only reference — no file content is persisted.
-            const referenceUrl = `file-ref://${Date.now()}_${encodeURIComponent(uploadData.file?.name || uploadData.name)}`;
-
-            await api.uploadGroupFile(id, {
-                name: uploadData.name,
-                file_url: referenceUrl,
-                file_type: uploadData.file_type || 'pdf',
-                folder_id: currentFolderId
-            });
-            toast.success('File uploaded');
-            closeUploadModal();
-            loadGroup();
-        } catch (err) {
-            toast.error('Failed to upload file');
-            setUploadStep('form');
-        }
-    };
-
-    const handleUploadWithAi = async () => {
-        setUploadStep('generating');
-        try {
-            // Wait for AI generation
-            const deckRes = await api.generateAiDeck(
-                `File reference: ${uploadData.file?.name} `,
-                null,
-                `${uploadData.name} Flashcards`,
-                group?.class_id
-            );
-
-            if (deckRes && deckRes.deck_id) {
-                // Instantly share the new deck to this group
-                await api.shareDeckToGroup(id, deckRes.deck_id);
-                toast.success(`Deck generated with ${deckRes.card_count || 'several'} cards!`);
-            }
-
-            // Finally proceed to upload the file
-            await finalizeFileUpload();
-
-        } catch (err) {
-            if (err.status === 429) {
-                setShowPricingModal(true);
-            } else {
-                toast.error(err.message || 'AI Generation failed, falling back to upload-only');
-            }
-            // If AI specifically fails, still save the file
-            await finalizeFileUpload();
-        }
-    };
-
-    const closeUploadModal = () => {
-        setShowUploadModal(false);
-        setTimeout(() => {
-            setUploadStep('form');
-            setUploadData({ name: '', file: null, file_type: 'pdf' });
-        }, 300);
-    };
-
-    const handleDeleteFile = (e, fileId) => {
-        e.stopPropagation();
-        confirmAction('Remove File', 'Are you sure you want to remove this file?', async () => {
-            // Optimistic UI
-            const prevFiles = [...files];
-            setFiles(files.filter(f => f.id !== fileId));
-            try {
-                await api.deleteGroupFile(id, fileId);
-                toast.success('File removed');
-                loadGroup(); // Sync
-            } catch (err) {
-                setFiles(prevFiles); // Rollback
-                toast.error('Failed to remove file');
-            }
-        });
-    };
-
-    const handleStartSession = async (deckId) => {
-        try {
-            haptics.medium();
-            const session = await api.startGroupSession(id, deckId);
-            toast.success('Cram session started!');
-            navigate(`/groups/${id}/cram/${session.id}`);
-        } catch (err) {
-            toast.error(err.message || 'Failed to start session');
-        }
-    };
-
-    // Assuming 'user' is available from a context or prop
-    // For example: const { user } = useAuth();
-    if (user?.is_banned) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center sm:max-w-md sm:mx-auto">
-                <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
-                    <ShieldAlert className="w-10 h-10 text-red-500" />
-                </div>
-                <h2 className="text-2xl font-display font-bold text-claude-text mb-3">Group Access Restricted</h2>
-                <p className="text-sm text-claude-secondary leading-relaxed max-w-xs">
-                    Your account has been restricted from using social features due to a violation of our community guidelines.
-                </p>
-            </div>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div className="p-6 pt-4 pb-24 min-h-screen space-y-4">
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-10 h-10 bg-claude-border rounded-xl animate-pulse" />
-                    <div className="h-8 w-48 bg-claude-border rounded-xl animate-pulse" />
-                </div>
-                <div className="h-40 bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl animate-pulse" />
-            </div>
-        );
-    }
-
-    if (!group) return null;
-
-    return (
+const newReturn = `    return (
         <div className="min-h-screen bg-claude-bg text-claude-text font-sans pb-24 md:pb-0">
             {/* --- DESKTOP VIEW --- */}
             <div className="hidden md:flex flex-col max-w-[1400px] mx-auto px-6 py-6 h-screen overflow-hidden">
@@ -485,7 +47,7 @@ export default function GroupDetails() {
                         <div className="p-6 rounded-3xl bg-claude-surface border border-claude-border/60 shadow-sm relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-claude-accent/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
                             <h2 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3">Invite Code</h2>
-                            <div
+                            <div 
                                 onClick={handleCopyCode}
                                 className="flex items-center justify-between p-4 rounded-2xl border border-claude-border/80 bg-claude-bg cursor-pointer hover:border-claude-accent/40 transition-colors"
                             >
@@ -494,7 +56,7 @@ export default function GroupDetails() {
                             </div>
                         </div>
 
-                        <button
+                        <button 
                             onClick={() => setShowShareDeckModal(true)}
                             className="w-full py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
                         >
@@ -505,14 +67,14 @@ export default function GroupDetails() {
                             <div className="p-5 rounded-3xl bg-red-500/5 border border-red-500/10">
                                 <h2 className="text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2 mb-4">
                                     <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                     </span>
                                     Live Sessions
                                 </h2>
                                 <div className="space-y-3">
                                     {sessions.map(session => (
-                                        <div key={session.id} onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="p-4 rounded-2xl bg-claude-bg border border-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer flex items-center justify-between shadow-sm">
+                                        <div key={session.id} onClick={() => navigate(\`/groups/\${id}/cram/\${session.id}\`)} className="p-4 rounded-2xl bg-claude-bg border border-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer flex items-center justify-between shadow-sm">
                                             <div className="min-w-0 pr-3">
                                                 <div className="font-bold text-sm text-claude-text truncate">{session.deck_title}</div>
                                                 <div className="text-xs text-red-400 mt-1 font-medium">{session.active_members || 1} members active</div>
@@ -537,7 +99,7 @@ export default function GroupDetails() {
                                 {members.map(member => (
                                     <div key={member.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-claude-border/30 group transition-colors">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
+                                            <img src={member.avatar || \`https://api.dicebear.com/7.x/notionists/svg?seed=\${member.username}\`} alt="" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
                                             <div className="min-w-0">
                                                 <div className="text-sm font-bold text-claude-text truncate">{member.display_name || member.username}</div>
                                                 <div className="text-xs text-claude-secondary truncate">@{member.username} {member.role === 'admin' && '· Admin'}</div>
@@ -583,7 +145,7 @@ export default function GroupDetails() {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-4">
                                         {sharedDecks.map(deck => (
-                                            <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
+                                            <div key={deck.id} onClick={() => navigate(\`/deck/\${deck.id}\`)} className="group flex flex-col justify-between p-5 rounded-2xl border border-claude-border hover:border-claude-accent/40 bg-claude-bg cursor-pointer transition-colors relative shadow-sm hover:shadow-claude-accent/5">
                                                 <div className="pr-8">
                                                     <h3 className="font-bold text-claude-text truncate" title={deck.title}>{deck.title}</h3>
                                                     <p className="text-xs text-claude-secondary mt-1 font-medium">Shared by @{deck.shared_by_name}</p>
@@ -592,7 +154,7 @@ export default function GroupDetails() {
                                                     <span className="text-xs font-bold px-2.5 py-1 rounded bg-claude-surface border border-claude-border text-claude-secondary">{deck.card_count || 0} cards</span>
                                                 </div>
                                                 <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="p-2 bg-claude-accent/10 hover:bg-claude-accent text-claude-accent hover:text-botanical-ink rounded-lg transition-colors" title="Start Cram">
+                                                     <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="p-2 bg-claude-accent/10 hover:bg-claude-accent text-claude-accent hover:text-botanical-ink rounded-lg transition-colors" title="Start Cram">
                                                         <Zap className="w-4 h-4 fill-current" />
                                                     </button>
                                                     {isAdmin && (
@@ -632,7 +194,7 @@ export default function GroupDetails() {
                                 )}
                                 <div className="p-3 flex-1">
                                     {!currentFolderId && folders.length === 0 && files.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
+                                         <div className="h-full flex flex-col items-center justify-center text-claude-secondary">
                                             <FileText className="w-8 h-8 mb-3 opacity-30" />
                                             <p className="text-sm font-medium">Directory is empty</p>
                                         </div>
@@ -713,7 +275,7 @@ export default function GroupDetails() {
                 </header>
 
                 <div className="flex-1 p-4 space-y-6 pb-36">
-                    <div
+                    <div 
                         onClick={handleCopyCode}
                         className="flex items-center justify-between p-5 rounded-3xl bg-claude-surface border border-claude-border/60 active:scale-95 transition-transform shadow-sm"
                     >
@@ -736,7 +298,7 @@ export default function GroupDetails() {
                                         <div className="text-xs font-medium text-red-400 mt-1">{session.active_members || 1} members active</div>
                                     </div>
                                     <div className="flex gap-3">
-                                        <button onClick={() => navigate(`/groups/${id}/cram/${session.id}`)} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-red-600 active:scale-95 transition-all">Join</button>
+                                        <button onClick={() => navigate(\`/groups/\${id}/cram/\${session.id}\`)} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-red-600 active:scale-95 transition-all">Join</button>
                                         {isAdmin && (
                                             <button onClick={() => handleEndSession(session.id)} className="px-5 py-3 bg-red-500/10 text-red-500 rounded-xl font-bold text-sm hover:bg-red-500/20 active:scale-95 transition-all">End</button>
                                         )}
@@ -756,16 +318,16 @@ export default function GroupDetails() {
                                 <div className="w-full py-8 text-center text-claude-secondary text-sm font-medium border border-dashed border-claude-border/80 rounded-3xl bg-claude-surface/50">No decks shared yet</div>
                             ) : (
                                 sharedDecks.map(deck => (
-                                    <div key={deck.id} onClick={() => navigate(`/deck/${deck.id}`)} className="snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col justify-between active:scale-95 transition-transform shadow-sm">
+                                    <div key={deck.id} onClick={() => navigate(\`/deck/\${deck.id}\`)} className="snap-center shrink-0 w-[260px] p-5 rounded-3xl bg-claude-surface border border-claude-border/60 flex flex-col justify-between active:scale-95 transition-transform shadow-sm">
                                         <div>
                                             <h3 className="font-bold text-base truncate text-claude-text mb-1">{deck.title}</h3>
                                             <p className="text-xs font-medium text-claude-secondary truncate">@{deck.shared_by_name}</p>
                                         </div>
                                         <div className="mt-6 flex justify-between items-end">
-                                            <span className="text-xs font-bold text-claude-secondary px-2 py-1 bg-claude-bg rounded-md border border-claude-border/50">{deck.card_count || 0} cards</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="w-10 h-10 flex items-center justify-center bg-claude-accent/10 text-claude-accent hover:bg-claude-accent hover:text-botanical-ink rounded-xl transition-colors">
-                                                <Zap className="w-5 h-5 fill-current" />
-                                            </button>
+                                             <span className="text-xs font-bold text-claude-secondary px-2 py-1 bg-claude-bg rounded-md border border-claude-border/50">{deck.card_count || 0} cards</span>
+                                             <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="w-10 h-10 flex items-center justify-center bg-claude-accent/10 text-claude-accent hover:bg-claude-accent hover:text-botanical-ink rounded-xl transition-colors">
+                                                 <Zap className="w-5 h-5 fill-current" />
+                                             </button>
                                         </div>
                                     </div>
                                 ))
@@ -844,7 +406,7 @@ export default function GroupDetails() {
                             {members.map(member => (
                                 <div key={member.id} className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
+                                        <img src={member.avatar || \`https://api.dicebear.com/7.x/notionists/svg?seed=\${member.username}\`} alt="" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
                                         <div className="min-w-0">
                                             <div className="font-bold text-sm truncate text-claude-text">{member.display_name || member.username}</div>
                                             <div className="text-xs font-medium text-claude-secondary truncate mt-0.5">@{member.username} {member.role === 'admin' && '· Admin'}</div>
@@ -932,8 +494,8 @@ export default function GroupDetails() {
                     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowShareDeckModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.div
-                            initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
-                            animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }}
+                            initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }} 
+                            animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }} 
                             exit={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
                             className="relative bg-claude-bg w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border shadow-2xl max-h-[85vh] md:max-h-[75vh] flex flex-col"
                         >
@@ -947,7 +509,7 @@ export default function GroupDetails() {
                                 {myDecks.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center text-claude-secondary p-6 text-center">
                                         <Layers className="w-10 h-10 mb-4 opacity-30" />
-                                        <p className="font-medium text-sm">No personal decks available.<br />Create a deck first to share it here.</p>
+                                        <p className="font-medium text-sm">No personal decks available.<br/>Create a deck first to share it here.</p>
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-claude-border/60">
@@ -1000,8 +562,8 @@ export default function GroupDetails() {
                     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.div
-                            initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
-                            animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }}
+                            initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }} 
+                            animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }} 
                             exit={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
                             className="relative bg-claude-bg w-full max-w-md p-6 md:p-8 rounded-t-[2.5rem] md:rounded-[2rem] border border-claude-border shadow-2xl overflow-hidden"
                         >
@@ -1090,4 +652,9 @@ export default function GroupDetails() {
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
         </div>
     );
-}
+}`;
+
+content = beforeReturn + newReturn + '\n}\n';
+
+fs.writeFileSync(filePath, content);
+console.log('Successfully updated GroupDetails.jsx');
