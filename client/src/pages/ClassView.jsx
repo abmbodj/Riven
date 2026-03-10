@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion as Motion, AnimatePresence } from 'motion/react';
 import {
     ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload
 } from 'lucide-react';
@@ -10,6 +10,11 @@ import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
 
 const STATUSES = ['Todo', 'Doing', 'Done', 'Archived'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function formatSlotTime(timeValue) {
+    return new Date(`2000-01-01T${timeValue}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 
 export default function ClassView() {
     const { id } = useParams();
@@ -70,7 +75,7 @@ export default function ClassView() {
 
             const scheduleData = await api.getSchedule();
             setScheduleSlots(scheduleData.filter(s => s.class_id === id));
-        } catch (err) {
+        } catch {
             toast.error('Failed to load class details');
             navigate('/classes');
         } finally {
@@ -87,7 +92,7 @@ export default function ClassView() {
             toast.success('Class updated');
             setShowEditClassModal(false);
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update class');
         }
     };
@@ -97,7 +102,7 @@ export default function ClassView() {
             await api.deleteClass(id);
             toast.success('Class deleted');
             navigate('/classes');
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete class');
         }
     };
@@ -121,7 +126,7 @@ export default function ClassView() {
             setEditingAssign(null);
             setAssignForm({ title: '', description: '', due_date: '', status: 'Todo', type: 'homework' });
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to save assignment');
         }
     };
@@ -134,7 +139,7 @@ export default function ClassView() {
             setShowAssignModal(false);
             setEditingAssign(null);
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete assignment');
         }
     };
@@ -167,7 +172,7 @@ export default function ClassView() {
         try {
             await api.updateAssignment(a.id, { status: nextStatus });
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to update status');
         }
     };
@@ -180,7 +185,7 @@ export default function ClassView() {
             setShowScheduleModal(false);
             setScheduleForm({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to add time slot');
         }
     };
@@ -190,7 +195,7 @@ export default function ClassView() {
             await api.deleteScheduleSlot(slotId);
             toast.success('Time slot removed');
             loadData();
-        } catch (err) {
+        } catch {
             toast.error('Failed to remove time slot');
         }
     };
@@ -263,6 +268,18 @@ export default function ClassView() {
         status,
         items: assignments.filter(a => a.status === status)
     }));
+    const activeAssignments = assignments.filter((assignment) => assignment.status !== 'Done' && assignment.status !== 'Archived');
+    const nextAssignment = [...activeAssignments]
+        .filter((assignment) => assignment.due_date && !Number.isNaN(new Date(assignment.due_date).getTime()))
+        .sort((left, right) => new Date(left.due_date) - new Date(right.due_date))[0] || null;
+    const nextScheduleSlot = [...scheduleSlots]
+        .sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time))[0] || null;
+    const statTiles = [
+        { label: 'Active Tasks', value: activeAssignments.length },
+        { label: 'Decks', value: decks.length },
+        { label: 'Class Times', value: scheduleSlots.length },
+        { label: 'Completed', value: assignments.filter((assignment) => assignment.status === 'Done').length },
+    ];
 
     return (
         <div className="relative min-h-screen pb-24">
@@ -311,142 +328,191 @@ export default function ClassView() {
                                 {cls.zoom_link && <a href={cls.zoom_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Zoom</a>}
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* Class Schedule */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">
-                            Class Times <span className="opacity-40 text-[10px]">({scheduleSlots.length})</span>
-                        </h3>
-                        <button onClick={() => setShowScheduleModal(true)} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
-                            + Add Time
-                        </button>
-                    </div>
-
-                    {scheduleSlots.length === 0 ? (
-                        <div className="glass-panel border border-dashed border-claude-border rounded-xl p-6 text-center">
-                            <Calendar className="w-8 h-8 text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] mx-auto mb-2" />
-                            <p className="text-xs font-mono uppercase tracking-widest text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">No times set</p>
-                        </div>
-                    ) : (
-                        <div className="flex flex-wrap gap-3">
-                            {scheduleSlots.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time)).map(slot => {
-                                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                                const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                                return (
-                                    <div key={slot.id} className="relative group glass-panel rounded-xl pl-4 pr-10 py-3 flex items-center gap-3 shadow-sm hover:border-claude-accent transition-colors">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || '#7a9e72'}20`, color: cls.color || '#7a9e72' }}>
-                                            {days[slot.day_of_week]}
-                                        </div>
-                                        <div>
-                                            <p className="font-mono text-[10px] uppercase font-bold text-botanical-parchment">{formatTime(slot.start_time)} - {formatTime(slot.end_time)}</p>
-                                        </div>
-                                        <button onClick={() => handleDeleteScheduleSlot(slot.id)} className="absolute right-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1">
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Class Decks */}
-                {decks.length > 0 && (
-                    <div className="mb-8">
-                        <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
-                            Study Decks <span className="opacity-40 text-[10px]">({decks.length})</span>
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {decks.map(deck => (
-                                <a
-                                    key={deck.id}
-                                    href={`/deck/${deck.id}`}
-                                    className="group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-start gap-4"
-                                >
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
-                                        style={{ backgroundColor: `${cls.color || '#7a9e72'}15`, borderColor: `${cls.color || '#7a9e72'}30`, color: cls.color || '#7a9e72' }}
-                                    >
-                                        <Layers className="w-5 h-5 opacity-70" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-serif text-lg font-bold truncate text-botanical-parchment group-hover:text-white transition-colors">
-                                            {deck.title}
-                                        </h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="font-mono text-[10px] uppercase tracking-widest text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] font-bold">{deck.cardCount} Cards</span>
-                                        </div>
-                                    </div>
-                                </a>
+                        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            {statTiles.map((tile) => (
+                                <div key={tile.label} className="rounded-2xl border border-[#d1c9b8] bg-white/70 px-4 py-3">
+                                    <div className="font-mono text-lg font-bold text-[#1a1c1d]">{tile.value}</div>
+                                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a7f6a]">{tile.label}</div>
+                                </div>
                             ))}
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Assignments Tracker */}
-                <div className="space-y-8">
-                    {groupedAssignments.map(group => group.items.length > 0 && (
-                        <div key={group.status}>
-                            <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
-                                {group.status === 'Todo' ? 'Assignments' : group.status === 'Doing' ? 'In Progress' : group.status === 'Archived' ? 'Archived' : 'Completed'} <span className="opacity-40 text-[10px]">({group.items.length})</span>
-                            </h3>
-                            <div className="space-y-3">
-                                {group.items.map(a => (
-                                    <motion.div
-                                        key={a.id}
-                                        layout
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        onClick={() => openEditAssign(a)}
-                                        className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+                    <div className="space-y-8">
+                        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Class Workbench</p>
+                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">
+                                        {nextAssignment ? 'Next priority is already in view.' : 'Use this page to plan, study, and keep pace.'}
+                                    </h2>
+                                    <p className="max-w-2xl text-sm text-claude-secondary">
+                                        {nextAssignment
+                                            ? `${nextAssignment.title}${nextAssignment.due_date ? ` is due ${new Date(nextAssignment.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ' is your next active task.'}`
+                                            : 'Create the next assignment, add a class time, or jump into one of the linked decks.'}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={openCreateAssign}
+                                        className="rounded-full border border-claude-accent/35 bg-claude-accent/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent transition hover:bg-claude-accent hover:text-[#162a31]"
                                     >
-                                        <div className="flex items-start gap-4">
-                                            <button
-                                                onClick={(e) => toggleAssignStatus(e, a)}
-                                                className={`mt-0.5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${a.status === 'Done' ? 'text-claude-accent' : a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
-                                            >
-                                                {a.status === 'Done' ? <CheckCircle2 className="w-5 h-5" /> : a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                                            </button>
-
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-botanical-parchment/60 line-through' : 'text-botanical-parchment group-hover:text-white'}`}>
-                                                    {a.title}
-                                                </h4>
-                                                {a.description && (
-                                                    <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1">{a.description}</p>
-                                                )}
-                                                {a.due_date && (
-                                                    <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
-                                                        <Calendar className="w-3.5 h-3.5" />
-                                                        {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                                    </div>
-                                                )}
-                                                {a.type && (
-                                                    <div className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
-                                                        a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                            'border-[#8fa6a8]/30 text-claude-secondary glass-panel'
-                                                        }`}>
-                                                        {a.type}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                        Add task
+                                    </button>
+                                    <button
+                                        onClick={() => setShowScheduleModal(true)}
+                                        className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-parchment transition hover:border-white/20"
+                                    >
+                                        Add class time
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                        <div className="space-y-8">
+                            {groupedAssignments.map(group => group.items.length > 0 && (
+                                <div key={group.status}>
+                                    <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
+                                        {group.status === 'Todo' ? 'Assignments' : group.status === 'Doing' ? 'In Progress' : group.status === 'Archived' ? 'Archived' : 'Completed'} <span className="opacity-40 text-[10px]">({group.items.length})</span>
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {group.items.map(a => (
+                                            <Motion.div
+                                                key={a.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95 }}
+                                                onClick={() => openEditAssign(a)}
+                                                className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                                            >
+                                                <div className="flex items-start gap-4">
+                                                    <button
+                                                        onClick={(e) => toggleAssignStatus(e, a)}
+                                                        className={`mt-0.5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${a.status === 'Done' ? 'text-claude-accent' : a.status === 'Doing' ? 'text-orange-400' : 'text-claude-secondary hover:text-claude-accent'}`}
+                                                    >
+                                                        {a.status === 'Done' ? <CheckCircle2 className="w-5 h-5" /> : a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                                    </button>
 
-                    {assignments.length === 0 && (
-                        <div className="text-center py-16 opacity-50">
-                            <Clock className="w-12 h-12 text-claude-secondary mx-auto mb-4 opacity-50" />
-                            <p className="font-serif italic text-botanical-parchment text-lg mb-2">No upcomings tasks</p>
-                            <p className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary">Add an assignment to track your progress.</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-botanical-parchment/60 line-through' : 'text-botanical-parchment group-hover:text-white'}`}>
+                                                            {a.title}
+                                                        </h4>
+                                                        {a.description && (
+                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1">{a.description}</p>
+                                                        )}
+                                                        {a.due_date && (
+                                                            <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
+                                                                <Calendar className="w-3.5 h-3.5" />
+                                                                {new Date(a.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                        {a.type && (
+                                                            <div className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                                                                a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
+                                                                    'border-[#8fa6a8]/30 text-claude-secondary glass-panel'
+                                                                }`}>
+                                                                {a.type}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </Motion.div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+
+                            {assignments.length === 0 && (
+                                <div className="text-center py-16 opacity-50">
+                                    <Clock className="w-12 h-12 text-claude-secondary mx-auto mb-4 opacity-50" />
+                                    <p className="font-serif italic text-botanical-parchment text-lg mb-2">No upcoming tasks</p>
+                                    <p className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary">Add an assignment to track your progress.</p>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
+
+                    <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                        <div className="glass-panel rounded-[28px] p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">
+                                    Class Times <span className="opacity-40 text-[10px]">({scheduleSlots.length})</span>
+                                </h3>
+                                <button onClick={() => setShowScheduleModal(true)} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
+                                    + Add Time
+                                </button>
+                            </div>
+
+                            {scheduleSlots.length === 0 ? (
+                                <div className="border border-dashed border-claude-border rounded-xl p-6 text-center">
+                                    <Calendar className="w-8 h-8 text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] mx-auto mb-2" />
+                                    <p className="text-xs font-mono uppercase tracking-widest text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">No times set</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {scheduleSlots.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time)).map(slot => (
+                                        <div key={slot.id} className={`relative group rounded-2xl border px-4 py-3 ${nextScheduleSlot?.id === slot.id ? 'border-claude-accent/30 bg-claude-accent/8' : 'border-white/10 bg-white/[0.03]'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || '#7a9e72'}20`, color: cls.color || '#7a9e72' }}>
+                                                    {DAY_LABELS[slot.day_of_week]}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-mono text-[10px] uppercase font-bold text-botanical-parchment">{formatSlotTime(slot.start_time)} - {formatSlotTime(slot.end_time)}</p>
+                                                    {nextScheduleSlot?.id === slot.id ? (
+                                                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Next on deck</p>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => handleDeleteScheduleSlot(slot.id)} className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="glass-panel rounded-[28px] p-5">
+                            <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
+                                Study Decks <span className="opacity-40 text-[10px]">({decks.length})</span>
+                            </h3>
+                            {decks.length > 0 ? (
+                                <div className="space-y-3">
+                                    {decks.map(deck => (
+                                        <a
+                                            key={deck.id}
+                                            href={`/deck/${deck.id}`}
+                                            className="group relative block rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
+                                                    style={{ backgroundColor: `${cls.color || '#7a9e72'}15`, borderColor: `${cls.color || '#7a9e72'}30`, color: cls.color || '#7a9e72' }}
+                                                >
+                                                    <Layers className="w-5 h-5 opacity-70" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-serif text-lg font-bold truncate text-botanical-parchment group-hover:text-white transition-colors">
+                                                        {deck.title}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="font-mono text-[10px] uppercase tracking-widest text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] font-bold">{deck.cardCount} Cards</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-claude-border px-4 py-8 text-center">
+                                    <Layers className="mx-auto mb-3 h-8 w-8 text-claude-secondary/60" />
+                                    <p className="font-serif italic text-botanical-parchment">No linked decks yet</p>
+                                    <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Generate or create one from this class.</p>
+                                </div>
+                            )}
+                        </div>
+                    </aside>
                 </div>
             </div>
 
