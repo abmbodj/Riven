@@ -32,12 +32,6 @@ import { EASE, DURATION, STAGGER } from '../utils/animations';
 
 gsap.registerPlugin(ScrollTrigger);
 
-function getTypeBadgeClass(type) {
-    if (type === 'exam' || type === 'test') return 'border-red-500/30 bg-red-500/10 text-red-400';
-    if (type === 'project') return 'border-purple-500/30 bg-purple-500/10 text-purple-400';
-    return 'glass-panel border-[#8fa6a8]/30 text-claude-secondary';
-}
-
 function getRelativeDueLabel(dueValue, now = new Date()) {
     if (!dueValue) return null;
     const dueDate = new Date(dueValue);
@@ -226,11 +220,6 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
                     </>
                 ) : null}
 
-                {assignment.type ? (
-                    <div className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest ${getTypeBadgeClass(assignment.type)}`}>
-                        {assignment.type}
-                    </div>
-                ) : null}
             </div>
         </Motion.article>
     );
