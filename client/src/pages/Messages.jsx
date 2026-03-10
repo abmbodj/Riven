@@ -437,8 +437,7 @@ export default function Messages() {
         setSelectedFile({
             name: name || 'Attached Image',
             url: url,
-            extension: fileExtension,
-            type: 'image' // Currently messages mostly handle images
+            extension: fileExtension
         });
         setIsFileViewerOpen(true);
     };

@@ -1,173 +1,437 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, FileText, ImageIcon, File as FileIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
+import {
+    X,
+    Download,
+    ZoomIn,
+    ZoomOut,
+    ChevronLeft,
+    ChevronRight,
+    FileText,
+    ImageIcon,
+    File as FileIcon,
+    ExternalLink,
+    FileCode,
+    Video,
+    Music
+} from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { renderAsync } from 'docx-preview';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set up PDF worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif']);
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogg']);
+const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac']);
+const TEXT_EXTENSIONS = new Set([
+    'txt',
+    'md',
+    'csv',
+    'json',
+    'xml',
+    'yml',
+    'yaml',
+    'log',
+    'js',
+    'jsx',
+    'ts',
+    'tsx',
+    'css',
+    'html'
+]);
+const OFFICE_EMBED_EXTENSIONS = new Set(['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'odt', 'ods', 'odp']);
+
+function getExtension(file) {
+    if (file?.extension) return String(file.extension).toLowerCase();
+    if (file?.name?.includes('.')) return file.name.split('.').pop().toLowerCase();
+
+    try {
+        const pathname = new URL(file?.url || '', window.location.origin).pathname;
+        const candidate = pathname.split('.').pop()?.toLowerCase();
+        if (candidate && candidate !== pathname.toLowerCase()) return candidate;
+    } catch {
+        // Ignore URL parsing issues; extension will stay empty.
+    }
+
+    return '';
+}
+
+function normalizeMime(file) {
+    const rawType = String(file?.mimeType || file?.contentType || file?.type || '').toLowerCase();
+    if (rawType === 'image') return 'image/*';
+    if (rawType === 'pdf') return 'application/pdf';
+    if (rawType === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return rawType;
+}
+
+function resolveFileKind(file) {
+    const extension = getExtension(file);
+    const mimeType = normalizeMime(file);
+
+    const isImage = IMAGE_EXTENSIONS.has(extension) || mimeType.startsWith('image/');
+    if (isImage) return { kind: 'image', extension, mimeType };
+
+    const isPdf = extension === 'pdf' || mimeType === 'application/pdf';
+    if (isPdf) return { kind: 'pdf', extension, mimeType };
+
+    const isDocx = extension === 'docx' || mimeType.includes('wordprocessingml.document');
+    if (isDocx) return { kind: 'docx', extension, mimeType };
+
+    const isOfficeEmbed = OFFICE_EMBED_EXTENSIONS.has(extension);
+    if (isOfficeEmbed) return { kind: 'office', extension, mimeType };
+
+    const isVideo = VIDEO_EXTENSIONS.has(extension) || mimeType.startsWith('video/');
+    if (isVideo) return { kind: 'video', extension, mimeType };
+
+    const isAudio = AUDIO_EXTENSIONS.has(extension) || mimeType.startsWith('audio/');
+    if (isAudio) return { kind: 'audio', extension, mimeType };
+
+    const isText =
+        TEXT_EXTENSIONS.has(extension) ||
+        mimeType.startsWith('text/') ||
+        mimeType.includes('json') ||
+        mimeType.includes('xml');
+
+    if (isText) return { kind: 'text', extension, mimeType };
+
+    return { kind: 'fallback', extension, mimeType };
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
 
 export default function FileViewer({ file, isOpen, onClose }) {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
-    const [scale, setScale] = useState(1.0);
-    const docxContainerRef = useRef(null);
+    const [scale, setScale] = useState(1);
     const [docxError, setDocxError] = useState(null);
+    const [isDocxLoading, setIsDocxLoading] = useState(false);
+    const [textContent, setTextContent] = useState('');
+    const [textError, setTextError] = useState(null);
+    const [isTextLoading, setIsTextLoading] = useState(false);
+    const [pdfContainerWidth, setPdfContainerWidth] = useState(0);
 
-    // Reset state when file changes
+    const docxContainerRef = useRef(null);
+    const pdfContainerRef = useRef(null);
+
+    const fileInfo = useMemo(() => resolveFileKind(file), [file]);
+
     useEffect(() => {
         setPageNumber(1);
-        setScale(1.0);
+        setScale(1);
+        setNumPages(null);
         setDocxError(null);
-    }, [file]);
+        setTextError(null);
+        setTextContent('');
+    }, [file, isOpen]);
 
-    // Handle DOCX rendering
     useEffect(() => {
-        if (isOpen && file?.type === 'docx' && file?.url && docxContainerRef.current) {
-            const renderDocx = async () => {
-                try {
-                    const response = await fetch(file.url);
-                    const arrayBuffer = await response.arrayBuffer();
-                    await renderAsync(arrayBuffer, docxContainerRef.current, docxContainerRef.current, {
-                        className: "docx-preview",
-                        inWrapper: false
-                    });
-                } catch (err) {
-                    console.error("DOCX rendering error:", err);
-                    setDocxError("Failed to render DOCX file.");
+        if (!isOpen || fileInfo.kind !== 'docx' || !file?.url || !docxContainerRef.current) return;
+
+        let isCancelled = false;
+        setIsDocxLoading(true);
+
+        const renderDocx = async () => {
+            try {
+                const response = await fetch(file.url);
+                if (!response.ok) throw new Error('Could not fetch document');
+                const arrayBuffer = await response.arrayBuffer();
+
+                if (!docxContainerRef.current || isCancelled) return;
+
+                docxContainerRef.current.innerHTML = '';
+                await renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
+                    className: 'docx-preview',
+                    inWrapper: false,
+                    ignoreWidth: false,
+                    ignoreHeight: false
+                });
+            } catch {
+                if (!isCancelled) {
+                    setDocxError('Unable to render this DOCX in-app.');
                 }
-            };
-            renderDocx();
-        }
-    }, [isOpen, file]);
+            } finally {
+                if (!isCancelled) setIsDocxLoading(false);
+            }
+        };
+
+        renderDocx();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [isOpen, file, fileInfo.kind]);
+
+    useEffect(() => {
+        if (!isOpen || fileInfo.kind !== 'text' || !file?.url) return;
+
+        const controller = new AbortController();
+        setIsTextLoading(true);
+
+        const loadText = async () => {
+            try {
+                const response = await fetch(file.url, { signal: controller.signal });
+                if (!response.ok) throw new Error('Could not fetch text file');
+                const text = await response.text();
+                setTextContent(text.slice(0, 500000));
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    setTextError('Unable to preview this text file in-app.');
+                }
+            } finally {
+                setIsTextLoading(false);
+            }
+        };
+
+        loadText();
+
+        return () => {
+            controller.abort();
+        };
+    }, [isOpen, file, fileInfo.kind]);
+
+    useEffect(() => {
+        if (!isOpen || fileInfo.kind !== 'pdf') return;
+
+        const updateWidth = () => {
+            if (!pdfContainerRef.current) return;
+            setPdfContainerWidth(pdfContainerRef.current.clientWidth);
+        };
+
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+        return () => window.removeEventListener('resize', updateWidth);
+    }, [isOpen, fileInfo.kind]);
 
     if (!file) return null;
 
-    const onDocumentLoadSuccess = ({ numPages }) => {
-        setNumPages(numPages);
+    const officeEmbedUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(file.url || '')}`;
+    const zoomIn = () => setScale((prev) => clamp(prev + 0.2, 0.6, 3));
+    const zoomOut = () => setScale((prev) => clamp(prev - 0.2, 0.6, 3));
+
+    const fileTypeLabel =
+        fileInfo.extension ||
+        fileInfo.mimeType?.split('/')[1] ||
+        'file';
+
+    const renderIcon = () => {
+        if (fileInfo.kind === 'image') return <ImageIcon className="w-5 h-5 text-purple-300" />;
+        if (fileInfo.kind === 'pdf') return <FileText className="w-5 h-5 text-red-300" />;
+        if (fileInfo.kind === 'text') return <FileCode className="w-5 h-5 text-emerald-200" />;
+        if (fileInfo.kind === 'video') return <Video className="w-5 h-5 text-sky-300" />;
+        if (fileInfo.kind === 'audio') return <Music className="w-5 h-5 text-amber-300" />;
+        return <FileIcon className="w-5 h-5 text-zinc-300" />;
     };
 
-    const isImage = (f) => f.type?.startsWith('image') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(f.extension?.toLowerCase());
-    const isPdf = (f) => f.type === 'application/pdf' || f.extension?.toLowerCase() === 'pdf';
-    const isDocx = (f) => f.extension?.toLowerCase() === 'docx';
+    const renderActions = ({ showPaging = false } = {}) => (
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {(fileInfo.kind === 'image' || fileInfo.kind === 'pdf') && (
+                <>
+                    <button
+                        onClick={zoomOut}
+                        className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                        aria-label="Zoom out"
+                    >
+                        <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-mono uppercase tracking-wider text-white/75 w-[52px] text-center">
+                        {Math.round(scale * 100)}%
+                    </span>
+                    <button
+                        onClick={zoomIn}
+                        className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                        aria-label="Zoom in"
+                    >
+                        <ZoomIn className="w-4 h-4" />
+                    </button>
+                </>
+            )}
+
+            {showPaging && numPages > 1 && (
+                <>
+                    <button
+                        onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
+                        disabled={pageNumber <= 1}
+                        className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 disabled:opacity-40 transition-colors"
+                        aria-label="Previous page"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-mono uppercase tracking-wider text-white/80">
+                        {pageNumber}/{numPages}
+                    </span>
+                    <button
+                        onClick={() => setPageNumber((prev) => Math.min(numPages, prev + 1))}
+                        disabled={pageNumber >= numPages}
+                        className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 disabled:opacity-40 transition-colors"
+                        aria-label="Next page"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </>
+            )}
+
+            <a
+                href={file.url}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Open in new tab"
+            >
+                <ExternalLink className="w-4 h-4" />
+            </a>
+
+            <a
+                href={file.url}
+                download
+                className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Download file"
+            >
+                <Download className="w-4 h-4" />
+            </a>
+
+            <button
+                onClick={onClose}
+                className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Close viewer"
+            >
+                <X className="w-4 h-4" />
+            </button>
+        </div>
+    );
 
     const renderContent = () => {
-        if (isImage(file)) {
+        if (fileInfo.kind === 'image') {
             return (
-                <div className="relative w-full h-full flex items-center justify-center p-4">
-                    <motion.img
+                <div className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6 flex items-center justify-center">
+                    <img
                         src={file.url}
-                        alt={file.name}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        style={{ scale }}
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                        alt={file.name || 'Image preview'}
+                        className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                        style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
                     />
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 glass-panel px-4 py-2 rounded-full border border-white/10">
-                        <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} className="p-2 hover:bg-white/10 rounded-full text-white">
-                            <ZoomOut className="w-5 h-5" />
-                        </button>
-                        <span className="text-white text-sm font-medium w-12 text-center">{Math.round(scale * 100)}%</span>
-                        <button onClick={() => setScale(s => Math.min(3, s + 0.25))} className="p-2 hover:bg-white/10 rounded-full text-white">
-                            <ZoomIn className="w-5 h-5" />
-                        </button>
+                </div>
+            );
+        }
+
+        if (fileInfo.kind === 'pdf') {
+            const baseWidth = Math.max((pdfContainerWidth || 820) - 24, 240);
+            return (
+                <div ref={pdfContainerRef} className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6">
+                    <div className="min-h-full flex items-start justify-center">
+                        <Document
+                            file={file.url}
+                            onLoadSuccess={({ numPages: loadedPages }) => setNumPages(loadedPages)}
+                            loading={<div className="text-white/80 text-sm">Loading PDF...</div>}
+                            error={<div className="text-red-300 text-sm">Unable to display PDF preview.</div>}
+                        >
+                            <Page
+                                pageNumber={pageNumber}
+                                width={Math.floor(baseWidth * scale)}
+                                renderTextLayer
+                                renderAnnotationLayer
+                                className="shadow-2xl rounded-sm"
+                            />
+                        </Document>
                     </div>
                 </div>
             );
         }
 
-        if (isPdf(file)) {
+        if (fileInfo.kind === 'docx') {
             return (
-                <div className="w-full h-full flex flex-col items-center bg-zinc-800/50 backdrop-blur-xl overflow-auto custom-scrollbar p-8 pt-20">
-                    <Document
-                        file={file.url}
-                        onLoadSuccess={onDocumentLoadSuccess}
-                        className="flex flex-col items-center"
-                        loading={<div className="text-white">Loading PDF...</div>}
-                    >
-                        <Page
-                            pageNumber={pageNumber}
-                            scale={scale}
-                            renderTextLayer={true}
-                            renderAnnotationLayer={true}
-                            className="shadow-2xl rounded-sm"
-                        />
-                    </Document>
-
-                    {numPages > 1 && (
-                        <div className="mt-8 flex items-center gap-6 glass-panel px-6 py-3 rounded-full border border-white/10">
-                            <button
-                                onClick={() => setPageNumber(p => Math.max(1, p - 1))}
-                                disabled={pageNumber <= 1}
-                                className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-full text-white transition-opacity"
-                            >
-                                <ChevronLeft className="w-6 h-6" />
-                            </button>
-                            <span className="text-white font-medium">
-                                Page {pageNumber} / {numPages}
-                            </span>
-                            <button
-                                onClick={() => setPageNumber(p => Math.min(numPages, p + 1))}
-                                disabled={pageNumber >= numPages}
-                                className="p-2 hover:bg-white/10 disabled:opacity-30 rounded-full text-white transition-opacity"
-                            >
-                                <ChevronRight className="w-6 h-6" />
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="fixed bottom-6 right-6 flex flex-col gap-2">
-                        <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} className="p-3 glass-panel border border-white/10 rounded-full text-white hover:bg-white/10">
-                            <ZoomOut className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => setScale(s => Math.min(3, s + 0.25))} className="p-3 glass-panel border border-white/10 rounded-full text-white hover:bg-white/10">
-                            <ZoomIn className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        if (isDocx(file)) {
-            return (
-                <div className="w-full h-full flex flex-col items-center overflow-auto bg-white p-8 sm:p-12 pt-24 custom-scrollbar">
+                <div className="h-full w-full overflow-auto bg-white custom-scrollbar p-3 sm:p-6">
+                    {isDocxLoading && <div className="text-sm text-zinc-700 mb-3">Loading DOCX preview...</div>}
                     {docxError ? (
-                        <div className="text-red-500 bg-red-500/10 p-4 rounded-xl border border-red-500/20 max-w-md text-center">
-                            {docxError}
-                            <button
-                                onClick={() => window.open(file.url, '_blank')}
-                                className="block mt-4 text-blue-500 hover:underline"
-                            >
-                                Open in new tab instead
-                            </button>
+                        <div className="max-w-lg mx-auto mt-8 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">
+                            <p>{docxError}</p>
+                            <a href={file.url} target="_blank" rel="noreferrer" className="underline font-medium inline-block mt-2">
+                                Open document in new tab
+                            </a>
                         </div>
                     ) : (
-                        <div
-                            ref={docxContainerRef}
-                            className="docx-render-container w-full max-w-4xl bg-white shadow-xl rounded-sm min-h-[500px]"
-                        />
+                        <div className="mx-auto max-w-5xl bg-white rounded-lg shadow-lg p-3 sm:p-6">
+                            <div ref={docxContainerRef} className="docx-render-container min-h-[360px]" />
+                        </div>
                     )}
+                </div>
+            );
+        }
+
+        if (fileInfo.kind === 'office') {
+            return (
+                <div className="h-full w-full p-2 sm:p-4">
+                    <iframe
+                        title={`Preview ${file.name || 'document'}`}
+                        src={officeEmbedUrl}
+                        className="w-full h-full rounded-xl border border-white/10 bg-white"
+                    />
+                </div>
+            );
+        }
+
+        if (fileInfo.kind === 'video') {
+            return (
+                <div className="h-full w-full flex items-center justify-center p-3 sm:p-6">
+                    <video src={file.url} controls className="max-w-full max-h-full rounded-xl shadow-2xl bg-black" />
+                </div>
+            );
+        }
+
+        if (fileInfo.kind === 'audio') {
+            return (
+                <div className="h-full w-full flex items-center justify-center p-6">
+                    <div className="glass-panel border border-white/10 rounded-2xl px-6 py-5 w-full max-w-xl">
+                        <p className="text-white/80 text-sm mb-4">Audio Preview</p>
+                        <audio src={file.url} controls className="w-full" />
+                    </div>
+                </div>
+            );
+        }
+
+        if (fileInfo.kind === 'text') {
+            return (
+                <div className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6">
+                    <div className="mx-auto max-w-6xl rounded-xl border border-white/10 bg-[#0f172a] text-slate-100 p-4 sm:p-6 min-h-[360px]">
+                        {isTextLoading && <p className="text-sm text-slate-300">Loading text preview...</p>}
+                        {textError && <p className="text-sm text-red-300">{textError}</p>}
+                        {!isTextLoading && !textError && (
+                            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm leading-relaxed font-mono">
+                                {textContent || 'File is empty.'}
+                            </pre>
+                        )}
+                    </div>
                 </div>
             );
         }
 
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-24 h-24 rounded-3xl glass-panel flex items-center justify-center mb-6">
-                    <FileIcon className="w-12 h-12 text-claude-secondary" />
+            <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-20 h-20 rounded-3xl glass-panel flex items-center justify-center mb-4">
+                    <FileIcon className="w-10 h-10 text-white/70" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">{file.name}</h3>
-                <p className="text-white/60 mb-8 max-w-xs">Previewing this file type is not supported yet.</p>
-                <a
-                    href={file.url}
-                    download
-                    className="flex items-center gap-2 px-8 py-4 bg-white text-black rounded-2xl font-bold hover:bg-zinc-200 transition-colors"
-                >
-                    <Download className="w-5 h-5" />
-                    Download File
-                </a>
+                <h3 className="text-xl font-bold text-white mb-2 break-all">{file.name}</h3>
+                <p className="text-white/60 mb-6 max-w-sm text-sm">This file type does not have an in-app preview yet.</p>
+                <div className="flex items-center gap-3">
+                    <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-5 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
+                    >
+                        Open File
+                    </a>
+                    <a
+                        href={file.url}
+                        download
+                        className="px-5 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors"
+                    >
+                        Download
+                    </a>
+                </div>
             </div>
         );
     };
@@ -175,59 +439,31 @@ export default function FileViewer({ file, isOpen, onClose }) {
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[200] flex flex-col bg-black/95 backdrop-blur-md"
+                <div
+                    className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md"
                     onClick={onClose}
                 >
-                    {/* Header */}
-                    <div className="absolute top-0 left-0 right-0 z-10 p-4 flex items-center justify-between pointer-events-none">
-                        <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-2xl border border-white/10 pointer-events-auto max-w-[70%]">
-                            <div className="p-2 bg-white/5 rounded-xl">
-                                {isImage(file) ? <ImageIcon className="w-5 h-5 text-purple-400" /> :
-                                    isPdf(file) ? <FileText className="w-5 h-5 text-red-400" /> :
-                                        isDocx(file) ? <FileText className="w-5 h-5 text-blue-400" /> :
-                                            <FileIcon className="w-5 h-5 text-gray-400" />}
-                            </div>
-                            <div className="overflow-hidden">
-                                <p className="text-white font-medium truncate">{file.name}</p>
-                                <p className="text-white/40 text-xs uppercase letter-spacing-wider">
-                                    {file.extension || (file.type?.split('/')[1]) || 'FILE'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 pointer-events-auto">
-                            <a
-                                href={file.url}
-                                download
-                                className="p-3 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
-                                onClick={e => e.stopPropagation()}
-                            >
-                                <Download className="w-6 h-6" />
-                            </a>
-                            <button
-                                onClick={onClose}
-                                className="p-3 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        className="flex-1 w-full relative overflow-hidden flex items-center justify-center p-0"
-                        onClick={e => e.stopPropagation()}
+                    <div
+                        className="absolute inset-0 flex flex-col"
+                        onClick={(event) => event.stopPropagation()}
                     >
-                        {renderContent()}
-                    </motion.div>
-                </motion.div>
+                        <div className="shrink-0 px-3 sm:px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-3 border-b border-white/10 bg-black/40 backdrop-blur-md">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2 rounded-xl bg-white/5 shrink-0">{renderIcon()}</div>
+                                    <div className="min-w-0">
+                                        <p className="text-white font-semibold truncate">{file.name || 'File'}</p>
+                                        <p className="text-xs uppercase tracking-wider text-white/55">{fileTypeLabel}</p>
+                                    </div>
+                                </div>
+
+                                {renderActions({ showPaging: fileInfo.kind === 'pdf' })}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 min-h-0">{renderContent()}</div>
+                    </div>
+                </div>
             )}
         </AnimatePresence>
     );
