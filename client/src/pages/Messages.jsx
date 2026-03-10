@@ -462,6 +462,11 @@ export default function Messages() {
         () => conversations.filter((conv) => conv.unreadCount > 0).length,
         [conversations]
     );
+    const sharedDeckCount = useMemo(
+        () => messages.filter((msg) => msg.messageType === 'deck' && msg.deckData).length,
+        [messages]
+    );
+    const threadMessageCount = messages.length;
 
     const renderConversationsList = ({ embedded = false } = {}) => {
         if (user?.is_banned) {
@@ -648,10 +653,10 @@ export default function Messages() {
             <aside className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-claude-border lg:bg-claude-bg/70 lg:p-5 lg:backdrop-blur-xl">
                 {renderConversationsList({ embedded: true })}
             </aside>
-            <div
-                ref={chatViewRef}
-                className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
-            >
+	            <div
+	                ref={chatViewRef}
+	                className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+	            >
             {/* Botanical Chat Header with decorative elements */}
             <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 md:backdrop-blur-xl">
                 {/* Decorative corner marks */}
@@ -666,10 +671,10 @@ export default function Messages() {
                     <ArrowLeft className="w-6 h-6" aria-hidden="true" />
                 </button>
 
-                {chatUser && (
-                    <Link
-                        to={`/profile/${chatUser.id}`}
-                        className="flex items-center gap-3 flex-1 min-w-0 p-2 -my-2 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]"
+	                {chatUser && (
+	                    <Link
+	                        to={`/profile/${chatUser.id}`}
+	                        className="flex items-center gap-3 flex-1 min-w-0 p-2 -my-2 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     >
                         <div className="relative">
                             <Avatar src={chatUser.avatar} size="md" />
@@ -679,10 +684,18 @@ export default function Messages() {
                         <div className="min-w-0 flex-1">
                             <p className="font-display font-semibold truncate">{chatUser.username}</p>
                             <p className="text-xs text-botanical-sepia font-mono">Tap to view profile</p>
+	                        </div>
+	                    </Link>
+	                )}
+                    <div className="hidden lg:flex items-center gap-2 shrink-0">
+                        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                            {threadMessageCount} message{threadMessageCount === 1 ? '' : 's'}
                         </div>
-                    </Link>
-                )}
-            </div>
+                        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                            {sharedDeckCount} shared deck{sharedDeckCount === 1 ? '' : 's'}
+                        </div>
+                    </div>
+	            </div>
 
             {/* Messages Container with subtle botanical background pattern */}
             <div
@@ -918,24 +931,29 @@ export default function Messages() {
             </div>
 
             {/* Native PWA Docked Message Input */}
-            <motion.form
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                onSubmit={handleSendMessage}
-                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50 lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:max-w-none"
+	            <motion.form
+	                initial={{ y: 20, opacity: 0 }}
+	                animate={{ y: 0, opacity: 1 }}
+	                transition={{ delay: 0.2 }}
+	                onSubmit={handleSendMessage}
+	                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50 lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:max-w-none"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
                     paddingTop: '8px'
                 }}
             >
-                <div className="px-3 flex flex-col gap-2">
-                    {imagePreview && !editingMessageId && (
-                        <div className="relative self-start mb-1 mt-1">
-                            <img src={imagePreview} alt="Preview" className="h-20 rounded-xl object-cover border border-claude-border shadow-sm" />
-                            <button
-                                type="button"
-                                onClick={() => setImagePreview(null)}
+	                <div className="px-3 flex flex-col gap-2">
+                        <div className="hidden lg:flex items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                            <span>{editingMessageId ? 'Editing reply' : `Replying to ${chatUser?.username || 'thread'}`}</span>
+                            <span>{imagePreview && !editingMessageId ? 'Image attached' : 'Enter to send'}</span>
+                        </div>
+	                    {imagePreview && !editingMessageId && (
+	                        <div className="relative self-start mb-1 mt-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                                <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">Attachment preview</div>
+	                            <img src={imagePreview} alt="Preview" className="h-20 rounded-xl object-cover border border-claude-border shadow-sm" />
+	                            <button
+	                                type="button"
+	                                onClick={() => setImagePreview(null)}
                                 className="absolute -top-2 -right-2 bg-red-500/90 md:backdrop-blur-md text-white rounded-full p-1 hover:scale-110 active:scale-95 transition-transform"
                             >
                                 <X className="w-3 h-3" />
@@ -943,12 +961,12 @@ export default function Messages() {
                         </div>
                     )}
 
-                    {editingMessageId && (
-                        <div className="flex items-center justify-between px-2 pt-1 pb-2 text-xs font-mono text-botanical-forest">
-                            <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
-                            <button
-                                type="button"
-                                onClick={() => {
+	                    {editingMessageId && (
+	                        <div className="flex items-center justify-between rounded-2xl border border-botanical-forest/15 bg-botanical-forest/8 px-3 py-2 text-xs font-mono text-botanical-forest">
+	                            <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
+	                            <button
+	                                type="button"
+	                                onClick={() => {
                                     setEditingMessageId(null);
                                     setNewMessage('');
                                 }}
@@ -959,9 +977,9 @@ export default function Messages() {
                         </div>
                     )}
 
-                    <div className="flex items-end gap-2">
-                        {!editingMessageId && (
-                            <>
+	                    <div className="flex items-end gap-2">
+	                        {!editingMessageId && (
+	                            <>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -969,30 +987,32 @@ export default function Messages() {
                                     onChange={handleImageChange}
                                     className="hidden"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="p-2 mb-[2px] text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 rounded-full transition-colors flex shrink-0 active:scale-95"
-                                    disabled={sending}
-                                >
-                                    <Image className="w-6 h-6" />
-                                </button>
-                            </>
-                        )}
+	                                <button
+	                                    type="button"
+	                                    onClick={() => fileInputRef.current?.click()}
+	                                    className="mb-[2px] inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 transition-colors shrink-0 active:scale-95"
+	                                    disabled={sending}
+                                        aria-label="Attach image"
+	                                >
+	                                    <Image className="w-6 h-6" />
+                                        <span className="hidden lg:inline text-[11px] font-mono uppercase tracking-[0.18em]">Attach</span>
+	                                </button>
+	                            </>
+	                        )}
 
-                        <div className="flex-1 glass-panel rounded-[20px] flex items-center pl-4 pr-1.5 py-1 min-h-[44px] mb-1">
-                            <input
-                                ref={inputRef}
-                                type="text"
+	                        <div className="flex-1 glass-panel rounded-[22px] flex items-center pl-4 pr-1.5 py-1 min-h-[52px] mb-1 border border-white/10">
+	                            <input
+	                                ref={inputRef}
+	                                type="text"
                                 value={newMessage}
                                 onChange={e => {
                                     setNewMessage(e.target.value);
                                     handleTypingStart();
                                 }}
-                                placeholder={editingMessageId ? "Edit message..." : "Message..."}
-                                disabled={sending}
-                                className="flex-1 w-full bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-sans text-[15px]"
-                            />
+	                                placeholder={editingMessageId ? "Refine your message..." : "Write a message..."}
+	                                disabled={sending}
+	                                className="flex-1 w-full bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-sans text-[15px]"
+	                            />
 
                             <motion.button
                                 type="submit"

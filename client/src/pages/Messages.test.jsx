@@ -101,6 +101,10 @@ describe('Messages desktop workspace', () => {
     expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
     expect(screen.getByText('Marcus')).toBeInTheDocument();
     expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);
+    expect(screen.getByText('1 message')).toBeInTheDocument();
+    expect(screen.getByText('0 shared decks')).toBeInTheDocument();
+    expect(screen.getByText('Replying to Bianca')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /attach image/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Search conversations'), {
       target: { value: 'Marcus' },
