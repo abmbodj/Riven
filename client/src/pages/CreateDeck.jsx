@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import {
     X, Sparkles, Folder, Calendar, Hash, ChevronDown, Check,
@@ -10,9 +11,79 @@ import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
 
 const MODES = [
-    { id: 'manual', label: 'Manual', icon: Layers },
-    { id: 'ai', label: 'AI Generate', icon: Sparkles },
+    { id: 'manual', label: 'Quick Deck', icon: Layers },
+    { id: 'ai', label: 'Generate from Notes', icon: Sparkles },
 ];
+
+// eslint-disable-next-line no-unused-vars
+function PickerSheet({ open, title, icon: Icon, items, selectedId, noneLabel, onClose, onSelect, renderItem }) {
+    return (
+        <AnimatePresence>
+            {open && (
+                <>
+                    <motion.button
+                        type="button"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 z-40 bg-black/50"
+                        aria-label={`Close ${title}`}
+                    />
+                    <motion.div
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border-t border-claude-border bg-claude-bg/95 px-4 pb-8 pt-4 shadow-2xl md:left-1/2 md:max-w-lg md:-translate-x-1/2 md:rounded-[2rem]"
+                    >
+                        <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-claude-border" />
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="rounded-2xl border border-claude-border bg-claude-surface p-3 text-claude-secondary">
+                                <Icon className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="font-display text-lg font-bold text-botanical-parchment">{title}</p>
+                                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary">Choose one option</p>
+                            </div>
+                        </div>
+                        <div className="max-h-[60dvh] space-y-2 overflow-auto pb-safe">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onSelect(null);
+                                    onClose();
+                                }}
+                                className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${selectedId == null ? 'border-claude-accent/30 bg-claude-accent/10 text-botanical-parchment' : 'border-claude-border bg-claude-surface text-claude-secondary'}`}
+                            >
+                                <Icon className="h-5 w-5" />
+                                <span className="flex-1">{noneLabel}</span>
+                                {selectedId == null && <Check className="h-4 w-4 text-claude-accent" />}
+                            </button>
+                            {items.map((item) => {
+                                const isSelected = selectedId === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onSelect(item.id);
+                                            onClose();
+                                        }}
+                                        className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] ${isSelected ? 'border-claude-accent/30 bg-claude-accent/10 text-botanical-parchment' : 'border-claude-border bg-claude-surface text-claude-secondary'}`}
+                                    >
+                                        {renderItem(item)}
+                                        {isSelected && <Check className="ml-auto h-4 w-4 text-claude-accent" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+    );
+}
 
 export default function CreateDeck() {
     const navigate = useNavigate();
@@ -132,6 +203,7 @@ export default function CreateDeck() {
     };
 
     const selectedFolderData = folders.find(f => f.id === selectedFolder);
+    const selectedClassData = classes.find(c => c.id === selectedClass);
 
     return (
         <div className="min-h-full flex flex-col safe-area-top">
@@ -185,6 +257,30 @@ export default function CreateDeck() {
                 onSubmit={mode === 'manual' ? handleManualSubmit : handleAIGenerate}
                 className="flex-1 flex flex-col py-6"
             >
+                <div className="mb-5 rounded-[1.75rem] border border-claude-border bg-claude-surface px-4 py-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary">Deck Setup</p>
+                            <h2 className="mt-1 font-display text-2xl font-bold text-botanical-parchment">
+                                {title.trim() || (mode === 'manual' ? 'Start a quick deck' : 'Generate a deck from notes')}
+                            </h2>
+                        </div>
+                        <div className="rounded-2xl border border-claude-border bg-claude-bg p-3 text-claude-accent">
+                            {mode === 'manual' ? <Layers className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                        </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
+                            {mode === 'manual' ? 'Build manually' : 'AI workflow'}
+                        </span>
+                        <span className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
+                            {selectedClassData?.name || 'No class linked'}
+                        </span>
+                        <span className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
+                            {selectedFolderData?.name || 'Library root'}
+                        </span>
+                    </div>
+                </div>
                 <AnimatePresence mode="wait">
                     {mode === 'manual' ? (
                         <motion.div
@@ -201,7 +297,7 @@ export default function CreateDeck() {
                                     type="text"
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    className="w-full px-0 py-2 bg-transparent border-0 border-b-2 border-claude-border focus:border-claude-accent outline-none transition-colors text-2xl font-display font-bold placeholder:text-claude-secondary/50"
+                                    className="w-full px-4 py-4 glass-panel rounded-2xl focus:border-claude-accent outline-none transition-colors text-lg font-display font-bold placeholder:text-claude-secondary/50"
                                     placeholder="Deck name"
                                     required
                                     autoFocus
@@ -213,111 +309,44 @@ export default function CreateDeck() {
                                 <textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
-                                    className="w-full px-4 py-3 glass-panel rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[80px] resize-none text-sm"
+                                    className="w-full px-4 py-4 glass-panel rounded-2xl focus:border-claude-accent outline-none transition-colors min-h-[96px] resize-none text-sm"
                                     placeholder="Add a description (optional)"
                                 />
                             </div>
 
-                            {/* Folder Picker */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Folder</label>
+                            <div className="grid gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"
-                                    onClick={() => { setShowFolderPicker(!showFolderPicker); setShowClassPicker(false); }}
-                                    className="w-full px-4 py-3.5 glass-panel rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                                    onClick={() => { setShowFolderPicker(true); setShowClassPicker(false); }}
+                                    className="rounded-2xl border border-claude-border bg-claude-surface px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.99]"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <Folder className="w-5 h-5" style={{ color: selectedFolderData?.color || 'var(--secondary-text-color)' }} />
-                                        <span className={selectedFolder ? '' : 'text-claude-secondary'}>
-                                            {selectedFolderData?.name || 'None'}
-                                        </span>
+                                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">Folder</p>
+                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <Folder className="w-5 h-5" style={{ color: selectedFolderData?.color || 'var(--secondary-text-color)' }} />
+                                            <span className={selectedFolderData ? 'text-botanical-parchment' : 'text-claude-secondary'}>
+                                                {selectedFolderData?.name || 'Library root'}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className="w-5 h-5 text-claude-secondary" />
                                     </div>
-                                    <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showFolderPicker ? 'rotate-180' : ''}`} />
                                 </button>
-
-                                <AnimatePresence>
-                                    {showFolderPicker && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="mt-2 glass-panel rounded-xl overflow-hidden"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSelectedFolder(null); setShowFolderPicker(false); }}
-                                                className={`w-full px-4 py-3.5 flex items-center gap-3 text-left active:bg-claude-bg ${!selectedFolder ? 'bg-claude-accent/10' : ''}`}
-                                            >
-                                                <Folder className="w-5 h-5 text-claude-secondary" />
-                                                <span>None</span>
-                                                {!selectedFolder && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                            </button>
-                                            {folders.map(folder => (
-                                                <button
-                                                    key={folder.id}
-                                                    type="button"
-                                                    onClick={() => { setSelectedFolder(folder.id); setShowFolderPicker(false); }}
-                                                    className={`w-full px-4 py-3.5 flex items-center gap-3 text-left border-t border-claude-border active:bg-claude-bg ${selectedFolder === folder.id ? 'bg-claude-accent/10' : ''}`}
-                                                >
-                                                    <Folder className="w-5 h-5" style={{ color: folder.color }} />
-                                                    <span>{folder.name}</span>
-                                                    {selectedFolder === folder.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            {/* Class Picker */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Class (Optional)</label>
                                 <button
                                     type="button"
-                                    onClick={() => { setShowClassPicker(!showClassPicker); setShowFolderPicker(false); }}
-                                    className="w-full px-4 py-3.5 glass-panel rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
+                                    onClick={() => { setShowClassPicker(true); setShowFolderPicker(false); }}
+                                    className="rounded-2xl border border-claude-border bg-claude-surface px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.99]"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: classes.find(c => c.id === selectedClass)?.color || 'var(--secondary-text-color)' }} />
-                                        <span className={selectedClass ? '' : 'text-claude-secondary'}>
-                                            {classes.find(c => c.id === selectedClass)?.name || 'None'}
-                                        </span>
+                                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">Class</p>
+                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: selectedClassData?.color || 'var(--secondary-text-color)' }} />
+                                            <span className={selectedClassData ? 'text-botanical-parchment' : 'text-claude-secondary'}>
+                                                {selectedClassData?.name || 'Not linked'}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className="w-5 h-5 text-claude-secondary" />
                                     </div>
-                                    <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showClassPicker ? 'rotate-180' : ''}`} />
                                 </button>
-
-                                <AnimatePresence>
-                                    {showClassPicker && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="mt-2 glass-panel rounded-xl overflow-hidden shadow-sm z-20 relative"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSelectedClass(null); setShowClassPicker(false); }}
-                                                className={`w-full px-4 py-3.5 flex items-center gap-3 text-left active:bg-claude-bg ${!selectedClass ? 'bg-claude-accent/10' : ''}`}
-                                            >
-                                                <Calendar className="w-5 h-5 text-claude-secondary" />
-                                                <span>None</span>
-                                                {!selectedClass && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                            </button>
-                                            {classes.map(cls => (
-                                                <button
-                                                    key={cls.id}
-                                                    type="button"
-                                                    onClick={() => { setSelectedClass(cls.id); setShowClassPicker(false); }}
-                                                    className={`w-full px-4 py-3.5 flex items-center gap-3 text-left border-t border-claude-border active:bg-claude-bg ${selectedClass === cls.id ? 'bg-claude-accent/10' : ''}`}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
-                                                    <span>{cls.name}</span>
-                                                    {selectedClass === cls.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
                             </div>
 
                             {/* Tags */}
@@ -373,19 +402,6 @@ export default function CreateDeck() {
                                 </div>
                             )}
 
-                            {/* Deck Name */}
-                            <div>
-                                <input
-                                    type="text"
-                                    value={title}
-                                    onChange={e => setTitle(e.target.value)}
-                                    className="w-full px-0 py-2 bg-transparent border-0 border-b-2 border-claude-border focus:border-claude-accent outline-none transition-colors text-2xl font-display font-bold placeholder:text-claude-secondary/50"
-                                    placeholder="Deck name"
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-
                             {/* Notes / Source Material */}
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">
@@ -394,7 +410,7 @@ export default function CreateDeck() {
                                 <textarea
                                     value={aiNotes}
                                     onChange={e => setAiNotes(e.target.value)}
-                                    className="w-full px-4 py-3 glass-panel rounded-xl focus:border-claude-accent outline-none transition-colors min-h-[120px] resize-none text-sm"
+                                    className="w-full px-4 py-4 glass-panel rounded-2xl focus:border-claude-accent outline-none transition-colors min-h-[120px] resize-none text-sm"
                                     placeholder="Paste your notes, lecture content, or key concepts here..."
                                 />
                             </div>
@@ -444,56 +460,22 @@ export default function CreateDeck() {
                                 )}
                             </div>
 
-                            {/* Class Picker (AI mode) */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2">Class (Optional)</label>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowClassPicker(!showClassPicker)}
-                                    className="w-full px-4 py-3.5 glass-panel rounded-xl flex items-center justify-between active:bg-claude-bg transition-colors"
-                                >
+                            <button
+                                type="button"
+                                onClick={() => { setShowClassPicker(true); setShowFolderPicker(false); }}
+                                className="rounded-2xl border border-claude-border bg-claude-surface px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.99]"
+                            >
+                                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">Linked Class</p>
+                                <div className="mt-2 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3">
-                                        <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: classes.find(c => c.id === selectedClass)?.color || 'var(--secondary-text-color)' }} />
-                                        <span className={selectedClass ? '' : 'text-claude-secondary'}>
-                                            {classes.find(c => c.id === selectedClass)?.name || 'None'}
+                                        <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: selectedClassData?.color || 'var(--secondary-text-color)' }} />
+                                        <span className={selectedClassData ? 'text-botanical-parchment' : 'text-claude-secondary'}>
+                                            {selectedClassData?.name || 'Not linked'}
                                         </span>
                                     </div>
-                                    <ChevronDown className={`w-5 h-5 text-claude-secondary transition-transform ${showClassPicker ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                <AnimatePresence>
-                                    {showClassPicker && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="mt-2 glass-panel rounded-xl overflow-hidden shadow-sm z-20 relative"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSelectedClass(null); setShowClassPicker(false); }}
-                                                className={`w-full px-4 py-3.5 flex items-center gap-3 text-left active:bg-claude-bg ${!selectedClass ? 'bg-claude-accent/10' : ''}`}
-                                            >
-                                                <Calendar className="w-5 h-5 text-claude-secondary" />
-                                                <span>None</span>
-                                                {!selectedClass && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                            </button>
-                                            {classes.map(cls => (
-                                                <button
-                                                    key={cls.id}
-                                                    type="button"
-                                                    onClick={() => { setSelectedClass(cls.id); setShowClassPicker(false); }}
-                                                    className={`w-full px-4 py-3.5 flex items-center gap-3 text-left border-t border-claude-border active:bg-claude-bg ${selectedClass === cls.id ? 'bg-claude-accent/10' : ''}`}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
-                                                    <span>{cls.name}</span>
-                                                    {selectedClass === cls.id && <Check className="w-4 h-4 text-claude-accent ml-auto" />}
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                                    <ChevronDown className="w-5 h-5 text-claude-secondary" />
+                                </div>
+                            </button>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -530,6 +512,40 @@ export default function CreateDeck() {
                 </div>
             </form>
 
+
+            <PickerSheet
+                open={showFolderPicker}
+                title="Choose Folder"
+                icon={Folder}
+                items={folders}
+                selectedId={selectedFolder}
+                noneLabel="Library root"
+                onClose={() => setShowFolderPicker(false)}
+                onSelect={setSelectedFolder}
+                renderItem={(folder) => (
+                    <>
+                        <Folder className="h-5 w-5" style={{ color: folder.color }} />
+                        <span>{folder.name}</span>
+                    </>
+                )}
+            />
+
+            <PickerSheet
+                open={showClassPicker}
+                title="Link a Class"
+                icon={Calendar}
+                items={classes}
+                selectedId={selectedClass}
+                noneLabel="No linked class"
+                onClose={() => setShowClassPicker(false)}
+                onSelect={setSelectedClass}
+                renderItem={(cls) => (
+                    <>
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
+                        <span>{cls.name}</span>
+                    </>
+                )}
+            />
 
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
         </div>
