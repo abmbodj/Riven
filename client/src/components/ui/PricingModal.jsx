@@ -1,38 +1,123 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, X, Check, ArrowRight, Crown, Zap, Shield } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion as Motion } from 'motion/react';
+import {
+    ArrowRight,
+    Check,
+    Crown,
+    Shield,
+    Sparkles,
+    X,
+    Zap,
+} from 'lucide-react';
+import { getApiBase, getToken } from '../../api/authApi';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
-import { getToken, getApiBase } from '../../api/authApi';
 
-// Stripe Price IDs from environment
 const PRICE_IDS = {
     monthly: import.meta.env.VITE_STRIPE_PRICE_MONTHLY,
-    lifetime: import.meta.env.VITE_STRIPE_PRICE_LIFETIME
+    lifetime: import.meta.env.VITE_STRIPE_PRICE_LIFETIME,
 };
+
+const PLAN_STYLES = {
+    supporter: {
+        icon: Zap,
+        badge: 'Most Popular',
+        card: 'border-claude-accent/30 bg-[linear-gradient(180deg,rgba(168,192,127,0.12),rgba(255,255,255,0.04))]',
+        activeCard: 'border-claude-accent bg-[linear-gradient(180deg,rgba(168,192,127,0.22),rgba(255,255,255,0.06))] shadow-[0_18px_45px_rgba(168,192,127,0.14)]',
+        badgeClass: 'border-claude-accent/25 bg-claude-accent/15 text-claude-accent',
+        iconWrap: 'border-claude-accent/20 bg-claude-accent/15 text-claude-accent',
+        check: 'text-claude-accent',
+        accentBar: 'bg-claude-accent',
+        cta: 'from-[#a8c07f] to-[#d8b66a]',
+    },
+    lifetime: {
+        icon: Crown,
+        badge: 'Best Value',
+        card: 'border-amber-400/30 bg-[linear-gradient(180deg,rgba(217,168,71,0.14),rgba(255,255,255,0.04))]',
+        activeCard: 'border-amber-400 bg-[linear-gradient(180deg,rgba(217,168,71,0.22),rgba(255,255,255,0.06))] shadow-[0_18px_45px_rgba(217,168,71,0.14)]',
+        badgeClass: 'border-amber-400/25 bg-amber-400/15 text-amber-300',
+        iconWrap: 'border-amber-400/20 bg-amber-400/15 text-amber-300',
+        check: 'text-amber-300',
+        accentBar: 'bg-amber-300',
+        cta: 'from-[#d8b66a] to-[#f0d28a]',
+    },
+};
+
+const PLANS = [
+    {
+        id: 'supporter',
+        name: 'Supporter',
+        price: '$5.99',
+        period: '/month',
+        kicker: 'For daily studying',
+        summary: 'Unlocks the full Riven rhythm without committing long term.',
+        features: [
+            'Unlimited hearts',
+            'Unlimited AI generations',
+            'All PRO themes',
+            'Ad-free studying',
+            'Advanced study groups',
+        ],
+    },
+    {
+        id: 'lifetime',
+        name: 'Lifetime',
+        price: '$29.99',
+        period: 'once',
+        kicker: 'One payment, permanent unlock',
+        summary: 'Best for heavy users who want premium access locked in for good.',
+        features: [
+            'Everything in Supporter',
+            'No recurring payments',
+            'Exclusive lifetime badge',
+            'All future premium features',
+            'Exclusive custom themes',
+        ],
+    },
+];
+
+function getDefaultPlan(currentTier) {
+    if (currentTier === 'supporter') return 'lifetime';
+    if (currentTier === 'lifetime') return 'lifetime';
+    return 'supporter';
+}
 
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
+    const { refreshUser } = useAuth();
+
     const [loading, setLoading] = useState(false);
     const [restoring, setRestoring] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
-    const [selectedPlan, setSelectedPlan] = useState('supporter');
-    const { user, refreshUser } = useAuth();
+    const [selectedPlan, setSelectedPlan] = useState(getDefaultPlan(currentTier));
 
-    // Close on escape key
     useEffect(() => {
         if (!isOpen) return;
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') onClose();
+        setSelectedPlan(getDefaultPlan(currentTier));
+        setError(null);
+        setSuccess(null);
+    }, [isOpen, currentTier]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') onClose();
         };
+
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
+    const selectedPlanData = useMemo(
+        () => PLANS.find((plan) => plan.id === selectedPlan) ?? PLANS[0],
+        [selectedPlan]
+    );
+
     const handlePurchase = async (pkgType) => {
         setLoading(true);
         setError(null);
+
         try {
             const priceId = pkgType === 'lifetime' ? PRICE_IDS.lifetime : PRICE_IDS.monthly;
             const isSubscription = pkgType !== 'lifetime';
@@ -41,19 +126,19 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getToken()}`
+                    Authorization: `Bearer ${getToken()}`,
                 },
                 credentials: 'include',
-                body: JSON.stringify({ priceId, isSubscription })
+                body: JSON.stringify({ priceId, isSubscription }),
             });
 
             const data = await response.json();
             if (data.url) {
-                // Redirect to Stripe checkout
                 window.location.href = data.url;
-            } else {
-                throw new Error(data.error || 'Failed to create checkout session');
+                return;
             }
+
+            throw new Error(data.error || 'Failed to create checkout session');
         } catch (err) {
             console.error('[PricingModal] Purchase error:', err);
             setError(err.message || 'Failed to initiate purchase. Please try again.');
@@ -66,17 +151,17 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setRestoring(true);
         setError(null);
         setSuccess(null);
+
         try {
             const updatedUser = await refreshUser();
             if (updatedUser.subscription_tier !== 'free') {
-                setSuccess(`Welcome back, ${updatedUser.subscription_tier}! Your subscription has been restored.`);
-                // Close modal after a short delay
-                setTimeout(onClose, 2000);
+                setSuccess(`Welcome back, ${updatedUser.subscription_tier}. Your access has been restored.`);
+                setTimeout(onClose, 1800);
             } else {
-                setError('No active subscription found. If you just paid, please wait a minute for Stripe to process.');
+                setError('No active subscription found yet. If you just paid, wait a minute and try again.');
             }
-        } catch (err) {
-            setError('Failed to restore. Please try again or contact support.');
+        } catch {
+            setError('Failed to restore access. Please try again or contact support.');
         } finally {
             setRestoring(false);
         }
@@ -84,210 +169,291 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
     if (!isOpen) return null;
 
-    const plans = [
-        {
-            id: 'supporter',
-            name: 'Supporter',
-            price: '$5.99',
-            period: '/month',
-            icon: Zap,
-            accent: 'claude-accent',
-            accentBg: 'claude-accent/10',
-            accentBorder: 'claude-accent/40',
-            badge: 'Most Popular',
-            features: [
-                'Unlimited Hearts',
-                'Unlimited AI Generations',
-                'All PRO Themes',
-                'Ad-free Experience',
-                'Advanced Study Groups',
-            ],
-        },
-        {
-            id: 'lifetime',
-            name: 'Lifetime',
-            price: '$29.99',
-            period: 'once',
-            icon: Crown,
-            accent: 'amber-500',
-            accentBg: 'amber-500/10',
-            accentBorder: 'amber-500/40',
-            badge: 'Best Value',
-            features: [
-                'All Supporter Benefits',
-                'No Recurring Payments',
-                'Exclusive Lifetime Badge',
-                'All Future Premium Features',
-                'Exclusive Custom Themes',
-            ],
-        },
-    ];
-
     return (
         <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[999] flex items-end justify-center">
-                    <motion.div
+            {isOpen ? (
+                <div className="fixed inset-0 z-[999] flex items-end justify-center md:items-center md:p-6">
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
+                        className="absolute inset-0 bg-[rgba(8,12,15,0.72)] md:backdrop-blur-md"
                         onClick={onClose}
                     />
 
-                    <motion.div
+                    <Motion.div
                         role="dialog"
                         aria-modal="true"
-                        initial={{ y: '100%', opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-                        className="relative glass-panel w-full max-w-md rounded-t-[2rem] shadow-md md:shadow-2xl overflow-hidden flex flex-col"
-                        style={{ maxHeight: '92vh' }}
-                        onClick={(e) => e.stopPropagation()}
+                        aria-labelledby="pricing-modal-title"
+                        initial={{ opacity: 0, y: 32, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                        transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+                        className="relative flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,35,0.985),rgba(13,21,26,0.985))] shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-w-5xl md:rounded-[2rem]"
+                        onClick={(event) => event.stopPropagation()}
                     >
-                        {/* Drag Handle */}
-                        <div className="w-12 h-1.5 bg-claude-border rounded-full mx-auto mt-3 mb-1 shrink-0" />
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.12),transparent_30%)]" />
 
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-6 pt-3 pb-4 shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-claude-accent/15 rounded-xl text-claude-accent">
-                                    <Sparkles className="w-5 h-5" />
+                        <div className="relative flex justify-center pt-4 md:hidden">
+                            <div className="h-1.5 w-12 rounded-full bg-white/15" />
+                        </div>
+
+                        <div className="relative flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-7">
+                            <div className="min-w-0">
+                                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                                    <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                        Premium access
+                                    </span>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-display font-bold text-claude-text">Upgrade Riven</h2>
-                                    <p className="text-xs text-claude-secondary">Unlock the ultimate learning aesthetic.</p>
+
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h2
+                                        id="pricing-modal-title"
+                                        className="font-display text-3xl font-bold italic tracking-tight text-botanical-parchment md:text-[3.2rem]"
+                                    >
+                                        Upgrade Riven
+                                    </h2>
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+                                        <Shield className="h-3.5 w-3.5 text-claude-secondary" />
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                            Current {currentTier === 'free' ? 'Basic' : currentTier}
+                                        </span>
+                                    </div>
                                 </div>
+
+                                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/68 md:text-base">
+                                    Bring the full Riven atmosphere into every study session: premium themes,
+                                    unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
+                                    experience.
+                                </p>
                             </div>
+
                             <button
+                                type="button"
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/10 text-claude-secondary hover:text-claude-text transition-colors tap-action"
+                                className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-white/20 hover:text-botanical-parchment focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                aria-label="Close pricing modal"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="h-5 w-5" />
                             </button>
                         </div>
 
-
-                        {/* Content */}
-                        <div className="px-5 pb-6 overflow-y-auto custom-scrollbar flex-1">
-                            {/* Current Plan Banner */}
-                            <div className="flex items-center gap-3 p-3 rounded-xl glass-panel mb-5 border border-claude-border/30">
-                                <Shield className="w-4 h-4 text-claude-secondary shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <span className="text-[10px] font-mono uppercase tracking-widest text-claude-secondary">Current Plan</span>
-                                    <p className="text-sm font-bold text-claude-text capitalize">{currentTier === 'free' ? 'Basic (Free)' : currentTier}</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {plans.map((plan) => {
-                                    const Icon = plan.icon;
-                                    const isSelected = selectedPlan === plan.id;
-                                    const isCurrentPlan = currentTier === plan.id;
-                                    const isDisabled = isCurrentPlan || (plan.id === 'supporter' && currentTier === 'lifetime');
-
-                                    return (
-                                        <motion.button
-                                            key={plan.id}
-                                            onClick={() => !isDisabled && setSelectedPlan(plan.id)}
-                                            whileTap={{ scale: isDisabled ? 1 : 0.98 }}
-                                            className={`w-full text-left p-4 rounded-2xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative overflow-hidden ${isSelected && !isDisabled
-                                                ? `border-${plan.accent} bg-${plan.accentBg}`
-                                                : 'border-claude-border/30 bg-white/[0.03]'
-                                                } ${isDisabled ? 'opacity-50' : ''}`}
+                        <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
+                            <div className="flex-1 overflow-y-auto px-5 py-5 custom-scrollbar md:px-8 md:py-8">
+                                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                                    {[
+                                        ['Themes', 'Unlock all premium atmospheres'],
+                                        ['AI', 'Unlimited generations and study support'],
+                                        ['Focus', 'No ads, less friction, more continuity'],
+                                    ].map(([label, text]) => (
+                                        <div
+                                            key={label}
+                                            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
                                         >
-                                            {/* Badge */}
-                                            {plan.badge && !isDisabled && (
-                                                <span className={`absolute top-3 right-3 text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${plan.accentBg} text-${plan.accent} border border-${plan.accentBorder}`}>
-                                                    {plan.badge}
-                                                </span>
-                                            )}
-
-                                            {/* Selection indicator */}
-                                            <div className="flex items-start gap-3">
-                                                <div className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center transition-colors ${isSelected && !isDisabled ? `border-${plan.accent} bg-${plan.accent}` : 'border-claude-border'
-                                                    }`}>
-                                                    {isSelected && !isDisabled && (
-                                                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                                            <Check className="w-3 h-3 text-white" />
-                                                        </motion.div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Icon className={`w-4 h-4 text-${plan.accent}`} />
-                                                        <h3 className="text-base font-bold font-display text-claude-text">{plan.name}</h3>
-                                                    </div>
-
-                                                    <div className="flex items-baseline gap-1 mb-3">
-                                                        <span className="text-2xl font-bold text-claude-text">{plan.price}</span>
-                                                        <span className="text-xs text-claude-secondary">{plan.period}</span>
-                                                    </div>
-
-                                                    <ul className="space-y-2">
-                                                        {plan.features.map((feat, i) => (
-                                                            <li key={i} className="flex items-start gap-2 text-xs text-claude-secondary">
-                                                                <Check className={`w-3.5 h-3.5 mt-0.5 shrink-0 text-${plan.accent}`} />
-                                                                {feat}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
-
-                            {error && (
-                                <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-in fade-in slide-in-from-bottom-2">
-                                    {error}
+                                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                {label}
+                                            </p>
+                                            <p className="mt-2 text-sm leading-relaxed text-white/70">{text}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
 
-                            {/* Purchase Button */}
-                            <motion.button
-                                onClick={() => handlePurchase(selectedPlan)}
-                                disabled={loading || currentTier === selectedPlan || (selectedPlan === 'supporter' && currentTier === 'lifetime')}
-                                whileTap={{ scale: 0.97 }}
-                                className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-claude-accent to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm md:shadow-lg shadow-claude-accent/20 tap-action"
-                            >
-                                {loading ? (
-                                    <span className="animate-spin text-xl">↻</span>
-                                ) : (
-                                    <>
-                                        Continue with {plans.find(p => p.id === selectedPlan)?.name}
-                                        <ArrowRight className="w-4 h-4" />
-                                    </>
-                                )}
-                            </motion.button>
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                    {PLANS.map((plan) => {
+                                        const styles = PLAN_STYLES[plan.id];
+                                        const Icon = styles.icon;
+                                        const isSelected = selectedPlan === plan.id;
+                                        const isCurrentPlan = currentTier === plan.id;
+                                        const isDowngradeBlocked = currentTier === 'lifetime' && plan.id === 'supporter';
+                                        const isDisabled = isCurrentPlan || isDowngradeBlocked;
 
-                            {/* Restore Purchase */}
-                            <div className="mt-8 pt-4 border-t border-white/5 text-center">
-                                <p className="text-[10px] text-stone-500 mb-2">
-                                    Already purchased?
-                                </p>
-                                <button
-                                    onClick={handleRestore}
-                                    disabled={restoring}
-                                    className="text-xs font-medium text-amber-500/80 hover:text-amber-500 transition-colors flex items-center justify-center gap-1.5 mx-auto"
-                                >
-                                    <Zap className={`w-3 h-3 ${restoring ? 'animate-spin' : ''}`} />
-                                    {restoring ? 'Checking Stripe...' : 'Restore Purchase'}
-                                </button>
+                                        return (
+                                            <Motion.button
+                                                key={plan.id}
+                                                type="button"
+                                                whileTap={{ scale: isDisabled ? 1 : 0.985 }}
+                                                onClick={() => {
+                                                    if (!isDisabled) {
+                                                        setSelectedPlan(plan.id);
+                                                        setError(null);
+                                                        setSuccess(null);
+                                                    }
+                                                }}
+                                                className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
+                                                    isSelected ? styles.activeCard : styles.card
+                                                } ${!isSelected && !isDisabled ? 'hover:-translate-y-1 hover:border-white/20' : ''} ${
+                                                    isDisabled ? 'cursor-default opacity-55' : ''
+                                                }`}
+                                            >
+                                                <div className={`absolute inset-x-0 top-0 h-1 ${styles.accentBar}`} />
 
-                                {success && (
-                                    <p className="mt-3 text-xs text-emerald-500 animate-fade-in">
-                                        {success}
-                                    </p>
-                                )}
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="min-w-0">
+                                                        <div className="mb-4 flex items-center gap-3">
+                                                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${styles.iconWrap}`}>
+                                                                <Icon className="h-5 w-5" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                                    {plan.kicker}
+                                                                </p>
+                                                                <h3 className="mt-1 font-display text-2xl font-bold italic tracking-tight text-botanical-parchment">
+                                                                    {plan.name}
+                                                                </h3>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-end gap-2">
+                                                            <span className="text-4xl font-bold tracking-tight text-botanical-parchment">
+                                                                {plan.price}
+                                                            </span>
+                                                            <span className="pb-1 text-sm text-white/58">{plan.period}</span>
+                                                        </div>
+
+                                                        <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/66">
+                                                            {plan.summary}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        {!isDisabled ? (
+                                                            <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em] ${styles.badgeClass}`}>
+                                                                {styles.badge}
+                                                            </span>
+                                                        ) : null}
+
+                                                        <div
+                                                            className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                                                                isSelected
+                                                                    ? 'border-botanical-parchment bg-botanical-parchment text-[#122229]'
+                                                                    : 'border-white/20 bg-transparent text-transparent'
+                                                            }`}
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <ul className="mt-6 space-y-3">
+                                                    {plan.features.map((feature) => (
+                                                        <li key={feature} className="flex items-start gap-3 text-sm text-white/78">
+                                                            <Check className={`mt-0.5 h-4 w-4 shrink-0 ${styles.check}`} />
+                                                            <span>{feature}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+
+                                                {isCurrentPlan ? (
+                                                    <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                        Your current plan
+                                                    </p>
+                                                ) : null}
+
+                                                {isDowngradeBlocked ? (
+                                                    <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                        Lifetime already includes this
+                                                    </p>
+                                                ) : null}
+                                            </Motion.button>
+                                        );
+                                    })}
+                                </div>
                             </div>
+
+                            <aside className="relative border-t border-white/8 bg-black/10 px-5 py-5 md:w-[22rem] md:border-l md:border-t-0 md:px-6 md:py-8">
+                                <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+                                    <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">
+                                        Selected plan
+                                    </p>
+                                    <h3 className="mt-3 font-display text-3xl font-bold italic tracking-tight text-botanical-parchment">
+                                        {selectedPlanData.name}
+                                    </h3>
+                                    <div className="mt-2 flex items-end gap-2">
+                                        <span className="text-3xl font-bold text-botanical-parchment">
+                                            {selectedPlanData.price}
+                                        </span>
+                                        <span className="pb-1 text-sm text-white/58">{selectedPlanData.period}</span>
+                                    </div>
+                                    <p className="mt-3 text-sm leading-relaxed text-white/68">
+                                        {selectedPlanData.summary}
+                                    </p>
+
+                                    <div className="mt-5 space-y-2 rounded-2xl border border-white/8 bg-black/10 p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                                Access
+                                            </span>
+                                            <span className="text-sm text-botanical-parchment">
+                                                Premium unlocked
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                                Billing
+                                            </span>
+                                            <span className="text-sm text-botanical-parchment">
+                                                {selectedPlan === 'lifetime' ? 'Single payment' : 'Monthly renewal'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {error ? (
+                                        <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-200">
+                                            {error}
+                                        </div>
+                                    ) : null}
+
+                                    {success ? (
+                                        <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-200">
+                                            {success}
+                                        </div>
+                                    ) : null}
+
+                                    <Motion.button
+                                        type="button"
+                                        whileTap={{ scale: 0.985 }}
+                                        onClick={() => handlePurchase(selectedPlan)}
+                                        disabled={
+                                            loading ||
+                                            currentTier === selectedPlan ||
+                                            (selectedPlan === 'supporter' && currentTier === 'lifetime')
+                                        }
+                                        className={`tap-action mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
+                                    >
+                                        {loading ? (
+                                            <span className="animate-spin text-lg leading-none">↻</span>
+                                        ) : currentTier === selectedPlan ? (
+                                            'Current plan'
+                                        ) : currentTier === 'lifetime' && selectedPlan === 'supporter' ? (
+                                            'Already included'
+                                        ) : (
+                                            <>
+                                                Continue to checkout
+                                                <ArrowRight className="h-4 w-4" />
+                                            </>
+                                        )}
+                                    </Motion.button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleRestore}
+                                        disabled={restoring}
+                                        className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-white/20 hover:text-botanical-parchment disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
+                                        {restoring ? 'Checking Stripe' : 'Restore purchase'}
+                                    </button>
+
+                                    <p className="mt-4 text-center text-xs leading-relaxed text-white/45">
+                                        Secure checkout via Stripe. Access updates as soon as billing confirms.
+                                    </p>
+                                </div>
+                            </aside>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </div>
-            )}
+            ) : null}
         </AnimatePresence>
     );
 }

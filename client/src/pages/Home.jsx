@@ -175,7 +175,7 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="group flex min-h-[72px] flex-col gap-3 rounded-2xl border border-white/5 p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-panel sm:flex-row sm:items-center"
+            className="group flex min-h-[92px] flex-col gap-3 rounded-2xl border border-white/5 p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-panel sm:flex-row sm:items-start"
         >
             <div className="flex min-w-0 flex-1 items-start gap-3">
                 <button
@@ -193,7 +193,7 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
                 >
                     <h4
                         title={assignmentTitle}
-                        className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-serif leading-tight text-white transition-colors group-hover:text-claude-accent md:text-lg"
+                        className="line-clamp-2 max-w-full font-serif leading-tight text-white transition-colors group-hover:text-claude-accent md:text-lg"
                     >
                         {assignmentTitle}
                     </h4>
@@ -679,7 +679,7 @@ function DashboardHome() {
                                 <div key={classItem.id} className="gsap-class-pill">
                                     <Link
                                         to={`/class/${classItem.id}`}
-                                        className="tap-action touch-target group relative flex min-h-[92px] min-w-[220px] cursor-pointer flex-col justify-between gap-3 overflow-hidden rounded-2xl border border-white/10 p-4 glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                        className="tap-action touch-target group relative flex min-h-[126px] min-w-[220px] cursor-pointer flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-white/10 p-4 glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                                     >
                                         <div
                                             className="pointer-events-none absolute inset-y-0 left-0 w-1.5"
@@ -690,7 +690,7 @@ function DashboardHome() {
                                         <div className="relative z-10 flex items-start justify-between gap-3">
                                             <span
                                                 title={classItem.name}
-                                                className="block min-w-0 max-w-[calc(100%-1.5rem)] overflow-hidden text-ellipsis whitespace-nowrap pr-2 font-serif text-base font-bold text-botanical-parchment transition-colors group-hover:text-claude-accent"
+                                                className="line-clamp-2 block min-w-0 max-w-[calc(100%-1.5rem)] pr-2 font-serif text-base font-bold leading-snug text-botanical-parchment transition-colors group-hover:text-claude-accent"
                                             >
                                                 {classItem.name}
                                             </span>
