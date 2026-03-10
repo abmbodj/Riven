@@ -21,4 +21,10 @@ describe('Garden', () => {
         expect(screen.getByRole('img', { name: /Sprouting Seeds garden/i })).toBeInTheDocument();
         expect(screen.queryByText('1 day streak', { selector: 'span' })).not.toBeInTheDocument();
     });
+
+    it('includes the flowering stem groups in the reveal animation set', () => {
+        const { container } = render(<Garden streak={500} status="active" size="md" showInfo={true} />);
+
+        expect(container.querySelectorAll('.garden-sway.garden-reveal').length).toBeGreaterThan(0);
+    });
 });

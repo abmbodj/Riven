@@ -376,7 +376,7 @@ function Reed({
     const tipY = y - height;
 
     return (
-        <g className="garden-sway" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
+        <g className="garden-sway garden-reveal" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
             <path
                 d={`M${x} ${y} C ${x - 4} ${y - (height * 0.3)} ${x + (lean * 0.42)} ${y - (height * 0.72)} ${tipX} ${tipY}`}
                 fill="none"
@@ -430,7 +430,7 @@ function WillowFrond({
     const tipY = y + length;
 
     return (
-        <g className="garden-sway" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
+        <g className="garden-sway garden-reveal" data-origin={`${x}px ${y}px`} data-rotate={sway} data-duration={duration}>
             <path
                 d={`M${x} ${y} C ${x + (curve * 0.4)} ${y + (length * 0.18)} ${x - (curve * 0.55)} ${y + (length * 0.65)} ${tipX} ${tipY}`}
                 fill="none"
