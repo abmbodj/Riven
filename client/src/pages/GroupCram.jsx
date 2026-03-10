@@ -602,6 +602,7 @@ export default function GroupCram() {
 
             {confirmModal.show && (
                 <ConfirmModal
+                    isOpen={true}
                     title={confirmModal.title}
                     message={confirmModal.message}
                     onConfirm={handleConfirmAction}
