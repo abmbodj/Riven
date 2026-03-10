@@ -329,6 +329,13 @@ export default function DeckView() {
     };
 
     const currentFolder = folders.find(f => f.id === deck?.folder_id);
+    const currentClass = classes.find(c => c.id === deck?.class_id);
+    const statTiles = [
+        { label: 'Cards', value: deck?.cards?.length || 0 },
+        { label: 'Tags', value: deck?.tags?.length || 0 },
+        { label: 'Folder', value: currentFolder ? '1' : '0' },
+        { label: 'Class', value: currentClass ? '1' : '0' },
+    ];
 
     // Swipe handlers for cards
     const handleTouchStart = (cardId, e) => {
@@ -511,7 +518,7 @@ export default function DeckView() {
                     </Link>
                 </div>
 
-                <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="xl:hidden flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
                     <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-[#7a9e72] hover:bg-[#7a9e72]/10 transition-colors whitespace-nowrap active:scale-95">
                         <Pencil className="w-3.5 h-3.5" /> Edit
                     </button>
@@ -667,74 +674,170 @@ export default function DeckView() {
                         {deck.description && (
                             <p className="text-claude-secondary text-sm md:text-base font-serif italic mb-6 border-l-2 border-claude-border/40 pl-4">{deck.description}</p>
                         )}
+
+                        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            {statTiles.map((tile) => (
+                                <div key={tile.label} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="font-mono text-lg font-bold text-botanical-parchment">{tile.value}</div>
+                                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{tile.label}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* Action buttons */}
-            <div className="px-4 flex gap-3 mb-10">
-                <Link
-                    to={deck.cards.length > 0 ? `/deck/${id}/study` : '#'}
-                    onClick={e => {
-                        if (deck.cards.length === 0) {
-                            e.preventDefault();
-                            toast.error('Add some cards first');
-                        }
-                    }}
-                    className={`flex-1 relative group overflow-hidden p-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action ${deck.cards.length > 0
-                        ? 'bg-[#7a9e72] text-white shadow-[0_8px_32px_rgba(122,158,114,0.25)] hover:shadow-[0_8px_32px_rgba(122,158,114,0.4)] hover:-translate-y-1'
-                        : 'bg-[#7a9e72]/30 text-white/50 cursor-not-allowed border border-[#7a9e72]/10'
-                        }`}
-                >
-                    {deck.cards.length > 0 && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />}
-                    <BookOpen className="w-6 h-6" strokeWidth={2.5} />
-                    <span className="font-mono text-sm font-bold uppercase tracking-widest">Study Now</span>
-                </Link>
-                <Link
-                    to={deck.cards.length >= 4 ? `/deck/${id}/test` : '#'}
-                    onClick={e => {
-                        if (deck.cards.length < 4) {
-                            e.preventDefault();
-                            toast.error('Need 4+ cards for test mode');
-                        }
-                    }}
-                    className={`flex-1 relative group overflow-hidden p-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action border ${deck.cards.length >= 4
-                        ? 'bg-[#1a1c1d]/40 border-claude-accent/20 text-claude-accent shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:bg-[#1a1c1d]/60 hover:border-claude-accent/40 hover:-translate-y-1'
-                        : 'bg-claude-surface/30 border-claude-border/20 text-claude-secondary cursor-not-allowed'
-                        }`}
-                >
-                    {deck.cards.length >= 4 && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />}
-                    <Play className="w-6 h-6" strokeWidth={2.5} />
-                    <span className="font-mono text-sm font-bold uppercase tracking-widest">Test Mode</span>
-                </Link>
-            </div>
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_340px]">
+                <div>
+                    <div className="px-4 mb-6">
+                        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Deck Workbench</p>
+                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">
+                                        {deck.cards.length > 0 ? 'Study paths and card editing stay in one place.' : 'Start by adding cards, then move straight into study.'}
+                                    </h2>
+                                    <p className="max-w-2xl text-sm text-claude-secondary">
+                                        {deck.cards.length > 0
+                                            ? `${deck.cards.length} cards are ready. Use study mode for recall, test mode for pressure, or edit the deck structure without leaving the page.`
+                                            : 'This deck has no cards yet. Import a batch or add the first card manually to turn it into a working set.'}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <Link
+                                        to={deck.cards.length > 0 ? `/deck/${id}/study` : '#'}
+                                        onClick={e => {
+                                            if (deck.cards.length === 0) {
+                                                e.preventDefault();
+                                                toast.error('Add some cards first');
+                                            }
+                                        }}
+                                        className={`relative group overflow-hidden px-5 py-3 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action ${deck.cards.length > 0
+                                            ? 'bg-[#7a9e72] text-white shadow-[0_8px_32px_rgba(122,158,114,0.25)] hover:shadow-[0_8px_32px_rgba(122,158,114,0.4)] hover:-translate-y-1'
+                                            : 'bg-[#7a9e72]/30 text-white/50 cursor-not-allowed border border-[#7a9e72]/10'
+                                            }`}
+                                    >
+                                        <BookOpen className="w-5 h-5" strokeWidth={2.5} />
+                                        <span className="font-mono text-sm font-bold uppercase tracking-widest">Study Now</span>
+                                    </Link>
+                                    <Link
+                                        to={deck.cards.length >= 4 ? `/deck/${id}/test` : '#'}
+                                        onClick={e => {
+                                            if (deck.cards.length < 4) {
+                                                e.preventDefault();
+                                                toast.error('Need 4+ cards for test mode');
+                                            }
+                                        }}
+                                        className={`relative group overflow-hidden px-5 py-3 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action border ${deck.cards.length >= 4
+                                            ? 'bg-[#1a1c1d]/40 border-claude-accent/20 text-claude-accent shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:bg-[#1a1c1d]/60 hover:border-claude-accent/40 hover:-translate-y-1'
+                                            : 'bg-claude-surface/30 border-claude-border/20 text-claude-secondary cursor-not-allowed'
+                                            }`}
+                                    >
+                                        <Play className="w-5 h-5" strokeWidth={2.5} />
+                                        <span className="font-mono text-sm font-bold uppercase tracking-widest">Test Mode</span>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-            {/* Cards header */}
-            <div className="px-4 flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                    <span className="px-2 py-0.5 bg-[#f4f1e8] text-[#8a7f6a] text-[10px] font-mono font-bold uppercase tracking-widest rounded-sm border border-[#e8e4d8] shadow-sm">{deck.cards.length}</span>
-                    <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Cards</h2>
+                    {/* Cards header */}
+                    <div className="px-4 flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <span className="px-2 py-0.5 bg-[#f4f1e8] text-[#8a7f6a] text-[10px] font-mono font-bold uppercase tracking-widest rounded-sm border border-[#e8e4d8] shadow-sm">{deck.cards.length}</span>
+                            <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Cards</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setReorderMode(!reorderMode)}
+                                className={`p-2 sm:px-3 sm:py-2 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${reorderMode ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary hover:text-claude-text'}`}
+                            >
+                                <GripVertical className="w-4 h-4" /> <span className="hidden sm:inline">{reorderMode ? 'Done' : 'Reorder'}</span>
+                            </button>
+                            <button
+                                onClick={() => setShowBulkImport(true)}
+                                className="p-2 sm:px-3 sm:py-2 rounded-xl glass-panel border border-claude-border text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors flex items-center gap-2"
+                            >
+                                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Import</span>
+                            </button>
+                            <button
+                                onClick={() => setShowAddCard(true)}
+                                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-claude-accent text-white border border-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest hover:brightness-110 transition-all shadow-botanical flex items-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" strokeWidth={3} /> <span className="hidden sm:inline">Add</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setReorderMode(!reorderMode)}
-                        className={`p-2 sm:px-3 sm:py-2 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${reorderMode ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary hover:text-claude-text'}`}
-                    >
-                        <GripVertical className="w-4 h-4" /> <span className="hidden sm:inline">{reorderMode ? 'Done' : 'Reorder'}</span>
-                    </button>
-                    <button
-                        onClick={() => setShowBulkImport(true)}
-                        className="p-2 sm:px-3 sm:py-2 rounded-xl glass-panel border border-claude-border text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors flex items-center gap-2"
-                    >
-                        <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Import</span>
-                    </button>
-                    <button
-                        onClick={() => setShowAddCard(true)}
-                        className="p-2 sm:px-3 sm:py-2 rounded-xl bg-claude-accent text-white border border-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest hover:brightness-110 transition-all shadow-botanical flex items-center gap-2"
-                    >
-                        <Plus className="w-4 h-4" strokeWidth={3} /> <span className="hidden sm:inline">Add</span>
-                    </button>
-                </div>
+
+                <aside className="hidden xl:block xl:pr-4">
+                    <div className="sticky top-24 space-y-4">
+                        <div className="glass-panel rounded-[28px] p-5">
+                            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Deck Context</p>
+                            <div className="mt-4 space-y-3">
+                                {currentClass ? (
+                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                        <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Class</div>
+                                        <div className="mt-2 flex items-center gap-2" style={{ color: currentClass.color || '#7a9e72' }}>
+                                            <Calendar className="w-4 h-4" />
+                                            <span className="font-serif text-lg font-bold">{currentClass.name}</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {currentFolder ? (
+                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                        <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Folder</div>
+                                        <div className="mt-2 flex items-center gap-2" style={{ color: currentFolder.color }}>
+                                            <Folder className="w-4 h-4" />
+                                            <span className="font-serif text-lg font-bold">{currentFolder.name}</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Tags</div>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {deck.tags?.length > 0 ? deck.tags.map(tag => (
+                                            <span
+                                                key={tag.id}
+                                                className="px-2 py-1 rounded-full border bg-current/5 flex items-center gap-1"
+                                                style={{ color: tag.color, borderColor: `${tag.color}40` }}
+                                            >
+                                                <Hash className="w-2.5 h-2.5" />
+                                                <span className="font-mono text-[9px] font-bold uppercase tracking-wider">{tag.name}</span>
+                                            </span>
+                                        )) : (
+                                            <span className="text-sm text-claude-secondary">No tags linked</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="glass-panel rounded-[28px] p-5">
+                            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Deck Tools</p>
+                            <div className="mt-4 grid gap-2">
+                                <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                    <Pencil className="w-4 h-4 text-[#7a9e72]" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Edit deck</span>
+                                </button>
+                                <button onClick={handleShareDeck} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                    <Share2 className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Share</span>
+                                </button>
+                                <button onClick={loadStats} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                    <BarChart3 className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Stats</span>
+                                </button>
+                                <button onClick={handleDuplicate} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                    <Copy className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Duplicate</span>
+                                </button>
+                                <button onClick={() => handleExport('json')} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                    <Download className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Export JSON</span>
+                                </button>
+                                <button onClick={() => setDeleteConfirm({ show: true, type: 'deck', id: id })} className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left text-red-400 hover:bg-red-500/10">
+                                    <Trash2 className="w-4 h-4" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Delete deck</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
             </div>
 
             {/* Bulk Import Modal */}
@@ -843,7 +946,7 @@ export default function DeckView() {
             }
 
             {/* Cards list with swipe to delete */}
-            <div className="px-4 space-y-3">
+            <div className="px-4 space-y-3 xl:max-w-[calc(100%-372px)]">
                 {deck.cards.length > 0 && (
                     <p className="text-xs text-claude-secondary text-center mb-2">Swipe left on a card to delete</p>
                 )}
