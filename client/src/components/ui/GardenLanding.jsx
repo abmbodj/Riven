@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'motion/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '../../hooks/useGSAP';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const generateFireflies = () => {
     return [...Array(50)].map((_, i) => {
@@ -20,8 +25,140 @@ const generateFireflies = () => {
 const initialFireflies = generateFireflies();
 
 export default function GardenLanding() {
+    const containerRef = useRef(null);
+
+    useGSAP(() => {
+        // 1. Ambient Tree Swaying
+        // Target groups of trees and apply different, out-of-phase organic sways
+        gsap.to('.tree-oak', {
+            rotation: 'random(-2, 2)',
+            transformOrigin: 'bottom center',
+            duration: 'random(6, 10)',
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            stagger: { amount: 4, from: 'random' }
+        });
+
+        gsap.to('.tree-willow', {
+            rotation: 'random(-1.5, 1.5)',
+            transformOrigin: 'bottom center',
+            duration: 'random(5, 8)',
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            stagger: { amount: 3, from: 'random' }
+        });
+
+        gsap.to('.tree-cypress', {
+            rotation: 'random(-3, 3)',
+            transformOrigin: 'bottom center',
+            duration: 'random(4, 7)',
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            stagger: { amount: 2, from: 'random' }
+        });
+
+        // 2. Mist Parallax (Infinite translation)
+        gsap.to('.mist-layer-1', {
+            x: -1440,
+            duration: 120,
+            ease: 'none',
+            repeat: -1
+        });
+
+        gsap.to('.mist-layer-2', {
+            x: 1440,
+            duration: 90,
+            ease: 'none',
+            repeat: -1
+        });
+
+        // 3. Firefly Animations (Particle System)
+        const fireflies = gsap.utils.toArray('.fireflyGroup');
+        fireflies.forEach((group, i) => {
+            const firefly = initialFireflies[i];
+
+            // Random floating motion
+            gsap.to(group, {
+                x: `+=${gsap.utils.random(-150, 150)}`,
+                y: `+=${gsap.utils.random(-100, -200)}`,
+                duration: firefly.floatDur,
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                delay: firefly.delay
+            });
+
+            // Pulsing opacity
+            gsap.to(group.querySelector('circle'), {
+                opacity: 0.7,
+                duration: firefly.pulseDur / 2,
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                delay: firefly.delay
+            });
+        });
+
+        // 4. Scroll Parallax Effect
+        // Move the distinct layers at different speeds to create depth as user scrolls down
+        const scrollTl = gsap.timeline({
+            scrollTrigger: {
+                trigger: containerRef.current,
+                start: 'top top',
+                end: 'bottom top',
+                scrub: 1, // Smooth scrubbing
+            }
+        });
+
+        // Sun/Sky glow subtly shifts
+        scrollTl.to('.sky-gradient', { attr: { cy: "30%" }, duration: 1 }, 0);
+
+        // Back mist and hills move slowest
+        scrollTl.to('.hills-back', { y: 150, duration: 1 }, 0)
+            .to('.mist-group-1', { y: 100, duration: 1 }, 0);
+
+        // Mid hills move a bit faster
+        scrollTl.to('.hills-mid', { y: 50, duration: 1 }, 0)
+            .to('.mist-group-2', { y: 30, duration: 1 }, 0);
+
+        // Front hills move fastest, coming "up" slightly to frame the next section
+        // (No y shift so they stay anchored, or slight negative y to parallax over mid)
+        scrollTl.to('.hills-front', { y: -20, duration: 1 }, 0);
+
+        // 5. Interactive Mouse Parallax Effect
+        const handleMouseMove = (e) => {
+            const { clientX, clientY } = e;
+            const xPos = (clientX / window.innerWidth - 0.5);
+            const yPos = (clientY / window.innerHeight - 0.5);
+
+            // Shift layers based on depth
+            gsap.to('.hills-back', { x: xPos * 20, y: `+=${yPos * 10}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
+            gsap.to('.hills-mid', { x: xPos * 40, y: `+=${yPos * 20}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
+            gsap.to('.hills-front', { x: xPos * 80, y: `+=${yPos * 40}`, duration: 1, ease: 'power2.out', overwrite: 'auto' });
+
+            // Fireflies react to mouse (subtle scatter)
+            gsap.to('.fireflyGroup', {
+                x: `+=${xPos * -30}`,
+                y: `+=${yPos * -30}`,
+                duration: 2,
+                ease: 'power1.out',
+                overwrite: 'auto'
+            });
+        };
+
+        // Add mouse listener to the hero section (or window)
+        window.addEventListener('mousemove', handleMouseMove);
+
+        // Cleanup mouse listener (useGSAP handles Timeline cleanup automatically, but custom events need manual removal)
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+
+    }, { scope: containerRef });
+
     return (
-        <div className="relative w-full min-h-screen bg-[#0d141e] text-[#fcfaf2] font-serif overflow-x-hidden selection:bg-[#deb96a]/30 selection:text-[#fcfaf2]">
+        <div ref={containerRef} className="relative w-full min-h-screen bg-[#0d141e] text-[#fcfaf2] font-serif overflow-x-hidden selection:bg-[#deb96a]/30 selection:text-[#fcfaf2]">
             {/* Hero Section */}
             <section className="relative w-full h-[100svh] flex flex-col items-center justify-center overflow-hidden">
                 {/* Procedural Garden Background */}
@@ -33,7 +170,7 @@ export default function GardenLanding() {
                         xmlns="http://www.w3.org/2000/svg"
                     >
                         <defs>
-                            <radialGradient id="skyGlow" cx="50%" cy="40%" r="60%">
+                            <radialGradient id="skyGlow" className="sky-gradient" cx="50%" cy="40%" r="60%">
                                 <stop offset="0%" stopColor="#1e3840" />
                                 <stop offset="100%" stopColor="#0d141e" />
                             </radialGradient>
@@ -77,30 +214,8 @@ export default function GardenLanding() {
                                 </feMerge>
                             </filter>
 
-                            {/* Animations */}
-                            <style>
-                                {`
-                                @keyframes sway {
-                                    0%, 100% { transform: rotate(-1.5deg); }
-                                    50% { transform: rotate(1.5deg); }
-                                }
-                                @keyframes swaySlow {
-                                    0%, 100% { transform: rotate(-1deg); }
-                                    50% { transform: rotate(1deg); }
-                                }
-                                @keyframes swayFast {
-                                    0%, 100% { transform: rotate(-2deg); }
-                                    50% { transform: rotate(2deg); }
-                                }
-                                
-                                .sway { animation: sway 8s ease-in-out infinite; transform-origin: 0px 0px; }
-                                .sway-slow { animation: swaySlow 12s ease-in-out infinite; transform-origin: 0px 0px; }
-                                .sway-fast { animation: swayFast 6s ease-in-out infinite; transform-origin: 0px 0px; }
-                            `}
-                            </style>
-
                             {/* Tree 1: Gentle Oak (Welcoming and grounded) */}
-                            <g id="tree-oak" className="sway-slow">
+                            <g id="tree-oak" className="tree-oak">
                                 <path d="M0,0 Q3,-30 0,-60" fill="none" stroke="url(#stemGrad)" strokeWidth="3.5" strokeLinecap="round" />
                                 <path d="M0,-40 Q15,-50 20,-65" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
                                 <path d="M0,-30 Q-15,-40 -20,-55" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
@@ -113,7 +228,7 @@ export default function GardenLanding() {
                             </g>
 
                             {/* Tree 2: Weeping Willow (Calm and flowing) */}
-                            <g id="tree-willow" className="sway">
+                            <g id="tree-willow" className="tree-willow">
                                 <path d="M0,0 Q-4,-40 0,-80" fill="none" stroke="url(#stemGrad)" strokeWidth="3" strokeLinecap="round" />
                                 <path d="M0,-50 Q-20,-70 -35,-65" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
                                 <path d="M0,-60 Q20,-80 35,-75" fill="none" stroke="url(#stemGrad)" strokeWidth="2" strokeLinecap="round" />
@@ -148,7 +263,7 @@ export default function GardenLanding() {
                             </g>
 
                             {/* Tree 3: Soft Cypress / Tall Pine (Elegant and reaching) */}
-                            <g id="tree-cypress" className="sway-fast">
+                            <g id="tree-cypress" className="tree-cypress">
                                 <path d="M0,0 Q2,-50 0,-120" fill="none" stroke="url(#stemGrad)" strokeWidth="2.5" strokeLinecap="round" />
                                 <path d="M0,-140 C-20,-80 -30,-30 0,-10 C30,-30 20,-80 0,-140 Z" fill="#1b4044" opacity="0.9" />
                                 <path d="M0,-130 C-15,-80 -20,-35 0,-20 C20,-35 15,-80 0,-130 Z" fill="#2a5a5d" opacity="0.9" />
@@ -168,7 +283,7 @@ export default function GardenLanding() {
 
                         {/* Drifting Fireflies */}
                         {initialFireflies.map((firefly) => (
-                            <g key={`firefly-${firefly.id}`}>
+                            <g key={`firefly-${firefly.id}`} className="fireflyGroup" transform={`translate(${firefly.startX}, ${firefly.startY})`}>
                                 <circle
                                     cx="0"
                                     cy="0"
@@ -176,97 +291,81 @@ export default function GardenLanding() {
                                     fill="#deb96a"
                                     opacity="0"
                                     filter="url(#glow)"
-                                >
-                                    <animateTransform
-                                        attributeName="transform"
-                                        type="translate"
-                                        from={`${firefly.startX} ${firefly.startY}`}
-                                        to={`${firefly.endX} ${firefly.endY}`}
-                                        dur={`${firefly.floatDur}s`}
-                                        repeatCount="indefinite"
-                                        begin={`${firefly.delay}s`}
-                                    />
-                                    <animate
-                                        attributeName="opacity"
-                                        values="0;0.7;0"
-                                        dur={`${firefly.pulseDur}s`}
-                                        repeatCount="indefinite"
-                                        begin={`${firefly.delay}s`}
-                                    />
-                                </circle>
+                                />
                             </g>
                         ))}
 
                         {/* Deep Background Hills & Mist */}
-                        <path d="M-100,500 C300,450 500,600 900,500 C1200,400 1500,550 1600,530 L1600,800 L-100,800 Z" fill="url(#hillBack)" />
-                        {/* Layer 1 Mist */}
-                        <rect y="400" width="200%" height="200" fill="url(#mistGrad)" opacity="0.3">
-                            <animateTransform attributeName="transform" type="translate" from="0 0" to="-1440 0" dur="120s" repeatCount="indefinite" />
-                        </rect>
-                        <rect y="400" x="1440" width="200%" height="200" fill="url(#mistGrad)" opacity="0.3">
-                            <animateTransform attributeName="transform" type="translate" from="0 0" to="-1440 0" dur="120s" repeatCount="indefinite" />
-                        </rect>
+                        <g className="hills-back">
+                            <path d="M-100,500 C300,450 500,600 900,500 C1200,400 1500,550 1600,530 L1600,800 L-100,800 Z" fill="url(#hillBack)" />
+                            {/* Background Silhouette Trees */}
+                            {[
+                                [80, 530, 1.4], [180, 545, 1.1], [300, 525, 1.6], [380, 550, 1.2], [500, 535, 1.5],
+                                [620, 520, 1.3], [750, 540, 1.7], [880, 530, 1.1], [980, 555, 1.4], [1100, 525, 1.6],
+                                [1220, 545, 1.2], [1300, 520, 1.5], [1400, 540, 1.8]
+                            ].map(([x, y, s], i) => (
+                                <g key={`bg-${i}`} transform={`translate(${x}, ${y}) scale(${s})`} opacity="0.5">
+                                    <use href="#bg-tree" />
+                                </g>
+                            ))}
+                        </g>
 
-                        {/* Background Silhouette Trees */}
-                        {[
-                            [80, 530, 1.4], [180, 545, 1.1], [300, 525, 1.6], [380, 550, 1.2], [500, 535, 1.5],
-                            [620, 520, 1.3], [750, 540, 1.7], [880, 530, 1.1], [980, 555, 1.4], [1100, 525, 1.6],
-                            [1220, 545, 1.2], [1300, 520, 1.5], [1400, 540, 1.8]
-                        ].map(([x, y, s], i) => (
-                            <g key={`bg-${i}`} transform={`translate(${x}, ${y}) scale(${s})`} opacity="0.5">
-                                <use href="#bg-tree" />
-                            </g>
-                        ))}
+                        {/* Layer 1 Mist */}
+                        <g className="mist-group-1">
+                            <rect y="400" width="200%" height="200" fill="url(#mistGrad)" opacity="0.3" className="mist-layer-1" />
+                            <rect y="400" x="2880" width="200%" height="200" fill="url(#mistGrad)" opacity="0.3" className="mist-layer-1" />
+                        </g>
 
                         {/* Midground Hills */}
-                        <path d="M-200,600 C200,450 450,650 850,500 C1150,350 1450,550 1600,500 L1600,800 L-200,800 Z" fill="url(#hillMid)" />
+                        <g className="hills-mid">
+                            <path d="M-200,600 C200,450 450,650 850,500 C1150,350 1450,550 1600,500 L1600,800 L-200,800 Z" fill="url(#hillMid)" />
+                            {/* Mid Trees */}
+                            {[
+                                ['oak', 120, 580, 1.2],
+                                ['cypress', 260, 610, 1.3],
+                                ['willow', 400, 590, 1.5],
+                                ['oak', 550, 615, 1.3],
+                                ['cypress', 700, 585, 1.6],
+                                ['willow', 850, 620, 1.2],
+                                ['oak', 1000, 605, 1.4],
+                                ['cypress', 1150, 580, 1.2],
+                                ['willow', 1300, 610, 1.5],
+                                ['oak', 1420, 590, 1.3]
+                            ].map(([type, x, y, scale], i) => (
+                                <g key={`mid-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
+                                    <use href={`#tree-${type}`} />
+                                </g>
+                            ))}
+                        </g>
 
                         {/* Layer 2 Mist */}
-                        <rect y="450" width="200%" height="150" fill="url(#mistGrad)" opacity="0.4">
-                            <animateTransform attributeName="transform" type="translate" from="-1440 0" to="0 0" dur="90s" repeatCount="indefinite" />
-                        </rect>
-                        <rect y="450" x="-1440" width="200%" height="150" fill="url(#mistGrad)" opacity="0.4">
-                            <animateTransform attributeName="transform" type="translate" from="-1440 0" to="0 0" dur="90s" repeatCount="indefinite" />
-                        </rect>
-
-                        {/* Mid Trees */}
-                        {[
-                            ['oak', 120, 580, 1.2, -2],
-                            ['cypress', 260, 610, 1.3, -5],
-                            ['willow', 400, 590, 1.5, -1],
-                            ['oak', 550, 615, 1.3, -4],
-                            ['cypress', 700, 585, 1.6, -7],
-                            ['willow', 850, 620, 1.2, -3],
-                            ['oak', 1000, 605, 1.4, -6],
-                            ['cypress', 1150, 580, 1.2, -2],
-                            ['willow', 1300, 610, 1.5, -5],
-                            ['oak', 1420, 590, 1.3, -1]
-                        ].map(([type, x, y, scale, delay], i) => (
-                            <g key={`mid-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
-                                <use href={`#tree-${type}`} style={{ animationDelay: `${delay}s` }} />
-                            </g>
-                        ))}
+                        <g className="mist-group-2">
+                            <rect y="450" x="-1440" width="200%" height="150" fill="url(#mistGrad)" opacity="0.4" className="mist-layer-2" />
+                            <rect y="450" x="-4320" width="200%" height="150" fill="url(#mistGrad)" opacity="0.4" className="mist-layer-2" />
+                        </g>
 
                         {/* Foreground Hills */}
-                        {/* Steeper dramatic sweeping path to frame the content */}
-                        <path d="M-200,680 C150,500 500,750 800,600 C1100,450 1400,650 1600,550 L1600,800 L-200,800 Z" fill="url(#hillFront)" />
+                        <g className="hills-front">
+                            {/* Steeper dramatic sweeping path to frame the content */}
+                            <path d="M-200,680 C150,500 500,750 800,600 C1100,450 1400,650 1600,550 L1600,800 L-200,800 Z" fill="url(#hillFront)" />
 
-                        {/* Foreground Trees */}
-                        {[
-                            ['willow', 80, 710, 2.1, -3],
-                            ['oak', 240, 750, 1.9, -1],
-                            ['cypress', 400, 780, 1.7, -6],
-                            ['willow', 580, 720, 1.8, -2],
-                            ['oak', 760, 770, 2.0, -5],
-                            ['willow', 940, 730, 1.9, -4],
-                            ['cypress', 1120, 790, 1.8, -2],
-                            ['oak', 1280, 720, 2.2, -7],
-                            ['willow', 1420, 760, 2.0, -1]
-                        ].map(([type, x, y, scale, delay], i) => (
-                            <g key={`fg-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
-                                <use href={`#tree-${type}`} style={{ animationDelay: `${delay}s` }} />
-                            </g>
-                        ))}
+                            {/* Foreground Trees */}
+                            {[
+                                ['willow', 80, 710, 2.1],
+                                ['oak', 240, 750, 1.9],
+                                ['cypress', 400, 780, 1.7],
+                                ['willow', 580, 720, 1.8],
+                                ['oak', 760, 770, 2.0],
+                                ['willow', 940, 730, 1.9],
+                                ['cypress', 1120, 790, 1.8],
+                                ['oak', 1280, 720, 2.2],
+                                ['willow', 1420, 760, 2.0]
+                            ].map(([type, x, y, scale], i) => (
+                                <g key={`fg-${i}`} transform={`translate(${x}, ${y}) scale(${scale})`}>
+                                    <use href={`#tree-${type}`} />
+                                </g>
+                            ))}
+                        </g>
                     </svg>
                 </div>
 
