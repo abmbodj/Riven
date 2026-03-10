@@ -126,8 +126,8 @@ export default function EditProfile() {
 
     return (
         <div className="min-h-screen bg-claude-bg pb-24 font-sans text-claude-text">
-            <div className="relative">
-                <div className="mx-4 mt-4 h-52 overflow-hidden rounded-[3rem] border border-white/5 shadow-sm md:shadow-lg">
+            <div className="relative mx-auto w-full max-w-5xl lg:px-6">
+                <div className="relative mx-4 mt-4 h-52 overflow-hidden rounded-[3rem] border border-white/5 shadow-sm md:shadow-lg lg:mx-0 lg:h-56">
                     {banner ? (
                         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
                             <div className="absolute inset-0 bg-black/20"></div>
@@ -168,7 +168,7 @@ export default function EditProfile() {
                     </button>
                 </div>
 
-                <div className="sticky top-0 z-50 mx-4 -mt-16 rounded-[2rem] border border-white/5 bg-[#10201e]/55 px-4 pb-4 pt-12 shadow-lg backdrop-blur-xl">
+                <div className="sticky top-0 z-50 mx-4 -mt-16 rounded-[2rem] border border-white/5 bg-[#10201e]/55 px-4 pb-4 pt-12 shadow-lg backdrop-blur-xl lg:mx-0 lg:-mt-14">
                     <div className="flex items-center justify-between">
                     <button
                         onClick={() => navigate('/account')}
@@ -221,12 +221,14 @@ export default function EditProfile() {
 
                 <div
                     ref={containerRef}
-                    className="relative z-10 mx-auto max-w-md space-y-8 px-6 pt-8 pointer-events-none"
+                    className="relative z-10 mx-auto max-w-md space-y-8 px-6 pt-8 pointer-events-none lg:max-w-none lg:px-0"
                 >
-                    <div className="gsap-edit-item pointer-events-auto flex flex-col items-center justify-center">
+                    <div className="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-8 lg:space-y-0">
+                        <div className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+                            <div className="gsap-edit-item pointer-events-auto flex flex-col items-center justify-center rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/50 py-6 shadow-sm md:backdrop-blur-md lg:items-start lg:px-6">
                         <button
                             onClick={() => { haptics.light(); setShowAvatarPicker(true); }}
-                            className="group relative block"
+                            className="group relative block lg:self-center"
                         >
                             <div className="absolute inset-0 z-0 scale-110 rounded-full bg-botanical-forest/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100"></div>
                             <div className="relative z-10 rounded-full border border-dashed border-white/30 bg-claude-bg p-1.5 shadow-md transition-colors group-hover:border-white/50 md:shadow-2xl">
@@ -271,9 +273,10 @@ export default function EditProfile() {
                             </div>
                         </div>
                     </div>
+                        </div>
 
-                    <div className="gsap-edit-item pointer-events-auto space-y-6">
-                        <div className="flex flex-col gap-6 rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/50 p-6 shadow-sm md:backdrop-blur-md">
+                        <div className="gsap-edit-item pointer-events-auto space-y-6">
+                            <div className="flex flex-col gap-6 rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/50 p-6 shadow-sm md:backdrop-blur-md">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/65">
@@ -356,10 +359,10 @@ export default function EditProfile() {
                             </div>
                         </div>
 
-                        <div
-                            ref={bioContainerRef}
-                            className={`relative overflow-hidden rounded-[2rem] border p-6 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${bioError ? 'border-red-400 bg-red-50/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-botanical-sepia/15 bg-[#fdfbf7] shadow-inner dark:bg-[#1a1d1c]'}`}
-                        >
+                            <div
+                                ref={bioContainerRef}
+                                className={`relative overflow-hidden rounded-[2rem] border p-6 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${bioError ? 'border-red-400 bg-red-50/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-botanical-sepia/15 bg-[#fdfbf7] shadow-inner dark:bg-[#1a1d1c]'}`}
+                            >
                             <div className="mb-6 flex items-start justify-between gap-4">
                                 <div>
                                     <label className="flex items-center gap-2 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-botanical-forest">
@@ -412,14 +415,14 @@ export default function EditProfile() {
                                         </motion.span>
                                     )}
                                 </AnimatePresence>
-                                <div className={`ml-auto text-[11px] font-mono ${bioError ? 'text-red-400' : 'text-botanical-sepia/60'} ${bio.length >= 150 ? 'text-amber-500' : ''}`}>
+                            <div className={`ml-auto text-[11px] font-mono ${bioError ? 'text-red-400' : 'text-botanical-sepia/60'} ${bio.length >= 150 ? 'text-amber-500' : ''}`}>
                                     {bio.length} / {bioLimit}
                                 </div>
                             </div>
-                        </div>
+                            </div>
 
-                        <div className="rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/40 p-4 shadow-sm">
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="rounded-[2rem] border border-botanical-sepia/10 bg-claude-surface/40 p-4 shadow-sm">
+                                <div className="flex items-center justify-between gap-4">
                                 <div>
                                     <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia/65">
                                         Save changes
@@ -445,6 +448,7 @@ export default function EditProfile() {
                                     {saving ? 'Saving' : 'Save'}
                                 </button>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>
