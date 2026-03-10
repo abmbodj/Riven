@@ -123,7 +123,8 @@ function QuickActionCard({ to, icon, label }) {
 }
 
 function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
-    const assignmentTitle = assignment?.title || assignment?.name || 'Untitled Assignment';
+    const rawTitle = assignment?.title ?? assignment?.name ?? assignment?.assignment_title ?? '';
+    const assignmentTitle = String(rawTitle).trim() || 'Untitled Assignment';
     const relativeDueLabel = getRelativeDueLabel(assignment.due_date);
     const isOverdue = Boolean(relativeDueLabel && relativeDueLabel.startsWith('Overdue'));
     const dueDateTime = assignment.due_date ? formatDueDateTime(assignment.due_date) : '';
@@ -156,16 +157,21 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
                     to={`/class/${assignment.class_id}`}
                     className="block min-w-0 w-full flex-1 rounded-lg pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                 >
-                    <h4 className="line-clamp-2 font-serif leading-tight text-botanical-parchment transition-colors group-hover:text-white md:text-lg">
+                    <h4
+                        title={assignmentTitle}
+                        className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-serif leading-tight text-white transition-colors group-hover:text-claude-accent md:text-lg"
+                    >
                         {assignmentTitle}
                     </h4>
                     {associatedClass ? (
                         <div
-                            className="mt-1 flex max-w-full items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest"
+                            className="mt-1 flex max-w-full min-w-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest"
                             style={{ color: associatedClass.color || '#7a9e72' }}
                         >
                             <Layers className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{associatedClass.name}</span>
+                            <span title={associatedClass.name} className="block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                                {associatedClass.name}
+                            </span>
                         </div>
                     ) : null}
                 </Link>
@@ -524,7 +530,10 @@ function DashboardHome() {
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
 
                                         <div className="relative z-10 flex items-start justify-between gap-3">
-                                            <span className="block max-w-[calc(100%-1.5rem)] truncate pr-2 font-serif text-base font-bold text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                                            <span
+                                                title={classItem.name}
+                                                className="block min-w-0 max-w-[calc(100%-1.5rem)] overflow-hidden text-ellipsis whitespace-nowrap pr-2 font-serif text-base font-bold text-botanical-parchment transition-colors group-hover:text-claude-accent"
+                                            >
                                                 {classItem.name}
                                             </span>
                                             <div
