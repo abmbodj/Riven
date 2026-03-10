@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, FileText, ImageIcon, File as FileIcon } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { renderAsync } from 'docx-preview';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
