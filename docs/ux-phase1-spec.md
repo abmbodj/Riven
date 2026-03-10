@@ -24,6 +24,7 @@ Phase 1 should make these jobs visible and reachable from anywhere.
 
 ### Out of Scope
 - Full redesign of deck, class, message, and settings internals
+- Desktop split-preview or list-detail experiments for decks and classes
 - New backend endpoints
 - Full command palette implementation
 - Settings/LMS refactor beyond obvious shell-level issues

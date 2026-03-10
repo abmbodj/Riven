@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award, UserMinus, Mail, BookOpen } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -76,14 +77,14 @@ export default function Settings() {
                 const res = await api.getCanvasSettings();
                 setLmsStatus(prev => ({ ...prev, isConnected: res.isConnected, canvasUrl: res.canvasUrl || '', loading: false }));
                 if (res.canvasUrl) setCanvasForm(prev => ({ ...prev, url: res.canvasUrl }));
-            } catch (err) {
+            } catch {
                 setLmsStatus(prev => ({ ...prev, loading: false }));
             }
 
             try {
                 const aiData = await api.getAILimits();
                 setAiLimits({ ...aiData, loading: false });
-            } catch (err) {
+            } catch {
                 setAiLimits(prev => ({ ...prev, loading: false }));
             }
         };
@@ -129,7 +130,7 @@ export default function Settings() {
             toast.success('Canvas disconnected');
             setLmsStatus(prev => ({ ...prev, isConnected: false, canvasUrl: '' }));
             setCanvasForm({ url: '', token: '' });
-        } catch (err) {
+        } catch {
             toast.error('Failed to disconnect');
         }
     };
@@ -138,10 +139,9 @@ export default function Settings() {
         setLmsStatus(prev => ({ ...prev, syncing: true }));
         haptics.light();
         try {
-            const res = await api.syncCanvas(adGranted);
+            const res = await api.syncCanvas(false);
             toast.success(`Synced ${res.classesAdded} classes & ${res.assignmentsAdded} assignments!`);
             haptics.success();
-            setSyncLimitHit(false);
         } catch (err) {
             haptics.error();
             if (err.status === 429) {
@@ -574,14 +574,18 @@ function ReferralCard() {
     const [applying, setApplying] = React.useState(false);
     const toast = useToast();
 
-    // Hide referral program for users who already have a membership
-    if (user?.subscription_tier && user.subscription_tier !== 'free') return null;
-
     React.useEffect(() => {
+        if (user?.subscription_tier && user.subscription_tier !== 'free') {
+            return;
+        }
+
         api.getReferralInfo().then(data => {
             if (data) setReferralInfo(data);
         }).catch(() => { });
-    }, []);
+    }, [user?.subscription_tier]);
+
+    // Hide referral program for users who already have a membership
+    if (user?.subscription_tier && user.subscription_tier !== 'free') return null;
 
     const handleCopy = () => {
         if (referralInfo?.referralCode) {

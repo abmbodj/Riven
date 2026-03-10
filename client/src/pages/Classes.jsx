@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import {
     Calendar, RefreshCw, X, Plus, Sparkles, BookOpen, MapPin, Video, User, Trash2, Clock, Upload, Loader2, Layers, CheckCircle2,
     Lock, Network, Link, Crown
@@ -19,7 +19,7 @@ const CLASS_COLORS = [
     '#7a9e72', '#b8a379', '#c47c7c', '#5e7b8f'
 ];
 
-const ClassCard = memo(({ cls, index, onClick, isSelected = false }) => {
+const ClassCard = memo(({ cls, index, onClick }) => {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, rotate: index % 2 === 0 ? -0.5 : 0.5 }}
@@ -31,7 +31,7 @@ const ClassCard = memo(({ cls, index, onClick, isSelected = false }) => {
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
 
-            <div className={`relative block bg-[#fcfaf2] border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] ${isSelected ? 'border-[#7a9e72] shadow-[0_12px_30px_rgba(122,158,114,0.18)]' : 'border-[#d1c9b8]'}`}>
+            <div className="relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97]">
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
                 <div className="relative z-10">
@@ -82,77 +82,6 @@ const ClassCard = memo(({ cls, index, onClick, isSelected = false }) => {
 });
 ClassCard.displayName = 'ClassCard';
 
-function ClassPreviewPanel({ cls, slots, onOpen, onEdit }) {
-    return (
-        <aside className="hidden xl:block xl:sticky xl:top-6 xl:self-start xl:h-[calc(100dvh-8rem)] xl:overflow-auto rounded-[28px] border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a7f6a]">Class Preview</p>
-            {cls ? (
-                <div className="mt-4">
-                    <div className="flex items-center gap-3">
-                        <div
-                            className="flex h-12 w-12 items-center justify-center rounded-full border border-current/10 shadow-inner"
-                            style={{ backgroundColor: `${cls.color || '#7a9e72'}14`, color: cls.color || '#7a9e72' }}
-                        >
-                            <Calendar className="h-5 w-5 opacity-80" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="truncate font-serif text-2xl font-bold italic text-[#1a1c1d]">{cls.name}</h2>
-                            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#8a7f6a]">
-                                {cls.is_archived ? 'Archived Course' : 'Active Course'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 grid grid-cols-2 gap-3">
-                        <button
-                            type="button"
-                            onClick={onOpen}
-                            className="rounded-2xl bg-[#7a9e72] px-4 py-3 text-center font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#688a61]"
-                        >
-                            Open Class
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onEdit}
-                            className="rounded-2xl border border-[#7a9e72]/30 bg-[#7a9e72]/10 px-4 py-3 text-center font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#7a9e72] transition-colors hover:bg-[#7a9e72]/20"
-                        >
-                            Edit
-                        </button>
-                    </div>
-
-                    <div className="mt-8 space-y-4 rounded-[24px] border border-[#d1c9b8] bg-white/70 p-4">
-                        <div>
-                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Professor</p>
-                            <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-[#1a1c1d]">{cls.professor || 'Not set'}</p>
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Room</p>
-                            <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-[#1a1c1d]">{cls.room || 'Remote / Flexible'}</p>
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Meetings</p>
-                            <div className="mt-2 space-y-2">
-                                {slots.length ? slots.map((slot) => (
-                                    <div key={slot.id} className="rounded-2xl border border-[#d1c9b8] bg-white/80 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#1a1c1d]">
-                                        {slot.day_of_week} · {slot.start_time?.slice(0, 5)}-{slot.end_time?.slice(0, 5)}
-                                    </div>
-                                )) : (
-                                    <p className="font-mono text-xs text-[#5d6466]">No meeting times</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="mt-6 rounded-[24px] border border-dashed border-[#d1c9b8] p-6 text-center">
-                    <p className="font-serif text-lg italic text-[#5d6466]">No class selected</p>
-                    <p className="mt-2 text-sm text-[#8a7f6a]">Choose a course from the roster to preview it here.</p>
-                </div>
-            )}
-        </aside>
-    );
-}
-
 export default function Classes() {
     const navigate = useNavigate();
     const toast = useToast();
@@ -163,7 +92,6 @@ export default function Classes() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState('Roster'); // 'Roster' | 'Timetable'
-    const [selectedClassId, setSelectedClassId] = useState(null);
 
     // Modals
     const [showModal, setShowModal] = useState(false);
@@ -215,49 +143,6 @@ export default function Classes() {
         loadData();
         fetchCanvasStatus();
     }, [loadData, fetchCanvasStatus]);
-
-    const rosterClasses = useMemo(
-        () => classes.filter((cls) => !cls.is_archived),
-        [classes]
-    );
-    const archivedRosterClasses = useMemo(
-        () => classes.filter((cls) => cls.is_archived),
-        [classes]
-    );
-
-    useEffect(() => {
-        if (viewMode !== 'Roster') {
-            return;
-        }
-
-        const availableClasses = [...rosterClasses, ...archivedRosterClasses];
-        if (availableClasses.length === 0) {
-            setSelectedClassId(null);
-            return;
-        }
-
-        if (!selectedClassId || !availableClasses.some((cls) => cls.id === selectedClassId)) {
-            setSelectedClassId(availableClasses[0].id);
-        }
-    }, [archivedRosterClasses, rosterClasses, selectedClassId, viewMode]);
-
-    const selectedClass = useMemo(
-        () => [...rosterClasses, ...archivedRosterClasses].find((cls) => cls.id === selectedClassId) || null,
-        [archivedRosterClasses, rosterClasses, selectedClassId]
-    );
-    const selectedClassSlots = useMemo(
-        () => scheduleSlots.filter((slot) => slot.class_id === selectedClass?.id),
-        [scheduleSlots, selectedClass]
-    );
-
-    const handleRosterClassOpen = (cls) => {
-        if (window.innerWidth >= 1280) {
-            setSelectedClassId(cls.id);
-            return;
-        }
-
-        navigate(`/class/${cls.id}`);
-    };
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -457,29 +342,6 @@ export default function Classes() {
         setShowModal(true);
     };
 
-    const openEditModal = (cls) => {
-        setEditingClass(cls);
-        const slots = scheduleSlots.filter(s => s.class_id === cls.id).map(s => ({
-            id: s.id,
-            day: s.day_of_week.toString(),
-            start_time: s.start_time.substring(0, 5),
-            end_time: s.end_time.substring(0, 5)
-        }));
-        setFormData({
-            name: cls.name,
-            color: cls.color || '#7a9e72',
-            professor: cls.professor || '',
-            room: cls.room || '',
-            zoom_link: cls.zoom_link || '',
-            times: slots.length > 0 ? slots : [{ day: '', start_time: '', end_time: '', id: null }],
-            assignments: []
-        });
-        setAiFile(null);
-        setAiFilePreview('');
-        setCreationMethod('manual');
-        setShowModal(true);
-    };
-
     const confirmDelete = (cls) => {
         setDeleteConfirm({ show: true, item: cls });
     };
@@ -538,11 +400,13 @@ export default function Classes() {
                 </div>
 
                 {viewMode === 'Roster' && (() => {
+                    const currentClasses = classes.filter(c => !c.is_archived);
+                    const archivedClasses = classes.filter(c => c.is_archived);
+
                     return (
-                        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-6 xl:items-start">
-                            <div>
+                        <>
                             {/* Current Courses */}
-                            {rosterClasses.length === 0 && archivedRosterClasses.length === 0 ? (
+                            {currentClasses.length === 0 && archivedClasses.length === 0 ? (
                                 <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl mt-8">
                                     <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                                     <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Classes</h3>
@@ -554,33 +418,31 @@ export default function Classes() {
                             ) : (
                                 <>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                                        {rosterClasses.map((cls, i) => (
+                                        {currentClasses.map((cls, i) => (
                                             <ClassCard
                                                 key={cls.id}
                                                 cls={cls}
                                                 index={i}
-                                                onClick={() => handleRosterClassOpen(cls)}
-                                                isSelected={cls.id === selectedClassId}
+                                                onClick={() => navigate(`/class/${cls.id}`)}
                                             />
                                         ))}
                                     </div>
 
                                     {/* Past Courses */}
-                                    {archivedRosterClasses.length > 0 && (
+                                    {archivedClasses.length > 0 && (
                                         <div className="mt-10">
                                             <div className="flex items-center gap-3 mb-4">
                                                 <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Past Courses</span>
                                                 <div className="flex-1 h-px bg-[#233e46]/40" />
-                                                <span className="font-mono text-[9px] text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">{archivedRosterClasses.length}</span>
+                                                <span className="font-mono text-[9px] text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">{archivedClasses.length}</span>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 opacity-50">
-                                                {archivedRosterClasses.map((cls, i) => (
+                                                {archivedClasses.map((cls, i) => (
                                                     <ClassCard
                                                         key={cls.id}
                                                         cls={cls}
                                                         index={i}
-                                                        onClick={() => handleRosterClassOpen(cls)}
-                                                        isSelected={cls.id === selectedClassId}
+                                                        onClick={() => navigate(`/class/${cls.id}`)}
                                                     />
                                                 ))}
                                             </div>
@@ -588,14 +450,7 @@ export default function Classes() {
                                     )}
                                 </>
                             )}
-                            </div>
-                            <ClassPreviewPanel
-                                cls={selectedClass}
-                                slots={selectedClassSlots}
-                                onOpen={() => selectedClass && navigate(`/class/${selectedClass.id}`)}
-                                onEdit={() => selectedClass && openEditModal(selectedClass)}
-                            />
-                        </div>
+                        </>
                     );
                 })()}
 
