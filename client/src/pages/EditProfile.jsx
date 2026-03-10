@@ -9,19 +9,9 @@ import Avatar from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.1 }
-    }
-};
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
-};
+import gsap from 'gsap';
+import { EASE, DURATION, STAGGER } from '../utils/animations';
+import { useGSAP } from '../hooks/useGSAP';
 
 export default function EditProfile() {
     const { user, updateProfile } = useAuth();
@@ -38,6 +28,50 @@ export default function EditProfile() {
     const [showAvatarPicker, setShowAvatarPicker] = useState(false);
     const [showBannerPicker, setShowBannerPicker] = useState(false);
     const [bioError, setBioError] = useState(false);
+
+    const containerRef = useRef(null);
+    const leafRef = useRef(null);
+    const bioContainerRef = useRef(null);
+
+    // Initial stagger animation
+    useGSAP(() => {
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) return;
+
+        if (containerRef.current) {
+            const items = containerRef.current.querySelectorAll('.gsap-edit-item');
+            gsap.from(items, {
+                y: 20,
+                opacity: 0,
+                duration: DURATION.normal,
+                stagger: STAGGER.tight,
+                ease: EASE.organic,
+                clearProps: 'all'
+            });
+        }
+
+        if (leafRef.current) {
+            gsap.to(leafRef.current, {
+                rotation: 360,
+                duration: 100,
+                repeat: -1,
+                ease: 'none'
+            });
+        }
+    }, [user]);
+
+    // Bio error shake
+    useEffect(() => {
+        if (bioError && bioContainerRef.current) {
+            const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+            if (motionQuery.matches) return;
+
+            gsap.fromTo(bioContainerRef.current,
+                { x: 0 },
+                { x: 5, duration: 0.05, ease: 'none', yoyo: true, repeat: 5, clearProps: 'x' }
+            );
+        }
+    }, [bioError]);
 
     const handleSave = async () => {
         // Enforce empty field validation (even for bio, let's say it needs at least 1 char for this premium feel)
@@ -95,11 +129,8 @@ export default function EditProfile() {
                     ) : (
                         <>
                             <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 2 }}
-                                className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
+                            <div
+                                className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem] animate-in fade-in duration-1000"
                             />
                             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
                         </>
@@ -117,13 +148,12 @@ export default function EditProfile() {
 
                     {/* Animated Decorative Element (only show if no banner to reduce clutter) */}
                     {!banner && (
-                        <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 100, repeat: Infinity, ease: 'linear' }}
+                        <div
+                            ref={leafRef}
                             className="absolute -right-20 -top-20 opacity-5 pointer-events-none"
                         >
                             <Leaf className="w-96 h-96 text-botanical-forest" />
-                        </motion.div>
+                        </div>
                     )}
                 </div>
 
@@ -149,10 +179,8 @@ export default function EditProfile() {
                             }`}
                     >
                         {saving ? (
-                            <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                            <div
+                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
                             />
                         ) : (
                             <>
@@ -163,14 +191,12 @@ export default function EditProfile() {
                     </button>
                 </div>
 
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="show"
+                <div
+                    ref={containerRef}
                     className="relative z-10 px-6 max-w-md mx-auto pt-8 space-y-12 pointer-events-none"
                 >
                     {/* Avatar Selection Section */}
-                    <motion.div variants={itemVariants} className="flex justify-center flex-col items-center pointer-events-auto">
+                    <div className="gsap-edit-item flex justify-center flex-col items-center pointer-events-auto">
                         <button
                             onClick={() => { haptics.light(); setShowAvatarPicker(true); }}
                             className="relative group block"
@@ -180,19 +206,17 @@ export default function EditProfile() {
                                 <Avatar src={avatar} size="4xl" className="border-[6px] border-claude-bg" />
                             </div>
 
-                            <motion.div
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                className="absolute bottom-2 right-2 p-3 bg-botanical-forest text-white rounded-full shadow-sm md:shadow-xl border-2 border-claude-bg z-20"
+                            <div
+                                className="absolute bottom-2 right-2 p-3 bg-botanical-forest text-white rounded-full shadow-sm md:shadow-xl border-2 border-claude-bg z-20 hover:scale-110 active:scale-95 transition-transform duration-300"
                             >
                                 <Camera className="w-5 h-5" />
-                            </motion.div>
+                            </div>
                         </button>
                         <p className="mt-4 text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia/70">Tap to change avatar</p>
-                    </motion.div>
+                    </div>
 
                     {/* Form Fields - Bento Style */}
-                    <motion.div variants={itemVariants} className="space-y-6 pointer-events-auto">
+                    <div className="gsap-edit-item space-y-6 pointer-events-auto">
 
                         {/* Read-Only Account Info Bento */}
                         <div className="bg-claude-surface/50 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-6 shadow-sm flex flex-col gap-6">
@@ -253,9 +277,8 @@ export default function EditProfile() {
                         </div>
 
                         {/* Bio Input - Reimagined Lined Paper */}
-                        <motion.div
-                            animate={bioError ? { x: [-8, 8, -5, 5, 0] } : {}}
-                            transition={{ duration: 0.4 }}
+                        <div
+                            ref={bioContainerRef}
                             className={`bg-[#fdfbf7] dark:bg-[#1a1d1c] border ${bioError ? 'border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.15)] bg-red-50/50' : 'border-botanical-sepia/15 shadow-inner'} rounded-[2rem] p-6 relative overflow-hidden transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300`}
                         >
                             <label className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-botanical-forest font-semibold mb-6">
@@ -302,9 +325,9 @@ export default function EditProfile() {
                                     {bio.length} / 160
                                 </div>
                             </div>
-                        </motion.div>
-                    </motion.div>
-                </motion.div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Avatar Picker Modal */}
