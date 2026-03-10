@@ -8,6 +8,8 @@ vi.mock('../api', () => ({
   api: {
     getCanvasSettings: vi.fn(),
     getAILimits: vi.fn(),
+    connectCanvas: vi.fn(),
+    disconnectCanvas: vi.fn(),
     syncCanvas: vi.fn(),
     getReferralInfo: vi.fn(),
     applyReferralCode: vi.fn(),
@@ -87,6 +89,7 @@ describe('Settings LMS sync', () => {
 
     const connectButton = await screen.findByRole('button', { name: /connect calendar feed/i });
     expect(connectButton).toBeDisabled();
+    expect(screen.getByText(/copy your canvas calendar feed/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/canvas calendar link/i), {
       target: { value: 'https://canvas.example.edu/feed.ics' },
@@ -129,5 +132,7 @@ describe('Settings LMS sync', () => {
     await waitFor(() => {
       expect(api.syncCanvas).toHaveBeenCalledWith(false);
     });
+
+    expect(await screen.findByText(/imported 2 classes and 5 assignments just now/i)).toBeInTheDocument();
   });
 });

@@ -49,6 +49,38 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
     </button>
 );
 
+const getCanvasFeedLabel = (canvasUrl) => {
+    if (!canvasUrl || canvasUrl === 'Canvas Feed Active') {
+        return 'Calendar Feed Connected';
+    }
+
+    try {
+        const parsed = new URL(canvasUrl);
+        return `${parsed.hostname}${parsed.pathname.endsWith('.ics') ? ' (.ics)' : parsed.pathname}`;
+    } catch {
+        return canvasUrl;
+    }
+};
+
+const CanvasNotice = ({ tone = 'info', title, detail }) => {
+    const toneClasses = tone === 'success'
+        ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+        : tone === 'error'
+            ? 'border-red-500/20 bg-red-500/5 text-red-400'
+            : 'border-[#0ea5e9]/15 bg-[#0ea5e9]/5 text-[#38bdf8]';
+
+    return (
+        <div className={`rounded-2xl border px-4 py-3 ${toneClasses}`}>
+            <p className="text-[10px] font-mono uppercase tracking-[0.16em] font-bold">{title}</p>
+            {detail && (
+                <p className="mt-1 text-[11px] font-mono text-botanical-sepia/80">
+                    {detail}
+                </p>
+            )}
+        </div>
+    );
+};
+
 export default function Settings() {
     const { signOut, user, refreshUser } = useAuth();
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
@@ -68,6 +100,7 @@ export default function Settings() {
     const [canvasForm, setCanvasForm] = useState({ url: '', token: '' });
     const [connectingCanvas, setConnectingCanvas] = useState(false);
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
+    const [canvasNotice, setCanvasNotice] = useState(null);
 
     const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
 
@@ -111,6 +144,11 @@ export default function Settings() {
         if (errors.url) {
             haptics.error();
             toast.error('Please fill in the Calendar Link');
+            setCanvasNotice({
+                tone: 'error',
+                title: 'Canvas feed required',
+                detail: 'Paste the read-only .ics Calendar Feed link before connecting.'
+            });
 
             // Clear errors after animation
             setTimeout(() => setFormErrors({ url: false }), 2000);
@@ -119,14 +157,25 @@ export default function Settings() {
 
         setConnectingCanvas(true);
         try {
-            await api.connectCanvas(canvasForm.url);
+            const submittedUrl = canvasForm.url.trim();
+            await api.connectCanvas(submittedUrl);
             toast.success('Canvas connected successfully!');
             haptics.success();
-            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: 'Canvas Feed Active' }));
+            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: submittedUrl }));
             setCanvasForm({ url: '' }); // Clear input on success
+            setCanvasNotice({
+                tone: 'success',
+                title: 'Feed saved',
+                detail: 'Run a sync now to import your current courses and assignments.'
+            });
         } catch (err) {
             haptics.error();
             toast.error(err.message || 'Failed to connect Canvas');
+            setCanvasNotice({
+                tone: 'error',
+                title: 'Connection failed',
+                detail: err.message || 'Check that your Canvas calendar feed is a valid .ics link.'
+            });
         } finally {
             setConnectingCanvas(false);
         }
@@ -139,8 +188,18 @@ export default function Settings() {
             toast.success('Canvas disconnected');
             setLmsStatus(prev => ({ ...prev, isConnected: false, canvasUrl: '' }));
             setCanvasForm({ url: '', token: '' });
+            setCanvasNotice({
+                tone: 'info',
+                title: 'Integration removed',
+                detail: 'You can reconnect any time with a new read-only Canvas feed.'
+            });
         } catch {
             toast.error('Failed to disconnect');
+            setCanvasNotice({
+                tone: 'error',
+                title: 'Disconnect failed',
+                detail: 'Riven could not remove your Canvas feed. Try again in a moment.'
+            });
         }
     };
 
@@ -151,12 +210,27 @@ export default function Settings() {
             const res = await api.syncCanvas(false);
             toast.success(`Synced ${res.classesAdded} classes & ${res.assignmentsAdded} assignments!`);
             haptics.success();
+            setCanvasNotice({
+                tone: 'success',
+                title: 'Last sync completed',
+                detail: `Imported ${res.classesAdded} classes and ${res.assignmentsAdded} assignments just now.`
+            });
         } catch (err) {
             haptics.error();
             if (err.status === 429) {
+                setCanvasNotice({
+                    tone: 'error',
+                    title: 'Sync limit reached',
+                    detail: 'Upgrade your plan to keep importing Canvas updates.'
+                });
                 openModal('pricing');
             } else {
                 toast.error(err.message || 'Canvas Sync Failed');
+                setCanvasNotice({
+                    tone: 'error',
+                    title: 'Sync failed',
+                    detail: err.message || 'Riven could not import updates from Canvas.'
+                });
             }
         } finally {
             setLmsStatus(prev => ({ ...prev, syncing: false }));
@@ -356,6 +430,11 @@ export default function Settings() {
                                             exit={{ opacity: 0, height: 0 }}
                                             className="space-y-4 pt-2"
                                         >
+                                            <CanvasNotice
+                                                title="How this works"
+                                                detail="Copy your Canvas Calendar Feed, paste the .ics link here, then connect once to unlock one-tap syncing."
+                                            />
+
                                             <div className="space-y-3">
                                                 <motion.div animate={formErrors.url ? { x: [-5, 5, -5, 5, 0] } : {}} transition={{ duration: 0.4 }}>
                                                     <input
@@ -381,6 +460,14 @@ export default function Settings() {
                                                 Riven only needs the read-only calendar feed.
                                             </p>
 
+                                            {canvasNotice && (
+                                                <CanvasNotice
+                                                    tone={canvasNotice.tone}
+                                                    title={canvasNotice.title}
+                                                    detail={canvasNotice.detail}
+                                                />
+                                            )}
+
                                             <button
                                                 onClick={handleConnectCanvas}
                                                 disabled={connectingCanvas || !hasCanvasUrl}
@@ -401,9 +488,20 @@ export default function Settings() {
                                             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
                                                 <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-emerald-400">Canvas feed active</p>
                                                 <p className="mt-1 text-[11px] font-mono text-botanical-sepia/80">
-                                                    {lmsStatus.canvasUrl || 'Calendar Feed Connected'}
+                                                    {getCanvasFeedLabel(lmsStatus.canvasUrl)}
                                                 </p>
                                             </div>
+                                            <CanvasNotice
+                                                title="Next step"
+                                                detail="Run a sync to pull in any new classes or assignments from your connected Canvas feed."
+                                            />
+                                            {canvasNotice && (
+                                                <CanvasNotice
+                                                    tone={canvasNotice.tone}
+                                                    title={canvasNotice.title}
+                                                    detail={canvasNotice.detail}
+                                                />
+                                            )}
                                             <button
                                                 onClick={handleSyncLms}
                                                 disabled={lmsStatus.syncing}
