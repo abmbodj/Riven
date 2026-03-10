@@ -183,10 +183,11 @@ export default function Messages() {
             return;
         }
 
+        loadConversations();
+
         if (userId) {
             loadMessages(userId);
         } else {
-            loadConversations();
             setLoading(false);
         }
     }, [isLoggedIn, userId, loadConversations, loadMessages, navigate]);
@@ -432,18 +433,7 @@ export default function Messages() {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    const handleViewFile = (url, name) => {
-        const fileExtension = url.split('?')[0].split('.').pop().toLowerCase();
-        setSelectedFile({
-            name: name || 'Attached Image',
-            url: url,
-            extension: fileExtension
-        });
-        setIsFileViewerOpen(true);
-    };
-
-    // Conversations List View
-    if (!userId) {
+    const renderConversationsList = ({ embedded = false } = {}) => {
         if (user?.is_banned) {
             return (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center sm:max-w-md sm:mx-auto">
@@ -461,23 +451,29 @@ export default function Messages() {
         return (
             <div
                 ref={convListRef}
-                className="pb-24 sm:max-w-md sm:mx-auto w-full gsap-conv-list"
+                className={`${embedded ? 'h-full' : 'pb-24 sm:max-w-md sm:mx-auto'} w-full gsap-conv-list`}
             >
-                {/* Decorative Header */}
-                <div className="mb-6 relative">
-                    <div className="absolute top-2 left-0 w-8 h-8 opacity-10">
-                        <Leaf className="w-full h-full text-botanical-forest rotate-12" />
-                    </div>
-                    <h1 className="text-2xl font-display font-bold mb-1">Messages</h1>
-                    <p className="text-botanical-sepia text-sm font-mono">Chat with your friends</p>
+                <div className={`relative ${embedded ? 'mb-4 px-1' : 'mb-6'}`}>
+                    {embedded ? (
+                        <>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Social</p>
+                            <h2 className="mt-2 text-2xl font-display font-bold text-claude-text">Conversations</h2>
+                            <p className="text-botanical-sepia text-sm font-mono">Keep your study circle in view</p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="absolute top-2 left-0 w-8 h-8 opacity-10">
+                                <Leaf className="w-full h-full text-botanical-forest rotate-12" />
+                            </div>
+                            <h1 className="text-2xl font-display font-bold mb-1">Messages</h1>
+                            <p className="text-botanical-sepia text-sm font-mono">Chat with your friends</p>
+                        </>
+                    )}
                 </div>
 
                 {conversations.length === 0 ? (
-                    <div
-                        className="text-center py-12"
-                    >
+                    <div className="text-center py-12">
                         <div className="relative mx-auto mb-6 w-20 h-20">
-                            {/* Botanical empty state */}
                             <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
                                 <Send className="w-8 h-8 text-botanical-forest" />
                             </div>
@@ -498,7 +494,7 @@ export default function Messages() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${embedded ? 'max-h-[calc(100dvh-12rem)] overflow-y-auto pr-1' : ''}`}>
                         <AnimatePresence mode="popLayout">
                             {conversations.map((conv, index) => (
                                 <motion.div
@@ -514,9 +510,8 @@ export default function Messages() {
                                 >
                                     <Link
                                         to={`/messages/${conv.userId}`}
-                                        className="glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] block group relative overflow-hidden"
+                                        className={`glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] block group relative overflow-hidden ${String(conv.userId) === String(userId) ? 'border border-claude-accent/30 bg-claude-accent/10' : ''}`}
                                     >
-                                        {/* Decorative corner accent */}
                                         <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-botanical-forest/20 rounded-tr group-hover:border-claude-accent/40 transition-colors" />
 
                                         <div className="relative shrink-0">
@@ -536,7 +531,7 @@ export default function Messages() {
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className={`font-display truncate ${conv.unreadCount > 0 ? 'text-botanical-parchment' : 'text-claude-text'}`}>
+                                                <span className={`font-display truncate ${conv.unreadCount > 0 || String(conv.userId) === String(userId) ? 'text-botanical-parchment' : 'text-claude-text'}`}>
                                                     {conv.username}
                                                 </span>
                                                 <span className="text-xs text-botanical-sepia shrink-0 ml-2 font-mono">
@@ -560,14 +555,33 @@ export default function Messages() {
                 )}
             </div>
         );
+    };
+
+    const handleViewFile = (url, name) => {
+        const fileExtension = url.split('?')[0].split('.').pop().toLowerCase();
+        setSelectedFile({
+            name: name || 'Attached Image',
+            url: url,
+            extension: fileExtension
+        });
+        setIsFileViewerOpen(true);
+    };
+
+    // Conversations List View
+    if (!userId) {
+        return renderConversationsList();
     }
 
     // Chat View
     return (
-        <div
-            ref={chatViewRef}
-            className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl"
-        >
+        <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6 lg:items-start lg:min-h-[calc(100dvh-6rem)]">
+            <aside className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-claude-border lg:bg-claude-bg/70 lg:p-5 lg:backdrop-blur-xl">
+                {renderConversationsList({ embedded: true })}
+            </aside>
+            <div
+                ref={chatViewRef}
+                className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+            >
             {/* Botanical Chat Header with decorative elements */}
             <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 md:backdrop-blur-xl">
                 {/* Decorative corner marks */}
@@ -576,7 +590,7 @@ export default function Messages() {
 
                 <button
                     onClick={() => navigate('/messages')}
-                    className="touch-target -ml-2 rounded-lg hover:bg-claude-border/20 transition-colors focus-ring"
+                    className="touch-target -ml-2 rounded-lg hover:bg-claude-border/20 transition-colors focus-ring lg:hidden"
                     aria-label="Back to conversations"
                 >
                     <ArrowLeft className="w-6 h-6" aria-hidden="true" />
@@ -604,7 +618,7 @@ export default function Messages() {
             <div
                 className="flex-1 overflow-y-auto scroll-container"
                 style={{
-                    paddingBottom: '80px',
+                    paddingBottom: '96px',
                     backgroundImage: `radial-gradient(circle at 20% 80%, rgba(122, 158, 114, 0.03) 0%, transparent 50%)`
                 }}
             >
@@ -839,7 +853,7 @@ export default function Messages() {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
                 onSubmit={handleSendMessage}
-                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50"
+                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50 lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:max-w-none"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
                     paddingTop: '8px'
@@ -958,6 +972,7 @@ export default function Messages() {
                 isSubmitting={isReporting}
             />
             <FileViewer file={selectedFile} isOpen={isFileViewerOpen} onClose={() => setIsFileViewerOpen(false)} />
+            </div>
         </div>
     );
 }
