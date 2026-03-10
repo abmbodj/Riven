@@ -125,7 +125,7 @@ function QuickActionCard({ to, icon, label }) {
     );
 }
 
-function CompactQueueCard({ icon, eyebrow, title, detail, to, cta, tone = 'default' }) {
+function QueueChip({ icon, eyebrow, title, meta, to, tone = 'default' }) {
     const toneClasses = tone === 'danger'
         ? 'border-red-500/20 bg-red-500/[0.08]'
         : tone === 'accent'
@@ -135,67 +135,23 @@ function CompactQueueCard({ icon, eyebrow, title, detail, to, cta, tone = 'defau
     return (
         <Link
             to={to}
-            className={`tap-action group rounded-[24px] border p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
+            className={`tap-action group inline-flex min-h-[52px] min-w-[220px] items-center gap-3 rounded-2xl border px-3 py-2.5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 gap-3">
-                    <div className="mt-0.5 shrink-0 rounded-xl border border-white/10 bg-black/15 p-2 text-claude-accent">
-                        {React.createElement(icon, { className: 'h-4 w-4' })}
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{eyebrow}</p>
-                        <h3 className="mt-1 font-serif text-lg font-bold leading-tight text-botanical-parchment transition-colors group-hover:text-claude-accent">
-                            {title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-relaxed text-white/62">{detail}</p>
-                    </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/15 text-claude-accent">
+                {React.createElement(icon, { className: 'h-4 w-4' })}
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-claude-secondary">{eyebrow}</p>
+                <div className="mt-1 flex min-w-0 items-center gap-2">
+                    <h3 className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                        {title}
+                    </h3>
+                    {meta ? (
+                        <p className="truncate text-xs text-white/55">{meta}</p>
+                    ) : null}
                 </div>
-                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
             </div>
-            <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
-                {cta}
-            </div>
-        </Link>
-    );
-}
-
-function FeaturedQueueCard({ icon, eyebrow, title, detail, to, cta, tone = 'accent', meta }) {
-    const toneClasses = tone === 'danger'
-        ? 'border-red-500/20 bg-red-500/[0.08]'
-        : 'border-claude-accent/20 bg-white/[0.04]';
-
-    return (
-        <Link
-            to={to}
-            className={`tap-action group flex h-full min-h-[258px] flex-col justify-between rounded-[28px] border p-5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
-        >
-            <div>
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-2xl border border-white/10 bg-black/15 p-3 text-claude-accent">
-                            {React.createElement(icon, { className: 'h-5 w-5' })}
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{eyebrow}</p>
-                            {meta ? (
-                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-accent/80">{meta}</p>
-                            ) : null}
-                        </div>
-                    </div>
-                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
-                </div>
-
-                <h3 className="mt-5 max-w-xl font-serif text-[2rem] font-bold italic leading-[1.02] text-botanical-parchment transition-colors group-hover:text-claude-accent">
-                    {title}
-                </h3>
-                <p className="mt-4 max-w-xl text-base leading-relaxed text-white/65">
-                    {detail}
-                </p>
-            </div>
-
-            <div className="mt-6 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-accent">
-                {cta} <ArrowRight className="h-3.5 w-3.5" />
-            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
         </Link>
     );
 }
@@ -534,7 +490,9 @@ function DashboardHome() {
             cta: focusDeck ? 'Open study session' : 'Create deck',
             icon: focusDeck ? Play : BookOpen,
             tone: 'accent',
-            meta: focusDeck ? `${focusDeck.cardCount || focusDeck.cards?.length || 0} cards ready` : 'New deck setup'
+            meta: focusDeck ? `${focusDeck.cardCount || focusDeck.cards?.length || 0} cards ready` : 'New deck setup',
+            compactTitle: 'Resume Study',
+            compactMeta: focusDeck ? `${focusDeck.cardCount || focusDeck.cards?.length || 0} cards ready` : 'Create a deck'
         },
         {
             eyebrow: pastDueAssignments.length > 0 ? 'Needs attention' : 'Plan next',
@@ -545,7 +503,9 @@ function DashboardHome() {
             to: focusClass ? `/class/${focusClass.id}` : '/classes',
             cta: focusClass ? 'Open class view' : 'View classes',
             icon: Calendar,
-            tone: pastDueAssignments.length > 0 ? 'danger' : 'default'
+            tone: pastDueAssignments.length > 0 ? 'danger' : 'default',
+            compactTitle: pastDueAssignments.length > 0 ? 'Needs Attention' : 'Plan Next',
+            compactMeta: focusAssignment ? (getRelativeDueLabel(focusAssignment.due_date) || 'Upcoming work') : 'Class workload'
         },
         {
             eyebrow: 'Stay connected',
@@ -554,7 +514,9 @@ function DashboardHome() {
             to: '/messages',
             cta: 'Open social',
             icon: MessageCircle,
-            tone: 'default'
+            tone: 'default',
+            compactTitle: 'Check your study circle',
+            compactMeta: 'Messages and shared decks'
         }
     ]), [focusAssignment, focusClass, focusDeck, pastDueAssignments.length]);
 
@@ -619,10 +581,10 @@ function DashboardHome() {
 
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(25,70,82,0.9),rgba(13,27,32,0.98)_62%)] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.24)] sm:mb-8 sm:p-8 lg:p-10">
+            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(25,70,82,0.9),rgba(13,27,32,0.98)_62%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)] sm:mb-8 sm:p-6 lg:p-7">
                 <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/8 to-transparent" />
-                <div className="gsap-hero relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_320px] xl:items-start">
+                <div className="gsap-hero relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-center">
                     <div className="min-w-0">
                         <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-botanical-sepia">
                             <CalendarDays className="h-4 w-4" />
@@ -631,11 +593,11 @@ function DashboardHome() {
                         <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-botanical-parchment sm:text-5xl">
                             Today Queue
                         </h1>
-                        <p className="mb-5 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
+                        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
                             {heroSummary}
                         </p>
 
-                        <div className="mb-5 flex flex-wrap items-center gap-3">
+                        <div className="mb-4 flex flex-wrap items-center gap-3">
                             <Link
                                 to={todayQueue[0].to}
                                 className="tap-action inline-flex items-center gap-3 rounded-2xl bg-[#a8c07f] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#102228] shadow-[0_10px_30px_rgba(168,192,127,0.28)] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(168,192,127,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8c07f]/60"
@@ -648,28 +610,24 @@ function DashboardHome() {
                             </span>
                         </div>
 
-                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-                            <FeaturedQueueCard {...todayQueue[0]} />
-                            <div className="grid gap-3">
-                                {todayQueue.slice(1).map((item) => (
-                                    <CompactQueueCard key={item.eyebrow + item.title} {...item} />
-                                ))}
-                            </div>
+                        <div className="flex flex-wrap gap-2">
+                            {todayQueue.map((item) => (
+                                <QueueChip
+                                    key={item.eyebrow + item.title}
+                                    icon={item.icon}
+                                    eyebrow={item.eyebrow}
+                                    title={item.compactTitle}
+                                    meta={item.compactMeta}
+                                    to={item.to}
+                                    tone={item.tone}
+                                />
+                            ))}
                         </div>
                     </div>
 
-                    <div className="space-y-4 xl:pt-1">
-                        <Link to="/garden" className="tap-action group block rounded-[28px] border border-white/10 bg-white/[0.04] p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Garden streak</p>
-                                    <p className="mt-2 font-serif text-2xl font-bold italic text-botanical-parchment">
-                                        {streak.currentStreak} day rhythm
-                                    </p>
-                                    <p className="mt-2 text-sm text-white/62">
-                                        Keep the habit alive while you move between study and planning.
-                                    </p>
-                                </div>
+                    <div className="xl:justify-self-end">
+                        <Link to="/garden" className="tap-action group block rounded-[26px] border border-white/10 bg-white/[0.04] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
+                            <div className="flex items-center gap-4">
                                 <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/10 shadow-sm transition-transform group-hover:-translate-y-1">
                                     <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
                                     <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-[#e8e4d8] shadow-sm" />
@@ -677,19 +635,25 @@ function DashboardHome() {
                                         <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                                     </div>
                                 </div>
-                            </div>
-                            <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-claude-accent">
-                                <Leaf className="h-2 w-2" /> Open garden
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Garden streak</p>
+                                    <p className="mt-2 font-serif text-xl font-bold italic text-botanical-parchment">
+                                        {streak.currentStreak} day rhythm
+                                    </p>
+                                    <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-claude-accent">
+                                        <Leaf className="h-2 w-2" /> Open garden
+                                    </div>
+                                </div>
                             </div>
                         </Link>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            {stats.map((stat) => (
-                                <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
-                            ))}
-                        </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {stats.map((stat) => (
+                    <StatTile key={stat.label} label={stat.label} value={stat.value} tone={stat.tone} />
+                ))}
             </div>
 
             <div className="mb-4">
