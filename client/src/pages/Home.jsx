@@ -125,30 +125,6 @@ function QuickActionCard({ to, icon, label }) {
     );
 }
 
-function QueueCard({ to, eyebrow, title, detail, icon, tone = 'default' }) {
-    const toneClasses = tone === 'accent'
-        ? 'border-claude-accent/25 bg-claude-accent/10 text-botanical-parchment'
-        : tone === 'danger'
-            ? 'border-red-500/20 bg-red-500/10 text-botanical-parchment'
-            : 'border-white/10 bg-black/15 text-botanical-parchment';
-
-    return (
-        <Link
-            to={to}
-            className={`tap-action group flex min-h-[108px] flex-col justify-between rounded-[24px] border px-4 py-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
-        >
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <div className="text-[9px] font-mono uppercase tracking-[0.24em] text-white/45">{eyebrow}</div>
-                    <h3 className="mt-2 font-serif text-lg font-bold leading-tight text-white">{title}</h3>
-                </div>
-                {React.createElement(icon, { className: 'h-4 w-4 shrink-0 text-claude-accent transition-transform group-hover:scale-110' })}
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-white/68">{detail}</p>
-        </Link>
-    );
-}
-
 function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
     const rawTitle = assignment?.title ?? assignment?.name ?? assignment?.assignment_title ?? '';
     const assignmentTitle = String(rawTitle).trim() || 'Untitled Assignment';
@@ -433,20 +409,6 @@ function DashboardHome() {
     const focusDeck = recentDecks[0] ?? null;
     const focusAssignment = pastDueAssignments[0] ?? upcomingAssignments[0] ?? null;
     const focusClass = focusAssignment ? classesById.get(focusAssignment.class_id) : (classes[0] ?? null);
-    const dueTodayAssignments = useMemo(() => {
-        const now = new Date();
-        return assignments
-            .filter((assignment) => {
-                if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
-                const dueDate = new Date(assignment.due_date);
-                if (Number.isNaN(dueDate.getTime())) return false;
-                const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                return dueDay.getTime() === today.getTime();
-            })
-            .sort((left, right) => new Date(left.due_date) - new Date(right.due_date))
-            .slice(0, 3);
-    }, [assignments]);
 
     const heroSummary = useMemo(() => {
         if (focusAssignment) {
@@ -485,47 +447,6 @@ function DashboardHome() {
             label: 'Open Social',
         },
     ]), [focusClass, focusDeck]);
-
-    const queueItems = useMemo(() => {
-        const resumeDetail = focusDeck
-            ? `${focusDeck.title} is the fastest way back into motion.`
-            : 'Create a deck so today has a study target.';
-        const dueTodayDetail = dueTodayAssignments.length > 0
-            ? `${dueTodayAssignments.length} assignment${dueTodayAssignments.length > 1 ? 's' : ''} due today${focusClass ? ` in ${focusClass.name}` : ''}.`
-            : focusAssignment
-                ? `${getRelativeDueLabel(focusAssignment.due_date) || 'Upcoming'} • ${(focusAssignment.title || focusAssignment.name || 'Upcoming work')}`
-                : 'No urgent due dates. Use today to study ahead.';
-        const socialDetail = classes.length > 0
-            ? `${classes.length} class${classes.length > 1 ? 'es' : ''} active. Check messages and stay coordinated.`
-            : 'Open messages to reconnect with your study circle.';
-
-        return [
-            {
-                to: focusDeck ? `/deck/${focusDeck.id}/study` : '/create',
-                eyebrow: 'Resume',
-                title: focusDeck ? `Study ${focusDeck.title}` : 'Start a deck',
-                detail: resumeDetail,
-                icon: Play,
-                tone: 'accent',
-            },
-            {
-                to: focusClass ? `/class/${focusClass.id}` : '/classes',
-                eyebrow: dueTodayAssignments.length > 0 ? 'Due Today' : 'Plan',
-                title: dueTodayAssignments.length > 0 ? 'Handle today’s work' : 'Review class plan',
-                detail: dueTodayDetail,
-                icon: CalendarDays,
-                tone: dueTodayAssignments.length > 0 ? 'danger' : 'default',
-            },
-            {
-                to: '/messages',
-                eyebrow: 'Social',
-                title: 'Check your circle',
-                detail: socialDetail,
-                icon: MessageCircle,
-                tone: 'default',
-            },
-        ];
-    }, [classes.length, dueTodayAssignments.length, focusAssignment, focusClass, focusDeck]);
 
     const classInsights = useMemo(() => {
         const now = new Date();
@@ -588,79 +509,45 @@ function DashboardHome() {
 
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-6 overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(62,110,92,0.22),transparent_38%),linear-gradient(160deg,#112027_0%,#182a2e_56%,#102026_100%)] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-8 lg:p-10">
-                <div className="pointer-events-none absolute inset-0 opacity-[0.05] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="gsap-hero relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] xl:items-start">
-                    <div className="space-y-5">
+            <div className="relative mb-6 overflow-hidden rounded-3xl border border-[#d1c9b8] bg-[#fcfaf2] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.02)] sm:mb-8 sm:p-8 lg:p-10">
+                <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                <div className="gsap-hero relative z-10 flex items-start justify-between gap-6">
+                    <div>
+                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#8a7f6a]">
+                            <CalendarDays className="h-4 w-4" />
+                            {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                        </p>
+                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-[#1a1c1d] sm:text-5xl">
+                            Today
+                        </h1>
+                        <p className="mb-4 max-w-xl text-sm leading-relaxed text-[#5d6466] sm:text-base">
+                            {heroSummary}
+                        </p>
                         <div className="flex flex-wrap items-center gap-3">
-                            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-botanical-sepia/80">
-                                <CalendarDays className="h-4 w-4" />
-                                {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-                            </p>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                            <HeartsDisplay onClick={() => setPricingOpen(true)} />
+                            <span className="rounded-full border border-[#d1c9b8] bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#5d6466]">
                                 {user?.username || 'Student'}
                             </span>
                         </div>
-
-                        <div>
-                            <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.28em] text-white/40">Today Queue</p>
-                            <h1 className="max-w-2xl text-4xl font-serif font-bold italic leading-none tracking-tight text-white sm:text-5xl">
-                                Work the next useful thing, not the loudest thing.
-                            </h1>
-                        </div>
-
-                        <p className="max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
-                            {heroSummary}
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-3">
-                            <HeartsDisplay onClick={() => setPricingOpen(true)} />
-                            <div className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/58">
-                                {dueTodayAssignments.length} due today
-                            </div>
-                            <div className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/58">
-                                {decks.length} decks active
-                            </div>
-                        </div>
                     </div>
 
-                    <div className="grid gap-3">
-                        {queueItems.map((item) => (
-                            <QueueCard
-                                key={item.title}
-                                to={item.to}
-                                eyebrow={item.eyebrow}
-                                title={item.title}
-                                detail={item.detail}
-                                icon={item.icon}
-                                tone={item.tone}
-                            />
-                        ))}
-
-                        <Link to="/garden" className="tap-action group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <div className="text-[9px] font-mono uppercase tracking-[0.24em] text-white/40">Garden</div>
-                                    <p className="mt-2 font-serif text-lg font-bold text-white">Keep your streak alive</p>
-                                    <p className="mt-1 text-sm text-white/62">{streak.currentStreak} day streak in bloom.</p>
-                                </div>
-                                <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/15 transition-transform group-hover:-translate-y-1">
-                                    <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
-                                    <div className="origin-bottom translate-y-3 scale-[0.72] transform">
-                                        <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
-                                    </div>
-                                </div>
+                    <Link to="/garden" className="tap-action group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
+                        <div className="relative flex h-16 w-16 items-end justify-center overflow-hidden rounded-2xl border border-[#d1c9b8] bg-white shadow-sm transition-transform group-hover:-translate-y-1 sm:h-20 sm:w-20">
+                            <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
+                            <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-[#e8e4d8] shadow-sm" />
+                            <div className="origin-bottom translate-y-3 scale-[0.6] transform sm:scale-[0.75]">
+                                <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                             </div>
-                            <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.22em] text-claude-accent">
-                                <Leaf className="h-2.5 w-2.5" /> streak pulse
-                            </div>
-                        </Link>
-                    </div>
+                        </div>
+                        <div className="absolute -bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-claude-border bg-claude-surface px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-claude-accent opacity-0 shadow-sm transition-opacity group-hover:opacity-100 md:shadow-lg">
+                            <Leaf className="h-2 w-2" /> {streak.currentStreak} Day
+                        </div>
+                    </Link>
                 </div>
             </div>
 
             <div className="mb-4">
-                <SectionHeading icon={Sparkles} title="Do Next" />
+                <SectionHeading icon={Sparkles} title="Focus Actions" />
             </div>
 
             <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">

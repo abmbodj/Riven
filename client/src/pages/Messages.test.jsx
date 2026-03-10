@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Messages from './Messages.jsx';
@@ -101,5 +101,25 @@ describe('Messages desktop workspace', () => {
     expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
     expect(screen.getByText('Marcus')).toBeInTheDocument();
     expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText('Search conversations'), {
+      target: { value: 'Marcus' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Marcus')).toBeInTheDocument();
+      expect(screen.queryAllByText('Bianca').length).toBe(1);
+    });
+
+    fireEvent.change(screen.getByLabelText('Search conversations'), {
+      target: { value: '' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /show unread/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Marcus')).not.toBeInTheDocument();
+    });
   });
 });

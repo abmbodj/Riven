@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Send, Search, Image, Layers,
@@ -75,6 +75,8 @@ export default function Messages() {
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
     const [isTyping, setIsTyping] = useState(false);
+    const [conversationQuery, setConversationQuery] = useState('');
+    const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
     // Reporting state
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -433,6 +435,34 @@ export default function Messages() {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
+    const filteredConversations = useMemo(() => {
+        const normalizedQuery = conversationQuery.trim().toLowerCase();
+
+        return conversations.filter((conv) => {
+            if (showUnreadOnly && conv.unreadCount <= 0 && String(conv.userId) !== String(userId)) {
+                return false;
+            }
+
+            if (!normalizedQuery) return true;
+
+            const haystack = [
+                conv.username,
+                conv.lastMessage,
+                conv.lastMessageType === 'deck' ? 'shared deck' : '',
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(normalizedQuery);
+        });
+    }, [conversationQuery, conversations, showUnreadOnly, userId]);
+
+    const unreadConversationCount = useMemo(
+        () => conversations.filter((conv) => conv.unreadCount > 0).length,
+        [conversations]
+    );
+
     const renderConversationsList = ({ embedded = false } = {}) => {
         if (user?.is_banned) {
             return (
@@ -449,10 +479,10 @@ export default function Messages() {
         }
 
         return (
-            <div
-                ref={convListRef}
-                className={`${embedded ? 'h-full' : 'pb-24 sm:max-w-md sm:mx-auto'} w-full gsap-conv-list`}
-            >
+                <div
+                    ref={convListRef}
+                    className={`${embedded ? 'h-full' : 'pb-24 sm:max-w-md sm:mx-auto'} w-full gsap-conv-list`}
+                >
                 <div className={`relative ${embedded ? 'mb-4 px-1' : 'mb-6'}`}>
                     {embedded ? (
                         <>
@@ -460,16 +490,48 @@ export default function Messages() {
                             <h2 className="mt-2 text-2xl font-display font-bold text-claude-text">Conversations</h2>
                             <p className="text-botanical-sepia text-sm font-mono">Keep your study circle in view</p>
                         </>
-                    ) : (
-                        <>
-                            <div className="absolute top-2 left-0 w-8 h-8 opacity-10">
-                                <Leaf className="w-full h-full text-botanical-forest rotate-12" />
-                            </div>
+                        ) : (
+                            <>
+                                <div className="absolute top-2 left-0 w-8 h-8 opacity-10">
+                                    <Leaf className="w-full h-full text-botanical-forest rotate-12" />
+                                </div>
                             <h1 className="text-2xl font-display font-bold mb-1">Messages</h1>
                             <p className="text-botanical-sepia text-sm font-mono">Chat with your friends</p>
-                        </>
-                    )}
-                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {conversations.length > 0 ? (
+                        <div className={`mb-4 space-y-3 ${embedded ? 'px-1' : ''}`}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                    {filteredConversations.length} shown • {unreadConversationCount} unread
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUnreadOnly((current) => !current)}
+                                    className={`rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] transition-colors ${showUnreadOnly
+                                        ? 'border-claude-accent/30 bg-claude-accent/10 text-claude-accent'
+                                        : 'border-white/10 bg-white/[0.03] text-claude-secondary hover:text-botanical-parchment'
+                                        }`}
+                                >
+                                    {showUnreadOnly ? 'Unread only' : 'Show unread'}
+                                </button>
+                            </div>
+
+                            <label className="glass-panel flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-3">
+                                <Search className="h-4 w-4 text-botanical-sepia" />
+                                <input
+                                    type="search"
+                                    value={conversationQuery}
+                                    onChange={(event) => setConversationQuery(event.target.value)}
+                                    placeholder="Search people or messages"
+                                    className="w-full bg-transparent text-sm text-botanical-parchment placeholder:text-botanical-sepia/70 focus:outline-none"
+                                    aria-label="Search conversations"
+                                />
+                            </label>
+                        </div>
+                    ) : null}
 
                 {conversations.length === 0 ? (
                     <div className="text-center py-12">
@@ -493,10 +555,18 @@ export default function Messages() {
                             Find Friends
                         </Link>
                     </div>
+                ) : filteredConversations.length === 0 ? (
+                    <div className="glass-panel rounded-3xl border border-white/10 px-5 py-10 text-center">
+                        <Search className="mx-auto mb-3 h-6 w-6 text-botanical-sepia/70" />
+                        <p className="font-display text-botanical-parchment">No conversations match</p>
+                        <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                            Clear the search or widen the filter.
+                        </p>
+                    </div>
                 ) : (
                     <div className={`space-y-3 ${embedded ? 'max-h-[calc(100dvh-12rem)] overflow-y-auto pr-1' : ''}`}>
                         <AnimatePresence mode="popLayout">
-                            {conversations.map((conv, index) => (
+                            {filteredConversations.map((conv, index) => (
                                 <motion.div
                                     key={conv.userId}
                                     initial={{ opacity: 0, x: -12 }}
