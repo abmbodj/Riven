@@ -29,9 +29,15 @@ const SORT_OPTIONS = [
 
 // Memoized deck card with botanical styling
 // Memoized deck card with Herbarium Specimen styling
-const DeckCard = memo(({ deck, folders, classes, index }) => {
+const DeckCard = memo(({ deck, folders, classes, index, isSelected = false, onSelect }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
     const folderColor = folder?.color || '#7a9e72';
+    const handleClick = (event) => {
+        if (window.innerWidth >= 1024 && onSelect) {
+            event.preventDefault();
+            onSelect(deck.id);
+        }
+    };
 
     return (
         <motion.div
@@ -48,7 +54,11 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
 
-            <Link to={`/deck/${deck.id}`} className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target">
+            <Link
+                to={`/deck/${deck.id}`}
+                onClick={handleClick}
+                className={`group relative block bg-[#fcfaf2] border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target ${isSelected ? 'border-[#7a9e72] shadow-[0_12px_30px_rgba(122,158,114,0.18)]' : 'border-[#d1c9b8]'}`}
+            >
                 {/* Subtle paper grain and texture */}
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
@@ -114,6 +124,137 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
 });
 DeckCard.displayName = 'DeckCard';
 
+function DesktopFilterRail({ folders, tags, activeFolder, activeTag, setActiveFolder, setActiveTag }) {
+    return (
+        <aside className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-auto lg:rounded-[28px] lg:border lg:border-claude-border lg:bg-claude-bg/60 lg:p-5 lg:backdrop-blur-xl">
+            <div className="mb-8">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Library Filters</p>
+                <h2 className="mt-2 font-display text-2xl font-bold text-botanical-parchment">Scope</h2>
+                <p className="mt-1 text-sm font-mono text-claude-secondary">Keep your collection organized while you browse.</p>
+            </div>
+
+            <div className="space-y-8">
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary">Folders</h3>
+                        <FolderOpen className="h-4 w-4 text-claude-secondary" />
+                    </div>
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => setActiveFolder(null)}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left font-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === null ? 'border-claude-accent/40 bg-claude-accent/10 text-claude-accent' : 'border-white/8 bg-white/[0.02] text-claude-secondary hover:text-botanical-parchment'}`}
+                        >
+                            <Library className="h-4 w-4" />
+                            <span>All Decks</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveFolder('unfiled')}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left font-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === 'unfiled' ? 'border-claude-accent/40 bg-claude-accent/10 text-claude-accent' : 'border-white/8 bg-white/[0.02] text-claude-secondary hover:text-botanical-parchment'}`}
+                        >
+                            <Folder className="h-4 w-4" />
+                            <span>Unfiled</span>
+                        </button>
+                        {folders.map((folder) => (
+                            <button
+                                key={folder.id}
+                                type="button"
+                                onClick={() => setActiveFolder(activeFolder === folder.id ? null : folder.id)}
+                                className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left font-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === folder.id ? 'text-botanical-parchment' : 'border-white/8 bg-white/[0.02] text-claude-secondary hover:text-botanical-parchment'}`}
+                                style={activeFolder === folder.id ? { borderColor: `${folder.color}66`, backgroundColor: `${folder.color}18` } : {}}
+                            >
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: folder.color }} />
+                                <span className="truncate">{folder.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary">Tags</h3>
+                        <Hash className="h-4 w-4 text-claude-secondary" />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {tags.map((tag) => (
+                            <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
+                                className={`rounded-full border px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeTag === tag.id ? 'text-botanical-parchment' : 'border-white/8 bg-white/[0.02] text-claude-secondary hover:text-botanical-parchment'}`}
+                                style={activeTag === tag.id ? { borderColor: `${tag.color}66`, backgroundColor: `${tag.color}18` } : {}}
+                            >
+                                {tag.name}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            </div>
+        </aside>
+    );
+}
+
+function DeckPreviewPanel({ deck, folder, classItem }) {
+    return (
+        <aside className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-auto lg:rounded-[28px] lg:border lg:border-[#d1c9b8] lg:bg-[#fcfaf2] lg:p-6 lg:shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a7f6a]">Deck Preview</p>
+            {deck ? (
+                <div className="mt-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-current/10 shadow-inner" style={{ backgroundColor: `${folder?.color || '#7a9e72'}14`, color: folder?.color || '#7a9e72' }}>
+                            <Layers className="h-5 w-5 opacity-70" />
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="truncate font-serif text-2xl font-bold italic text-[#1a1c1d]">{deck.title}</h2>
+                            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#8a7f6a]">{deck.cardCount} cards</p>
+                        </div>
+                    </div>
+
+                    <p className="mt-5 text-sm leading-relaxed text-[#5d6466]">
+                        {deck.description || 'No description yet. Open this deck to add context, cards, and study details.'}
+                    </p>
+
+                    <div className="mt-6 grid grid-cols-2 gap-3">
+                        <Link to={`/deck/${deck.id}`} className="rounded-2xl bg-[#7a9e72] px-4 py-3 text-center font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-[#688a61]">
+                            Open Deck
+                        </Link>
+                        <Link to={`/deck/${deck.id}/study`} className="rounded-2xl border border-[#7a9e72]/30 bg-[#7a9e72]/10 px-4 py-3 text-center font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#7a9e72] transition-colors hover:bg-[#7a9e72]/20">
+                            Study
+                        </Link>
+                    </div>
+
+                    <div className="mt-8 space-y-4 rounded-[24px] border border-[#d1c9b8] bg-white/70 p-4">
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Folder</p>
+                            <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-[#1a1c1d]">{folder?.name || 'Unfiled'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Class</p>
+                            <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-[#1a1c1d]">{classItem?.name || 'Independent Study'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a7f6a]">Tags</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {deck.tags?.length ? deck.tags.map((tag) => (
+                                    <span key={tag.id} className="rounded-full border border-current/15 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: tag.color }}>
+                                        {tag.name}
+                                    </span>
+                                )) : <span className="font-mono text-xs text-[#5d6466]">No tags</span>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="mt-6 rounded-[24px] border border-dashed border-[#d1c9b8] p-6 text-center">
+                    <p className="font-serif text-lg italic text-[#5d6466]">No deck selected</p>
+                    <p className="mt-2 text-sm text-[#8a7f6a]">Choose a deck from the library to preview it here.</p>
+                </div>
+            )}
+        </aside>
+    );
+}
+
 
 
 export default function Decks() {
@@ -135,6 +276,7 @@ export default function Decks() {
     const [showSortMenu, setShowSortMenu] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [selectedDeckId, setSelectedDeckId] = useState(null);
 
     // Modals
     const [showFolderModal, setShowFolderModal] = useState(false);
@@ -225,6 +367,24 @@ export default function Decks() {
                     return new Date(b.created_at) - new Date(a.created_at);
             }
         }), [decks, activeFolder, activeTag, searchQuery, sortBy]);
+
+    useEffect(() => {
+        if (filteredDecks.length === 0) {
+            setSelectedDeckId(null);
+            return;
+        }
+
+        if (!selectedDeckId || !filteredDecks.some((deck) => deck.id === selectedDeckId)) {
+            setSelectedDeckId(filteredDecks[0].id);
+        }
+    }, [filteredDecks, selectedDeckId]);
+
+    const selectedDeck = useMemo(
+        () => filteredDecks.find((deck) => deck.id === selectedDeckId) || null,
+        [filteredDecks, selectedDeckId]
+    );
+    const selectedFolder = selectedDeck?.folder_id ? folders.find((folder) => folder.id === selectedDeck.folder_id) : null;
+    const selectedClass = selectedDeck?.class_id ? classes.find((classItem) => classItem.id === selectedDeck.class_id) : null;
 
     // Folder actions
     const handleCreateFolder = async (e) => {
@@ -534,7 +694,16 @@ export default function Decks() {
             )}
 
             {/* Decks Collection — THE PRIMARY FOCUS */}
-            <div className="space-y-6 px-1">
+            <div className="space-y-6 px-1 lg:grid lg:grid-cols-[240px_minmax(0,1fr)_320px] lg:gap-6 lg:space-y-0 lg:items-start">
+                <DesktopFilterRail
+                    folders={folders}
+                    tags={tags}
+                    activeFolder={activeFolder}
+                    activeTag={activeTag}
+                    setActiveFolder={setActiveFolder}
+                    setActiveTag={setActiveTag}
+                />
+                <div className="space-y-6">
                 <div className="flex items-baseline justify-between mb-2">
                     <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] flex items-center gap-2">
                         <div className="w-4 h-px bg-current opacity-30" /> Your Decks
@@ -609,12 +778,22 @@ export default function Decks() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 pb-20 px-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-5 sm:gap-6 pb-20 px-1">
                         {filteredDecks.map((deck, i) => (
-                            <DeckCard key={deck.id} deck={deck} folders={folders} classes={classes} index={i} />
+                            <DeckCard
+                                key={deck.id}
+                                deck={deck}
+                                folders={folders}
+                                classes={classes}
+                                index={i}
+                                isSelected={deck.id === selectedDeckId}
+                                onSelect={setSelectedDeckId}
+                            />
                         ))}
                     </div>
                 )}
+                </div>
+                <DeckPreviewPanel deck={selectedDeck} folder={selectedFolder} classItem={selectedClass} />
             </div>
 
 

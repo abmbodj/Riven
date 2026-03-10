@@ -19,3 +19,14 @@ Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
   writable: true,
   value: vi.fn(),
 });
+
+class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+Object.defineProperty(window, 'IntersectionObserver', {
+  writable: true,
+  value: MockIntersectionObserver,
+});
