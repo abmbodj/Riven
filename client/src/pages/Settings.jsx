@@ -62,7 +62,7 @@ const getCanvasFeedLabel = (canvasUrl) => {
     }
 };
 
-const CanvasNotice = ({ tone = 'info', title, detail }) => {
+const StatusNotice = ({ tone = 'info', title, detail }) => {
     const toneClasses = tone === 'success'
         ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
         : tone === 'error'
@@ -430,7 +430,7 @@ export default function Settings() {
                                             exit={{ opacity: 0, height: 0 }}
                                             className="space-y-4 pt-2"
                                         >
-                                            <CanvasNotice
+                                            <StatusNotice
                                                 title="How this works"
                                                 detail="Copy your Canvas Calendar Feed, paste the .ics link here, then connect once to unlock one-tap syncing."
                                             />
@@ -461,7 +461,7 @@ export default function Settings() {
                                             </p>
 
                                             {canvasNotice && (
-                                                <CanvasNotice
+                                                <StatusNotice
                                                     tone={canvasNotice.tone}
                                                     title={canvasNotice.title}
                                                     detail={canvasNotice.detail}
@@ -491,12 +491,12 @@ export default function Settings() {
                                                     {getCanvasFeedLabel(lmsStatus.canvasUrl)}
                                                 </p>
                                             </div>
-                                            <CanvasNotice
+                                            <StatusNotice
                                                 title="Next step"
                                                 detail="Run a sync to pull in any new classes or assignments from your connected Canvas feed."
                                             />
                                             {canvasNotice && (
-                                                <CanvasNotice
+                                                <StatusNotice
                                                     tone={canvasNotice.tone}
                                                     title={canvasNotice.title}
                                                     detail={canvasNotice.detail}
@@ -716,7 +716,10 @@ function ReferralCard() {
     const [applyCode, setApplyCode] = React.useState('');
     const [copied, setCopied] = React.useState(false);
     const [applying, setApplying] = React.useState(false);
+    const [referralNotice, setReferralNotice] = React.useState(null);
     const toast = useToast();
+    const progressPercent = referralInfo ? Math.min(100, (referralInfo.qualifiedCount / referralInfo.targetCount) * 100) : 0;
+    const remainingReferrals = referralInfo ? Math.max(0, referralInfo.targetCount - referralInfo.qualifiedCount) : 0;
 
     React.useEffect(() => {
         if (user?.subscription_tier && user.subscription_tier !== 'free') {
@@ -735,6 +738,11 @@ function ReferralCard() {
         if (referralInfo?.referralCode) {
             navigator.clipboard.writeText(referralInfo.referralCode);
             setCopied(true);
+            setReferralNotice({
+                tone: 'success',
+                title: 'Code copied',
+                detail: 'Share it with a friend so they can join with your referral code.'
+            });
             setTimeout(() => setCopied(false), 2000);
         }
     };
@@ -746,8 +754,18 @@ function ReferralCard() {
             await api.applyReferralCode(applyCode.trim());
             toast('Referral code applied!');
             setApplyCode('');
+            setReferralNotice({
+                tone: 'success',
+                title: 'Referral code applied',
+                detail: 'Your account will credit the referral after the eligibility requirements are met.'
+            });
         } catch (err) {
             toast(err.message || 'Failed to apply code');
+            setReferralNotice({
+                tone: 'error',
+                title: 'Code could not be applied',
+                detail: err.message || 'Check the referral code and try again.'
+            });
         } finally {
             setApplying(false);
         }
@@ -782,32 +800,53 @@ function ReferralCard() {
                     </div>
                 </div>
 
+                <StatusNotice
+                    title={referralInfo.rewardEarned ? 'Reward unlocked' : `${remainingReferrals} invites to go`}
+                    detail={referralInfo.rewardEarned
+                        ? 'Your referrals already earned Lifetime access.'
+                        : 'Share your code, track qualified signups, or apply a friend’s code below.'}
+                />
+
                 {/* Your Code */}
-                <div className="relative z-10">
-                    <p className="text-[10px] font-mono uppercase text-claude-secondary mb-2 tracking-wider">Your Referral Code</p>
-                    <div className="flex items-center gap-2">
+                <div className="relative z-10 rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Your Referral Code</p>
+                            <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">Share this with friends who are joining Riven.</p>
+                        </div>
+                        <span className="rounded-full border border-pink-400/20 bg-pink-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-pink-400">
+                            Share
+                        </span>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                         <div className="flex-1 bg-claude-bg border border-claude-border rounded-xl px-4 py-3 text-lg font-mono font-bold text-claude-text tracking-[0.3em] text-center">
                             {referralInfo.referralCode}
                         </div>
                         <button
                             onClick={handleCopy}
-                            className="p-3 rounded-xl bg-claude-bg border border-claude-border hover:border-pink-400/30 hover:bg-pink-400/5 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
+                            className="min-h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 px-4 py-3 text-pink-400 hover:border-pink-400/30 hover:bg-pink-400/5 transition-[transform,opacity,color,background-color,border-color,box-shadow] font-mono text-[11px] uppercase tracking-[0.16em] font-bold flex items-center justify-center gap-2"
                         >
-                            {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-claude-secondary" />}
+                            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-pink-400" />}
+                            {copied ? 'Copied' : 'Copy code'}
                         </button>
                     </div>
                 </div>
 
                 {/* Progress */}
-                <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
-                        <span className="text-[11px] font-mono font-bold text-claude-text">{referralInfo.qualifiedCount} / {referralInfo.targetCount}</span>
+                <div className="relative z-10 rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
+                    <div className="flex items-center justify-between mb-2 gap-3">
+                        <div>
+                            <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
+                            <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
+                                {referralInfo.rewardEarned ? 'All referral milestones completed.' : `${remainingReferrals} more qualified referral${remainingReferrals === 1 ? '' : 's'} until Lifetime.`}
+                            </p>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-claude-text whitespace-nowrap">{referralInfo.qualifiedCount} / {referralInfo.targetCount}</span>
                     </div>
                     <div className="w-full h-2 bg-claude-bg rounded-full overflow-hidden border border-claude-border">
                         <div
                             className="h-full bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-700"
-                            style={{ width: `${Math.min(100, (referralInfo.qualifiedCount / referralInfo.targetCount) * 100)}%` }}
+                            style={{ width: `${progressPercent}%` }}
                         />
                     </div>
                     {referralInfo.rewardEarned && (
@@ -819,24 +858,38 @@ function ReferralCard() {
 
                 {/* Apply someone else's code */}
                 <div className="relative z-10 pt-2 border-t border-claude-border">
-                    <p className="text-[10px] font-mono uppercase text-claude-secondary mb-2 tracking-wider">Have a referral code?</p>
-                    <div className="flex gap-2">
+                    <div className="mb-3">
+                        <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Have a referral code?</p>
+                        <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
+                            Apply a friend&apos;s code before you qualify on your own invite path.
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row">
                         <input
                             type="text"
                             value={applyCode}
                             onChange={(e) => setApplyCode(e.target.value.toUpperCase())}
                             placeholder="ENTER CODE"
                             maxLength={8}
-                            className="flex-1 bg-claude-bg border border-claude-border rounded-xl px-3 py-2.5 text-sm font-mono text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-pink-400/50"
+                            className="flex-1 min-h-12 bg-claude-bg border border-claude-border rounded-xl px-3 py-2.5 text-sm font-mono text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-pink-400/50"
                         />
                         <button
                             onClick={handleApply}
                             disabled={applying || !applyCode.trim()}
-                            className="px-4 py-2.5 rounded-xl bg-pink-500/10 text-pink-400 font-mono text-[11px] uppercase tracking-wider font-bold hover:bg-pink-500/20 disabled:opacity-30 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
+                            className="min-h-12 px-4 py-2.5 rounded-xl bg-pink-500/10 text-pink-400 font-mono text-[11px] uppercase tracking-wider font-bold hover:bg-pink-500/20 disabled:opacity-30 transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                         >
-                            {applying ? '...' : 'Apply'}
+                            {applying ? 'Applying...' : 'Apply Code'}
                         </button>
                     </div>
+                    {referralNotice && (
+                        <div className="mt-3">
+                            <StatusNotice
+                                tone={referralNotice.tone}
+                                title={referralNotice.title}
+                                detail={referralNotice.detail}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>

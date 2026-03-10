@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import Settings from './Settings.jsx';
 import { ThemeContext } from '../ThemeContext';
 
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: {
+    subscription_tier: 'supporter',
+    twoFAEnabled: false,
+  },
+}));
+
 vi.mock('../api', () => ({
   api: {
     getCanvasSettings: vi.fn(),
@@ -20,10 +27,7 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     signOut: vi.fn(),
     refreshUser: vi.fn(),
-    user: {
-      subscription_tier: 'supporter',
-      twoFAEnabled: false,
-    },
+    user: mockUser,
   }),
 }));
 
@@ -64,6 +68,8 @@ const { api } = await import('../api');
 
 describe('Settings LMS sync', () => {
   it('keeps connect CTA disabled until a Canvas feed URL is entered', async () => {
+    mockUser.subscription_tier = 'supporter';
+    mockUser.twoFAEnabled = false;
     api.getCanvasSettings.mockResolvedValue({
       isConnected: false,
       canvasUrl: '',
@@ -99,6 +105,8 @@ describe('Settings LMS sync', () => {
   });
 
   it('syncs Canvas without relying on undefined local state', async () => {
+    mockUser.subscription_tier = 'supporter';
+    mockUser.twoFAEnabled = false;
     api.getCanvasSettings.mockResolvedValue({
       isConnected: true,
       canvasUrl: 'Canvas Feed Active',
@@ -134,5 +142,47 @@ describe('Settings LMS sync', () => {
     });
 
     expect(await screen.findByText(/imported 2 classes and 5 assignments just now/i)).toBeInTheDocument();
+  });
+});
+
+describe('Settings referral flow', () => {
+  it('shows persistent inline feedback when a free user copies their referral code', async () => {
+    mockUser.subscription_tier = 'free';
+    mockUser.twoFAEnabled = false;
+    api.getCanvasSettings.mockResolvedValue({
+      isConnected: false,
+      canvasUrl: '',
+    });
+    api.getAILimits.mockResolvedValue({
+      remaining: 10,
+      max: 10,
+    });
+    api.getReferralInfo.mockResolvedValue({
+      referralCode: 'RIVEN123',
+      qualifiedCount: 2,
+      targetCount: 5,
+      rewardEarned: false,
+    });
+
+    const writeText = vi.fn();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <ThemeContext.Provider value={{ activeTheme: { name: 'Riven Dark' } }}>
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      </ThemeContext.Provider>
+    );
+
+    const copyButton = await screen.findByRole('button', { name: /copy code/i });
+    fireEvent.click(copyButton);
+
+    expect(writeText).toHaveBeenCalledWith('RIVEN123');
+    expect(await screen.findByText(/code copied/i)).toBeInTheDocument();
+    expect(screen.getByText(/share it with a friend/i)).toBeInTheDocument();
   });
 });
