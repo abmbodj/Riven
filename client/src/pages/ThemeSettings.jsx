@@ -680,13 +680,13 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                 initial="hidden"
                 animate="show"
                 onScroll={handleScroll}
-                className="flex md:grid md:grid-cols-2 lg:grid-cols-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none gap-6 lg:gap-10 xl:gap-14 pt-6 md:pt-12 pb-6 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
+                className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none gap-4 md:gap-5 pt-4 md:pt-8 pb-4 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
             >
                 {themes.map((theme) => (
                     <motion.div
                         key={theme.id}
                         variants={item}
-                        className="snap-center md:snap-align-none shrink-0 w-[80vw] md:w-auto md:shrink md:[&:nth-child(even)]:mt-16 lg:[&:nth-child(even)]:mt-0 lg:[&:nth-child(3n+2)]:mt-24 lg:[&:nth-child(3n+3)]:mt-12"
+                        className="snap-center md:snap-align-none shrink-0 w-[72vw] md:w-auto md:shrink"
                     >
                         <ThemeCard
                             theme={theme}
@@ -726,159 +726,148 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
     return (
         <motion.div
             onClick={onSelect}
-            whileHover={!isActive ? { y: -12, scale: 1.02 } : {}}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="group relative overflow-hidden rounded-[2.5rem] p-7 cursor-pointer h-[30rem] md:h-[34rem] flex flex-col justify-between select-none"
+            whileHover={!isActive ? { y: -6 } : {}}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="group relative overflow-hidden cursor-pointer select-none flex flex-col"
             style={{
+                borderRadius: '1.25rem',
                 backgroundColor: theme.bg_color,
-                border: isActive ? `2px solid ${theme.accent_color}` : `1px solid ${theme.border_color}`,
+                border: isActive
+                    ? `2px solid ${theme.accent_color}`
+                    : `1px solid ${theme.border_color}`,
                 boxShadow: isActive
-                    ? `0 30px 60px -15px ${theme.accent_color}50, inset 0 0 0 1px ${theme.border_color}40`
-                    : `0 10px 40px -20px ${theme.text_color}10`,
-                zIndex: isActive ? 20 : 10
+                    ? `0 0 0 3px ${theme.accent_color}18, 0 14px 36px -6px ${theme.accent_color}28`
+                    : `0 2px 14px -3px ${theme.text_color}07`,
+                height: '15rem',
             }}
         >
-            {/* Noise texture overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.22] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
-
-            {/* Active accent bloom */}
-            {isActive && (
+            {/* ── Color Panel (top 54%) ── */}
+            <div
+                className="relative overflow-hidden shrink-0"
+                style={{ height: '54%', backgroundColor: theme.surface_color }}
+            >
+                {/* Noise texture */}
                 <div
-                    className="absolute -top-12 -right-12 w-40 h-40 rounded-full blur-3xl pointer-events-none opacity-30"
-                    style={{ backgroundColor: theme.accent_color }}
+                    className="absolute inset-0 opacity-[0.13] pointer-events-none"
+                    style={{ backgroundImage: NOISE_SVG }}
                 />
-            )}
 
-            {/* ── TOP ── */}
-            <div className="relative z-10">
-                {/* Font label + active badge */}
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.25em] opacity-40" style={{ color: theme.text_color }}>
+                {/* Diagonal accent block — the signature visual */}
+                <div
+                    className="absolute inset-y-0 right-0 transition-opacity duration-300"
+                    style={{
+                        width: '44%',
+                        backgroundColor: theme.accent_color,
+                        opacity: isActive ? 0.95 : 0.82,
+                        clipPath: 'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)',
+                    }}
+                />
+
+                {/* Soft secondary glow where surface meets accent */}
+                <div
+                    className="absolute inset-y-0 pointer-events-none"
+                    style={{
+                        right: '34%',
+                        width: '20%',
+                        background: `linear-gradient(to right, transparent, ${theme.accent_color}20)`,
+                    }}
+                />
+
+                {/* Font label — top left */}
+                <div className="absolute top-3 left-4 z-10">
+                    <span
+                        className="text-[8px] font-mono uppercase tracking-[0.22em] opacity-45"
+                        style={{ color: theme.text_color }}
+                    >
                         {theme.font_family_display.split(' ')[0]}
                     </span>
-                    {isActive && (
-                        <motion.div
-                            layoutId="activeThemeBadge"
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                            style={{ backgroundColor: `${theme.accent_color}20`, border: `1px solid ${theme.accent_color}40` }}
-                        >
-                            <motion.span
-                                animate={{ opacity: [1, 0.3, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: theme.accent_color, boxShadow: `0 0 6px ${theme.accent_color}` }}
-                            />
-                            <span className="text-[8px] font-mono font-bold uppercase tracking-[0.3em]" style={{ color: theme.accent_color }}>
-                                On Display
-                            </span>
-                        </motion.div>
-                    )}
                 </div>
 
-                {/* Theme name */}
+                {/* Active indicator — checkmark circle on accent block */}
+                {isActive && (
+                    <motion.div
+                        layoutId="activeThemeBadge"
+                        className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full flex items-center justify-center"
+                        style={{
+                            backgroundColor: `${theme.bg_color}D0`,
+                            boxShadow: `0 0 0 1.5px ${theme.accent_color}70, 0 2px 8px ${theme.accent_color}30`,
+                        }}
+                    >
+                        <motion.div
+                            animate={{ opacity: [1, 0.45, 1] }}
+                            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                        >
+                            <Check className="w-3 h-3" style={{ color: theme.accent_color }} />
+                        </motion.div>
+                    </motion.div>
+                )}
+
+                {/* Bottom edge */}
+                <div
+                    className="absolute bottom-0 left-0 right-0 h-px"
+                    style={{ backgroundColor: `${theme.border_color}70` }}
+                />
+            </div>
+
+            {/* ── Identity + Palette (bottom 46%) ── */}
+            <div
+                className="flex-1 flex flex-col justify-between px-4 py-3.5"
+                style={{ backgroundColor: theme.bg_color }}
+            >
                 <h3
-                    className="text-4xl tracking-tight leading-[1.05] font-light"
+                    className="text-lg font-light tracking-tight leading-[1.1] line-clamp-1"
                     style={{ color: theme.text_color, fontFamily: `${theme.font_family_display}, serif` }}
                 >
                     {theme.name}
                 </h3>
 
-                {/* Watermark glyph */}
-                <div
-                    className="text-[8rem] opacity-[0.03] absolute -right-4 -top-8 pointer-events-none select-none font-bold leading-none"
-                    style={{ color: theme.text_color, fontFamily: `${theme.font_family_display}, serif` }}
-                    aria-hidden="true"
-                >
-                    Aa
-                </div>
-            </div>
+                <div className="flex items-center justify-between">
+                    {/* Palette spectrum dots */}
+                    <div className="flex items-center gap-1.5">
+                        {[theme.accent_color, theme.text_color, theme.secondary_text_color, theme.surface_color, theme.border_color].map((c, i) => (
+                            <div
+                                key={i}
+                                className="w-3 h-3 rounded-full"
+                                style={{
+                                    backgroundColor: c,
+                                    boxShadow: `0 0 0 1px ${theme.border_color}90`,
+                                }}
+                            />
+                        ))}
+                    </div>
 
-            {/* ── MIDDLE MOCKUP ── */}
-            <div className="relative flex-1 flex flex-col justify-center my-6 z-10">
-                <div
-                    className="w-full rounded-[1.5rem] overflow-hidden relative"
-                    style={{
-                        backgroundColor: theme.surface_color,
-                        border: `1px solid ${theme.border_color}`,
-                        boxShadow: isActive
-                            ? `0 8px 32px -8px ${theme.accent_color}30`
-                            : `0 4px 16px -4px ${theme.text_color}10`,
-                        height: '9.5rem'
-                    }}
-                >
-                    {/* Inner glow on active */}
-                    {isActive && (
-                        <div
-                            className="absolute inset-0 rounded-[1.5rem] pointer-events-none"
-                            style={{ boxShadow: `inset 0 0 24px ${theme.accent_color}18` }}
-                        />
+                    {/* Custom: edit / delete */}
+                    {isCustom && (
+                        <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <button
+                                onClick={(e) => onEdit(e, theme)}
+                                className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+                                style={{
+                                    color: theme.secondary_text_color,
+                                    backgroundColor: theme.surface_color,
+                                    border: `1px solid ${theme.border_color}`,
+                                }}
+                                aria-label="Edit theme"
+                            >
+                                <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                                onClick={(e) => onDelete(e, theme)}
+                                className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+                                style={{
+                                    color: '#ef4444',
+                                    backgroundColor: theme.surface_color,
+                                    border: `1px solid ${theme.border_color}`,
+                                }}
+                                aria-label="Delete theme"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
+                        </div>
                     )}
-
-                    {/* Mini header bar */}
-                    <div
-                        className="flex items-center gap-2 px-4 py-2.5"
-                        style={{ backgroundColor: `${theme.bg_color}CC`, borderBottom: `1px solid ${theme.border_color}` }}
-                    >
-                        <div className="w-4 h-4 rounded-full opacity-60" style={{ backgroundColor: theme.secondary_text_color }} />
-                        <div className="h-2 rounded-full flex-1 opacity-20" style={{ backgroundColor: theme.text_color, maxWidth: '60%' }} />
-                        <div className="h-3.5 w-10 rounded opacity-50" style={{ backgroundColor: theme.accent_color }} />
-                    </div>
-
-                    {/* Content area */}
-                    <div className="px-4 pt-3 space-y-2.5">
-                        <div className="h-3 rounded-full w-4/5 opacity-40" style={{ backgroundColor: theme.text_color }} />
-                        <div className="h-2 rounded-full w-full opacity-15" style={{ backgroundColor: theme.text_color }} />
-                        <div className="h-2 rounded-full w-3/4 opacity-12" style={{ backgroundColor: theme.text_color }} />
-                    </div>
-
-                    {/* Accent pill */}
-                    <div className="absolute bottom-3 left-4">
-                        <div className="h-5 w-16 rounded-full opacity-90" style={{ backgroundColor: theme.accent_color }} />
-                    </div>
                 </div>
             </div>
-
-            {/* ── BOTTOM ── */}
-            <div className="relative z-10 flex items-end justify-between">
-                {/* Palette dots */}
-                <div className="flex items-center gap-2">
-                    {[theme.bg_color, theme.surface_color, theme.border_color, theme.accent_color, theme.text_color].map((c, i) => (
-                        <div
-                            key={i}
-                            className="w-5 h-5 rounded-full border-2 shadow-sm"
-                            style={{
-                                backgroundColor: c,
-                                borderColor: `${theme.bg_color}80`,
-                                boxShadow: `0 2px 6px ${c}40`
-                            }}
-                        />
-                    ))}
-                </div>
-
-                {/* Custom actions */}
-                {isCustom && (
-                    <div className="flex gap-2 opacity-100 md:opacity-0 md:translate-x-3 group-hover:opacity-100 group-hover:translate-x-0 transition-[transform,opacity] duration-500">
-                        <button
-                            onClick={(e) => onEdit(e, theme)}
-                            className="w-11 h-11 rounded-full flex items-center justify-center border hover:scale-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm"
-                            style={{ color: theme.text_color, backgroundColor: `${theme.surface_color}E6`, borderColor: theme.border_color }}
-                        >
-                            <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={(e) => onDelete(e, theme)}
-                            className="w-11 h-11 rounded-full flex items-center justify-center border hover:scale-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] text-red-400 shadow-sm"
-                            style={{ backgroundColor: `${theme.surface_color}E6`, borderColor: theme.border_color }}
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Inner rim */}
-            <div className="absolute inset-0 rounded-[2.5rem] border border-white/5 pointer-events-none" />
         </motion.div>
     );
 }

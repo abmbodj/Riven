@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
@@ -51,10 +51,14 @@ export default function StudyMode() {
     const [elapsedMinutes, setElapsedMinutes] = useState(1);
     const [resumeAvailable, setResumeAvailable] = useState(false);
     const [didResumeSession, setDidResumeSession] = useState(false);
+    const cardShellRef = useRef(null);
     const cardInnerRef = useRef(null);
+    const cardFrontRef = useRef(null);
+    const cardBackRef = useRef(null);
     const progressBarRef = useRef(null);
     const flipTl = useRef(null);
     const navigationTimeoutRef = useRef(null);
+    const currentCard = cards[currentIndex] ?? null;
 
     const getFlipResetDelay = useCallback(() => {
         if (typeof window === 'undefined') return 0;
@@ -63,28 +67,98 @@ export default function StudyMode() {
             : DURATION.slow * 1000;
     }, []);
 
-    // Build GSAP card flip timeline
-    useEffect(() => {
-        if (!cardInnerRef.current) return;
+    // Build GSAP card flip timeline before paint so the next card never flashes un-flipped.
+    useLayoutEffect(() => {
+        if (
+            typeof window === 'undefined'
+            || !cardShellRef.current
+            || !cardInnerRef.current
+            || !cardFrontRef.current
+            || !cardBackRef.current
+        ) {
+            return;
+        }
+
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const cardShell = cardShellRef.current;
+        const cardInner = cardInnerRef.current;
+        const cardFront = cardFrontRef.current;
+        const cardBack = cardBackRef.current;
 
-        gsap.set(cardInnerRef.current, { rotateY: 0 });
-        if (motionQuery.matches) return;
+        gsap.set(cardShell, {
+            scale: 1,
+            y: 0,
+            rotateX: 0,
+            force3D: true,
+            transformOrigin: '50% 50%',
+            transformStyle: 'preserve-3d',
+            willChange: 'transform',
+        });
+        gsap.set(cardInner, {
+            rotateY: 0,
+            force3D: true,
+            transformOrigin: '50% 50%',
+            transformStyle: 'preserve-3d',
+            transformPerspective: 1600,
+            willChange: 'transform',
+        });
+        gsap.set([cardFront, cardBack], {
+            force3D: true,
+            transformOrigin: '50% 50%',
+            transformStyle: 'preserve-3d',
+            backfaceVisibility: 'hidden',
+            willChange: 'transform, opacity',
+        });
 
-        flipTl.current = gsap.timeline({ paused: true })
-            .to(cardInnerRef.current, {
+        flipTl.current?.kill();
+        flipTl.current = null;
+
+        if (motionQuery.matches) {
+            return undefined;
+        }
+
+        const tl = gsap.timeline({ paused: true });
+
+        tl.to(cardShell, {
+            scale: 0.985,
+            y: -6,
+            duration: DURATION.slow * 0.42,
+            ease: 'power1.out',
+        }, 0)
+            .to(cardInner, {
                 rotateY: 180,
                 duration: DURATION.slow,
-                ease: 'back.out(1.2)',
-            });
+                ease: 'power2.inOut',
+            }, 0)
+            .to(cardShell, {
+                scale: 1,
+                y: 0,
+                duration: DURATION.slow * 0.58,
+                ease: 'power2.out',
+            }, DURATION.slow * 0.42);
 
-        return () => { flipTl.current?.kill(); };
-    }, [cards, currentIndex]);
+        flipTl.current = tl;
+
+        return () => {
+            tl.kill();
+            if (flipTl.current === tl) {
+                flipTl.current = null;
+            }
+        };
+    }, [currentCard?.id]);
 
     // Play/reverse flip animation
-    useEffect(() => {
-        if (!cardInnerRef.current) return;
+    useLayoutEffect(() => {
+        if (typeof window === 'undefined' || !cardShellRef.current || !cardInnerRef.current) return;
+
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         if (!flipTl.current) {
+            gsap.set(cardShellRef.current, { scale: 1, y: 0 });
+            gsap.set(cardInnerRef.current, { rotateY: isFlipped ? 180 : 0 });
+            return;
+        }
+        if (motionQuery.matches) {
+            gsap.set(cardShellRef.current, { scale: 1, y: 0 });
             gsap.set(cardInnerRef.current, { rotateY: isFlipped ? 180 : 0 });
             return;
         }
@@ -406,7 +480,6 @@ export default function StudyMode() {
         </div>
     );
 
-    const currentCard = cards[currentIndex];
     const isLastCard = currentIndex === cards.length - 1;
     const showSessionComplete = isSessionComplete || (!spacedRepetitionMode && isLastCard && isFlipped);
 
@@ -584,21 +657,30 @@ export default function StudyMode() {
                 <div className="mx-auto grid h-full min-h-0 w-full max-w-6xl items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-center xl:gap-6">
                     <div className="flex min-h-0 items-center justify-center" {...swipeHandlers}>
                         <div
+                            ref={cardShellRef}
                             className="w-full max-w-sm aspect-[3/4] max-h-[min(34rem,calc(var(--app-height)-21rem))] cursor-pointer touch-none"
-                            style={{ perspective: '1200px', transform: 'translateZ(0)', willChange: 'transform' }}
+                            style={{
+                                perspective: '1600px',
+                                transform: 'translateZ(0)',
+                                transformStyle: 'preserve-3d',
+                                willChange: 'transform',
+                            }}
                             onClick={handleFlip}
                         >
                             <div
-                                key={currentCard.id}
                                 ref={cardInnerRef}
                                 className="relative w-full h-full"
-                                style={{ transformStyle: 'preserve-3d' }}
+                                style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
                             >
                                 {/* Front — warm surface with paper grain */}
                                 <div
+                                    ref={cardFrontRef}
                                     className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                     style={{
                                         backfaceVisibility: 'hidden',
+                                        WebkitBackfaceVisibility: 'hidden',
+                                        transform: 'translateZ(1px)',
+                                        willChange: 'transform, opacity',
                                         background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
                                         border: '1px solid var(--border-color)',
                                         boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
@@ -646,10 +728,13 @@ export default function StudyMode() {
 
                                 {/* Back — forest green with dramatic shadow */}
                                 <div
+                                    ref={cardBackRef}
                                     className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                     style={{
                                         backfaceVisibility: 'hidden',
-                                        transform: 'rotateY(180deg)',
+                                        WebkitBackfaceVisibility: 'hidden',
+                                        transform: 'rotateY(180deg) translateZ(1px)',
+                                        willChange: 'transform, opacity',
                                         background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
                                         border: '1px solid rgba(122,158,114,0.25)',
                                         boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
