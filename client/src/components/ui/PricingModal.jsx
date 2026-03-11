@@ -189,7 +189,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', damping: 24, stiffness: 220 }}
-                        className="relative flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,35,0.985),rgba(13,21,26,0.985))] shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-w-5xl md:rounded-[2rem]"
+                        className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,35,0.985),rgba(13,21,26,0.985))] shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.12),transparent_30%)]" />
@@ -198,9 +198,9 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             <div className="h-1.5 w-12 rounded-full bg-white/15" />
                         </div>
 
-                        <div className="relative flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-7">
+                        <div className="relative flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-4 pt-4 md:px-8 md:pb-6 md:pt-7">
                             <div className="min-w-0">
-                                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
                                     <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
                                     <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                         Premium access
@@ -210,7 +210,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 <div className="flex flex-wrap items-center gap-3">
                                     <h2
                                         id="pricing-modal-title"
-                                        className="font-display text-3xl font-bold italic tracking-tight text-botanical-parchment md:text-[3.2rem]"
+                                        className="font-display text-[2rem] font-bold italic tracking-tight text-botanical-parchment md:text-[3.2rem]"
                                     >
                                         Upgrade Riven
                                     </h2>
@@ -222,7 +222,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </div>
                                 </div>
 
-                                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/68 md:text-base">
+                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/68 md:mt-3 md:text-base">
                                     Bring the full Riven atmosphere into every study session: premium themes,
                                     unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
                                     experience.
@@ -240,8 +240,39 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         </div>
 
                         <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-                            <div className="flex-1 overflow-y-auto px-5 py-5 custom-scrollbar md:px-8 md:py-8">
-                                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar pb-44 md:px-8 md:py-8 md:pb-8">
+                                <div className="mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar md:hidden">
+                                    {PLANS.map((plan) => {
+                                        const styles = PLAN_STYLES[plan.id];
+                                        const isSelected = selectedPlan === plan.id;
+                                        const isDisabled =
+                                            currentTier === plan.id ||
+                                            (currentTier === 'lifetime' && plan.id === 'supporter');
+
+                                        return (
+                                            <button
+                                                key={`${plan.id}-pill`}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!isDisabled) {
+                                                        setSelectedPlan(plan.id);
+                                                        setError(null);
+                                                        setSuccess(null);
+                                                    }
+                                                }}
+                                                className={`tap-action shrink-0 rounded-full border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
+                                                    isSelected
+                                                        ? `${styles.badgeClass} shadow-[0_8px_20px_rgba(0,0,0,0.16)]`
+                                                        : 'border-white/10 bg-white/[0.04] text-claude-secondary'
+                                                } ${isDisabled ? 'opacity-50' : ''}`}
+                                            >
+                                                {plan.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="mb-5 hidden gap-3 sm:grid-cols-3 md:grid">
                                     {[
                                         ['Themes', 'Unlock all premium atmospheres'],
                                         ['AI', 'Unlimited generations and study support'],
@@ -255,6 +286,24 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 {label}
                                             </p>
                                             <p className="mt-2 text-sm leading-relaxed text-white/70">{text}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar md:hidden">
+                                    {[
+                                        ['Themes', 'All premium looks'],
+                                        ['AI', 'Unlimited help'],
+                                        ['Focus', 'No ad interruptions'],
+                                    ].map(([label, text]) => (
+                                        <div
+                                            key={label}
+                                            className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"
+                                        >
+                                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                {label}
+                                            </p>
+                                            <p className="mt-1 text-xs leading-relaxed text-white/70">{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -280,7 +329,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                         setSuccess(null);
                                                     }
                                                 }}
-                                                className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
+                                                className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
                                                     isSelected ? styles.activeCard : styles.card
                                                 } ${!isSelected && !isDisabled ? 'hover:-translate-y-1 hover:border-white/20' : ''} ${
                                                     isDisabled ? 'cursor-default opacity-55' : ''
@@ -290,28 +339,28 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div className="min-w-0">
-                                                        <div className="mb-4 flex items-center gap-3">
-                                                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${styles.iconWrap}`}>
+                                                        <div className="mb-3 flex items-center gap-3">
+                                                            <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${styles.iconWrap}`}>
                                                                 <Icon className="h-5 w-5" />
                                                             </div>
                                                             <div>
                                                                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                                     {plan.kicker}
                                                                 </p>
-                                                                <h3 className="mt-1 font-display text-2xl font-bold italic tracking-tight text-botanical-parchment">
+                                                                <h3 className="mt-1 font-display text-[1.7rem] font-bold italic tracking-tight text-botanical-parchment md:text-2xl">
                                                                     {plan.name}
                                                                 </h3>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-end gap-2">
-                                                            <span className="text-4xl font-bold tracking-tight text-botanical-parchment">
+                                                            <span className="text-[2rem] font-bold tracking-tight text-botanical-parchment md:text-4xl">
                                                                 {plan.price}
                                                             </span>
                                                             <span className="pb-1 text-sm text-white/58">{plan.period}</span>
                                                         </div>
 
-                                                        <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/66">
+                                                        <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/66">
                                                             {plan.summary}
                                                         </p>
                                                     </div>
@@ -335,7 +384,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                     </div>
                                                 </div>
 
-                                                <ul className="mt-6 space-y-3">
+                                                <ul className="mt-5 space-y-2.5">
                                                     {plan.features.map((feature) => (
                                                         <li key={feature} className="flex items-start gap-3 text-sm text-white/78">
                                                             <Check className={`mt-0.5 h-4 w-4 shrink-0 ${styles.check}`} />
@@ -361,7 +410,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 </div>
                             </div>
 
-                            <aside className="relative border-t border-white/8 bg-black/10 px-5 py-5 md:w-[22rem] md:border-l md:border-t-0 md:px-6 md:py-8">
+                            <aside className="relative hidden border-t border-white/8 bg-black/10 px-5 py-5 md:block md:w-[22rem] md:border-l md:border-t-0 md:px-6 md:py-8">
                                 <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
                                     <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">
                                         Selected plan
@@ -450,6 +499,76 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </p>
                                 </div>
                             </aside>
+                        </div>
+
+                        <div className="relative border-t border-white/10 bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
+                            <div className="mb-3 flex items-end justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                        Selected plan
+                                    </p>
+                                    <div className="mt-1 flex items-end gap-2">
+                                        <span className="truncate font-display text-2xl font-bold italic text-botanical-parchment">
+                                            {selectedPlanData.name}
+                                        </span>
+                                        <span className="pb-0.5 text-sm text-white/58">
+                                            {selectedPlanData.price}
+                                            {selectedPlanData.period}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                    {selectedPlan === 'lifetime' ? 'One-time' : 'Monthly'}
+                                </div>
+                            </div>
+
+                            {error ? (
+                                <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-200">
+                                    {error}
+                                </div>
+                            ) : null}
+
+                            {success ? (
+                                <div className="mb-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-200">
+                                    {success}
+                                </div>
+                            ) : null}
+
+                            <Motion.button
+                                type="button"
+                                whileTap={{ scale: 0.985 }}
+                                onClick={() => handlePurchase(selectedPlan)}
+                                disabled={
+                                    loading ||
+                                    currentTier === selectedPlan ||
+                                    (selectedPlan === 'supporter' && currentTier === 'lifetime')
+                                }
+                                className={`tap-action flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
+                            >
+                                {loading ? (
+                                    <span className="animate-spin text-lg leading-none">↻</span>
+                                ) : currentTier === selectedPlan ? (
+                                    'Current plan'
+                                ) : currentTier === 'lifetime' && selectedPlan === 'supporter' ? (
+                                    'Already included'
+                                ) : (
+                                    <>
+                                        Continue to checkout
+                                        <ArrowRight className="h-4 w-4" />
+                                    </>
+                                )}
+                            </Motion.button>
+
+                            <button
+                                type="button"
+                                onClick={handleRestore}
+                                disabled={restoring}
+                                className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-white/20 hover:text-botanical-parchment disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
+                                {restoring ? 'Checking Stripe' : 'Restore purchase'}
+                            </button>
                         </div>
                     </Motion.div>
                 </div>
