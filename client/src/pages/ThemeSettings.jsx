@@ -54,6 +54,195 @@ const ACCENT_PRESETS = [
 
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
+// Per-theme animated overlay rendered inside the color panel of ThemeCard / ActiveThemeHero
+function ThemeAnimationOverlay({ themeName, isHero = false }) {
+    const size = isHero ? 'large' : 'small';
+
+    if (themeName === 'Midnight Galaxy') {
+        const stars = isHero ? 18 : 8;
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {/* Aurora gradient */}
+                <div className="absolute inset-0 opacity-30" style={{
+                    background: 'linear-gradient(135deg, #b06aff, #4040ff, #6a00ff, #b06aff)',
+                    backgroundSize: '300% 300%',
+                    animation: 'aurora 6s ease infinite',
+                }} />
+                {/* Twinkle stars */}
+                {Array.from({ length: stars }).map((_, i) => (
+                    <div key={i} className="absolute rounded-full bg-white" style={{
+                        width: Math.random() * 2 + 1 + 'px',
+                        height: Math.random() * 2 + 1 + 'px',
+                        left: (Math.random() * 90 + 5) + '%',
+                        top: (Math.random() * 80 + 5) + '%',
+                        animation: `twinkle ${1.5 + Math.random() * 3}s ease-in-out infinite`,
+                        animationDelay: (Math.random() * 3) + 's',
+                    }} />
+                ))}
+            </div>
+        );
+    }
+
+    if (themeName === 'Ocean Depths') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 opacity-40" style={{
+                    background: 'linear-gradient(135deg, #00d4e8, #0080ff, #004080, #00d4e8)',
+                    backgroundSize: '300% 300%',
+                    animation: 'aurora 5s ease infinite',
+                }} />
+                {/* Bubble particles */}
+                {Array.from({ length: isHero ? 10 : 5 }).map((_, i) => (
+                    <motion.div key={i}
+                        className="absolute rounded-full border border-cyan-300/40"
+                        style={{
+                            width: (4 + i * 3) + 'px',
+                            height: (4 + i * 3) + 'px',
+                            left: (10 + i * 15) + '%',
+                            bottom: '-10px',
+                            backgroundColor: 'rgba(0,212,232,0.1)',
+                        }}
+                        animate={{ y: [0, -(isHero ? 120 : 60)], opacity: [0.6, 0] }}
+                        transition={{ duration: 2 + i * 0.4, repeat: Infinity, delay: i * 0.5, ease: 'easeOut' }}
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    if (themeName === 'Tech Innovation') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {/* Scanline */}
+                <div className="absolute left-0 right-0 h-px bg-cyan-400/30 blur-sm" style={{
+                    animation: 'scanline 3s linear infinite',
+                }} />
+                {/* Grid */}
+                <div className="absolute inset-0 opacity-10" style={{
+                    backgroundImage: 'linear-gradient(rgba(0,229,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.3) 1px, transparent 1px)',
+                    backgroundSize: isHero ? '24px 24px' : '12px 12px',
+                }} />
+                {/* Glow nodes */}
+                {Array.from({ length: isHero ? 6 : 3 }).map((_, i) => (
+                    <motion.div key={i}
+                        className="absolute rounded-full"
+                        style={{
+                            width: '4px', height: '4px',
+                            left: (15 + i * 16) + '%',
+                            top: (20 + (i % 3) * 25) + '%',
+                            backgroundColor: '#00e5ff',
+                            boxShadow: '0 0 8px #00e5ff',
+                        }}
+                        animate={{ opacity: [1, 0.2, 1] }}
+                        transition={{ duration: 1 + i * 0.3, repeat: Infinity, delay: i * 0.2 }}
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    if (themeName === 'Rose') {
+        const heartCount = isHero ? 12 : 6;
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {/* Pink aurora */}
+                <div className="absolute inset-0 opacity-35" style={{
+                    background: 'linear-gradient(135deg, #ff4da6, #c000ff, #ff0080, #ff4da6)',
+                    backgroundSize: '300% 300%',
+                    animation: 'aurora 4s ease infinite',
+                }} />
+                {/* Floating hearts */}
+                {Array.from({ length: heartCount }).map((_, i) => (
+                    <div key={i} className="absolute text-pink-300 select-none" style={{
+                        fontSize: (8 + (i % 3) * 6) + 'px',
+                        left: (5 + i * (90 / heartCount)) + '%',
+                        bottom: '-5%',
+                        opacity: 0.85,
+                        animation: `heartFloat ${2 + (i % 4) * 0.6}s ease-out infinite`,
+                        animationDelay: (i * 0.35) + 's',
+                    }}>♥</div>
+                ))}
+            </div>
+        );
+    }
+
+    if (themeName === 'Golden Hour') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 opacity-30" style={{
+                    background: 'linear-gradient(135deg, #f5a623, #ff6030, #fce8c0, #f5a623)',
+                    backgroundSize: '300% 300%',
+                    animation: 'gradientDrift 8s ease infinite',
+                }} />
+                {/* Shimmer */}
+                <div className="absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/20 to-transparent" style={{
+                    animation: 'shimmer 3s ease-in-out infinite',
+                }} />
+            </div>
+        );
+    }
+
+    if (themeName === 'Sunset Blvd') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 opacity-35" style={{
+                    background: 'linear-gradient(135deg, #ff6030, #ff0000, #c05000, #ff6030)',
+                    backgroundSize: '300% 300%',
+                    animation: 'gradientDrift 7s ease infinite',
+                }} />
+            </div>
+        );
+    }
+
+    if (themeName === 'Arctic Frost') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {/* Shimmer */}
+                <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent" style={{
+                    animation: 'shimmer 4s ease-in-out infinite',
+                }} />
+                {/* Ice crystal dots */}
+                {Array.from({ length: isHero ? 8 : 4 }).map((_, i) => (
+                    <div key={i} className="absolute text-blue-200/60 select-none text-xs" style={{
+                        left: (8 + i * (80 / (isHero ? 8 : 4))) + '%',
+                        top: (10 + (i % 3) * 25) + '%',
+                        animation: `twinkle ${2 + i * 0.4}s ease-in-out infinite`,
+                        animationDelay: i * 0.3 + 's',
+                    }}>❄</div>
+                ))}
+            </div>
+        );
+    }
+
+    if (themeName === 'Botanical Garden' || themeName === 'Forest Canopy') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 opacity-20" style={{
+                    background: themeName === 'Botanical Garden'
+                        ? 'radial-gradient(ellipse at 30% 60%, #5cdb7a 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, #7ab885 0%, transparent 50%)'
+                        : 'radial-gradient(ellipse at 30% 60%, #7dde82 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, #6aaa6e 0%, transparent 50%)',
+                    animation: 'colorBloom 5s ease-in-out infinite',
+                }} />
+            </div>
+        );
+    }
+
+    if (themeName === 'Desert Rose') {
+        return (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 opacity-25" style={{
+                    background: 'radial-gradient(ellipse at 40% 50%, #e8856a 0%, transparent 60%), radial-gradient(ellipse at 70% 20%, #c4896e 0%, transparent 50%)',
+                    animation: 'glowPulse 4s ease-in-out infinite',
+                }} />
+            </div>
+        );
+    }
+
+    if (size === 'small') return null; // No animation for other themes on small cards
+
+    return null;
+}
+
 export default function ThemeSettings() {
     const { themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme } = useTheme();
     const { user } = useAuth();
@@ -172,10 +361,11 @@ export default function ThemeSettings() {
     };
 
     // Filter themes into categories
+    const FOUNDATION_NAMES = ['Riven', 'Riven Light', 'Arctic Frost', 'Modern Minimal', 'Tech Innovation'];
     const categories = useMemo(() => {
         return {
-            official: themes.filter(t => t.is_default && (t.name === 'Riven' || t.name === 'Arctic Frost' || t.name === 'Modern Minimal' || t.name === 'Tech Innovation')),
-            professional: themes.filter(t => t.is_default && !(t.name === 'Riven' || t.name === 'Arctic Frost' || t.name === 'Modern Minimal' || t.name === 'Tech Innovation')),
+            official: themes.filter(t => t.is_default && FOUNDATION_NAMES.includes(t.name)),
+            professional: themes.filter(t => t.is_default && !FOUNDATION_NAMES.includes(t.name)),
             custom: themes.filter(t => !t.is_default)
         };
     }, [themes]);
@@ -532,6 +722,9 @@ function ActiveThemeHero({ theme }) {
             {/* Noise texture */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.2] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
 
+            {/* Per-theme animation overlay */}
+            <ThemeAnimationOverlay themeName={theme.name} isHero={true} />
+
             {/* Accent radial bloom */}
             <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full blur-3xl opacity-25 pointer-events-none" style={{ backgroundColor: theme.accent_color }} />
 
@@ -752,6 +945,9 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
                     className="absolute inset-0 opacity-[0.13] pointer-events-none"
                     style={{ backgroundImage: NOISE_SVG }}
                 />
+
+                {/* Per-theme animation overlay */}
+                <ThemeAnimationOverlay themeName={theme.name} isHero={false} />
 
                 {/* Diagonal accent block — the signature visual */}
                 <div
