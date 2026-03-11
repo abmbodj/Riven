@@ -190,7 +190,7 @@ describe('StudyMode', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('Resumed session')).toBeInTheDocument();
+    expect(screen.getAllByText('Resumed session').length).toBeGreaterThan(0);
     expect(screen.getByText('You are back where you left off.')).toBeInTheDocument();
     expect(screen.getByText('Study Focus')).toBeInTheDocument();
     expect(screen.getByText('Session Phase')).toBeInTheDocument();
@@ -198,6 +198,6 @@ describe('StudyMode', () => {
     expect(screen.getByText('Front 1')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /spaced repetition on/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /start fresh/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /start fresh/i }).length).toBeGreaterThan(0);
   });
 });

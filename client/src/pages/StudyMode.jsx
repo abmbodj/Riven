@@ -543,6 +543,32 @@ export default function StudyMode() {
                 ? 'Choose whether you knew the answer to train the next review.'
                 : 'Use the controls below to move on or flip back for another look.')
             : 'Read the prompt, then tap the card or press space to reveal the answer.';
+    const sessionStatusLabel = didResumeSession ? 'Resumed session' : 'Current session';
+    const compactSessionControls = (
+        <div className="flex w-full flex-wrap items-center justify-center gap-2 xl:hidden">
+            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.22em] text-white/55">
+                {sessionStatusLabel}
+            </span>
+            <button
+                onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
+                className={`flex items-center justify-center gap-2 rounded-full px-3 py-2 text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
+                    ? 'border border-claude-accent/25 bg-claude-accent/15 text-claude-accent'
+                    : 'glass-panel text-claude-secondary'
+                    }`}
+            >
+                <Brain className="w-3.5 h-3.5" />
+                Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
+            </button>
+            {resumeAvailable ? (
+                <button
+                    onClick={handleFreshStart}
+                    className="rounded-full border border-white/12 px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
+                >
+                    Start fresh
+                </button>
+            ) : null}
+        </div>
+    );
     const mobileGestureHint = !showSessionComplete ? (
         <div className="flex w-full items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
             <span>Swipe</span>
@@ -651,85 +677,6 @@ export default function StudyMode() {
                     >
                         <Shuffle className="w-5 h-5" />
                     </button>
-                </div>
-            </div>
-
-            <div className="px-4 pt-2 pb-2 shrink-0 sm:pb-3">
-                <div className="max-w-4xl mx-auto grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-                    <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="space-y-1.5">
-                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-botanical-sepia/80">
-                                    <span>{didResumeSession ? 'Resumed session' : 'Current session'}</span>
-                                    {deck?.title ? (
-                                        <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/55">
-                                            {deck.title}
-                                        </span>
-                                    ) : null}
-                                    <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/60">
-                                        {currentModeLabel}
-                                    </span>
-                                </div>
-                                <p className="font-display text-lg font-semibold text-white">
-                                    {didResumeSession ? 'You are back where you left off.' : 'Stay in flow and work the next card.'}
-                                </p>
-                                <p className="text-sm text-white/68">
-                                    {currentModeDescription}
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72 sm:min-w-[290px]">
-                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Studied</div>
-                                    <div className="mt-1 text-sm text-white">{cardsStudied}</div>
-                                </div>
-                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Correct</div>
-                                    <div className="mt-1 text-sm text-white">{cardsCorrect}</div>
-                                </div>
-                                <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                    <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Minutes</div>
-                                    <div className="mt-1 text-sm text-white">{elapsedMinutes}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {resumeAvailable ? (
-                            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-xs text-white/58">
-                                    Resume is saved on this device until the session finishes.
-                                </p>
-                                <button
-                                    onClick={handleFreshStart}
-                                    className="rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
-                                >
-                                    Start fresh
-                                </button>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-center gap-2 xl:hidden lg:flex-col lg:items-stretch lg:justify-start">
-                        <button
-                            onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
-                            className={`flex items-center justify-center gap-2 rounded-full px-3 py-2 text-[11px] font-mono tracking-wide transition-colors active:scale-95 ${spacedRepetitionMode
-                                ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/25'
-                                : 'glass-panel text-claude-secondary'
-                                }`}
-                        >
-                            <Brain className="w-3.5 h-3.5" />
-                            Spaced Repetition {spacedRepetitionMode ? 'ON' : 'OFF'}
-                        </button>
-
-                        <div className="hidden rounded-[22px] border border-white/10 bg-black/15 px-3 py-2 md:block">
-                            <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/40">Desktop controls</div>
-                            <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-mono text-claude-secondary">
-                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">←</kbd> Previous</span>
-                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">Space</kbd> Flip</span>
-                                <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 glass-panel rounded text-[10px]">→</kbd> Next</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -856,6 +803,7 @@ export default function StudyMode() {
                                     </div>
                                 </div>
                             </div>
+                            {compactSessionControls}
                             {mobileGestureHint}
                             {actionPanel}
                         </div>
@@ -864,12 +812,21 @@ export default function StudyMode() {
                     <aside className="hidden xl:block">
                         <div className="sticky top-6 space-y-4">
                             <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(18,38,44,0.96),rgba(27,49,56,0.92))] px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia/70">
+                                    <span>{sessionStatusLabel}</span>
+                                    <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/55">
+                                        {currentModeLabel}
+                                    </span>
+                                </div>
                                 <div className="text-[10px] font-mono uppercase tracking-[0.26em] text-botanical-sepia/70">Study Focus</div>
                                 <p className="mt-3 font-display text-2xl font-semibold text-white">
                                     {deck?.title || 'Current deck'}
                                 </p>
                                 <p className="mt-2 text-sm text-white/65">
                                     {deck?.description || 'Work the current card, keep momentum, and finish the session without losing context.'}
+                                </p>
+                                <p className="mt-3 text-sm text-white/58">
+                                    {didResumeSession ? 'You are back where you left off.' : currentModeDescription}
                                 </p>
 
                                 <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] font-mono text-white/72">
@@ -882,6 +839,35 @@ export default function StudyMode() {
                                         <div className="mt-1 text-lg text-white">{accuracyRate}%</div>
                                     </div>
                                 </div>
+
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72">
+                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Studied</div>
+                                        <div className="mt-1 text-sm text-white">{cardsStudied}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Correct</div>
+                                        <div className="mt-1 text-sm text-white">{cardsCorrect}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Minutes</div>
+                                        <div className="mt-1 text-sm text-white">{elapsedMinutes}</div>
+                                    </div>
+                                </div>
+
+                                {resumeAvailable ? (
+                                    <div className="mt-4 border-t border-white/10 pt-4">
+                                        <p className="text-xs text-white/58">
+                                            Resume is saved on this device until the session finishes.
+                                        </p>
+                                        <button
+                                            onClick={handleFreshStart}
+                                            className="mt-3 w-full rounded-full border border-white/12 px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
+                                        >
+                                            Start fresh
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
 
                             <div className="rounded-[22px] border border-white/10 bg-black/15 px-4 py-4">
