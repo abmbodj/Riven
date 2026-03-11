@@ -591,56 +591,64 @@
 
 /* ─── Pro Theme Animations ───────────────────────────────────────────────────── */
 
-/* Aurora / color-shift used by Midnight Galaxy, Ocean Depths, Tech Innovation */
-@keyframes aurora {
+/* Aurora — color-shift gradient: Midnight Galaxy, Ocean Depths, Rose */
+@keyframes themeAurora {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Shimmer sweep used by Arctic Frost, Modern Minimal, Golden Hour */
-@keyframes shimmer {
-  0%   { transform: translateX(-100%) skewX(-15deg); }
-  100% { transform: translateX(250%) skewX(-15deg); }
+/* Shimmer — light sweep: Arctic Frost, Golden Hour, Desert Rose, Void */
+@keyframes themeShimmer {
+  0%   { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(280%) skewX(-12deg); }
 }
 
-/* Floating glow pulse used by multiple dark themes */
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.18; transform: scale(1); }
-  50%       { opacity: 0.38; transform: scale(1.15); }
+/* Glow pulse — radial breathe: multiple dark themes */
+@keyframes themeGlowPulse {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(1.12); }
 }
 
-/* Slow color bloom used by Botanical Garden, Forest Canopy */
-@keyframes colorBloom {
-  0%, 100% { opacity: 0.15; filter: blur(24px); }
-  50%       { opacity: 0.30; filter: blur(16px); }
+/* Color bloom — soft filter pulse: Botanical Garden, Forest Canopy */
+@keyframes themeColorBloom {
+  0%, 100% { opacity: 0.15; filter: blur(20px); }
+  50%       { opacity: 0.28; filter: blur(12px); }
 }
 
-/* Heart float used by Gamer Girl */
-@keyframes heartFloat {
+/* Heart float — Rose theme */
+@keyframes themeHeartFloat {
   0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.9; }
-  50%  { transform: translateY(-40px) scale(1.1) rotate(8deg); opacity: 0.6; }
-  100% { transform: translateY(-90px) scale(0.7) rotate(-6deg); opacity: 0; }
+  40%  { transform: translateY(-30px) scale(1.08) rotate(10deg); opacity: 0.65; }
+  100% { transform: translateY(-80px) scale(0.65) rotate(-8deg); opacity: 0; }
 }
 
-/* Twinkle used by Midnight Galaxy */
-@keyframes twinkle {
-  0%, 100% { opacity: 0; transform: scale(0.6); }
+/* Twinkle — stars and snowflakes */
+@keyframes themeTwinkle {
+  0%, 100% { opacity: 0.05; transform: scale(0.5); }
   50%       { opacity: 1; transform: scale(1); }
 }
 
-/* Soft gradient drift used by Sunset Blvd, Desert Rose */
-@keyframes gradientDrift {
+/* Gradient drift — slow position shift: Golden Hour, Sunset Blvd */
+@keyframes themeGradientDrift {
   0%   { background-position: 0% 0%; }
   33%  { background-position: 100% 50%; }
   66%  { background-position: 50% 100%; }
   100% { background-position: 0% 0%; }
 }
 
-/* Scanline flicker used by Tech Innovation */
-@keyframes scanline {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+/* Scanline — CRT sweep: Tech Innovation */
+@keyframes themeScanline {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* Caustic — underwater light ripple: Ocean Depths */
+@keyframes themeCaustic {
+  0%, 100% { opacity: 0.3; transform: skewX(0deg); }
+  50%       { opacity: 0.5; transform: skewX(2deg); }
 }
 
 /* Message entrance animation for virtualized chat */

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { Check, Plus, X, Trash2, Edit3, Sun, Moon, Sparkles } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
@@ -7,8 +7,10 @@ import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
+import gsap from 'gsap';
 
-// Default theme presets for the editor
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const DEFAULT_DARK = {
     name: 'Custom Dark',
     bg_color: '#1a1a18',
@@ -33,14 +35,12 @@ const DEFAULT_LIGHT = {
     font_family_body: 'Lora'
 };
 
-// Typography presets
 const FONT_PRESETS = [
     { name: 'Editorial Serif', display: 'Cormorant Garamond', body: 'Lora' },
     { name: 'Refined Sans', display: 'Inter', body: 'Inter' },
     { name: 'Industrial Mono', display: 'JetBrains Mono', body: 'JetBrains Mono' }
 ];
 
-// Color preset palettes for simple mode
 const ACCENT_PRESETS = [
     { name: 'Coral', color: '#d97757' },
     { name: 'Blue', color: '#3b82f6' },
@@ -52,196 +52,373 @@ const ACCENT_PRESETS = [
     { name: 'Red', color: '#ef4444' },
 ];
 
+const FOUNDATION_NAMES = ['Riven', 'Riven Light', 'Arctic Frost', 'Modern Minimal', 'Tech Innovation'];
+
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
-// Per-theme animated overlay rendered inside the color panel of ThemeCard / ActiveThemeHero
-function ThemeAnimationOverlay({ themeName, isHero = false }) {
-    const size = isHero ? 'large' : 'small';
-
-    if (themeName === 'Midnight Galaxy') {
-        const stars = isHero ? 18 : 8;
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Aurora gradient */}
-                <div className="absolute inset-0 opacity-30" style={{
-                    background: 'linear-gradient(135deg, #b06aff, #4040ff, #6a00ff, #b06aff)',
-                    backgroundSize: '300% 300%',
-                    animation: 'aurora 6s ease infinite',
-                }} />
-                {/* Twinkle stars */}
-                {Array.from({ length: stars }).map((_, i) => (
-                    <div key={i} className="absolute rounded-full bg-white" style={{
-                        width: Math.random() * 2 + 1 + 'px',
-                        height: Math.random() * 2 + 1 + 'px',
-                        left: (Math.random() * 90 + 5) + '%',
-                        top: (Math.random() * 80 + 5) + '%',
-                        animation: `twinkle ${1.5 + Math.random() * 3}s ease-in-out infinite`,
-                        animationDelay: (Math.random() * 3) + 's',
-                    }} />
-                ))}
-            </div>
-        );
-    }
-
-    if (themeName === 'Ocean Depths') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 opacity-40" style={{
-                    background: 'linear-gradient(135deg, #00d4e8, #0080ff, #004080, #00d4e8)',
-                    backgroundSize: '300% 300%',
-                    animation: 'aurora 5s ease infinite',
-                }} />
-                {/* Bubble particles */}
-                {Array.from({ length: isHero ? 10 : 5 }).map((_, i) => (
-                    <motion.div key={i}
-                        className="absolute rounded-full border border-cyan-300/40"
-                        style={{
-                            width: (4 + i * 3) + 'px',
-                            height: (4 + i * 3) + 'px',
-                            left: (10 + i * 15) + '%',
-                            bottom: '-10px',
-                            backgroundColor: 'rgba(0,212,232,0.1)',
-                        }}
-                        animate={{ y: [0, -(isHero ? 120 : 60)], opacity: [0.6, 0] }}
-                        transition={{ duration: 2 + i * 0.4, repeat: Infinity, delay: i * 0.5, ease: 'easeOut' }}
-                    />
-                ))}
-            </div>
-        );
-    }
-
-    if (themeName === 'Tech Innovation') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Scanline */}
-                <div className="absolute left-0 right-0 h-px bg-cyan-400/30 blur-sm" style={{
-                    animation: 'scanline 3s linear infinite',
-                }} />
-                {/* Grid */}
-                <div className="absolute inset-0 opacity-10" style={{
-                    backgroundImage: 'linear-gradient(rgba(0,229,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.3) 1px, transparent 1px)',
-                    backgroundSize: isHero ? '24px 24px' : '12px 12px',
-                }} />
-                {/* Glow nodes */}
-                {Array.from({ length: isHero ? 6 : 3 }).map((_, i) => (
-                    <motion.div key={i}
-                        className="absolute rounded-full"
-                        style={{
-                            width: '4px', height: '4px',
-                            left: (15 + i * 16) + '%',
-                            top: (20 + (i % 3) * 25) + '%',
-                            backgroundColor: '#00e5ff',
-                            boxShadow: '0 0 8px #00e5ff',
-                        }}
-                        animate={{ opacity: [1, 0.2, 1] }}
-                        transition={{ duration: 1 + i * 0.3, repeat: Infinity, delay: i * 0.2 }}
-                    />
-                ))}
-            </div>
-        );
-    }
-
-    if (themeName === 'Rose') {
-        const heartCount = isHero ? 12 : 6;
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Pink aurora */}
-                <div className="absolute inset-0 opacity-35" style={{
-                    background: 'linear-gradient(135deg, #ff4da6, #c000ff, #ff0080, #ff4da6)',
-                    backgroundSize: '300% 300%',
-                    animation: 'aurora 4s ease infinite',
-                }} />
-                {/* Floating hearts */}
-                {Array.from({ length: heartCount }).map((_, i) => (
-                    <div key={i} className="absolute text-pink-300 select-none" style={{
-                        fontSize: (8 + (i % 3) * 6) + 'px',
-                        left: (5 + i * (90 / heartCount)) + '%',
-                        bottom: '-5%',
-                        opacity: 0.85,
-                        animation: `heartFloat ${2 + (i % 4) * 0.6}s ease-out infinite`,
-                        animationDelay: (i * 0.35) + 's',
-                    }}>♥</div>
-                ))}
-            </div>
-        );
-    }
-
-    if (themeName === 'Golden Hour') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 opacity-30" style={{
-                    background: 'linear-gradient(135deg, #f5a623, #ff6030, #fce8c0, #f5a623)',
-                    backgroundSize: '300% 300%',
-                    animation: 'gradientDrift 8s ease infinite',
-                }} />
-                {/* Shimmer */}
-                <div className="absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/20 to-transparent" style={{
-                    animation: 'shimmer 3s ease-in-out infinite',
-                }} />
-            </div>
-        );
-    }
-
-    if (themeName === 'Sunset Blvd') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 opacity-35" style={{
-                    background: 'linear-gradient(135deg, #ff6030, #ff0000, #c05000, #ff6030)',
-                    backgroundSize: '300% 300%',
-                    animation: 'gradientDrift 7s ease infinite',
-                }} />
-            </div>
-        );
-    }
-
-    if (themeName === 'Arctic Frost') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Shimmer */}
-                <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent" style={{
-                    animation: 'shimmer 4s ease-in-out infinite',
-                }} />
-                {/* Ice crystal dots */}
-                {Array.from({ length: isHero ? 8 : 4 }).map((_, i) => (
-                    <div key={i} className="absolute text-blue-200/60 select-none text-xs" style={{
-                        left: (8 + i * (80 / (isHero ? 8 : 4))) + '%',
-                        top: (10 + (i % 3) * 25) + '%',
-                        animation: `twinkle ${2 + i * 0.4}s ease-in-out infinite`,
-                        animationDelay: i * 0.3 + 's',
-                    }}>❄</div>
-                ))}
-            </div>
-        );
-    }
-
-    if (themeName === 'Botanical Garden' || themeName === 'Forest Canopy') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 opacity-20" style={{
-                    background: themeName === 'Botanical Garden'
-                        ? 'radial-gradient(ellipse at 30% 60%, #5cdb7a 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, #7ab885 0%, transparent 50%)'
-                        : 'radial-gradient(ellipse at 30% 60%, #7dde82 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, #6aaa6e 0%, transparent 50%)',
-                    animation: 'colorBloom 5s ease-in-out infinite',
-                }} />
-            </div>
-        );
-    }
-
-    if (themeName === 'Desert Rose') {
-        return (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 opacity-25" style={{
-                    background: 'radial-gradient(ellipse at 40% 50%, #e8856a 0%, transparent 60%), radial-gradient(ellipse at 70% 20%, #c4896e 0%, transparent 50%)',
-                    animation: 'glowPulse 4s ease-in-out infinite',
-                }} />
-            </div>
-        );
-    }
-
-    if (size === 'small') return null; // No animation for other themes on small cards
-
-    return null;
+// Deterministic pseudo-random from a seed (no Math.random() in render)
+function seededRandom(seed) {
+    let s = seed;
+    return () => {
+        s = (s * 1664525 + 1013904223) & 0xffffffff;
+        return (s >>> 0) / 4294967296;
+    };
 }
+
+// ─── Theme Archetypes ─────────────────────────────────────────────────────────
+// Maps theme name → visual archetype for card rendering
+const THEME_ARCHETYPES = {
+    'Midnight Galaxy': 'cosmos',
+    'Ocean Depths': 'depths',
+    'Tech Innovation': 'cyber',
+    'Rose': 'bloom',
+    'Golden Hour': 'warmlight',
+    'Sunset Blvd': 'ember',
+    'Arctic Frost': 'crystal',
+    'Botanical Garden': 'verdant',
+    'Forest Canopy': 'verdant',
+    'Desert Rose': 'dusk',
+    'Modern Minimal': 'void',
+    'Riven': 'default',
+    'Riven Light': 'default',
+};
+
+// ─── Stable Particle Seeds ────────────────────────────────────────────────────
+// Pre-generate stable positions per archetype so renders are deterministic
+function generateParticles(seed, count, bounds = { x: [5, 95], y: [5, 90] }) {
+    const rand = seededRandom(seed);
+    return Array.from({ length: count }, (_, i) => ({
+        id: i,
+        x: bounds.x[0] + rand() * (bounds.x[1] - bounds.x[0]),
+        y: bounds.y[0] + rand() * (bounds.y[1] - bounds.y[0]),
+        size: 0.8 + rand() * 1.8,
+        delay: rand() * 3,
+        duration: 1.5 + rand() * 2.5,
+        opacity: 0.4 + rand() * 0.6,
+    }));
+}
+
+const STAR_PARTICLES = generateParticles(7919, 24);   // Midnight Galaxy hero
+const STAR_PARTICLES_SM = generateParticles(7919, 10); // Midnight Galaxy card
+const HEART_PARTICLES = generateParticles(1337, 10);   // Rose hero
+const HEART_PARTICLES_SM = generateParticles(1337, 6); // Rose card
+const SNOW_PARTICLES = generateParticles(2357, 8);     // Arctic Frost
+const BUBBLE_PARTICLES = generateParticles(5051, 8);   // Ocean Depths hero
+const BUBBLE_PARTICLES_SM = generateParticles(5051, 5);// Ocean Depths card
+const CYBER_NODES = generateParticles(9001, 6, { x: [10, 90], y: [15, 85] });
+
+// ─── Per-Theme Animation Overlays ─────────────────────────────────────────────
+
+function OverlayCosmos({ isHero }) {
+    const stars = isHero ? STAR_PARTICLES : STAR_PARTICLES_SM;
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Deep aurora gradient */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(135deg, #2a0845 0%, #0a0020 40%, #1a0060 70%, #2a0845 100%)',
+                backgroundSize: '300% 300%',
+                animation: 'themeAurora 8s ease infinite',
+                opacity: 0.7,
+            }} />
+            {/* Purple nebula bloom */}
+            <div className="absolute" style={{
+                width: '70%', height: '70%',
+                top: '-10%', right: '-10%',
+                background: 'radial-gradient(ellipse, #7c3aed40 0%, transparent 70%)',
+                animation: 'themeGlowPulse 5s ease-in-out infinite',
+            }} />
+            {/* Stars */}
+            {stars.map(s => (
+                <div key={s.id} className="absolute rounded-full bg-white" style={{
+                    width: s.size + 'px',
+                    height: s.size + 'px',
+                    left: s.x + '%',
+                    top: s.y + '%',
+                    animationDelay: s.delay + 's',
+                    animationDuration: s.duration + 's',
+                    animation: `themeTwinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
+                    opacity: s.opacity,
+                }} />
+            ))}
+        </div>
+    );
+}
+
+function OverlayDepths({ isHero }) {
+    const bubbles = isHero ? BUBBLE_PARTICLES : BUBBLE_PARTICLES_SM;
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Deep bioluminescent gradient */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(180deg, #000814 0%, #001a2e 50%, #00355a 100%)',
+                opacity: 0.6,
+            }} />
+            {/* Caustic light rays */}
+            <div className="absolute inset-0" style={{
+                background: 'repeating-linear-gradient(105deg, transparent 0%, #00d4e812 8%, transparent 16%)',
+                animation: 'themeCaustic 6s ease-in-out infinite',
+                opacity: 0.4,
+            }} />
+            {/* Rising bubbles */}
+            {bubbles.map(b => (
+                <motion.div key={b.id}
+                    className="absolute rounded-full"
+                    style={{
+                        width: (3 + b.size * 2) + 'px',
+                        height: (3 + b.size * 2) + 'px',
+                        left: b.x + '%',
+                        bottom: '-8%',
+                        border: '1px solid rgba(0,212,232,0.35)',
+                        backgroundColor: 'rgba(0,212,232,0.06)',
+                    }}
+                    animate={{ y: [0, isHero ? -180 : -90], opacity: [0.7, 0] }}
+                    transition={{ duration: 3 + b.duration, repeat: Infinity, delay: b.delay * 0.6, ease: 'easeOut' }}
+                />
+            ))}
+        </div>
+    );
+}
+
+function OverlayCyber({ isHero }) {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* CRT grid */}
+            <div className="absolute inset-0" style={{
+                backgroundImage: 'linear-gradient(rgba(0,229,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.08) 1px, transparent 1px)',
+                backgroundSize: isHero ? '20px 20px' : '10px 10px',
+            }} />
+            {/* Scanline sweep */}
+            <div className="absolute left-0 right-0" style={{
+                height: '2px',
+                background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.6), transparent)',
+                animation: 'themeScanline 2.5s linear infinite',
+                boxShadow: '0 0 8px rgba(0,229,255,0.8)',
+            }} />
+            {/* Data nodes */}
+            {CYBER_NODES.map(n => (
+                <motion.div key={n.id}
+                    className="absolute"
+                    style={{
+                        width: '3px', height: '3px',
+                        left: n.x + '%',
+                        top: n.y + '%',
+                        backgroundColor: '#00e5ff',
+                        boxShadow: '0 0 6px #00e5ff, 0 0 12px #00e5ff40',
+                        borderRadius: '50%',
+                    }}
+                    animate={{ opacity: [1, 0.1, 1], scale: [1, 1.5, 1] }}
+                    transition={{ duration: 1.2 + n.delay * 0.3, repeat: Infinity, delay: n.delay * 0.2 }}
+                />
+            ))}
+            {/* Corner brackets */}
+            {isHero && (<>
+                <div className="absolute top-3 left-3 w-4 h-4 border-t border-l border-cyan-400/50" />
+                <div className="absolute top-3 right-3 w-4 h-4 border-t border-r border-cyan-400/50" />
+                <div className="absolute bottom-3 left-3 w-4 h-4 border-b border-l border-cyan-400/50" />
+                <div className="absolute bottom-3 right-3 w-4 h-4 border-b border-r border-cyan-400/50" />
+            </>)}
+        </div>
+    );
+}
+
+function OverlayBloom({ isHero }) {
+    const hearts = isHero ? HEART_PARTICLES : HEART_PARTICLES_SM;
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Hot pink aurora */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(135deg, #3d0050 0%, #1a0020 35%, #4a0060 65%, #1a0020 100%)',
+                backgroundSize: '400% 400%',
+                animation: 'themeAurora 5s ease infinite',
+                opacity: 0.65,
+            }} />
+            {/* Magenta bloom */}
+            <div className="absolute" style={{
+                width: '60%', height: '60%',
+                top: '-5%', left: '20%',
+                background: 'radial-gradient(ellipse, #ff4da640 0%, transparent 70%)',
+                animation: 'themeGlowPulse 3.5s ease-in-out infinite',
+            }} />
+            {/* Floating hearts */}
+            {hearts.map(h => (
+                <div key={h.id} className="absolute select-none" style={{
+                    fontSize: (isHero ? 10 : 7) + h.size * 2 + 'px',
+                    left: h.x + '%',
+                    bottom: '-5%',
+                    color: `hsl(${320 + h.id * 15}deg 100% 75%)`,
+                    animation: `themeHeartFloat ${2 + h.duration * 0.4}s ${h.delay * 0.5}s ease-out infinite`,
+                    lineHeight: 1,
+                }}>♥</div>
+            ))}
+        </div>
+    );
+}
+
+function OverlayWarmlight({ isHero }) {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Warm gradient sweep */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(135deg, #3d1a00 0%, #1a0800 40%, #2d1000 70%, #3d1a00 100%)',
+                backgroundSize: '300% 300%',
+                animation: 'themeGradientDrift 10s ease infinite',
+                opacity: 0.6,
+            }} />
+            {/* Sun bloom */}
+            <div className="absolute" style={{
+                width: '80%', height: '80%',
+                bottom: '-20%', right: '-20%',
+                background: 'radial-gradient(ellipse, #f5a62330 0%, transparent 65%)',
+                animation: 'themeGlowPulse 6s ease-in-out infinite',
+            }} />
+            {/* Gold shimmer */}
+            <div className="absolute inset-y-0 w-1/3" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(245,166,35,0.15), transparent)',
+                animation: 'themeShimmer 4s ease-in-out infinite',
+            }} />
+            {/* Dust motes */}
+            {isHero && generateParticles(4242, 8).map(p => (
+                <motion.div key={p.id}
+                    className="absolute rounded-full"
+                    style={{
+                        width: p.size + 'px', height: p.size + 'px',
+                        left: p.x + '%',
+                        top: p.y + '%',
+                        backgroundColor: '#f5a623',
+                        opacity: 0,
+                    }}
+                    animate={{ opacity: [0, p.opacity * 0.4, 0], y: [0, -20] }}
+                    transition={{ duration: p.duration * 1.5, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
+                />
+            ))}
+        </div>
+    );
+}
+
+function OverlayEmber() {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(160deg, #3d0800 0%, #1a0500 45%, #2d0a00 100%)',
+                backgroundSize: '300% 300%',
+                animation: 'themeGradientDrift 8s ease infinite',
+                opacity: 0.65,
+            }} />
+            {/* Ember glow */}
+            <div className="absolute" style={{
+                width: '90%', height: '60%',
+                bottom: '-10%', left: '-5%',
+                background: 'radial-gradient(ellipse, #ff603020 0%, transparent 70%)',
+                animation: 'themeGlowPulse 4s ease-in-out infinite',
+            }} />
+            {/* Heat shimmer */}
+            <div className="absolute inset-y-0 w-1/4" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(255,96,48,0.12), transparent)',
+                animation: 'themeShimmer 5s ease-in-out infinite',
+            }} />
+        </div>
+    );
+}
+
+function OverlayCrystal({ isHero }) {
+    const snow = isHero ? SNOW_PARTICLES : SNOW_PARTICLES.slice(0, 4);
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Ice surface */}
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(160deg, #ffffff 0%, #d0e8f8 40%, #b8d4f0 100%)',
+                opacity: 0.3,
+            }} />
+            {/* Shimmer */}
+            <div className="absolute inset-y-0 w-2/5" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+                animation: 'themeShimmer 5s ease-in-out infinite',
+            }} />
+            {/* Snowflakes */}
+            {snow.map(s => (
+                <div key={s.id} className="absolute select-none" style={{
+                    fontSize: (isHero ? 10 : 8) + s.size + 'px',
+                    left: s.x + '%',
+                    top: s.y + '%',
+                    color: `rgba(0,128,255,${0.25 + s.opacity * 0.35})`,
+                    animation: `themeTwinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
+                }}>❄</div>
+            ))}
+        </div>
+    );
+}
+
+function OverlayVerdant({ themeName, isHero }) {
+    const accent = themeName === 'Botanical Garden' ? '#5cdb7a' : '#7dde82';
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Deep canopy gradient */}
+            <div className="absolute inset-0" style={{
+                background: `radial-gradient(ellipse at 25% 70%, ${accent}28 0%, transparent 55%), radial-gradient(ellipse at 75% 25%, ${accent}18 0%, transparent 50%)`,
+                animation: 'themeColorBloom 6s ease-in-out infinite',
+            }} />
+            {/* Dappled light */}
+            {isHero && generateParticles(8888, 6).map(p => (
+                <div key={p.id} className="absolute rounded-full" style={{
+                    width: (8 + p.size * 10) + 'px',
+                    height: (8 + p.size * 10) + 'px',
+                    left: p.x + '%',
+                    top: p.y + '%',
+                    background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)`,
+                    animation: `themeGlowPulse ${3 + p.duration}s ${p.delay}s ease-in-out infinite`,
+                }} />
+            ))}
+        </div>
+    );
+}
+
+function OverlayDusk() {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0" style={{
+                background: 'radial-gradient(ellipse at 45% 55%, #e8856a28 0%, transparent 60%), radial-gradient(ellipse at 72% 22%, #c4896e20 0%, transparent 50%)',
+                animation: 'themeGlowPulse 5s ease-in-out infinite',
+            }} />
+            {/* Silk shimmer */}
+            <div className="absolute inset-y-0 w-1/3" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(232,133,106,0.1), transparent)',
+                animation: 'themeShimmer 6s 1s ease-in-out infinite',
+            }} />
+        </div>
+    );
+}
+
+function OverlayVoid() {
+    // Modern Minimal: clean, pure — the animation IS the absence. A single barely-visible shimmer.
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 w-1/2" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.025), transparent)',
+                animation: 'themeShimmer 7s 2s ease-in-out infinite',
+            }} />
+        </div>
+    );
+}
+
+// Master dispatcher
+function ThemeAnimationOverlay({ themeName, isHero = false }) {
+    const archetype = THEME_ARCHETYPES[themeName] || 'default';
+    switch (archetype) {
+        case 'cosmos':   return <OverlayCosmos isHero={isHero} />;
+        case 'depths':   return <OverlayDepths isHero={isHero} />;
+        case 'cyber':    return <OverlayCyber isHero={isHero} />;
+        case 'bloom':    return <OverlayBloom isHero={isHero} />;
+        case 'warmlight': return <OverlayWarmlight isHero={isHero} />;
+        case 'ember':    return <OverlayEmber />;
+        case 'crystal':  return <OverlayCrystal isHero={isHero} />;
+        case 'verdant':  return <OverlayVerdant themeName={themeName} isHero={isHero} />;
+        case 'dusk':     return <OverlayDusk />;
+        case 'void':     return <OverlayVoid />;
+        default:         return null;
+    }
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ThemeSettings() {
     const { themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme } = useTheme();
@@ -255,12 +432,10 @@ export default function ThemeSettings() {
     const [editorMode, setEditorMode] = useState('simple');
     const [pricingOpen, setPricingOpen] = useState(false);
     const [carouselIndices, setCarouselIndices] = useState({ official: 0, professional: 0, custom: 0 });
-
     const [themeForm, setThemeForm] = useState({ ...DEFAULT_DARK, name: '' });
 
     const handleSwitchTheme = async (themeId, isPro) => {
         if (activeTheme?.id === themeId) return;
-
         if (isPro) {
             const tier = user?.subscription_tier || 'free';
             if (tier === 'free') {
@@ -269,7 +444,6 @@ export default function ThemeSettings() {
                 return;
             }
         }
-
         haptics.light();
         await switchTheme(themeId);
         toast.success('Theme applied');
@@ -328,7 +502,6 @@ export default function ThemeSettings() {
             toast.error('Identity required');
             return;
         }
-
         try {
             if (editingTheme) {
                 await updateTheme(editingTheme.id, themeForm);
@@ -360,19 +533,15 @@ export default function ThemeSettings() {
         }));
     };
 
-    // Filter themes into categories
-    const FOUNDATION_NAMES = ['Riven', 'Riven Light', 'Arctic Frost', 'Modern Minimal', 'Tech Innovation'];
-    const categories = useMemo(() => {
-        return {
-            official: themes.filter(t => t.is_default && FOUNDATION_NAMES.includes(t.name)),
-            professional: themes.filter(t => t.is_default && !FOUNDATION_NAMES.includes(t.name)),
-            custom: themes.filter(t => !t.is_default)
-        };
-    }, [themes]);
+    const categories = useMemo(() => ({
+        official: themes.filter(t => t.is_default && FOUNDATION_NAMES.includes(t.name)),
+        professional: themes.filter(t => t.is_default && !FOUNDATION_NAMES.includes(t.name)),
+        custom: themes.filter(t => !t.is_default)
+    }), [themes]);
 
     return (
         <div className="max-w-4xl md:max-w-7xl mx-auto pb-32 md:px-12 lg:px-24 relative mb-safe min-h-screen">
-            {/* Soft background noise */}
+            {/* Background noise */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.15] z-0 md:mix-blend-overlay" style={{ backgroundImage: NOISE_SVG }} />
 
             {/* Header */}
@@ -420,11 +589,9 @@ export default function ThemeSettings() {
                     activeThemeId={activeTheme?.id}
                     onSelect={(id) => handleSwitchTheme(id, false)}
                     isPro={false}
-                    sectionKey="official"
                     carouselIndex={carouselIndices.official}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, official: i }))}
                 />
-
                 <ThemeSection
                     title="Professional"
                     subtitle="Masterfully crafted environments"
@@ -432,11 +599,9 @@ export default function ThemeSettings() {
                     activeThemeId={activeTheme?.id}
                     onSelect={(id) => handleSwitchTheme(id, true)}
                     isPro={true}
-                    sectionKey="professional"
                     carouselIndex={carouselIndices.professional}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, professional: i }))}
                 />
-
                 <ThemeSection
                     title="Your Gallery"
                     subtitle="Handcrafted by you"
@@ -447,7 +612,6 @@ export default function ThemeSettings() {
                     onEdit={handleEditTheme}
                     onDelete={handleDeleteClick}
                     onCreateNew={handleCreateNew}
-                    sectionKey="custom"
                     carouselIndex={carouselIndices.custom}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, custom: i }))}
                 />
@@ -486,23 +650,16 @@ export default function ThemeSettings() {
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 28, stiffness: 200 }}
                             className="relative w-full md:max-w-2xl md:mx-auto md:mb-6 glass-panel border-t md:border border-claude-border shadow-md md:shadow-2xl flex flex-col rounded-t-[2.5rem] md:rounded-[2.5rem] max-h-[92vh] md:max-h-[85vh] overflow-hidden"
-                            style={{
-                                backgroundColor: themeForm.bg_color,
-                                color: themeForm.text_color
-                            }}
+                            style={{ backgroundColor: themeForm.bg_color, color: themeForm.text_color }}
                         >
-                            {/* Drag handle — mobile */}
                             <div className="w-full flex justify-center pt-4 pb-2 md:hidden absolute top-0 z-20">
                                 <div className="w-12 h-1.5 rounded-full bg-claude-text/20" />
                             </div>
 
-                            {/* Editor header */}
                             <div className="flex items-center justify-between p-6 pt-8 md:pt-6 px-8 border-b z-10 shrink-0 md:backdrop-blur-xl" style={{ borderBottomColor: themeForm.border_color, backgroundColor: `${themeForm.bg_color}E6` }}>
-                                <div>
-                                    <h2 className="text-2xl font-display font-light tracking-tight" style={{ fontFamily: themeForm.font_family_display }}>
-                                        {editingTheme ? 'Refine' : 'New'} <span className="font-bold italic">Atmosphere</span>
-                                    </h2>
-                                </div>
+                                <h2 className="text-2xl font-display font-light tracking-tight" style={{ fontFamily: themeForm.font_family_display }}>
+                                    {editingTheme ? 'Refine' : 'New'} <span className="font-bold italic">Atmosphere</span>
+                                </h2>
                                 <button
                                     onClick={() => setShowEditor(false)}
                                     className="p-2.5 rounded-full transition-colors hover:opacity-70 active:scale-95 bg-black/5"
@@ -513,41 +670,32 @@ export default function ThemeSettings() {
                             </div>
 
                             <form onSubmit={handleSaveTheme} className="flex-1 overflow-y-auto px-6 md:px-10 py-8 space-y-10 custom-scrollbar">
-
-                                {/* Live Preview Block */}
+                                {/* Live Preview */}
                                 <div className="rounded-2xl overflow-hidden border relative" style={{ borderColor: themeForm.border_color, height: '72px', backgroundColor: themeForm.surface_color }}>
-                                    {/* Mini header */}
                                     <div className="flex items-center gap-2 px-3 h-7" style={{ backgroundColor: themeForm.bg_color, borderBottom: `1px solid ${themeForm.border_color}` }}>
                                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeForm.accent_color, opacity: 0.8 }} />
                                         <div className="h-1.5 flex-1 rounded-full opacity-20" style={{ backgroundColor: themeForm.text_color, maxWidth: '50%' }} />
                                         <div className="h-4 w-10 rounded opacity-30" style={{ backgroundColor: themeForm.accent_color }} />
                                     </div>
-                                    {/* Content */}
                                     <div className="px-3 pt-2 space-y-1.5">
                                         <div className="h-2.5 rounded-full w-3/4 opacity-40" style={{ backgroundColor: themeForm.text_color }} />
                                         <div className="h-1.5 rounded-full w-full opacity-15" style={{ backgroundColor: themeForm.text_color }} />
                                     </div>
-                                    {/* Accent pill */}
                                     <div className="absolute right-3 bottom-2.5 h-4 w-12 rounded-full opacity-90" style={{ backgroundColor: themeForm.accent_color }} />
-                                    {/* Label */}
                                     <div className="absolute top-1.5 right-3">
                                         <span className="text-[8px] font-mono uppercase tracking-widest opacity-30" style={{ color: themeForm.text_color }}>Preview</span>
                                     </div>
                                 </div>
 
-                                {/* Identity / Name */}
+                                {/* Identity */}
                                 <div className="space-y-4 relative">
                                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] block opacity-50" style={{ fontFamily: themeForm.font_family_body }}>Identity</label>
                                     <input
                                         type="text"
                                         value={themeForm.name}
                                         onChange={e => setThemeForm({ ...themeForm, name: e.target.value })}
-                                        className="w-full bg-transparent border-b-2 px-0 py-3 outline-none text-4xl md:text-5xl font-display transition-[transform,opacity,color,background-color,border-color,box-shadow] placeholder:opacity-20"
-                                        style={{
-                                            borderColor: themeForm.border_color,
-                                            color: themeForm.text_color,
-                                            fontFamily: themeForm.font_family_display
-                                        }}
+                                        className="w-full bg-transparent border-b-2 px-0 py-3 outline-none text-4xl md:text-5xl font-display transition-[border-color] placeholder:opacity-20"
+                                        style={{ borderColor: themeForm.border_color, color: themeForm.text_color, fontFamily: themeForm.font_family_display }}
                                         placeholder="Name it..."
                                         autoFocus
                                     />
@@ -559,40 +707,28 @@ export default function ThemeSettings() {
                                     <div className="flex items-center justify-between">
                                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] block opacity-50" style={{ fontFamily: themeForm.font_family_body }}>Pigments</label>
                                         <div className="flex p-1 rounded-xl" style={{ backgroundColor: themeForm.surface_color, border: `1px solid ${themeForm.border_color}` }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditorMode('simple')}
-                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] ${editorMode === 'simple' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
-                                                style={{
-                                                    backgroundColor: editorMode === 'simple' ? themeForm.text_color : 'transparent',
-                                                    color: editorMode === 'simple' ? themeForm.bg_color : themeForm.text_color
-                                                }}
-                                            >Simple</button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditorMode('advanced')}
-                                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] ${editorMode === 'advanced' ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
-                                                style={{
-                                                    backgroundColor: editorMode === 'advanced' ? themeForm.text_color : 'transparent',
-                                                    color: editorMode === 'advanced' ? themeForm.bg_color : themeForm.text_color
-                                                }}
-                                            >Advanced</button>
+                                            {['simple', 'advanced'].map(mode => (
+                                                <button key={mode} type="button" onClick={() => setEditorMode(mode)}
+                                                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] capitalize ${editorMode === mode ? 'shadow-md opacity-100' : 'opacity-40 hover:opacity-70'}`}
+                                                    style={{ backgroundColor: editorMode === mode ? themeForm.text_color : 'transparent', color: editorMode === mode ? themeForm.bg_color : themeForm.text_color }}
+                                                >{mode}</button>
+                                            ))}
                                         </div>
                                     </div>
 
                                     {editorMode === 'simple' ? (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             <div className="grid grid-cols-2 gap-4">
-                                                <button type="button" onClick={() => applyBaseTheme('dark')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_DARK.bg_color ? 'scale-[1.02] shadow-sm md:shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_DARK.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
-                                                    <div className="p-3 rounded-full bg-[#1a1a18] text-[#e8e8e3] w-fit shadow-inner">
-                                                        <Moon className="w-6 h-6" />
-                                                    </div>
+                                                <button type="button" onClick={() => applyBaseTheme('dark')}
+                                                    className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_DARK.bg_color ? 'scale-[1.02] shadow-sm md:shadow-xl' : 'scale-100 hover:scale-[1.01]'}`}
+                                                    style={{ borderColor: themeForm.bg_color === DEFAULT_DARK.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
+                                                    <div className="p-3 rounded-full bg-[#1a1a18] text-[#e8e8e3] w-fit shadow-inner"><Moon className="w-6 h-6" /></div>
                                                     <span className="font-display font-bold text-xl text-left tracking-tight" style={{ fontFamily: themeForm.font_family_display }}>Obsidian</span>
                                                 </button>
-                                                <button type="button" onClick={() => applyBaseTheme('light')} className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_LIGHT.bg_color ? 'scale-[1.02] shadow-sm md:shadow-xl' : 'scale-100 hover:scale-[1.01]'}`} style={{ borderColor: themeForm.bg_color === DEFAULT_LIGHT.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
-                                                    <div className="p-3 rounded-full bg-[#fafaf9] text-[#1c1c1a] border border-black/10 w-fit shadow-sm">
-                                                        <Sun className="w-6 h-6" />
-                                                    </div>
+                                                <button type="button" onClick={() => applyBaseTheme('light')}
+                                                    className={`flex flex-col gap-4 p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.bg_color === DEFAULT_LIGHT.bg_color ? 'scale-[1.02] shadow-sm md:shadow-xl' : 'scale-100 hover:scale-[1.01]'}`}
+                                                    style={{ borderColor: themeForm.bg_color === DEFAULT_LIGHT.bg_color ? themeForm.accent_color : themeForm.border_color, backgroundColor: themeForm.surface_color }}>
+                                                    <div className="p-3 rounded-full bg-[#fafaf9] text-[#1c1c1a] border border-black/10 w-fit shadow-sm"><Sun className="w-6 h-6" /></div>
                                                     <span className="font-display font-bold text-xl text-left tracking-tight" style={{ fontFamily: themeForm.font_family_display }}>Alabaster</span>
                                                 </button>
                                             </div>
@@ -600,15 +736,9 @@ export default function ThemeSettings() {
                                                 <label className="text-[10px] font-bold uppercase tracking-[0.2em] block opacity-50" style={{ fontFamily: themeForm.font_family_body }}>Vocal Accent</label>
                                                 <div className="flex overflow-x-auto gap-4 pb-4 pt-2 snap-x -mx-6 px-6 md:-mx-10 md:px-10 [&::-webkit-scrollbar]:hidden">
                                                     {ACCENT_PRESETS.map(p => (
-                                                        <button
-                                                            key={p.color}
-                                                            type="button"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                haptics.light();
-                                                                setThemeForm({ ...themeForm, accent_color: p.color });
-                                                            }}
-                                                            className={`shrink-0 w-16 h-16 rounded-full border-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] snap-center outline-none ${themeForm.accent_color === p.color ? 'scale-[1.15] shadow-sm md:shadow-xl' : 'scale-100 opacity-80 hover:scale-105'}`}
+                                                        <button key={p.color} type="button"
+                                                            onClick={e => { e.preventDefault(); haptics.light(); setThemeForm({ ...themeForm, accent_color: p.color }); }}
+                                                            className={`shrink-0 w-16 h-16 rounded-full border-4 transition-[transform,opacity,box-shadow] duration-300 snap-center outline-none ${themeForm.accent_color === p.color ? 'scale-[1.15]' : 'scale-100 opacity-80 hover:scale-105'}`}
                                                             style={{
                                                                 backgroundColor: p.color,
                                                                 borderColor: themeForm.accent_color === p.color ? themeForm.bg_color : 'transparent',
@@ -623,21 +753,15 @@ export default function ThemeSettings() {
                                         <div className="grid grid-cols-2 gap-x-5 gap-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             {['bg_color', 'surface_color', 'text_color', 'secondary_text_color', 'border_color', 'accent_color'].map(key => (
                                                 <div key={key} className="space-y-2">
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 block" style={{ fontFamily: themeForm.font_family_body }}>
-                                                        {key.replace(/_/g, ' ')}
-                                                    </span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 block" style={{ fontFamily: themeForm.font_family_body }}>{key.replace(/_/g, ' ')}</span>
                                                     <div className="relative group overflow-hidden rounded-2xl border" style={{ borderColor: themeForm.border_color }}>
-                                                        <input
-                                                            type="color"
-                                                            value={themeForm[key]}
+                                                        <input type="color" value={themeForm[key]}
                                                             onChange={e => setThemeForm({ ...themeForm, [key]: e.target.value })}
                                                             className="w-full h-14 opacity-0 absolute inset-0 cursor-pointer"
                                                         />
                                                         <div className="w-full h-14 pointer-events-none" style={{ backgroundColor: themeForm[key] }} />
                                                     </div>
-                                                    <p className="text-[10px] font-mono tracking-widest text-center opacity-50" style={{ color: themeForm.text_color }}>
-                                                        {themeForm[key].toUpperCase()}
-                                                    </p>
+                                                    <p className="text-[10px] font-mono tracking-widest text-center opacity-50" style={{ color: themeForm.text_color }}>{themeForm[key].toUpperCase()}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -649,29 +773,17 @@ export default function ThemeSettings() {
                                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] block opacity-50" style={{ fontFamily: themeForm.font_family_body }}>Typography</label>
                                     <div className="grid grid-cols-1 gap-4">
                                         {FONT_PRESETS.map(f => (
-                                            <button
-                                                key={f.name}
-                                                type="button"
-                                                onClick={() => {
-                                                    haptics.light();
-                                                    setThemeForm({ ...themeForm, font_family_display: f.display, font_family_body: f.body })
-                                                }}
+                                            <button key={f.name} type="button"
+                                                onClick={() => { haptics.light(); setThemeForm({ ...themeForm, font_family_display: f.display, font_family_body: f.body }); }}
                                                 className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${themeForm.font_family_display === f.display ? 'scale-[1.01] shadow-sm md:shadow-lg' : 'border-transparent hover:scale-[1.01]'}`}
-                                                style={{
-                                                    backgroundColor: themeForm.surface_color,
-                                                    borderColor: themeForm.font_family_display === f.display ? themeForm.accent_color : themeForm.border_color
-                                                }}
+                                                style={{ backgroundColor: themeForm.surface_color, borderColor: themeForm.font_family_display === f.display ? themeForm.accent_color : themeForm.border_color }}
                                             >
                                                 <div className="text-left">
-                                                    <span className="text-2xl block mb-2 font-bold tracking-tight" style={{ fontFamily: f.display }}>{f.name}</span>
-                                                    <span className="text-sm opacity-60 leading-relaxed max-w-[80%]" style={{ fontFamily: f.body }}>The quick brown fox jumps over the lazy dog.</span>
+                                                    <span className="text-2xl block mb-2 font-bold tracking-tight" style={{ fontFamily: f.display, color: themeForm.text_color }}>{f.name}</span>
+                                                    <span className="text-sm opacity-60 leading-relaxed" style={{ fontFamily: f.body, color: themeForm.text_color }}>The quick brown fox jumps over the lazy dog.</span>
                                                 </div>
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${themeForm.font_family_display === f.display ? 'opacity-100' : 'opacity-10 border'}`}
-                                                    style={{
-                                                        backgroundColor: themeForm.font_family_display === f.display ? themeForm.accent_color : 'transparent',
-                                                        color: themeForm.font_family_display === f.display ? themeForm.bg_color : themeForm.text_color,
-                                                        borderColor: themeForm.border_color
-                                                    }}>
+                                                    style={{ backgroundColor: themeForm.font_family_display === f.display ? themeForm.accent_color : 'transparent', color: themeForm.font_family_display === f.display ? themeForm.bg_color : themeForm.text_color, borderColor: themeForm.border_color }}>
                                                     <Check className="w-4 h-4" />
                                                 </div>
                                             </button>
@@ -681,16 +793,9 @@ export default function ThemeSettings() {
                             </form>
 
                             <div className="p-6 md:px-10 pb-8 md:pb-6 border-t z-10 shrink-0 md:backdrop-blur-xl" style={{ borderTopColor: themeForm.border_color, backgroundColor: `${themeForm.bg_color}E6` }}>
-                                <button
-                                    type="submit"
-                                    onClick={handleSaveTheme}
+                                <button type="submit" onClick={handleSaveTheme}
                                     className="w-full py-5 rounded-full font-bold text-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-sm md:shadow-xl active:scale-95 flex items-center justify-center gap-2 border border-black/10"
-                                    style={{
-                                        backgroundColor: themeForm.text_color,
-                                        color: themeForm.bg_color,
-                                        fontFamily: themeForm.font_family_display,
-                                        boxShadow: `0 20px 25px -5px ${themeForm.text_color}30, 0 8px 10px -6px ${themeForm.text_color}30`
-                                    }}
+                                    style={{ backgroundColor: themeForm.text_color, color: themeForm.bg_color, fontFamily: themeForm.font_family_display, boxShadow: `0 20px 25px -5px ${themeForm.text_color}30, 0 8px 10px -6px ${themeForm.text_color}30` }}
                                 >
                                     {editingTheme ? 'Commit Refinements' : 'Materialize Theme'}
                                 </button>
@@ -706,39 +811,84 @@ export default function ThemeSettings() {
 // ─── Active Theme Hero ────────────────────────────────────────────────────────
 
 function ActiveThemeHero({ theme }) {
+    const heroRef = useRef(null);
+    const prevThemeRef = useRef(null);
+
+    // GSAP transition when theme changes
+    useEffect(() => {
+        if (!heroRef.current) return;
+        const el = heroRef.current;
+        const prev = prevThemeRef.current;
+
+        if (prev && prev !== theme.id) {
+            // Burst out, swap in
+            gsap.fromTo(el,
+                { opacity: 0, scale: 0.96, y: 8 },
+                { opacity: 1, scale: 1, y: 0, duration: 0.55, ease: 'power3.out', clearProps: 'transform' }
+            );
+        } else if (!prev) {
+            // First mount
+            gsap.fromTo(el,
+                { opacity: 0, y: 16 },
+                { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', clearProps: 'transform' }
+            );
+        }
+
+        prevThemeRef.current = theme.id;
+    }, [theme.id]);
+
+    // GSAP accent glow animation
+    const bloomRef = useRef(null);
+    useEffect(() => {
+        if (!bloomRef.current) return;
+        gsap.to(bloomRef.current, {
+            opacity: 0.4,
+            scale: 1.15,
+            duration: 2.5,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut',
+        });
+    }, [theme.accent_color]);
+
     return (
-        <motion.div
-            key={theme.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        <div
+            ref={heroRef}
             className="relative w-full overflow-hidden rounded-[2.5rem]"
             style={{
                 backgroundColor: theme.bg_color,
                 border: `1px solid ${theme.border_color}`,
-                boxShadow: `0 30px 60px -15px ${theme.accent_color}40`,
+                boxShadow: `0 30px 80px -20px ${theme.accent_color}35, 0 0 0 1px ${theme.accent_color}10`,
             }}
         >
-            {/* Noise texture */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.2] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
+            {/* Noise */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.18] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
 
-            {/* Per-theme animation overlay */}
+            {/* Per-theme overlay */}
             <ThemeAnimationOverlay themeName={theme.name} isHero={true} />
 
-            {/* Accent radial bloom */}
-            <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full blur-3xl opacity-25 pointer-events-none" style={{ backgroundColor: theme.accent_color }} />
+            {/* Accent bloom — GSAP-animated */}
+            <div
+                ref={bloomRef}
+                className="absolute -right-20 -top-20 w-80 h-80 rounded-full pointer-events-none"
+                style={{
+                    background: `radial-gradient(circle, ${theme.accent_color}30 0%, transparent 70%)`,
+                    opacity: 0.25,
+                    filter: 'blur(2px)',
+                }}
+            />
 
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 md:p-12">
-                {/* Left — identity */}
+                {/* Identity */}
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-5">
+                    <div className="flex items-center gap-2.5 mb-5">
                         <motion.span
-                            animate={{ opacity: [1, 0.35, 1] }}
-                            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                            animate={{ opacity: [1, 0.25, 1], scale: [1, 1.3, 1] }}
+                            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                             className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: theme.accent_color, boxShadow: `0 0 8px ${theme.accent_color}` }}
+                            style={{ backgroundColor: theme.accent_color, boxShadow: `0 0 10px ${theme.accent_color}, 0 0 20px ${theme.accent_color}60` }}
                         />
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-[0.35em] opacity-60" style={{ color: theme.accent_color }}>
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-[0.35em] opacity-55" style={{ color: theme.accent_color }}>
                             Active Specimen
                         </span>
                     </div>
@@ -750,45 +900,71 @@ function ActiveThemeHero({ theme }) {
                         {theme.name}
                     </h2>
 
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-40 mt-2" style={{ color: theme.text_color }}>
+                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35 mt-2" style={{ color: theme.text_color }}>
                         {theme.font_family_display} · {theme.font_family_body}
                     </p>
                 </div>
 
-                {/* Right — landscape mini-UI preview */}
-                <div
-                    className="shrink-0 w-full md:w-72 rounded-2xl overflow-hidden relative"
-                    style={{
-                        height: '8rem',
-                        backgroundColor: theme.surface_color,
-                        border: `1px solid ${theme.border_color}`,
-                    }}
-                >
-                    {/* Mini header bar */}
-                    <div
-                        className="absolute top-0 left-0 right-0 h-8 flex items-center gap-2 px-3"
-                        style={{ backgroundColor: theme.bg_color, borderBottom: `1px solid ${theme.border_color}` }}
-                    >
-                        <div className="w-2 h-2 rounded-full opacity-60" style={{ backgroundColor: theme.accent_color }} />
-                        <div className="flex-1 h-1.5 rounded-full opacity-20" style={{ backgroundColor: theme.text_color, maxWidth: '60%' }} />
-                        <div className="w-10 h-4 rounded opacity-30" style={{ backgroundColor: theme.accent_color }} />
-                    </div>
-                    {/* Content rows */}
-                    <div className="absolute top-10 left-3 right-3 space-y-2">
-                        <div className="h-3 rounded-full w-3/4 opacity-35" style={{ backgroundColor: theme.text_color }} />
-                        <div className="h-2 rounded-full w-full opacity-15" style={{ backgroundColor: theme.text_color }} />
-                        <div className="h-2 rounded-full w-5/6 opacity-12" style={{ backgroundColor: theme.text_color }} />
-                    </div>
-                    {/* Accent pill */}
-                    <div className="absolute bottom-3 left-3 h-5 w-14 rounded-full opacity-85" style={{ backgroundColor: theme.accent_color }} />
-                    {/* Inner glow */}
-                    <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ boxShadow: `inset 0 0 20px ${theme.accent_color}15` }} />
-                </div>
+                {/* Mini UI preview */}
+                <MiniUIPreview theme={theme} />
             </div>
 
             {/* Inner rim */}
             <div className="absolute inset-0 rounded-[2.5rem] border border-white/5 pointer-events-none" />
-        </motion.div>
+        </div>
+    );
+}
+
+// ─── Mini UI Preview ──────────────────────────────────────────────────────────
+
+function MiniUIPreview({ theme }) {
+    const archetype = THEME_ARCHETYPES[theme.name] || 'default';
+
+    return (
+        <div
+            className="shrink-0 w-full md:w-72 rounded-2xl overflow-hidden relative"
+            style={{ height: '8.5rem', backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }}
+        >
+            {/* Header bar */}
+            <div className="absolute top-0 left-0 right-0 h-8 flex items-center gap-2 px-3"
+                style={{ backgroundColor: theme.bg_color, borderBottom: `1px solid ${theme.border_color}` }}>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.accent_color, opacity: 0.8 }} />
+                <div className="flex-1 h-1.5 rounded-full opacity-20" style={{ backgroundColor: theme.text_color, maxWidth: '55%' }} />
+                <div className="w-10 h-4 rounded-md opacity-30" style={{ backgroundColor: theme.accent_color }} />
+            </div>
+
+            {/* Content rows */}
+            <div className="absolute top-10 left-3 right-3 space-y-1.5">
+                <div className="h-3 rounded-full w-3/4 opacity-30" style={{ backgroundColor: theme.text_color }} />
+                <div className="h-2 rounded-full w-full opacity-12" style={{ backgroundColor: theme.text_color }} />
+                <div className="h-2 rounded-full w-5/6 opacity-10" style={{ backgroundColor: theme.text_color }} />
+            </div>
+
+            {/* Accent pill */}
+            <div className="absolute bottom-3 left-3 h-5 w-14 rounded-full"
+                style={{ backgroundColor: theme.accent_color, opacity: 0.9 }} />
+
+            {/* Archetype-specific mini detail */}
+            {(archetype === 'cosmos' || archetype === 'bloom') && (
+                <div className="absolute top-10 right-3 text-[10px] select-none" style={{ color: theme.accent_color, opacity: 0.6 }}>
+                    {archetype === 'cosmos' ? '★' : '♥'}
+                </div>
+            )}
+            {archetype === 'cyber' && (
+                <div className="absolute bottom-3 right-3 text-[8px] font-mono" style={{ color: theme.accent_color, opacity: 0.5 }}>
+                    SYS://
+                </div>
+            )}
+            {archetype === 'crystal' && (
+                <div className="absolute top-10 right-3 text-[10px] select-none" style={{ color: theme.accent_color, opacity: 0.5 }}>
+                    ❄
+                </div>
+            )}
+
+            {/* Inner glow */}
+            <div className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{ boxShadow: `inset 0 0 24px ${theme.accent_color}12` }} />
+        </div>
     );
 }
 
@@ -797,25 +973,14 @@ function ActiveThemeHero({ theme }) {
 function SectionDivider({ title, subtitle, isPro }) {
     return (
         <div className="mb-8 md:mb-10">
-            {/* Botanical ornamental rule */}
             <div className="flex items-center gap-4 mb-6">
-                <div
-                    className="h-px flex-1"
-                    style={{ background: 'linear-gradient(to right, transparent, var(--border-color) 40%, var(--border-color) 60%, transparent)' }}
-                />
+                <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, var(--border-color) 40%, var(--border-color) 60%, transparent)' }} />
                 <span className="text-claude-accent text-xs opacity-40 select-none" aria-hidden="true">✦</span>
-                <div
-                    className="h-px flex-1"
-                    style={{ background: 'linear-gradient(to left, transparent, var(--border-color) 40%, var(--border-color) 60%, transparent)' }}
-                />
+                <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, var(--border-color) 40%, var(--border-color) 60%, transparent)' }} />
             </div>
-
-            {/* Title row */}
             <div className="flex items-baseline gap-3 px-4 md:px-0">
-                <h2
-                    className="text-3xl md:text-4xl font-light italic tracking-tight text-claude-text"
-                    style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif' }}
-                >
+                <h2 className="text-3xl md:text-4xl font-light italic tracking-tight text-claude-text"
+                    style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif' }}>
                     {title}
                 </h2>
                 {isPro && (
@@ -824,10 +989,7 @@ function SectionDivider({ title, subtitle, isPro }) {
                     </span>
                 )}
             </div>
-
-            <p className="text-[11px] font-mono text-claude-secondary mt-2 tracking-wide px-4 md:px-0">
-                {subtitle}
-            </p>
+            <p className="text-[11px] font-mono text-claude-secondary mt-2 tracking-wide px-4 md:px-0">{subtitle}</p>
         </div>
     );
 }
@@ -836,7 +998,6 @@ function SectionDivider({ title, subtitle, isPro }) {
 
 function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCustom, onEdit, onDelete, isPro, onCreateNew, carouselIndex, onCarouselScroll }) {
     if (themes.length === 0 && !isCustom) return null;
-
     if (themes.length === 0 && isCustom) {
         return (
             <section className="relative w-full px-4 md:px-0">
@@ -848,12 +1009,11 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
 
     const container = {
         hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+        show: { opacity: 1, transition: { staggerChildren: 0.07 } }
     };
-
     const item = {
-        hidden: { opacity: 0, scale: 0.95, x: 20 },
-        show: { opacity: 1, scale: 1, x: 0, transition: { type: 'spring', damping: 25, stiffness: 180 } }
+        hidden: { opacity: 0, scale: 0.94, y: 12 },
+        show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 22, stiffness: 200 } }
     };
 
     const handleScroll = (e) => {
@@ -867,7 +1027,6 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
     return (
         <section className="relative w-full">
             <SectionDivider title={title} subtitle={subtitle} isPro={isPro} />
-
             <motion.div
                 variants={container}
                 initial="hidden"
@@ -893,16 +1052,12 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                 ))}
             </motion.div>
 
-            {/* Pagination dots — mobile only */}
             {themes.length > 1 && (
                 <div className="flex md:hidden items-center justify-center gap-2 pb-8 pt-2">
                     {themes.map((_, i) => (
                         <motion.div
                             key={i}
-                            animate={{
-                                width: i === carouselIndex ? 20 : 6,
-                                opacity: i === carouselIndex ? 1 : 0.3
-                            }}
+                            animate={{ width: i === carouselIndex ? 20 : 6, opacity: i === carouselIndex ? 1 : 0.3 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             className="h-1.5 rounded-full bg-claude-accent"
                         />
@@ -916,83 +1071,80 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
 // ─── Theme Card ───────────────────────────────────────────────────────────────
 
 function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
+    const cardRef = useRef(null);
+    const archetype = THEME_ARCHETYPES[theme.name] || 'default';
+
+    // GSAP magnetic hover (desktop only)
+    useEffect(() => {
+        const el = cardRef.current;
+        if (!el || window.matchMedia('(hover: none)').matches) return;
+
+        const onEnter = () => {
+            if (isActive) return;
+            gsap.to(el, { y: -8, scale: 1.015, duration: 0.35, ease: 'power2.out' });
+        };
+        const onLeave = () => {
+            gsap.to(el, { y: 0, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.6)' });
+        };
+
+        el.addEventListener('mouseenter', onEnter);
+        el.addEventListener('mouseleave', onLeave);
+        return () => {
+            el.removeEventListener('mouseenter', onEnter);
+            el.removeEventListener('mouseleave', onLeave);
+        };
+    }, [isActive]);
+
     return (
-        <motion.div
+        <div
+            ref={cardRef}
             onClick={onSelect}
-            whileHover={!isActive ? { y: -6 } : {}}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
             className="group relative overflow-hidden cursor-pointer select-none flex flex-col"
             style={{
                 borderRadius: '1.25rem',
                 backgroundColor: theme.bg_color,
-                border: isActive
-                    ? `2px solid ${theme.accent_color}`
-                    : `1px solid ${theme.border_color}`,
+                border: isActive ? `2px solid ${theme.accent_color}` : `1px solid ${theme.border_color}`,
                 boxShadow: isActive
-                    ? `0 0 0 3px ${theme.accent_color}18, 0 14px 36px -6px ${theme.accent_color}28`
-                    : `0 2px 14px -3px ${theme.text_color}07`,
+                    ? `0 0 0 3px ${theme.accent_color}15, 0 16px 48px -8px ${theme.accent_color}30`
+                    : `0 2px 12px -3px rgba(0,0,0,0.12)`,
                 height: '15rem',
+                transition: 'border-color 0.3s, box-shadow 0.3s',
             }}
         >
-            {/* ── Color Panel (top 54%) ── */}
+            {/* ── Color Panel ── */}
             <div
                 className="relative overflow-hidden shrink-0"
                 style={{ height: '54%', backgroundColor: theme.surface_color }}
             >
-                {/* Noise texture */}
-                <div
-                    className="absolute inset-0 opacity-[0.13] pointer-events-none"
-                    style={{ backgroundImage: NOISE_SVG }}
-                />
+                {/* Noise */}
+                <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: NOISE_SVG }} />
 
-                {/* Per-theme animation overlay */}
+                {/* Per-theme animation */}
                 <ThemeAnimationOverlay themeName={theme.name} isHero={false} />
 
-                {/* Diagonal accent block — the signature visual */}
-                <div
-                    className="absolute inset-y-0 right-0 transition-opacity duration-300"
-                    style={{
-                        width: '44%',
-                        backgroundColor: theme.accent_color,
-                        opacity: isActive ? 0.95 : 0.82,
-                        clipPath: 'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)',
-                    }}
-                />
+                {/* Signature diagonal accent — varies by archetype */}
+                <CardAccentShape theme={theme} archetype={archetype} isActive={isActive} />
 
-                {/* Soft secondary glow where surface meets accent */}
-                <div
-                    className="absolute inset-y-0 pointer-events-none"
-                    style={{
-                        right: '34%',
-                        width: '20%',
-                        background: `linear-gradient(to right, transparent, ${theme.accent_color}20)`,
-                    }}
-                />
-
-                {/* Font label — top left */}
+                {/* Font label */}
                 <div className="absolute top-3 left-4 z-10">
-                    <span
-                        className="text-[8px] font-mono uppercase tracking-[0.22em] opacity-45"
-                        style={{ color: theme.text_color }}
-                    >
+                    <span className="text-[8px] font-mono uppercase tracking-[0.22em] opacity-40" style={{ color: theme.text_color }}>
                         {theme.font_family_display.split(' ')[0]}
                     </span>
                 </div>
 
-                {/* Active indicator — checkmark circle on accent block */}
+                {/* Active badge */}
                 {isActive && (
                     <motion.div
                         layoutId="activeThemeBadge"
-                        className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full flex items-center justify-center"
+                        className="absolute top-3 right-3 z-20 w-6 h-6 rounded-full flex items-center justify-center"
                         style={{
-                            backgroundColor: `${theme.bg_color}D0`,
-                            boxShadow: `0 0 0 1.5px ${theme.accent_color}70, 0 2px 8px ${theme.accent_color}30`,
+                            backgroundColor: `${theme.bg_color}CC`,
+                            boxShadow: `0 0 0 1.5px ${theme.accent_color}80, 0 2px 10px ${theme.accent_color}40`,
                         }}
                     >
                         <motion.div
-                            animate={{ opacity: [1, 0.45, 1] }}
-                            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                            animate={{ opacity: [1, 0.4, 1] }}
+                            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                         >
                             <Check className="w-3 h-3" style={{ color: theme.accent_color }} />
                         </motion.div>
@@ -1000,17 +1152,11 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
                 )}
 
                 {/* Bottom edge */}
-                <div
-                    className="absolute bottom-0 left-0 right-0 h-px"
-                    style={{ backgroundColor: `${theme.border_color}70` }}
-                />
+                <div className="absolute bottom-0 left-0 right-0 h-px" style={{ backgroundColor: `${theme.border_color}60` }} />
             </div>
 
-            {/* ── Identity + Palette (bottom 46%) ── */}
-            <div
-                className="flex-1 flex flex-col justify-between px-4 py-3.5"
-                style={{ backgroundColor: theme.bg_color }}
-            >
+            {/* ── Identity + Palette ── */}
+            <div className="flex-1 flex flex-col justify-between px-4 py-3.5" style={{ backgroundColor: theme.bg_color }}>
                 <h3
                     className="text-lg font-light tracking-tight leading-[1.1] line-clamp-1"
                     style={{ color: theme.text_color, fontFamily: `${theme.font_family_display}, serif` }}
@@ -1019,53 +1165,162 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
                 </h3>
 
                 <div className="flex items-center justify-between">
-                    {/* Palette spectrum dots */}
+                    {/* Palette dots */}
                     <div className="flex items-center gap-1.5">
                         {[theme.accent_color, theme.text_color, theme.secondary_text_color, theme.surface_color, theme.border_color].map((c, i) => (
-                            <div
-                                key={i}
-                                className="w-3 h-3 rounded-full"
-                                style={{
-                                    backgroundColor: c,
-                                    boxShadow: `0 0 0 1px ${theme.border_color}90`,
-                                }}
-                            />
+                            <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: c, boxShadow: `0 0 0 1px ${theme.border_color}80` }} />
                         ))}
                     </div>
 
-                    {/* Custom: edit / delete */}
                     {isCustom && (
                         <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <button
-                                onClick={(e) => onEdit(e, theme)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
-                                style={{
-                                    color: theme.secondary_text_color,
-                                    backgroundColor: theme.surface_color,
-                                    border: `1px solid ${theme.border_color}`,
-                                }}
-                                aria-label="Edit theme"
-                            >
+                            <button onClick={(e) => onEdit(e, theme)}
+                                className="w-7 h-7 rounded-full flex items-center justify-center hover:opacity-70 transition-opacity"
+                                style={{ color: theme.secondary_text_color, backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }}
+                                aria-label="Edit theme">
                                 <Edit3 className="w-3 h-3" />
                             </button>
-                            <button
-                                onClick={(e) => onDelete(e, theme)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
-                                style={{
-                                    color: '#ef4444',
-                                    backgroundColor: theme.surface_color,
-                                    border: `1px solid ${theme.border_color}`,
-                                }}
-                                aria-label="Delete theme"
-                            >
+                            <button onClick={(e) => onDelete(e, theme)}
+                                className="w-7 h-7 rounded-full flex items-center justify-center hover:opacity-70 transition-opacity"
+                                style={{ color: '#ef4444', backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }}
+                                aria-label="Delete theme">
                                 <Trash2 className="w-3 h-3" />
                             </button>
                         </div>
                     )}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
+}
+
+// ─── Card Accent Shape — per-archetype signature visual ────────────────────────
+
+function CardAccentShape({ theme, archetype, isActive }) {
+    // Each archetype gets a distinctly different geometric treatment
+    switch (archetype) {
+        case 'cosmos':
+            // Radial burst from top-right corner
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full transition-opacity duration-300"
+                        style={{ background: `radial-gradient(circle, ${theme.accent_color}70 0%, transparent 65%)`, opacity: isActive ? 1 : 0.75 }} />
+                    <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full"
+                        style={{ background: `radial-gradient(circle, ${theme.accent_color}90 0%, transparent 60%)` }} />
+                </div>
+            );
+
+        case 'depths':
+            // Horizontal gradient wave
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]"
+                    style={{ background: `linear-gradient(180deg, transparent 0%, ${theme.accent_color}20 60%, ${theme.accent_color}40 100%)`, opacity: isActive ? 0.9 : 0.7 }} />
+            );
+
+        case 'cyber':
+            // Hard right-angle corner cut
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute top-0 right-0 w-0 h-0 transition-opacity duration-300"
+                        style={{
+                            borderLeft: `60px solid transparent`,
+                            borderTop: `80px solid ${theme.accent_color}`,
+                            opacity: isActive ? 0.95 : 0.75,
+                        }} />
+                    {/* Accent line */}
+                    <div className="absolute bottom-0 left-0 right-0 h-px"
+                        style={{ background: `linear-gradient(90deg, ${theme.accent_color}80, transparent)` }} />
+                </div>
+            );
+
+        case 'bloom':
+            // Soft circular bloom centered
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute inset-0" style={{
+                        background: `radial-gradient(ellipse at 65% 40%, ${theme.accent_color}55 0%, transparent 60%)`,
+                        opacity: isActive ? 1 : 0.8,
+                    }} />
+                </div>
+            );
+
+        case 'warmlight':
+            // Bottom glow — sun rising
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute bottom-0 left-0 right-0 h-3/4"
+                        style={{ background: `linear-gradient(0deg, ${theme.accent_color}45 0%, transparent 100%)`, opacity: isActive ? 0.9 : 0.7 }} />
+                </div>
+            );
+
+        case 'ember':
+            // Diagonal slash — aggressive
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute inset-y-0 right-0 transition-opacity duration-300"
+                        style={{
+                            width: '50%',
+                            background: `linear-gradient(135deg, transparent 20%, ${theme.accent_color}50 100%)`,
+                            opacity: isActive ? 0.95 : 0.8,
+                        }} />
+                </div>
+            );
+
+        case 'crystal':
+            // Top frost gradient
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute inset-0"
+                        style={{ background: `linear-gradient(180deg, ${theme.accent_color}30 0%, transparent 60%)`, opacity: isActive ? 0.85 : 0.65 }} />
+                </div>
+            );
+
+        case 'verdant':
+            // Left edge organic bleed
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute inset-y-0 left-0 w-2/3"
+                        style={{ background: `radial-gradient(ellipse at 0% 50%, ${theme.accent_color}40 0%, transparent 70%)`, opacity: isActive ? 1 : 0.75 }} />
+                </div>
+            );
+
+        case 'dusk':
+            // Soft diagonal — feminine, warm
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute inset-y-0 right-0 transition-opacity duration-300"
+                        style={{
+                            width: '44%',
+                            backgroundColor: theme.accent_color,
+                            opacity: isActive ? 0.85 : 0.65,
+                            clipPath: 'polygon(25% 0, 100% 0, 100% 100%, 0% 100%)',
+                        }} />
+                </div>
+            );
+
+        case 'void':
+            // Minimal — a single vertical line accent
+            return (
+                <div className="absolute inset-0 pointer-events-none z-[1]">
+                    <div className="absolute top-0 bottom-0 right-12 w-px"
+                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.5 : 0.2 }} />
+                    <div className="absolute top-0 bottom-0 right-0 w-12"
+                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.1 : 0.05 }} />
+                </div>
+            );
+
+        default:
+            // Riven / Riven Light — classic diagonal
+            return (
+                <div className="absolute inset-y-0 right-0 z-[1] transition-opacity duration-300"
+                    style={{
+                        width: '44%',
+                        backgroundColor: theme.accent_color,
+                        opacity: isActive ? 0.95 : 0.82,
+                        clipPath: 'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)',
+                    }} />
+            );
+    }
 }
 
 // ─── Empty Gallery ────────────────────────────────────────────────────────────
@@ -1077,41 +1332,16 @@ function EmptyGallery({ onCreateNew }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300, delay: 0.1 }}
             className="relative flex flex-col items-center justify-center py-20 px-8 text-center rounded-[2.5rem]"
-            style={{
-                border: '1.5px dashed var(--border-color)',
-                background: 'linear-gradient(135deg, color-mix(in srgb, var(--surface-color) 60%, transparent), transparent)'
-            }}
+            style={{ border: '1.5px dashed var(--border-color)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--surface-color) 60%, transparent), transparent)' }}
         >
-            <div
-                className="text-6xl font-light italic opacity-10 mb-6 select-none"
-                aria-hidden="true"
-                style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif', color: 'var(--accent-color)' }}
-            >
-                ✦
-            </div>
-
-            <h3
-                className="text-3xl font-light italic tracking-tight text-claude-text mb-3"
-                style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif' }}
-            >
-                Your gallery awaits.
-            </h3>
-
-            <p className="text-[11px] font-mono text-claude-secondary tracking-wide mb-8 max-w-xs">
-                Craft a theme that is unmistakably yours.
-            </p>
-
-            <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={onCreateNew}
+            <div className="text-6xl font-light italic opacity-10 mb-6 select-none" aria-hidden="true"
+                style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif', color: 'var(--accent-color)' }}>✦</div>
+            <h3 className="text-3xl font-light italic tracking-tight text-claude-text mb-3"
+                style={{ fontFamily: '"Cormorant Garamond", "Instrument Serif", serif' }}>Your gallery awaits.</h3>
+            <p className="text-[11px] font-mono text-claude-secondary tracking-wide mb-8 max-w-xs">Craft a theme that is unmistakably yours.</p>
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onCreateNew}
                 className="flex items-center gap-3 px-8 py-4 rounded-full font-bold text-sm border"
-                style={{
-                    color: 'var(--accent-color)',
-                    borderColor: 'var(--accent-color)',
-                    backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)'
-                }}
-            >
+                style={{ color: 'var(--accent-color)', borderColor: 'var(--accent-color)', backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)' }}>
                 <Plus className="w-4 h-4" />
                 Begin Creating
             </motion.button>
