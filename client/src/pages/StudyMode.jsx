@@ -543,6 +543,87 @@ export default function StudyMode() {
                 ? 'Choose whether you knew the answer to train the next review.'
                 : 'Use the controls below to move on or flip back for another look.')
             : 'Read the prompt, then tap the card or press space to reveal the answer.';
+    const mobileGestureHint = !showSessionComplete ? (
+        <div className="flex w-full items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
+            <span>Swipe</span>
+            <span className="h-1 w-1 rounded-full bg-white/25" />
+            <span>Tap</span>
+            <span className="h-1 w-1 rounded-full bg-white/25" />
+            <span>Thumb controls</span>
+        </div>
+    ) : null;
+    const actionPanel = showSessionComplete ? (
+        <div
+            initial={{ opacity: 0, y: 12 }}
+            className="w-full space-y-3 gsap-session-complete"
+        >
+            <div className="text-center mb-4">
+                <p className="font-display text-lg font-semibold italic">Session complete</p>
+                {cardsStudied > 0 && (
+                    <p className="text-xs font-mono text-botanical-sepia mt-1">
+                        {cardsCorrect}/{cardsStudied} correct · {Math.round((cardsCorrect / cardsStudied) * 100)}%
+                    </p>
+                )}
+            </div>
+            <button
+                onClick={handleRestart}
+                className="w-full py-4 rounded-xl bg-claude-accent font-display font-semibold active:scale-[0.97] transition-transform"
+                style={{ color: 'var(--bg-color)' }}
+            >
+                Study Again
+            </button>
+            <Link
+                to={`/deck/${id}`}
+                className="block w-full py-4 rounded-xl glass-panel text-center font-display font-semibold active:scale-[0.98] transition-transform"
+            >
+                Back to Deck
+            </Link>
+        </div>
+    ) : spacedRepetitionMode && isFlipped ? (
+        <div className="grid w-full grid-cols-2 gap-3">
+            <button
+                onClick={handleDidntKnow}
+                className="flex h-14 items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/15 font-display font-semibold text-red-400 active:scale-[0.93] transition-transform"
+            >
+                <ThumbsDown className="w-5 h-5" />
+                Didn't Know
+            </button>
+            <button
+                onClick={handleKnew}
+                className="flex h-14 items-center justify-center gap-2 rounded-xl border border-green-500/25 bg-green-500/15 font-display font-semibold text-green-400 active:scale-[0.93] transition-transform"
+            >
+                <ThumbsUp className="w-5 h-5" />
+                Knew It
+            </button>
+        </div>
+    ) : (
+        <div className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-4">
+            <button
+                onClick={handlePrev}
+                disabled={currentIndex === 0 || isTransitioning}
+                className="flex h-14 w-14 items-center justify-center rounded-xl glass-panel disabled:opacity-30 active:scale-[0.9] transition-transform"
+            >
+                <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <button
+                onClick={handleFlip}
+                disabled={isTransitioning}
+                className="flex h-14 min-w-0 items-center justify-center gap-3 rounded-xl glass-panel px-8 font-display font-semibold active:scale-[0.95] transition-transform"
+            >
+                <RotateCw className={`w-5 h-5 shrink-0 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
+                <span className="truncate">Flip</span>
+            </button>
+
+            <button
+                onClick={handleNext}
+                disabled={isLastCard || isTransitioning}
+                className="flex h-14 w-14 items-center justify-center rounded-xl glass-panel disabled:opacity-30 active:scale-[0.9] transition-transform"
+            >
+                <ChevronRight className="w-6 h-6" />
+            </button>
+        </div>
+    );
 
     return (
         <div className="fullscreen-page">
@@ -655,122 +736,128 @@ export default function StudyMode() {
             {/* Card area */}
             <div className="flex-1 min-h-0 px-4 py-3 sm:py-4">
                 <div className="mx-auto grid h-full min-h-0 w-full max-w-6xl items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-center xl:gap-6">
-                    <div className="flex min-h-0 items-center justify-center" {...swipeHandlers}>
-                        <div
-                            ref={cardShellRef}
-                            className="w-full max-w-sm aspect-[3/4] max-h-[min(34rem,calc(var(--app-height)-21rem))] cursor-pointer touch-none"
-                            style={{
-                                perspective: '1600px',
-                                transform: 'translateZ(0)',
-                                transformStyle: 'preserve-3d',
-                                willChange: 'transform',
-                            }}
-                            onClick={handleFlip}
-                        >
-                            <div
-                                ref={cardInnerRef}
-                                className="relative w-full h-full"
-                                style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
-                            >
-                                {/* Front — warm surface with paper grain */}
+                    <div className="flex min-h-0 items-center justify-center xl:justify-center">
+                        <div className="flex w-full max-w-sm flex-col items-center justify-center gap-4 xl:gap-5">
+                            <div className="w-full" {...swipeHandlers}>
                                 <div
-                                    ref={cardFrontRef}
-                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
+                                    ref={cardShellRef}
+                                    className="w-full aspect-[3/4] max-h-[min(34rem,calc(var(--app-height)-21rem))] cursor-pointer touch-none"
                                     style={{
-                                        backfaceVisibility: 'hidden',
-                                        WebkitBackfaceVisibility: 'hidden',
-                                        transform: 'translateZ(1px)',
-                                        willChange: 'transform, opacity',
-                                        background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
-                                        border: '1px solid var(--border-color)',
-                                        boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+                                        perspective: '1600px',
+                                        transform: 'translateZ(0)',
+                                        transformStyle: 'preserve-3d',
+                                        willChange: 'transform',
                                     }}
-                                >
-                                    {/* Paper grain overlay */}
-                                    <div
-                                        className="absolute inset-0 pointer-events-none opacity-[0.015]"
-                                        style={{
-                                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
-                                            backgroundSize: '128px 128px',
-                                        }}
-                                    />
-                                    <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border/50" />
-                                    <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border/50" />
-                                    <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border/50" />
-                                    <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
-
-                                    <span
-                                        className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
-                                        style={{ transform: 'rotate(-2deg)' }}
-                                    >
-                                        Question
-                                    </span>
-                                    {currentCard.front_image && (
-                                        <img
-                                            src={currentCard.front_image}
-                                            alt="Card front"
-                                            loading="lazy"
-                                            decoding="async"
-                                            className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
-                                        />
-                                    )}
-                                    <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
-                                    {currentCard.difficulty > 0 && (
-                                        <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
-                                            currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
-                                                'bg-green-500/15 text-green-400'
-                                            }`}>
-                                            {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
-                                        </span>
-                                    )}
-                                    <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
-                                </div>
-
-                                {/* Back — forest green with dramatic shadow */}
-                                <div
-                                    ref={cardBackRef}
-                                    className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
-                                    style={{
-                                        backfaceVisibility: 'hidden',
-                                        WebkitBackfaceVisibility: 'hidden',
-                                        transform: 'rotateY(180deg) translateZ(1px)',
-                                        willChange: 'transform, opacity',
-                                        background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
-                                        border: '1px solid rgba(122,158,114,0.25)',
-                                        boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
-                                    }}
+                                    onClick={handleFlip}
                                 >
                                     <div
-                                        className="absolute inset-0 pointer-events-none opacity-[0.02]"
-                                        style={{
-                                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
-                                            backgroundSize: '128px 128px',
-                                        }}
-                                    />
-                                    <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
-                                    <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
-                                    <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
-                                    <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
-
-                                    <span
-                                        className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
-                                        style={{ transform: 'rotate(-2deg)' }}
+                                        ref={cardInnerRef}
+                                        className="relative w-full h-full"
+                                        style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
                                     >
-                                        Answer
-                                    </span>
-                                    {currentCard.back_image && (
-                                        <img
-                                            src={currentCard.back_image}
-                                            alt="Card back"
-                                            loading="lazy"
-                                            decoding="async"
-                                            className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
-                                        />
-                                    )}
-                                    <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
-                                    <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
+                                        {/* Front — warm surface with paper grain */}
+                                        <div
+                                            ref={cardFrontRef}
+                                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
+                                            style={{
+                                                backfaceVisibility: 'hidden',
+                                                WebkitBackfaceVisibility: 'hidden',
+                                                transform: 'translateZ(1px)',
+                                                willChange: 'transform, opacity',
+                                                background: 'linear-gradient(165deg, var(--surface-color) 0%, #152d34 100%)',
+                                                border: '1px solid var(--border-color)',
+                                                boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+                                            }}
+                                        >
+                                            {/* Paper grain overlay */}
+                                            <div
+                                                className="absolute inset-0 pointer-events-none opacity-[0.015]"
+                                                style={{
+                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                                    backgroundSize: '128px 128px',
+                                                }}
+                                            />
+                                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border/50" />
+                                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border/50" />
+                                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border/50" />
+                                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
+
+                                            <span
+                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
+                                                style={{ transform: 'rotate(-2deg)' }}
+                                            >
+                                                Question
+                                            </span>
+                                            {currentCard.front_image && (
+                                                <img
+                                                    src={currentCard.front_image}
+                                                    alt="Card front"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
+                                                />
+                                            )}
+                                            <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
+                                            {currentCard.difficulty > 0 && (
+                                                <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
+                                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
+                                                        'bg-green-500/15 text-green-400'
+                                                    }`}>
+                                                    {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
+                                                </span>
+                                            )}
+                                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
+                                        </div>
+
+                                        {/* Back — forest green with dramatic shadow */}
+                                        <div
+                                            ref={cardBackRef}
+                                            className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
+                                            style={{
+                                                backfaceVisibility: 'hidden',
+                                                WebkitBackfaceVisibility: 'hidden',
+                                                transform: 'rotateY(180deg) translateZ(1px)',
+                                                willChange: 'transform, opacity',
+                                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
+                                                border: '1px solid rgba(122,158,114,0.25)',
+                                                boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                            }}
+                                        >
+                                            <div
+                                                className="absolute inset-0 pointer-events-none opacity-[0.02]"
+                                                style={{
+                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`,
+                                                    backgroundSize: '128px 128px',
+                                                }}
+                                            />
+                                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
+                                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
+                                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
+                                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+
+                                            <span
+                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
+                                                style={{ transform: 'rotate(-2deg)' }}
+                                            >
+                                                Answer
+                                            </span>
+                                            {currentCard.back_image && (
+                                                <img
+                                                    src={currentCard.back_image}
+                                                    alt="Card back"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
+                                                />
+                                            )}
+                                            <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
+                                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                            {mobileGestureHint}
+                            {actionPanel}
                         </div>
                     </div>
 
@@ -839,88 +926,6 @@ export default function StudyMode() {
                 </div>
             </div>
 
-            {/* Navigation */}
-            <div className="px-4 pb-4 shrink-0 sm:pb-6">
-                <div className="mx-auto mb-3 flex max-w-sm items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
-                    <span>Swipe</span>
-                    <span className="h-1 w-1 rounded-full bg-white/25" />
-                    <span>Tap</span>
-                    <span className="h-1 w-1 rounded-full bg-white/25" />
-                    <span>Thumb controls</span>
-                </div>
-                {showSessionComplete ? (
-                    <div
-                        initial={{ opacity: 0, y: 12 }}
-                        className="space-y-3 max-w-sm mx-auto gsap-session-complete"
-                    >
-                        <div className="text-center mb-4">
-                            <p className="font-display text-lg font-semibold italic">Session complete</p>
-                            {cardsStudied > 0 && (
-                                <p className="text-xs font-mono text-botanical-sepia mt-1">
-                                    {cardsCorrect}/{cardsStudied} correct · {Math.round((cardsCorrect / cardsStudied) * 100)}%
-                                </p>
-                            )}
-                        </div>
-                        <button
-                            onClick={handleRestart}
-                            className="w-full py-4 rounded-xl bg-claude-accent font-display font-semibold active:scale-[0.97] transition-transform"
-                            style={{ color: 'var(--bg-color)' }}
-                        >
-                            Study Again
-                        </button>
-                        <Link
-                            to={`/deck/${id}`}
-                            className="block w-full py-4 rounded-xl glass-panel text-center font-display font-semibold active:scale-[0.98] transition-transform"
-                        >
-                            Back to Deck
-                        </Link>
-                    </div>
-                ) : spacedRepetitionMode && isFlipped ? (
-                    <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
-                        <button
-                            onClick={handleDidntKnow}
-                            className="flex-1 h-14 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.93] transition-transform"
-                        >
-                            <ThumbsDown className="w-5 h-5" />
-                            Didn't Know
-                        </button>
-                        <button
-                            onClick={handleKnew}
-                            className="flex-1 h-14 rounded-xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center gap-2 font-display font-semibold active:scale-[0.93] transition-transform"
-                        >
-                            <ThumbsUp className="w-5 h-5" />
-                            Knew It
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-center gap-4">
-                        <button
-                            onClick={handlePrev}
-                            disabled={currentIndex === 0 || isTransitioning}
-                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
-                        >
-                            <ChevronLeft className="w-6 h-6" />
-                        </button>
-
-                        <button
-                            onClick={handleFlip}
-                            disabled={isTransitioning}
-                            className="h-14 px-8 rounded-xl glass-panel flex items-center gap-3 font-display font-semibold active:scale-[0.95] transition-transform"
-                        >
-                            <RotateCw className={`w-5 h-5 transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''}`} />
-                            Flip
-                        </button>
-
-                        <button
-                            onClick={handleNext}
-                            disabled={isLastCard || isTransitioning}
-                            className="w-14 h-14 rounded-xl glass-panel flex items-center justify-center disabled:opacity-30 active:scale-[0.9] transition-transform"
-                        >
-                            <ChevronRight className="w-6 h-6" />
-                        </button>
-                    </div>
-                )}
-            </div>
             <OutOfHeartsModal isOpen={showOutOfHearts} onClose={() => setShowOutOfHearts(false)} onPractice={async () => {
                 try {
                     const result = await api.practiceRefill();
