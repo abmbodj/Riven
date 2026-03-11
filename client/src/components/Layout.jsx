@@ -19,6 +19,7 @@ import { AuthContext } from '../context/AuthContext';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
+import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
     pathname === matcher || pathname.startsWith(`${matcher}/`)
@@ -128,6 +129,7 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-dvh bg-claude-bg text-claude-text overflow-x-hidden">
+            <GlobalThemeOverlay />
             {/* Flex wrapper: sidebar + content on desktop */}
             <div className="relative w-full bg-claude-bg flex">
 
