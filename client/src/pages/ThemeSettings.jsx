@@ -810,46 +810,303 @@ export default function ThemeSettings() {
 
 // ─── Active Theme Hero ────────────────────────────────────────────────────────
 
+function getHeroDepthProfile() {
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+
+    return isDesktop
+        ? {
+            sceneLift: 4,
+            identity: { x: 0, y: 0, z: 26 },
+            preview: { x: 0, y: 0, z: 88, rotateY: -18, rotateX: 9 },
+            bloom: { z: -64 },
+            sheen: { xPercent: -12, yPercent: 0, rotate: -10 },
+        }
+        : {
+            sceneLift: 2,
+            identity: { x: 0, y: 0, z: 0 },
+            preview: { x: 0, y: 0, z: 24, rotateY: -8, rotateX: 4 },
+            bloom: { z: -28 },
+            sheen: { xPercent: -8, yPercent: 0, rotate: -8 },
+        };
+}
+
 function ActiveThemeHero({ theme }) {
     const heroRef = useRef(null);
+    const sceneRef = useRef(null);
+    const identityRef = useRef(null);
+    const previewRef = useRef(null);
+    const sheenRef = useRef(null);
+    const bloomRef = useRef(null);
     const prevThemeRef = useRef(null);
 
     // GSAP transition when theme changes
     useEffect(() => {
-        if (!heroRef.current) return;
-        const el = heroRef.current;
+        if (!heroRef.current || !sceneRef.current || !identityRef.current || !previewRef.current) return;
+
         const prev = prevThemeRef.current;
+        const depth = getHeroDepthProfile();
+        const scene = sceneRef.current;
+        const identity = identityRef.current;
+        const preview = previewRef.current;
+        const tl = gsap.timeline();
 
         if (prev && prev !== theme.id) {
-            // Burst out, swap in
-            gsap.fromTo(el,
-                { opacity: 0, scale: 0.96, y: 8 },
-                { opacity: 1, scale: 1, y: 0, duration: 0.55, ease: 'power3.out', clearProps: 'transform' }
-            );
+            tl.fromTo(scene,
+                { opacity: 0, y: 20, rotateX: 14, rotateY: -10, scale: 0.98 },
+                { opacity: 1, y: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.75, ease: 'power4.out' },
+                0
+            )
+                .fromTo(identity,
+                    { opacity: 0, x: -24, y: 18, z: 0 },
+                    { opacity: 1, x: depth.identity.x, y: depth.identity.y, z: depth.identity.z, duration: 0.9, ease: 'power3.out' },
+                    0.08
+                )
+                .fromTo(preview,
+                    { opacity: 0, x: 42, y: 24, z: 0, rotateY: -28, rotateX: 16 },
+                    {
+                        opacity: 1,
+                        x: depth.preview.x,
+                        y: depth.preview.y,
+                        z: depth.preview.z,
+                        rotateY: depth.preview.rotateY,
+                        rotateX: depth.preview.rotateX,
+                        duration: 1,
+                        ease: 'expo.out'
+                    },
+                    0.04
+                );
         } else if (!prev) {
-            // First mount
-            gsap.fromTo(el,
-                { opacity: 0, y: 16 },
-                { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', clearProps: 'transform' }
-            );
+            tl.fromTo(scene,
+                { opacity: 0, y: 18, rotateX: 10, rotateY: -8, scale: 0.985 },
+                { opacity: 1, y: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.8, ease: 'power4.out' },
+                0
+            )
+                .fromTo(identity,
+                    { opacity: 0, y: 14, x: -16, z: 0 },
+                    { opacity: 1, y: depth.identity.y, x: depth.identity.x, z: depth.identity.z, duration: 0.88, ease: 'power3.out' },
+                    0.08
+                )
+                .fromTo(preview,
+                    { opacity: 0, x: 30, y: 18, z: 0, rotateY: -24, rotateX: 12 },
+                    {
+                        opacity: 1,
+                        x: depth.preview.x,
+                        y: depth.preview.y,
+                        z: depth.preview.z,
+                        rotateY: depth.preview.rotateY,
+                        rotateX: depth.preview.rotateX,
+                        duration: 0.96,
+                        ease: 'expo.out'
+                    },
+                    0.04
+                );
         }
 
         prevThemeRef.current = theme.id;
+        return () => tl.kill();
     }, [theme.id]);
 
-    // GSAP accent glow animation
-    const bloomRef = useRef(null);
     useEffect(() => {
-        if (!bloomRef.current) return;
-        gsap.to(bloomRef.current, {
-            opacity: 0.4,
-            scale: 1.15,
-            duration: 2.5,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
+        if (!heroRef.current || !sceneRef.current || !identityRef.current || !previewRef.current || !bloomRef.current) return;
+
+        const depth = getHeroDepthProfile();
+        const hero = heroRef.current;
+        const scene = sceneRef.current;
+        const identity = identityRef.current;
+        const preview = previewRef.current;
+        const bloom = bloomRef.current;
+        const sheen = sheenRef.current;
+        const layers = preview.querySelectorAll('[data-depth]');
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+        gsap.set(scene, {
+            x: 0,
+            y: 0,
+            rotateX: 0,
+            rotateY: 0,
+            scale: 1,
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'center center',
+            willChange: 'transform',
+            force3D: true,
         });
-    }, [theme.accent_color]);
+        gsap.set(identity, {
+            ...depth.identity,
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'left center',
+            willChange: 'transform',
+            force3D: true,
+        });
+        gsap.set(preview, {
+            ...depth.preview,
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'right center',
+            willChange: 'transform',
+            force3D: true,
+        });
+        gsap.set(bloom, {
+            xPercent: 0,
+            yPercent: 0,
+            scale: 1,
+            opacity: 0.25,
+            z: depth.bloom.z,
+            transformOrigin: 'center center',
+            force3D: true,
+        });
+
+        if (sheen) {
+            gsap.set(sheen, {
+                ...depth.sheen,
+                opacity: 0.34,
+                z: 18,
+                transformOrigin: 'center center',
+                force3D: true,
+            });
+        }
+
+        gsap.set(layers, {
+            z: (_, target) => Number(target.getAttribute('data-depth') || 0),
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'center center',
+            force3D: true,
+        });
+
+        const ambientTl = prefersReducedMotion
+            ? null
+            : gsap.timeline({ repeat: -1, yoyo: true, defaults: { duration: 4.6, ease: 'sine.inOut' } });
+
+        if (ambientTl) {
+            ambientTl.to(bloom, { scale: 1.18, opacity: 0.38 }, 0);
+            if (sheen) {
+                ambientTl.to(sheen, { xPercent: 10, yPercent: -6, opacity: 0.46 }, 0);
+            }
+        }
+
+        if (!hoverCapable && !prefersReducedMotion) {
+            ambientTl?.to(scene, { y: -depth.sceneLift }, 0)
+                .to(identity, { x: depth.identity.x + 4, y: depth.identity.y - 2 }, 0)
+                .to(preview, {
+                    y: depth.preview.y - 6,
+                    z: depth.preview.z + 8,
+                    rotateY: depth.preview.rotateY - 2,
+                    rotateX: depth.preview.rotateX + 1.5
+                }, 0);
+        }
+
+        let resumeAmbient = null;
+        let handleEnter = null;
+        let handleMove = null;
+        let handleLeave = null;
+
+        if (!prefersReducedMotion && hoverCapable) {
+            const sceneXTo = gsap.quickTo(scene, 'x', { duration: 0.7, ease: 'power3.out' });
+            const sceneYTo = gsap.quickTo(scene, 'y', { duration: 0.7, ease: 'power3.out' });
+            const sceneRotateXTo = gsap.quickTo(scene, 'rotateX', { duration: 0.75, ease: 'power3.out' });
+            const sceneRotateYTo = gsap.quickTo(scene, 'rotateY', { duration: 0.75, ease: 'power3.out' });
+            const identityXTo = gsap.quickTo(identity, 'x', { duration: 0.7, ease: 'power3.out' });
+            const identityYTo = gsap.quickTo(identity, 'y', { duration: 0.7, ease: 'power3.out' });
+            const previewXTo = gsap.quickTo(preview, 'x', { duration: 0.75, ease: 'power3.out' });
+            const previewYTo = gsap.quickTo(preview, 'y', { duration: 0.75, ease: 'power3.out' });
+            const previewRotateXTo = gsap.quickTo(preview, 'rotateX', { duration: 0.75, ease: 'power3.out' });
+            const previewRotateYTo = gsap.quickTo(preview, 'rotateY', { duration: 0.75, ease: 'power3.out' });
+            const bloomXTo = gsap.quickTo(bloom, 'xPercent', { duration: 0.9, ease: 'power3.out' });
+            const bloomYTo = gsap.quickTo(bloom, 'yPercent', { duration: 0.9, ease: 'power3.out' });
+            const sheenXTo = sheen ? gsap.quickTo(sheen, 'xPercent', { duration: 1, ease: 'power3.out' }) : null;
+            const sheenYTo = sheen ? gsap.quickTo(sheen, 'yPercent', { duration: 1, ease: 'power3.out' }) : null;
+
+            handleEnter = () => {
+                ambientTl?.pause();
+                resumeAmbient?.kill();
+                gsap.to(scene, { scale: 1.01, duration: 0.45, ease: 'power2.out' });
+            };
+
+            handleMove = (event) => {
+                const rect = hero.getBoundingClientRect();
+                const px = (event.clientX - rect.left) / rect.width;
+                const py = (event.clientY - rect.top) / rect.height;
+                const offsetX = px - 0.5;
+                const offsetY = py - 0.5;
+
+                sceneXTo(offsetX * 10);
+                sceneYTo(offsetY * 6);
+                sceneRotateXTo(gsap.utils.clamp(-8, 8, -offsetY * 15));
+                sceneRotateYTo(gsap.utils.clamp(-12, 12, offsetX * 20));
+
+                identityXTo(depth.identity.x - offsetX * 14);
+                identityYTo(depth.identity.y - offsetY * 10);
+
+                previewXTo(depth.preview.x + offsetX * 26);
+                previewYTo(depth.preview.y + offsetY * 18);
+                previewRotateYTo(depth.preview.rotateY + offsetX * 18);
+                previewRotateXTo(depth.preview.rotateX - offsetY * 12);
+
+                bloomXTo(offsetX * 30);
+                bloomYTo(offsetY * 22);
+                sheenXTo?.(depth.sheen.xPercent + px * 24);
+                sheenYTo?.(depth.sheen.yPercent - py * 16);
+            };
+
+            handleLeave = () => {
+                gsap.to(scene, {
+                    x: 0,
+                    y: 0,
+                    rotateX: 0,
+                    rotateY: 0,
+                    scale: 1,
+                    duration: 0.8,
+                    ease: 'elastic.out(1, 0.55)'
+                });
+                gsap.to(identity, {
+                    x: depth.identity.x,
+                    y: depth.identity.y,
+                    duration: 0.8,
+                    ease: 'power3.out'
+                });
+                gsap.to(preview, {
+                    x: depth.preview.x,
+                    y: depth.preview.y,
+                    z: depth.preview.z,
+                    rotateY: depth.preview.rotateY,
+                    rotateX: depth.preview.rotateX,
+                    duration: 0.9,
+                    ease: 'power3.out'
+                });
+                gsap.to(bloom, {
+                    xPercent: 0,
+                    yPercent: 0,
+                    scale: 1,
+                    opacity: 0.25,
+                    duration: 0.95,
+                    ease: 'power3.out'
+                });
+                sheen && gsap.to(sheen, {
+                    xPercent: depth.sheen.xPercent,
+                    yPercent: depth.sheen.yPercent,
+                    opacity: 0.34,
+                    duration: 1,
+                    ease: 'power3.out'
+                });
+
+                resumeAmbient = gsap.delayedCall(0.92, () => ambientTl?.resume());
+            };
+
+            hero.addEventListener('pointerenter', handleEnter);
+            hero.addEventListener('pointermove', handleMove);
+            hero.addEventListener('pointerleave', handleLeave);
+        }
+
+        return () => {
+            resumeAmbient?.kill();
+            ambientTl?.kill();
+
+            if (handleEnter) hero.removeEventListener('pointerenter', handleEnter);
+            if (handleMove) hero.removeEventListener('pointermove', handleMove);
+            if (handleLeave) hero.removeEventListener('pointerleave', handleLeave);
+
+            gsap.killTweensOf([scene, identity, preview, bloom, sheen, ...layers]);
+        };
+    }, [theme.id, theme.accent_color]);
 
     return (
         <div
@@ -858,11 +1115,22 @@ function ActiveThemeHero({ theme }) {
             style={{
                 backgroundColor: theme.bg_color,
                 border: `1px solid ${theme.border_color}`,
-                boxShadow: `0 30px 80px -20px ${theme.accent_color}35, 0 0 0 1px ${theme.accent_color}10`,
+                perspective: '1800px',
+                boxShadow: `0 34px 90px -32px ${theme.accent_color}4A, 0 14px 40px -24px rgba(0,0,0,0.72), 0 0 0 1px ${theme.accent_color}12`,
             }}
         >
             {/* Noise */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.18] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
+
+            <div
+                ref={sheenRef}
+                className="absolute inset-y-[10%] -left-[18%] w-[48%] rounded-full pointer-events-none"
+                style={{
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 48%, transparent 100%)',
+                    filter: 'blur(26px)',
+                    mixBlendMode: 'screen',
+                }}
+            />
 
             {/* Per-theme overlay */}
             <ThemeAnimationOverlay themeName={theme.name} isHero={true} />
@@ -878,10 +1146,14 @@ function ActiveThemeHero({ theme }) {
                 }}
             />
 
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 md:p-12">
+            <div
+                ref={sceneRef}
+                className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 p-8 md:p-12"
+                style={{ transformStyle: 'preserve-3d' }}
+            >
                 {/* Identity */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 mb-5">
+                <div ref={identityRef} className="flex-1 min-w-0" style={{ transformStyle: 'preserve-3d' }}>
+                    <div className="flex items-center gap-2.5 mb-5" style={{ transform: 'translateZ(18px)' }}>
                         <motion.span
                             animate={{ opacity: [1, 0.25, 1], scale: [1, 1.3, 1] }}
                             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -895,18 +1167,18 @@ function ActiveThemeHero({ theme }) {
 
                     <h2
                         className="text-5xl md:text-6xl font-light tracking-tight leading-[1.0] mb-3 truncate"
-                        style={{ color: theme.text_color, fontFamily: `${theme.font_family_display}, serif` }}
+                        style={{ color: theme.text_color, fontFamily: `${theme.font_family_display}, serif`, transform: 'translateZ(34px)' }}
                     >
                         {theme.name}
                     </h2>
 
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35 mt-2" style={{ color: theme.text_color }}>
+                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35 mt-2" style={{ color: theme.text_color, transform: 'translateZ(22px)' }}>
                         {theme.font_family_display} · {theme.font_family_body}
                     </p>
                 </div>
 
                 {/* Mini UI preview */}
-                <MiniUIPreview theme={theme} />
+                <MiniUIPreview theme={theme} containerRef={previewRef} />
             </div>
 
             {/* Inner rim */}
@@ -917,53 +1189,109 @@ function ActiveThemeHero({ theme }) {
 
 // ─── Mini UI Preview ──────────────────────────────────────────────────────────
 
-function MiniUIPreview({ theme }) {
+function MiniUIPreview({ theme, containerRef }) {
     const archetype = THEME_ARCHETYPES[theme.name] || 'default';
 
     return (
         <div
-            className="shrink-0 w-full md:w-72 rounded-2xl overflow-hidden relative"
-            style={{ height: '8.5rem', backgroundColor: theme.surface_color, border: `1px solid ${theme.border_color}` }}
+            ref={containerRef}
+            className="shrink-0 relative w-full md:w-[34rem] rounded-[1.75rem] overflow-hidden"
+            style={{
+                height: '11rem',
+                background: `linear-gradient(145deg, ${theme.surface_color} 0%, ${theme.bg_color} 100%)`,
+                border: `1px solid ${theme.border_color}`,
+                boxShadow: `0 36px 80px -44px ${theme.accent_color}65, 0 16px 32px -24px rgba(0,0,0,0.75)`,
+                transformStyle: 'preserve-3d',
+            }}
         >
-            {/* Header bar */}
-            <div className="absolute top-0 left-0 right-0 h-8 flex items-center gap-2 px-3"
-                style={{ backgroundColor: theme.bg_color, borderBottom: `1px solid ${theme.border_color}` }}>
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.accent_color, opacity: 0.8 }} />
-                <div className="flex-1 h-1.5 rounded-full opacity-20" style={{ backgroundColor: theme.text_color, maxWidth: '55%' }} />
-                <div className="w-10 h-4 rounded-md opacity-30" style={{ backgroundColor: theme.accent_color }} />
-            </div>
+            <div
+                className="absolute inset-2.5 rounded-[1.4rem] opacity-80 pointer-events-none"
+                data-depth="-24"
+                style={{
+                    background: `radial-gradient(circle at 20% 20%, ${theme.accent_color}24 0%, transparent 48%), linear-gradient(135deg, ${theme.surface_color} 0%, ${theme.bg_color} 100%)`,
+                    border: `1px solid ${theme.border_color}55`,
+                }}
+            />
 
-            {/* Content rows */}
-            <div className="absolute top-10 left-3 right-3 space-y-1.5">
-                <div className="h-3 rounded-full w-3/4 opacity-30" style={{ backgroundColor: theme.text_color }} />
-                <div className="h-2 rounded-full w-full opacity-12" style={{ backgroundColor: theme.text_color }} />
-                <div className="h-2 rounded-full w-5/6 opacity-10" style={{ backgroundColor: theme.text_color }} />
-            </div>
+            <div className="absolute inset-0 opacity-[0.1] pointer-events-none" data-depth="6" style={{ backgroundImage: NOISE_SVG }} />
 
-            {/* Accent pill */}
-            <div className="absolute bottom-3 left-3 h-5 w-14 rounded-full"
-                style={{ backgroundColor: theme.accent_color, opacity: 0.9 }} />
+            <div
+                className="absolute -left-12 top-4 h-24 w-40 rounded-full pointer-events-none"
+                data-depth="-10"
+                style={{ background: `radial-gradient(circle, ${theme.accent_color}45 0%, transparent 72%)`, filter: 'blur(28px)' }}
+            />
+
+            <div
+                className="absolute inset-3 rounded-[1.45rem] overflow-hidden"
+                data-depth="12"
+                style={{
+                    backgroundColor: theme.surface_color,
+                    border: `1px solid ${theme.border_color}`,
+                    boxShadow: `0 24px 60px -28px ${theme.bg_color}AA`,
+                    transformStyle: 'preserve-3d',
+                }}
+            >
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    data-depth="4"
+                    style={{ background: `linear-gradient(135deg, ${theme.bg_color}26 0%, transparent 55%)` }}
+                />
+
+                {/* Header bar */}
+                <div className="absolute top-0 left-0 right-0 h-9 flex items-center gap-2 px-4"
+                    data-depth="28"
+                    style={{ backgroundColor: `${theme.bg_color}F0`, borderBottom: `1px solid ${theme.border_color}` }}>
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: theme.accent_color, opacity: 0.8 }} />
+                    <div className="flex-1 h-1.5 rounded-full opacity-20" style={{ backgroundColor: theme.text_color, maxWidth: '58%' }} />
+                    <div className="w-14 h-4 rounded-full opacity-30" style={{ backgroundColor: theme.accent_color }} />
+                </div>
+
+                <div className="absolute top-[3.2rem] left-4 right-4 space-y-2" style={{ transformStyle: 'preserve-3d' }}>
+                    <div className="h-3.5 rounded-full w-[68%] opacity-32" data-depth="42" style={{ backgroundColor: theme.text_color }} />
+                    <div className="h-2.5 rounded-full w-full opacity-14" data-depth="26" style={{ backgroundColor: theme.text_color }} />
+                    <div className="h-2.5 rounded-full w-[74%] opacity-10" data-depth="18" style={{ backgroundColor: theme.text_color }} />
+                </div>
+
+                <div
+                    className="absolute bottom-4 left-4 h-5 w-20 rounded-full"
+                    data-depth="58"
+                    style={{ backgroundColor: theme.accent_color, opacity: 0.92, boxShadow: `0 12px 24px -12px ${theme.accent_color}` }}
+                />
+
+                <div
+                    className="absolute right-4 top-[3.1rem] rounded-full px-2.5 py-1 text-[8px] font-mono uppercase tracking-[0.22em]"
+                    data-depth="50"
+                    style={{
+                        color: theme.accent_color,
+                        backgroundColor: `${theme.bg_color}D9`,
+                        border: `1px solid ${theme.border_color}`,
+                        boxShadow: `0 12px 24px -18px ${theme.accent_color}50`
+                    }}
+                >
+                    Active
+                </div>
+            </div>
 
             {/* Archetype-specific mini detail */}
             {(archetype === 'cosmos' || archetype === 'bloom') && (
-                <div className="absolute top-10 right-3 text-[10px] select-none" style={{ color: theme.accent_color, opacity: 0.6 }}>
+                <div className="absolute top-4 right-4 text-[10px] select-none" data-depth="70" style={{ color: theme.accent_color, opacity: 0.58 }}>
                     {archetype === 'cosmos' ? '★' : '♥'}
                 </div>
             )}
             {archetype === 'cyber' && (
-                <div className="absolute bottom-3 right-3 text-[8px] font-mono" style={{ color: theme.accent_color, opacity: 0.5 }}>
+                <div className="absolute bottom-4 right-4 text-[8px] font-mono" data-depth="66" style={{ color: theme.accent_color, opacity: 0.5 }}>
                     SYS://
                 </div>
             )}
             {archetype === 'crystal' && (
-                <div className="absolute top-10 right-3 text-[10px] select-none" style={{ color: theme.accent_color, opacity: 0.5 }}>
+                <div className="absolute top-4 right-4 text-[10px] select-none" data-depth="70" style={{ color: theme.accent_color, opacity: 0.5 }}>
                     ❄
                 </div>
             )}
 
             {/* Inner glow */}
-            <div className="absolute inset-0 rounded-2xl pointer-events-none"
-                style={{ boxShadow: `inset 0 0 24px ${theme.accent_color}12` }} />
+            <div className="absolute inset-0 rounded-[1.75rem] pointer-events-none" data-depth="78"
+                style={{ boxShadow: `inset 0 0 28px ${theme.accent_color}12, inset 0 1px 0 rgba(255,255,255,0.05)` }} />
         </div>
     );
 }
