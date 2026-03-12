@@ -1464,20 +1464,43 @@ app.get('/api/themes', authMiddleware, async (req, res) => {
                 }
             }
 
+            // Migrate old pro themes to new calming designs
+            const PRO_THEME_RENAMES = {
+                'Botanical Garden': { name: 'Sage Temple',    bg_color: '#0b1410', surface_color: '#111d14', text_color: '#cddcbf', secondary_text_color: '#7a9e6c', border_color: '#182418', accent_color: '#98c878', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Desert Rose':      { name: 'Dawn Ember',     bg_color: '#120c08', surface_color: '#1c1208', text_color: '#f0dcc0', secondary_text_color: '#c09060', border_color: '#281a0c', accent_color: '#d4905c', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Forest Canopy':    { name: 'Misty Shore',    bg_color: '#0c1520', surface_color: '#111e2c', text_color: '#c8d8e4', secondary_text_color: '#6888a0', border_color: '#18263a', accent_color: '#7aaccb', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Golden Hour':      { name: 'Amber Lantern',  bg_color: '#110d00', surface_color: '#1a1400', text_color: '#f0e0b0', secondary_text_color: '#c09040', border_color: '#281e00', accent_color: '#e0a850', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Midnight Galaxy':  { name: 'Moonlit Cove',   bg_color: '#060c18', surface_color: '#0c1428', text_color: '#d0e0f0', secondary_text_color: '#5878a8', border_color: '#101e38', accent_color: '#80b0d8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Ocean Depths':     { name: 'Rain Garden',    bg_color: '#0a1018', surface_color: '#0e1820', text_color: '#c0d4e0', secondary_text_color: '#5080a0', border_color: '#142030', accent_color: '#70b8d8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Sunset Blvd':      { name: 'Cherry Blossom', bg_color: '#160e18', surface_color: '#201428', text_color: '#f0e4ec', secondary_text_color: '#c890b0', border_color: '#2c1a30', accent_color: '#e8a8c8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+                'Rose':             { name: 'Lavender Dusk',  bg_color: '#100e1c', surface_color: '#181628', text_color: '#e8e0f8', secondary_text_color: '#9080c8', border_color: '#201e38', accent_color: '#b89edc', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora' },
+            };
+            for (const theme of themes) {
+                if (theme.is_default && PRO_THEME_RENAMES[theme.name]) {
+                    const t = PRO_THEME_RENAMES[theme.name];
+                    await db.execute(
+                        `UPDATE themes SET name=$1, bg_color=$2, surface_color=$3, text_color=$4, secondary_text_color=$5, border_color=$6, accent_color=$7, font_family_display=$8, font_family_body=$9 WHERE id=$10`,
+                        [t.name, t.bg_color, t.surface_color, t.text_color, t.secondary_text_color, t.border_color, t.accent_color, t.font_family_display, t.font_family_body, theme.id]
+                    );
+                    migrated = true;
+                }
+            }
+
             const proThemes = [
-                { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 1, is_default: 1 },
-                { name: 'Riven Light', bg_color: '#f5f0e8', surface_color: '#ffffff', text_color: '#1e3840', secondary_text_color: '#6b7d7f', border_color: '#ddd5c8', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Arctic Frost', bg_color: '#e8f4fd', surface_color: '#ffffff', text_color: '#0d2b4e', secondary_text_color: '#3d6b9e', border_color: '#b8d8f0', accent_color: '#0080ff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Botanical Garden', bg_color: '#0d1f14', surface_color: '#142a1c', text_color: '#d4e8c2', secondary_text_color: '#7ab885', border_color: '#1e3d28', accent_color: '#5cdb7a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Desert Rose', bg_color: '#1c0d12', surface_color: '#28131a', text_color: '#f0d9c8', secondary_text_color: '#c4896e', border_color: '#3d1c26', accent_color: '#e8856a', font_family_display: 'Lora', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Forest Canopy', bg_color: '#0a1a0d', surface_color: '#102015', text_color: '#c8e8c0', secondary_text_color: '#6aaa6e', border_color: '#1a3020', accent_color: '#7dde82', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Golden Hour', bg_color: '#1a0f00', surface_color: '#261600', text_color: '#fce8c0', secondary_text_color: '#d4a055', border_color: '#3d2800', accent_color: '#f5a623', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Midnight Galaxy', bg_color: '#06030f', surface_color: '#0e0820', text_color: '#e8e0ff', secondary_text_color: '#9b7fd4', border_color: '#1a1040', accent_color: '#b06aff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Modern Minimal', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#0a0a0a', secondary_text_color: '#5a5a5a', border_color: '#e0e0e0', accent_color: '#0a0a0a', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Ocean Depths', bg_color: '#020d18', surface_color: '#051828', text_color: '#c8f0f0', secondary_text_color: '#4db8c8', border_color: '#0a2840', accent_color: '#00d4e8', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Sunset Blvd', bg_color: '#1a0800', surface_color: '#280d00', text_color: '#ffeee0', secondary_text_color: '#e87040', border_color: '#3d1500', accent_color: '#ff6030', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Tech Innovation', bg_color: '#000000', surface_color: '#0a0a0a', text_color: '#ffffff', secondary_text_color: '#00e5ff', border_color: '#1a1a1a', accent_color: '#00e5ff', font_family_display: 'JetBrains Mono', font_family_body: 'JetBrains Mono', is_active: 0, is_default: 1 },
-                { name: 'Rose', bg_color: '#1a0020', surface_color: '#280030', text_color: '#ffe0f5', secondary_text_color: '#ff80c8', border_color: '#3d0050', accent_color: '#ff4da6', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 }
+                { name: 'Riven',          bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 1, is_default: 1 },
+                { name: 'Riven Light',    bg_color: '#f5f0e8', surface_color: '#ffffff', text_color: '#1e3840', secondary_text_color: '#6b7d7f', border_color: '#ddd5c8', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Arctic Frost',   bg_color: '#e8f4fd', surface_color: '#ffffff', text_color: '#0d2b4e', secondary_text_color: '#3d6b9e', border_color: '#b8d8f0', accent_color: '#0080ff', font_family_display: 'Inter',              font_family_body: 'Inter',       is_active: 0, is_default: 1 },
+                { name: 'Modern Minimal', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#0a0a0a', secondary_text_color: '#5a5a5a', border_color: '#e0e0e0', accent_color: '#0a0a0a', font_family_display: 'Inter',              font_family_body: 'Inter',       is_active: 0, is_default: 1 },
+                { name: 'Tech Innovation',bg_color: '#000000', surface_color: '#0a0a0a', text_color: '#ffffff', secondary_text_color: '#00e5ff', border_color: '#1a1a1a', accent_color: '#00e5ff', font_family_display: 'JetBrains Mono',     font_family_body: 'JetBrains Mono', is_active: 0, is_default: 1 },
+                // ── New calming pro themes ─────────────────────────────────────────
+                { name: 'Sage Temple',    bg_color: '#0b1410', surface_color: '#111d14', text_color: '#cddcbf', secondary_text_color: '#7a9e6c', border_color: '#182418', accent_color: '#98c878', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Dawn Ember',     bg_color: '#120c08', surface_color: '#1c1208', text_color: '#f0dcc0', secondary_text_color: '#c09060', border_color: '#281a0c', accent_color: '#d4905c', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Misty Shore',    bg_color: '#0c1520', surface_color: '#111e2c', text_color: '#c8d8e4', secondary_text_color: '#6888a0', border_color: '#18263a', accent_color: '#7aaccb', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Amber Lantern',  bg_color: '#110d00', surface_color: '#1a1400', text_color: '#f0e0b0', secondary_text_color: '#c09040', border_color: '#281e00', accent_color: '#e0a850', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Moonlit Cove',   bg_color: '#060c18', surface_color: '#0c1428', text_color: '#d0e0f0', secondary_text_color: '#5878a8', border_color: '#101e38', accent_color: '#80b0d8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Rain Garden',    bg_color: '#0a1018', surface_color: '#0e1820', text_color: '#c0d4e0', secondary_text_color: '#5080a0', border_color: '#142030', accent_color: '#70b8d8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Cherry Blossom', bg_color: '#160e18', surface_color: '#201428', text_color: '#f0e4ec', secondary_text_color: '#c890b0', border_color: '#2c1a30', accent_color: '#e8a8c8', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
+                { name: 'Lavender Dusk',  bg_color: '#100e1c', surface_color: '#181628', text_color: '#e8e0f8', secondary_text_color: '#9080c8', border_color: '#201e38', accent_color: '#b89edc', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
             ];
 
             let missingThemesAdded = false;

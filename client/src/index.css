@@ -591,45 +591,32 @@
 
 /* ─── Pro Theme Animations ───────────────────────────────────────────────────── */
 
-/* Aurora — color-shift gradient: Midnight Galaxy, Ocean Depths, Rose */
+/* Aurora — color-shift gradient: kept for Foundation themes */
 @keyframes themeAurora {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Shimmer — light sweep: Arctic Frost, Golden Hour, Desert Rose, Void */
+/* Shimmer — light sweep: Arctic Frost */
 @keyframes themeShimmer {
   0%   { transform: translateX(-120%) skewX(-12deg); }
   100% { transform: translateX(280%) skewX(-12deg); }
 }
 
-/* Glow pulse — radial breathe: multiple dark themes */
+/* Glow pulse — radial breathe: Moonlit Cove, Dawn Ember, Cherry Blossom */
 @keyframes themeGlowPulse {
   0%, 100% { opacity: 0.15; transform: scale(1); }
-  50%       { opacity: 0.35; transform: scale(1.12); }
+  50%       { opacity: 0.32; transform: scale(1.1); }
 }
 
-/* Color bloom — soft filter pulse: Botanical Garden, Forest Canopy */
+/* Color bloom — soft filter pulse: Sage Temple, Lavender Dusk */
 @keyframes themeColorBloom {
-  0%, 100% { opacity: 0.15; filter: blur(20px); }
-  50%       { opacity: 0.28; filter: blur(12px); }
+  0%, 100% { opacity: 0.14; filter: blur(22px); }
+  50%       { opacity: 0.26; filter: blur(14px); }
 }
 
-/* Heart float — Rose theme */
-@keyframes themeHeartFloat {
-  0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.9; }
-  40%  { transform: translateY(-30px) scale(1.08) rotate(10deg); opacity: 0.65; }
-  100% { transform: translateY(-80px) scale(0.65) rotate(-8deg); opacity: 0; }
-}
-
-/* Twinkle — stars and snowflakes */
-@keyframes themeTwinkle {
-  0%, 100% { opacity: 0.05; transform: scale(0.5); }
-  50%       { opacity: 1; transform: scale(1); }
-}
-
-/* Gradient drift — slow position shift: Golden Hour, Sunset Blvd */
+/* Gradient drift — slow position shift */
 @keyframes themeGradientDrift {
   0%   { background-position: 0% 0%; }
   33%  { background-position: 100% 50%; }
@@ -645,10 +632,16 @@
   100% { transform: translateY(100vh); opacity: 0; }
 }
 
-/* Caustic — underwater light ripple: Ocean Depths */
-@keyframes themeCaustic {
-  0%, 100% { opacity: 0.3; transform: skewX(0deg); }
-  50%       { opacity: 0.5; transform: skewX(2deg); }
+/* Mist drift — slow horizontal fog movement: Misty Shore, Rain Garden */
+@keyframes themeMistDrift {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  50%       { transform: translateX(28px) scaleX(1.06); }
+}
+
+/* Lantern warm — amber glow pulse: Amber Lantern */
+@keyframes themeLanternWarm {
+  0%, 100% { opacity: 0.12; transform: scale(1); }
+  45%       { opacity: 0.25; transform: scale(1.12); }
 }
 
 /* Message entrance animation for virtualized chat */
