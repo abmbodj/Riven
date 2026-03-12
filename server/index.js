@@ -1503,6 +1503,12 @@ app.get('/api/themes', authMiddleware, async (req, res) => {
                 { name: 'Lavender Dusk',  bg_color: '#100e1c', surface_color: '#181628', text_color: '#e8e0f8', secondary_text_color: '#9080c8', border_color: '#201e38', accent_color: '#b89edc', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora',        is_active: 0, is_default: 1 },
             ];
 
+            // Re-fetch after rename migration so hasTheme check sees new names
+            if (migrated) {
+                themes = await db.query('SELECT * FROM themes WHERE user_id = $1', [userId]);
+                migrated = false;
+            }
+
             let missingThemesAdded = false;
             for (const pro of proThemes) {
                 const hasTheme = themes.some(t => t.name === pro.name && t.is_default);
@@ -1517,6 +1523,22 @@ app.get('/api/themes', authMiddleware, async (req, res) => {
 
             // Re-fetch after migration if needed
             if (migrated || missingThemesAdded) {
+                themes = await db.query('SELECT * FROM themes WHERE user_id = $1', [userId]);
+            }
+
+            // Delete duplicate default themes (keep lowest id per name)
+            const seenDefaultNames = new Map();
+            for (const t of themes) {
+                if (!t.is_default) continue;
+                if (seenDefaultNames.has(t.name)) {
+                    // Delete the duplicate (higher id)
+                    await db.execute('DELETE FROM themes WHERE id = $1', [t.id]);
+                    missingThemesAdded = true; // trigger re-fetch
+                } else {
+                    seenDefaultNames.set(t.name, t.id);
+                }
+            }
+            if (missingThemesAdded) {
                 themes = await db.query('SELECT * FROM themes WHERE user_id = $1', [userId]);
             }
         }
