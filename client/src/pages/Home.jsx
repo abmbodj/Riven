@@ -91,8 +91,8 @@ function SectionHeading({ icon, title, to, action = 'View All', tone = 'default'
 }
 
 function StatTile({ label, value, tone = 'default' }) {
-    const valueColor = tone === 'danger' ? 'text-red-400' : 'text-botanical-parchment';
-    const borderTone = tone === 'danger' ? 'border-red-500/20' : 'border-white/10';
+    const valueColor = tone === 'danger' ? 'text-red-400' : 'text-claude-text';
+    const borderTone = tone === 'danger' ? 'border-red-500/20' : 'border-claude-border';
 
     return (
         <div className={`glass-panel rounded-2xl border ${borderTone} p-3 sm:p-4`}>
@@ -106,13 +106,13 @@ function QuickActionCard({ to, icon, label }) {
     return (
         <Link
             to={to}
-            className="tap-action group glass-panel flex min-h-[88px] flex-col items-start justify-between gap-3 rounded-2xl border border-white/10 px-4 py-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+            className="tap-action group glass-panel flex min-h-[88px] flex-col items-start justify-between gap-3 rounded-2xl border border-claude-border px-4 py-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
         >
             <div className="flex w-full items-center justify-between gap-3">
                 {React.createElement(icon, { className: 'h-4 w-4 text-claude-accent transition-transform group-hover:scale-110' })}
                 <ArrowRight className="h-3.5 w-3.5 text-claude-secondary transition-transform group-hover:translate-x-0.5 group-hover:text-claude-accent" />
             </div>
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-botanical-parchment">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-claude-text">
                 {label}
             </span>
         </Link>
@@ -124,24 +124,24 @@ function QueueChip({ icon, eyebrow, title, meta, to, tone = 'default' }) {
         ? 'border-red-500/20 bg-red-500/[0.08]'
         : tone === 'accent'
             ? 'border-claude-accent/20 bg-claude-accent/[0.08]'
-            : 'border-white/10 bg-white/[0.03]';
+            : 'border-claude-border bg-claude-bg/20';
 
     return (
         <Link
             to={to}
             className={`tap-action group inline-flex min-h-[52px] min-w-[220px] items-center gap-3 rounded-2xl border px-3 py-2.5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
         >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/15 text-claude-accent">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-border bg-claude-bg/50 text-claude-accent">
                 {React.createElement(icon, { className: 'h-4 w-4' })}
             </div>
             <div className="min-w-0 flex-1">
                 <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-claude-secondary">{eyebrow}</p>
                 <div className="mt-1 flex min-w-0 items-center gap-2">
-                    <h3 className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-botanical-parchment transition-colors group-hover:text-claude-accent">
+                    <h3 className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-claude-text transition-colors group-hover:text-claude-accent">
                         {title}
                     </h3>
                     {meta ? (
-                        <p className="truncate text-xs text-white/55">{meta}</p>
+                        <p className="truncate text-xs text-claude-secondary/80">{meta}</p>
                     ) : null}
                 </div>
             </div>
@@ -570,31 +570,31 @@ function DashboardHome() {
 
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(25,70,82,0.9),rgba(13,27,32,0.98)_62%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)] sm:mb-8 sm:p-6 lg:p-7">
+            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-claude-border bg-claude-surface p-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-6 lg:p-7">
                 <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/8 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/10 to-transparent" />
                 <div className="gsap-hero relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-center">
                     <div className="min-w-0">
-                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-botanical-sepia">
+                        <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-claude-secondary">
                             <CalendarDays className="h-4 w-4" />
                             {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                         </p>
-                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-botanical-parchment sm:text-5xl">
+                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-claude-text sm:text-5xl">
                             Today Queue
                         </h1>
-                        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-white/68 sm:text-base">
+                        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-claude-secondary sm:text-base">
                             {heroSummary}
                         </p>
 
                         <div className="mb-4 flex flex-wrap items-center gap-3">
                             <Link
                                 to={todayQueue[0].to}
-                                className="tap-action inline-flex items-center gap-3 rounded-2xl bg-[#a8c07f] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#102228] shadow-[0_10px_30px_rgba(168,192,127,0.28)] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(168,192,127,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a8c07f]/60"
+                                className="tap-action inline-flex items-center gap-3 rounded-2xl bg-claude-accent px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-claude-bg shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                             >
                                 <Play className="h-4 w-4" /> {todayQueue[0].cta}
                             </Link>
                             <HeartsDisplay onClick={() => setPricingOpen(true)} />
-                            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                            <span className="rounded-full border border-claude-border bg-claude-bg/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary">
                                 {user?.username || 'Student'}
                             </span>
                         </div>
@@ -615,21 +615,21 @@ function DashboardHome() {
                     </div>
 
                     <div className="xl:justify-self-end">
-                        <Link to="/garden" className="tap-action group block rounded-[26px] border border-white/10 bg-white/[0.04] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
+                        <Link to="/garden" className="tap-action group block rounded-[26px] border border-claude-border bg-claude-bg/30 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
                             <div className="flex items-center gap-4">
-                                <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/10 shadow-sm transition-transform group-hover:-translate-y-1">
-                                    <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-[#8fa6a8]/10 to-transparent" />
-                                    <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-[#e8e4d8] shadow-sm" />
+                                <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-claude-border bg-claude-bg/50 shadow-sm transition-transform group-hover:-translate-y-1">
+                                    <div className="absolute inset-x-2 bottom-2 h-1/2 rounded-b-xl bg-gradient-to-t from-claude-secondary/10 to-transparent" />
+                                    <div className="absolute -right-2 -top-1 z-20 h-2 w-6 rotate-[35deg] bg-claude-text/60 shadow-sm" />
                                     <div className="origin-bottom translate-y-3 scale-[0.75] transform">
                                         <Garden streak={streak.currentStreak} status={streak.status} size="sm" showInfo={true} />
                                     </div>
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Garden streak</p>
-                                    <p className="mt-2 font-serif text-xl font-bold italic text-botanical-parchment">
+                                    <p className="mt-2 font-serif text-xl font-bold italic text-claude-text">
                                         {streak.currentStreak} day rhythm
                                     </p>
-                                    <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-claude-accent">
+                                    <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-claude-border bg-claude-bg/50 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-claude-accent">
                                         <Leaf className="h-2 w-2" /> Open garden
                                     </div>
                                 </div>
