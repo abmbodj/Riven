@@ -126,18 +126,23 @@ export const register = async (username, email, password) => {
         password,
         options: { data: { username } },
     });
-    if (error) throw new Error(error.message);
 
-    // Session available immediately (email confirm disabled) — complete registration now.
-    if (data.session) {
+    if (!error && data.session) {
+        // Supabase confirmed immediately (email confirmation disabled in dashboard).
         setToken(data.session.access_token);
         const result = await completeRegistration(username);
         return result.user;
     }
 
-    // Email confirmation required — user must verify before logging in.
-    // Return null; the UI should show a "check your email" message.
-    return null;
+    // Email confirmation required OR Supabase signup failed —
+    // fall back to legacy Express register for immediate login.
+    // The Supabase user (if created) will be linked on first confirmed login.
+    const legacyData = await authFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, email, password }),
+    });
+    if (legacyData.token) setToken(legacyData.token);
+    return legacyData.user;
 };
 
 export const login = async (email, password) => {
