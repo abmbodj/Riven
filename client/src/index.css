@@ -497,7 +497,10 @@
       -webkit-backdrop-filter: blur(16px) saturate(180%);
     }
 
+    .glass-shell,
     .desktop-sidebar-shell {
+      position: relative;
+      isolation: isolate;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%),
         linear-gradient(160deg,
@@ -512,6 +515,7 @@
       -webkit-backdrop-filter: blur(24px) saturate(180%);
     }
 
+    .glass-shell::before,
     .desktop-sidebar-shell::before {
       content: '';
       position: absolute;
