@@ -11,21 +11,7 @@ const { mockUser, pricingModalMock } = vi.hoisted(() => ({
 vi.mock('motion/react', () => {
   const createMotionComponent = (tag) =>
     React.forwardRef(
-      (
-        {
-          children,
-          animate,
-          exit,
-          initial,
-          transition,
-          whileHover,
-          whileTap,
-          whileInView,
-          viewport,
-          ...props
-        },
-        ref
-      ) => React.createElement(tag, { ...props, ref }, children)
+      ({ children, ...props }, ref) => React.createElement(tag, { ...props, ref }, children)
     );
 
   return {
@@ -117,5 +103,17 @@ describe('ThemeSettings premium theme creation gate', () => {
         currentTier: 'free',
       })
     );
+  });
+
+  it('opens the redesigned theme studio for premium users', () => {
+    mockUser.subscription_tier = 'supporter';
+
+    render(<ThemeSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
+
+    expect(screen.getByRole('dialog', { name: /theme studio/i })).toBeInTheDocument();
+    expect(screen.getByText(/built to current riven standards/i)).toBeInTheDocument();
+    expect(screen.queryByText('Pricing modal open')).not.toBeInTheDocument();
   });
 });

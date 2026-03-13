@@ -3,6 +3,25 @@ import { api } from './api';
 
 export const ThemeContext = createContext(null);
 
+function resolveColorScheme(hexColor) {
+    if (!hexColor) return 'dark';
+
+    const sanitized = hexColor.replace('#', '').trim();
+    const normalized = sanitized.length === 3
+        ? sanitized.split('').map((char) => char + char).join('')
+        : sanitized;
+    const value = Number.parseInt(normalized, 16);
+
+    if (Number.isNaN(value)) return 'dark';
+
+    const red = (value >> 16) & 255;
+    const green = (value >> 8) & 255;
+    const blue = value & 255;
+    const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+    return luminance > 0.58 ? 'light' : 'dark';
+}
+
 export function ThemeProvider({ children }) {
     const [themes, setThemes] = useState([]);
     const [activeTheme, setActiveTheme] = useState(null);
@@ -23,6 +42,14 @@ export function ThemeProvider({ children }) {
         }
         if (theme.font_family_body) {
             root.style.setProperty('--font-body', theme.font_family_body);
+        }
+
+        const colorScheme = resolveColorScheme(theme.bg_color);
+        root.style.colorScheme = colorScheme;
+
+        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeColorMeta && theme.bg_color) {
+            themeColorMeta.setAttribute('content', theme.bg_color);
         }
     }, []);
 

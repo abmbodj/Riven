@@ -46,16 +46,17 @@ const getPrimaryNavItems = (isLoggedIn) => [
         matchers: ['/classes', '/class']
     },
     {
-        to: '/account',
-        icon: User,
-        label: 'Account',
-        matchers: ['/account']
+        to: '/groups',
+        icon: Users,
+        label: 'Groups',
+        matchers: ['/groups']
     },
 ];
 
 const utilityLinks = [
     { to: '/garden', icon: Sprout, label: 'Garden', color: 'text-claude-accent' },
     { to: '/themes', icon: Palette, label: 'Themes', color: 'text-claude-accent' },
+    { to: '/account', icon: User, label: 'Account', color: 'text-claude-secondary' },
     { to: '/settings', icon: Settings, label: 'Settings', color: 'text-claude-secondary' },
 ];
 
