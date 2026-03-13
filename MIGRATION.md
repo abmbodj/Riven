@@ -479,8 +479,11 @@ Replace Socket.io with Supabase Realtime (Postgres CDC) and Presence.
 
 ### DM Messages → Postgres CDC
 
-Enable Realtime on the `messages` table in Supabase Dashboard:
-**Database → Replication → Tables → messages → enable**
+The Phase 2 SQL now configures DM Realtime automatically by:
+- adding `public.messages` to the `supabase_realtime` publication if needed
+- setting `REPLICA IDENTITY FULL` on `public.messages`
+
+The Realtime dashboard is now only for verification. On the screen you showed, `messages` should appear as enabled after rerunning the latest SQL.
 
 ```javascript
 // In MessageContext or useMessages hook

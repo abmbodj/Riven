@@ -35,4 +35,13 @@ describe('Phase 2 RLS migration', () => {
         expect(migrationSql).toContain('COALESCE(u.is_banned, FALSE) = FALSE');
         expect(migrationSql).not.toContain('COALESCE(u.is_banned, 0) = 0');
     });
+
+    it('configures messages for Supabase Realtime publication', () => {
+        const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+
+        expect(migrationSql).toContain('ALTER TABLE public.messages REPLICA IDENTITY FULL;');
+        expect(migrationSql).toContain("WHERE pubname = 'supabase_realtime'");
+        expect(migrationSql).toContain("AND tablename = 'messages'");
+        expect(migrationSql).toContain('ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;');
+    });
 });
