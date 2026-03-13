@@ -459,75 +459,70 @@ function StatCard({ title, value, icon, trend, accentClass, glowColor, subtitle 
     );
 }
 
-// Bar Chart — user signups per day
+// Bar Chart — user signups per day (div-based, no SVG transform issues)
 function ActivityChart({ data }) {
     if (!data || !data.length) return null;
 
     const rawMax = Math.max(...data.map(d => d.count), 1);
-    const total = data.length;
-    const barW = 100 / total;
-    const barPad = barW * 0.2;
-    const actualBarW = barW - barPad;
 
-    const labelIndices = [0];
-    const step = Math.floor(total / 4);
-    for (let i = step; i < total - 1; i += step) {
-        if (labelIndices.length < 4) labelIndices.push(i);
-    }
-    labelIndices.push(total - 1);
+    // 5 label positions: first, last, and 3 evenly spaced between
+    const labelIndices = new Set([0, data.length - 1]);
+    const seg = Math.floor((data.length - 1) / 4);
+    for (let i = 1; i <= 3; i++) labelIndices.add(Math.min(i * seg, data.length - 1));
+    const sortedLabels = [...labelIndices].sort((a, b) => a - b);
 
     return (
-        <div className="relative w-full h-full flex flex-col">
-            <div className="flex-1 relative">
-                {/* Y-Axis Grid Lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-                    {[0, 1, 2, 3].map(i => (
-                        <div key={i} className="w-full h-px bg-claude-border" />
+        <div className="w-full h-full flex flex-col select-none">
+            {/* Bars */}
+            <div className="relative flex-1 flex items-end gap-[2px] overflow-hidden">
+                {/* Grid lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                    {[0, 1, 2, 3, 4].map(i => (
+                        <div key={i} className="w-full h-px bg-white/[0.06]" />
                     ))}
                 </div>
 
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                    <defs>
-                        <linearGradient id="barGradientUsers" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.85" />
-                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0.35" />
-                        </linearGradient>
-                    </defs>
-
-                    {data.map((d, i) => {
-                        if (d.count === 0) return null;
-                        const barH = (d.count / rawMax) * 96;
-                        const x = i * barW + barPad / 2;
-                        const y = 100 - barH;
-                        return (
-                            <motion.rect
-                                key={i}
-                                x={x}
-                                y={y}
-                                width={actualBarW}
-                                height={barH}
-                                fill="url(#barGradientUsers)"
-                                rx="0.8"
-                                initial={{ opacity: 0, scaleY: 0 }}
-                                animate={{ opacity: 1, scaleY: 1 }}
-                                transition={{ delay: i * 0.015, duration: 0.35, ease: 'easeOut' }}
-                                style={{ transformOrigin: `${x + actualBarW / 2}px 100px` }}
+                {data.map((d, i) => {
+                    const pct = d.count > 0 ? (d.count / rawMax) * 100 : 0;
+                    return (
+                        <div key={i} className="relative flex-1 h-full flex items-end">
+                            <motion.div
+                                className="w-full rounded-t-[2px]"
+                                style={{
+                                    background: d.count > 0
+                                        ? 'linear-gradient(to bottom, var(--accent-color) 0%, rgba(222,185,106,0.3) 100%)'
+                                        : 'rgba(255,255,255,0.04)',
+                                    minHeight: '1px',
+                                }}
+                                initial={{ height: 0 }}
+                                animate={{ height: d.count > 0 ? `${pct}%` : '1px' }}
+                                transition={{ delay: i * 0.018, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                             />
-                        );
-                    })}
-                </svg>
+                        </div>
+                    );
+                })}
             </div>
 
-            {/* X-Axis Labels */}
-            <div className="flex justify-between items-end mt-3 text-[9px] font-mono text-claude-secondary tracking-wider uppercase h-4">
-                {labelIndices.map((idx, i) => {
+            {/* X-axis labels */}
+            <div className="relative h-4 mt-2 shrink-0">
+                {sortedLabels.map((idx) => {
                     const d = data[idx];
-                    if (!d) return <span key={i} className="flex-1 text-center" />;
+                    if (!d) return null;
                     const date = new Date(d.date + 'T00:00:00');
-                    const formatted = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
+                    const label = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
+                    const leftPct = (idx / (data.length - 1)) * 100;
+                    const isFirst = idx === 0;
+                    const isLast = idx === data.length - 1;
                     return (
-                        <span key={i} className="flex-1 text-center first:text-left last:text-right">
-                            {formatted}
+                        <span
+                            key={idx}
+                            className="absolute text-[9px] font-mono text-claude-secondary/70 tracking-wider uppercase whitespace-nowrap"
+                            style={{
+                                left: `${leftPct}%`,
+                                transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
+                            }}
+                        >
+                            {label}
                         </span>
                     );
                 })}
