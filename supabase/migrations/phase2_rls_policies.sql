@@ -45,17 +45,21 @@ $$;
 
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS classes_select ON public.classes;
 CREATE POLICY classes_select ON public.classes
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS classes_insert ON public.classes;
 CREATE POLICY classes_insert ON public.classes
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS classes_update ON public.classes;
 CREATE POLICY classes_update ON public.classes
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS classes_delete ON public.classes;
 CREATE POLICY classes_delete ON public.classes
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -69,17 +73,21 @@ CREATE TRIGGER set_user_id_classes
 
 ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS assignments_select ON public.assignments;
 CREATE POLICY assignments_select ON public.assignments
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS assignments_insert ON public.assignments;
 CREATE POLICY assignments_insert ON public.assignments
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS assignments_update ON public.assignments;
 CREATE POLICY assignments_update ON public.assignments
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS assignments_delete ON public.assignments;
 CREATE POLICY assignments_delete ON public.assignments
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -93,17 +101,21 @@ CREATE TRIGGER set_user_id_assignments
 
 ALTER TABLE public.schedule_slots ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS schedule_slots_select ON public.schedule_slots;
 CREATE POLICY schedule_slots_select ON public.schedule_slots
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS schedule_slots_insert ON public.schedule_slots;
 CREATE POLICY schedule_slots_insert ON public.schedule_slots
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS schedule_slots_update ON public.schedule_slots;
 CREATE POLICY schedule_slots_update ON public.schedule_slots
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS schedule_slots_delete ON public.schedule_slots;
 CREATE POLICY schedule_slots_delete ON public.schedule_slots
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -117,17 +129,21 @@ CREATE TRIGGER set_user_id_schedule_slots
 
 ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS folders_select ON public.folders;
 CREATE POLICY folders_select ON public.folders
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS folders_insert ON public.folders;
 CREATE POLICY folders_insert ON public.folders
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS folders_update ON public.folders;
 CREATE POLICY folders_update ON public.folders
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS folders_delete ON public.folders;
 CREATE POLICY folders_delete ON public.folders
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -141,17 +157,21 @@ CREATE TRIGGER set_user_id_folders
 
 ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tags_select ON public.tags;
 CREATE POLICY tags_select ON public.tags
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS tags_insert ON public.tags;
 CREATE POLICY tags_insert ON public.tags
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS tags_update ON public.tags;
 CREATE POLICY tags_update ON public.tags
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS tags_delete ON public.tags;
 CREATE POLICY tags_delete ON public.tags
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -165,17 +185,21 @@ CREATE TRIGGER set_user_id_tags
 
 ALTER TABLE public.themes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS themes_select ON public.themes;
 CREATE POLICY themes_select ON public.themes
   FOR SELECT USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS themes_insert ON public.themes;
 CREATE POLICY themes_insert ON public.themes
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS themes_update ON public.themes;
 CREATE POLICY themes_update ON public.themes
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS themes_delete ON public.themes;
 CREATE POLICY themes_delete ON public.themes
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -232,6 +256,7 @@ GRANT EXECUTE ON FUNCTION public.can_read_deck(integer) TO authenticated;
 
 ALTER TABLE public.decks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS decks_select ON public.decks;
 CREATE POLICY decks_select ON public.decks
   FOR SELECT USING (
     user_id = public.get_app_user_id()
@@ -244,14 +269,17 @@ CREATE POLICY decks_select ON public.decks
     )
   );
 
+DROP POLICY IF EXISTS decks_insert ON public.decks;
 CREATE POLICY decks_insert ON public.decks
   FOR INSERT WITH CHECK (
     user_id IS NULL OR user_id = public.get_app_user_id()
   );
 
+DROP POLICY IF EXISTS decks_update ON public.decks;
 CREATE POLICY decks_update ON public.decks
   FOR UPDATE USING (user_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS decks_delete ON public.decks;
 CREATE POLICY decks_delete ON public.decks
   FOR DELETE USING (user_id = public.get_app_user_id());
 
@@ -265,12 +293,15 @@ CREATE TRIGGER set_user_id_decks
 
 ALTER TABLE public.deck_tags ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS deck_tags_select ON public.deck_tags;
 CREATE POLICY deck_tags_select ON public.deck_tags
   FOR SELECT USING (public.can_read_deck(deck_id));
 
+DROP POLICY IF EXISTS deck_tags_insert ON public.deck_tags;
 CREATE POLICY deck_tags_insert ON public.deck_tags
   FOR INSERT WITH CHECK (public.owns_deck(deck_id));
 
+DROP POLICY IF EXISTS deck_tags_delete ON public.deck_tags;
 CREATE POLICY deck_tags_delete ON public.deck_tags
   FOR DELETE USING (public.owns_deck(deck_id));
 
@@ -279,15 +310,19 @@ CREATE POLICY deck_tags_delete ON public.deck_tags
 
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS cards_select ON public.cards;
 CREATE POLICY cards_select ON public.cards
   FOR SELECT USING (public.can_read_deck(deck_id));
 
+DROP POLICY IF EXISTS cards_insert ON public.cards;
 CREATE POLICY cards_insert ON public.cards
   FOR INSERT WITH CHECK (public.owns_deck(deck_id));
 
+DROP POLICY IF EXISTS cards_update ON public.cards;
 CREATE POLICY cards_update ON public.cards
   FOR UPDATE USING (public.owns_deck(deck_id));
 
+DROP POLICY IF EXISTS cards_delete ON public.cards;
 CREATE POLICY cards_delete ON public.cards
   FOR DELETE USING (public.owns_deck(deck_id));
 
@@ -296,15 +331,19 @@ CREATE POLICY cards_delete ON public.cards
 
 ALTER TABLE public.study_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS study_sessions_select ON public.study_sessions;
 CREATE POLICY study_sessions_select ON public.study_sessions
   FOR SELECT USING (public.can_read_deck(deck_id));
 
+DROP POLICY IF EXISTS study_sessions_insert ON public.study_sessions;
 CREATE POLICY study_sessions_insert ON public.study_sessions
   FOR INSERT WITH CHECK (public.owns_deck(deck_id));
 
+DROP POLICY IF EXISTS study_sessions_update ON public.study_sessions;
 CREATE POLICY study_sessions_update ON public.study_sessions
   FOR UPDATE USING (public.owns_deck(deck_id));
 
+DROP POLICY IF EXISTS study_sessions_delete ON public.study_sessions;
 CREATE POLICY study_sessions_delete ON public.study_sessions
   FOR DELETE USING (public.owns_deck(deck_id));
 
@@ -321,7 +360,7 @@ AS $$
     SELECT 1
     FROM public.users u
     WHERE u.id = public.get_app_user_id()
-      AND COALESCE(u.is_banned, 0) = 0
+      AND COALESCE(u.is_banned, FALSE) = FALSE
   )
   AND EXISTS (
     SELECT 1
@@ -359,6 +398,7 @@ GRANT EXECUTE ON FUNCTION public.mark_messages_read(integer) TO authenticated;
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS messages_select ON public.messages;
 CREATE POLICY messages_select ON public.messages
   FOR SELECT USING (
     (sender_id = public.get_app_user_id() OR receiver_id = public.get_app_user_id())
@@ -370,14 +410,17 @@ CREATE POLICY messages_select ON public.messages
     )
   );
 
+DROP POLICY IF EXISTS messages_insert ON public.messages;
 CREATE POLICY messages_insert ON public.messages
   FOR INSERT WITH CHECK (
     sender_id = public.get_app_user_id()
     AND public.dm_partner_allowed(receiver_id)
   );
 
+DROP POLICY IF EXISTS messages_update ON public.messages;
 CREATE POLICY messages_update ON public.messages
   FOR UPDATE USING (sender_id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS messages_delete ON public.messages;
 CREATE POLICY messages_delete ON public.messages
   FOR DELETE USING (sender_id = public.get_app_user_id());
