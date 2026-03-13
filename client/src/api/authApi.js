@@ -28,11 +28,21 @@ export const getApiBase = () => API_BASE;
 // Store actual JWT on all platforms so Authorization header works as fallback
 // when httpOnly cookies fail (e.g. iOS PWA/Add-to-Home-Screen has separate cookie jar)
 export const getToken = () => localStorage.getItem('riven_auth_token');
+let cachedAppUserId = null;
+let cachedAuthToken = null;
+
 export const setToken = (token) => {
-    if (token) {
-        localStorage.setItem('riven_auth_token', token);
+    const normalizedToken = token || null;
+
+    if (normalizedToken) {
+        localStorage.setItem('riven_auth_token', normalizedToken);
     } else {
         localStorage.removeItem('riven_auth_token');
+    }
+
+    if (normalizedToken !== cachedAuthToken) {
+        cachedAppUserId = null;
+        cachedAuthToken = normalizedToken;
     }
 };
 
@@ -162,7 +172,7 @@ export const login = async (email, password) => {
         try {
             const result = await completeRegistration();
             return { user: result.user };
-        } catch (e) {
+        } catch {
             // User row already exists — fetch normally
             const user = await authFetch('/auth/me');
             return { user };
@@ -190,7 +200,7 @@ export const loginWithGoogle = async (credential) => {
     return { user: result.user };
 };
 
-export const loginWithApple = async (identityToken, user) => {
+export const loginWithApple = async (identityToken, _user) => {
     const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: identityToken,
@@ -286,6 +296,26 @@ const _sbThrow = (error) => {
     throw err;
 };
 
+const getAppUserId = async () => {
+    const token = getToken();
+    if (!token) {
+        throw new Error('Must be logged in to write data');
+    }
+
+    if (cachedAppUserId && cachedAuthToken === token) {
+        return cachedAppUserId;
+    }
+
+    const user = await getMe();
+    if (!user?.id) {
+        throw new Error('Failed to resolve the current user for Supabase writes');
+    }
+
+    cachedAppUserId = user.id;
+    cachedAuthToken = token;
+    return cachedAppUserId;
+};
+
 // --- Folders (PostgREST) ---
 
 export const getFolders = async () => {
@@ -298,9 +328,10 @@ export const getFolders = async () => {
 };
 
 export const createFolder = async (name, color, icon) => {
+    const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('folders')
-        .insert({ name, color: color || '#6366f1', icon: icon || 'folder' })
+        .insert({ user_id: userId, name, color: color || '#6366f1', icon: icon || 'folder' })
         .select()
         .single();
     if (error) _sbThrow(error);
@@ -343,9 +374,10 @@ export const getTags = async () => {
 };
 
 export const createTag = async (name, color) => {
+    const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('tags')
-        .insert({ name, color, is_preset: false })
+        .insert({ user_id: userId, name, color, is_preset: false })
         .select()
         .single();
     if (error) {
@@ -377,9 +409,17 @@ export const getClasses = async () => {
 };
 
 export const createClass = async (name, color, professor, room, zoom_link) => {
+    const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('classes')
-        .insert({ name, color: color || null, professor: professor || null, room: room || null, zoom_link: zoom_link || null })
+        .insert({
+            user_id: userId,
+            name,
+            color: color || null,
+            professor: professor || null,
+            room: room || null,
+            zoom_link: zoom_link || null
+        })
         .select()
         .single();
     if (error) _sbThrow(error);
@@ -420,9 +460,11 @@ export const getAssignments = async (classId) => {
 };
 
 export const createAssignment = async (class_id, title, description, due_date, type) => {
+    const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('assignments')
         .insert({
+            user_id: userId,
             class_id,
             title,
             description: description || null,
@@ -464,9 +506,10 @@ export const getSchedule = async () => {
 };
 
 export const createScheduleSlot = async (class_id, day_of_week, start_time, end_time) => {
+    const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('schedule_slots')
-        .insert({ class_id, day_of_week, start_time, end_time })
+        .insert({ user_id: userId, class_id, day_of_week, start_time, end_time })
         .select()
         .single();
     if (error) _sbThrow(error);
