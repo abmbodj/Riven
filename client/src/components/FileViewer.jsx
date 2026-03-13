@@ -208,6 +208,8 @@ export default function FileViewer({ file, isOpen, onClose }) {
 
     if (!file) return null;
 
+    const isPlaceholderUrl = !file.url || file.url.startsWith('file-ref://');
+
     const officeEmbedUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(file.url || '')}`;
     const zoomIn = () => setScale((prev) => clamp(prev + 0.2, 0.6, 3));
     const zoomOut = () => setScale((prev) => clamp(prev - 0.2, 0.6, 3));
@@ -274,24 +276,28 @@ export default function FileViewer({ file, isOpen, onClose }) {
                 </>
             )}
 
-            <a
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
-                aria-label="Open in new tab"
-            >
-                <ExternalLink className="w-4 h-4" />
-            </a>
+            {!isPlaceholderUrl && (
+                <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                    aria-label="Open in new tab"
+                >
+                    <ExternalLink className="w-4 h-4" />
+                </a>
+            )}
 
-            <a
-                href={file.url}
-                download
-                className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
-                aria-label="Download file"
-            >
-                <Download className="w-4 h-4" />
-            </a>
+            {!isPlaceholderUrl && (
+                <a
+                    href={file.url}
+                    download
+                    className="p-2.5 glass-panel border border-white/10 text-white rounded-full hover:bg-white/10 transition-colors"
+                    aria-label="Download file"
+                >
+                    <Download className="w-4 h-4" />
+                </a>
+            )}
 
             <button
                 onClick={onClose}
@@ -304,6 +310,27 @@ export default function FileViewer({ file, isOpen, onClose }) {
     );
 
     const renderContent = () => {
+        // Placeholder URLs (file-ref://) have no actual storage backend — show metadata card
+        if (isPlaceholderUrl) {
+            return (
+                <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-20 h-20 rounded-3xl glass-panel flex items-center justify-center mb-4">
+                        {renderIcon()}
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 break-all">{file.name || 'Unknown File'}</h3>
+                    <p className="text-xs uppercase tracking-wider text-white/55 mb-4">{fileTypeLabel}</p>
+                    {file.uploaded_by_name && (
+                        <p className="text-white/60 text-sm mb-2">Uploaded by {file.uploaded_by_name}</p>
+                    )}
+                    <div className="max-w-sm glass-panel border border-white/10 rounded-xl px-5 py-4 mt-2">
+                        <p className="text-white/70 text-sm leading-relaxed">
+                            File preview is not available yet. File storage will be supported in a future update.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         if (fileInfo.kind === 'image') {
             return (
                 <div className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6 flex items-center justify-center">

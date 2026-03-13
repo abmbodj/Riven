@@ -79,11 +79,9 @@ export default function GroupDetails() {
             setSharedDecks(decksRes || []);
             setSessions(sessionsRes || []);
 
-            // Load folders and files
+            // Load folders (files are fetched separately by folder)
             const fetchedFolders = await api.getGroupFolders(id);
             setFolders(fetchedFolders || []);
-            const fetchedFiles = await api.getGroupFiles(id, currentFolderId);
-            setFiles(fetchedFiles || []);
 
         } catch (err) {
             console.error(err);
@@ -92,7 +90,8 @@ export default function GroupDetails() {
         } finally {
             setLoading(false);
         }
-    }, [id, currentFolderId, navigate, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, navigate]);
 
     useEffect(() => {
         loadGroup();
@@ -122,7 +121,13 @@ export default function GroupDetails() {
             }
         };
 
-    }, [id, loadGroup, socket, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, loadGroup, socket]);
+
+    // Fetch files separately when folder changes (avoids full group re-fetch)
+    useEffect(() => {
+        api.getGroupFiles(id, currentFolderId).then(f => setFiles(f || []));
+    }, [id, currentFolderId]);
 
     useEffect(() => {
         if (showSettings) {
