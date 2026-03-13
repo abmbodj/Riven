@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import {
-    Users, Layers, CreditCard, Share2, MessageSquare,
-    Plus, Trash2, Power, AlertCircle, Info, CheckCircle,
-    AlertTriangle, X, Send, BarChart3, TrendingUp,
-    Megaphone, UserCircle, Calendar, Zap, Database,
-    User, Mail, Key, Shield, ExternalLink, Activity, ArrowUp,
+    Users, Layers, MessageSquare, Search, ArrowLeft,
+    Plus, Trash2, AlertCircle, AlertTriangle, X, Send,
+    BarChart3, TrendingUp, Megaphone, UserCircle, Zap,
+    User, Shield, Activity, ArrowUp,
     Leaf, BookOpen, Feather, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 
 export default function AdminPanel() {
     const navigate = useNavigate();
+    const toast = useToast();
     const {
         isAdmin,
         isOwner,
@@ -183,6 +184,13 @@ export default function AdminPanel() {
             {/* Header with botanical glassmorphism */}
             <header className="sticky top-0 z-20 px-5 pt-4 pb-3 header-blur safe-area-top">
                 <div className="flex items-center gap-3 mb-4">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 rounded-xl hover:bg-claude-surface/60 text-claude-secondary hover:text-claude-text transition-colors touch-target tap-action focus-ring"
+                        aria-label="Go back"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
                     <div className="relative">
                         <div className="absolute inset-0 bg-claude-accent blur-[16px] opacity-15 rounded-full" />
                         <div className="relative w-10 h-10 rounded-xl glass-panel flex items-center justify-center border-claude-accent/20">
@@ -191,7 +199,7 @@ export default function AdminPanel() {
                     </div>
                     <div>
                         <h1 className="text-lg font-display tracking-tight text-claude-text">Admin Panel</h1>
-                        <p className="text-[11px] font-mono text-claude-secondary uppercase tracking-[0.2em]">Dashboard</p>
+                        <p className="text-[10px] font-mono text-claude-secondary uppercase tracking-[0.22em]">Dashboard</p>
                     </div>
                 </div>
 
@@ -371,7 +379,7 @@ function OverviewTab({ stats }) {
                             <Activity className="w-4 h-4 text-claude-accent" />
                             30-Day Activity
                         </h3>
-                        <p className="text-xs text-claude-secondary mt-0.5">New user signups over time</p>
+                        <p className="text-[11px] font-mono text-claude-secondary mt-0.5">New user signups over time</p>
                     </div>
                     <div className="px-2.5 py-1 rounded-lg bg-claude-accent/10 border border-claude-accent/20 text-claude-accent text-[10px] font-bold font-mono tracking-wider">
                         {stats.recentSignups.toLocaleString()} TOTAL
@@ -387,7 +395,7 @@ function OverviewTab({ stats }) {
             <motion.div
                 variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
             >
-                <h3 className="text-xs font-semibold text-claude-secondary mb-3 px-1 uppercase tracking-[0.15em] flex items-center gap-2">
+                <h3 className="text-[10px] font-mono text-claude-secondary mb-3 px-1 uppercase tracking-[0.22em] flex items-center gap-2">
                     <TrendingUp className="w-3.5 h-3.5" /> Trending Decks
                 </h3>
                 <div className="space-y-2">
@@ -568,8 +576,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                 subscriptionTier: newRole === 'friends' ? 'lifetime' : (u.role === 'friends' ? 'free' : u.subscriptionTier)
             } : u));
         } catch (err) {
-            const errorMessage = err?.message || 'Failed to change role';
-            alert(errorMessage);
+            toast.error(err?.message || 'Failed to change role');
         } finally {
             setChangingRole(null);
         }
@@ -589,7 +596,7 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
         >
             {/* Header with search */}
             <div className="px-4 py-3 border-b border-white/5 bg-claude-surface/30 flex items-center justify-between gap-3">
-                <div className="text-[10px] font-bold text-claude-secondary uppercase tracking-[0.15em] shrink-0 flex items-center gap-1.5">
+                <div className="text-[10px] font-bold text-claude-secondary uppercase tracking-[0.22em] shrink-0 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5" />
                     Users
                     <span className="ml-1 px-1.5 py-0.5 rounded-full bg-claude-border text-claude-text font-mono text-[9px]">{filteredUsers.length}</span>
@@ -601,9 +608,9 @@ function UsersTab({ users, setUsers, onDelete, isOwner, onRoleChange }) {
                         placeholder="Search…"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 bg-claude-bg/60 border border-claude-border rounded-xl text-xs text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-claude-accent/50 transition-colors"
+                        className="w-full pl-8 pr-3 py-2 bg-claude-bg/60 border border-claude-border rounded-xl text-xs text-claude-text placeholder-claude-secondary/50 focus:outline-none focus:border-claude-accent/50 transition-colors focus-ring"
                     />
-                    <Users className="w-3.5 h-3.5 text-claude-secondary absolute left-2.5 top-2.5" />
+                    <Search className="w-3.5 h-3.5 text-claude-secondary absolute left-2.5 top-2.5 pointer-events-none" />
                 </div>
             </div>
 
@@ -744,7 +751,7 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                         </div>
                         <div className="p-4 space-y-4">
                             <div>
-                                <label className="text-[10px] text-claude-secondary mb-2 block uppercase tracking-[0.15em] font-mono">Type</label>
+                                <label className="text-[10px] text-claude-secondary mb-2 block uppercase tracking-[0.22em] font-mono">Type</label>
                                 <div className="flex gap-2">
                                     {['info', 'success', 'warning', 'error'].map(type => {
                                         const isSelected = form.type === type;
@@ -770,14 +777,14 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
                                 placeholder="Message Title"
                                 value={form.title}
                                 onChange={e => setForm({ ...form, title: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors"
+                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors focus-ring"
                             />
                             <textarea
                                 placeholder="Message Content…"
                                 rows={4}
                                 value={form.content}
                                 onChange={e => setForm({ ...form, content: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors resize-none"
+                                className="w-full px-4 py-3 rounded-xl bg-claude-bg/60 border border-claude-border text-claude-text placeholder-claude-secondary/40 focus:outline-none focus:border-claude-accent/50 transition-colors resize-none focus-ring"
                             />
                             <button
                                 type="submit"
@@ -870,7 +877,7 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                 <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
                     style={{ background: 'radial-gradient(circle, rgba(222,185,106,0.08) 0%, transparent 70%)' }} />
                 <div className="relative z-10">
-                    <h3 className="text-[10px] font-mono text-claude-secondary uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                    <h3 className="text-[10px] font-mono text-claude-secondary uppercase tracking-[0.22em] mb-3 flex items-center gap-2">
                         <Shield className="w-3.5 h-3.5 text-claude-accent" />
                         Subscription Status
                     </h3>
@@ -914,12 +921,12 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                             <button
                                 onClick={handleToggle}
                                 disabled={toggling}
-                                className={`relative w-14 h-8 rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shrink-0 tap-action ${simulatingFree
-                                    ? 'bg-claude-accent shadow-botanical-glow'
-                                    : 'bg-claude-border'
+                                className={`relative w-12 h-7 rounded-full transition-colors duration-300 shrink-0 tap-action cursor-pointer ${simulatingFree
+                                    ? 'bg-claude-accent shadow-inner'
+                                    : 'glass-panel border border-claude-border/30'
                                     } ${toggling ? 'opacity-50' : ''}`}
                             >
-                                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${simulatingFree ? 'left-7' : 'left-1'}`} />
+                                <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shadow-sm ${simulatingFree ? 'left-[24px]' : 'left-[3px]'}`} />
                             </button>
                         </div>
 
