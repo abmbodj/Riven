@@ -26,15 +26,27 @@ function generateParticles(seed, count) {
     }));
 }
 
+function radialParticleBackground(accent, { highlight = 0.92, core = 'cc', mid = '42', outer = '10' } = {}) {
+    return `radial-gradient(circle, rgba(255,255,255,${highlight}) 0%, ${accent}${core} 28%, ${accent}${mid} 62%, ${accent}${outer} 80%, transparent 100%)`;
+}
+
+function particleGlow(accent, size, intensity = 1) {
+    const near = (size * (2.2 + intensity * 1.1)).toFixed(1);
+    const far = (size * (4.8 + intensity * 2.8)).toFixed(1);
+    const nearAlpha = intensity >= 1 ? 'aa' : intensity >= 0.7 ? '88' : '55';
+    const farAlpha = intensity >= 1 ? '4a' : intensity >= 0.7 ? '34' : '22';
+    return `0 0 ${near}px ${accent}${nearAlpha}, 0 0 ${far}px ${accent}${farAlpha}`;
+}
+
 // ─── Stable particle sets (module-level — never re-generated) ────────────────
-const P_MOTES   = generateParticles(4949, 22); // forest dust / sage temple
-const P_EMBERS  = generateParticles(6677, 18); // dawn ember sparks
-const P_MIST    = generateParticles(1122, 14); // misty shore fog orbs
-const P_FIREFLY = generateParticles(5511, 12); // amber lantern fireflies
-const P_STARS   = generateParticles(3571, 20); // moonlit cove stars
-const P_RAIN    = generateParticles(8833, 18); // rain garden droplets
-const P_PETALS  = generateParticles(2233, 16); // cherry blossom petals
-const P_POLLEN  = generateParticles(7777, 18); // lavender pollen spores
+const P_MOTES   = generateParticles(4949, 32); // forest dust / sage temple
+const P_EMBERS  = generateParticles(6677, 24); // dawn ember sparks
+const P_MIST    = generateParticles(1122, 18); // misty shore fog orbs
+const P_FIREFLY = generateParticles(5511, 16); // amber lantern fireflies
+const P_STARS   = generateParticles(3571, 28); // moonlit cove stars
+const P_RAIN    = generateParticles(8833, 24); // rain garden droplets
+const P_PETALS  = generateParticles(2233, 22); // cherry blossom petals
+const P_POLLEN  = generateParticles(7777, 24); // lavender pollen spores
 
 // ─── Theme → archetype map ────────────────────────────────────────────────────
 const THEME_MAP = {
@@ -85,7 +97,7 @@ function ForestOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
                     { opacity: 0, y: 0, x: 0 },
-                    { opacity: p.opacity * 0.26, duration: p.duration * 0.22, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.36, duration: p.duration * 0.22, ease: 'sine.in' }
                 )
                 .to(el, {
                     opacity: 0,
@@ -121,9 +133,11 @@ function ForestOverlay({ accent }) {
             {P_MOTES.map(p => (
                 <div key={p.id} className="p-mote absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 0.9) + 'px', height: (p.size * 0.9) + 'px',
-                    backgroundColor: accent,
-                    filter: `blur(${p.size * 0.35}px)`,
+                    width: (p.size * 1.1) + 'px', height: (p.size * 1.1) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 0.88, core: 'b0', mid: '30', outer: '08' }),
+                    boxShadow: particleGlow(accent, p.size, 0.45),
+                    filter: `blur(${p.size * 0.22}px)`,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
 
@@ -158,7 +172,7 @@ function EmberOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
                     { opacity: 0, y: 0, x: 0, scale: 0.3 },
-                    { opacity: p.opacity * 0.5, scale: 1, duration: p.duration * 0.18, ease: 'power2.in' }
+                    { opacity: p.opacity * 0.64, scale: 1, duration: p.duration * 0.18, ease: 'power2.in' }
                 )
                 .to(el, {
                     opacity: 0,
@@ -193,9 +207,11 @@ function EmberOverlay({ accent }) {
             {P_EMBERS.map(p => (
                 <div key={p.id} className="p-ember absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (1.2 + p.size * 0.65) + 'px', height: (1.2 + p.size * 0.65) + 'px',
-                    backgroundColor: accent,
-                    boxShadow: `0 0 ${p.size * 2}px ${accent}88`,
+                    width: (1.8 + p.size * 0.9) + 'px', height: (1.8 + p.size * 0.9) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 0.98, core: 'ff', mid: '88', outer: '18' }),
+                    boxShadow: particleGlow(accent, p.size + 1, 1.2),
+                    filter: `blur(${p.size * 0.12}px)`,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
         </div>
@@ -212,11 +228,11 @@ function MistOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay * 0.5 })
                 .fromTo(el,
                     { opacity: 0, x: 0 },
-                    { opacity: p.opacity * 0.09, duration: p.duration * 0.25, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.14, duration: p.duration * 0.25, ease: 'sine.in' }
                 )
                 .to(el, {
                     x: (p.spin - 0.5) * 90,
-                    opacity: p.opacity * 0.07,
+                    opacity: p.opacity * 0.11,
                     duration: p.duration * 0.75,
                     ease: 'sine.inOut',
                     yoyo: true,
@@ -231,7 +247,7 @@ function MistOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
                     { opacity: 0, x: 0, y: 0 },
-                    { opacity: p.opacity * 0.22, duration: p.duration * 0.2, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.3, duration: p.duration * 0.2, ease: 'sine.in' }
                 )
                 .to(el, {
                     opacity: 0,
@@ -264,10 +280,12 @@ function MistOverlay({ accent }) {
                 <div key={p.id} className="p-fog absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
                     width: (55 + p.drift * 80) + 'px', height: (38 + p.drift * 50) + 'px',
-                    backgroundColor: `${accent}06`,
+                    background: `radial-gradient(ellipse, ${accent}0d 0%, ${accent}06 46%, transparent 100%)`,
+                    boxShadow: particleGlow(accent, 18 + p.drift * 12, 0.35),
                     filter: `blur(${18 + p.drift * 18}px)`,
                     transform: 'translate(-50%, -50%)',
                     opacity: 0,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
 
@@ -275,8 +293,10 @@ function MistOverlay({ accent }) {
             {P_MIST.map(p => (
                 <div key={`m${p.id}`} className="p-mote absolute rounded-full" style={{
                     left: (p.x + 2) % 96 + '%', top: (p.y + 3) % 96 + '%',
-                    width: (p.size * 0.65) + 'px', height: (p.size * 0.65) + 'px',
-                    backgroundColor: accent,
+                    width: (p.size * 0.9) + 'px', height: (p.size * 0.9) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 0.8, core: '9c', mid: '24', outer: '08' }),
+                    boxShadow: particleGlow(accent, p.size, 0.38),
+                    willChange: 'transform, opacity',
                 }} />
             ))}
         </div>
@@ -301,7 +321,7 @@ function LanternOverlay({ accent }) {
             });
             // Separate opacity pulse (firefly blink)
             gsap.to(el, {
-                opacity: p.opacity * 0.6,
+                opacity: p.opacity * 0.74,
                 duration: 1.4 + p.spin * 1.8,
                 repeat: -1,
                 yoyo: true,
@@ -332,10 +352,11 @@ function LanternOverlay({ accent }) {
             {P_FIREFLY.map(p => (
                 <div key={p.id} className="p-fly absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (2 + p.size * 0.9) + 'px', height: (2 + p.size * 0.9) + 'px',
-                    backgroundColor: accent,
-                    boxShadow: `0 0 ${4 + p.size * 2}px ${accent}88, 0 0 ${8 + p.size * 3}px ${accent}44`,
+                    width: (2.4 + p.size * 1.1) + 'px', height: (2.4 + p.size * 1.1) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 1, core: 'ff', mid: '7a', outer: '18' }),
+                    boxShadow: particleGlow(accent, p.size + 2, 1.1),
                     opacity: 0,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
         </div>
@@ -349,8 +370,8 @@ function MoonOverlay({ accent }) {
         selector('.p-star').forEach((el, i) => {
             const p = P_STARS[i % P_STARS.length];
             gsap.to(el, {
-                opacity: p.opacity * 0.55,
-                scale: 1.5,
+                opacity: p.opacity * 0.68,
+                scale: 1.75,
                 duration: 1.4 + p.spin * 2.8,
                 repeat: -1,
                 yoyo: true,
@@ -381,10 +402,11 @@ function MoonOverlay({ accent }) {
             {P_STARS.map(p => (
                 <div key={p.id} className="p-star absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 0.65 + 0.4) + 'px', height: (p.size * 0.65 + 0.4) + 'px',
-                    backgroundColor: 'white',
-                    opacity: p.opacity * 0.12,
-                    boxShadow: `0 0 ${p.size * 0.8}px rgba(255,255,255,0.6)`,
+                    width: (p.size * 0.82 + 0.6) + 'px', height: (p.size * 0.82 + 0.6) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 1, core: 'd6', mid: '52', outer: '10' }),
+                    opacity: p.opacity * 0.18,
+                    boxShadow: `0 0 ${p.size * 1.2}px rgba(255,255,255,0.78), ${particleGlow(accent, p.size + 0.8, 0.6)}`,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
 
@@ -406,7 +428,7 @@ function RainOverlay({ accent }) {
                 { y: -(60 + p.drift * 180) + 'px', opacity: 0 },
                 {
                     y: '110vh',
-                    opacity: p.opacity * 0.26,
+                    opacity: p.opacity * 0.36,
                     duration: 4.5 + p.drift * 4.5,
                     delay: p.delay * 0.7,
                     repeat: -1,
@@ -433,11 +455,13 @@ function RainOverlay({ accent }) {
                 <div key={p.id} className="p-rain absolute" style={{
                     left: p.x + '%',
                     top: p.y + '%',
-                    width: '1px',
+                    width: (1 + p.size * 0.08) + 'px',
                     height: (14 + p.drift * 18) + 'px',
-                    backgroundColor: accent,
+                    background: `linear-gradient(180deg, transparent 0%, ${accent}70 16%, rgba(255,255,255,0.92) 54%, ${accent}26 100%)`,
+                    boxShadow: `0 0 ${1.5 + p.size * 0.3}px ${accent}44`,
                     opacity: 0,
                     borderRadius: '1px',
+                    willChange: 'transform, opacity',
                 }} />
             ))}
 
@@ -462,7 +486,7 @@ function SakuraOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
                     { opacity: 0, y: 0, rotation: (p.spin - 0.5) * 35, x: 0 },
-                    { opacity: p.opacity * 0.48, duration: p.duration * 0.14, ease: 'power1.in' }
+                    { opacity: p.opacity * 0.58, duration: p.duration * 0.14, ease: 'power1.in' }
                 )
                 .to(el, {
                     opacity: 0,
@@ -492,13 +516,16 @@ function SakuraOverlay({ accent }) {
             {P_PETALS.map(p => (
                 <div key={p.id} className="p-petal absolute" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (5.5 + p.size * 1.4) + 'px',
-                    height: (3.5 + p.size * 0.9) + 'px',
-                    backgroundColor: accent,
+                    width: (6 + p.size * 1.6) + 'px',
+                    height: (3.8 + p.size * 1.05) + 'px',
+                    background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, ${accent}f2 32%, ${accent}c8 72%, ${accent}4a 100%)`,
                     borderRadius: '50% 50% 50% 0',
                     opacity: 0,
-                    filter: `blur(${p.size * 0.25}px)`,
+                    filter: `blur(${p.size * 0.18}px)`,
+                    boxShadow: particleGlow(accent, p.size + 1.4, 0.6),
+                    border: `1px solid ${accent}24`,
                     transformOrigin: 'center',
+                    willChange: 'transform, opacity',
                 }} />
             ))}
 
@@ -557,7 +584,7 @@ function LavenderOverlay({ accent }) {
             gsap.timeline({ repeat: -1, delay: p.delay })
                 .fromTo(el,
                     { opacity: 0, y: 0, x: 0 },
-                    { opacity: p.opacity * 0.28, duration: p.duration * 0.24, ease: 'sine.in' }
+                    { opacity: p.opacity * 0.4, duration: p.duration * 0.24, ease: 'sine.in' }
                 )
                 .to(el, {
                     opacity: 0,
@@ -591,9 +618,12 @@ function LavenderOverlay({ accent }) {
             {P_POLLEN.map(p => (
                 <div key={p.id} className="p-pollen absolute rounded-full" style={{
                     left: p.x + '%', top: p.y + '%',
-                    width: (p.size * 0.75) + 'px', height: (p.size * 0.75) + 'px',
-                    backgroundColor: accent,
+                    width: (p.size * 0.95) + 'px', height: (p.size * 0.95) + 'px',
+                    background: radialParticleBackground(accent, { highlight: 0.86, core: 'c8', mid: '38', outer: '10' }),
+                    boxShadow: particleGlow(accent, p.size + 0.6, 0.55),
                     opacity: 0,
+                    filter: `blur(${p.size * 0.16}px)`,
+                    willChange: 'transform, opacity',
                 }} />
             ))}
         </div>
