@@ -113,7 +113,9 @@ describe('ThemeSettings premium theme creation gate', () => {
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
 
     expect(screen.getByRole('dialog', { name: /theme studio/i })).toBeInTheDocument();
-    expect(screen.getByText(/built to current riven standards/i)).toBeInTheDocument();
+    expect(screen.getByText(/mobile-first now/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /phone canvas/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /desktop canvas/i })).toBeInTheDocument();
     expect(screen.queryByText('Pricing modal open')).not.toBeInTheDocument();
   });
 });

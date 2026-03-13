@@ -1,4 +1,4 @@
-import { createElement, useEffect } from 'react';
+import { createElement, useEffect, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import { Check, Monitor, Moon, Palette, Smartphone, Sparkles, Sun, X } from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
@@ -44,14 +44,14 @@ function isDarkTheme(hex) {
 function Section({ eyebrow, title, description, children, theme }) {
     return (
         <section
-            className="rounded-[1.75rem] border p-4 shadow-sm md:p-5"
+            className="rounded-[1.5rem] border p-3.5 shadow-sm md:rounded-[1.75rem] md:p-5"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.9),
                 backgroundColor: withAlpha(theme.surface_color, 0.9),
                 boxShadow: `0 24px 80px ${withAlpha(theme.bg_color, 0.18)}`
             }}
         >
-            <div className="mb-4">
+            <div className="mb-3 md:mb-4">
                 <p
                     className="text-[10px] font-bold uppercase tracking-[0.24em]"
                     style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}
@@ -59,14 +59,14 @@ function Section({ eyebrow, title, description, children, theme }) {
                     {eyebrow}
                 </p>
                 <h3
-                    className="mt-1 text-2xl leading-tight"
+                    className="mt-1 text-[1.65rem] leading-tight md:text-2xl"
                     style={{ color: theme.text_color, fontFamily: theme.font_family_display }}
                 >
                     {title}
                 </h3>
                 {description ? (
                     <p
-                        className="mt-1 text-sm leading-6"
+                        className="mt-1 text-sm leading-5 md:leading-6"
                         style={{ color: withAlpha(theme.secondary_text_color, 0.92), fontFamily: theme.font_family_body }}
                     >
                         {description}
@@ -83,7 +83,7 @@ function ModeButton({ active, icon: Icon, label, helper, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="flex min-h-[108px] flex-col justify-between rounded-[1.5rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+            className="tap-action flex min-h-[96px] flex-col justify-between rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:min-h-[108px] md:rounded-[1.5rem] md:p-4"
             style={{
                 borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.85),
                 backgroundColor: active ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.bg_color, 0.36),
@@ -117,7 +117,7 @@ function PresetCard({ preset, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="rounded-[1.5rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+            className="tap-action rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.5rem] md:p-4"
             style={{
                 borderColor: active ? preset.theme.accent_color : withAlpha(theme.border_color, 0.8),
                 background: `linear-gradient(135deg, ${withAlpha(preset.theme.bg_color, 0.98)} 0%, ${withAlpha(preset.theme.surface_color, 0.98)} 100%)`,
@@ -130,7 +130,7 @@ function PresetCard({ preset, active, onClick, theme }) {
                         {preset.eyebrow}
                     </p>
                     <h4
-                        className="mt-1 text-2xl leading-tight"
+                        className="mt-1 text-xl leading-tight md:text-2xl"
                         style={{ color: preset.theme.text_color, fontFamily: preset.theme.font_family_display }}
                     >
                         {preset.name}
@@ -159,7 +159,7 @@ function PresetCard({ preset, active, onClick, theme }) {
                     />
                 ))}
             </div>
-            <p className="text-sm leading-6" style={{ color: withAlpha(preset.theme.secondary_text_color, 0.95) }}>
+            <p className="text-sm leading-5 md:leading-6" style={{ color: withAlpha(preset.theme.secondary_text_color, 0.95) }}>
                 {preset.description}
             </p>
         </button>
@@ -171,7 +171,7 @@ function SwatchButton({ swatch, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="flex min-w-[84px] flex-col items-center gap-3 rounded-[1.25rem] border px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+            className="tap-action flex min-w-[84px] snap-start flex-col items-center gap-3 rounded-[1.15rem] border px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.25rem]"
             style={{
                 borderColor: active ? swatch.color : withAlpha(theme.border_color, 0.82),
                 backgroundColor: active ? withAlpha(swatch.color, 0.14) : withAlpha(theme.bg_color, 0.38),
@@ -197,7 +197,7 @@ function FontCard({ preset, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="rounded-[1.5rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+            className="tap-action rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.5rem] md:p-4"
             style={{
                 borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.82),
                 backgroundColor: active ? withAlpha(theme.accent_color, 0.08) : withAlpha(theme.bg_color, 0.34),
@@ -209,7 +209,7 @@ function FontCard({ preset, active, onClick, theme }) {
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: withAlpha(theme.secondary_text_color, 0.92) }}>
                         Typography
                     </p>
-                    <h4 className="mt-1 text-2xl leading-tight" style={{ color: theme.text_color, fontFamily: preset.display }}>
+                    <h4 className="mt-1 text-xl leading-tight md:text-2xl" style={{ color: theme.text_color, fontFamily: preset.display }}>
                         {preset.name}
                     </h4>
                 </div>
@@ -227,7 +227,7 @@ function FontCard({ preset, active, onClick, theme }) {
             <p className="text-sm" style={{ color: theme.text_color, fontFamily: preset.display }}>
                 The semester is under control.
             </p>
-            <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: preset.body }}>
+            <p className="mt-2 text-sm leading-5 md:leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: preset.body }}>
                 {preset.description}
             </p>
         </button>
@@ -237,7 +237,7 @@ function FontCard({ preset, active, onClick, theme }) {
 function ColorField({ field, theme, onChange }) {
     return (
         <label
-            className="block rounded-[1.4rem] border p-3"
+            className="block rounded-[1.2rem] border p-3 md:rounded-[1.4rem]"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.82),
                 backgroundColor: withAlpha(theme.bg_color, 0.34)
@@ -274,7 +274,7 @@ function ColorField({ field, theme, onChange }) {
 function PreviewDesktop({ theme }) {
     return (
         <div
-            className="overflow-hidden rounded-[1.8rem] border"
+            className="overflow-hidden rounded-[1.55rem] border md:rounded-[1.8rem]"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.9),
                 backgroundColor: theme.bg_color,
@@ -303,18 +303,18 @@ function PreviewDesktop({ theme }) {
                     Ready
                 </div>
             </div>
-            <div className="grid gap-3 p-4">
+            <div className="grid gap-3 p-3 md:p-4">
                 <div
-                    className="rounded-[1.5rem] border p-4"
+                    className="rounded-[1.35rem] border p-3 md:rounded-[1.5rem] md:p-4"
                     style={{ borderColor: withAlpha(theme.border_color, 0.86), backgroundColor: withAlpha(theme.surface_color, 0.96) }}
                 >
                     <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
                         Today
                     </p>
-                    <h4 className="mt-2 text-3xl leading-none" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
+                    <h4 className="mt-2 text-[1.65rem] leading-none md:text-3xl" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
                         Study Queue
                     </h4>
-                    <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
+                    <p className="mt-2 text-sm leading-5 md:leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
                         Strong hierarchy, softer surfaces, and a single accent line up with newer Riven screens.
                     </p>
                     <div className="mt-4 grid grid-cols-3 gap-2">
@@ -338,9 +338,9 @@ function PreviewDesktop({ theme }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-[1.2fr_0.8fr] gap-3">
+                <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
                     <div
-                        className="rounded-[1.4rem] border p-4"
+                        className="rounded-[1.25rem] border p-3 md:rounded-[1.4rem] md:p-4"
                         style={{ borderColor: withAlpha(theme.border_color, 0.84), backgroundColor: withAlpha(theme.surface_color, 0.94) }}
                     >
                         <div className="flex items-center justify-between">
@@ -370,7 +370,7 @@ function PreviewDesktop({ theme }) {
                     </div>
 
                     <div
-                        className="rounded-[1.4rem] border p-4"
+                        className="rounded-[1.25rem] border p-3 md:rounded-[1.4rem] md:p-4"
                         style={{ borderColor: withAlpha(theme.border_color, 0.84), backgroundColor: withAlpha(theme.surface_color, 0.94) }}
                     >
                         <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
@@ -401,7 +401,7 @@ function PreviewDesktop({ theme }) {
 function PreviewPhone({ theme }) {
     return (
         <div
-            className="mx-auto w-[220px] overflow-hidden rounded-[2rem] border p-2"
+            className="mx-auto w-full max-w-[260px] overflow-hidden rounded-[2rem] border p-2"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.92),
                 backgroundColor: withAlpha(theme.bg_color, 0.92),
@@ -475,6 +475,40 @@ function PreviewPhone({ theme }) {
     );
 }
 
+function PreviewViewportButton({ active, icon: Icon, label, helper, onClick, theme }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="tap-action flex items-center gap-3 rounded-[1.1rem] border px-3 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200"
+            style={{
+                borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.82),
+                backgroundColor: active ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.bg_color, 0.34),
+                boxShadow: active ? `0 16px 30px ${withAlpha(theme.accent_color, 0.16)}` : 'none'
+            }}
+        >
+            <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
+                style={{
+                    borderColor: active ? withAlpha(theme.accent_color, 0.48) : withAlpha(theme.border_color, 0.72),
+                    backgroundColor: active ? withAlpha(theme.accent_color, 0.16) : withAlpha(theme.surface_color, 0.94),
+                    color: active ? theme.accent_color : theme.text_color
+                }}
+            >
+                <Icon className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+                <span className="block text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.text_color }}>
+                    {label}
+                </span>
+                <span className="mt-1 block text-xs leading-5" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
+                    {helper}
+                </span>
+            </span>
+        </button>
+    );
+}
+
 function PreviewColumn({ theme, compact = false }) {
     return (
         <div className="space-y-4">
@@ -533,6 +567,8 @@ export default function ThemeEditorModal({
     onSubmit,
     haptics
 }) {
+    const [mobilePreviewViewport, setMobilePreviewViewport] = useState('phone');
+
     useBodyScrollLock(isOpen);
 
     useEffect(() => {
@@ -604,7 +640,7 @@ export default function ThemeEditorModal({
     return (
         <AnimatePresence>
             {isOpen ? (
-                <div className="fixed inset-0 z-[100] flex items-end justify-center md:p-6">
+                <div className="fixed inset-0 z-[100] flex items-end justify-center px-2 pt-[max(env(safe-area-inset-top,0px),0.75rem)] md:p-6">
                     <Motion.button
                         type="button"
                         initial={{ opacity: 0 }}
@@ -623,13 +659,14 @@ export default function ThemeEditorModal({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-                        className="relative flex max-h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[2rem] border md:rounded-[2rem]"
+                        className="modal-content relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full max-w-6xl flex-col overflow-hidden rounded-t-[2rem] border md:max-h-[94vh] md:rounded-[2rem]"
                         style={{
                             borderColor: withAlpha(themeForm.border_color, 0.95),
                             background: `linear-gradient(180deg, ${withAlpha(themeForm.bg_color, 0.98)} 0%, ${withAlpha(themeForm.surface_color, 0.98)} 100%)`,
                             color: themeForm.text_color,
                             boxShadow: `0 40px 140px ${withAlpha(themeForm.bg_color, 0.5)}`
                         }}
+                        onClick={(event) => event.stopPropagation()}
                     >
                         <div
                             className="pointer-events-none absolute inset-0"
@@ -638,39 +675,40 @@ export default function ThemeEditorModal({
                             }}
                         />
 
-                        <div className="relative flex items-center justify-between border-b px-5 py-5 md:px-8 md:py-6" style={{ borderBottomColor: withAlpha(themeForm.border_color, 0.92) }}>
+                        <div className="relative flex justify-center pt-4 md:hidden">
+                            <div className="h-1.5 w-12 rounded-full" style={{ backgroundColor: withAlpha(themeForm.secondary_text_color, 0.4) }} />
+                        </div>
+
+                        <div className="relative flex items-start justify-between gap-4 border-b px-4 pb-4 pt-3 md:items-center md:px-8 md:py-6" style={{ borderBottomColor: withAlpha(themeForm.border_color, 0.92) }}>
                             <div className="min-w-0">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95) }}>
                                     Create Theme
                                 </p>
-                                <h2 id="theme-editor-title" className="mt-2 text-3xl leading-none md:text-4xl" style={{ fontFamily: themeForm.font_family_display }}>
+                                <h2 id="theme-editor-title" className="mt-2 text-[2rem] leading-none md:text-4xl" style={{ fontFamily: themeForm.font_family_display }}>
                                     {title}
                                 </h2>
-                                <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
-                                    Built to current Riven standards: curated first, precise controls when you need them, and previews for both desktop and mobile before save.
+                                <p className="mt-2 max-w-2xl pr-2 text-sm leading-5 md:pr-0 md:leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
+                                    Mobile-first now: shape the phone experience first, then check the desktop pass before you save.
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                className="tap-action flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:h-11 md:w-11"
                                 style={{
                                     borderColor: withAlpha(themeForm.border_color, 0.82),
                                     backgroundColor: withAlpha(themeForm.surface_color, 0.9),
                                     color: themeForm.text_color
                                 }}
+                                aria-label="Close theme editor"
                             >
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
 
-                        <form id="theme-editor-form" onSubmit={onSubmit} className="modal-scroll-content relative min-h-0 flex-1 overflow-y-auto">
-                            <div className="grid gap-6 px-4 pb-28 pt-4 md:grid-cols-[minmax(0,1fr)_380px] md:px-8 md:pb-8 md:pt-6">
+                        <form id="theme-editor-form" onSubmit={onSubmit} className="modal-scroll-content relative min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                            <div className="grid gap-5 px-4 pb-32 pt-4 md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:px-8 md:pb-8 md:pt-6">
                                 <div className="space-y-5">
-                                    <div className="md:hidden">
-                                        <PreviewColumn theme={themeForm} compact />
-                                    </div>
-
                                     <Section
                                         eyebrow="Identity"
                                         title="Name and intent"
@@ -685,7 +723,7 @@ export default function ThemeEditorModal({
                                                 onChange={(event) => updateTheme({ name: event.target.value })}
                                                 placeholder="Night lectures, paper desk, focus mode..."
                                                 autoFocus
-                                                className="w-full rounded-[1.4rem] border px-4 py-4 text-3xl outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] md:text-4xl"
+                                                className="w-full rounded-[1.2rem] border px-4 py-3.5 text-[2rem] outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] md:rounded-[1.4rem] md:py-4 md:text-4xl"
                                                 style={{
                                                     borderColor: withAlpha(themeForm.border_color, 0.9),
                                                     backgroundColor: withAlpha(themeForm.bg_color, 0.38),
@@ -695,6 +733,48 @@ export default function ThemeEditorModal({
                                             />
                                         </label>
                                     </Section>
+
+                                    <div className="md:hidden">
+                                        <Section
+                                            eyebrow="Preview"
+                                            title="Check the phone fit first"
+                                            description="A good theme has to survive the smallest viewport. Default to the phone canvas, then sanity-check desktop."
+                                            theme={themeForm}
+                                        >
+                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                <PreviewViewportButton
+                                                    active={mobilePreviewViewport === 'phone'}
+                                                    icon={Smartphone}
+                                                    label="Phone canvas"
+                                                    helper="Thumb-friendly, readable, and contrast-safe."
+                                                    onClick={() => setMobilePreviewViewport('phone')}
+                                                    theme={themeForm}
+                                                />
+                                                <PreviewViewportButton
+                                                    active={mobilePreviewViewport === 'desktop'}
+                                                    icon={Monitor}
+                                                    label="Desktop canvas"
+                                                    helper="Make sure the same palette scales up cleanly."
+                                                    onClick={() => setMobilePreviewViewport('desktop')}
+                                                    theme={themeForm}
+                                                />
+                                            </div>
+
+                                            <div
+                                                className="mt-4 rounded-[1.35rem] border p-3"
+                                                style={{
+                                                    borderColor: withAlpha(themeForm.border_color, 0.84),
+                                                    backgroundColor: withAlpha(themeForm.bg_color, 0.34)
+                                                }}
+                                            >
+                                                {mobilePreviewViewport === 'phone' ? (
+                                                    <PreviewPhone theme={themeForm} />
+                                                ) : (
+                                                    <PreviewDesktop theme={themeForm} />
+                                                )}
+                                            </div>
+                                        </Section>
+                                    </div>
 
                                     <Section
                                         eyebrow="Foundation"
@@ -747,7 +827,7 @@ export default function ThemeEditorModal({
                                         description="Accent should guide attention, not repaint the whole experience."
                                         theme={themeForm}
                                     >
-                                        <div className="flex gap-3 overflow-x-auto pb-1">
+                                        <div className="flex snap-x gap-3 overflow-x-auto pb-1">
                                             {ACCENT_PRESETS.map((swatch) => (
                                                 <SwatchButton
                                                     key={swatch.color}
@@ -854,7 +934,7 @@ export default function ThemeEditorModal({
                         </form>
 
                         <div
-                            className="relative border-t px-4 py-4 md:px-8"
+                            className="relative border-t bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.02))] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:px-8 md:py-4"
                             style={{ borderTopColor: withAlpha(themeForm.border_color, 0.92), backgroundColor: withAlpha(themeForm.bg_color, 0.92) }}
                         >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -870,7 +950,7 @@ export default function ThemeEditorModal({
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="rounded-full border px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                        className="tap-action rounded-full border px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
                                         style={{
                                             borderColor: withAlpha(themeForm.border_color, 0.86),
                                             backgroundColor: withAlpha(themeForm.surface_color, 0.96),
@@ -882,7 +962,7 @@ export default function ThemeEditorModal({
                                     <button
                                         type="submit"
                                         form="theme-editor-form"
-                                        className="rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                        className="tap-action rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
                                         style={{
                                             backgroundColor: themeForm.accent_color,
                                             color: isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418',
