@@ -317,7 +317,11 @@ async function authMiddleware(req, res, next) {
     const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
     if (supabaseJwtSecret) {
         try {
-            const decoded = jwt.verify(token, supabaseJwtSecret, { algorithms: ['HS256'] });
+            // Detect algorithm from token header (Supabase typically uses HS256)
+            const tokenHeader = jwt.decode(token, { complete: true })?.header;
+            const alg = tokenHeader?.alg;
+            if (!alg || !['HS256', 'HS384', 'HS512'].includes(alg)) throw new Error(`Unsupported alg: ${alg}`);
+            const decoded = jwt.verify(token, supabaseJwtSecret, { algorithms: [alg] });
             const aud = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
             if (aud.includes('authenticated') && decoded.sub) {
                 const dbUser = await db.queryOne(

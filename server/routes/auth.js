@@ -851,32 +851,41 @@ module.exports = function registerAuthRoutes({
         }
         const token = authHeader.split(' ')[1];
 
-        if (!process.env.SUPABASE_JWT_SECRET) {
-            console.error('[complete-registration] SUPABASE_JWT_SECRET is not set');
-            return res.status(500).json({ error: 'Server misconfiguration: SUPABASE_JWT_SECRET missing' });
+        // Verify the token by asking Supabase directly — avoids any JWT secret/algorithm issues
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+        if (!supabaseUrl || !supabaseAnonKey) {
+            console.error('[complete-registration] SUPABASE_URL or SUPABASE_ANON_KEY is not set');
+            return res.status(500).json({ error: 'Server misconfiguration: SUPABASE_URL/SUPABASE_ANON_KEY missing' });
         }
 
-        let decoded;
+        let supabaseUser;
         try {
-            decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET, { algorithms: ['HS256'] });
+            const verifyRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'apikey': supabaseAnonKey,
+                }
+            });
+            if (!verifyRes.ok) {
+                const errBody = await verifyRes.text();
+                console.error('[complete-registration] Supabase token verify failed:', verifyRes.status, errBody);
+                return res.status(401).json({ error: 'Invalid Supabase token' });
+            }
+            supabaseUser = await verifyRes.json();
         } catch (err) {
-            console.error('[complete-registration] JWT verify failed:', err.message);
-            return res.status(401).json({ error: 'Invalid Supabase token', detail: err.message });
+            console.error('[complete-registration] Supabase verify request failed:', err.message);
+            return res.status(500).json({ error: 'Failed to verify token' });
         }
 
-        // aud may be a string or array depending on Supabase config
-        const aud = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
-        if (!aud.includes('authenticated') || !decoded.sub) {
-            return res.status(401).json({ error: 'Invalid Supabase token: unexpected audience' });
-        }
-
-        const supabaseAuthId = decoded.sub;
-        const email = decoded.email;
+        const supabaseAuthId = supabaseUser.id;
+        const email = supabaseUser.email;
 
         // Derive username: body > user_metadata.username > full_name slug > email prefix
+        const meta = supabaseUser.user_metadata || {};
         let username = req.body.username
-            || decoded.user_metadata?.username
-            || (decoded.user_metadata?.full_name || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
+            || meta.username
+            || (meta.full_name || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
             || email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
 
         username = username.slice(0, 30);
@@ -954,7 +963,7 @@ module.exports = function registerAuthRoutes({
 
             // Create new user
             const shareCode = generateShareCode();
-            const displayName = decoded.user_metadata?.full_name || finalUsername;
+            const displayName = meta.full_name || finalUsername;
             const result = await db.queryOne(
                 'INSERT INTO users (username, display_name, email, supabase_auth_id, share_code, email_verified) VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id',
                 [finalUsername, displayName, email.toLowerCase(), supabaseAuthId, shareCode]
