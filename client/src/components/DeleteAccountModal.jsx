@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { X, Trash2, AlertOctagon, Loader2 } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';

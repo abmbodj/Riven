@@ -12,7 +12,6 @@ import Plus from 'lucide-react/dist/esm/icons/plus';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import Search from 'lucide-react/dist/esm/icons/search';
 import OnboardingArt from './OnboardingArt';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';

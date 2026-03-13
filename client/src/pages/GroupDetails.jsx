@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,7 +28,6 @@ export default function GroupDetails() {
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
-    const isBanned = user?.is_banned;
 
     const [showSettings, setShowSettings] = useState(false);
     const [showShareDeckModal, setShowShareDeckModal] = useState(false);
@@ -55,14 +54,10 @@ export default function GroupDetails() {
     const [classes, setClasses] = useState([]);
     const [copied, setCopied] = useState(false);
 
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
-
     // Reporting & Blocking
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isReporting, setIsReporting] = useState(false);
     const [reportingUserId, setReportingUserId] = useState(null);
-    const [isBlocking, setIsBlocking] = useState(false);
     const [activeMemberMenuId, setActiveMemberMenuId] = useState(null);
 
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
@@ -107,7 +102,7 @@ export default function GroupDetails() {
             // New session started in this group
             if (data && data.sessionId) {
                 loadGroup(); // refresh to get full session details from DB
-                toast('A live cram session just started!', { icon: '🔥' });
+                toast.show('A live cram session just started!');
             }
         };
 
@@ -127,7 +122,7 @@ export default function GroupDetails() {
             }
         };
 
-    }, [id, loadGroup, socket]);
+    }, [id, loadGroup, socket, toast]);
 
     useEffect(() => {
         if (showSettings) {
@@ -203,7 +198,7 @@ export default function GroupDetails() {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             toast.success('Join code copied!');
-        } catch (err) {
+        } catch {
             toast.error('Failed to copy');
         }
     };
@@ -275,7 +270,7 @@ export default function GroupDetails() {
                 await api.removeGroupMember(id, userId);
                 toast.success('Member removed');
                 loadGroup(); // Silent background sync
-            } catch (err) {
+            } catch {
                 setMembers(prevMembers); // Rollback
                 toast.error('Failed to remove member');
             }
@@ -284,7 +279,6 @@ export default function GroupDetails() {
 
     const handleBlockUser = (userId, name) => {
         confirmAction('Block User', `Are you sure you want to block ${name}? They will no longer be able to interact with you.`, async () => {
-            setIsBlocking(true);
             try {
                 await authApi.blockUser(userId);
                 toast.success('User blocked successfully');
@@ -292,8 +286,6 @@ export default function GroupDetails() {
                 loadGroup();
             } catch (err) {
                 toast.error(err.message || 'Failed to block user');
-            } finally {
-                setIsBlocking(false);
             }
         });
     };
@@ -339,7 +331,7 @@ export default function GroupDetails() {
                 await api.removeDeckFromGroup(id, deckId);
                 toast.success('Deck removed');
                 loadGroup(); // Sync
-            } catch (err) {
+            } catch {
                 setSharedDecks(prevDecks); // Rollback
                 toast.error('Failed to remove deck');
             }
@@ -363,7 +355,7 @@ export default function GroupDetails() {
             setShowCreateFolderModal(false);
             setNewFolderName('');
             loadGroup();
-        } catch (err) {
+        } catch {
             toast.error('Failed to create folder');
         }
     };
@@ -380,7 +372,7 @@ export default function GroupDetails() {
                 toast.success('Folder deleted');
                 if (currentFolderId === folderId) setCurrentFolderId(null);
                 loadGroup(); // Sync
-            } catch (err) {
+            } catch {
                 setFolders(prevFolders); // Rollback
                 toast.error('Failed to delete folder');
             }
@@ -408,7 +400,7 @@ export default function GroupDetails() {
             toast.success('File uploaded');
             closeUploadModal();
             loadGroup();
-        } catch (err) {
+        } catch {
             toast.error('Failed to upload file');
             setUploadStep('form');
         }
@@ -463,7 +455,7 @@ export default function GroupDetails() {
                 await api.deleteGroupFile(id, fileId);
                 toast.success('File removed');
                 loadGroup(); // Sync
-            } catch (err) {
+            } catch {
                 setFiles(prevFiles); // Rollback
                 toast.error('Failed to remove file');
             }

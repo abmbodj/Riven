@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../api';
@@ -7,7 +7,7 @@ export default function HeartsDisplay({ onClick }) {
     const [status, setStatus] = useState(null);
     const [timeInSeconds, setTimeInSeconds] = useState(0);
 
-    const fetchHearts = async () => {
+    const fetchHearts = useCallback(async () => {
         try {
             const data = await api.getHeartsStatus();
             setStatus(data);
@@ -18,19 +18,29 @@ export default function HeartsDisplay({ onClick }) {
         } catch (err) {
             console.error("Failed to fetch hearts", err);
         }
-    };
-
-    useEffect(() => {
-        fetchHearts();
-        const id = setInterval(fetchHearts, 60000);
-        return () => clearInterval(id);
     }, []);
 
     useEffect(() => {
-        const handleFocus = () => fetchHearts();
+        const initialLoadId = window.setTimeout(() => {
+            void fetchHearts();
+        }, 0);
+        const intervalId = window.setInterval(() => {
+            void fetchHearts();
+        }, 60000);
+
+        return () => {
+            window.clearTimeout(initialLoadId);
+            window.clearInterval(intervalId);
+        };
+    }, [fetchHearts]);
+
+    useEffect(() => {
+        const handleFocus = () => {
+            void fetchHearts();
+        };
         window.addEventListener('focus', handleFocus);
         return () => window.removeEventListener('focus', handleFocus);
-    }, []);
+    }, [fetchHearts]);
 
     useEffect(() => {
         if (!status?.nextRefill || status.isUnlimited || status.hearts >= status.max) return;
@@ -38,14 +48,14 @@ export default function HeartsDisplay({ onClick }) {
         const timer = setInterval(() => {
             setTimeInSeconds(prev => {
                 if (prev <= 1) {
-                    fetchHearts();
+                    void fetchHearts();
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
         return () => clearInterval(timer);
-    }, [status?.nextRefill, status?.isUnlimited, status?.hearts, status?.max]);
+    }, [fetchHearts, status?.nextRefill, status?.isUnlimited, status?.hearts, status?.max]);
 
     if (!status) return (
         <div className="w-16 h-8 bg-black/5 rounded-full animate-pulse" />

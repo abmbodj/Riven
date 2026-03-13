@@ -4,7 +4,6 @@ import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import Info from 'lucide-react/dist/esm/icons/info';
 import XIcon from 'lucide-react/dist/esm/icons/x';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import useBodyScrollLock from '../hooks/useBodyScrollLock';
 

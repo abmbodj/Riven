@@ -12,27 +12,37 @@ export default function VerifyEmail() {
     const toast = useToast();
 
     const token = searchParams.get('token');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(Boolean(token));
     const [success, setSuccess] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState(token ? '' : 'Invalid verification link.');
 
     useEffect(() => {
-        if (!token) {
-            setError('Invalid verification link.');
-            setLoading(false);
-            return;
-        }
+        if (!token) return;
 
-        authApi.verifyEmail(token)
-            .then(() => {
+        let active = true;
+
+        const verifyEmail = async () => {
+            try {
+                await authApi.verifyEmail(token);
+                if (!active) return;
                 setSuccess(true);
                 toast.success('Email verified!');
-            })
-            .catch(err => {
+            } catch (err) {
+                if (!active) return;
                 setError(err?.message || 'Verification failed. The link may have expired.');
-            })
-            .finally(() => setLoading(false));
-    }, [token]);
+            } finally {
+                if (active) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        void verifyEmail();
+
+        return () => {
+            active = false;
+        };
+    }, [toast, token]);
 
     return (
         <AuthLayout

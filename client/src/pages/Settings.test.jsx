@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Settings from './Settings.jsx';
-import { ThemeContext } from '../ThemeContext';
+import { ThemeContext } from '../context/themeContext';
 
 const { mockUser } = vi.hoisted(() => ({
   mockUser: {

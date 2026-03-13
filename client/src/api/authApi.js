@@ -26,7 +26,6 @@ export const getApiBase = () => API_BASE;
 // Helper functions for local auth state
 // Store actual JWT on all platforms so Authorization header works as fallback
 // when httpOnly cookies fail (e.g. iOS PWA/Add-to-Home-Screen has separate cookie jar)
-const isNative = Capacitor.isNativePlatform();
 export const getToken = () => localStorage.getItem('riven_auth_token');
 export const setToken = (token) => {
     if (token) {

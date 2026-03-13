@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import {
     X, Sparkles, Folder, Calendar, Hash, ChevronDown, Check,
@@ -15,7 +14,6 @@ const MODES = [
     { id: 'ai', label: 'Generate from Notes', icon: Sparkles },
 ];
 
-// eslint-disable-next-line no-unused-vars
 function PickerSheet({ open, title, icon: Icon, items, selectedId, noneLabel, onClose, onSelect, renderItem }) {
     return (
         <AnimatePresence>

@@ -5,7 +5,6 @@ import {
     X, Plus, Search, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
     Menu, Filter, Library
 } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';

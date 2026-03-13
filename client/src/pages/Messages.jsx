@@ -4,7 +4,6 @@ import {
     ArrowLeft, Send, Search, Image, Layers,
     Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X, ShieldAlert, ChevronDown
 } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';

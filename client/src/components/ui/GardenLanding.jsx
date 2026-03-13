@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion } from 'motion/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';

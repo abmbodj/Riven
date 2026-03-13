@@ -1,12 +1,11 @@
 import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award, UserMinus, Mail, BookOpen } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
-import { ThemeContext } from '../ThemeContext';
+import { ThemeContext } from '../context/themeContext';
 import { api } from '../api';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';

@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';

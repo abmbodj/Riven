@@ -4,7 +4,6 @@ import {
     Lock, Network, Link, Crown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';

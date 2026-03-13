@@ -1,9 +1,4 @@
-import React, { useState } from 'react';
-import { useGoogleLogin } from '@react-oauth/google';
-import AppleSignin from 'react-apple-signin-auth';
-import { useAuth } from '../../hooks/useAuth';
-import { useToast } from '../../hooks/useToast';
-import useHaptics from '../../hooks/useHaptics';
+import React from 'react';
 
 // Google SVG
 const GoogleIcon = () => (
@@ -22,54 +17,7 @@ const AppleIcon = () => (
     </svg>
 );
 
-export default function OAuthButtons({ onSuccess, onError }) {
-    const { signInWithGoogle, signInWithApple } = useAuth();
-    const haptics = useHaptics();
-    const toast = useToast();
-    const [loading, setLoading] = useState(false);
-
-    const handleGoogleLogin = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            setLoading(true);
-            try {
-                // Determine credential vs access_token based on configuration.
-                // Usually standard flow returns access_token. We send it down to exchange or verify.
-                const credential = tokenResponse.access_token || tokenResponse.credential;
-                await signInWithGoogle(credential);
-                haptics.success();
-                toast.success('Successfully logged in with Google!');
-                if (onSuccess) onSuccess({ require2FA: false });
-            } catch (err) {
-                haptics.error();
-                console.error('Google sign-in error', err);
-                if (onError) onError(err);
-            } finally {
-                setLoading(false);
-            }
-        },
-        onError: (error) => {
-            haptics.error();
-            console.error('Google OAuth popup failed', error);
-            if (onError) onError(error);
-        }
-    });
-
-    const handleAppleSuccess = async (response) => {
-        setLoading(true);
-        try {
-            await signInWithApple(response.authorization.id_token, response.user);
-            haptics.success();
-            toast.success('Successfully logged in with Apple!');
-            if (onSuccess) onSuccess({ require2FA: false });
-        } catch (err) {
-            haptics.error();
-            console.error('Apple sign-in error', err);
-            if (onError) onError(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+export default function OAuthButtons() {
     return (
         <div className="flex flex-col gap-2.5 w-full mb-4">
             <button

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -420,7 +419,9 @@ function OverviewTab({ stats }) {
     );
 }
 
-function StatCard({ title, value, icon: DisplayIcon, trend, accentClass, glowColor, subtitle }) {
+function StatCard({ title, value, icon, trend, accentClass, glowColor, subtitle }) {
+    const Icon = icon;
+
     return (
         <motion.div
             variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
@@ -437,7 +438,7 @@ function StatCard({ title, value, icon: DisplayIcon, trend, accentClass, glowCol
                     <div
                         className="w-9 h-9 rounded-lg flex items-center justify-center bg-claude-bg/50 border border-claude-border"
                     >
-                        <DisplayIcon className={`w-4 h-4 ${accentClass}`} />
+                        <Icon className={`w-4 h-4 ${accentClass}`} />
                     </div>
                     {trend > 0 && (
                         <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-botanical-forest/15 text-botanical-forest">

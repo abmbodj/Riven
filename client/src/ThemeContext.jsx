@@ -1,7 +1,6 @@
-import { createContext, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from './api';
-
-export const ThemeContext = createContext(null);
+import { ThemeContext } from './context/themeContext';
 
 function resolveColorScheme(hexColor) {
     if (!hexColor) return 'dark';

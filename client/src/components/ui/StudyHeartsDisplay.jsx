@@ -14,23 +14,18 @@ export default function StudyHeartsDisplay({ heartsStatus }) {
     useEffect(() => {
         if (!heartsStatus || heartsStatus.isUnlimited) return;
         const current = heartsStatus.hearts;
-
-        if (prevHearts.current !== null && current !== prevHearts.current) {
-            if (current < prevHearts.current) {
-                setFlash('lost');
-            } else {
-                setFlash('gained');
-            }
-            const t = setTimeout(() => setFlash(null), 800);
-            return () => clearTimeout(t);
-        }
+        const previous = prevHearts.current;
         prevHearts.current = current;
-    }, [heartsStatus]);
 
-    // Update ref after flash logic
-    useEffect(() => {
-        if (heartsStatus && !heartsStatus.isUnlimited) {
-            prevHearts.current = heartsStatus.hearts;
+        if (previous !== null && current !== previous) {
+            const nextFlash = current < previous ? 'lost' : 'gained';
+            const startId = window.setTimeout(() => setFlash(nextFlash), 0);
+            const clearId = window.setTimeout(() => setFlash(null), 800);
+
+            return () => {
+                window.clearTimeout(startId);
+                window.clearTimeout(clearId);
+            };
         }
     }, [heartsStatus]);
 
@@ -38,7 +33,6 @@ export default function StudyHeartsDisplay({ heartsStatus }) {
 
     const isUnlimited = heartsStatus.isUnlimited;
     const hearts = heartsStatus.hearts;
-    const max = heartsStatus.max;
 
     return (
         <div className="flex items-center gap-1.5 relative">

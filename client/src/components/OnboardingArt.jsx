@@ -2,6 +2,20 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import gsap from 'gsap';
 
+const FLOATING_MOTES = Array.from({ length: 7 }, (_, index) => {
+    const step = index + 1;
+
+    return {
+        id: `mote-${index}`,
+        radius: 1 + (step % 3) * 0.45,
+        y: -80 - step * 7,
+        xStart: (step - 4) * 4,
+        xEnd: (step - 4) * 10,
+        duration: 5 + step * 0.35,
+        delay: 2 + step * 0.55,
+    };
+});
+
 export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
     const leafColor = 'var(--botanical-forest)'; // #7a9e72 
     const accentColor = 'var(--accent-color)';    // #deb96a
@@ -222,25 +236,25 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
                 </motion.g>
 
                 {/* Orbiting energy motes floating upwards */}
-                {[...Array(7)].map((_, i) => (
+                {FLOATING_MOTES.map((mote) => (
                     <motion.circle
-                        key={`mote-${i}`}
+                        key={mote.id}
                         cx="100"
                         cy="120"
-                        r={1 + Math.random() * 1.5}
+                        r={mote.radius}
                         fill={accentColor}
                         filter="url(#bloom-glow)"
                         initial={{ opacity: 0, y: 0, x: 0 }}
                         animate={{
                             opacity: [0, 0.9, 0],
-                            y: [-10, -80 - Math.random() * 40],
-                            x: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 60],
+                            y: [-10, mote.y],
+                            x: [mote.xStart, mote.xEnd],
                             scale: [0.5, 1.5, 0.5]
                         }}
                         transition={{
-                            duration: 5 + Math.random() * 4,
+                            duration: mote.duration,
                             repeat: Infinity,
-                            delay: 2 + Math.random() * 5,
+                            delay: mote.delay,
                             ease: "easeInOut"
                         }}
                     />
