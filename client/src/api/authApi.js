@@ -276,76 +276,208 @@ export const updatePetCustomization = async (customization) => {
     });
 };
 
-// ============ DATA ENDPOINTS (with auth) ============
+// ============ DATA ENDPOINTS — Supabase PostgREST (Phase 2) ============
+// RLS policies handle auth — see supabase/migrations/phase2_rls_policies.sql
 
-export const getFolders = () => safeFetchArray(authFetch('/folders'));
-export const createFolder = (name, color, icon) => authFetch('/folders', {
-    method: 'POST',
-    body: JSON.stringify({ name, color, icon }),
-});
-export const updateFolder = (id, name, color, icon) => authFetch(`/folders/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ name, color, icon }),
-});
-export const deleteFolder = (id) => authFetch(`/folders/${id}`, { method: 'DELETE' });
-
-export const getTags = () => safeFetchArray(authFetch('/tags'));
-export const createTag = (name, color) => authFetch('/tags', {
-    method: 'POST',
-    body: JSON.stringify({ name, color }),
-});
-export const deleteTag = (id) => authFetch(`/tags/${id}`, { method: 'DELETE' });
-
-// ============ CLASSES ENDPOINTS ============
-
-export const getClasses = () => safeFetchArray(authFetch('/classes'));
-export const createClass = (name, color, professor, room, zoom_link) => authFetch('/classes', {
-    method: 'POST',
-    body: JSON.stringify({ name, color, professor, room, zoom_link }),
-});
-export const updateClass = (id, name, color, professor, room, zoom_link) => authFetch(`/classes/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ name, color, professor, room, zoom_link }),
-});
-export const deleteClass = async (id) => {
-    return await authFetch(`/classes/${id}`, {
-        method: 'DELETE'
-    });
+/** Throw in the same shape authFetch uses so callers don't break */
+const _sbThrow = (error) => {
+    const err = new Error(error.message || 'Supabase query failed');
+    err.status = error.code === 'PGRST301' ? 401 : 500;
+    throw err;
 };
 
-// --- Assignments ---
+// --- Folders (PostgREST) ---
+
+export const getFolders = async () => {
+    const { data, error } = await supabase
+        .from('folders')
+        .select('*, decks(count)')
+        .order('created_at', { ascending: false });
+    if (error) _sbThrow(error);
+    return (data || []).map(f => ({ ...f, deckCount: f.decks?.[0]?.count ?? 0 }));
+};
+
+export const createFolder = async (name, color, icon) => {
+    const { data, error } = await supabase
+        .from('folders')
+        .insert({ name, color: color || '#6366f1', icon: icon || 'folder' })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateFolder = async (id, name, color, icon) => {
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (color !== undefined) updates.color = color;
+    if (icon !== undefined) updates.icon = icon;
+    const { data, error } = await supabase
+        .from('folders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteFolder = async (id) => {
+    // Unlink decks before deleting folder
+    await supabase.from('decks').update({ folder_id: null }).eq('folder_id', id);
+    const { error } = await supabase.from('folders').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Folder deleted' };
+};
+
+// --- Tags (PostgREST) ---
+
+export const getTags = async () => {
+    const { data, error } = await supabase
+        .from('tags')
+        .select('*')
+        .order('is_preset', { ascending: false })
+        .order('name');
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const createTag = async (name, color) => {
+    const { data, error } = await supabase
+        .from('tags')
+        .insert({ name, color, is_preset: false })
+        .select()
+        .single();
+    if (error) {
+        if (error.code === '23505') { // unique_violation
+            const err = new Error('Tag already exists');
+            err.status = 400;
+            throw err;
+        }
+        _sbThrow(error);
+    }
+    return data;
+};
+
+export const deleteTag = async (id) => {
+    const { error } = await supabase.from('tags').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Tag deleted' };
+};
+
+// ============ CLASSES ENDPOINTS (PostgREST) ============
+
+export const getClasses = async () => {
+    const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const createClass = async (name, color, professor, room, zoom_link) => {
+    const { data, error } = await supabase
+        .from('classes')
+        .insert({ name, color: color || null, professor: professor || null, room: room || null, zoom_link: zoom_link || null })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateClass = async (id, name, color, professor, room, zoom_link) => {
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (color !== undefined) updates.color = color;
+    if (professor !== undefined) updates.professor = professor;
+    if (room !== undefined) updates.room = room;
+    if (zoom_link !== undefined) updates.zoom_link = zoom_link;
+    const { data, error } = await supabase
+        .from('classes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteClass = async (id) => {
+    const { error } = await supabase.from('classes').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Class deleted' };
+};
+
+// --- Assignments (PostgREST) ---
+
 export const getAssignments = async (classId) => {
-    const url = classId ? `/assignments?class_id=${classId}` : `/assignments`;
-    return await authFetch(url);
+    let query = supabase.from('assignments').select('*').order('created_at', { ascending: false });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
 };
 
 export const createAssignment = async (class_id, title, description, due_date, type) => {
-    return await authFetch(`/assignments`, {
-        method: 'POST',
-        body: JSON.stringify({ class_id, title, description, due_date, type })
-    });
+    const { data, error } = await supabase
+        .from('assignments')
+        .insert({
+            class_id,
+            title,
+            description: description || null,
+            status: 'Todo',
+            due_date: due_date || null,
+            type: type || 'homework',
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
 };
 
 export const updateAssignment = async (id, updates) => {
-    return await authFetch(`/assignments/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updates)
-    });
+    const { data, error } = await supabase
+        .from('assignments')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
 };
 
 export const deleteAssignment = async (id) => {
-    return await authFetch(`/assignments/${id}`, {
-        method: 'DELETE'
-    });
+    const { error } = await supabase.from('assignments').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Assignment deleted' };
 };
 
-// --- Schedule ---
-export const getSchedule = () => safeFetchArray(authFetch('/schedule'));
-export const createScheduleSlot = (class_id, day_of_week, start_time, end_time) => authFetch('/schedule', {
-    method: 'POST',
-    body: JSON.stringify({ class_id, day_of_week, start_time, end_time }),
-});
-export const deleteScheduleSlot = (id) => authFetch(`/schedule/${id}`, { method: 'DELETE' });
+// --- Schedule (PostgREST) ---
+
+export const getSchedule = async () => {
+    const { data, error } = await supabase
+        .from('schedule_slots')
+        .select('*');
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const createScheduleSlot = async (class_id, day_of_week, start_time, end_time) => {
+    const { data, error } = await supabase
+        .from('schedule_slots')
+        .insert({ class_id, day_of_week, start_time, end_time })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteScheduleSlot = async (id) => {
+    const { error } = await supabase.from('schedule_slots').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Schedule slot deleted' };
+};
 
 // --- LMS Integration (Canvas)
 export const connectCanvas = (icalUrl) => authFetch('/lms/canvas/connect', {
