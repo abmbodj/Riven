@@ -371,15 +371,15 @@ function OverviewTab({ stats }) {
                             <Activity className="w-4 h-4 text-claude-accent" />
                             30-Day Activity
                         </h3>
-                        <p className="text-xs text-claude-secondary mt-0.5">Study sessions over time</p>
+                        <p className="text-xs text-claude-secondary mt-0.5">New user signups over time</p>
                     </div>
                     <div className="px-2.5 py-1 rounded-lg bg-claude-accent/10 border border-claude-accent/20 text-claude-accent text-[10px] font-bold font-mono tracking-wider">
-                        {stats.recentSessions.toLocaleString()} TOTAL
+                        {stats.recentSignups.toLocaleString()} TOTAL
                     </div>
                 </div>
 
                 <div className="h-48 w-full relative z-10">
-                    <ActivityChart data={stats.dailyActivity || []} />
+                    <ActivityChart data={stats.dailyUsers || []} />
                 </div>
             </motion.div>
 
@@ -459,46 +459,22 @@ function StatCard({ title, value, icon, trend, accentClass, glowColor, subtitle 
     );
 }
 
-// Smooth SVG Area Chart — gold accent
+// Bar Chart — user signups per day
 function ActivityChart({ data }) {
     if (!data || !data.length) return null;
 
     const rawMax = Math.max(...data.map(d => d.count), 1);
-    const max = rawMax * 1.1;
-    const height = 100;
-    const gap = 100 / Math.max(data.length - 1, 1);
+    const total = data.length;
+    const barW = 100 / total;
+    const barPad = barW * 0.2;
+    const actualBarW = barW - barPad;
 
-    const generatePath = (dataPoints) => {
-        if (dataPoints.length === 0) return '';
-        if (dataPoints.length === 1) return `M 0,${height - (dataPoints[0].count / max) * height} L 100,${height - (dataPoints[0].count / max) * height}`;
-
-        let d = `M 0,${height - (dataPoints[0].count / max) * height}`;
-        for (let i = 0; i < dataPoints.length - 1; i++) {
-            const x0 = i * gap;
-            const y0 = height - (dataPoints[i].count / max) * height;
-            const x1 = (i + 1) * gap;
-            const y1 = height - (dataPoints[i + 1].count / max) * height;
-
-            const cx0 = x0 + (x1 - x0) / 2;
-            const cy0 = y0;
-            const cx1 = x0 + (x1 - x0) / 2;
-            const cy1 = y1;
-
-            d += ` C ${cx0},${cy0} ${cx1},${cy1} ${x1},${y1}`;
-        }
-        return d;
-    };
-
-    const pathD = generatePath(data);
-
-    const labelIndices = [];
-    const step = Math.max(Math.floor(data.length / 5), 1);
-    for (let i = 0; i < data.length; i += step) {
-        if (labelIndices.length < 5) labelIndices.push(i);
+    const labelIndices = [0];
+    const step = Math.floor(total / 4);
+    for (let i = step; i < total - 1; i += step) {
+        if (labelIndices.length < 4) labelIndices.push(i);
     }
-    if (!labelIndices.includes(data.length - 1)) {
-        labelIndices[labelIndices.length - 1] = data.length - 1;
-    }
+    labelIndices.push(total - 1);
 
     return (
         <div className="relative w-full h-full flex flex-col">
@@ -510,58 +486,33 @@ function ActivityChart({ data }) {
                     ))}
                 </div>
 
-                <svg viewBox="-2 -2 104 104" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
                     <defs>
-                        <linearGradient id="chartAreaGradientBotanical" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.35" />
-                            <stop offset="50%" stopColor="var(--accent-color)" stopOpacity="0.08" />
-                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
+                        <linearGradient id="barGradientUsers" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.85" />
+                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0.35" />
                         </linearGradient>
                     </defs>
 
-                    {/* Filled Area */}
-                    <motion.path
-                        d={`${pathD} L 100,100 L 0,100 Z`}
-                        fill="url(#chartAreaGradientBotanical)"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                    />
-
-                    {/* Line */}
-                    <motion.path
-                        d={pathD}
-                        fill="none"
-                        stroke="var(--accent-color)"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        initial={{ pathLength: 0, opacity: 0 }}
-                        animate={{ pathLength: 1, opacity: 1 }}
-                        transition={{ duration: 1.5, ease: "easeInOut" }}
-                        style={{ filter: 'drop-shadow(0px 3px 6px rgba(222,185,106,0.25))' }}
-                    />
-
-                    {/* Dots on labeled points */}
                     {data.map((d, i) => {
-                        const x = i * gap;
-                        const y = height - (d.count / max) * height;
-                        if (!labelIndices.includes(i)) return null;
-
+                        if (d.count === 0) return null;
+                        const barH = (d.count / rawMax) * 96;
+                        const x = i * barW + barPad / 2;
+                        const y = 100 - barH;
                         return (
-                            <motion.g key={i}>
-                                <motion.circle
-                                    cx={x}
-                                    cy={y}
-                                    r="3.5"
-                                    fill="var(--bg-color)"
-                                    stroke="var(--accent-color)"
-                                    strokeWidth="2"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 1 + i * 0.02, type: "spring" }}
-                                />
-                            </motion.g>
+                            <motion.rect
+                                key={i}
+                                x={x}
+                                y={y}
+                                width={actualBarW}
+                                height={barH}
+                                fill="url(#barGradientUsers)"
+                                rx="0.8"
+                                initial={{ opacity: 0, scaleY: 0 }}
+                                animate={{ opacity: 1, scaleY: 1 }}
+                                transition={{ delay: i * 0.015, duration: 0.35, ease: 'easeOut' }}
+                                style={{ transformOrigin: `${x + actualBarW / 2}px 100px` }}
+                            />
                         );
                     })}
                 </svg>
@@ -572,14 +523,10 @@ function ActivityChart({ data }) {
                 {labelIndices.map((idx, i) => {
                     const d = data[idx];
                     if (!d) return <span key={i} className="flex-1 text-center" />;
-                    const date = new Date(d.date);
+                    const date = new Date(d.date + 'T00:00:00');
                     const formatted = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
-
                     return (
-                        <span
-                            key={i}
-                            className="flex-1 text-center first:text-left last:text-right"
-                        >
+                        <span key={i} className="flex-1 text-center first:text-left last:text-right">
                             {formatted}
                         </span>
                     );

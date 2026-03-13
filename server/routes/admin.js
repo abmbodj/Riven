@@ -171,23 +171,23 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
             WHERE created_at > NOW() - INTERVAL '30 days'
         `);
 
-            // Daily Activity (Last 30 Days)
-            const dailyActivity = await db.query(`
+            // Daily User Signups (Last 30 Days)
+            const dailyUsers = await db.query(`
             SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count
-            FROM study_sessions
+            FROM users
             WHERE created_at > NOW() - INTERVAL '30 days'
             GROUP BY date
             ORDER BY date ASC
         `);
 
             // Fill in missing days for the last 30 days
-            const filledDailyActivity = [];
+            const filledDailyUsers = [];
             for (let i = 29; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 const dateStr = d.toISOString().split('T')[0];
-                const found = dailyActivity.find(a => a.date === dateStr);
-                filledDailyActivity.push({ date: dateStr, count: found ? parseInt(found.count) : 0 });
+                const found = dailyUsers.find(a => a.date === dateStr);
+                filledDailyUsers.push({ date: dateStr, count: found ? parseInt(found.count) : 0 });
             }
 
             // Top Decks (by study session count in the last 30 days)
@@ -210,7 +210,7 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
                 activeMessages: parseInt(messageCount.count),
                 recentSignups: parseInt(recentUsers.count),
                 recentSessions: parseInt(recentSessions.count),
-                dailyActivity: filledDailyActivity,
+                dailyUsers: filledDailyUsers,
                 topDecks: topDecks.map(d => ({
                     title: d.title,
                     creator: d.creator || 'Unknown',
