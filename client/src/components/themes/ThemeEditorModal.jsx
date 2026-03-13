@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState } from 'react';
+import { createElement, useEffect } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import { Check, Monitor, Moon, Palette, Smartphone, Sparkles, Sun, X } from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
@@ -171,7 +171,7 @@ function SwatchButton({ swatch, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="tap-action flex min-w-[84px] snap-start flex-col items-center gap-3 rounded-[1.15rem] border px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.25rem]"
+            className="tap-action flex w-full min-w-0 flex-col items-center gap-3 rounded-[1.15rem] border px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.25rem]"
             style={{
                 borderColor: active ? swatch.color : withAlpha(theme.border_color, 0.82),
                 backgroundColor: active ? withAlpha(swatch.color, 0.14) : withAlpha(theme.bg_color, 0.38),
@@ -475,41 +475,26 @@ function PreviewPhone({ theme }) {
     );
 }
 
-function PreviewViewportButton({ active, icon: Icon, label, helper, onClick, theme }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="tap-action flex items-center gap-3 rounded-[1.1rem] border px-3 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200"
-            style={{
-                borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.82),
-                backgroundColor: active ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.bg_color, 0.34),
-                boxShadow: active ? `0 16px 30px ${withAlpha(theme.accent_color, 0.16)}` : 'none'
-            }}
-        >
-            <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
-                style={{
-                    borderColor: active ? withAlpha(theme.accent_color, 0.48) : withAlpha(theme.border_color, 0.72),
-                    backgroundColor: active ? withAlpha(theme.accent_color, 0.16) : withAlpha(theme.surface_color, 0.94),
-                    color: active ? theme.accent_color : theme.text_color
-                }}
-            >
-                <Icon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0">
-                <span className="block text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.text_color }}>
-                    {label}
-                </span>
-                <span className="mt-1 block text-xs leading-5" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
-                    {helper}
-                </span>
-            </span>
-        </button>
-    );
-}
+function PreviewColumn({ theme, compact = false, mobileFirst = false }) {
+    const previewSections = [
+        {
+            key: 'desktop',
+            label: 'Desktop',
+            icon: Monitor,
+            component: <PreviewDesktop theme={theme} />
+        },
+        {
+            key: 'mobile',
+            label: 'Mobile',
+            icon: Smartphone,
+            component: <PreviewPhone theme={theme} />
+        }
+    ];
 
-function PreviewColumn({ theme, compact = false }) {
+    const orderedPreviewSections = mobileFirst
+        ? [previewSections[1], previewSections[0]]
+        : previewSections;
+
     return (
         <div className="space-y-4">
             <div
@@ -533,25 +518,21 @@ function PreviewColumn({ theme, compact = false }) {
                 </p>
             </div>
 
-            <div className={compact ? 'space-y-4' : 'space-y-5'}>
-                <div className="flex items-center gap-2 px-1">
-                    <Monitor className="h-4 w-4" style={{ color: theme.accent_color }} />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
-                        Desktop
-                    </p>
-                </div>
-                <PreviewDesktop theme={theme} />
-            </div>
+            {orderedPreviewSections.map((section) => {
+                const Icon = section.icon;
 
-            <div className={compact ? 'space-y-4' : 'space-y-5'}>
-                <div className="flex items-center gap-2 px-1">
-                    <Smartphone className="h-4 w-4" style={{ color: theme.accent_color }} />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
-                        Mobile
-                    </p>
-                </div>
-                <PreviewPhone theme={theme} />
-            </div>
+                return (
+                    <div key={section.key} className={compact ? 'space-y-4' : 'space-y-5'}>
+                        <div className="flex items-center gap-2 px-1">
+                            <Icon className="h-4 w-4" style={{ color: theme.accent_color }} />
+                            <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
+                                {section.label}
+                            </p>
+                        </div>
+                        {section.component}
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -567,8 +548,6 @@ export default function ThemeEditorModal({
     onSubmit,
     haptics
 }) {
-    const [mobilePreviewViewport, setMobilePreviewViewport] = useState('phone');
-
     useBodyScrollLock(isOpen);
 
     useEffect(() => {
@@ -688,7 +667,7 @@ export default function ThemeEditorModal({
                                     {title}
                                 </h2>
                                 <p className="mt-2 max-w-2xl pr-2 text-sm leading-5 md:pr-0 md:leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
-                                    Mobile-first now: shape the phone experience first, then check the desktop pass before you save.
+                                    One continuous flow: start with the phone read, keep scrolling, and finish on the desktop pass before you save.
                                 </p>
                             </div>
                             <button
@@ -737,29 +716,10 @@ export default function ThemeEditorModal({
                                     <div className="md:hidden">
                                         <Section
                                             eyebrow="Preview"
-                                            title="Check the phone fit first"
-                                            description="A good theme has to survive the smallest viewport. Default to the phone canvas, then sanity-check desktop."
+                                            title="Start on phone, keep scrolling"
+                                            description="The preview is fully linear on mobile now. Read the phone version first, then continue straight down into the desktop pass."
                                             theme={themeForm}
                                         >
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                <PreviewViewportButton
-                                                    active={mobilePreviewViewport === 'phone'}
-                                                    icon={Smartphone}
-                                                    label="Phone canvas"
-                                                    helper="Thumb-friendly, readable, and contrast-safe."
-                                                    onClick={() => setMobilePreviewViewport('phone')}
-                                                    theme={themeForm}
-                                                />
-                                                <PreviewViewportButton
-                                                    active={mobilePreviewViewport === 'desktop'}
-                                                    icon={Monitor}
-                                                    label="Desktop canvas"
-                                                    helper="Make sure the same palette scales up cleanly."
-                                                    onClick={() => setMobilePreviewViewport('desktop')}
-                                                    theme={themeForm}
-                                                />
-                                            </div>
-
                                             <div
                                                 className="mt-4 rounded-[1.35rem] border p-3"
                                                 style={{
@@ -767,11 +727,7 @@ export default function ThemeEditorModal({
                                                     backgroundColor: withAlpha(themeForm.bg_color, 0.34)
                                                 }}
                                             >
-                                                {mobilePreviewViewport === 'phone' ? (
-                                                    <PreviewPhone theme={themeForm} />
-                                                ) : (
-                                                    <PreviewDesktop theme={themeForm} />
-                                                )}
+                                                <PreviewColumn theme={themeForm} compact mobileFirst />
                                             </div>
                                         </Section>
                                     </div>
@@ -827,7 +783,7 @@ export default function ThemeEditorModal({
                                         description="Accent should guide attention, not repaint the whole experience."
                                         theme={themeForm}
                                     >
-                                        <div className="flex snap-x gap-3 overflow-x-auto pb-1">
+                                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                                             {ACCENT_PRESETS.map((swatch) => (
                                                 <SwatchButton
                                                     key={swatch.color}
