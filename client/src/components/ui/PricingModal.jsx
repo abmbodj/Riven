@@ -172,7 +172,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
     return (
         <AnimatePresence>
             {isOpen ? (
-                <div className="fixed inset-0 z-[999] flex items-end justify-center md:items-center md:p-6">
+                <div className="fixed inset-0 z-[999] flex items-end justify-center px-2 pt-[max(env(safe-area-inset-top,0px),0.75rem)] md:items-center md:p-6">
                     <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -189,7 +189,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', damping: 24, stiffness: 220 }}
-                        className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-claude-border bg-claude-bg/98 shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
+                        className="relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full flex-col overflow-hidden rounded-t-[2rem] border border-claude-border bg-claude-bg/98 shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.12),transparent_30%)]" />
@@ -198,7 +198,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             <div className="h-1.5 w-12 rounded-full bg-claude-surface/80" />
                         </div>
 
-                        <div className="relative flex items-start justify-between gap-4 border-b border-claude-border px-5 pb-4 pt-4 md:px-8 md:pb-6 md:pt-7">
+                        <div className="relative flex items-start justify-between gap-3 border-b border-claude-border px-4 pb-4 pt-3 md:gap-4 md:px-8 md:pb-6 md:pt-7">
                             <div className="min-w-0">
                                 <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5">
                                     <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
@@ -207,14 +207,14 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </span>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                                     <h2
                                         id="pricing-modal-title"
-                                        className="font-display text-[2rem] font-bold italic tracking-tight text-claude-text md:text-[3.2rem]"
+                                        className="font-display text-[1.75rem] font-bold italic tracking-tight text-claude-text sm:text-[2rem] md:text-[3.2rem]"
                                     >
                                         Upgrade Riven
                                     </h2>
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/50 px-3 py-1.5">
+                                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-claude-border bg-claude-bg/50 px-3 py-1.5">
                                         <Shield className="h-3.5 w-3.5 text-claude-secondary" />
                                         <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
                                             Current {currentTier === 'free' ? 'Basic' : currentTier}
@@ -222,7 +222,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </div>
                                 </div>
 
-                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-claude-secondary md:mt-3 md:text-base">
+                                <p className="mt-2 max-w-2xl pr-2 text-sm leading-relaxed text-claude-secondary md:mt-3 md:pr-0 md:text-base">
                                     Bring the full Riven atmosphere into every study session: premium themes,
                                     unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
                                     experience.
@@ -232,7 +232,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-border hover:text-claude-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                className="tap-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-border hover:text-claude-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 md:h-11 md:w-11"
                                 aria-label="Close pricing modal"
                             >
                                 <X className="h-5 w-5" />
@@ -240,8 +240,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         </div>
 
                         <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-                            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar pb-44 md:px-8 md:py-8 md:pb-8">
-                                <div className="mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar md:hidden">
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-52 custom-scrollbar md:px-8 md:py-8 md:pb-8">
+                                <div className="mb-4 grid grid-cols-2 gap-2 md:hidden">
                                     {PLANS.map((plan) => {
                                         const styles = PLAN_STYLES[plan.id];
                                         const isSelected = selectedPlan === plan.id;
@@ -260,7 +260,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                         setSuccess(null);
                                                     }
                                                 }}
-                                                className={`tap-action shrink-0 rounded-full border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
+                                                className={`tap-action rounded-full border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
                                                     isSelected
                                                         ? `${styles.badgeClass} shadow-[0_8px_20px_rgba(0,0,0,0.16)]`
                                                         : 'border-claude-border bg-claude-bg/15 text-claude-secondary'
@@ -290,7 +290,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     ))}
                                 </div>
 
-                                <div className="mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar md:hidden">
+                                <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
                                     {[
                                         ['Themes', 'All premium looks'],
                                         ['AI', 'Unlimited help'],
@@ -298,7 +298,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     ].map(([label, text]) => (
                                         <div
                                             key={label}
-                                            className="shrink-0 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3"
+                                            className="min-w-0 rounded-2xl border border-claude-border bg-claude-bg/15 px-3 py-3"
                                         >
                                             <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                 {label}
@@ -501,14 +501,14 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             </aside>
                         </div>
 
-                        <div className="relative border-t border-claude-border bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
-                            <div className="mb-3 flex items-end justify-between gap-4">
+                        <div className="relative border-t border-claude-border bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
+                            <div className="mb-3 flex items-end justify-between gap-3">
                                 <div className="min-w-0">
                                     <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                         Selected plan
                                     </p>
-                                    <div className="mt-1 flex items-end gap-2">
-                                        <span className="truncate font-display text-2xl font-bold italic text-claude-text">
+                                    <div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
+                                        <span className="font-display text-[1.7rem] font-bold italic text-claude-text">
                                             {selectedPlanData.name}
                                         </span>
                                         <span className="pb-0.5 text-sm text-claude-secondary/80">
