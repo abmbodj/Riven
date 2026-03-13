@@ -496,6 +496,32 @@
       backdrop-filter: blur(16px) saturate(180%);
       -webkit-backdrop-filter: blur(16px) saturate(180%);
     }
+
+    .desktop-sidebar-shell {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 82%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 78%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow:
+        0 28px 90px -36px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+    }
+
+    .desktop-sidebar-shell::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        radial-gradient(circle at top left, rgba(222, 185, 106, 0.12), transparent 36%),
+        radial-gradient(circle at bottom left, rgba(122, 158, 114, 0.12), transparent 42%);
+      pointer-events: none;
+    }
   }
 
   /* Fluid transitions */

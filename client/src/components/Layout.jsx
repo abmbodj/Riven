@@ -135,105 +135,108 @@ export default function Layout({ children }) {
 
                 {/* ===== Desktop Sidebar (hidden on mobile) ===== */}
                 {showDesktopSidebar && (
-                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-claude-bg/60 border-r border-claude-border/30 z-30 backdrop-blur-2xl shadow-[4px_0_24px_-12px_rgba(0,0,0,0.5)]">
-                        {/* Logo */}
-                        <Link to="/" className="flex items-center gap-3 px-6 pt-8 pb-6 group">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-claude-bg/10 border border-claude-border/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-claude-bg/20 group-hover:border-claude-accent/20">
-                                <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
+                    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[256px] p-4 lg:block">
+                        <div className="desktop-sidebar-shell relative flex h-full flex-col overflow-hidden rounded-[2rem]">
+                            <div className="relative flex h-full flex-col">
+                                {/* Logo */}
+                                <Link to="/" className="flex items-center gap-3 px-6 pt-8 pb-6 group">
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.1] group-hover:border-claude-accent/20">
+                                        <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
+                                    </div>
+                                    <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white">Riven</span>
+                                </Link>
+
+                                <div className="px-4 pb-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCommandPaletteOpen(true)}
+                                        className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:border-white/15 hover:bg-white/[0.08]"
+                                    >
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] text-claude-accent">
+                                            <Search className="h-4 w-4" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-claude-text">Search Riven</p>
+                                            <p className="text-xs text-claude-secondary">Jump anywhere fast</p>
+                                        </div>
+                                        <span className="rounded-full border border-white/10 bg-black/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
+                                            ⌘K
+                                        </span>
+                                    </button>
+                                </div>
+
+                                {/* Main Nav */}
+                                <nav className="flex-1 px-3 py-2 space-y-1.5">
+                                    {primaryNavItems.filter(item => !item.isFab).map((item) => {
+                                        const isActive = routeMatches(location.pathname, item.matchers);
+
+                                        return (
+                                            <Link
+                                                key={item.to}
+                                                to={item.to}
+                                                className={`group relative overflow-hidden rounded-xl px-3 py-2.5 flex items-center gap-3.5 transition-all duration-300 ${isActive
+                                                    ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                                    : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white hover:translate-x-1'
+                                                    }`}
+                                            >
+                                                {isActive && (
+                                                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-claude-accent shadow-[0_0_12px_rgba(var(--claude-accent-rgb),0.8)]" />
+                                                )}
+                                                <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
+                                                    <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
+                                                </div>
+                                                <span className={`font-mono text-[11px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </nav>
+
+                                {/* Quick Links */}
+                                <nav className="px-3 py-4 space-y-1">
+                                    <div className="mb-3 px-3">
+                                        <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.25em] text-claude-secondary/50 selection:bg-transparent">Utilities</h3>
+                                    </div>
+                                    {utilityLinks.map((item) => {
+                                        const isActive = routeMatches(location.pathname, [item.to]);
+                                        return (
+                                            <Link
+                                                key={item.to}
+                                                to={item.to}
+                                                className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 ${isActive
+                                                    ? `bg-white/[0.08] ${item.color}`
+                                                    : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.05] hover:translate-x-1'
+                                                    }`}
+                                            >
+                                                <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? item.color : 'text-claude-secondary/40 group-hover:text-claude-secondary'}`}>
+                                                    <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
+                                                </div>
+                                                <span className={`font-mono text-[10px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </nav>
+
+                                {/* Create Deck CTA */}
+                                <div className="mt-auto px-4 py-6">
+                                    <Link
+                                        to="/create"
+                                        className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+                                        <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
+                                        <span>Create Deck</span>
+                                    </Link>
+                                </div>
+
+                                {/* Bottom spacer */}
+                                <div className="pb-safe" />
                             </div>
-                            <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white">Riven</span>
-                        </Link>
-
-                        <div className="px-4 pb-3">
-                            <button
-                                type="button"
-                                onClick={() => setIsCommandPaletteOpen(true)}
-                                className="flex w-full items-center gap-3 rounded-2xl border border-claude-border/40 bg-claude-bg/10 px-3 py-3 text-left transition-colors hover:border-claude-border hover:bg-claude-bg/20"
-                            >
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-claude-bg/20 text-claude-accent">
-                                    <Search className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-claude-text">Search Riven</p>
-                                    <p className="text-xs text-claude-secondary">Jump anywhere fast</p>
-                                </div>
-                                <span className="rounded-full border border-claude-border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
-                                    ⌘K
-                                </span>
-                            </button>
                         </div>
-
-                        {/* Main Nav */}
-                        <nav className="flex-1 px-3 py-2 space-y-1.5">
-                            {primaryNavItems.filter(item => !item.isFab).map((item) => {
-                                const isActive = routeMatches(location.pathname, item.matchers);
-
-                                return (
-                                    <Link
-                                        key={item.to}
-                                        to={item.to}
-                                        className={`group flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden ${isActive
-                                            ? 'text-white bg-claude-bg/15'
-                                            : 'text-claude-secondary/70 hover:text-white hover:bg-claude-bg/10 hover:translate-x-1'
-                                            }`}
-                                    >
-                                        {isActive && (
-                                            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-claude-accent shadow-[0_0_12px_rgba(var(--claude-accent-rgb),0.8)]" />
-                                        )}
-                                        <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? 'text-claude-accent' : 'text-claude-secondary/50 group-hover:text-claude-secondary'}`}>
-                                            <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[18px] h-[18px]" />
-                                        </div>
-                                        <span className={`font-mono text-[11px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-
-                        {/* Divider */}
-                        <div className="mx-6 h-px bg-claude-border/30 my-2" />
-
-                        {/* Quick Links */}
-                        <nav className="px-3 py-4 space-y-1">
-                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-claude-secondary/50 font-semibold selection:bg-transparent">Utilities</h3>
-                            {utilityLinks.map((item) => {
-                                const isActive = routeMatches(location.pathname, [item.to]);
-                                return (
-                                    <Link
-                                        key={item.to}
-                                        to={item.to}
-                                        className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 ${isActive
-                                            ? `bg-claude-bg/15 ${item.color}`
-                                            : 'text-claude-secondary/70 hover:text-white hover:bg-claude-bg/10 hover:translate-x-1'
-                                            }`}
-                                    >
-                                        <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? item.color : 'text-claude-secondary/40 group-hover:text-claude-secondary'}`}>
-                                            <item.icon strokeWidth={isActive ? 2.5 : 2} className="w-[16px] h-[16px]" />
-                                        </div>
-                                        <span className={`font-mono text-[10px] tracking-[0.1em] uppercase ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-
-                        {/* Create Deck CTA */}
-                        <div className="px-4 py-6 mt-auto">
-                            <Link
-                                to="/create"
-                                className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-                                <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
-                                <span>Create Deck</span>
-                            </Link>
-                        </div>
-
-                        {/* Bottom spacer */}
-                        <div className="pb-safe" />
                     </aside>
                 )}
 
                 {/* ===== Main Content Area ===== */}
-                <div className={`flex-1 min-h-dvh overflow-x-hidden ${showDesktopSidebar ? 'lg:ml-[240px]' : ''}`}>
+                <div className={`flex-1 min-h-dvh overflow-x-hidden ${showDesktopSidebar ? 'lg:ml-[256px]' : ''}`}>
                     {/* Offline banner */}
                     <AnimatePresence>
                         {isOffline && (
