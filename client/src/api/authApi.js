@@ -130,11 +130,18 @@ export const register = async (username, email, password) => {
     if (!error && data.session) {
         // Supabase confirmed immediately (email confirmation disabled in dashboard).
         setToken(data.session.access_token);
-        const result = await completeRegistration(username);
-        return result.user;
+        try {
+            const result = await completeRegistration(username);
+            return result.user;
+        } catch (e) {
+            // complete-registration failed (e.g. JWT secret misconfiguration on server).
+            // Clear the Supabase token and fall through to legacy register.
+            console.warn('[register] complete-registration failed, falling back to legacy:', e.message);
+            setToken(null);
+        }
     }
 
-    // Email confirmation required OR Supabase signup failed —
+    // Email confirmation required, Supabase signup failed, or complete-registration failed —
     // fall back to legacy Express register for immediate login.
     // The Supabase user (if created) will be linked on first confirmed login.
     const legacyData = await authFetch('/auth/register', {

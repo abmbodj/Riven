@@ -858,7 +858,7 @@ module.exports = function registerAuthRoutes({
 
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+            decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET, { algorithms: ['HS256'] });
         } catch (err) {
             console.error('[complete-registration] JWT verify failed:', err.message);
             return res.status(401).json({ error: 'Invalid Supabase token', detail: err.message });

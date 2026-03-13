@@ -317,8 +317,9 @@ async function authMiddleware(req, res, next) {
     const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
     if (supabaseJwtSecret) {
         try {
-            const decoded = jwt.verify(token, supabaseJwtSecret);
-            if (decoded.aud === 'authenticated' && decoded.sub) {
+            const decoded = jwt.verify(token, supabaseJwtSecret, { algorithms: ['HS256'] });
+            const aud = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+            if (aud.includes('authenticated') && decoded.sub) {
                 const dbUser = await db.queryOne(
                     'SELECT id, email, role, is_admin FROM users WHERE supabase_auth_id = $1',
                     [decoded.sub]
