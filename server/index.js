@@ -1555,6 +1555,23 @@ app.post('/api/themes', authMiddleware, async (req, res) => {
 
     try {
         const userId = req.user?.id || null;
+        const user = await db.queryOne(
+            'SELECT subscription_tier, role, simulate_free_tier FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const isPrivileged = (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier;
+        const canCreateCustomThemes =
+            isPrivileged || user.subscription_tier === 'supporter' || user.subscription_tier === 'lifetime';
+
+        if (!canCreateCustomThemes) {
+            return res.status(403).json({ error: 'Custom themes are a premium feature. Upgrade to create one.' });
+        }
+
         const result = await db.queryOne(
             'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, font_family_display, font_family_body, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 0) RETURNING *',
             [userId, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, req.body.font_family_display || 'Cormorant Garamond', req.body.font_family_body || 'Lora']

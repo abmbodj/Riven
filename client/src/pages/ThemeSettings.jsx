@@ -433,6 +433,7 @@ export default function ThemeSettings() {
     const [pricingOpen, setPricingOpen] = useState(false);
     const [carouselIndices, setCarouselIndices] = useState({ official: 0, professional: 0, custom: 0 });
     const [themeForm, setThemeForm] = useState({ ...DEFAULT_DARK, name: '' });
+    const canCreateCustomThemes = (user?.subscription_tier || 'free') !== 'free';
 
     const handleSwitchTheme = async (themeId, isPro) => {
         if (activeTheme?.id === themeId) return;
@@ -450,6 +451,11 @@ export default function ThemeSettings() {
     };
 
     const handleCreateNew = () => {
+        if (!canCreateCustomThemes) {
+            haptics.error();
+            setPricingOpen(true);
+            return;
+        }
         haptics.medium();
         setEditingTheme(null);
         setThemeForm({ ...DEFAULT_DARK, name: '' });
@@ -500,6 +506,11 @@ export default function ThemeSettings() {
         if (!themeForm.name.trim()) {
             haptics.error();
             toast.error('Identity required');
+            return;
+        }
+        if (!editingTheme && !canCreateCustomThemes) {
+            haptics.error();
+            setPricingOpen(true);
             return;
         }
         try {
@@ -570,6 +581,11 @@ export default function ThemeSettings() {
                 >
                     <Plus className="w-5 h-5" />
                     <span>Create Custom</span>
+                    {!canCreateCustomThemes && (
+                        <span className="rounded-full border border-claude-bg/20 bg-claude-bg/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-bg/80">
+                            Pro
+                        </span>
+                    )}
                 </motion.button>
             </header>
 
