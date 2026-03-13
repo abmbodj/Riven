@@ -73,10 +73,10 @@ const ProfileView = () => {
             {/* Desktop: two-column layout for profile. Mobile: stacked single column */}
             <div className="relative mb-20 lg:mb-16 z-10 w-full max-w-xl lg:max-w-3xl mx-auto lg:pt-8 bg-transparent">
                 {/* Atmospheric Deep Header */}
-                <div className="mx-4 lg:mx-0 mt-4 lg:mt-0 h-44 lg:h-52 overflow-hidden relative rounded-[3rem] shadow-sm md:shadow-lg border border-white/5 lg:border-white/5">
+                <div className="mx-4 lg:mx-0 mt-4 lg:mt-0 h-44 lg:h-52 overflow-hidden relative rounded-[3rem] shadow-sm md:shadow-lg border border-claude-border/40 lg:border-claude-border/40">
                     {user?.banner ? (
                         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${user.banner})` }}>
-                            <div className="absolute inset-0 bg-black/20"></div>
+                            <div className="absolute inset-0 bg-claude-bg/60"></div>
                         </div>
                     ) : (
                         <>
@@ -91,10 +91,10 @@ const ProfileView = () => {
 
                             {/* Floating Leaves */}
                             <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
-                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5" />
+                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-claude-accent/5" />
                             </motion.div>
                             <motion.div animate={{ y: [0, 10, 0], rotate: [-12, -15, -12] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
-                                <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-botanical-forest/5 opacity-40" />
+                                <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-claude-accent/5 opacity-40" />
                             </motion.div>
                         </>
                     )}
@@ -109,7 +109,7 @@ const ProfileView = () => {
                             transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
                             className="relative group cursor-pointer lg:ml-5"
                         >
-                            <div className="absolute inset-0 bg-botanical-forest/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
+                            <div className="absolute inset-0 bg-claude-accent/20 rounded-full blur-xl scale-110 group-hover:scale-125 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
                             <Avatar src={user?.avatar} size="4xl" className="border-[6px] border-claude-bg shadow-md md:shadow-2xl relative z-10 bg-claude-surface" />
                             {isAdmin && (
                                 <motion.div
@@ -154,7 +154,7 @@ const ProfileView = () => {
                             </h1>
                             <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-1 mb-4">
                                 <div className="flex items-center gap-2">
-                                    <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                                    <p className="text-claude-accent/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
                                         <User className="w-3 h-3" />
                                         @{user?.username}
                                     </p>
@@ -182,16 +182,16 @@ const ProfileView = () => {
                                 className="group relative overflow-hidden glass-panel rounded-[2rem] p-5 flex flex-col justify-center items-center gap-3 shadow-sm hover:shadow-md transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95"
                             >
                                 {/* Glow effect */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-botanical-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
-                                    <Users className="w-5 h-5 text-botanical-forest" />
+                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-claude-secondary/10 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
+                                    <Users className="w-5 h-5 text-claude-accent" />
                                 </div>
                                 <div className="text-center z-10">
                                     <span className="block text-2xl font-display font-bold text-claude-text">
-                                        {stats.loading ? <div className="w-6 h-6 border-2 border-botanical-forest border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.friends}
+                                        {stats.loading ? <div className="w-6 h-6 border-2 border-claude-accent border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.friends}
                                     </span>
-                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
                                         Friends
                                     </span>
                                 </div>
@@ -205,7 +205,7 @@ const ProfileView = () => {
                                 {/* Glow effect */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-botanical-sepia/5 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10 relative">
+                                <div className="w-12 h-12 rounded-full bg-claude-bg flex items-center justify-center border border-claude-secondary/10 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10 relative">
                                     <MessageCircle className="w-5 h-5 text-[#0ea5e9]" />
                                     {!stats.loading && stats.unread > 0 && (
                                         <motion.span
@@ -220,7 +220,7 @@ const ProfileView = () => {
                                     <span className="block text-2xl font-display font-bold text-claude-text">
                                         {stats.loading ? <div className="w-6 h-6 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin mx-auto my-1"></div> : stats.unread}
                                     </span>
-                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
                                         Messages
                                     </span>
                                 </div>
@@ -236,7 +236,7 @@ const ProfileView = () => {
                                 <Link
                                     to="/admin"
                                     onClick={() => haptics.light()}
-                                    className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-amber-500/[0.04] lg:hover:border-amber-500/20 transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(245,158,11,0.1)] lg:border lg:border-white/[0.04]"
+                                    className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-claude-surface/20 border-claude-secondary/10 lg:hover:bg-claude-accent/[0.04] lg:hover:border-claude-accent/20 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.1)] lg:border lg:border-claude-surface/20"
                                 >
                                     <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                     <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-amber-500/20 transition-all duration-300 shrink-0 border border-amber-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -253,33 +253,33 @@ const ProfileView = () => {
                             <Link
                                 to="/edit-profile"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-white/[0.04] transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-white/[0.04]"
+                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-claude-surface/20 border-claude-secondary/10 lg:hover:bg-claude-surface/60 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-claude-surface/20"
                             >
-                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-botanical-forest/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
-                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/5 shadow-sm border border-botanical-sepia/5 lg:border-white/10 flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-botanical-forest/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                                    <Edit3 className="w-5 h-5 text-claude-text/70 lg:group-hover:text-botanical-forest" />
+                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-claude-accent/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-claude-surface/60 shadow-sm border border-claude-secondary/10 lg:border-claude-border flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-claude-accent/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                                    <Edit3 className="w-5 h-5 text-claude-text/70 lg:group-hover:text-claude-accent" />
                                 </div>
                                 <div className="flex-1 text-left relative z-10">
-                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-white group-hover:text-botanical-forest transition-colors">Edit Profile</p>
-                                    <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-claude-secondary">Update your avatar and bio</p>
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-claude-text group-hover:text-claude-accent transition-colors">Edit Profile</p>
+                                    <p className="text-[11px] font-mono text-claude-secondary lg:group-hover:text-claude-secondary">Update your avatar and bio</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 lg:text-white/20 group-hover:text-botanical-forest lg:group-hover:text-white group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
+                                <ChevronRight className="w-5 h-5 text-claude-secondary/30 lg:text-claude-border group-hover:text-claude-accent lg:group-hover:text-claude-text group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                             </Link>
 
                             <Link
                                 to="/settings"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-white/[0.04] transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-white/[0.04]"
+                                className="flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-claude-surface/20 border-claude-secondary/10 lg:hover:bg-claude-surface/60 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] lg:border lg:border-claude-surface/20"
                             >
-                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-botanical-forest/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
-                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/5 shadow-sm border border-botanical-sepia/5 lg:border-white/10 flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-botanical-forest/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                                    <Settings className="w-5 h-5 text-claude-text/70 lg:group-hover:text-botanical-forest" />
+                                <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-claude-accent/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
+                                <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-claude-surface/60 shadow-sm border border-claude-secondary/10 lg:border-claude-border flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-claude-accent/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                                    <Settings className="w-5 h-5 text-claude-text/70 lg:group-hover:text-claude-accent" />
                                 </div>
                                 <div className="flex-1 text-left relative z-10">
-                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-white group-hover:text-botanical-forest transition-colors">Settings</p>
-                                    <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-claude-secondary">Security, notifications, integrations</p>
+                                    <p className="font-display tracking-wide text-[16px] text-claude-text lg:group-hover:text-claude-text group-hover:text-claude-accent transition-colors">Settings</p>
+                                    <p className="text-[11px] font-mono text-claude-secondary lg:group-hover:text-claude-secondary">Security, notifications, integrations</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-botanical-sepia/30 lg:text-white/20 group-hover:text-botanical-forest lg:group-hover:text-white group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
+                                <ChevronRight className="w-5 h-5 text-claude-secondary/30 lg:text-claude-border group-hover:text-claude-accent lg:group-hover:text-claude-text group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                             </Link>
 
                             {user?.subscription_tier && user.subscription_tier !== 'free' && (
@@ -291,7 +291,7 @@ const ProfileView = () => {
                                             else toast.error('Failed to open management portal');
                                         });
                                     }}
-                                    className="w-full flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] border-botanical-sepia/10 lg:hover:bg-indigo-500/[0.04] lg:hover:border-indigo-500/20 transition-all hover:bg-botanical-sepia/5 active:bg-botanical-sepia/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(99,102,241,0.1)] lg:border lg:border-white/[0.04]"
+                                    className="w-full flex items-center gap-4 p-4 border-b lg:border-none lg:rounded-[1.5rem] lg:bg-claude-surface/20 border-claude-secondary/10 lg:hover:bg-indigo-500/[0.04] lg:hover:border-indigo-500/20 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(99,102,241,0.1)] lg:border lg:border-claude-surface/20"
                                 >
                                     <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                     <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-indigo-500/20 transition-all duration-300 shrink-0 border border-indigo-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -299,15 +299,15 @@ const ProfileView = () => {
                                     </div>
                                     <div className="flex-1 text-left relative z-10">
                                         <p className="font-display tracking-wide text-[16px] text-claude-text group-hover:text-indigo-400 transition-colors">Manage Subscription</p>
-                                        <p className="text-[11px] font-mono text-botanical-sepia lg:group-hover:text-indigo-400/70 transition-colors">Update or cancel your plan</p>
+                                        <p className="text-[11px] font-mono text-claude-secondary lg:group-hover:text-indigo-400/70 transition-colors">Update or cancel your plan</p>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-botanical-sepia/30 group-hover:text-indigo-400 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
+                                    <ChevronRight className="w-5 h-5 text-claude-secondary/30 group-hover:text-indigo-400 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                                 </button>
                             )}
 
                             <button
                                 onClick={handleSignOut}
-                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:border-none lg:rounded-[1.5rem] lg:bg-white/[0.02] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.1)] lg:border lg:border-white/[0.04]`}
+                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:border-none lg:rounded-[1.5rem] lg:bg-claude-surface/20 lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.1)] lg:border lg:border-claude-surface/20`}
                             >
                                 <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-red-500/10 lg:from-red-500/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                 <div className="w-10 h-10 rounded-xl bg-red-500/5 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-red-500/10 transition-all duration-300 shrink-0 border border-red-500/10 relative z-10 shadow-sm lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -324,7 +324,7 @@ const ProfileView = () => {
                     </div>{/* End Right Column */}
                 </div>{/* End Flex Layout */}
 
-                <motion.div variants={itemVariants} className="mt-8 lg:mt-16 text-center text-[10px] text-botanical-sepia/20 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
+                <motion.div variants={itemVariants} className="mt-8 lg:mt-16 text-center text-[10px] text-claude-secondary/20 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
                     <Leaf className="w-4 h-4 opacity-30" />
                     <span className="opacity-50">Riven OS v1.0.0</span>
                 </motion.div>

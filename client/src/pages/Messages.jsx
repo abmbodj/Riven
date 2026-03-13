@@ -668,15 +668,15 @@ export default function Messages() {
                         <>
                             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-claude-secondary">Social</p>
                             <h2 className="mt-2 text-2xl font-display font-bold text-claude-text">Conversations</h2>
-                            <p className="text-botanical-sepia text-sm font-mono">Keep your study circle in view</p>
+                            <p className="text-claude-secondary text-sm font-mono">Keep your study circle in view</p>
                         </>
                         ) : (
                             <>
                                 <div className="absolute top-2 left-0 w-8 h-8 opacity-10">
-                                    <Leaf className="w-full h-full text-botanical-forest rotate-12" />
+                                    <Leaf className="w-full h-full text-claude-accent rotate-12" />
                                 </div>
                             <h1 className="text-2xl font-display font-bold mb-1">Messages</h1>
-                            <p className="text-botanical-sepia text-sm font-mono">Chat with your friends</p>
+                            <p className="text-claude-secondary text-sm font-mono">Chat with your friends</p>
                             </>
                         )}
                     </div>
@@ -684,7 +684,7 @@ export default function Messages() {
                     {conversations.length > 0 ? (
                         <div className={`mb-4 space-y-3 ${embedded ? 'px-1' : ''}`}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
                                     {filteredConversations.length} shown • {unreadConversationCount} unread
                                 </div>
                                 <button
@@ -692,21 +692,21 @@ export default function Messages() {
                                     onClick={() => setShowUnreadOnly((current) => !current)}
                                     className={`rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] transition-colors ${showUnreadOnly
                                         ? 'border-claude-accent/30 bg-claude-accent/10 text-claude-accent'
-                                        : 'border-white/10 bg-white/[0.03] text-claude-secondary hover:text-botanical-parchment'
+                                        : 'border-claude-border bg-claude-bg/15 text-claude-secondary hover:text-claude-text'
                                         }`}
                                 >
                                     {showUnreadOnly ? 'Unread only' : 'Show unread'}
                                 </button>
                             </div>
 
-                            <label className="glass-panel flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-3">
-                                <Search className="h-4 w-4 text-botanical-sepia" />
+                            <label className="glass-panel flex items-center gap-2 rounded-2xl border border-claude-border px-3 py-3">
+                                <Search className="h-4 w-4 text-claude-secondary" />
                                 <input
                                     type="search"
                                     value={conversationQuery}
                                     onChange={(event) => setConversationQuery(event.target.value)}
                                     placeholder="Search people or messages"
-                                    className="w-full bg-transparent text-sm text-botanical-parchment placeholder:text-botanical-sepia/70 focus:outline-none"
+                                    className="w-full bg-transparent text-sm text-claude-text placeholder:text-claude-secondary/70 focus:outline-none"
                                     aria-label="Search conversations"
                                 />
                             </label>
@@ -717,29 +717,29 @@ export default function Messages() {
                     <div className="text-center py-12">
                         <div className="relative mx-auto mb-6 w-20 h-20">
                             <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
-                                <Send className="w-8 h-8 text-botanical-forest" />
+                                <Send className="w-8 h-8 text-claude-accent" />
                             </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-botanical-forest/20 flex items-center justify-center">
-                                <Leaf className="w-3 h-3 text-botanical-forest" />
+                            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-claude-accent/20 flex items-center justify-center">
+                                <Leaf className="w-3 h-3 text-claude-accent" />
                             </div>
                         </div>
-                        <p className="text-botanical-parchment font-display mb-2">No conversations yet</p>
-                        <p className="text-sm text-botanical-sepia font-mono mb-6">
+                        <p className="text-claude-text font-display mb-2">No conversations yet</p>
+                        <p className="text-sm text-claude-secondary font-mono mb-6">
                             Start connecting with friends
                         </p>
                         <Link
                             to="/friends"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-botanical-forest text-white rounded-full font-medium active:scale-95 transition-transform"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-claude-accent text-white rounded-full font-medium active:scale-95 transition-transform"
                         >
                             <Leaf className="w-4 h-4" />
                             Find Friends
                         </Link>
                     </div>
                 ) : filteredConversations.length === 0 ? (
-                    <div className="glass-panel rounded-3xl border border-white/10 px-5 py-10 text-center">
-                        <Search className="mx-auto mb-3 h-6 w-6 text-botanical-sepia/70" />
-                        <p className="font-display text-botanical-parchment">No conversations match</p>
-                        <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                    <div className="glass-panel rounded-3xl border border-claude-border px-5 py-10 text-center">
+                        <Search className="mx-auto mb-3 h-6 w-6 text-claude-secondary/70" />
+                        <p className="font-display text-claude-text">No conversations match</p>
+                        <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                             Clear the search or widen the filter.
                         </p>
                     </div>
@@ -762,7 +762,7 @@ export default function Messages() {
                                         to={`/messages/${conv.userId}`}
                                         className={`glass-panel flex items-center gap-4 p-4 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] block group relative overflow-hidden ${String(conv.userId) === String(userId) ? 'border border-claude-accent/30 bg-claude-accent/10' : ''}`}
                                     >
-                                        <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-botanical-forest/20 rounded-tr group-hover:border-claude-accent/40 transition-colors" />
+                                        <div className="absolute top-2 right-2 w-2 h-2 border-t border-r border-claude-accent/20 rounded-tr group-hover:border-claude-accent/40 transition-colors" />
 
                                         <div className="relative shrink-0">
                                             <Avatar src={conv.avatar} size="lg" />
@@ -770,7 +770,7 @@ export default function Messages() {
                                                 <motion.div
                                                     initial={{ scale: 0 }}
                                                     animate={{ scale: 1 }}
-                                                    className="absolute -top-1 -right-1 w-6 h-6 bg-botanical-forest rounded-full flex items-center justify-center shadow-sm md:shadow-lg"
+                                                    className="absolute -top-1 -right-1 w-6 h-6 bg-claude-accent rounded-full flex items-center justify-center shadow-sm md:shadow-lg"
                                                 >
                                                     <span className="text-xs text-white font-bold">
                                                         {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
@@ -781,15 +781,15 @@ export default function Messages() {
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className={`font-display truncate ${conv.unreadCount > 0 || String(conv.userId) === String(userId) ? 'text-botanical-parchment' : 'text-claude-text'}`}>
+                                                <span className={`font-display truncate ${conv.unreadCount > 0 || String(conv.userId) === String(userId) ? 'text-claude-text' : 'text-claude-text'}`}>
                                                     {conv.username}
                                                 </span>
-                                                <span className="text-xs text-botanical-sepia shrink-0 ml-2 font-mono">
+                                                <span className="text-xs text-claude-secondary shrink-0 ml-2 font-mono">
                                                     {formatTime(conv.lastMessageAt)}
                                                 </span>
                                             </div>
-                                            <p className={`text-sm truncate font-mono ${conv.unreadCount > 0 ? 'text-claude-text font-medium' : 'text-botanical-sepia'}`}>
-                                                {conv.isOwnMessage && <span className="text-botanical-sepia/70">You: </span>}
+                                            <p className={`text-sm truncate font-mono ${conv.unreadCount > 0 ? 'text-claude-text font-medium' : 'text-claude-secondary'}`}>
+                                                {conv.isOwnMessage && <span className="text-claude-secondary/70">You: </span>}
                                                 {conv.lastMessageType === 'deck' ? (
                                                     <span className="inline-flex items-center gap-1">
                                                         <Layers className="w-3 h-3 inline" /> Shared a deck
@@ -835,8 +835,8 @@ export default function Messages() {
             {/* Botanical Chat Header with decorative elements */}
             <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 md:backdrop-blur-xl">
                 {/* Decorative corner marks */}
-                <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-botanical-forest/20 rounded-tl" />
-                <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-botanical-forest/20 rounded-br" />
+                <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-claude-accent/20 rounded-tl" />
+                <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-claude-accent/20 rounded-br" />
 
                 <button
                     onClick={() => navigate('/messages')}
@@ -854,19 +854,19 @@ export default function Messages() {
                         <div className="relative">
                             <Avatar src={chatUser.avatar} size="md" />
                             {/* Online indicator - could be added based on user status */}
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-botanical-forest rounded-full border-2 border-claude-bg" />
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-claude-accent rounded-full border-2 border-claude-bg" />
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="font-display font-semibold truncate">{chatUser.username}</p>
-                            <p className="text-xs text-botanical-sepia font-mono">Tap to view profile</p>
+                            <p className="text-xs text-claude-secondary font-mono">Tap to view profile</p>
 	                        </div>
 	                    </Link>
 	                )}
                     <div className="hidden lg:flex items-center gap-2 shrink-0">
-                        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                        <div className="rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                             {threadMessageCount} message{threadMessageCount === 1 ? '' : 's'}
                         </div>
-                        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                        <div className="rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                             {sharedDeckCount} shared deck{sharedDeckCount === 1 ? '' : 's'}
                         </div>
                     </div>
@@ -888,8 +888,8 @@ export default function Messages() {
                         className="flex justify-center py-12"
                     >
                         <div className="relative w-12 h-12">
-                            <div className="absolute inset-0 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
-                            <Leaf className="absolute inset-0 m-auto w-5 h-5 text-botanical-forest/60" />
+                            <div className="absolute inset-0 border-2 border-claude-accent/20 border-t-claude-accent rounded-full animate-spin" />
+                            <Leaf className="absolute inset-0 m-auto w-5 h-5 text-claude-accent/60" />
                         </div>
                     </motion.div>
                 ) : messages.length === 0 ? (
@@ -900,11 +900,11 @@ export default function Messages() {
                     >
                         <div className="relative mx-auto mb-4 w-16 h-16">
                             <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
-                                <Send className="w-7 h-7 text-botanical-sepia" />
+                                <Send className="w-7 h-7 text-claude-secondary" />
                             </div>
                         </div>
-                        <p className="text-botanical-sepia font-mono">No messages yet</p>
-                        <p className="text-sm text-botanical-sepia/70 mt-1 font-mono">
+                        <p className="text-claude-secondary font-mono">No messages yet</p>
+                        <p className="text-sm text-claude-secondary/70 mt-1 font-mono">
                             Say hi to {chatUser?.username}!
                         </p>
                     </motion.div>
@@ -914,7 +914,7 @@ export default function Messages() {
                         {loadingMore && (
                             <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-10">
                                 <div className="relative w-8 h-8">
-                                    <div className="absolute inset-0 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
+                                    <div className="absolute inset-0 border-2 border-claude-accent/20 border-t-claude-accent rounded-full animate-spin" />
                                 </div>
                             </div>
                         )}
@@ -952,38 +952,38 @@ export default function Messages() {
                                             {/* Deck Message */}
                                             {msg.messageType === 'deck' && msg.deckData ? (
                                                 <div className={`glass-panel relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
-                                                    <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-botanical-forest/30' : 'from-botanical-forest/30 to-transparent'}`} />
+                                                    <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-claude-accent/30' : 'from-claude-accent/30 to-transparent'}`} />
                                                     <div className="p-4">
                                                         <div className="flex items-center justify-between mb-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-botanical-forest/10 flex items-center justify-center shrink-0 mr-3">
-                                                                <Layers className="w-4 h-4 text-botanical-forest" />
+                                                            <div className="w-8 h-8 rounded-lg bg-claude-accent/10 flex items-center justify-center shrink-0 mr-3">
+                                                                <Layers className="w-4 h-4 text-claude-accent" />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-xs text-botanical-sepia font-mono mb-0.5" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                                                                <p className="text-xs text-claude-secondary font-mono mb-0.5" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>
                                                                     {msg.isMine ? 'You shared a deck' : `${chatUser?.username || 'Friend'} shared a deck`}
                                                                 </p>
-                                                                <span className="font-display font-medium text-botanical-parchment block truncate">
+                                                                <span className="font-display font-medium text-claude-text block truncate">
                                                                     {msg.deckData.title}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <p className="text-sm text-botanical-sepia font-mono mb-4 text-center">
+                                                        <p className="text-sm text-claude-secondary font-mono mb-4 text-center">
                                                             {msg.deckData.cardCount} cards
                                                         </p>
 
                                                         {msg.isMine ? (
-                                                            <Link to={`/deck/${msg.deckData.id}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest/10 text-botanical-forest hover:bg-botanical-forest/20 transition-colors">
+                                                            <Link to={`/deck/${msg.deckData.id}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
                                                                 View Deck
                                                             </Link>
                                                         ) : msg.deckData.acceptedDeckId ? (
-                                                            <Link to={`/deck/${msg.deckData.acceptedDeckId}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest/10 text-botanical-forest hover:bg-botanical-forest/20 transition-colors">
+                                                            <Link to={`/deck/${msg.deckData.acceptedDeckId}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
                                                                 View in Collection
                                                             </Link>
                                                         ) : (
                                                             <button
                                                                 onClick={() => handleAcceptDeck(msg.id)}
                                                                 disabled={acceptingDeck === msg.id}
-                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-botanical-forest text-white hover:brightness-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
+                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent text-white hover:brightness-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
                                                             >
                                                                 {acceptingDeck === msg.id ? 'Adding...' : 'Add to Collection'}
                                                             </button>
@@ -994,8 +994,8 @@ export default function Messages() {
                                                 /* Text/Image Message Bubble */
                                                 <div
                                                     className={`relative group px-4 py-3 rounded-2xl ${msg.isMine
-                                                        ? 'bg-botanical-forest text-white rounded-br-sm shadow-sm md:shadow-lg shadow-botanical-forest/20'
-                                                        : 'glass-panel rounded-bl-sm text-botanical-parchment'
+                                                        ? 'bg-claude-accent text-white rounded-br-sm shadow-sm md:shadow-lg shadow-claude-accent/20'
+                                                        : 'glass-panel rounded-bl-sm text-claude-text'
                                                         }`}
                                                     style={msg.isMine ? {
                                                         background: 'linear-gradient(135deg, rgba(122, 158, 114, 0.95) 0%, rgba(122, 158, 114, 1) 100%)'
@@ -1003,7 +1003,7 @@ export default function Messages() {
                                                 >
                                                     {/* Subtle corner accent for received messages */}
                                                     {!msg.isMine && (
-                                                        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-botanical-forest/10" />
+                                                        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-claude-accent/10" />
                                                     )}
 
                                                     {/* Message Options (Edit/Delete/Report) */}
@@ -1011,23 +1011,23 @@ export default function Messages() {
                                                         <div className="relative">
                                                             <button
                                                                 onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
-                                                                className="p-1.5 text-claude-secondary hover:text-botanical-parchment hover:bg-claude-border/20 rounded-lg transition-colors"
+                                                                className="p-1.5 text-claude-secondary hover:text-claude-text hover:bg-claude-border/20 rounded-lg transition-colors"
                                                             >
                                                                 <MoreVertical className="w-4 h-4" />
                                                             </button>
                                                             {activeMenuId === msg.id && (
-                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 lg:bg-white/[0.02] lg:backdrop-blur-2xl border-white/[0.05] glass-panel rounded-xl shadow-sm md:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden min-w-[120px] z-50 py-1`}>
+                                                                <div className={`absolute ${msg.isMine ? 'right-full mr-2' : 'left-full ml-2'} top-0 lg:bg-claude-bg/10 lg:backdrop-blur-2xl border-claude-border/40 glass-panel rounded-xl shadow-sm md:shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden min-w-[120px] z-50 py-1`}>
                                                                     {msg.isMine ? (
                                                                         <>
                                                                             <button
                                                                                 onClick={() => startEditing(msg)}
-                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-claude-secondary hover:text-claude-text transition-colors group"
+                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-claude-bg/20 text-claude-secondary hover:text-claude-text transition-colors group"
                                                                             >
                                                                                 <Edit2 className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Edit
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => handleDeleteMessage(msg.id)}
-                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-red-500/80 hover:text-red-500 transition-colors group"
+                                                                                className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-claude-bg/20 text-red-500/80 hover:text-red-500 transition-colors group"
                                                                             >
                                                                                 <Trash2 className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Delete
                                                                             </button>
@@ -1039,7 +1039,7 @@ export default function Messages() {
                                                                                 setIsReportModalOpen(true);
                                                                                 setActiveMenuId(null);
                                                                             }}
-                                                                            className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-white/5 text-red-400/80 hover:text-red-400 transition-colors group"
+                                                                            className="w-full px-4 py-3 sm:py-2 lg:py-3 text-[11px] font-mono uppercase tracking-widest font-bold text-left flex items-center gap-2 hover:bg-claude-bg/20 text-red-400/80 hover:text-red-400 transition-colors group"
                                                                         >
                                                                             <ShieldAlert className="w-4 h-4 opacity-70 group-hover:opacity-100" /> Report
                                                                         </button>
@@ -1096,17 +1096,17 @@ export default function Messages() {
                                         </div>
                                         <div className="glass-panel rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-botanical-sepia/60 rounded-full"
+                                                className="w-1.5 h-1.5 bg-claude-secondary/60 rounded-full"
                                                 animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
                                                 transition={{ duration: 1, repeat: Infinity, delay: 0, ease: "easeInOut" }}
                                             />
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-botanical-sepia/70 rounded-full"
+                                                className="w-1.5 h-1.5 bg-claude-secondary/70 rounded-full"
                                                 animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
                                                 transition={{ duration: 1, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
                                             />
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-botanical-sepia/80 rounded-full"
+                                                className="w-1.5 h-1.5 bg-claude-secondary/80 rounded-full"
                                                 animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
                                                 transition={{ duration: 1, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
                                             />
@@ -1122,7 +1122,7 @@ export default function Messages() {
                 {showNewMessagesPill && (
                     <button
                         onClick={() => scrollToBottom('smooth')}
-                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-botanical-forest text-white text-xs font-mono shadow-lg shadow-botanical-forest/30 hover:brightness-110 active:scale-95 transition-all animate-msg-in"
+                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-claude-accent text-white text-xs font-mono shadow-lg shadow-claude-accent/30 hover:brightness-110 active:scale-95 transition-all animate-msg-in"
                     >
                         <ChevronDown className="w-3.5 h-3.5" />
                         New messages
@@ -1143,13 +1143,13 @@ export default function Messages() {
                 }}
             >
 	                <div className="px-3 flex flex-col gap-2">
-                        <div className="hidden lg:flex items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">
+                        <div className="hidden lg:flex items-center justify-between rounded-[18px] border border-claude-border/40 bg-claude-bg/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                             <span>{editingMessageId ? 'Editing reply' : `Replying to ${chatUser?.username || 'thread'}`}</span>
                             <span>{imagePreview && !editingMessageId ? 'Image attached' : 'Enter to send'}</span>
                         </div>
 	                    {imagePreview && !editingMessageId && (
-	                        <div className="relative self-start mb-1 mt-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                                <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-botanical-sepia">Attachment preview</div>
+	                        <div className="relative self-start mb-1 mt-1 rounded-2xl border border-claude-border bg-claude-bg/15 p-2">
+                                <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Attachment preview</div>
 	                            <img src={imagePreview} alt="Preview" className="h-20 rounded-xl object-cover border border-claude-border shadow-sm" />
 	                            <button
 	                                type="button"
@@ -1162,7 +1162,7 @@ export default function Messages() {
                     )}
 
 	                    {editingMessageId && (
-	                        <div className="flex items-center justify-between rounded-2xl border border-botanical-forest/15 bg-botanical-forest/8 px-3 py-2 text-xs font-mono text-botanical-forest">
+	                        <div className="flex items-center justify-between rounded-2xl border border-claude-accent/15 bg-claude-accent/8 px-3 py-2 text-xs font-mono text-claude-accent">
 	                            <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
 	                            <button
 	                                type="button"
@@ -1190,7 +1190,7 @@ export default function Messages() {
 	                                <button
 	                                    type="button"
 	                                    onClick={() => fileInputRef.current?.click()}
-	                                    className="mb-[2px] inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-claude-secondary hover:text-botanical-forest hover:bg-botanical-forest/10 transition-colors shrink-0 active:scale-95"
+	                                    className="mb-[2px] inline-flex items-center gap-2 rounded-full border border-claude-border px-3 py-2 text-claude-secondary hover:text-claude-accent hover:bg-claude-accent/10 transition-colors shrink-0 active:scale-95"
 	                                    disabled={sending}
                                         aria-label="Attach image"
 	                                >
@@ -1200,7 +1200,7 @@ export default function Messages() {
 	                            </>
 	                        )}
 
-	                        <div className="flex-1 glass-panel rounded-[22px] flex items-center pl-4 pr-1.5 py-1 min-h-[52px] mb-1 border border-white/10">
+	                        <div className="flex-1 glass-panel rounded-[22px] flex items-center pl-4 pr-1.5 py-1 min-h-[52px] mb-1 border border-claude-border">
 	                            <input
 	                                ref={inputRef}
 	                                type="text"
@@ -1211,7 +1211,7 @@ export default function Messages() {
                                 }}
 	                                placeholder={editingMessageId ? "Refine your message..." : "Write a message..."}
 	                                disabled={sending}
-	                                className="flex-1 w-full bg-transparent border-none outline-none text-botanical-parchment placeholder:text-botanical-sepia/50 font-sans text-[15px]"
+	                                className="flex-1 w-full bg-transparent border-none outline-none text-claude-text placeholder:text-claude-secondary/50 font-sans text-[15px]"
 	                            />
 
                             <motion.button

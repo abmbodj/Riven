@@ -112,10 +112,10 @@ export default function Friends() {
         <div className="animate-in fade-in duration-300">
             <div className="mb-6 relative">
                 <div className="absolute -top-2 left-0 w-8 h-8 opacity-10">
-                    <Leaf className="w-full h-full text-botanical-forest rotate-12" />
+                    <Leaf className="w-full h-full text-claude-accent rotate-12" />
                 </div>
                 <h1 className="text-2xl font-display font-bold mb-1">Friends</h1>
-                <p className="text-botanical-sepia font-mono text-sm">Connect with other learners</p>
+                <p className="text-claude-secondary font-mono text-sm">Connect with other learners</p>
             </div>
 
             {/* Tabs */}
@@ -123,8 +123,8 @@ export default function Friends() {
                 <button
                     onClick={() => setTab('friends')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'friends'
-                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        ? 'bg-claude-accent text-white shadow-md shadow-claude-accent/20'
+                        : 'glass-panel text-claude-secondary hover:bg-claude-surface/60 border border-transparent'
                         }`}
                 >
                     <Users className="w-4 h-4 inline mr-1.5" />
@@ -133,8 +133,8 @@ export default function Friends() {
                 <button
                     onClick={() => setTab('requests')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative ${tab === 'requests'
-                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        ? 'bg-claude-accent text-white shadow-md shadow-claude-accent/20'
+                        : 'glass-panel text-claude-secondary hover:bg-claude-surface/60 border border-transparent'
                         }`}
                 >
                     <Clock className="w-4 h-4 inline mr-1.5" />
@@ -148,8 +148,8 @@ export default function Friends() {
                 <button
                     onClick={() => setTab('search')}
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${tab === 'search'
-                        ? 'bg-botanical-forest text-white shadow-md shadow-botanical-forest/20'
-                        : 'glass-panel text-botanical-sepia hover:bg-white/50 border border-transparent'
+                        ? 'bg-claude-accent text-white shadow-md shadow-claude-accent/20'
+                        : 'glass-panel text-claude-secondary hover:bg-claude-surface/60 border border-transparent'
                         }`}
                 >
                     <Search className="w-4 h-4 inline mr-1.5" />
@@ -166,18 +166,18 @@ export default function Friends() {
                 ) : acceptedFriends.length === 0 ? (
                     <div className="text-center py-12 relative overflow-hidden glass-panel rounded-3xl">
                         <div className="absolute -top-10 -right-10 w-40 h-40 opacity-5">
-                            <Leaf className="w-full h-full text-botanical-forest -rotate-45" />
+                            <Leaf className="w-full h-full text-claude-accent -rotate-45" />
                         </div>
-                        <div className="w-16 h-16 rounded-full bg-botanical-forest/10 flex items-center justify-center mx-auto mb-4 relative z-10">
-                            <Users className="w-8 h-8 text-botanical-forest" />
+                        <div className="w-16 h-16 rounded-full bg-claude-accent/10 flex items-center justify-center mx-auto mb-4 relative z-10">
+                            <Users className="w-8 h-8 text-claude-accent" />
                         </div>
-                        <p className="text-botanical-parchment font-display mb-2 relative z-10">No friends yet</p>
-                        <p className="text-sm text-botanical-sepia font-mono mb-4 relative z-10">
+                        <p className="text-claude-text font-display mb-2 relative z-10">No friends yet</p>
+                        <p className="text-sm text-claude-secondary font-mono mb-4 relative z-10">
                             Search for users to add them as friends
                         </p>
                         <button
                             onClick={() => setTab('search')}
-                            className="px-6 py-2 bg-botanical-forest text-white rounded-full font-medium active:scale-95 transition-transform"
+                            className="px-6 py-2 bg-claude-accent text-white rounded-full font-medium active:scale-95 transition-transform"
                         >
                             Find Friends
                         </button>
@@ -190,14 +190,14 @@ export default function Friends() {
                                 className="flex items-center gap-3 p-4 glass-panel rounded-2xl relative overflow-hidden group"
                             >
                                 {/* Decorative corner accent */}
-                                <div className="absolute top-2 left-2 w-2 h-2 border-t border-l border-botanical-forest/20 rounded-tl group-hover:border-botanical-forest/40 transition-colors" />
+                                <div className="absolute top-2 left-2 w-2 h-2 border-t border-l border-claude-accent/20 rounded-tl group-hover:border-claude-accent/40 transition-colors" />
 
                                 <Link to={`/profile/${friend.id}`}>
                                     <Avatar src={friend.avatar} size="lg" />
                                 </Link>
                                 <Link to={`/profile/${friend.id}`} className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <p className="font-display font-semibold truncate text-botanical-parchment">{friend.username}</p>
+                                        <p className="font-display font-semibold truncate text-claude-text">{friend.username}</p>
                                         {friend.isOwner ? (
                                             <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                         ) : friend.isAdmin ? (
@@ -205,13 +205,13 @@ export default function Friends() {
                                         ) : null}
                                     </div>
                                     {friend.bio && (
-                                        <p className="text-xs text-botanical-sepia font-mono truncate mt-0.5">{friend.bio}</p>
+                                        <p className="text-xs text-claude-secondary font-mono truncate mt-0.5">{friend.bio}</p>
                                     )}
                                 </Link>
                                 <div className="flex gap-2">
                                     <Link
                                         to={`/messages/${friend.id}`}
-                                        className="p-2.5 bg-botanical-forest/10 text-botanical-forest rounded-xl active:scale-95 transition-transform hover:bg-botanical-forest/20"
+                                        className="p-2.5 bg-claude-accent/10 text-claude-accent rounded-xl active:scale-95 transition-transform hover:bg-claude-accent/20"
                                     >
                                         <MessageCircle className="w-5 h-5" />
                                     </Link>
@@ -234,7 +234,7 @@ export default function Friends() {
                     {/* Incoming */}
                     {incomingRequests.length > 0 && (
                         <div>
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-botanical-sepia mb-3 flex items-center gap-2 mt-2 ml-2">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-3 flex items-center gap-2 mt-2 ml-2">
                                 <span className="w-2 h-2 rounded-full bg-red-400"></span> Incoming Requests
                             </h3>
                             <div className="space-y-3">
@@ -248,7 +248,7 @@ export default function Friends() {
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-display font-semibold truncate text-botanical-parchment">{req.username}</p>
+                                                <p className="font-display font-semibold truncate text-claude-text">{req.username}</p>
                                                 {/* roles */}
                                                 {req.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
@@ -256,12 +256,12 @@ export default function Friends() {
                                                     <span className="px-1.5 py-0.5 bg-red-400 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                                 ) : null}
                                             </div>
-                                            <p className="text-xs text-botanical-sepia font-mono mt-0.5">Wants to be friends</p>
+                                            <p className="text-xs text-claude-secondary font-mono mt-0.5">Wants to be friends</p>
                                         </Link>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleAcceptRequest(req.id, req.username)}
-                                                className="p-2.5 bg-botanical-forest text-white rounded-xl active:scale-95 transition-transform shadow-md shadow-botanical-forest/30"
+                                                className="p-2.5 bg-claude-accent text-white rounded-xl active:scale-95 transition-transform shadow-md shadow-claude-accent/30"
                                             >
                                                 <Check className="w-5 h-5" />
                                             </button>
@@ -281,7 +281,7 @@ export default function Friends() {
                     {/* Outgoing */}
                     {outgoingRequests.length > 0 && (
                         <div>
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-botanical-sepia mb-3 mt-6 ml-2">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-claude-secondary mb-3 mt-6 ml-2">
                                 Pending Requests
                             </h3>
                             <div className="space-y-3">
@@ -295,18 +295,18 @@ export default function Friends() {
                                         </Link>
                                         <Link to={`/profile/${req.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-display font-semibold truncate text-botanical-parchment">{req.username}</p>
+                                                <p className="font-display font-semibold truncate text-claude-text">{req.username}</p>
                                                 {req.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                                 ) : req.isAdmin ? (
                                                     <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full">ADMIN</span>
                                                 ) : null}
                                             </div>
-                                            <p className="text-xs text-botanical-sepia font-mono mt-0.5" style={{ fontStyle: 'italic' }}>Request sent...</p>
+                                            <p className="text-xs text-claude-secondary font-mono mt-0.5" style={{ fontStyle: 'italic' }}>Request sent...</p>
                                         </Link>
                                         <button
                                             onClick={() => handleDeclineOrRemove(req.id, true)}
-                                            className="px-4 py-2 text-xs font-mono text-botanical-sepia hover:text-red-500 transition-colors bg-white/50 rounded-lg border border-botanical-forest/10"
+                                            className="px-4 py-2 text-xs font-mono text-claude-secondary hover:text-red-500 transition-colors bg-claude-surface/60 rounded-lg border border-claude-accent/10"
                                         >
                                             Cancel
                                         </button>
@@ -318,10 +318,10 @@ export default function Friends() {
 
                     {incomingRequests.length === 0 && outgoingRequests.length === 0 && (
                         <div className="text-center py-12 glass-panel rounded-3xl relative overflow-hidden">
-                            <div className="w-16 h-16 rounded-full bg-botanical-forest/10 flex items-center justify-center mx-auto mb-4">
-                                <Clock className="w-8 h-8 text-botanical-forest" />
+                            <div className="w-16 h-16 rounded-full bg-claude-accent/10 flex items-center justify-center mx-auto mb-4">
+                                <Clock className="w-8 h-8 text-claude-accent" />
                             </div>
-                            <p className="text-botanical-sepia font-mono">No pending requests</p>
+                            <p className="text-claude-secondary font-mono">No pending requests</p>
                         </div>
                     )}
                 </div>
@@ -332,13 +332,13 @@ export default function Friends() {
                 <div>
                     {/* Search Input */}
                     <div className="relative mb-6 group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-botanical-forest transition-colors group-focus-within:text-botanical-forest" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-claude-accent transition-colors group-focus-within:text-claude-accent" />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search by username or share code"
-                            className="w-full pl-12 pr-4 py-4 glass-panel focus:bg-white border-2 border-transparent focus:border-botanical-forest/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-botanical-forest/10 transition-[transform,opacity,color,background-color,border-color,box-shadow] font-mono text-botanical-parchment placeholder:text-botanical-sepia/50 shadow-sm"
+                            className="w-full pl-12 pr-4 py-4 glass-panel focus:bg-claude-surface border-2 border-transparent focus:border-claude-accent/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-claude-accent/10 transition-[transform,opacity,color,background-color,border-color,box-shadow] font-mono text-claude-text placeholder:text-claude-secondary/50 shadow-sm"
                             autoFocus
                         />
                     </div>
@@ -346,20 +346,20 @@ export default function Friends() {
                     {/* Search Results */}
                     {searching ? (
                         <div className="flex justify-center py-8">
-                            <div className="w-8 h-8 border-2 border-botanical-forest/20 border-t-botanical-forest rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-2 border-claude-accent/20 border-t-claude-accent rounded-full animate-spin" />
                         </div>
                     ) : searchQuery.length < 2 ? (
                         <div className="text-center py-12 glass-panel rounded-3xl">
-                            <div className="w-12 h-12 bg-botanical-forest/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Search className="w-6 h-6 text-botanical-sepia" />
+                            <div className="w-12 h-12 bg-claude-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Search className="w-6 h-6 text-claude-secondary" />
                             </div>
-                            <p className="text-botanical-sepia font-mono text-sm">
+                            <p className="text-claude-secondary font-mono text-sm">
                                 Enter at least 2 characters to search
                             </p>
                         </div>
                     ) : searchResults.length === 0 ? (
                         <div className="text-center py-12 glass-panel rounded-3xl">
-                            <p className="text-botanical-sepia font-mono">No users found</p>
+                            <p className="text-claude-secondary font-mono">No users found</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -378,7 +378,7 @@ export default function Friends() {
                                         </Link>
                                         <Link to={`/profile/${user.id}`} className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-display font-semibold truncate text-botanical-parchment">{user.username}</p>
+                                                <p className="font-display font-semibold truncate text-claude-text">{user.username}</p>
                                                 {user.isOwner ? (
                                                     <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold rounded-full">OWNER</span>
                                                 ) : user.isAdmin ? (
@@ -386,17 +386,17 @@ export default function Friends() {
                                                 ) : null}
                                             </div>
                                             {user.bio && (
-                                                <p className="text-xs text-botanical-sepia font-mono truncate mt-0.5">{user.bio}</p>
+                                                <p className="text-xs text-claude-secondary font-mono truncate mt-0.5">{user.bio}</p>
                                             )}
                                         </Link>
                                         {isFriend ? (
-                                            <span className="text-xs text-botanical-forest font-bold px-3 py-1 bg-botanical-forest/10 rounded-lg uppercase tracking-wider">Friends</span>
+                                            <span className="text-xs text-claude-accent font-bold px-3 py-1 bg-claude-accent/10 rounded-lg uppercase tracking-wider">Friends</span>
                                         ) : isPending || user.requestSent ? (
-                                            <span className="text-xs text-botanical-sepia px-3 py-1 font-mono italic">Pending</span>
+                                            <span className="text-xs text-claude-secondary px-3 py-1 font-mono italic">Pending</span>
                                         ) : (
                                             <button
                                                 onClick={() => handleSendRequest(user.id)}
-                                                className="p-2.5 bg-botanical-forest text-white rounded-xl active:scale-95 transition-transform hover:shadow-lg hover:shadow-botanical-forest/20"
+                                                className="p-2.5 bg-claude-accent text-white rounded-xl active:scale-95 transition-transform hover:shadow-lg hover:shadow-claude-accent/20"
                                             >
                                                 <UserPlus className="w-5 h-5" />
                                             </button>

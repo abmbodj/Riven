@@ -232,11 +232,11 @@ export default function GroupCram() {
             <div className="fullscreen-page pb-24 px-4 pt-12 relative overflow-y-auto">
                 <div className="max-w-xl mx-auto space-y-8 relative z-10">
                     <div className="text-center">
-                        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-botanical-forest/10 text-botanical-forest rounded-full flex items-center justify-center mx-auto mb-6 border border-botanical-forest/20 shadow-[0_0_30px_rgba(45,90,62,0.15)] relative md:backdrop-blur-sm">
+                        <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 15 }} className="w-24 h-24 bg-claude-accent/10 text-claude-accent rounded-full flex items-center justify-center mx-auto mb-6 border border-claude-accent/20 shadow-[0_0_30px_rgba(0,0,0,0.15)] relative md:backdrop-blur-sm">
                             <CheckCircle2 className="w-12 h-12 relative z-10" />
-                            <div className="absolute inset-0 bg-botanical-forest/5 rounded-full blur-md animate-pulse" />
+                            <div className="absolute inset-0 bg-claude-accent/5 rounded-full blur-md animate-pulse" />
                         </motion.div>
-                        <h2 className="text-4xl font-serif italic font-bold text-botanical-parchment mb-3">Session Complete</h2>
+                        <h2 className="text-4xl font-serif italic font-bold text-claude-text mb-3">Session Complete</h2>
                         <div className="inline-flex items-center gap-3 px-6 py-2 glass-panel rounded-full">
                             <p className="text-claude-secondary font-mono uppercase tracking-widest text-[10px] font-bold">
                                 Your Score: <span className="text-claude-accent text-sm ml-1">{results.personalStats?.total_correct || 0}/{results.personalStats?.total_answered || 0}</span>
@@ -253,7 +253,7 @@ export default function GroupCram() {
                         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
                         <div className="flex flex-col items-center mb-8">
-                            <h3 className="font-serif italic font-bold text-2xl text-botanical-parchment mb-2 text-center">Group Weak Spots</h3>
+                            <h3 className="font-serif italic font-bold text-2xl text-claude-text mb-2 text-center">Group Weak Spots</h3>
                             <p className="text-[10px] text-claude-secondary font-mono tracking-widest uppercase text-center max-w-[80%] leading-relaxed">
                                 Review these concepts carefully.
                             </p>
@@ -271,7 +271,7 @@ export default function GroupCram() {
                                     >
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500/50 to-orange-500/50 opacity-50" />
                                         <div className="flex justify-between items-start gap-4 mb-3">
-                                            <p className="text-sm font-serif font-bold text-botanical-parchment flex-1 leading-snug">{card.front}</p>
+                                            <p className="text-sm font-serif font-bold text-claude-text flex-1 leading-snug">{card.front}</p>
                                             <span className="shrink-0 text-[9px] font-mono font-bold bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">
                                                 {card.incorrect_count}/{card.total_responses} Missed
                                             </span>
@@ -283,14 +283,14 @@ export default function GroupCram() {
                         ) : (
                             <div className="text-center py-10 glass-panel border-dashed border-claude-border/50 rounded-[1.5rem]">
                                 <span className="text-5xl mb-4 block animate-bounce" style={{ animationDuration: '3s' }}>🎯</span>
-                                <h4 className="font-serif italic text-xl text-botanical-parchment mb-2">Flawless Victory</h4>
+                                <h4 className="font-serif italic text-xl text-claude-text mb-2">Flawless Victory</h4>
                                 <p className="text-claude-secondary font-mono tracking-widest uppercase text-[9px]">The group mastered everything.</p>
                             </div>
                         )}
 
                         <button
                             onClick={() => navigate(`/groups/${groupId}`)}
-                            className="w-full mt-10 py-4 bg-claude-accent text-botanical-ink rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20"
+                            className="w-full mt-10 py-4 bg-claude-accent text-claude-text rounded-2xl font-mono text-[11px] tracking-widest font-bold uppercase transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 active:scale-[0.98] tap-action shadow-sm md:shadow-lg shadow-claude-accent/20"
                         >
                             Return to Group Vault
                         </button>
@@ -314,7 +314,7 @@ export default function GroupCram() {
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
                     <span className="text-6xl mb-8 block animate-bounce" style={{ animationDuration: '2.5s' }}>☕️</span>
-                    <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4">You finished!</h2>
+                    <h2 className="text-3xl font-serif italic font-bold text-claude-text mb-4">You finished!</h2>
 
                     {/* Visual Waiting State */}
                     <div className="relative w-24 h-24 mx-auto mb-8">
@@ -485,7 +485,7 @@ export default function GroupCram() {
 
                             {/* Rotated label */}
                             <span
-                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
+                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-claude-secondary mb-5"
                                 style={{ transform: 'rotate(-2deg)' }}
                             >
                                 Question
@@ -517,9 +517,9 @@ export default function GroupCram() {
                             style={{
                                 backfaceVisibility: 'hidden',
                                 transform: 'rotateY(180deg)',
-                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
-                                border: '1px solid rgba(122,158,114,0.25)',
-                                boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                background: 'linear-gradient(165deg, var(--accent-color) 0%, color-mix(in srgb, var(--accent-color) 70%, var(--bg-color)) 100%)',
+                                border: '1px solid rgba(var(--accent-color), 0.25)',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
                             }}
                         >
                             {/* Paper grain overlay */}
@@ -531,13 +531,13 @@ export default function GroupCram() {
                                 }}
                             />
                             {/* Decorative corner marks */}
-                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
-                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
-                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
-                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-text/10" />
+                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-text/10" />
+                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-text/10" />
+                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-text/10" />
 
                             <span
-                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
+                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-claude-text/40 mb-5"
                                 style={{ transform: 'rotate(-2deg)' }}
                             >
                                 Answer
@@ -575,7 +575,7 @@ export default function GroupCram() {
                                 </button>
                                 <button
                                     onClick={() => handleAnswer(true)}
-                                    className="flex-1 h-14 rounded-[1.25rem] bg-claude-accent text-botanical-ink flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-opacity-90 shadow-[0_0_20px_rgba(222,185,106,0.3)] tap-action"
+                                    className="flex-1 h-14 rounded-[1.25rem] bg-claude-accent text-claude-text flex items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-widest font-bold active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-opacity-90 shadow-[0_0_20px_rgba(222,185,106,0.3)] tap-action"
                                 >
                                     <ThumbsUp className="w-4 h-4 mb-0.5" /> Got It
                                 </button>

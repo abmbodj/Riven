@@ -566,7 +566,7 @@ export default function GroupDetails() {
 
                         <button
                             onClick={() => setShowShareDeckModal(true)}
-                            className="gsap-left-item gsap-hover-card w-full py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
+                            className="gsap-left-item gsap-hover-card w-full py-4 rounded-2xl bg-claude-accent text-claude-text font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm uppercase tracking-widest text-sm"
                         >
                             <Zap className="w-4 h-4 fill-current" /> Start Cram Session
                         </button>
@@ -662,7 +662,7 @@ export default function GroupDetails() {
                                                     <span className="text-xs font-bold px-2.5 py-1 rounded bg-claude-surface border border-claude-border text-claude-secondary">{deck.card_count || 0} cards</span>
                                                 </div>
                                                 <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="p-2 bg-claude-accent/10 hover:bg-claude-accent text-claude-accent hover:text-botanical-ink rounded-lg transition-colors" title="Start Cram">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="p-2 bg-claude-accent/10 hover:bg-claude-accent text-claude-accent hover:text-claude-text rounded-lg transition-colors" title="Start Cram">
                                                         <Zap className="w-4 h-4 fill-current" />
                                                     </button>
                                                     {isAdmin && (
@@ -685,7 +685,7 @@ export default function GroupDetails() {
                                     <button onClick={() => setShowCreateFolderModal(true)} className="px-4 py-2 rounded-xl bg-claude-surface border border-claude-border hover:border-claude-accent/40 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm text-claude-text">
                                         <Plus className="w-4 h-4 text-claude-secondary" /> Folder
                                     </button>
-                                    <button onClick={() => setShowUploadModal(true)} className="px-4 py-2 rounded-xl bg-claude-accent text-botanical-ink hover:opacity-90 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
+                                    <button onClick={() => setShowUploadModal(true)} className="px-4 py-2 rounded-xl bg-claude-accent text-claude-text hover:opacity-90 text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
                                         <Upload className="w-4 h-4" /> Upload File
                                     </button>
                                 </div>
@@ -833,7 +833,7 @@ export default function GroupDetails() {
                                         </div>
                                         <div className="mt-6 flex justify-between items-end">
                                             <span className="text-xs font-bold text-claude-secondary px-2 py-1 bg-claude-bg rounded-md border border-claude-border/50">{deck.card_count || 0} cards</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="w-10 h-10 flex items-center justify-center bg-claude-accent/10 text-claude-accent hover:bg-claude-accent hover:text-botanical-ink rounded-xl transition-colors">
+                                            <button onClick={(e) => { e.stopPropagation(); handleStartSession(deck.id); }} className="w-10 h-10 flex items-center justify-center bg-claude-accent/10 text-claude-accent hover:bg-claude-accent hover:text-claude-text rounded-xl transition-colors">
                                                 <Zap className="w-5 h-5 fill-current" />
                                             </button>
                                         </div>
@@ -945,7 +945,7 @@ export default function GroupDetails() {
                         <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border/50 bg-claude-surface/40 backdrop-blur-xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text gsap-hover-card">
                             <Upload className="w-5 h-5" /> Upload File
                         </button>
-                        <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-botanical-ink font-bold text-sm flex items-center justify-center gap-2 shadow-sm gsap-hover-card">
+                        <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-claude-text font-bold text-sm flex items-center justify-center gap-2 shadow-sm gsap-hover-card">
                             <Zap className="w-5 h-5 fill-current" /> Start Cram
                         </button>
                     </div>
@@ -988,7 +988,7 @@ export default function GroupDetails() {
                                 <button type="button" onClick={handleDelete} className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl hover:bg-red-500/20 transition-colors">
                                     <Trash2 className="w-6 h-6" />
                                 </button>
-                                <button type="submit" className="flex-1 py-4 bg-claude-accent text-botanical-ink font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center">
+                                <button type="submit" className="flex-1 py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center">
                                     Save Changes
                                 </button>
                             </div>
@@ -1024,7 +1024,7 @@ export default function GroupDetails() {
                                         {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).map(deck => (
                                             <div key={deck.id} onClick={() => handleShareDeck(deck.id)} className="p-5 flex items-center justify-between hover:bg-claude-border/40 cursor-pointer transition-colors group">
                                                 <div className="font-bold text-sm truncate text-claude-text pr-4">{deck.title}</div>
-                                                <button className="text-xs font-bold text-claude-accent bg-claude-accent/10 px-4 py-2 rounded-xl group-hover:bg-claude-accent group-hover:text-botanical-ink transition-colors uppercase tracking-wider shrink-0">Share</button>
+                                                <button className="text-xs font-bold text-claude-accent bg-claude-accent/10 px-4 py-2 rounded-xl group-hover:bg-claude-accent group-hover:text-claude-text transition-colors uppercase tracking-wider shrink-0">Share</button>
                                             </div>
                                         ))}
                                         {myDecks.filter(d => !sharedDecks.find(sd => sd.deck_id === d.id)).length === 0 && (
@@ -1057,7 +1057,7 @@ export default function GroupDetails() {
                                 <label className="block text-xs font-bold uppercase tracking-widest text-claude-secondary mb-2 pl-1">Folder Name</label>
                                 <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} className="w-full bg-claude-surface/40 backdrop-blur-xl border border-claude-border/50 rounded-2xl px-5 py-4 font-bold text-claude-text focus:border-claude-accent outline-none transition-colors" autoFocus placeholder="e.g. Midterm Reviews" />
                             </div>
-                            <button type="submit" disabled={!newFolderName.trim()} className="w-full py-4 bg-claude-accent text-botanical-ink font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
+                            <button type="submit" disabled={!newFolderName.trim()} className="w-full py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
                                 Create Folder
                             </button>
                         </motion.form>
@@ -1113,7 +1113,7 @@ export default function GroupDetails() {
                                                 </select>
                                             </div>
                                         </div>
-                                        <button type="submit" disabled={!uploadData.name.trim() || !uploadData.file} className="w-full py-4 bg-claude-accent text-botanical-ink font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
+                                        <button type="submit" disabled={!uploadData.name.trim() || !uploadData.file} className="w-full py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
                                             Continue
                                         </button>
                                     </motion.form>
@@ -1129,7 +1129,7 @@ export default function GroupDetails() {
                                             Riven can automatically create flashcards from your file and share them with the group.
                                         </p>
                                         <div className="space-y-3">
-                                            <button onClick={handleUploadWithAi} className="w-full py-4 bg-claude-accent text-botanical-ink font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                                            <button onClick={handleUploadWithAi} className="w-full py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                                                 <span>✨</span> Yes, create a deck
                                             </button>
                                             <button onClick={finalizeFileUpload} className="w-full py-4 bg-claude-surface border border-claude-border font-bold text-sm tracking-wide uppercase rounded-2xl hover:bg-claude-border/50 transition-colors text-claude-text">

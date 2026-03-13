@@ -222,11 +222,11 @@ export default function TestMode() {
 
                 <div className="flex-1 p-6">
                     <div className="mx-auto w-full max-w-5xl space-y-6">
-                        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-6 shadow-[0_24px_48px_rgba(0,0,0,0.18)]">
+                        <div className="rounded-[28px] border border-claude-border bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-6 shadow-[0_24px_48px_rgba(0,0,0,0.18)]">
                             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Assessment Workbench</p>
-                                    <h1 className="font-serif text-3xl font-bold italic text-botanical-parchment">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Assessment Workbench</p>
+                                    <h1 className="font-serif text-3xl font-bold italic text-claude-text">
                                         Pick how you want to pressure-test this deck.
                                     </h1>
                                     <p className="max-w-2xl text-sm text-claude-secondary">
@@ -234,18 +234,18 @@ export default function TestMode() {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72 sm:min-w-[280px]">
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Deck</div>
-                                        <div className="mt-1 text-sm text-white">{deck?.title || 'Current'}</div>
+                                <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-claude-secondary sm:min-w-[280px]">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Deck</div>
+                                        <div className="mt-1 text-sm text-claude-text">{deck?.title || 'Current'}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Cards</div>
-                                        <div className="mt-1 text-sm text-white">{cards.length}</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Cards</div>
+                                        <div className="mt-1 text-sm text-claude-text">{cards.length}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Modes</div>
-                                        <div className="mt-1 text-sm text-white">2</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Modes</div>
+                                        <div className="mt-1 text-sm text-claude-text">2</div>
                                     </div>
                                 </div>
                             </div>
@@ -314,7 +314,7 @@ export default function TestMode() {
         return (
             <div className="fullscreen-page px-4 py-6">
                 <div className="mx-auto flex h-full w-full max-w-4xl items-center justify-center">
-                    <div className="w-full rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-8 shadow-[0_24px_48px_rgba(0,0,0,0.18)]">
+                    <div className="w-full rounded-[30px] border border-claude-border bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-8 shadow-[0_24px_48px_rgba(0,0,0,0.18)]">
                         <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
                             <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${percentage >= 70 ? 'bg-green-500/20' : 'bg-orange-500/20'}`}>
                                 {percentage >= 70 ? (
@@ -325,7 +325,7 @@ export default function TestMode() {
                             </div>
 
                             <div className="space-y-2">
-                                <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Assessment complete</p>
+                                <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Assessment complete</p>
                                 <h2 className="text-3xl font-display font-bold">Complete!</h2>
                                 <p className="text-claude-secondary text-lg">
                                     {percentage}% correct in {currentModeLabel.toLowerCase()} for {deck?.title || 'this deck'}.
@@ -405,32 +405,32 @@ export default function TestMode() {
                 <div className="flex-1 px-4 pb-8">
                     <div className="mx-auto grid h-full w-full max-w-6xl gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                         <div className="space-y-4 min-w-0">
-                            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+                            <div className="rounded-[24px] border border-claude-border bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
                                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                     <div className="space-y-1.5">
-                                        <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-botanical-sepia/80">
+                                        <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-claude-secondary/80">
                                             <span>{currentModeLabel}</span>
                                             {deck?.title ? (
-                                                <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/60">{deck.title}</span>
+                                                <span className="rounded-full border border-claude-border px-2 py-1 tracking-[0.18em] text-claude-secondary">{deck.title}</span>
                                             ) : null}
                                         </div>
-                                        <p className="font-display text-lg font-semibold text-white">
+                                        <p className="font-display text-lg font-semibold text-claude-text">
                                             Type the answer before the timerless pressure breaks your flow.
                                         </p>
-                                        <p className="text-sm text-white/68">{sessionCue}</p>
+                                        <p className="text-sm text-claude-secondary">{sessionCue}</p>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72 sm:min-w-[290px]">
-                                        <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                            <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Score</div>
-                                            <div className="mt-1 text-sm text-white">{score}</div>
+                                    <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-claude-secondary sm:min-w-[290px]">
+                                        <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                            <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Score</div>
+                                            <div className="mt-1 text-sm text-claude-text">{score}</div>
                                         </div>
-                                        <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                            <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Remaining</div>
-                                            <div className="mt-1 text-sm text-white">{questionsRemaining}</div>
+                                        <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                            <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Remaining</div>
+                                            <div className="mt-1 text-sm text-claude-text">{questionsRemaining}</div>
                                         </div>
-                                        <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                            <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Accuracy</div>
-                                            <div className="mt-1 text-sm text-white">{accuracyRate}%</div>
+                                        <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                            <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Accuracy</div>
+                                            <div className="mt-1 text-sm text-claude-text">{accuracyRate}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -513,21 +513,21 @@ export default function TestMode() {
                                 <div className="glass-panel rounded-[28px] p-5">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Test Focus</p>
                                     <div className="mt-4 space-y-3">
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                        <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                             <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Phase</div>
-                                            <div className="mt-2 font-serif text-lg font-bold text-botanical-parchment">{sessionPhaseLabel}</div>
+                                            <div className="mt-2 font-serif text-lg font-bold text-claude-text">{sessionPhaseLabel}</div>
                                         </div>
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                        <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                             <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Deck</div>
-                                            <div className="mt-2 font-serif text-lg font-bold text-botanical-parchment">{deck?.title || 'Current deck'}</div>
+                                            <div className="mt-2 font-serif text-lg font-bold text-claude-text">{deck?.title || 'Current deck'}</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="glass-panel rounded-[28px] p-5">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Typed Controls</p>
-                                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/68">
-                                        Submit with <span className="font-mono text-white">Enter</span> or the send button. Wrong answers reveal the correct response before the next prompt.
+                                    <div className="mt-4 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-4 text-sm text-claude-secondary">
+                                        Submit with <span className="font-mono text-claude-text">Enter</span> or the send button. Wrong answers reveal the correct response before the next prompt.
                                     </div>
                                 </div>
                             </div>
@@ -561,32 +561,32 @@ export default function TestMode() {
             <div className="flex-1 px-4 pb-8">
                 <div className="mx-auto grid h-full w-full max-w-6xl gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <div className="space-y-4 min-w-0">
-                        <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+                        <div className="rounded-[24px] border border-claude-border bg-[linear-gradient(135deg,rgba(18,38,44,0.94),rgba(36,63,57,0.92))] px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                 <div className="space-y-1.5">
-                                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-botanical-sepia/80">
+                                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.28em] text-claude-secondary/80">
                                         <span>{currentModeLabel}</span>
                                         {deck?.title ? (
-                                            <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/60">{deck.title}</span>
+                                            <span className="rounded-full border border-claude-border px-2 py-1 tracking-[0.18em] text-claude-secondary">{deck.title}</span>
                                         ) : null}
                                     </div>
-                                    <p className="font-display text-lg font-semibold text-white">
+                                    <p className="font-display text-lg font-semibold text-claude-text">
                                         Read the prompt, commit to an answer, and keep moving.
                                     </p>
-                                    <p className="text-sm text-white/68">{sessionCue}</p>
+                                    <p className="text-sm text-claude-secondary">{sessionCue}</p>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72 sm:min-w-[290px]">
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Score</div>
-                                        <div className="mt-1 text-sm text-white">{score}</div>
+                                <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-claude-secondary sm:min-w-[290px]">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Score</div>
+                                        <div className="mt-1 text-sm text-claude-text">{score}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Remaining</div>
-                                        <div className="mt-1 text-sm text-white">{questionsRemaining}</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Remaining</div>
+                                        <div className="mt-1 text-sm text-claude-text">{questionsRemaining}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Accuracy</div>
-                                        <div className="mt-1 text-sm text-white">{accuracyRate}%</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Accuracy</div>
+                                        <div className="mt-1 text-sm text-claude-text">{accuracyRate}%</div>
                                     </div>
                                 </div>
                             </div>
@@ -648,20 +648,20 @@ export default function TestMode() {
                             <div className="glass-panel rounded-[28px] p-5">
                                 <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Test Focus</p>
                                 <div className="mt-4 space-y-3">
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                         <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Phase</div>
-                                        <div className="mt-2 font-serif text-lg font-bold text-botanical-parchment">{sessionPhaseLabel}</div>
+                                        <div className="mt-2 font-serif text-lg font-bold text-claude-text">{sessionPhaseLabel}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                         <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Deck</div>
-                                        <div className="mt-2 font-serif text-lg font-bold text-botanical-parchment">{deck?.title || 'Current deck'}</div>
+                                        <div className="mt-2 font-serif text-lg font-bold text-claude-text">{deck?.title || 'Current deck'}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="glass-panel rounded-[28px] p-5">
                                 <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Answer Pattern</p>
-                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/68">
+                                <div className="mt-4 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-4 text-sm text-claude-secondary">
                                     One answer is right. Wrong picks cost a heart when hearts are enabled, so move quickly but deliberately.
                                 </div>
                             </div>

@@ -546,7 +546,7 @@ export default function StudyMode() {
     const sessionStatusLabel = didResumeSession ? 'Resumed session' : 'Current session';
     const compactSessionControls = (
         <div className="flex w-full flex-wrap items-center justify-center gap-2 xl:hidden">
-            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.22em] text-white/55">
+            <span className="rounded-full border border-claude-border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary/80">
                 {sessionStatusLabel}
             </span>
             <button
@@ -562,7 +562,7 @@ export default function StudyMode() {
             {resumeAvailable ? (
                 <button
                     onClick={handleFreshStart}
-                    className="rounded-full border border-white/12 px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
+                    className="rounded-full border border-claude-border px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-claude-text/80 transition hover:border-claude-border hover:text-claude-text"
                 >
                     Start fresh
                 </button>
@@ -570,11 +570,11 @@ export default function StudyMode() {
         </div>
     );
     const mobileGestureHint = !showSessionComplete ? (
-        <div className="flex w-full items-center justify-center gap-2 rounded-full border border-white/8 bg-black/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-white/45 md:hidden">
+        <div className="flex w-full items-center justify-center gap-2 rounded-full border border-claude-border/40 bg-claude-bg/40 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary/50 md:hidden">
             <span>Swipe</span>
-            <span className="h-1 w-1 rounded-full bg-white/25" />
+            <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
             <span>Tap</span>
-            <span className="h-1 w-1 rounded-full bg-white/25" />
+            <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
             <span>Thumb controls</span>
         </div>
     ) : null;
@@ -586,7 +586,7 @@ export default function StudyMode() {
             <div className="text-center mb-4">
                 <p className="font-display text-lg font-semibold italic">Session complete</p>
                 {cardsStudied > 0 && (
-                    <p className="text-xs font-mono text-botanical-sepia mt-1">
+                    <p className="text-xs font-mono text-claude-secondary mt-1">
                         {cardsCorrect}/{cardsStudied} correct · {Math.round((cardsCorrect / cardsStudied) * 100)}%
                     </p>
                 )}
@@ -663,10 +663,10 @@ export default function StudyMode() {
                         <div
                             ref={progressBarRef}
                             className="h-full rounded-full"
-                            style={{ background: 'linear-gradient(90deg, var(--botanical-forest), var(--accent-color))', width: '0%' }}
+                            style={{ background: 'linear-gradient(90deg, var(--accent-color), color-mix(in srgb, var(--accent-color) 80%, var(--text-color)))', width: '0%' }}
                         />
                     </div>
-                    <p className="text-center text-[10px] font-mono text-botanical-sepia mt-1.5 tracking-wide">{currentIndex + 1} / {cards.length}</p>
+                    <p className="text-center text-[10px] font-mono text-claude-secondary mt-1.5 tracking-wide">{currentIndex + 1} / {cards.length}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <StudyHeartsDisplay heartsStatus={heartsStatus} />
@@ -730,7 +730,7 @@ export default function StudyMode() {
                                             <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border/50" />
 
                                             <span
-                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-botanical-sepia mb-5"
+                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-claude-secondary mb-5"
                                                 style={{ transform: 'rotate(-2deg)' }}
                                             >
                                                 Question
@@ -756,7 +756,7 @@ export default function StudyMode() {
                                             <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
                                         </div>
 
-                                        {/* Back — forest green with dramatic shadow */}
+                                        {/* Back — accent with dramatic shadow */}
                                         <div
                                             ref={cardBackRef}
                                             className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
@@ -765,7 +765,7 @@ export default function StudyMode() {
                                                 WebkitBackfaceVisibility: 'hidden',
                                                 transform: 'rotateY(180deg) translateZ(1px)',
                                                 willChange: 'transform, opacity',
-                                                background: 'linear-gradient(165deg, var(--botanical-forest) 0%, #2d5a3e 100%)',
+                                                background: 'linear-gradient(165deg, var(--accent-color) 0%, color-mix(in srgb, var(--accent-color) 70%, var(--bg-color)) 100%)',
                                                 border: '1px solid rgba(122,158,114,0.25)',
                                                 boxShadow: '0 8px 32px rgba(34,83,96,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
                                             }}
@@ -777,13 +777,13 @@ export default function StudyMode() {
                                                     backgroundSize: '128px 128px',
                                                 }}
                                             />
-                                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-white/10" />
-                                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-white/10" />
-                                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-white/10" />
-                                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-white/10" />
+                                            <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-claude-border" />
+                                            <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-claude-border" />
+                                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-claude-border" />
+                                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-claude-border" />
 
                                             <span
-                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/40 mb-5"
+                                                className="font-mono text-[9px] uppercase tracking-[0.25em] text-claude-secondary/50 mb-5"
                                                 style={{ transform: 'rotate(-2deg)' }}
                                             >
                                                 Answer
@@ -797,8 +797,8 @@ export default function StudyMode() {
                                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                                 />
                                             )}
-                                            <p className={`font-display font-semibold text-white text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
-                                            <span className="absolute bottom-5 text-[10px] font-mono text-white/30 tracking-wide">tap or press space to flip back</span>
+                                            <p className={`font-display font-semibold text-claude-text text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
+                                            <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to flip back</span>
                                         </div>
                                     </div>
                                 </div>
@@ -811,58 +811,58 @@ export default function StudyMode() {
 
                     <aside className="hidden xl:block">
                         <div className="sticky top-6 space-y-4">
-                            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(18,38,44,0.96),rgba(27,49,56,0.92))] px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
-                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia/70">
+                            <div className="rounded-[24px] border border-claude-border bg-[linear-gradient(155deg,rgba(18,38,44,0.96),rgba(27,49,56,0.92))] px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">
                                     <span>{sessionStatusLabel}</span>
-                                    <span className="rounded-full border border-white/10 px-2 py-1 tracking-[0.18em] text-white/55">
+                                    <span className="rounded-full border border-claude-border px-2 py-1 tracking-[0.18em] text-claude-secondary/80">
                                         {currentModeLabel}
                                     </span>
                                 </div>
-                                <div className="text-[10px] font-mono uppercase tracking-[0.26em] text-botanical-sepia/70">Study Focus</div>
-                                <p className="mt-3 font-display text-2xl font-semibold text-white">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.26em] text-claude-secondary">Study Focus</div>
+                                <p className="mt-3 font-display text-2xl font-semibold text-claude-text">
                                     {deck?.title || 'Current deck'}
                                 </p>
-                                <p className="mt-2 text-sm text-white/65">
+                                <p className="mt-2 text-sm text-claude-secondary">
                                     {deck?.description || 'Work the current card, keep momentum, and finish the session without losing context.'}
                                 </p>
-                                <p className="mt-3 text-sm text-white/58">
+                                <p className="mt-3 text-sm text-claude-secondary/80">
                                     {didResumeSession ? 'You are back where you left off.' : currentModeDescription}
                                 </p>
 
-                                <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] font-mono text-white/72">
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Remaining</div>
-                                        <div className="mt-1 text-lg text-white">{remainingCards}</div>
+                                <div className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] font-mono text-claude-text/80">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Remaining</div>
+                                        <div className="mt-1 text-lg text-claude-text">{remainingCards}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-3">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Accuracy</div>
-                                        <div className="mt-1 text-lg text-white">{accuracyRate}%</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-3">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Accuracy</div>
+                                        <div className="mt-1 text-lg text-claude-text">{accuracyRate}%</div>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-white/72">
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Studied</div>
-                                        <div className="mt-1 text-sm text-white">{cardsStudied}</div>
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-mono text-claude-text/80">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Studied</div>
+                                        <div className="mt-1 text-sm text-claude-text">{cardsStudied}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Correct</div>
-                                        <div className="mt-1 text-sm text-white">{cardsCorrect}</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Correct</div>
+                                        <div className="mt-1 text-sm text-claude-text">{cardsCorrect}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
-                                        <div className="text-[9px] uppercase tracking-[0.24em] text-white/40">Minutes</div>
-                                        <div className="mt-1 text-sm text-white">{elapsedMinutes}</div>
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/40 px-3 py-2">
+                                        <div className="text-[9px] uppercase tracking-[0.24em] text-claude-secondary/50">Minutes</div>
+                                        <div className="mt-1 text-sm text-claude-text">{elapsedMinutes}</div>
                                     </div>
                                 </div>
 
                                 {resumeAvailable ? (
-                                    <div className="mt-4 border-t border-white/10 pt-4">
-                                        <p className="text-xs text-white/58">
+                                    <div className="mt-4 border-t border-claude-border pt-4">
+                                        <p className="text-xs text-claude-secondary/80">
                                             Resume is saved on this device until the session finishes.
                                         </p>
                                         <button
                                             onClick={handleFreshStart}
-                                            className="mt-3 w-full rounded-full border border-white/12 px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/72 transition hover:border-white/24 hover:text-white"
+                                            className="mt-3 w-full rounded-full border border-claude-border px-3 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-claude-text/80 transition hover:border-claude-border hover:text-claude-text"
                                         >
                                             Start fresh
                                         </button>
@@ -870,11 +870,11 @@ export default function StudyMode() {
                                 ) : null}
                             </div>
 
-                            <div className="rounded-[22px] border border-white/10 bg-black/15 px-4 py-4">
+                            <div className="rounded-[22px] border border-claude-border bg-claude-bg/40 px-4 py-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
-                                        <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/45">Session Phase</div>
-                                        <p className="mt-1 font-display text-lg text-white">{sessionPhaseLabel}</p>
+                                        <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary/50">Session Phase</div>
+                                        <p className="mt-1 font-display text-lg text-claude-text">{sessionPhaseLabel}</p>
                                     </div>
                                     <button
                                         onClick={() => setSpacedRepetitionMode(!spacedRepetitionMode)}
@@ -887,22 +887,22 @@ export default function StudyMode() {
                                         {spacedRepetitionMode ? 'Recall ON' : 'Recall OFF'}
                                     </button>
                                 </div>
-                                <p className="mt-3 text-sm text-white/62">{sessionCue}</p>
+                                <p className="mt-3 text-sm text-claude-secondary">{sessionCue}</p>
 
-                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-                                    <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-white/40">Desktop controls</div>
-                                    <div className="mt-3 space-y-2 text-[11px] font-mono text-white/68">
+                                <div className="mt-4 rounded-2xl border border-claude-border bg-claude-bg/15 px-3 py-3">
+                                    <div className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary/50">Desktop controls</div>
+                                    <div className="mt-3 space-y-2 text-[11px] font-mono text-claude-secondary">
                                         <div className="flex items-center justify-between gap-3">
                                             <span>Previous card</span>
-                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">←</kbd>
+                                            <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">←</kbd>
                                         </div>
                                         <div className="flex items-center justify-between gap-3">
                                             <span>Flip current card</span>
-                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">Space</kbd>
+                                            <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">Space</kbd>
                                         </div>
                                         <div className="flex items-center justify-between gap-3">
                                             <span>Next card</span>
-                                            <kbd className="rounded border border-white/10 bg-black/15 px-2 py-1 text-[10px] text-white/82">→</kbd>
+                                            <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">→</kbd>
                                         </div>
                                     </div>
                                 </div>

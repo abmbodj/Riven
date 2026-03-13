@@ -75,7 +75,7 @@ export default function OAuthButtons({ onSuccess, onError }) {
             <button
                 type="button"
                 disabled={true}
-                className="w-full flex items-center justify-center bg-gray-100/50 text-black/40 font-semibold py-2.5 rounded-lg shadow-sm border border-gray-200/50 cursor-not-allowed"
+                className="w-full flex items-center justify-center bg-claude-surface/50 text-claude-text/40 font-semibold py-2.5 rounded-lg shadow-sm border border-claude-border/50 cursor-not-allowed"
             >
                 <div className="opacity-50">
                     <GoogleIcon />

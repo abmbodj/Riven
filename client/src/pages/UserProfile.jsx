@@ -162,7 +162,7 @@ export default function UserProfile() {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[70vh] bg-claude-bg">
-                <div className="w-10 h-10 border-4 border-botanical-forest border-t-transparent rounded-full animate-spin shadow-sm md:shadow-lg" />
+                <div className="w-10 h-10 border-4 border-claude-accent border-t-transparent rounded-full animate-spin shadow-sm md:shadow-lg" />
             </div>
         );
     }
@@ -170,9 +170,9 @@ export default function UserProfile() {
     if (!profile) {
         return (
             <div className="text-center py-20 bg-claude-bg min-h-screen">
-                <Leaf className="w-12 h-12 text-botanical-sepia/20 mx-auto mb-4" />
+                <Leaf className="w-12 h-12 text-claude-secondary/20 mx-auto mb-4" />
                 <p className="text-claude-secondary font-display text-xl tracking-wide">Journal not found</p>
-                <button onClick={() => navigate(-1)} className="mt-6 text-sm font-mono text-botanical-forest uppercase tracking-widest pl-2 border-l-2 border-botanical-forest hover:text-botanical-solid transition-colors">Return</button>
+                <button onClick={() => navigate(-1)} className="mt-6 text-sm font-mono text-claude-accent uppercase tracking-widest pl-2 border-l-2 border-claude-accent hover:text-claude-accent/80 transition-colors">Return</button>
             </div>
         );
     }
@@ -199,7 +199,7 @@ export default function UserProfile() {
                         </div>
                     ) : (
                         <>
-                            <div className="absolute inset-0 bg-[#0f2026] rounded-b-[3rem]"></div>
+                            <div className="absolute inset-0 bg-claude-bg rounded-b-[3rem]"></div>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1.2 }}
@@ -210,7 +210,7 @@ export default function UserProfile() {
 
                             {/* Floating Leaves */}
                             <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
-                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-botanical-forest/5" />
+                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-claude-accent/5" />
                             </motion.div>
                         </>
                     )}
@@ -244,44 +244,44 @@ export default function UserProfile() {
                             {profile.display_name || profile.username}
                         </h2>
                         {profile.isOwner && (
-                            <span className="px-2 py-0.5 rounded-full bg-botanical-sepia/20 text-botanical-sepia font-mono text-[10px] uppercase font-bold tracking-widest border border-botanical-sepia/30 shadow-sm ml-2">
+                            <span className="px-2 py-0.5 rounded-full bg-claude-secondary/20 text-claude-secondary font-mono text-[10px] uppercase font-bold tracking-widest border border-claude-secondary/30 shadow-sm ml-2">
                                 Owner
                             </span>
                         )}
                         {!profile.isOwner && profile.isAdmin && (
-                            <span className="px-2 py-0.5 rounded-full bg-botanical-forest/10 text-botanical-forest font-mono text-[10px] uppercase font-bold tracking-widest border border-botanical-forest/20 shadow-sm ml-2">
+                            <span className="px-2 py-0.5 rounded-full bg-claude-accent/10 text-claude-accent font-mono text-[10px] uppercase font-bold tracking-widest border border-claude-accent/20 shadow-sm ml-2">
                                 Admin
                             </span>
                         )}
                     </div>
 
                     <div className="flex flex-col items-center justify-center gap-1 mb-4">
-                        <p className="text-botanical-forest/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
+                        <p className="text-claude-accent/80 text-[13px] font-mono tracking-widest font-semibold flex items-center gap-1">
                             <User className="w-3 h-3" />
                             @{profile.username}
                         </p>
                     </div>
 
                     {profile.bio && (
-                        <p className="text-botanical-sepia text-sm italic font-serif leading-relaxed px-4">"{profile.bio}"</p>
+                        <p className="text-claude-secondary text-sm italic font-serif leading-relaxed px-4">"{profile.bio}"</p>
                     )}
                 </div>
 
                 {/* Stats Bento */}
                 <div className="gsap-profile-item grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
+                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-claude-border/10 rounded-[2rem] p-5 text-center shadow-sm">
                         <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold text-claude-text mb-1">
-                            <Layers className="w-5 h-5 text-botanical-forest" />
+                            <Layers className="w-5 h-5 text-claude-accent" />
                             {profile.deckCount}
                         </div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">Decks</p>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Decks</p>
                     </div>
-                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-botanical-sepia/10 rounded-[2rem] p-5 text-center shadow-sm">
+                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-claude-border/10 rounded-[2rem] p-5 text-center shadow-sm">
                         <div className="flex items-center justify-center gap-2 text-[16px] font-display font-bold text-claude-text mb-1 h-[32px]">
-                            <Calendar className="w-4 h-4 text-botanical-sepia/80" />
+                            <Calendar className="w-4 h-4 text-claude-secondary/80" />
                             {formatDate(profile.createdAt)}
                         </div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-sepia">Joined</p>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Joined</p>
                     </div>
                 </div>
 
@@ -311,7 +311,7 @@ export default function UserProfile() {
                                 <button
                                     onClick={handleAcceptRequest}
                                     disabled={actionLoading}
-                                    className="flex-1 py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-botanical-forest/20"
+                                    className="flex-1 py-4 bg-claude-accent hover:bg-claude-accent/80 text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-claude-accent/20"
                                 >
                                     <Check className="w-5 h-5" />
                                     Accept Request
@@ -329,7 +329,7 @@ export default function UserProfile() {
                                 key="outgoing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                 onClick={handleRemoveFriend}
                                 disabled={actionLoading}
-                                className="w-full py-4 glass-panel border border-botanical-sepia/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-red-500/30 hover:text-red-500"
+                                className="w-full py-4 glass-panel border border-claude-border/20 rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 text-claude-secondary active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-red-500/30 hover:text-red-500"
                             >
                                 <Clock className="w-5 h-5" />
                                 Request Pending
@@ -339,7 +339,7 @@ export default function UserProfile() {
                                 key="add" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                 onClick={handleSendRequest}
                                 disabled={actionLoading}
-                                className="w-full py-4 bg-botanical-forest hover:bg-[#2b4c3e] text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-botanical-forest/20"
+                                className="w-full py-4 bg-claude-accent hover:bg-claude-accent/80 text-white rounded-2xl font-bold tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 shadow-md shadow-claude-accent/20"
                             >
                                 {actionLoading ? <div className="w-5 h-5 border-2 border-white/60 border-t-white rounded-full animate-spin" /> : <UserPlus className="w-5 h-5" />}
                                 Add Friend
@@ -348,7 +348,7 @@ export default function UserProfile() {
                     </AnimatePresence>
                 </div>
 
-                <div className="gsap-profile-item mt-8 pt-8 border-t border-botanical-sepia/10 flex flex-col gap-2">
+                <div className="gsap-profile-item mt-8 pt-8 border-t border-claude-border/10 flex flex-col gap-2">
                     <button
                         onClick={() => setIsReportModalOpen(true)}
                         className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
@@ -365,7 +365,7 @@ export default function UserProfile() {
                     </button>
                 </div>
 
-                <div className="gsap-profile-item mt-8 text-center text-[10px] text-botanical-sepia/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
+                <div className="gsap-profile-item mt-8 text-center text-[10px] text-claude-secondary/40 font-mono tracking-widest uppercase flex flex-col items-center gap-2">
                     <Leaf className="w-4 h-4 opacity-50" />
                 </div>
             </div>

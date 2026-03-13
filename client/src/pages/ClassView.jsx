@@ -61,7 +61,7 @@ export default function ClassView() {
             setCls(currentClass);
             setClassFormData({
                 name: currentClass.name,
-                color: currentClass.color || '#7a9e72',
+                color: currentClass.color || 'var(--accent-color)',
                 professor: currentClass.professor || '',
                 room: currentClass.room || '',
                 zoom_link: currentClass.zoom_link || ''
@@ -257,9 +257,9 @@ export default function ClassView() {
     if (loading) return (
         <div className="p-6 pt-4 min-h-screen">
             <div className="h-8 w-24 bg-claude-border rounded-xl animate-pulse mb-6" />
-            <div className="h-24 w-full bg-[#fcfaf2] border border-[#d1c9b8] rounded-sm animate-pulse mb-8" />
+            <div className="h-24 w-full bg-claude-surface border border-claude-border rounded-sm animate-pulse mb-8" />
             <div className="space-y-4">
-                {[1, 2, 3].map(i => <div key={i} className="h-16 w-full bg-[#fcfaf2] rounded-xl animate-pulse" />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-16 w-full bg-claude-surface rounded-xl animate-pulse" />)}
             </div>
         </div>
     );
@@ -294,13 +294,13 @@ export default function ClassView() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowEditClassModal(true)}
-                        className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-botanical-parchment transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                        className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                     >
                         <Settings className="w-5 h-5" />
                     </button>
                     <button
                         onClick={openCreateAssign}
-                        className="h-10 px-4 bg-claude-accent/20 border border-claude-accent/40 rounded-xl text-claude-accent font-mono text-xs uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-[#162a31] transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center gap-2"
+                        className="h-10 px-4 bg-claude-accent/20 border border-claude-accent/40 rounded-xl text-claude-accent font-mono text-xs uppercase tracking-widest font-bold hover:bg-claude-accent hover:text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center gap-2"
                     >
                         <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Add Task</span>
                     </button>
@@ -309,20 +309,20 @@ export default function ClassView() {
 
             <div className="px-4 sm:px-6 py-6">
                 {/* Class Details Hero */}
-                <div className="relative bg-[#fcfaf2] border border-[#d1c9b8] p-6 rounded-sm shadow-sm mb-8 overflow-hidden">
+                <div className="relative bg-claude-surface border border-claude-border p-6 rounded-sm shadow-sm mb-8 overflow-hidden">
                     <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8" style={{ color: cls.color || '#7a9e72' }}>
+                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8" style={{ color: cls.color || 'var(--accent-color)' }}>
                         <Library className="w-full h-full" />
                     </div>
 
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || '#7a9e72' }} />
-                            <span className="font-mono text-[10px] uppercase tracking-widest text-[#8a7f6a] opacity-80">{cls.id.slice(-6)}</span>
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color || 'var(--accent-color)' }} />
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary opacity-80">{cls.id.slice(-6)}</span>
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-serif font-bold italic text-[#1a1c1d] tracking-tight">{cls.name}</h1>
+                        <h1 className="text-3xl sm:text-4xl font-serif font-bold italic text-claude-text tracking-tight">{cls.name}</h1>
                         {(cls.professor || cls.room || cls.zoom_link) && (
-                            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono font-bold uppercase tracking-wider text-[#5d6466]">
+                            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono font-bold uppercase tracking-wider text-claude-secondary">
                                 {cls.professor && <span>Prof: {cls.professor}</span>}
                                 {cls.room && <span>Loc: {cls.room}</span>}
                                 {cls.zoom_link && <a href={cls.zoom_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Zoom</a>}
@@ -330,9 +330,9 @@ export default function ClassView() {
                         )}
                         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                             {statTiles.map((tile) => (
-                                <div key={tile.label} className="rounded-2xl border border-[#d1c9b8] bg-white/70 px-4 py-3">
-                                    <div className="font-mono text-lg font-bold text-[#1a1c1d]">{tile.value}</div>
-                                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-[#8a7f6a]">{tile.label}</div>
+                                <div key={tile.label} className="rounded-2xl border border-claude-border bg-claude-surface/60 px-4 py-3">
+                                    <div className="font-mono text-lg font-bold text-claude-text">{tile.value}</div>
+                                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{tile.label}</div>
                                 </div>
                             ))}
                         </div>
@@ -341,11 +341,11 @@ export default function ClassView() {
 
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
                     <div className="space-y-8">
-                        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
+                        <div className="rounded-[28px] border border-claude-border bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Class Workbench</p>
-                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Class Workbench</p>
+                                    <h2 className="font-serif text-2xl font-bold italic text-claude-text">
                                         {nextAssignment ? 'Next priority is already in view.' : 'Use this page to plan, study, and keep pace.'}
                                     </h2>
                                     <p className="max-w-2xl text-sm text-claude-secondary">
@@ -357,13 +357,13 @@ export default function ClassView() {
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         onClick={openCreateAssign}
-                                        className="rounded-full border border-claude-accent/35 bg-claude-accent/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent transition hover:bg-claude-accent hover:text-[#162a31]"
+                                        className="rounded-full border border-claude-accent/35 bg-claude-accent/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent transition hover:bg-claude-accent hover:text-claude-bg"
                                     >
                                         Add task
                                     </button>
                                     <button
                                         onClick={() => setShowScheduleModal(true)}
-                                        className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-botanical-parchment transition hover:border-white/20"
+                                        className="rounded-full border border-claude-border bg-claude-bg/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-text transition hover:border-claude-border"
                                     >
                                         Add class time
                                     </button>
@@ -396,7 +396,7 @@ export default function ClassView() {
                                                     </button>
 
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-botanical-parchment/60 line-through' : 'text-botanical-parchment group-hover:text-white'}`}>
+                                                        <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-claude-text/60 line-through' : 'text-claude-text group-hover:text-claude-text'}`}>
                                                             {a.title}
                                                         </h4>
                                                         {a.description && (
@@ -411,7 +411,7 @@ export default function ClassView() {
                                                         {a.type && (
                                                             <div className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded uppercase font-mono tracking-widest text-[8px] font-bold border ${a.type === 'exam' || a.type === 'test' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
                                                                 a.type === 'project' ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' :
-                                                                    'border-[#8fa6a8]/30 text-claude-secondary glass-panel'
+                                                                    'border-claude-secondary/30 text-claude-secondary glass-panel'
                                                                 }`}>
                                                                 {a.type}
                                                             </div>
@@ -427,7 +427,7 @@ export default function ClassView() {
                             {assignments.length === 0 && (
                                 <div className="text-center py-16 opacity-50">
                                     <Clock className="w-12 h-12 text-claude-secondary mx-auto mb-4 opacity-50" />
-                                    <p className="font-serif italic text-botanical-parchment text-lg mb-2">No upcoming tasks</p>
+                                    <p className="font-serif italic text-claude-text text-lg mb-2">No upcoming tasks</p>
                                     <p className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary">Add an assignment to track your progress.</p>
                                 </div>
                             )}
@@ -453,13 +453,13 @@ export default function ClassView() {
                             ) : (
                                 <div className="space-y-3">
                                     {scheduleSlots.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time)).map(slot => (
-                                        <div key={slot.id} className={`relative group rounded-2xl border px-4 py-3 ${nextScheduleSlot?.id === slot.id ? 'border-claude-accent/30 bg-claude-accent/8' : 'border-white/10 bg-white/[0.03]'}`}>
+                                        <div key={slot.id} className={`relative group rounded-2xl border px-4 py-3 ${nextScheduleSlot?.id === slot.id ? 'border-claude-accent/30 bg-claude-accent/8' : 'border-claude-border bg-claude-bg/15'}`}>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || '#7a9e72'}20`, color: cls.color || '#7a9e72' }}>
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || 'var(--accent-color)'}20`, color: cls.color || 'var(--accent-color)' }}>
                                                     {DAY_LABELS[slot.day_of_week]}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-mono text-[10px] uppercase font-bold text-botanical-parchment">{formatSlotTime(slot.start_time)} - {formatSlotTime(slot.end_time)}</p>
+                                                    <p className="font-mono text-[10px] uppercase font-bold text-claude-text">{formatSlotTime(slot.start_time)} - {formatSlotTime(slot.end_time)}</p>
                                                     {nextScheduleSlot?.id === slot.id ? (
                                                         <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Next on deck</p>
                                                     ) : null}
@@ -484,16 +484,16 @@ export default function ClassView() {
                                         <a
                                             key={deck.id}
                                             href={`/deck/${deck.id}`}
-                                            className="group relative block rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                                            className="group relative block rounded-2xl border border-claude-border bg-claude-bg/15 p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                                         >
                                             <div className="flex items-start gap-4">
                                                 <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
-                                                    style={{ backgroundColor: `${cls.color || '#7a9e72'}15`, borderColor: `${cls.color || '#7a9e72'}30`, color: cls.color || '#7a9e72' }}
+                                                    style={{ backgroundColor: `${cls.color || 'var(--accent-color)'}15`, borderColor: `${cls.color || 'var(--accent-color)'}30`, color: cls.color || 'var(--accent-color)' }}
                                                 >
                                                     <Layers className="w-5 h-5 opacity-70" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-serif text-lg font-bold truncate text-botanical-parchment group-hover:text-white transition-colors">
+                                                    <h4 className="font-serif text-lg font-bold truncate text-claude-text group-hover:text-claude-text transition-colors">
                                                         {deck.title}
                                                     </h4>
                                                     <div className="flex items-center gap-2 mt-1">
@@ -507,7 +507,7 @@ export default function ClassView() {
                             ) : (
                                 <div className="rounded-2xl border border-dashed border-claude-border px-4 py-8 text-center">
                                     <Layers className="mx-auto mb-3 h-8 w-8 text-claude-secondary/60" />
-                                    <p className="font-serif italic text-botanical-parchment">No linked decks yet</p>
+                                    <p className="font-serif italic text-claude-text">No linked decks yet</p>
                                     <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Generate or create one from this class.</p>
                                 </div>
                             )}
@@ -520,15 +520,15 @@ export default function ClassView() {
             <AnimatePresence>
                 {showEditClassModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEditClassModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
-                        <motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveClass} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
+                        <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEditClassModal(false)} className="absolute inset-0 bg-claude-bg/90 md:backdrop-blur-md" />
+                        <Motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveClass} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-8 sticky top-0 bg-claude-bg pt-2 pb-4 z-10">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Edit Class</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Edit Class</h3>
                                 <div className="flex items-center gap-2">
                                     <button type="button" onClick={() => setDeleteClassConfirm(true)} className="p-2 text-red-400 hover:text-red-300">
                                         <Trash2 className="w-5 h-5" />
                                     </button>
-                                    <button type="button" onClick={() => setShowEditClassModal(false)} className="p-2 text-claude-secondary hover:text-white">
+                                    <button type="button" onClick={() => setShowEditClassModal(false)} className="p-2 text-claude-secondary hover:text-claude-text">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -536,19 +536,19 @@ export default function ClassView() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Class Name *</label>
-                                    <input type="text" required value={classFormData.name} onChange={e => setClassFormData({ ...classFormData, name: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" />
+                                    <input type="text" required value={classFormData.name} onChange={e => setClassFormData({ ...classFormData, name: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Professor</label>
-                                    <input type="text" value={classFormData.professor} onChange={e => setClassFormData({ ...classFormData, professor: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="e.g. Dr. Smith" />
+                                    <input type="text" value={classFormData.professor} onChange={e => setClassFormData({ ...classFormData, professor: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" placeholder="e.g. Dr. Smith" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Location</label>
-                                    <input type="text" value={classFormData.room} onChange={e => setClassFormData({ ...classFormData, room: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="e.g. Room 101" />
+                                    <input type="text" value={classFormData.room} onChange={e => setClassFormData({ ...classFormData, room: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" placeholder="e.g. Room 101" />
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Changes</button>
                             </div>
-                        </motion.form>
+                        </Motion.form>
                     </div>
                 )}
             </AnimatePresence>
@@ -559,17 +559,17 @@ export default function ClassView() {
             <AnimatePresence>
                 {showAssignModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAssignModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
-                        <motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveAssignment} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
+                        <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAssignModal(false)} className="absolute inset-0 bg-claude-bg/90 md:backdrop-blur-md" />
+                        <Motion.form initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onSubmit={handleSaveAssignment} className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-8 sticky top-0 bg-claude-bg pt-2 pb-4 z-10">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingAssign ? 'Edit Task' : 'New Task'}</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">{editingAssign ? 'Edit Task' : 'New Task'}</h3>
                                 <div className="flex items-center gap-2">
                                     {editingAssign && (
                                         <button type="button" onClick={() => setDeleteAssignConfirm({ show: true, item: editingAssign })} className="p-2 text-red-400 hover:text-red-300">
                                             <Trash2 className="w-5 h-5" />
                                         </button>
                                     )}
-                                    <button type="button" onClick={() => setShowAssignModal(false)} className="p-2 text-claude-secondary hover:text-white">
+                                    <button type="button" onClick={() => setShowAssignModal(false)} className="p-2 text-claude-secondary hover:text-claude-text">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -577,16 +577,16 @@ export default function ClassView() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Task Title *</label>
-                                    <input type="text" required value={assignForm.title} onChange={e => setAssignForm({ ...assignForm, title: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" placeholder="Read Chapter 4" />
+                                    <input type="text" required value={assignForm.title} onChange={e => setAssignForm({ ...assignForm, title: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" placeholder="Read Chapter 4" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Due Date & Time</label>
-                                        <input type="datetime-local" value={assignForm.due_date} onChange={e => setAssignForm({ ...assignForm, due_date: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" />
+                                        <input type="datetime-local" value={assignForm.due_date} onChange={e => setAssignForm({ ...assignForm, due_date: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none" />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Status</label>
-                                        <select value={assignForm.status} onChange={e => setAssignForm({ ...assignForm, status: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none appearance-none">
+                                        <select value={assignForm.status} onChange={e => setAssignForm({ ...assignForm, status: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none appearance-none">
                                             <option value="Todo">To Do</option>
                                             <option value="Doing">Doing</option>
                                             <option value="Done">Done</option>
@@ -595,7 +595,7 @@ export default function ClassView() {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Type</label>
-                                        <select value={assignForm.type} onChange={e => setAssignForm({ ...assignForm, type: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none appearance-none">
+                                        <select value={assignForm.type} onChange={e => setAssignForm({ ...assignForm, type: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none appearance-none">
                                             <option value="homework">Homework</option>
                                             <option value="reading">Reading</option>
                                             <option value="project">Project</option>
@@ -607,15 +607,15 @@ export default function ClassView() {
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Description</label>
-                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none mb-3" placeholder="Add a description for this task..." />
+                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none resize-none mb-3" placeholder="Add a description for this task..." />
 
                                     {aiFilePreview ? (
                                         <div className="flex items-center justify-between glass-panel rounded-xl p-3 mb-3">
                                             <div className="flex items-center gap-2 truncate">
-                                                <div className="w-8 h-8 rounded shrink-0 bg-[#233e46] flex items-center justify-center text-claude-secondary">
+                                                <div className="w-8 h-8 rounded shrink-0 bg-claude-surface flex items-center justify-center text-claude-secondary">
                                                     <Layers className="w-4 h-4" />
                                                 </div>
-                                                <span className="font-mono text-xs text-botanical-parchment truncate">{aiFilePreview}</span>
+                                                <span className="font-mono text-xs text-claude-text truncate">{aiFilePreview}</span>
                                             </div>
                                             <button type="button" onClick={removeFile} className="p-2 text-red-400 hover:text-red-300">
                                                 <X className="w-4 h-4" />
@@ -654,21 +654,21 @@ export default function ClassView() {
                                 </div>
                                 <button type="submit" disabled={isGeneratingAI} className="claude-button-primary w-full py-5 text-lg mt-4 disabled:opacity-50">Save Task</button>
                             </div>
-                        </motion.form>
+                        </Motion.form>
                     </div>
                 )}
 
                 {showScheduleModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScheduleModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
-                        <motion.form
+                        <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScheduleModal(false)} className="absolute inset-0 bg-claude-bg/90 md:backdrop-blur-md" />
+                        <Motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleSaveScheduleSlot}
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Add Class Time</h3>
-                                <button type="button" onClick={() => setShowScheduleModal(false)} className="p-2 text-claude-secondary hover:text-white transition-colors">
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Add Class Time</h3>
+                                <button type="button" onClick={() => setShowScheduleModal(false)} className="p-2 text-claude-secondary hover:text-claude-text transition-colors">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
@@ -678,7 +678,7 @@ export default function ClassView() {
                                     <select
                                         value={scheduleForm.day_of_week}
                                         onChange={e => setScheduleForm({ ...scheduleForm, day_of_week: parseInt(e.target.value) })}
-                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none appearance-none"
+                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none appearance-none"
                                     >
                                         <option value={1}>Monday</option>
                                         <option value={2}>Tuesday</option>
@@ -697,7 +697,7 @@ export default function ClassView() {
                                                 type="time"
                                                 value={scheduleForm.start_time}
                                                 onChange={e => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
-                                                className="w-full bg-transparent font-mono text-botanical-parchment outline-none"
+                                                className="w-full bg-transparent font-mono text-claude-text outline-none"
                                                 required
                                             />
                                         </div>
@@ -709,7 +709,7 @@ export default function ClassView() {
                                                 type="time"
                                                 value={scheduleForm.end_time}
                                                 onChange={e => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
-                                                className="w-full bg-transparent font-mono text-botanical-parchment outline-none"
+                                                className="w-full bg-transparent font-mono text-claude-text outline-none"
                                                 required
                                             />
                                         </div>
@@ -717,7 +717,7 @@ export default function ClassView() {
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Time</button>
                             </div>
-                        </motion.form>
+                        </Motion.form>
                     </div>
                 )}
             </AnimatePresence>

@@ -29,22 +29,22 @@ const itemVariants = {
 const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false }) => (
     <button
         onClick={onClick}
-        className={`w-full py-4 px-5 flex items-center gap-4 ${!noBorder ? 'border-b border-botanical-sepia/10' : ''} active:bg-botanical-sepia/5 transition-colors group relative overflow-hidden`}
+        className={`w-full py-4 px-5 flex items-center gap-4 ${!noBorder ? 'border-b border-claude-border/' : ''} active:bg-claude-border/5 transition-colors group relative overflow-hidden`}
     >
-        <div className={`p-2.5 rounded-xl ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-claude-bg text-claude-text/70 shadow-sm border border-botanical-sepia/5'} group-hover:scale-110 transition-transform duration-300`}>
+        <div className={`p-2.5 rounded-xl ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-claude-bg text-claude-text/70 shadow-sm border border-claude-border/5'} group-hover:scale-110 transition-transform duration-300`}>
             {IconComponent && <IconComponent className="w-5 h-5" />}
         </div>
         <div className="flex-1 text-left z-10">
-            <p className={`font-display text-[16px] tracking-wide font-medium ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-botanical-forest transition-colors'}`}>{title}</p>
-            {description && <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">{description}</p>}
+            <p className={`font-display text-[16px] tracking-wide font-medium ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-claude-accent transition-colors'}`}>{title}</p>
+            {description && <p className="text-[11px] font-mono text-claude-secondary mt-0.5">{description}</p>}
         </div>
 
         {toggle !== null ? (
-            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-botanical-forest shadow-inner' : 'glass-panel border border-botanical-sepia/30'}`}>
+            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-claude-accent shadow-inner' : 'glass-panel border border-claude-border/30'}`}>
                 <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shadow-sm ${toggleValue ? 'left-[24px]' : 'left-[3px]'}`} />
             </div>
         ) : (
-            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-botanical-sepia/30 group-hover:text-botanical-forest group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]'}`} />
+            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-claude-border/30 group-hover:text-claude-accent group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]'}`} />
         )}
     </button>
 );
@@ -64,16 +64,16 @@ const getCanvasFeedLabel = (canvasUrl) => {
 
 const StatusNotice = ({ tone = 'info', title, detail }) => {
     const toneClasses = tone === 'success'
-        ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+        ? 'border-claude-accent/20 bg-claude-accent/5 text-claude-accent'
         : tone === 'error'
             ? 'border-red-500/20 bg-red-500/5 text-red-400'
-            : 'border-[#0ea5e9]/15 bg-[#0ea5e9]/5 text-[#38bdf8]';
+            : 'border-blue-400/15 bg-blue-400/5 text-blue-400';
 
     return (
         <div className={`rounded-2xl border px-4 py-3 ${toneClasses}`}>
             <p className="text-[10px] font-mono uppercase tracking-[0.16em] font-bold">{title}</p>
             {detail && (
-                <p className="mt-1 text-[11px] font-mono text-botanical-sepia/80">
+                <p className="mt-1 text-[11px] font-mono text-claude-secondary/80">
                     {detail}
                 </p>
             )}
@@ -85,16 +85,16 @@ const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
     const eyebrowTone = tone === 'accent'
         ? 'text-claude-accent'
         : tone === 'info'
-            ? 'text-[#38bdf8]'
+            ? 'text-blue-400'
             : tone === 'success'
-                ? 'text-emerald-400'
+                ? 'text-claude-accent'
                 : tone === 'warning'
                     ? 'text-amber-500'
                     : tone === 'danger'
                         ? 'text-red-400'
                         : tone === 'pink'
                             ? 'text-pink-400'
-                            : 'text-botanical-sepia';
+                            : 'text-claude-secondary';
 
     return (
         <div className="mb-3 px-1">
@@ -106,7 +106,7 @@ const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
                     {title}
                 </h2>
                 {description && (
-                    <p className="mt-1 text-[11px] font-mono text-botanical-sepia/75">
+                    <p className="mt-1 text-[11px] font-mono text-claude-secondary/75">
                         {description}
                     </p>
                 )}
@@ -119,7 +119,7 @@ const SectionCard = ({ children, tone = 'default', className = '' }) => {
     const toneClasses = tone === 'accent'
         ? 'border-claude-accent/20 bg-claude-surface/95'
         : tone === 'info'
-            ? 'border-[#0ea5e9]/20 bg-claude-surface/95'
+            ? 'border-blue-400/20 bg-claude-surface/95'
             : tone === 'warning'
                 ? 'border-amber-500/20 bg-claude-surface/95'
                 : tone === 'danger'
@@ -325,9 +325,9 @@ export default function Settings() {
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text pb-24 font-sans">
             {/* Minimalist Floating Header */}
-            <div className="sticky top-0 z-50 bg-claude-bg/80 md:backdrop-blur-xl border-b border-botanical-sepia/5 pb-2 pt-12">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-botanical-sepia/5 pb-4">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-botanical-sepia/5 hover:bg-botanical-sepia/10 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
+            <div className="sticky top-0 z-50 bg-claude-bg/80 md:backdrop-blur-xl border-b border-claude-border/5 pb-2 pt-12">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-claude-border/5 pb-4">
+                    <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-claude-border/5 hover:bg-claude-border/10 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
                         <ArrowLeft className="w-5 h-5 text-claude-text" />
                     </button>
                     <h1 className="font-display text-xl tracking-wider text-claude-text font-bold">Settings</h1>
@@ -355,7 +355,7 @@ export default function Settings() {
                                         <h2 className="font-display text-2xl font-semibold text-claude-text">
                                             Control center
                                         </h2>
-                                        <p className="mt-1 text-[11px] font-mono text-botanical-sepia/75">
+                                        <p className="mt-1 text-[11px] font-mono text-claude-secondary/75">
                                             Your account, automation, and atmosphere all in one place.
                                         </p>
                                     </div>
@@ -379,7 +379,7 @@ export default function Settings() {
 
                                     <div className="rounded-[1.25rem] border border-claude-border bg-claude-bg/70 p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="rounded-2xl border border-botanical-sepia/20 bg-botanical-sepia/10 p-2.5 text-botanical-sepia">
+                                            <div className="rounded-2xl border border-claude-secondary/20 bg-claude-secondary/10 p-2.5 text-claude-secondary">
                                                 <Shield className="h-4 w-4" />
                                             </div>
                                             <div>
@@ -391,7 +391,7 @@ export default function Settings() {
 
                                     <div className="rounded-[1.25rem] border border-claude-border bg-claude-bg/70 p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="rounded-2xl border border-[#0ea5e9]/20 bg-[#0ea5e9]/10 p-2.5 text-[#38bdf8]">
+                                            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-400">
                                                 <Network className="h-4 w-4" />
                                             </div>
                                             <div>
@@ -442,7 +442,7 @@ export default function Settings() {
 
                                     <div className="relative z-10 flex items-center justify-between">
                                         <div className="flex items-center gap-5">
-                                            <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-[#f4f1eb] text-amber-500 border border-amber-900/5' : 'bg-[#1c211f] text-indigo-400 border border-indigo-100/5'}`}>
+                                            <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-claude-surface text-amber-500 border border-amber-900/5' : 'bg-claude-bg text-indigo-400 border border-indigo-100/5'}`}>
                                                 {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
                                             </div>
                                             <div>
@@ -455,7 +455,7 @@ export default function Settings() {
                                             </div>
                                         </div>
 
-                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-[#2c2825]/10 text-[#2c2825]/40 bg-white/50' : 'border-[#e8e4dc]/10 text-[#e8e4dc]/40 bg-black/20'} shadow-sm`}>
+                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'} shadow-sm`}>
                                             <ChevronRight className="w-5 h-5" />
                                         </div>
                                     </div>
@@ -522,11 +522,11 @@ export default function Settings() {
                                         <div className="flex-1">
                                             <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
                                                 Current Plan
-                                                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border uppercase ${user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-botanical-sepia/10 text-botanical-sepia/80 border-botanical-sepia/20'}`}>
+                                                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border uppercase ${user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-claude-secondary/10 text-claude-secondary/80 border-claude-secondary/20'}`}>
                                                     {user?.subscription_tier || 'Free'}
                                                 </span>
                                             </h3>
-                                            <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                            <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
                                                 {user?.subscription_tier === 'free' || !user?.subscription_tier ? 'Free plan currently active' : 'Premium access active'}
                                             </p>
                                         </div>
@@ -542,7 +542,7 @@ export default function Settings() {
                                         </button>
                                         <button
                                             onClick={async () => { haptics.light(); try { const u = await refreshUser(); toast(u?.subscription_tier !== 'free' ? 'Subscription restored!' : 'No active subscription found'); } catch { toast('Sync failed, try again'); } }}
-                                            className="p-3.5 bg-claude-bg border border-botanical-sepia/10 hover:bg-white/5 rounded-xl text-claude-secondary hover:text-claude-text transition-colors"
+                                            className="p-3.5 bg-claude-bg border border-claude-secondary/10 hover:bg-claude-bg/20 rounded-xl text-claude-secondary hover:text-claude-text transition-colors"
                                         >
                                             <RefreshCw className="w-4 h-4" />
                                         </button>
@@ -583,8 +583,8 @@ export default function Settings() {
                                 />
                                 <SectionCard tone="info" className="flex flex-col p-6 space-y-5">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-2xl bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 shadow-inner">
-                                <Network className="w-6 h-6 text-[#0ea5e9]" />
+                            <div className="p-3 rounded-2xl bg-blue-400/10 border border-blue-400/20 shadow-inner">
+                                <Network className="w-6 h-6 text-blue-400" />
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
@@ -593,10 +593,10 @@ export default function Settings() {
                                         canvasCardState === 'locked'
                                             ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                             : canvasCardState === 'connected'
-                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                ? 'bg-claude-accent/10 text-claude-accent border-claude-accent/20'
                                                 : canvasCardState === 'loading'
-                                                    ? 'bg-white/5 text-claude-secondary border-white/10'
-                                                    : 'bg-[#0ea5e9]/10 text-[#38bdf8] border-[#0ea5e9]/20'
+                                                    ? 'bg-claude-bg/20 text-claude-secondary border-claude-border'
+                                                    : 'bg-blue-400/10 text-blue-400 border-blue-400/20'
                                     }`}>
                                         {canvasCardState === 'locked'
                                             ? 'PRO'
@@ -607,7 +607,7 @@ export default function Settings() {
                                                     : 'READY'}
                                     </span>
                                 </div>
-                                <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
                                     {canvasCardState === 'locked'
                                         ? 'Premium automation for courses and assignments'
                                         : canvasCardState === 'loading'
@@ -621,7 +621,7 @@ export default function Settings() {
 
                         {canvasCardState === 'locked' ? (
                             <div className="pt-2">
-                                <p className="text-[11px] font-mono text-botanical-sepia/70 leading-relaxed mb-4">
+                                <p className="text-[11px] font-mono text-claude-secondary/70 leading-relaxed mb-4">
                                     Automatically import your courses and assignments from Canvas. Upgrade to unlock this integration.
                                 </p>
                                 <button
@@ -634,8 +634,8 @@ export default function Settings() {
                             </div>
                         ) : canvasCardState === 'loading' ? (
                             <div className="pt-2 space-y-3" aria-label="Canvas status loading">
-                                <div className="h-12 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
-                                <div className="h-24 rounded-2xl bg-white/[0.03] border border-white/10 animate-pulse" />
+                                <div className="h-12 rounded-xl bg-claude-bg/20 border border-claude-border animate-pulse" />
+                                <div className="h-24 rounded-2xl bg-claude-bg/15 border border-claude-border animate-pulse" />
                             </div>
                         ) : (
                             <div>
@@ -663,18 +663,18 @@ export default function Settings() {
                                                             setCanvasForm(prev => ({ ...prev, url: e.target.value }));
                                                             if (formErrors.url) setFormErrors(prev => ({ ...prev, url: false }));
                                                         }}
-                                                        className={`w-full bg-claude-bg border ${formErrors.url ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-botanical-sepia/20 focus:border-[#0ea5e9]/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-botanical-sepia/40 font-mono focus:outline-none transition-colors shadow-inner`}
+                                                        className={`w-full bg-claude-bg border ${formErrors.url ? 'border-red-400 focus:border-red-500 bg-red-500/5' : 'border-claude-secondary/20 focus:border-blue-400/50'} rounded-xl px-4 py-3.5 text-sm text-claude-text placeholder-claude-secondary/40 font-mono focus:outline-none transition-colors shadow-inner`}
                                                     />
                                                 </motion.div>
                                             </div>
 
-                                            <div className="rounded-2xl border border-[#0ea5e9]/15 bg-[#0ea5e9]/5 px-4 py-3">
-                                                <p className="text-[10px] font-mono text-botanical-sepia/80 leading-relaxed text-center">
+                                            <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-4 py-3">
+                                                <p className="text-[10px] font-mono text-claude-secondary/80 leading-relaxed text-center">
                                                     Go to Canvas Calendar, open `Calendar Feed`, then paste the `.ics` link here.
                                                 </p>
                                             </div>
 
-                                            <p className="text-[10px] font-mono text-botanical-sepia/60 leading-relaxed text-center px-2">
+                                            <p className="text-[10px] font-mono text-claude-secondary/60 leading-relaxed text-center px-2">
                                                 Riven only needs the read-only calendar feed.
                                             </p>
 
@@ -689,7 +689,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleConnectCanvas}
                                                 disabled={connectingCanvas || !hasCanvasUrl}
-                                                className="w-full bg-claude-text hover:bg-botanical-forest text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
+                                                className="w-full bg-claude-text hover:bg-claude-accent text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
                                             >
                                                 <Lock className="w-4 h-4" />
                                                 {connectingCanvas ? 'Connecting...' : 'Connect Calendar Feed'}
@@ -703,9 +703,9 @@ export default function Settings() {
                                             exit={{ opacity: 0, height: 0 }}
                                             className="pt-4 flex flex-col gap-3"
                                         >
-                                            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-emerald-400">Canvas feed active</p>
-                                                <p className="mt-1 text-[11px] font-mono text-botanical-sepia/80">
+                                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">Canvas feed active</p>
+                                                <p className="mt-1 text-[11px] font-mono text-claude-secondary/80">
                                                     {getCanvasFeedLabel(lmsStatus.canvasUrl)}
                                                 </p>
                                             </div>
@@ -723,7 +723,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleSyncLms}
                                                 disabled={lmsStatus.syncing}
-                                                className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-[#0ea5e9]/20"
+                                                className="w-full bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-blue-500/20"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
                                                 {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Canvas Now'}
@@ -731,7 +731,7 @@ export default function Settings() {
 
                                             <button
                                                 onClick={handleDisconnectCanvas}
-                                                className="w-full bg-claude-bg border border-botanical-sepia/10 text-botanical-sepia/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
+                                                className="w-full bg-claude-bg border border-claude-secondary/10 text-claude-secondary/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
                                             >
                                                 Disconnect Integration
                                             </button>
@@ -764,27 +764,27 @@ export default function Settings() {
                                                     </span>
                                                 )}
                                             </h3>
-                                            <p className="text-[11px] font-mono text-botanical-sepia mt-0.5">
+                                            <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
                                                 Resets every 2 hours
                                             </p>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                            <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Max Input</p>
+                                        <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Max Input</p>
                                             <p className="text-sm font-medium text-claude-text">~3,000 words</p>
-                                            <p className="text-[9px] text-botanical-sepia mt-0.5">15,000 chars</p>
+                                            <p className="text-[9px] text-claude-secondary mt-0.5">15,000 chars</p>
                                         </div>
-                                        <div className="bg-claude-bg/50 border border-botanical-sepia/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                            <p className="text-[10px] uppercase font-mono tracking-widest text-botanical-sepia/70 mb-1">Output Size</p>
+                                        <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Output Size</p>
                                             <p className="text-sm font-medium text-claude-text">Flashcards or Class</p>
-                                            <p className="text-[9px] text-botanical-sepia mt-0.5">per request limit</p>
+                                            <p className="text-[9px] text-claude-secondary mt-0.5">per request limit</p>
                                         </div>
                                     </div>
 
                                     {!aiLimits.loading && (
-                                        <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 border border-botanical-sepia/5 shadow-inner">
+                                        <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 border border-claude-secondary/5 shadow-inner">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${(aiLimits.remaining / aiLimits.max) * 100}%` }}
@@ -839,8 +839,8 @@ export default function Settings() {
                         </motion.div>
 
                         <motion.div variants={itemVariants} className="text-center pt-2 pb-4 opacity-40">
-                            <Leaf className="w-6 h-6 text-botanical-forest mx-auto mb-3" />
-                            <p className="text-[10px] text-botanical-sepia font-mono tracking-widest uppercase">
+                            <Leaf className="w-6 h-6 text-claude-accent mx-auto mb-3" />
+                            <p className="text-[10px] text-claude-secondary font-mono tracking-widest uppercase">
                                 Riven OS v1.0.0
                             </p>
                         </motion.div>
@@ -951,7 +951,7 @@ function ReferralCard() {
                     title={referralInfo.rewardEarned ? 'Reward unlocked' : `${remainingReferrals} invites to go`}
                     detail={referralInfo.rewardEarned
                         ? 'Your referrals already earned Lifetime access.'
-                        : 'Share your code, track qualified signups, or apply a friend’s code below.'}
+                        : "Share your code, track qualified signups, or apply a friend's code below."}
                 />
 
                 {/* Your Code */}
@@ -959,7 +959,7 @@ function ReferralCard() {
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Your Referral Code</p>
-                            <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">Share this with friends who are joining Riven.</p>
+                            <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">Share this with friends who are joining Riven.</p>
                         </div>
                         <span className="rounded-full border border-pink-400/20 bg-pink-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-pink-400">
                             Share
@@ -984,7 +984,7 @@ function ReferralCard() {
                     <div className="flex items-center justify-between mb-2 gap-3">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
-                            <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
+                            <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
                                 {referralInfo.rewardEarned ? 'All referral milestones completed.' : `${remainingReferrals} more qualified referral${remainingReferrals === 1 ? '' : 's'} until Lifetime.`}
                             </p>
                         </div>
@@ -1007,7 +1007,7 @@ function ReferralCard() {
                 <div className="pt-2 border-t border-claude-border">
                     <div className="mb-3">
                         <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Have a referral code?</p>
-                        <p className="mt-1 text-[11px] font-mono text-botanical-sepia/70">
+                        <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
                             Apply a friend&apos;s code before you qualify on your own invite path.
                         </p>
                     </div>
@@ -1053,8 +1053,8 @@ function BlockedUsersCard() {
     const fetchBlockedUsers = useCallback(async () => {
         setLoading(true);
         try {
-            // Need to import directly or destruct from api object if it exports it. 
-            // In API file: export const getBlockedUsers = ... 
+            // Need to import directly or destruct from api object if it exports it.
+            // In API file: export const getBlockedUsers = ...
             // Assuming it is exported in `index.js` as well.
             const { getBlockedUsers } = await import('../api/authApi');
             const data = await getBlockedUsers();

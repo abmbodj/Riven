@@ -31,7 +31,7 @@ const SORT_OPTIONS = [
 // Memoized deck card with Herbarium Specimen styling
 const DeckCard = memo(({ deck, folders, classes, index }) => {
     const folder = deck.folder_id ? folders.find(f => f.id === deck.folder_id) : null;
-    const folderColor = folder?.color || '#7a9e72';
+    const folderColor = folder?.color || 'var(--accent-color)';
 
     return (
         <motion.div
@@ -43,24 +43,24 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
             className="relative tap-action"
         >
             {/* Specimen Tape/Pin Accent */}
-            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-[#e8e4d8] rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
-            <div className="absolute -top-1 right-1/4 w-4 h-4 bg-[#d1c9b8]/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center pointer-events-none">
+            <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 md:backdrop-blur-sm pointer-events-none" />
+            <div className="absolute -top-1 right-1/4 w-4 h-4 bg-claude-border/40 rotate-[15deg] rounded-full z-10 shadow-sm flex items-center justify-center pointer-events-none">
                 <div className="w-1 h-1 bg-claude-secondary/40 rounded-full" />
             </div>
 
             <Link
                 to={`/deck/${deck.id}`}
-                className="group relative block bg-[#fcfaf2] border border-[#d1c9b8] p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-[#f4f1e8] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
+                className="group relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
             >
                 {/* Subtle paper grain and texture */}
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-4 opacity-70">
-                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] hidden xs:inline">ID:{deck.id?.toString().slice(-6) || '000000'}</span>
-                        <div className="h-px flex-1 bg-[#d1c9b8]/40" />
-                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#8a7f6a] italic">Created: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary hidden xs:inline">ID:{deck.id?.toString().slice(-6) || '000000'}</span>
+                        <div className="h-px flex-1 bg-claude-border/40" />
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">Created: {new Date(deck.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
                     </div>
 
                     <div className="flex items-start gap-3 sm:gap-4">
@@ -75,11 +75,11 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-serif text-lg sm:text-2xl font-bold text-[#1a1c1d] leading-[1.1] group-hover:text-claude-accent transition-colors duration-300 italic mb-2 tracking-tight line-clamp-2">{deck.title}</h3>
+                            <h3 className="font-serif text-lg sm:text-2xl font-bold text-claude-text leading-[1.1] group-hover:text-claude-accent transition-colors duration-300 italic mb-2 tracking-tight line-clamp-2">{deck.title}</h3>
 
                             <div className="flex items-center gap-2 flex-wrap mt-auto">
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f4f1e8] rounded-sm border border-[#e8e4d8] shadow-sm">
-                                    <span className="font-mono text-[8px] sm:text-[9px] font-bold text-[#5d6466] uppercase tracking-wider">{deck.cardCount} Cards</span>
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-claude-bg rounded-sm border border-claude-border shadow-sm">
+                                    <span className="font-mono text-[8px] sm:text-[9px] font-bold text-claude-secondary uppercase tracking-wider">{deck.cardCount} Cards</span>
                                 </div>
 
                                 {classes?.find(c => c.id === deck.class_id) && (
@@ -350,7 +350,7 @@ export default function Decks() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsMenuOpen(false)}
-                            className="fixed inset-0 bg-[#0d1a1f]/80 md:backdrop-blur-md z-[60]"
+                            className="fixed inset-0 bg-claude-bg/80 md:backdrop-blur-md z-[60]"
                         />
                         <motion.div
                             initial={{ y: '100%' }}
@@ -360,8 +360,8 @@ export default function Decks() {
                             className="fixed bottom-0 left-0 right-0 h-[85dvh] bg-claude-bg border-t border-claude-border z-[70] shadow-md md:shadow-2xl overflow-y-auto rounded-t-[3rem]"
                         >
                             <div className="sticky top-0 right-0 left-0 glass-panel md:backdrop-blur-md z-10 px-8 py-4 flex items-center justify-between border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
-                                <div className="w-12 h-1.5 bg-[#233e46] rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
-                                <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">Library Menu</h2>
+                                <div className="w-12 h-1.5 bg-claude-surface rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
+                                <h2 className="font-serif text-2xl font-bold italic text-claude-text">Library Menu</h2>
                                 <button onClick={() => setIsMenuOpen(false)} className="p-3 -mr-3 text-claude-secondary hover:text-claude-accent tap-action">
                                     <X className="w-7 h-7" />
                                 </button>
@@ -386,7 +386,7 @@ export default function Decks() {
                                             <button
                                                 key={folder.id}
                                                 onClick={() => { setActiveFolder(activeFolder === folder.id ? null : folder.id); setIsMenuOpen(false); }}
-                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === folder.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                                                className={`p-4 rounded-xl border flex items-center gap-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeFolder === folder.id ? 'bg-claude-surface/80 border-claude-border' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeFolder === folder.id ? { borderColor: folder.color, color: folder.color, backgroundColor: folder.color + '15' } : {}}
                                             >
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }} />
@@ -407,7 +407,7 @@ export default function Decks() {
                                             <button
                                                 key={tag.id}
                                                 onClick={() => { setActiveTag(activeTag === tag.id ? null : tag.id); setIsMenuOpen(false); }}
-                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeTag === tag.id ? 'bg-white/10 border-white/20' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                                                className={`px-3 py-2 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-[transform,opacity,color,background-color,border-color,box-shadow] ${activeTag === tag.id ? 'bg-claude-surface/80 border-claude-border' : 'glass-panel border-claude-border text-claude-secondary'}`}
                                                 style={activeTag === tag.id ? { color: tag.color, borderColor: tag.color, backgroundColor: tag.color + '15' } : {}}
                                             >
                                                 # {tag.name}
@@ -428,7 +428,7 @@ export default function Decks() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="fixed inset-0 z-[100] bg-[#0d1a1f]/95 md:backdrop-blur-2xl p-6 pt-safe flex flex-col"
+                        className="fixed inset-0 z-[100] bg-claude-bg/95 md:backdrop-blur-2xl p-6 pt-safe flex flex-col"
                     >
                         <div className="flex items-center gap-4 mb-8">
                             <div className="relative flex-1">
@@ -444,7 +444,7 @@ export default function Decks() {
                             </div>
                             <button
                                 onClick={() => setIsSearchOpen(false)}
-                                className="p-3 bg-white/5 rounded-2xl text-claude-secondary hover:text-claude-accent transition-colors"
+                                className="p-3 bg-claude-bg/20 rounded-2xl text-claude-secondary hover:text-claude-accent transition-colors"
                             >
                                 <X className="w-6 h-6" />
                             </button>
@@ -459,7 +459,7 @@ export default function Decks() {
                                         <div className="grid grid-cols-1 gap-4">
                                             {filteredDecks.map((deck) => (
                                                 <Link key={deck.id} to={`/deck/${deck.id}`} onClick={() => setIsSearchOpen(false)} className="block p-4 glass-panel rounded-xl">
-                                                    <h4 className="font-serif text-lg font-bold text-botanical-parchment mb-1">{deck.title}</h4>
+                                                    <h4 className="font-serif text-lg font-bold text-claude-text mb-1">{deck.title}</h4>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-mono text-claude-accent uppercase">{deck.cardCount} Cards</span>
                                                         <span className="text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">•</span>
@@ -482,7 +482,7 @@ export default function Decks() {
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
                         <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Library</span>
                     </div>
-                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-botanical-parchment tracking-tighter leading-none">Decks</h1>
+                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Decks</h1>
                 </div>
                 <div className="flex items-center gap-2">
 
@@ -495,7 +495,7 @@ export default function Decks() {
                     </button>
                     <Link
                         to="/create"
-                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-[#7a9e72] border border-[#d1c9b8]/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:bg-[#688a61] transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg hover:shadow-[#7a9e72]/20 active:scale-95"
+                        className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center transform-style-3d hover:-translate-y-1 hover:shadow-lg hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] active:scale-95"
                     >
                         <Plus className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5]" />
                     </Link>
@@ -526,10 +526,10 @@ export default function Decks() {
                 <div className="px-1 mb-8">
                     <div className="inline-flex items-center gap-3 px-4 py-2 bg-claude-accent/5 border border-claude-accent/20 rounded-full">
                         <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent/60 font-bold">Scope:</span>
-                        <span className="text-[11px] font-serif italic text-botanical-parchment">
+                        <span className="text-[11px] font-serif italic text-claude-text">
                             {activeFolder ? (activeFolder === 'unfiled' ? 'Unfiled Decks' : folders.find(f => f.id === activeFolder)?.name) : tags.find(t => t.id === activeTag)?.name}
                         </span>
-                        <button onClick={() => { setActiveFolder(null); setActiveTag(null); }} className="text-claude-accent hover:text-white transition-colors">
+                        <button onClick={() => { setActiveFolder(null); setActiveTag(null); }} className="text-claude-accent hover:text-claude-text transition-colors">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
@@ -554,9 +554,9 @@ export default function Decks() {
                             <>
                                 {/* Mobile: Full-screen bottom sheet */}
                                 <div className="lg:hidden relative">
-                                    <div className="fixed inset-0 z-[70] bg-black/40 md:backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
+                                    <div className="fixed inset-0 z-[70] bg-claude-bg/60 md:backdrop-blur-sm" onClick={() => setShowSortMenu(false)} />
                                     <div className="fixed bottom-0 left-0 right-0 bg-claude-bg border-t border-claude-border rounded-t-3xl z-[80] p-4 pb-safe animate-in slide-in-from-bottom duration-300">
-                                        <div className="w-12 h-1 bg-[#233e46] rounded-full mx-auto mb-6" />
+                                        <div className="w-12 h-1 bg-claude-surface rounded-full mx-auto mb-6" />
                                         <div className="space-y-2">
                                             {SORT_OPTIONS.map(option => (
                                                 <button
@@ -574,19 +574,19 @@ export default function Decks() {
                                 {/* Desktop: Floating popover */}
                                 <div className="hidden lg:block relative">
                                     <div className="fixed inset-0 z-[70]" onClick={() => setShowSortMenu(false)} />
-                                    <div className="absolute right-0 top-full mt-3 w-56 lg:bg-white/[0.02] lg:backdrop-blur-2xl border border-white/[0.05] rounded-2xl z-[80] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute right-0 top-full mt-3 w-56 lg:bg-claude-bg/10 lg:backdrop-blur-2xl border border-claude-border/40 rounded-2xl z-[80] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200">
                                         {SORT_OPTIONS.map(option => (
                                             <button
                                                 key={option.id}
                                                 onClick={() => { setSortBy(option.id); setShowSortMenu(false); }}
                                                 className={`w-full p-3 rounded-xl flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-widest transition-all
                                                     ${sortBy === option.id
-                                                        ? 'bg-claude-accent/10 border-claude-accent/20 text-claude-accent border lg:bg-white/10 lg:border-white/20 lg:text-white'
-                                                        : 'text-claude-secondary hover:bg-white/5 hover:text-white border border-transparent'
+                                                        ? 'bg-claude-accent/10 border-claude-accent/20 text-claude-accent border lg:bg-claude-surface/60 lg:border-claude-border lg:text-claude-text'
+                                                        : 'text-claude-secondary hover:bg-claude-surface/60 hover:text-claude-text border border-transparent'
                                                     }
                                                 `}
                                             >
-                                                <option.icon className={`w-4 h-4 ${sortBy === option.id ? 'lg:text-white' : 'opacity-70'}`} />
+                                                <option.icon className={`w-4 h-4 ${sortBy === option.id ? 'lg:text-claude-text' : 'opacity-70'}`} />
                                                 {option.label}
                                             </button>
                                         ))}
@@ -602,7 +602,7 @@ export default function Decks() {
                         {decks.length === 0 ? (
                             <>
                                 <Sparkles className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                                <h3 className="font-serif italic text-xl text-botanical-parchment opacity-40">No Decks</h3>
+                                <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Decks</h3>
                                 <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Your deck collection is empty. Create your first deck below.</p>
                             </>
                         ) : (
@@ -631,12 +631,12 @@ export default function Decks() {
 
             {/* Onboarding modal — Kept but positioned normally */}
             {showOnboarding && (
-                <div className="fixed inset-0 bg-black/80 md:backdrop-blur-xl z-[200] flex items-center justify-center p-6">
+                <div className="fixed inset-0 bg-claude-bg/80 md:backdrop-blur-xl z-[200] flex items-center justify-center p-6">
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-md md:shadow-2xl">
                         <div className="w-full max-w-[240px] mx-auto mb-8">
                             <OnboardingArt />
                         </div>
-                        <h2 className="text-3xl font-serif italic font-bold text-botanical-parchment mb-4 leading-tight">Welcome to Riven</h2>
+                        <h2 className="text-3xl font-serif italic font-bold text-claude-text mb-4 leading-tight">Welcome to Riven</h2>
                         <p className="text-claude-secondary mb-8 font-serif italic text-lg leading-relaxed">
                             A quiet place for your thoughts to grow. Create your first deck to get started.
                         </p>
@@ -656,14 +656,14 @@ export default function Decks() {
             <AnimatePresence>
                 {showFolderModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFolderModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFolderModal(false)} className="absolute inset-0 bg-claude-bg/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateFolder}
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">{editingFolder ? 'Edit Folder' : 'New Folder'}</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">{editingFolder ? 'Edit Folder' : 'New Folder'}</h3>
                                 <button type="button" onClick={() => setShowFolderModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
@@ -680,7 +680,7 @@ export default function Decks() {
                                 </div>
                                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
                                     {FOLDER_COLORS.map(color => (
-                                        <button key={color} type="button" onClick={() => setNewFolder({ ...newFolder, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newFolder.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
+                                        <button key={color} type="button" onClick={() => setNewFolder({ ...newFolder, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newFolder.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-claude-bg scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Folder</button>
@@ -693,14 +693,14 @@ export default function Decks() {
             <AnimatePresence>
                 {showTagModal && (
                     <div className="fixed inset-0 z-[100] flex items-end">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTagModal(false)} className="absolute inset-0 bg-black/60 md:backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTagModal(false)} className="absolute inset-0 bg-claude-bg/60 md:backdrop-blur-md" />
                         <motion.form
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             onSubmit={handleCreateTag}
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe"
                         >
                             <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-serif italic font-bold text-botanical-parchment">Create Tag</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Create Tag</h3>
                                 <button type="button" onClick={() => setShowTagModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
                             <div className="space-y-6">
@@ -716,7 +716,7 @@ export default function Decks() {
                                 </div>
                                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
                                     {FOLDER_COLORS.map(color => (
-                                        <button key={color} type="button" onClick={() => setNewTag({ ...newTag, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newTag.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-[#162a31] scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
+                                        <button key={color} type="button" onClick={() => setNewTag({ ...newTag, color })} className={`w-10 h-10 rounded-xl flex-shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] ${newTag.color === color ? 'ring-2 ring-white ring-offset-4 ring-offset-claude-bg scale-110' : 'opacity-40'}`} style={{ backgroundColor: color }} />
                                     ))}
                                 </div>
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg">Save Tag</button>

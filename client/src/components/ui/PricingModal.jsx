@@ -23,7 +23,7 @@ const PLAN_STYLES = {
         icon: Zap,
         badge: 'Most Popular',
         card: 'border-claude-accent/30 bg-[linear-gradient(180deg,rgba(168,192,127,0.12),rgba(255,255,255,0.04))]',
-        activeCard: 'border-claude-accent bg-[linear-gradient(180deg,rgba(168,192,127,0.22),rgba(255,255,255,0.06))] shadow-[0_18px_45px_rgba(168,192,127,0.14)]',
+        activeCard: 'border-claude-accent bg-claude-accent/15 shadow-[0_18px_45px_rgba(168,192,127,0.14)]',
         badgeClass: 'border-claude-accent/25 bg-claude-accent/15 text-claude-accent',
         iconWrap: 'border-claude-accent/20 bg-claude-accent/15 text-claude-accent',
         check: 'text-claude-accent',
@@ -34,7 +34,7 @@ const PLAN_STYLES = {
         icon: Crown,
         badge: 'Best Value',
         card: 'border-amber-400/30 bg-[linear-gradient(180deg,rgba(217,168,71,0.14),rgba(255,255,255,0.04))]',
-        activeCard: 'border-amber-400 bg-[linear-gradient(180deg,rgba(217,168,71,0.22),rgba(255,255,255,0.06))] shadow-[0_18px_45px_rgba(217,168,71,0.14)]',
+        activeCard: 'border-amber-400 bg-claude-accent/15 shadow-[0_18px_45px_rgba(217,168,71,0.14)]',
         badgeClass: 'border-amber-400/25 bg-amber-400/15 text-amber-300',
         iconWrap: 'border-amber-400/20 bg-amber-400/15 text-amber-300',
         check: 'text-amber-300',
@@ -177,7 +177,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-[rgba(8,12,15,0.72)] md:backdrop-blur-md"
+                        className="absolute inset-0 bg-claude-bg/70 md:backdrop-blur-md"
                         onClick={onClose}
                     />
 
@@ -189,18 +189,18 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', damping: 24, stiffness: 220 }}
-                        className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,35,0.985),rgba(13,21,26,0.985))] shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
+                        className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-claude-border bg-claude-bg/98 shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.12),transparent_30%)]" />
 
                         <div className="relative flex justify-center pt-4 md:hidden">
-                            <div className="h-1.5 w-12 rounded-full bg-white/15" />
+                            <div className="h-1.5 w-12 rounded-full bg-claude-surface/80" />
                         </div>
 
-                        <div className="relative flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-4 pt-4 md:px-8 md:pb-6 md:pt-7">
+                        <div className="relative flex items-start justify-between gap-4 border-b border-claude-border px-5 pb-4 pt-4 md:px-8 md:pb-6 md:pt-7">
                             <div className="min-w-0">
-                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5">
                                     <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
                                     <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                         Premium access
@@ -210,11 +210,11 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 <div className="flex flex-wrap items-center gap-3">
                                     <h2
                                         id="pricing-modal-title"
-                                        className="font-display text-[2rem] font-bold italic tracking-tight text-botanical-parchment md:text-[3.2rem]"
+                                        className="font-display text-[2rem] font-bold italic tracking-tight text-claude-text md:text-[3.2rem]"
                                     >
                                         Upgrade Riven
                                     </h2>
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/50 px-3 py-1.5">
                                         <Shield className="h-3.5 w-3.5 text-claude-secondary" />
                                         <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
                                             Current {currentTier === 'free' ? 'Basic' : currentTier}
@@ -222,7 +222,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     </div>
                                 </div>
 
-                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/68 md:mt-3 md:text-base">
+                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-claude-secondary md:mt-3 md:text-base">
                                     Bring the full Riven atmosphere into every study session: premium themes,
                                     unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
                                     experience.
@@ -232,7 +232,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-white/20 hover:text-botanical-parchment focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-border hover:text-claude-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
                                 aria-label="Close pricing modal"
                             >
                                 <X className="h-5 w-5" />
@@ -263,7 +263,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 className={`tap-action shrink-0 rounded-full border px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
                                                     isSelected
                                                         ? `${styles.badgeClass} shadow-[0_8px_20px_rgba(0,0,0,0.16)]`
-                                                        : 'border-white/10 bg-white/[0.04] text-claude-secondary'
+                                                        : 'border-claude-border bg-claude-bg/15 text-claude-secondary'
                                                 } ${isDisabled ? 'opacity-50' : ''}`}
                                             >
                                                 {plan.name}
@@ -280,12 +280,12 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     ].map(([label, text]) => (
                                         <div
                                             key={label}
-                                            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                                            className="rounded-2xl border border-claude-border bg-claude-bg/15 p-4"
                                         >
                                             <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                 {label}
                                             </p>
-                                            <p className="mt-2 text-sm leading-relaxed text-white/70">{text}</p>
+                                            <p className="mt-2 text-sm leading-relaxed text-claude-secondary">{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -298,12 +298,12 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     ].map(([label, text]) => (
                                         <div
                                             key={label}
-                                            className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"
+                                            className="shrink-0 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3"
                                         >
                                             <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                 {label}
                                             </p>
-                                            <p className="mt-1 text-xs leading-relaxed text-white/70">{text}</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-claude-secondary">{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -331,7 +331,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 }}
                                                 className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
                                                     isSelected ? styles.activeCard : styles.card
-                                                } ${!isSelected && !isDisabled ? 'hover:-translate-y-1 hover:border-white/20' : ''} ${
+                                                } ${!isSelected && !isDisabled ? 'hover:-translate-y-1 hover:border-claude-border' : ''} ${
                                                     isDisabled ? 'cursor-default opacity-55' : ''
                                                 }`}
                                             >
@@ -347,20 +347,20 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                                     {plan.kicker}
                                                                 </p>
-                                                                <h3 className="mt-1 font-display text-[1.7rem] font-bold italic tracking-tight text-botanical-parchment md:text-2xl">
+                                                                <h3 className="mt-1 font-display text-[1.7rem] font-bold italic tracking-tight text-claude-text md:text-2xl">
                                                                     {plan.name}
                                                                 </h3>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-end gap-2">
-                                                            <span className="text-[2rem] font-bold tracking-tight text-botanical-parchment md:text-4xl">
+                                                            <span className="text-[2rem] font-bold tracking-tight text-claude-text md:text-4xl">
                                                                 {plan.price}
                                                             </span>
-                                                            <span className="pb-1 text-sm text-white/58">{plan.period}</span>
+                                                            <span className="pb-1 text-sm text-claude-secondary/80">{plan.period}</span>
                                                         </div>
 
-                                                        <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/66">
+                                                        <p className="mt-2 max-w-sm text-sm leading-relaxed text-claude-secondary">
                                                             {plan.summary}
                                                         </p>
                                                     </div>
@@ -375,8 +375,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                         <div
                                                             className={`flex h-6 w-6 items-center justify-center rounded-full border ${
                                                                 isSelected
-                                                                    ? 'border-botanical-parchment bg-botanical-parchment text-[#122229]'
-                                                                    : 'border-white/20 bg-transparent text-transparent'
+                                                                    ? 'border-claude-text bg-claude-text text-[#122229]'
+                                                                    : 'border-claude-border bg-transparent text-transparent'
                                                             }`}
                                                         >
                                                             <Check className="h-3.5 w-3.5" />
@@ -386,7 +386,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                                                 <ul className="mt-5 space-y-2.5">
                                                     {plan.features.map((feature) => (
-                                                        <li key={feature} className="flex items-start gap-3 text-sm text-white/78">
+                                                        <li key={feature} className="flex items-start gap-3 text-sm text-claude-text/80">
                                                             <Check className={`mt-0.5 h-4 w-4 shrink-0 ${styles.check}`} />
                                                             <span>{feature}</span>
                                                         </li>
@@ -410,30 +410,30 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 </div>
                             </div>
 
-                            <aside className="relative hidden border-t border-white/8 bg-black/10 px-5 py-5 md:block md:w-[22rem] md:border-l md:border-t-0 md:px-6 md:py-8">
-                                <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+                            <aside className="relative hidden border-t border-claude-border bg-claude-bg/40 px-5 py-5 md:block md:w-[22rem] md:border-l md:border-t-0 md:px-6 md:py-8">
+                                <div className="rounded-[1.75rem] border border-claude-border bg-claude-bg/15 p-5">
                                     <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">
                                         Selected plan
                                     </p>
-                                    <h3 className="mt-3 font-display text-3xl font-bold italic tracking-tight text-botanical-parchment">
+                                    <h3 className="mt-3 font-display text-3xl font-bold italic tracking-tight text-claude-text">
                                         {selectedPlanData.name}
                                     </h3>
                                     <div className="mt-2 flex items-end gap-2">
-                                        <span className="text-3xl font-bold text-botanical-parchment">
+                                        <span className="text-3xl font-bold text-claude-text">
                                             {selectedPlanData.price}
                                         </span>
-                                        <span className="pb-1 text-sm text-white/58">{selectedPlanData.period}</span>
+                                        <span className="pb-1 text-sm text-claude-secondary/80">{selectedPlanData.period}</span>
                                     </div>
-                                    <p className="mt-3 text-sm leading-relaxed text-white/68">
+                                    <p className="mt-3 text-sm leading-relaxed text-claude-secondary">
                                         {selectedPlanData.summary}
                                     </p>
 
-                                    <div className="mt-5 space-y-2 rounded-2xl border border-white/8 bg-black/10 p-4">
+                                    <div className="mt-5 space-y-2 rounded-2xl border border-claude-border bg-claude-bg/40 p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
                                                 Access
                                             </span>
-                                            <span className="text-sm text-botanical-parchment">
+                                            <span className="text-sm text-claude-text">
                                                 Premium unlocked
                                             </span>
                                         </div>
@@ -441,7 +441,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
                                                 Billing
                                             </span>
-                                            <span className="text-sm text-botanical-parchment">
+                                            <span className="text-sm text-claude-text">
                                                 {selectedPlan === 'lifetime' ? 'Single payment' : 'Monthly renewal'}
                                             </span>
                                         </div>
@@ -454,7 +454,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     ) : null}
 
                                     {success ? (
-                                        <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-200">
+                                        <div className="mt-5 rounded-2xl border border-claude-accent/20 bg-claude-accent/10 px-4 py-3 text-sm leading-relaxed text-claude-accent">
                                             {success}
                                         </div>
                                     ) : null}
@@ -488,37 +488,37 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         type="button"
                                         onClick={handleRestore}
                                         disabled={restoring}
-                                        className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-white/20 hover:text-botanical-parchment disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-border hover:text-claude-text disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
                                         {restoring ? 'Checking Stripe' : 'Restore purchase'}
                                     </button>
 
-                                    <p className="mt-4 text-center text-xs leading-relaxed text-white/45">
+                                    <p className="mt-4 text-center text-xs leading-relaxed text-claude-secondary/50">
                                         Secure checkout via Stripe. Access updates as soon as billing confirms.
                                     </p>
                                 </div>
                             </aside>
                         </div>
 
-                        <div className="relative border-t border-white/10 bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
+                        <div className="relative border-t border-claude-border bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
                             <div className="mb-3 flex items-end justify-between gap-4">
                                 <div className="min-w-0">
                                     <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                         Selected plan
                                     </p>
                                     <div className="mt-1 flex items-end gap-2">
-                                        <span className="truncate font-display text-2xl font-bold italic text-botanical-parchment">
+                                        <span className="truncate font-display text-2xl font-bold italic text-claude-text">
                                             {selectedPlanData.name}
                                         </span>
-                                        <span className="pb-0.5 text-sm text-white/58">
+                                        <span className="pb-0.5 text-sm text-claude-secondary/80">
                                             {selectedPlanData.price}
                                             {selectedPlanData.period}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                <div className="shrink-0 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
                                     {selectedPlan === 'lifetime' ? 'One-time' : 'Monthly'}
                                 </div>
                             </div>
@@ -530,7 +530,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             ) : null}
 
                             {success ? (
-                                <div className="mb-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-200">
+                                <div className="mb-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/10 px-4 py-3 text-sm leading-relaxed text-claude-accent">
                                     {success}
                                 </div>
                             ) : null}
@@ -564,7 +564,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 type="button"
                                 onClick={handleRestore}
                                 disabled={restoring}
-                                className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-white/20 hover:text-botanical-parchment disabled:cursor-not-allowed disabled:opacity-50"
+                                className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-border hover:text-claude-text disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
                                 {restoring ? 'Checking Stripe' : 'Restore purchase'}

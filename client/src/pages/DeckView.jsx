@@ -396,7 +396,7 @@ export default function DeckView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
+                            className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm"
                             onClick={() => setShowStats(false)}
                         />
                         <motion.div
@@ -404,15 +404,15 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-md md:shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-claude-text w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-md md:shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto -mt-2 mb-4" />
+                            <div className="sm:hidden w-12 h-1.5 bg-claude-accent/30 rounded-full mx-auto -mt-2 mb-4" />
 
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-2xl font-display font-bold">Deck Statistics</h3>
-                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-botanical-forest/10 rounded-full tap-action">
-                                    <X className="w-7 h-7 text-botanical-ink/60" />
+                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-accent/10 rounded-full tap-action">
+                                    <X className="w-7 h-7 text-claude-text/60" />
                                 </button>
                             </div>
 
@@ -473,7 +473,7 @@ export default function DeckView() {
                                                     initial={{ width: 0 }}
                                                     animate={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
                                                     transition={{ duration: 1, ease: 'easeOut' }}
-                                                    className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"
+                                                    className="h-full bg-gradient-to-r from-claude-accent to-claude-accent/60 rounded-full"
                                                 />
                                             </div>
                                         )}
@@ -519,7 +519,7 @@ export default function DeckView() {
                 </div>
 
                 <div className="xl:hidden flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-                    <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-[#7a9e72] hover:bg-[#7a9e72]/10 transition-colors whitespace-nowrap active:scale-95">
+                    <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-accent hover:bg-claude-accent/10 transition-colors whitespace-nowrap active:scale-95">
                         <Pencil className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button onClick={handleShareDeck} className="flex items-center gap-2 px-3.5 py-2 glass-panel border border-claude-border/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary hover:text-claude-text transition-colors whitespace-nowrap active:scale-95">
@@ -599,9 +599,9 @@ export default function DeckView() {
                                         type="button"
                                         onClick={() => setEditDeckData({ ...editDeckData, class_id: cls.id })}
                                         className={`px-3 py-2 rounded-lg text-sm flex items-center gap-1.5 ${editDeckData.class_id === cls.id ? 'text-white' : 'bg-claude-bg border border-claude-border'}`}
-                                        style={editDeckData.class_id === cls.id ? { backgroundColor: cls.color || '#7a9e72' } : {}}
+                                        style={editDeckData.class_id === cls.id ? { backgroundColor: cls.color || 'var(--accent-color)' } : {}}
                                     >
-                                        <Calendar className="w-4 h-4" style={editDeckData.class_id !== cls.id ? { color: cls.color || '#7a9e72' } : {}} />
+                                        <Calendar className="w-4 h-4" style={editDeckData.class_id !== cls.id ? { color: cls.color || 'var(--accent-color)' } : {}} />
                                         {cls.name}
                                     </button>
                                 ))}
@@ -652,7 +652,7 @@ export default function DeckView() {
                                 </span>
                             )}
                             {currentFolder && (
-                                <span className="px-2 py-0.5 rounded-sm border border-[#e8e4d8] bg-[#f4f1e8] shadow-sm flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-sm border border-claude-border bg-claude-bg shadow-sm flex items-center gap-1.5">
                                     <Folder className="w-3 h-3" style={{ color: currentFolder.color }} />
                                     <span className="font-mono text-[9px] font-bold uppercase tracking-wider" style={{ color: currentFolder.color }}>{currentFolder.name}</span>
                                 </span>
@@ -669,7 +669,7 @@ export default function DeckView() {
                             ))}
                         </div>
 
-                        <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tight leading-[1.1] mb-5">{deck.title}</h1>
+                        <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-claude-text tracking-tight leading-[1.1] mb-5">{deck.title}</h1>
 
                         {deck.description && (
                             <p className="text-claude-secondary text-sm md:text-base font-serif italic mb-6 border-l-2 border-claude-border/40 pl-4">{deck.description}</p>
@@ -677,8 +677,8 @@ export default function DeckView() {
 
                         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                             {statTiles.map((tile) => (
-                                <div key={tile.label} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                                    <div className="font-mono text-lg font-bold text-botanical-parchment">{tile.value}</div>
+                                <div key={tile.label} className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
+                                    <div className="font-mono text-lg font-bold text-claude-text">{tile.value}</div>
                                     <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{tile.label}</div>
                                 </div>
                             ))}
@@ -690,11 +690,11 @@ export default function DeckView() {
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_340px]">
                 <div className="min-w-0">
                     <div className="px-4 mb-6">
-                        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
+                        <div className="rounded-[28px] border border-claude-border bg-claude-surface p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-botanical-sepia">Deck Workbench</p>
-                                    <h2 className="font-serif text-2xl font-bold italic text-botanical-parchment">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Deck Workbench</p>
+                                    <h2 className="font-serif text-2xl font-bold italic text-claude-text">
                                         {deck.cards.length > 0 ? 'Study paths and card editing stay in one place.' : 'Start by adding cards, then move straight into study.'}
                                     </h2>
                                     <p className="max-w-2xl text-sm text-claude-secondary">
@@ -713,8 +713,8 @@ export default function DeckView() {
                                             }
                                         }}
                                         className={`relative group overflow-hidden px-5 py-3 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action ${deck.cards.length > 0
-                                            ? 'bg-[#7a9e72] text-white shadow-[0_8px_32px_rgba(122,158,114,0.25)] hover:shadow-[0_8px_32px_rgba(122,158,114,0.4)] hover:-translate-y-1'
-                                            : 'bg-[#7a9e72]/30 text-white/50 cursor-not-allowed border border-[#7a9e72]/10'
+                                            ? 'bg-claude-accent text-white shadow-[0_8px_32px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:-translate-y-1'
+                                            : 'bg-claude-accent/20 text-claude-secondary/80 cursor-not-allowed border border-claude-accent/10'
                                             }`}
                                     >
                                         <BookOpen className="w-5 h-5" strokeWidth={2.5} />
@@ -729,7 +729,7 @@ export default function DeckView() {
                                             }
                                         }}
                                         className={`relative group overflow-hidden px-5 py-3 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 tap-action border ${deck.cards.length >= 4
-                                            ? 'bg-[#1a1c1d]/40 border-claude-accent/20 text-claude-accent shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:bg-[#1a1c1d]/60 hover:border-claude-accent/40 hover:-translate-y-1'
+                                            ? 'bg-claude-bg/40 border-claude-accent/20 text-claude-accent shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:bg-claude-bg/60 hover:border-claude-accent/40 hover:-translate-y-1'
                                             : 'bg-claude-surface/30 border-claude-border/20 text-claude-secondary cursor-not-allowed'
                                             }`}
                                     >
@@ -744,7 +744,7 @@ export default function DeckView() {
                     {/* Cards header */}
                     <div className="px-4 flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <span className="px-2 py-0.5 bg-[#f4f1e8] text-[#8a7f6a] text-[10px] font-mono font-bold uppercase tracking-widest rounded-sm border border-[#e8e4d8] shadow-sm">{deck.cards.length}</span>
+                            <span className="px-2 py-0.5 bg-claude-bg text-claude-secondary text-[10px] font-mono font-bold uppercase tracking-widest rounded-sm border border-claude-border shadow-sm">{deck.cards.length}</span>
                             <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]">Cards</h2>
                         </div>
                         <div className="flex items-center gap-2">
@@ -791,7 +791,7 @@ export default function DeckView() {
                                 </div>
 
                                 {/* Card Body */}
-                                <div className={`relative bg-[#fcfaf2] border border-[#d1c9b8] p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
+                                <div className={`relative bg-claude-surface border border-claude-border p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
                                     {/* Subtle paper grain */}
                                     <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
 
@@ -800,7 +800,7 @@ export default function DeckView() {
                                             <textarea
                                                 value={editCardData.front}
                                                 onChange={e => setEditCardData({ ...editCardData, front: e.target.value })}
-                                                className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
+                                                className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-claude-text"
                                                 rows={2}
                                                 autoFocus
                                             />
@@ -812,7 +812,7 @@ export default function DeckView() {
                                             <textarea
                                                 value={editCardData.back}
                                                 onChange={e => setEditCardData({ ...editCardData, back: e.target.value })}
-                                                className="w-full px-4 py-3 bg-[#f4f1e8] border border-[#d1c9b8] rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-botanical-ink"
+                                                className="w-full px-4 py-3 bg-claude-bg border border-claude-border rounded-xl outline-none focus:border-claude-accent resize-none text-sm font-serif text-claude-text"
                                                 rows={2}
                                             />
                                             <CardImageUpload
@@ -824,18 +824,18 @@ export default function DeckView() {
                                                 <button onClick={() => handleSaveCard(card.id)} className="claude-button-primary flex-1 py-3 text-sm">
                                                     Save Edits
                                                 </button>
-                                                <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-3 px-6 text-sm bg-white/50">
+                                                <button onClick={() => setEditingCard(null)} className="claude-button-secondary py-3 px-6 text-sm bg-claude-surface/80">
                                                     Cancel
                                                 </button>
                                             </div>
                                         </div>
                                     ) : reorderMode ? (
-                                        <div className="flex items-center gap-4 relative z-10 bg-white/40 rounded-xl p-2 -m-2">
+                                        <div className="flex items-center gap-4 relative z-10 bg-claude-surface/80 rounded-xl p-2 -m-2">
                                             <div className="flex flex-col gap-1 items-center bg-claude-bg/50 rounded-lg p-1 border border-claude-border/30">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'up'); }}
                                                     disabled={idx === 0}
-                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
+                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-claude-bg/20"
                                                 >
                                                     <ChevronUp className="w-5 h-5" />
                                                 </button>
@@ -843,17 +843,17 @@ export default function DeckView() {
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleMoveCard(card.id, 'down'); }}
                                                     disabled={idx === deck.cards.length - 1}
-                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-black/5"
+                                                    className="p-1.5 text-claude-secondary hover:text-claude-accent disabled:opacity-30 disabled:hover:text-claude-secondary transition-colors rounded-md active:bg-claude-bg/20"
                                                 >
                                                     <ChevronDown className="w-5 h-5" />
                                                 </button>
                                             </div>
                                             <span className="font-serif italic text-claude-accent font-bold text-lg leading-none w-6 text-center">{idx + 1}</span>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-serif text-lg text-botanical-ink leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
-                                                <p className="font-serif text-md text-botanical-ink/60 leading-snug break-words line-clamp-1">{card.back}</p>
+                                                <p className="font-serif text-lg text-claude-text leading-snug break-words mb-1 line-clamp-1">{card.front}</p>
+                                                <p className="font-serif text-md text-claude-text/60 leading-snug break-words line-clamp-1">{card.back}</p>
                                             </div>
-                                            <GripVertical className="w-6 h-6 text-botanical-ink/30 shrink-0 cursor-grab" />
+                                            <GripVertical className="w-6 h-6 text-claude-text/30 shrink-0 cursor-grab" />
                                         </div>
                                     ) : (
                                         <div className="flex gap-4 relative z-10" onClick={() => handleEditCard(card)}>
@@ -862,22 +862,22 @@ export default function DeckView() {
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col gap-3">
                                                 <div>
-                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Front</h4>
-                                                    <p className="font-serif text-lg text-botanical-ink leading-snug break-words">
+                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary mb-1.5">Front</h4>
+                                                    <p className="font-serif text-lg text-claude-text leading-snug break-words">
                                                         {card.front}
                                                         {card.front_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
                                                     </p>
                                                 </div>
-                                                <div className="w-8 h-px bg-[#d1c9b8]/60" />
+                                                <div className="w-8 h-px bg-claude-border/60" />
                                                 <div>
-                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#8a7f6a] mb-1.5">Back</h4>
-                                                    <p className="font-serif text-lg text-botanical-ink/80 leading-snug break-words">
+                                                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary mb-1.5">Back</h4>
+                                                    <p className="font-serif text-lg text-claude-text/80 leading-snug break-words">
                                                         {card.back}
                                                         {card.back_image && <span className="inline-block ml-2 text-xs opacity-50">🖼️</span>}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-black/5">
+                                            <button className="shrink-0 p-2 -mr-2 text-claude-secondary/50 hover:text-claude-accent transition-colors h-fit rounded-full hover:bg-claude-bg/20">
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -886,10 +886,10 @@ export default function DeckView() {
                             </div>
                         ))}
                         {deck.cards.length === 0 && (
-                            <div className="text-center py-16 px-4 bg-[#fcfaf2]/50 border-2 border-dashed border-[#d1c9b8] rounded-sm">
+                            <div className="text-center py-16 px-4 bg-claude-surface/50 border-2 border-dashed border-claude-border rounded-sm">
                                 <BookOpen className="w-10 h-10 text-claude-secondary/30 mx-auto mb-4" />
-                                <h3 className="font-serif italic text-xl text-botanical-ink/50 mb-2">No Cards Yet</h3>
-                                <p className="text-[11px] font-mono uppercase tracking-widest text-[#8a7f6a]">Tap "Add" to begin your collection</p>
+                                <h3 className="font-serif italic text-xl text-claude-text/50 mb-2">No Cards Yet</h3>
+                                <p className="text-[11px] font-mono uppercase tracking-widest text-claude-secondary">Tap "Add" to begin your collection</p>
                             </div>
                         )}
                     </div>
@@ -901,16 +901,16 @@ export default function DeckView() {
                             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Deck Context</p>
                             <div className="mt-4 space-y-3">
                                 {currentClass ? (
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                         <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Class</div>
-                                        <div className="mt-2 flex items-center gap-2" style={{ color: currentClass.color || '#7a9e72' }}>
+                                        <div className="mt-2 flex items-center gap-2" style={{ color: currentClass.color || 'var(--accent-color)' }}>
                                             <Calendar className="w-4 h-4" />
                                             <span className="font-serif text-lg font-bold">{currentClass.name}</span>
                                         </div>
                                     </div>
                                 ) : null}
                                 {currentFolder ? (
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                    <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                         <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Folder</div>
                                         <div className="mt-2 flex items-center gap-2" style={{ color: currentFolder.color }}>
                                             <Folder className="w-4 h-4" />
@@ -918,7 +918,7 @@ export default function DeckView() {
                                         </div>
                                     </div>
                                 ) : null}
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                                <div className="rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3">
                                     <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">Tags</div>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         {deck.tags?.length > 0 ? deck.tags.map(tag => (
@@ -941,19 +941,19 @@ export default function DeckView() {
                         <div className="glass-panel rounded-[28px] p-5">
                             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary">Deck Tools</p>
                             <div className="mt-4 grid gap-2">
-                                <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
-                                    <Pencil className="w-4 h-4 text-[#7a9e72]" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Edit deck</span>
+                                <button onClick={() => setEditingDeck(true)} className="flex items-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-left text-claude-text hover:border-claude-accent/20">
+                                    <Pencil className="w-4 h-4 text-claude-accent" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Edit deck</span>
                                 </button>
-                                <button onClick={handleShareDeck} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                <button onClick={handleShareDeck} className="flex items-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-left text-claude-text hover:border-claude-accent/20">
                                     <Share2 className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Share</span>
                                 </button>
-                                <button onClick={loadStats} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                <button onClick={loadStats} className="flex items-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-left text-claude-text hover:border-claude-accent/20">
                                     <BarChart3 className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Stats</span>
                                 </button>
-                                <button onClick={handleDuplicate} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                <button onClick={handleDuplicate} className="flex items-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-left text-claude-text hover:border-claude-accent/20">
                                     <Copy className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Duplicate</span>
                                 </button>
-                                <button onClick={() => handleExport('json')} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-botanical-parchment hover:border-claude-accent/20">
+                                <button onClick={() => handleExport('json')} className="flex items-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-left text-claude-text hover:border-claude-accent/20">
                                     <Download className="w-4 h-4 text-claude-secondary" /> <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Export JSON</span>
                                 </button>
                                 <button onClick={() => setDeleteConfirm({ show: true, type: 'deck', id: id })} className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left text-red-400 hover:bg-red-500/10">
@@ -969,7 +969,7 @@ export default function DeckView() {
             {
                 showBulkImport && (
                     <div
-                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
+                        className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm z-[60] flex items-end"
                         onClick={(e) => {
                             if (e.target === e.currentTarget) setShowBulkImport(false);
                         }}
@@ -1014,7 +1014,7 @@ export default function DeckView() {
             {
                 showAddCard && (
                     <div
-                        className="fixed inset-0 bg-black/60 md:backdrop-blur-sm z-[60] flex items-end"
+                        className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm z-[60] flex items-end"
                         onClick={(e) => {
                             if (e.target === e.currentTarget) setShowAddCard(false);
                         }}
@@ -1078,7 +1078,7 @@ export default function DeckView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 md:backdrop-blur-sm"
+                            className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm"
                             onClick={() => setShowShareModal(false)}
                         />
                         <motion.div
@@ -1086,18 +1086,18 @@ export default function DeckView() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-botanical-ink w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-md md:shadow-2xl touch-pan-y"
+                            className="relative glass-panel paper-texture text-claude-text w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-md md:shadow-2xl touch-pan-y"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="p-6 pb-2 shrink-0">
-                                <div className="sm:hidden w-12 h-1.5 bg-botanical-forest/30 rounded-full mx-auto -mt-2 mb-4" />
+                                <div className="sm:hidden w-12 h-1.5 bg-claude-accent/30 rounded-full mx-auto -mt-2 mb-4" />
                                 <div className="flex justify-between items-center mb-2">
                                     <h3 className="text-2xl font-display font-bold">Share Deck</h3>
-                                    <button onClick={() => setShowShareModal(false)} className="p-2 -mr-2 active:bg-botanical-forest/10 rounded-full">
-                                        <X className="w-6 h-6 text-botanical-ink/60" />
+                                    <button onClick={() => setShowShareModal(false)} className="p-2 -mr-2 active:bg-claude-accent/10 rounded-full">
+                                        <X className="w-6 h-6 text-claude-text/60" />
                                     </button>
                                 </div>
-                                <p className="text-botanical-sepia font-mono text-sm leading-relaxed mb-4">
+                                <p className="text-claude-secondary font-mono text-sm leading-relaxed mb-4">
                                     Select a friend to send "{deck.title}" to directly.
                                 </p>
                             </div>
@@ -1105,14 +1105,14 @@ export default function DeckView() {
                             <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
                                 {friends.length === 0 ? (
                                     <div className="text-center py-8">
-                                        <p className="text-botanical-sepia font-mono text-sm">You have no friends yet.</p>
-                                        <Link to="/friends" className="text-botanical-forest hover:underline font-mono text-xs mt-2 inline-block">Find Friends</Link>
+                                        <p className="text-claude-secondary font-mono text-sm">You have no friends yet.</p>
+                                        <Link to="/friends" className="text-claude-accent hover:underline font-mono text-xs mt-2 inline-block">Find Friends</Link>
                                     </div>
                                 ) : (
                                     friends.map(friend => (
-                                        <div key={friend.id} className="flex items-center justify-between p-3 bg-botanical-forest/5 rounded-xl border border-botanical-forest/10">
+                                        <div key={friend.id} className="flex items-center justify-between p-3 bg-claude-accent/5 rounded-xl border border-claude-accent/10">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-botanical-forest/20 flex items-center justify-center font-display font-bold text-botanical-forest">
+                                                <div className="w-10 h-10 rounded-full bg-claude-accent/20 flex items-center justify-center font-display font-bold text-claude-accent">
                                                     {friend.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <span className="font-display font-semibold">{friend.username}</span>
@@ -1120,7 +1120,7 @@ export default function DeckView() {
                                             <button
                                                 onClick={() => handleSendDeckToFriend(friend.id)}
                                                 disabled={sharingTo === friend.id}
-                                                className="px-4 py-2 bg-botanical-forest text-white rounded-lg font-mono text-xs font-medium disabled:opacity-50"
+                                                className="px-4 py-2 bg-claude-accent text-white rounded-lg font-mono text-xs font-medium disabled:opacity-50"
                                             >
                                                 {sharingTo === friend.id ? 'Sending...' : 'Send'}
                                             </button>

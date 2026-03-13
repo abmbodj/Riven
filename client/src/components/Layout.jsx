@@ -54,7 +54,7 @@ const getPrimaryNavItems = (isLoggedIn) => [
 ];
 
 const utilityLinks = [
-    { to: '/garden', icon: Sprout, label: 'Garden', color: 'text-[#7a9e72]' },
+    { to: '/garden', icon: Sprout, label: 'Garden', color: 'text-claude-accent' },
     { to: '/themes', icon: Palette, label: 'Themes', color: 'text-claude-accent' },
     { to: '/settings', icon: Settings, label: 'Settings', color: 'text-claude-secondary' },
 ];
@@ -135,10 +135,10 @@ export default function Layout({ children }) {
 
                 {/* ===== Desktop Sidebar (hidden on mobile) ===== */}
                 {showDesktopSidebar && (
-                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-claude-bg/60 border-r border-white/[0.04] z-30 backdrop-blur-2xl shadow-[4px_0_24px_-12px_rgba(0,0,0,0.5)]">
+                    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-claude-bg/60 border-r border-claude-border/30 z-30 backdrop-blur-2xl shadow-[4px_0_24px_-12px_rgba(0,0,0,0.5)]">
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-3 px-6 pt-8 pb-6 group">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.02] border border-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-white/[0.04] group-hover:border-claude-accent/20">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-claude-bg/10 border border-claude-border/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:bg-claude-bg/20 group-hover:border-claude-accent/20">
                                 <OnboardingArt className="w-7 h-7 scale-[1.3] mt-1" />
                             </div>
                             <span className="font-display text-xl text-claude-text tracking-tight transition-colors duration-300 group-hover:text-white">Riven</span>
@@ -148,16 +148,16 @@ export default function Layout({ children }) {
                             <button
                                 type="button"
                                 onClick={() => setIsCommandPaletteOpen(true)}
-                                className="flex w-full items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.02] px-3 py-3 text-left transition-colors hover:border-white/15 hover:bg-white/[0.04]"
+                                className="flex w-full items-center gap-3 rounded-2xl border border-claude-border/40 bg-claude-bg/10 px-3 py-3 text-left transition-colors hover:border-claude-border hover:bg-claude-bg/20"
                             >
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-claude-accent">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-claude-bg/20 text-claude-accent">
                                     <Search className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-botanical-parchment">Search Riven</p>
+                                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-claude-text">Search Riven</p>
                                     <p className="text-xs text-claude-secondary">Jump anywhere fast</p>
                                 </div>
-                                <span className="rounded-full border border-white/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
+                                <span className="rounded-full border border-claude-border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-claude-secondary">
                                     ⌘K
                                 </span>
                             </button>
@@ -173,8 +173,8 @@ export default function Layout({ children }) {
                                         key={item.to}
                                         to={item.to}
                                         className={`group flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden ${isActive
-                                            ? 'text-white bg-white/[0.03]'
-                                            : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.02] hover:translate-x-1'
+                                            ? 'text-white bg-claude-bg/15'
+                                            : 'text-claude-secondary/70 hover:text-white hover:bg-claude-bg/10 hover:translate-x-1'
                                             }`}
                                     >
                                         {isActive && (
@@ -190,11 +190,11 @@ export default function Layout({ children }) {
                         </nav>
 
                         {/* Divider */}
-                        <div className="mx-6 h-px bg-white/[0.03] my-2" />
+                        <div className="mx-6 h-px bg-claude-border/30 my-2" />
 
                         {/* Quick Links */}
                         <nav className="px-3 py-4 space-y-1">
-                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-white/30 font-semibold selection:bg-transparent">Utilities</h3>
+                            <h3 className="px-3 mb-3 text-[10px] font-mono uppercase tracking-[0.25em] text-claude-secondary/50 font-semibold selection:bg-transparent">Utilities</h3>
                             {utilityLinks.map((item) => {
                                 const isActive = routeMatches(location.pathname, [item.to]);
                                 return (
@@ -202,8 +202,8 @@ export default function Layout({ children }) {
                                         key={item.to}
                                         to={item.to}
                                         className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 ${isActive
-                                            ? `bg-white/[0.03] ${item.color}`
-                                            : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.02] hover:translate-x-1'
+                                            ? `bg-claude-bg/15 ${item.color}`
+                                            : 'text-claude-secondary/70 hover:text-white hover:bg-claude-bg/10 hover:translate-x-1'
                                             }`}
                                     >
                                         <div className={`relative flex items-center justify-center w-6 h-6 transition-colors duration-300 ${isActive ? item.color : 'text-claude-secondary/40 group-hover:text-claude-secondary'}`}>
@@ -219,7 +219,7 @@ export default function Layout({ children }) {
                         <div className="px-4 py-6 mt-auto">
                             <Link
                                 to="/create"
-                                className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-[#7a9e72]/10 border border-[#7a9e72]/20 text-[#7a9e72] font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-[#7a9e72] hover:border-[#7a9e72] hover:text-white hover:shadow-[0_0_20px_rgba(122,158,114,0.3)] hover:-translate-y-0.5 overflow-hidden"
+                                className="group relative flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 text-claude-accent font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-500 hover:bg-claude-accent hover:border-claude-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
                                 <Plus className="w-[18px] h-[18px] transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
@@ -291,7 +291,7 @@ export default function Layout({ children }) {
                                             setIsFabMenuOpen(false);
                                             setIsCommandPaletteOpen(true);
                                         }}
-                                        className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03] transition-colors font-mono text-xs font-bold uppercase tracking-widest text-botanical-parchment cursor-pointer touch-target"
+                                        className="flex items-center gap-3 p-3 rounded-xl border border-claude-border bg-claude-bg/15 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-text cursor-pointer touch-target"
                                     >
                                         <Search className="w-5 h-5 text-claude-accent" />
                                         <span>Search</span>
@@ -299,7 +299,7 @@ export default function Layout({ children }) {
                                     <Link
                                         to="/create"
                                         onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 rounded-xl bg-[#7a9e72]/10 border border-[#7a9e72]/20 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72] cursor-pointer touch-target"
+                                        className="flex items-center gap-3 p-3 rounded-xl bg-claude-accent/10 border border-claude-accent/20 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
                                     >
                                         <Plus className="w-5 h-5" />
                                         <span>Create Deck</span>
@@ -307,7 +307,7 @@ export default function Layout({ children }) {
                                     <Link
                                         to="/garden"
                                         onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-[#7a9e72] cursor-pointer touch-target"
+                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
                                     >
                                         <Sprout className="w-5 h-5" />
                                         <span>Garden</span>
@@ -343,7 +343,7 @@ export default function Layout({ children }) {
 
                     {/* Bottom navigation — mobile only, hidden on desktop */}
                     {!hideBottomNav && (
-                        <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 w-full border-t border-white/5 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel lg:hidden" style={{ borderBottom: 'none' }}>
+                        <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 w-full border-t border-claude-border/40 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel lg:hidden" style={{ borderBottom: 'none' }}>
                             <div className="flex items-stretch h-16 sm:h-20 max-w-5xl mx-auto">
                                 {primaryNavItems.map((item) => {
                                     if (item.isFab) {

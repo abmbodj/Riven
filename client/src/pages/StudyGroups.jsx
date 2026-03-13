@@ -103,7 +103,7 @@ export default function StudyGroups() {
                 <div className="h-12 w-48 bg-claude-border rounded-xl animate-pulse mb-8" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[1, 2].map((_, idx) => (
-                        <div key={idx} className="h-32 bg-[#fcfaf2] border border-[#d1c9b8] rounded-xl animate-pulse" />
+                        <div key={idx} className="h-32 bg-claude-surface border border-claude-border rounded-xl animate-pulse" />
                     ))}
                 </div>
             </div>
@@ -116,9 +116,9 @@ export default function StudyGroups() {
             <div className="mb-6 pt-4 px-4 sm:px-6 flex items-end justify-between">
                 <div>
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
-                        <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Collaborate</span>
+                        <span className="px-1.5 py-0.5 bg-claude-accent text-claude-text text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Collaborate</span>
                     </div>
-                    <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-botanical-parchment tracking-tighter leading-none">Study Groups</h1>
+                    <h1 className="text-4xl sm:text-5xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Study Groups</h1>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -193,7 +193,7 @@ export default function StudyGroups() {
                                     <Users className="w-8 h-8 text-claude-accent/70" />
                                 </div>
                             </motion.div>
-                            <h3 className="font-serif italic text-2xl text-botanical-parchment mb-3">No Groups Found</h3>
+                            <h3 className="font-serif italic text-2xl text-claude-text mb-3">No Groups Found</h3>
                             <p className="text-claude-secondary text-[11px] font-mono uppercase tracking-widest max-w-[240px] mx-auto leading-relaxed opacity-80">
                                 Create a new vault or enter a Cipher code to begin collaborating.
                             </p>
@@ -288,7 +288,7 @@ export default function StudyGroups() {
                             </div>
                             <div className="space-y-5">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Group Name</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-claude-accent font-bold mb-2 ml-1">Group Name</label>
                                     <input
                                         type="text"
                                         value={createData.name}
@@ -299,7 +299,7 @@ export default function StudyGroups() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Class (Optional)</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-claude-accent font-bold mb-2 ml-1">Class (Optional)</label>
                                     <div className="relative">
                                         <select
                                             value={createData.class_id}
@@ -317,9 +317,9 @@ export default function StudyGroups() {
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-claude-text font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             >
-                                {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Create Vault'}
+                                {isSubmitting ? <span className="w-5 h-5 border-2 border-claude-text border-t-transparent rounded-full animate-spin" /> : 'Create Vault'}
                             </button>
                         </motion.form>
                     </div>
@@ -347,7 +347,7 @@ export default function StudyGroups() {
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-botanical-forest font-bold mb-2 ml-1">Invite Code</label>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-claude-accent font-bold mb-2 ml-1">Invite Code</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -367,9 +367,9 @@ export default function StudyGroups() {
                             <button
                                 type="submit"
                                 disabled={!joinCode.trim() || joinCode.length < 3 || isSubmitting}
-                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-botanical-ink font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
+                                className="w-full mt-10 py-4 bg-claude-accent rounded-2xl text-claude-text font-mono font-bold uppercase tracking-[0.2em] hover:bg-opacity-90 transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98] tap-action shadow-[0_0_20px_rgba(222,185,106,0.15)] disabled:opacity-30 disabled:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
                             >
-                                {isSubmitting ? <span className="w-5 h-5 border-2 border-botanical-ink border-t-transparent rounded-full animate-spin" /> : 'Join Vault'}
+                                {isSubmitting ? <span className="w-5 h-5 border-2 border-claude-text border-t-transparent rounded-full animate-spin" /> : 'Join Vault'}
                             </button>
                         </motion.form>
                     </div>

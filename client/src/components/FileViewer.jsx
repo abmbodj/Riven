@@ -220,7 +220,7 @@ export default function FileViewer({ file, isOpen, onClose }) {
     const renderIcon = () => {
         if (fileInfo.kind === 'image') return <ImageIcon className="w-5 h-5 text-purple-300" />;
         if (fileInfo.kind === 'pdf') return <FileText className="w-5 h-5 text-red-300" />;
-        if (fileInfo.kind === 'text') return <FileCode className="w-5 h-5 text-emerald-200" />;
+        if (fileInfo.kind === 'text') return <FileCode className="w-5 h-5 text-claude-accent" />;
         if (fileInfo.kind === 'video') return <Video className="w-5 h-5 text-sky-300" />;
         if (fileInfo.kind === 'audio') return <Music className="w-5 h-5 text-amber-300" />;
         return <FileIcon className="w-5 h-5 text-zinc-300" />;
