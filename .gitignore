@@ -72,6 +72,11 @@ brain/
 .system_generated/
 *.webp
 
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
 # Project Specific
 client/public/generate-icons.cjs
 montization.md
