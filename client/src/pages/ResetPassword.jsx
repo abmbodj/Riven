@@ -13,7 +13,7 @@ export default function ResetPassword() {
     const navigate = useNavigate();
     const toast = useToast();
 
-    const token = searchParams.get('token');
+    const token = searchParams.get('token') || searchParams.get('token_hash');
     const [form, setForm] = useState({ password: '', confirmPassword: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);

@@ -11,7 +11,7 @@ export default function VerifyEmail() {
     const navigate = useNavigate();
     const toast = useToast();
 
-    const token = searchParams.get('token');
+    const token = searchParams.get('token') || searchParams.get('token_hash');
     const [loading, setLoading] = useState(Boolean(token));
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState(token ? '' : 'Invalid verification link.');

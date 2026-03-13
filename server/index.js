@@ -20,9 +20,6 @@ const registerAuthRoutes = require('./routes/auth');
 const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');
 const registerAdminRoutes = require('./routes/admin');
-const registerClassesRoutes = require('./routes/classes');
-const registerAssignmentsRoutes = require('./routes/assignments');
-const registerScheduleRoutes = require('./routes/schedule');
 const registerLMSRoutes = require('./routes/lms');
 const registerAIRoutes = require('./routes/ai');
 const registerGroupsRoutes = require('./routes/groups');
@@ -393,18 +390,6 @@ registerAuthRoutes({
 // ============ SOCIAL / FRIENDS ============
 
 registerSocialRoutes({ app, db, authMiddleware });
-
-// ============ CLASSES ============
-
-registerClassesRoutes({ app, db, authMiddleware });
-
-// ============ ASSIGNMENTS ============
-
-registerAssignmentsRoutes({ app, db, authMiddleware });
-
-// ============ SCHEDULE ============
-
-registerScheduleRoutes({ app, db, authMiddleware });
 
 // ============ LMS INTEGRATION ============
 

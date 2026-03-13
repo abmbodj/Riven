@@ -31,6 +31,107 @@ module.exports = function registerAuthRoutes({
         legacyHeaders: false,
     });
 
+    const getSupabaseConfig = () => {
+        const baseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
+        return {
+            authUrl: baseUrl ? `${baseUrl}/auth/v1` : null,
+            anonKey: process.env.SUPABASE_ANON_KEY,
+            serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+            jwtSecret: process.env.SUPABASE_JWT_SECRET,
+        };
+    };
+
+    const getBearerToken = (req) => {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            return authHeader.split(' ')[1];
+        }
+        return req.cookies?.token || null;
+    };
+
+    const getSupabaseSessionToken = (req) => {
+        const token = getBearerToken(req);
+        const { jwtSecret } = getSupabaseConfig();
+        if (!token || !jwtSecret) return null;
+
+        try {
+            const tokenHeader = jwt.decode(token, { complete: true })?.header;
+            const alg = tokenHeader?.alg;
+            if (!alg || !['HS256', 'HS384', 'HS512'].includes(alg)) return null;
+
+            const decoded = jwt.verify(token, jwtSecret, { algorithms: [alg] });
+            const aud = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+            if (!aud.includes('authenticated') || !decoded.sub) return null;
+
+            return { token, authUserId: decoded.sub };
+        } catch {
+            return null;
+        }
+    };
+
+    const buildRedirectUrl = (req, path) => {
+        const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+        return `${baseUrl.replace(/\/$/, '')}${path}`;
+    };
+
+    const supabaseFetch = async (path, { method = 'POST', apiKey, accessToken, body, query } = {}) => {
+        const { authUrl } = getSupabaseConfig();
+        if (!authUrl || !apiKey) {
+            throw new Error('Supabase auth is not configured');
+        }
+
+        const url = new URL(`${authUrl}${path}`);
+        if (query) {
+            Object.entries(query).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    url.searchParams.set(key, value);
+                }
+            });
+        }
+
+        const headers = {
+            apikey: apiKey,
+            'Content-Type': 'application/json',
+        };
+
+        if (accessToken) {
+            headers.Authorization = `Bearer ${accessToken}`;
+        }
+
+        const response = await fetch(url.toString(), {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+
+        const responseText = await response.text();
+        const responseBody = responseText ? JSON.parse(responseText) : {};
+
+        if (!response.ok) {
+            const message = responseBody.msg
+                || responseBody.message
+                || responseBody.error_description
+                || responseBody.error
+                || 'Supabase auth request failed';
+            const error = new Error(message);
+            error.status = response.status;
+            error.body = responseBody;
+            throw error;
+        }
+
+        return responseBody;
+    };
+
+    const verifySupabaseTokenHash = async (tokenHash, type, redirectTo) => {
+        const { anonKey } = getSupabaseConfig();
+        return supabaseFetch('/verify', {
+            method: 'POST',
+            apiKey: anonKey,
+            query: { redirect_to: redirectTo },
+            body: { token_hash: tokenHash, type },
+        });
+    };
+
     // Register
     app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
         const { username, email, password } = req.body;
@@ -523,7 +624,7 @@ module.exports = function registerAuthRoutes({
     // Change password
     app.put('/api/auth/password', authMiddleware, async (req, res) => {
         const { currentPassword, newPassword } = req.body;
-        if (!currentPassword || !newPassword) {
+        if (!newPassword) {
             return res.status(400).json({ error: 'Current and new password are required' });
         }
         if (newPassword.length < 8) {
@@ -531,6 +632,22 @@ module.exports = function registerAuthRoutes({
         }
 
         try {
+            const supabaseSession = getSupabaseSessionToken(req);
+            if (supabaseSession) {
+                const { anonKey } = getSupabaseConfig();
+                await supabaseFetch('/user', {
+                    method: 'PUT',
+                    apiKey: anonKey,
+                    accessToken: supabaseSession.token,
+                    body: { password: newPassword },
+                });
+                return res.json({ message: 'Password changed successfully' });
+            }
+
+            if (!currentPassword || !newPassword) {
+                return res.status(400).json({ error: 'Current and new password are required' });
+            }
+
             const user = await db.queryOne('SELECT password FROM users WHERE id = $1', [req.user.id]);
             const isMatch = await bcrypt.compare(currentPassword, user.password);
             if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
@@ -548,9 +665,26 @@ module.exports = function registerAuthRoutes({
     app.delete('/api/auth/account', authMiddleware, async (req, res) => {
         const { password } = req.body;
         try {
-            const user = await db.queryOne('SELECT password FROM users WHERE id = $1', [req.user.id]);
-            const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) return res.status(400).json({ error: 'Password is incorrect' });
+            const user = await db.queryOne('SELECT password, supabase_auth_id FROM users WHERE id = $1', [req.user.id]);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            const supabaseSession = getSupabaseSessionToken(req);
+            if (supabaseSession && user.supabase_auth_id) {
+                const { serviceRoleKey } = getSupabaseConfig();
+                if (!serviceRoleKey) {
+                    return res.status(500).json({ error: 'Supabase service role key is not configured' });
+                }
+
+                await supabaseFetch(`/admin/users/${user.supabase_auth_id}`, {
+                    method: 'DELETE',
+                    apiKey: serviceRoleKey,
+                    accessToken: serviceRoleKey,
+                    body: { should_soft_delete: false },
+                });
+            } else {
+                const isMatch = await bcrypt.compare(password, user.password);
+                if (!isMatch) return res.status(400).json({ error: 'Password is incorrect' });
+            }
 
             await db.execute('DELETE FROM users WHERE id = $1', [req.user.id]);
             res.json({ message: 'Account deleted successfully' });
@@ -722,25 +856,43 @@ module.exports = function registerAuthRoutes({
 
         try {
             // Always return success to prevent email enumeration
-            const user = await db.queryOne('SELECT id, email FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+            const user = await db.queryOne(
+                'SELECT id, email, supabase_auth_id FROM users WHERE LOWER(email) = LOWER($1)',
+                [email]
+            );
 
             if (user) {
-                // Invalidate any existing tokens for this user
-                await db.execute('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
+                let usedSupabaseRecovery = false;
+                if (user.supabase_auth_id) {
+                    try {
+                        const { anonKey } = getSupabaseConfig();
+                        await supabaseFetch('/recover', {
+                            method: 'POST',
+                            apiKey: anonKey,
+                            query: { redirect_to: buildRedirectUrl(req, '/reset-password') },
+                            body: { email: user.email },
+                        });
+                        usedSupabaseRecovery = true;
+                    } catch (supabaseError) {
+                        console.warn('[Auth] Supabase password recovery failed, falling back to legacy flow:', supabaseError.message);
+                    }
+                }
 
-                // Generate secure token
-                const resetToken = crypto.randomBytes(32).toString('hex');
-                const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+                if (!usedSupabaseRecovery) {
+                    // Invalidate any existing tokens for this user
+                    await db.execute('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
 
-                await db.execute(
-                    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-                    [user.id, resetToken, expiresAt.toISOString()]
-                );
+                    // Generate secure token
+                    const resetToken = crypto.randomBytes(32).toString('hex');
+                    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-                // Determine base URL for the reset link
-                const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+                    await db.execute(
+                        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                        [user.id, resetToken, expiresAt.toISOString()]
+                    );
 
-                await sendPasswordResetEmail(user.email, resetToken, baseUrl);
+                    await sendPasswordResetEmail(user.email, resetToken, buildRedirectUrl(req, ''));
+                }
             }
 
             // Always return 200 to prevent email enumeration
@@ -764,7 +916,28 @@ module.exports = function registerAuthRoutes({
             );
 
             if (!resetRecord) {
-                return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+                try {
+                    const verifyData = await verifySupabaseTokenHash(
+                        token,
+                        'recovery',
+                        buildRedirectUrl(req, '/reset-password')
+                    );
+                    const accessToken = verifyData?.access_token || verifyData?.session?.access_token;
+                    if (!accessToken) {
+                        return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+                    }
+
+                    const { anonKey } = getSupabaseConfig();
+                    await supabaseFetch('/user', {
+                        method: 'PUT',
+                        apiKey: anonKey,
+                        accessToken,
+                        body: { password },
+                    });
+                    return res.json({ message: 'Password has been reset successfully. You can now log in.' });
+                } catch {
+                    return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+                }
             }
 
             // Hash new password and update
@@ -789,23 +962,43 @@ module.exports = function registerAuthRoutes({
     // Send verification email
     app.post('/api/auth/send-verification', authMiddleware, async (req, res) => {
         try {
-            const user = await db.queryOne('SELECT id, email, email_verified FROM users WHERE id = $1', [req.user.id]);
+            const user = await db.queryOne(
+                'SELECT id, email, email_verified, supabase_auth_id FROM users WHERE id = $1',
+                [req.user.id]
+            );
             if (!user) return res.status(404).json({ error: 'User not found' });
             if (user.email_verified) return res.json({ message: 'Email already verified' });
 
-            // Invalidate existing tokens
-            await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [user.id]);
+            let usedSupabaseVerification = false;
+            if (user.supabase_auth_id) {
+                try {
+                    const { anonKey } = getSupabaseConfig();
+                    await supabaseFetch('/resend', {
+                        method: 'POST',
+                        apiKey: anonKey,
+                        query: { redirect_to: buildRedirectUrl(req, '/verify-email') },
+                        body: { email: user.email, type: 'signup' },
+                    });
+                    usedSupabaseVerification = true;
+                } catch (supabaseError) {
+                    console.warn('[Auth] Supabase resend verification failed, falling back to legacy flow:', supabaseError.message);
+                }
+            }
 
-            const verifyToken = crypto.randomBytes(32).toString('hex');
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            if (!usedSupabaseVerification) {
+                // Invalidate existing tokens
+                await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [user.id]);
 
-            await db.execute(
-                'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-                [user.id, verifyToken, expiresAt.toISOString()]
-            );
+                const verifyToken = crypto.randomBytes(32).toString('hex');
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-            const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
-            await sendEmailVerification(user.email, verifyToken, baseUrl);
+                await db.execute(
+                    'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                    [user.id, verifyToken, expiresAt.toISOString()]
+                );
+
+                await sendEmailVerification(user.email, verifyToken, buildRedirectUrl(req, ''));
+            }
 
             res.json({ message: 'Verification email sent' });
         } catch (error) {
@@ -826,7 +1019,25 @@ module.exports = function registerAuthRoutes({
             );
 
             if (!record) {
-                return res.status(400).json({ error: 'Invalid or expired verification link' });
+                try {
+                    const verifyData = await verifySupabaseTokenHash(
+                        token,
+                        'signup',
+                        buildRedirectUrl(req, '/verify-email')
+                    );
+                    const supabaseUserId = verifyData?.user?.id;
+                    if (!supabaseUserId) {
+                        return res.status(400).json({ error: 'Invalid or expired verification link' });
+                    }
+
+                    await db.execute(
+                        'UPDATE users SET email_verified = TRUE WHERE supabase_auth_id = $1',
+                        [supabaseUserId]
+                    );
+                    return res.json({ message: 'Email verified successfully' });
+                } catch {
+                    return res.status(400).json({ error: 'Invalid or expired verification link' });
+                }
             }
 
             await db.execute('UPDATE users SET email_verified = TRUE WHERE id = $1', [record.user_id]);
@@ -1041,4 +1252,3 @@ module.exports = function registerAuthRoutes({
         }
     });
 };
-

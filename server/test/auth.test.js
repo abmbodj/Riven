@@ -6,22 +6,41 @@ import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 
 const JWT_SECRET = 'test-secret';
+const SUPABASE_JWT_SECRET = 'supabase-test-secret';
+const SUPABASE_URL = 'https://supabase.test';
+const SUPABASE_ANON_KEY = 'supabase-anon-key';
+const SUPABASE_SERVICE_ROLE_KEY = 'supabase-service-role-key';
+const SUPABASE_AUTH_ID = '11111111-1111-1111-1111-111111111111';
+
+const mockJsonResponse = (body, { ok = true, status = ok ? 200 : 400 } = {}) => ({
+    ok,
+    status,
+    json: vi.fn().mockResolvedValue(body),
+    text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+});
 
 describe('Auth Core Endpoints', () => {
     let app;
     let dbMock;
     let token;
     let authHeader;
+    let supabaseToken;
+    let supabaseAuthHeader;
     const testUser = { id: 1, email: 'test@example.com', role: 'user' };
 
     beforeAll(async () => {
         vi.resetModules();
+        process.env.SUPABASE_JWT_SECRET = SUPABASE_JWT_SECRET;
+        process.env.SUPABASE_URL = SUPABASE_URL;
+        process.env.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+        process.env.SUPABASE_SERVICE_ROLE_KEY = SUPABASE_SERVICE_ROLE_KEY;
         const pool = { query: vi.fn(), connect: vi.fn(), on: vi.fn() };
 
         dbMock = {
             query: async (text, params) => (await pool.query(text, params)).rows,
             queryOne: async (text, params) => (await pool.query(text, params)).rows[0],
             execute: async (text, params) => await pool.query(text, params),
+            ready: vi.fn().mockResolvedValue(),
             pool
         };
 
@@ -33,16 +52,31 @@ describe('Auth Core Endpoints', () => {
 
         token = jwt.sign(testUser, JWT_SECRET);
         authHeader = `Bearer ${token}`;
+        supabaseToken = jwt.sign({
+            aud: 'authenticated',
+            sub: SUPABASE_AUTH_ID,
+            email: testUser.email,
+            role: 'authenticated',
+        }, SUPABASE_JWT_SECRET, { algorithm: 'HS256' });
+        supabaseAuthHeader = `Bearer ${supabaseToken}`;
     });
 
     afterAll(() => {
         delete global.__TEST_DB_MOCK__;
+        delete process.env.SUPABASE_JWT_SECRET;
+        delete process.env.SUPABASE_URL;
+        delete process.env.SUPABASE_ANON_KEY;
+        delete process.env.SUPABASE_SERVICE_ROLE_KEY;
         vi.restoreAllMocks();
     });
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.restoreAllMocks();
+        dbMock.pool.query.mockReset();
+        dbMock.ready.mockReset();
         dbMock.pool.query.mockResolvedValue({ rows: [] });
+        dbMock.ready.mockResolvedValue();
+        global.fetch = vi.fn();
     });
 
     // ============ REGISTER ============
@@ -219,6 +253,34 @@ describe('Auth Core Endpoints', () => {
 
             expect(res.status).toBe(400);
         });
+
+        it('uses Supabase auth when the caller presents a Supabase session token', async () => {
+            dbMock.pool.query
+                .mockResolvedValueOnce({
+                    rows: [{ id: 1, email: testUser.email, role: 'user', is_admin: 0 }],
+                });
+
+            global.fetch.mockResolvedValueOnce(
+                mockJsonResponse({ user: { id: SUPABASE_AUTH_ID, email: testUser.email } })
+            );
+
+            const res = await request(app)
+                .put('/api/auth/password')
+                .set('Authorization', supabaseAuthHeader)
+                .send({ currentPassword: 'ignored', newPassword: 'newpassword123' });
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenCalledWith(
+                `${SUPABASE_URL}/auth/v1/user`,
+                expect.objectContaining({
+                    method: 'PUT',
+                    headers: expect.objectContaining({
+                        Authorization: `Bearer ${supabaseToken}`,
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+        });
     });
 
     // ============ FORGOT PASSWORD ============
@@ -261,6 +323,32 @@ describe('Auth Core Endpoints', () => {
                 .send({});
 
             expect(res.status).toBe(400);
+        });
+
+        it('uses Supabase recovery for linked users instead of legacy reset tokens', async () => {
+            dbMock.pool.query.mockResolvedValueOnce({
+                rows: [{ id: 1, email: 'test@test.com', supabase_auth_id: SUPABASE_AUTH_ID }],
+            });
+            global.fetch.mockResolvedValueOnce(mockJsonResponse({}));
+
+            const res = await request(app)
+                .post('/api/auth/forgot-password')
+                .send({ email: 'test@test.com' });
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining(`${SUPABASE_URL}/auth/v1/recover?`),
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: expect.objectContaining({
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+            expect(dbMock.pool.query).not.toHaveBeenCalledWith(
+                expect.stringContaining('INSERT INTO password_reset_tokens'),
+                expect.any(Array)
+            );
         });
     });
 
@@ -305,6 +393,151 @@ describe('Auth Core Endpoints', () => {
 
             expect(res.status).toBe(400);
             expect(res.body.error).toContain('at least 6 characters');
+        });
+
+        it('uses Supabase token-hash verification when the token is not legacy', async () => {
+            dbMock.pool.query.mockResolvedValueOnce({ rows: [] });
+            global.fetch
+                .mockResolvedValueOnce(
+                    mockJsonResponse({
+                        access_token: 'recovery-access-token',
+                        refresh_token: 'refresh-token',
+                        user: { id: SUPABASE_AUTH_ID, email: testUser.email },
+                    })
+                )
+                .mockResolvedValueOnce(
+                    mockJsonResponse({ user: { id: SUPABASE_AUTH_ID, email: testUser.email } })
+                );
+
+            const res = await request(app)
+                .post('/api/auth/reset-password')
+                .send({ token: 'supabase-token-hash', password: 'newpassword123' });
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenNthCalledWith(
+                1,
+                expect.stringContaining(`${SUPABASE_URL}/auth/v1/verify?`),
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: expect.objectContaining({
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+            expect(global.fetch).toHaveBeenNthCalledWith(
+                2,
+                `${SUPABASE_URL}/auth/v1/user`,
+                expect.objectContaining({
+                    method: 'PUT',
+                    headers: expect.objectContaining({
+                        Authorization: 'Bearer recovery-access-token',
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+        });
+    });
+
+    describe('Supabase email verification bridge', () => {
+        it('uses Supabase resend for linked users', async () => {
+            dbMock.pool.query
+                .mockResolvedValueOnce({
+                    rows: [{ id: 1, email: testUser.email, role: 'user', is_admin: 0 }],
+                })
+                .mockResolvedValueOnce({
+                    rows: [{
+                        id: 1,
+                        email: testUser.email,
+                        email_verified: false,
+                        supabase_auth_id: SUPABASE_AUTH_ID,
+                    }],
+                });
+            global.fetch.mockResolvedValueOnce(mockJsonResponse({}));
+
+            const res = await request(app)
+                .post('/api/auth/send-verification')
+                .set('Authorization', supabaseAuthHeader);
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining(`${SUPABASE_URL}/auth/v1/resend?`),
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: expect.objectContaining({
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+        });
+
+        it('verifies Supabase token hashes and syncs email_verified locally', async () => {
+            dbMock.pool.query
+                .mockResolvedValueOnce({ rows: [] })
+                .mockResolvedValueOnce({ rows: [] })
+                .mockResolvedValueOnce({ rows: [] });
+            global.fetch.mockResolvedValueOnce(
+                mockJsonResponse({
+                    user: { id: SUPABASE_AUTH_ID, email: testUser.email },
+                    access_token: null,
+                    refresh_token: null,
+                })
+            );
+
+            const res = await request(app)
+                .post('/api/auth/verify-email')
+                .send({ token: 'supabase-signup-token-hash' });
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining(`${SUPABASE_URL}/auth/v1/verify?`),
+                expect.objectContaining({
+                    method: 'POST',
+                    headers: expect.objectContaining({
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                expect.stringContaining('UPDATE users SET email_verified = TRUE'),
+                [SUPABASE_AUTH_ID]
+            );
+        });
+    });
+
+    describe('DELETE /api/auth/account', () => {
+        it('deletes Supabase auth users with the service role bridge before removing the local row', async () => {
+            dbMock.pool.query
+                .mockResolvedValueOnce({
+                    rows: [{ id: 1, email: testUser.email, role: 'user', is_admin: 0 }],
+                })
+                .mockResolvedValueOnce({
+                    rows: [{ id: 1, supabase_auth_id: SUPABASE_AUTH_ID, password: null }],
+                })
+                .mockResolvedValueOnce({ rows: [] });
+            global.fetch.mockResolvedValueOnce(
+                mockJsonResponse({ user: { id: SUPABASE_AUTH_ID, email: testUser.email } })
+            );
+
+            const res = await request(app)
+                .delete('/api/auth/account')
+                .set('Authorization', supabaseAuthHeader)
+                .send({ password: 'ignored' });
+
+            expect(res.status).toBe(200);
+            expect(global.fetch).toHaveBeenCalledWith(
+                `${SUPABASE_URL}/auth/v1/admin/users/${SUPABASE_AUTH_ID}`,
+                expect.objectContaining({
+                    method: 'DELETE',
+                    headers: expect.objectContaining({
+                        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                        apikey: SUPABASE_SERVICE_ROLE_KEY,
+                    }),
+                })
+            );
+            expect(dbMock.pool.query).toHaveBeenCalledWith(
+                'DELETE FROM users WHERE id = $1',
+                [1]
+            );
         });
     });
 

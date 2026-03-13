@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Phases 2–4 pending.
+**Status:** Phase 1 complete. Phase 2 in progress — `classes`, `assignments`, and `schedule` now use PostgREST end-to-end. Phases 3–4 pending.
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -49,6 +49,14 @@ Same dual-JWT logic applied.
 - `POST /api/auth/complete-registration` — verifies token via Supabase `/auth/v1/user` API, creates or links `users` row
 - `POST /api/auth/link-supabase` — links Supabase account to existing legacy user
 
+**`server/routes/auth.js` — Existing endpoints now bridged to Supabase Auth for linked users:**
+- `PUT /api/auth/password`
+- `DELETE /api/auth/account`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `POST /api/auth/send-verification`
+- `POST /api/auth/verify-email`
+
 **`client/src/api/authApi.js`:**
 - `register()` → `supabase.auth.signUp()` + `completeRegistration()`, falls back to legacy Express register if no session returned (email confirm enabled)
 - `login()` → `supabase.auth.signInWithPassword()`, falls back to legacy Express login
@@ -72,8 +80,8 @@ Same dual-JWT logic applied.
 - [x] Old JWT sessions still work until expiry
 - [ ] Google OAuth end-to-end (Supabase Dashboard config required)
 - [ ] Apple OAuth end-to-end (Supabase Dashboard config required)
-- [ ] Password reset email flow
-- [ ] 2FA challenge still works for existing `two_fa_enabled = true` users
+- [x] Password reset email flow
+- [x] 2FA challenge still works for existing `two_fa_enabled = true` users
 
 ### Supabase Dashboard config needed (Google/Apple OAuth)
 1. Go to **Authentication → Providers**
@@ -88,6 +96,10 @@ Same dual-JWT logic applied.
 
 Replace Express CRUD routes with direct Supabase client queries + Row Level Security policies.
 **No Edge Functions needed for these — PostgREST handles them.**
+
+Completed in code today:
+- `client/src/api/authApi.js` already uses Supabase PostgREST for `classes`, `assignments`, and `schedule_slots`
+- Legacy Express registration for `server/routes/classes.js`, `server/routes/assignments.js`, and `server/routes/schedule.js` has been removed from `server/index.js`
 
 ### Migration order (simplest first)
 
@@ -172,10 +184,10 @@ CREATE POLICY "owner_all" ON assignments FOR ALL
 ```
 Remove: `server/routes/assignments.js` registration
 
-#### `schedule` table
+#### `schedule_slots` table
 ```sql
-ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "owner_all" ON schedule FOR ALL
+ALTER TABLE schedule_slots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "owner_all" ON schedule_slots FOR ALL
     USING (user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()));
 ```
 Remove: `server/routes/schedule.js` registration
@@ -265,7 +277,7 @@ CREATE POLICY "sender_or_receiver" ON messages FOR ALL
 - [ ] User can only see their own data (test with 2 accounts)
 - [ ] Shared group data visible to members but not outsiders
 - [ ] RLS blocks unauthorized writes (test with anon key directly via Supabase Studio)
-- [ ] Client no longer calls removed Express routes
+- [x] Client no longer calls removed Express routes
 
 ---
 
@@ -635,17 +647,17 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 
 | Route | Status | Phase | Migrated To |
 |-------|--------|-------|-------------|
-| `GET /api/classes` | Pending | 2 | PostgREST |
-| `POST /api/classes` | Pending | 2 | PostgREST |
-| `PUT /api/classes/:id` | Pending | 2 | PostgREST |
-| `DELETE /api/classes/:id` | Pending | 2 | PostgREST |
-| `GET /api/assignments` | Pending | 2 | PostgREST |
-| `POST /api/assignments` | Pending | 2 | PostgREST |
-| `PUT /api/assignments/:id` | Pending | 2 | PostgREST |
-| `DELETE /api/assignments/:id` | Pending | 2 | PostgREST |
-| `GET /api/schedule` | Pending | 2 | PostgREST |
-| `POST /api/schedule` | Pending | 2 | PostgREST |
-| `DELETE /api/schedule/:id` | Pending | 2 | PostgREST |
+| `GET /api/classes` | Complete | 2 | PostgREST |
+| `POST /api/classes` | Complete | 2 | PostgREST |
+| `PUT /api/classes/:id` | Complete | 2 | PostgREST |
+| `DELETE /api/classes/:id` | Complete | 2 | PostgREST |
+| `GET /api/assignments` | Complete | 2 | PostgREST |
+| `POST /api/assignments` | Complete | 2 | PostgREST |
+| `PUT /api/assignments/:id` | Complete | 2 | PostgREST |
+| `DELETE /api/assignments/:id` | Complete | 2 | PostgREST |
+| `GET /api/schedule` | Complete | 2 | PostgREST |
+| `POST /api/schedule` | Complete | 2 | PostgREST |
+| `DELETE /api/schedule/:id` | Complete | 2 | PostgREST |
 | `GET /api/folders` | Pending | 2 | PostgREST |
 | `POST /api/folders` | Pending | 2 | PostgREST |
 | `PUT /api/folders/:id` | Pending | 2 | PostgREST |
@@ -686,16 +698,16 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/auth/oauth/apple` | Complete ✅ | 1 | Supabase Auth |
 | `POST /api/auth/logout` | Complete ✅ | 1 | Supabase Auth |
 | `GET /api/auth/me` | Complete ✅ | 1 | Keep (profile data) |
-| `POST /api/auth/forgot-password` | Pending | 1 | Supabase Auth |
-| `POST /api/auth/reset-password` | Pending | 1 | Supabase Auth |
-| `POST /api/auth/send-verification` | Pending | 1 | Supabase Auth |
+| `POST /api/auth/forgot-password` | Complete | 1 | Supabase Auth |
+| `POST /api/auth/reset-password` | Complete | 1 | Supabase Auth |
+| `POST /api/auth/send-verification` | Complete | 1 | Supabase Auth |
 | `POST /api/auth/2fa/setup` | Pending | 1 | Supabase MFA or Keep |
 | `POST /api/auth/2fa/verify` | Pending | 1 | Supabase MFA or Keep |
 | `POST /api/auth/2fa/disable` | Pending | 1 | Supabase MFA or Keep |
 | `POST /api/auth/2fa/login` | Pending | 1 | Keep (existing users) |
 | `PUT /api/auth/profile` | Pending | 2 | PostgREST |
-| `PUT /api/auth/password` | Pending | 1 | Supabase Auth |
-| `DELETE /api/auth/account` | Pending | 1 | Supabase Auth + Edge Fn |
+| `PUT /api/auth/password` | Complete | 1 | Supabase Auth |
+| `DELETE /api/auth/account` | Complete | 1 | Supabase Auth + Edge Fn |
 | `PUT /api/auth/streak` | Pending | 2 | PostgREST |
 | `GET /api/auth/streak` | Pending | 2 | PostgREST |
 | `GET /api/auth/pet` | Pending | 2 | PostgREST |
