@@ -41,6 +41,7 @@ vi.mock('../api/authApi', () => ({
   sendMessage: vi.fn(),
   editMessage: vi.fn(),
   deleteMessage: vi.fn(),
+  subscribeToMessages: vi.fn(() => () => {}),
   acceptSharedDeck: vi.fn(),
   reportContent: vi.fn(),
 }));

@@ -185,6 +185,18 @@ export default function Messages() {
         messageCache.setConversations(null);
     }, []);
 
+    const hydrateConversationMessages = useCallback((threadMessages, profile) => {
+        return (threadMessages || []).map((message) => {
+            if (message.isMine) return message;
+
+            return {
+                ...message,
+                senderAvatar: message.senderAvatar ?? profile?.avatar ?? null,
+                senderUsername: message.senderUsername ?? profile?.username ?? null,
+            };
+        });
+    }, []);
+
     // Load messages for specific user
     const loadMessages = useCallback(async (targetUserId) => {
         const cached = messageCache.messages[targetUserId];
@@ -210,14 +222,15 @@ export default function Messages() {
                 authApi.getMessages(targetUserId),
                 authApi.getUserProfile(targetUserId)
             ]);
+            const hydratedMessages = hydrateConversationMessages(messagesData, userData);
 
-            messageCache.setMessages(targetUserId, messagesData);
+            messageCache.setMessages(targetUserId, hydratedMessages);
             messageCache.setUser(targetUserId, userData);
 
             // Seed loaded IDs so fetched messages don't animate
-            loadedMsgIdsRef.current = new Set(messagesData.map(m => m.id));
+            loadedMsgIdsRef.current = new Set(hydratedMessages.map(m => m.id));
 
-            setMessages(messagesData);
+            setMessages(hydratedMessages);
             setChatUser(userData);
         } catch {
             toast.error('Failed to load messages');
@@ -225,7 +238,7 @@ export default function Messages() {
         } finally {
             setLoading(false);
         }
-    }, [navigate, toast]);
+    }, [hydrateConversationMessages, navigate, toast]);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -373,20 +386,32 @@ export default function Messages() {
         });
     }, [conversations, userId]);
 
-    // Socket listeners
+    // Supabase Realtime listeners for DM rows
     useEffect(() => {
-        if (!socket) return;
+        if (!user?.id) return;
+
+        const activeThreadUserId = userId ? parseInt(userId) : null;
+
+        const hydrateThreadMessage = (message) => {
+            if (!message || !activeThreadUserId) return message;
+            if (message.senderId !== activeThreadUserId && message.receiverId !== activeThreadUserId) {
+                return message;
+            }
+            return hydrateConversationMessages([message], chatUser)[0];
+        };
 
         const handleNewMessage = (msg) => {
-            if (userId && (msg.senderId === parseInt(userId) || msg.receiverId === parseInt(userId))) {
+            const hydrated = hydrateThreadMessage(msg);
+
+            if (activeThreadUserId && (hydrated.senderId === activeThreadUserId || hydrated.receiverId === activeThreadUserId)) {
                 setMessages(prev => {
-                    if (prev.find(m => m.id === msg.id)) return prev;
-                    const updated = [...prev, msg];
+                    if (prev.find(m => m.id === hydrated.id)) return prev;
+                    const updated = [...prev, hydrated];
                     messageCache.setMessages(userId, updated);
                     return updated;
                 });
 
-                if (msg.senderId === parseInt(userId)) {
+                if (hydrated.senderId === activeThreadUserId) {
                     setIsTyping(false);
                 }
             } else if (!userId) {
@@ -396,9 +421,11 @@ export default function Messages() {
         };
 
         const handleMessageUpdated = (msg) => {
+            const hydrated = hydrateThreadMessage(msg);
+
             if (userId) {
                 setMessages(prev => {
-                    const updated = prev.map(m => m.id === msg.id ? { ...m, ...msg } : m);
+                    const updated = prev.map(m => m.id === hydrated.id ? { ...m, ...hydrated } : m);
                     messageCache.setMessages(userId, updated);
                     return updated;
                 });
@@ -421,24 +448,33 @@ export default function Messages() {
             invalidateConversations();
         };
 
+        const unsubscribe = authApi.subscribeToMessages(user.id, {
+            onInsert: handleNewMessage,
+            onUpdate: handleMessageUpdated,
+            onDelete: handleMessageDeleted,
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, [chatUser, hydrateConversationMessages, invalidateConversations, loadConversations, user?.id, userId]);
+
+    // Socket listeners are kept only for typing indicators.
+    useEffect(() => {
+        if (!socket) return;
+
         const handleTyping = ({ senderId, isTyping: typingStatus }) => {
             if (userId && senderId === parseInt(userId)) {
                 setIsTyping(typingStatus);
             }
         };
 
-        socket.on('new_message', handleNewMessage);
-        socket.on('message_updated', handleMessageUpdated);
-        socket.on('message_deleted', handleMessageDeleted);
         socket.on('typing', handleTyping);
 
         return () => {
-            socket.off('new_message', handleNewMessage);
-            socket.off('message_updated', handleMessageUpdated);
-            socket.off('message_deleted', handleMessageDeleted);
             socket.off('typing', handleTyping);
         };
-    }, [socket, userId, loadConversations, invalidateConversations]);
+    }, [socket, userId]);
 
     const typingTimeoutRef = useRef(null);
 

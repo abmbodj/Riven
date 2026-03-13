@@ -1,6 +1,7 @@
 -- =============================================================
 -- Phase 2: RLS Policies + user_id auto-set trigger
--- Tables: classes, assignments, schedule_slots, folders, tags
+-- Tables: classes, assignments, schedule_slots, folders, tags,
+--         themes, decks, deck_tags, cards, study_sessions, messages
 -- =============================================================
 -- Run this in Supabase Dashboard → SQL Editor → New Query → Run
 -- =============================================================
@@ -158,3 +159,225 @@ DROP TRIGGER IF EXISTS set_user_id_tags ON public.tags;
 CREATE TRIGGER set_user_id_tags
   BEFORE INSERT ON public.tags
   FOR EACH ROW EXECUTE FUNCTION public.set_user_id_on_insert();
+
+
+-- ========== THEMES ==========
+
+ALTER TABLE public.themes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY themes_select ON public.themes
+  FOR SELECT USING (user_id = public.get_app_user_id());
+
+CREATE POLICY themes_insert ON public.themes
+  FOR INSERT WITH CHECK (
+    user_id IS NULL OR user_id = public.get_app_user_id()
+  );
+
+CREATE POLICY themes_update ON public.themes
+  FOR UPDATE USING (user_id = public.get_app_user_id());
+
+CREATE POLICY themes_delete ON public.themes
+  FOR DELETE USING (user_id = public.get_app_user_id());
+
+DROP TRIGGER IF EXISTS set_user_id_themes ON public.themes;
+CREATE TRIGGER set_user_id_themes
+  BEFORE INSERT ON public.themes
+  FOR EACH ROW EXECUTE FUNCTION public.set_user_id_on_insert();
+
+
+-- ========== DECK ACCESS HELPERS ==========
+
+CREATE OR REPLACE FUNCTION public.owns_deck(target_deck_id integer)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.decks d
+    WHERE d.id = target_deck_id
+      AND d.user_id = public.get_app_user_id()
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_read_deck(target_deck_id integer)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.decks d
+    WHERE d.id = target_deck_id
+      AND (
+        d.user_id = public.get_app_user_id()
+        OR EXISTS (
+          SELECT 1
+          FROM public.group_decks gd
+          JOIN public.group_members gm ON gm.group_id = gd.group_id
+          WHERE gd.deck_id = d.id
+            AND gm.user_id = public.get_app_user_id()
+        )
+      )
+  )
+$$;
+
+GRANT EXECUTE ON FUNCTION public.owns_deck(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_read_deck(integer) TO authenticated;
+
+
+-- ========== DECKS ==========
+
+ALTER TABLE public.decks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY decks_select ON public.decks
+  FOR SELECT USING (
+    user_id = public.get_app_user_id()
+    OR EXISTS (
+      SELECT 1
+      FROM public.group_decks gd
+      JOIN public.group_members gm ON gm.group_id = gd.group_id
+      WHERE gd.deck_id = public.decks.id
+        AND gm.user_id = public.get_app_user_id()
+    )
+  );
+
+CREATE POLICY decks_insert ON public.decks
+  FOR INSERT WITH CHECK (
+    user_id IS NULL OR user_id = public.get_app_user_id()
+  );
+
+CREATE POLICY decks_update ON public.decks
+  FOR UPDATE USING (user_id = public.get_app_user_id());
+
+CREATE POLICY decks_delete ON public.decks
+  FOR DELETE USING (user_id = public.get_app_user_id());
+
+DROP TRIGGER IF EXISTS set_user_id_decks ON public.decks;
+CREATE TRIGGER set_user_id_decks
+  BEFORE INSERT ON public.decks
+  FOR EACH ROW EXECUTE FUNCTION public.set_user_id_on_insert();
+
+
+-- ========== DECK_TAGS ==========
+
+ALTER TABLE public.deck_tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY deck_tags_select ON public.deck_tags
+  FOR SELECT USING (public.can_read_deck(deck_id));
+
+CREATE POLICY deck_tags_insert ON public.deck_tags
+  FOR INSERT WITH CHECK (public.owns_deck(deck_id));
+
+CREATE POLICY deck_tags_delete ON public.deck_tags
+  FOR DELETE USING (public.owns_deck(deck_id));
+
+
+-- ========== CARDS ==========
+
+ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY cards_select ON public.cards
+  FOR SELECT USING (public.can_read_deck(deck_id));
+
+CREATE POLICY cards_insert ON public.cards
+  FOR INSERT WITH CHECK (public.owns_deck(deck_id));
+
+CREATE POLICY cards_update ON public.cards
+  FOR UPDATE USING (public.owns_deck(deck_id));
+
+CREATE POLICY cards_delete ON public.cards
+  FOR DELETE USING (public.owns_deck(deck_id));
+
+
+-- ========== STUDY_SESSIONS ==========
+
+ALTER TABLE public.study_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY study_sessions_select ON public.study_sessions
+  FOR SELECT USING (public.can_read_deck(deck_id));
+
+CREATE POLICY study_sessions_insert ON public.study_sessions
+  FOR INSERT WITH CHECK (public.owns_deck(deck_id));
+
+CREATE POLICY study_sessions_update ON public.study_sessions
+  FOR UPDATE USING (public.owns_deck(deck_id));
+
+CREATE POLICY study_sessions_delete ON public.study_sessions
+  FOR DELETE USING (public.owns_deck(deck_id));
+
+
+-- ========== MESSAGE HELPERS ==========
+
+CREATE OR REPLACE FUNCTION public.dm_partner_allowed(partner_user_id integer)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users u
+    WHERE u.id = public.get_app_user_id()
+      AND COALESCE(u.is_banned, 0) = 0
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM public.users u
+    WHERE u.id = partner_user_id
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.user_blocks ub
+    WHERE (ub.blocker_id = public.get_app_user_id() AND ub.blocked_id = partner_user_id)
+       OR (ub.blocker_id = partner_user_id AND ub.blocked_id = public.get_app_user_id())
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_messages_read(other_user_id integer)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.messages
+  SET is_read = 1
+  WHERE sender_id = other_user_id
+    AND receiver_id = public.get_app_user_id()
+    AND is_read = 0
+    AND public.dm_partner_allowed(other_user_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.dm_partner_allowed(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_messages_read(integer) TO authenticated;
+
+
+-- ========== MESSAGES ==========
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY messages_select ON public.messages
+  FOR SELECT USING (
+    (sender_id = public.get_app_user_id() OR receiver_id = public.get_app_user_id())
+    AND public.dm_partner_allowed(
+      CASE
+        WHEN sender_id = public.get_app_user_id() THEN receiver_id
+        ELSE sender_id
+      END
+    )
+  );
+
+CREATE POLICY messages_insert ON public.messages
+  FOR INSERT WITH CHECK (
+    sender_id = public.get_app_user_id()
+    AND public.dm_partner_allowed(receiver_id)
+  );
+
+CREATE POLICY messages_update ON public.messages
+  FOR UPDATE USING (sender_id = public.get_app_user_id());
+
+CREATE POLICY messages_delete ON public.messages
+  FOR DELETE USING (sender_id = public.get_app_user_id());

@@ -45,12 +45,64 @@ describe('Phase 2 legacy route cleanup', () => {
     });
 
     it('does not mount the retired Phase 2 CRUD Express endpoints', async () => {
-        const [classesResponse, assignmentsResponse, scheduleResponse, foldersResponse, tagsResponse] = await Promise.all([
+        const [
+            classesResponse,
+            assignmentsResponse,
+            scheduleResponse,
+            foldersResponse,
+            tagsResponse,
+            themesResponse,
+            decksResponse,
+            deckDetailResponse,
+            createDeckResponse,
+            updateDeckResponse,
+            moveDeckResponse,
+            deleteDeckResponse,
+            duplicateDeckResponse,
+            addCardResponse,
+            updateCardResponse,
+            deleteCardResponse,
+            progressCardResponse,
+            reviewCardResponse,
+            reorderCardsResponse,
+            createStudySessionResponse,
+            studySessionsResponse,
+            deckStatsResponse,
+            conversationsResponse,
+            threadResponse,
+            createMessageResponse,
+            updateMessageResponse,
+            deleteMessageResponse,
+            unreadCountResponse,
+        ] = await Promise.all([
             request(app).get('/api/classes').set('Authorization', authHeader),
             request(app).get('/api/assignments').set('Authorization', authHeader),
             request(app).get('/api/schedule').set('Authorization', authHeader),
             request(app).get('/api/folders').set('Authorization', authHeader),
             request(app).get('/api/tags').set('Authorization', authHeader),
+            request(app).get('/api/themes').set('Authorization', authHeader),
+            request(app).get('/api/decks').set('Authorization', authHeader),
+            request(app).get('/api/decks/1').set('Authorization', authHeader),
+            request(app).post('/api/decks').set('Authorization', authHeader).send({ title: 'Deck' }),
+            request(app).put('/api/decks/1').set('Authorization', authHeader).send({ title: 'Deck' }),
+            request(app).put('/api/decks/1/move').set('Authorization', authHeader).send({ folder_id: 2 }),
+            request(app).delete('/api/decks/1').set('Authorization', authHeader),
+            request(app).post('/api/decks/1/duplicate').set('Authorization', authHeader),
+            request(app).post('/api/decks/1/cards').set('Authorization', authHeader).send({ front: 'Q', back: 'A' }),
+            request(app).put('/api/cards/1').set('Authorization', authHeader).send({ front: 'Q', back: 'A' }),
+            request(app).delete('/api/cards/1').set('Authorization', authHeader),
+            request(app).put('/api/cards/1/progress').set('Authorization', authHeader).send({ difficulty: 3 }),
+            request(app).put('/api/cards/1/review').set('Authorization', authHeader).send({ correct: true }),
+            request(app).put('/api/decks/1/cards/reorder').set('Authorization', authHeader).send({ cardIds: [1, 2] }),
+            request(app).post('/api/study-sessions').set('Authorization', authHeader).send({ deck_id: 1 }),
+            request(app).get('/api/study-sessions').set('Authorization', authHeader),
+            request(app).get('/api/decks/1/stats').set('Authorization', authHeader),
+            request(app).get('/api/messages/conversations').set('Authorization', authHeader),
+            request(app).get('/api/messages/2').set('Authorization', authHeader),
+            request(app).post('/api/messages').set('Authorization', authHeader).send({ receiverId: 2, content: 'hi' }),
+            request(app).put('/api/messages/1').set('Authorization', authHeader).send({ content: 'edited' }),
+            request(app).delete('/api/messages/1').set('Authorization', authHeader),
+            request(app).get('/api/messages/unread/count').set('Authorization', authHeader),
         ]);
 
         expect(classesResponse.status).toBe(404);
@@ -58,5 +110,28 @@ describe('Phase 2 legacy route cleanup', () => {
         expect(scheduleResponse.status).toBe(404);
         expect(foldersResponse.status).toBe(404);
         expect(tagsResponse.status).toBe(404);
+        expect(themesResponse.status).toBe(404);
+        expect(decksResponse.status).toBe(404);
+        expect(deckDetailResponse.status).toBe(404);
+        expect(createDeckResponse.status).toBe(404);
+        expect(updateDeckResponse.status).toBe(404);
+        expect(moveDeckResponse.status).toBe(404);
+        expect(deleteDeckResponse.status).toBe(404);
+        expect(duplicateDeckResponse.status).toBe(404);
+        expect(addCardResponse.status).toBe(404);
+        expect(updateCardResponse.status).toBe(404);
+        expect(deleteCardResponse.status).toBe(404);
+        expect(progressCardResponse.status).toBe(404);
+        expect(reviewCardResponse.status).toBe(404);
+        expect(reorderCardsResponse.status).toBe(404);
+        expect(createStudySessionResponse.status).toBe(404);
+        expect(studySessionsResponse.status).toBe(404);
+        expect(deckStatsResponse.status).toBe(404);
+        expect(conversationsResponse.status).toBe(404);
+        expect(threadResponse.status).toBe(404);
+        expect(createMessageResponse.status).toBe(404);
+        expect(updateMessageResponse.status).toBe(404);
+        expect(deleteMessageResponse.status).toBe(404);
+        expect(unreadCountResponse.status).toBe(404);
     });
 });

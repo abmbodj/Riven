@@ -576,69 +576,535 @@ export const generateAiClass = async (notes, file) => {
     });
 };
 
-export const getDecks = () => safeFetchArray(authFetch('/decks'));
-export const getDeck = (id) => authFetch(`/decks/${id}`);
+const parseJsonish = (value) => {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+
+    try {
+        return JSON.parse(value);
+    } catch {
+        return null;
+    }
+};
+
+const getDeckTags = async (deckIds) => {
+    if (!deckIds.length) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('deck_tags')
+        .select('deck_id, tag_id')
+        .in('deck_id', deckIds);
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+const getTagsByIds = async (tagIds) => {
+    if (!tagIds.length) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('tags')
+        .select('*')
+        .in('id', tagIds);
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+const validateDeck = (title, description) => {
+    if (!title) {
+        const error = new Error('Title is required');
+        error.status = 400;
+        throw error;
+    }
+    if (title.length > 200) {
+        const error = new Error('Title must be under 200 characters');
+        error.status = 400;
+        throw error;
+    }
+    if (description && description.length > 2000) {
+        const error = new Error('Description must be under 2000 characters');
+        error.status = 400;
+        throw error;
+    }
+};
+
+const validateCardContent = (front, back, front_image, back_image) => {
+    if ((!front && !front_image) || (!back && !back_image)) {
+        const error = new Error('Front and back content (text or image) are required');
+        error.status = 400;
+        throw error;
+    }
+    if (front && front.length > 5000) {
+        const error = new Error('Front content must be under 5000 characters');
+        error.status = 400;
+        throw error;
+    }
+    if (back && back.length > 5000) {
+        const error = new Error('Back content must be under 5000 characters');
+        error.status = 400;
+        throw error;
+    }
+};
+
+export const getDecks = async () => {
+    const { data: decks, error } = await supabase
+        .from('decks')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) _sbThrow(error);
+
+    const deckRows = decks || [];
+    if (deckRows.length === 0) {
+        return [];
+    }
+
+    const deckIds = deckRows.map((deck) => deck.id);
+    const [deckTags, cards] = await Promise.all([
+        getDeckTags(deckIds),
+        supabase.from('cards').select('deck_id').in('deck_id', deckIds).then(({ data, error: cardsError }) => {
+            if (cardsError) _sbThrow(cardsError);
+            return data || [];
+        }),
+    ]);
+
+    const tags = await getTagsByIds([...new Set(deckTags.map((row) => row.tag_id))]);
+    const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
+    const tagIdsByDeck = new Map();
+    const cardCountByDeck = new Map();
+
+    for (const row of deckTags) {
+        const existing = tagIdsByDeck.get(row.deck_id) || [];
+        existing.push(row.tag_id);
+        tagIdsByDeck.set(row.deck_id, existing);
+    }
+
+    for (const card of cards) {
+        cardCountByDeck.set(card.deck_id, (cardCountByDeck.get(card.deck_id) || 0) + 1);
+    }
+
+    return deckRows.map((deck) => ({
+        ...deck,
+        cardCount: cardCountByDeck.get(deck.id) || 0,
+        tags: (tagIdsByDeck.get(deck.id) || [])
+            .map((tagId) => tagsById.get(tagId))
+            .filter(Boolean),
+    }));
+};
+
+export const getDeck = async (id) => {
+    const deckId = Number(id);
+    const { data: deck, error } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('id', deckId)
+        .single();
+    if (error) _sbThrow(error);
+
+    const [cardsResult, deckTags] = await Promise.all([
+        supabase
+            .from('cards')
+            .select('*')
+            .eq('deck_id', deckId)
+            .order('position')
+            .then(({ data, error: cardsError }) => {
+                if (cardsError) _sbThrow(cardsError);
+                return data || [];
+            }),
+        getDeckTags([deckId]),
+    ]);
+
+    const tags = await getTagsByIds(deckTags.map((row) => row.tag_id));
+    return {
+        ...deck,
+        cards: cardsResult,
+        tags,
+    };
+};
+
 export const createDeck = async (title, description, folderId, tagIds = [], classId = null) => {
-    return await authFetch('/decks', {
-        method: 'POST',
-        body: JSON.stringify({ title, description, folder_id: folderId, tagIds, class_id: classId })
-    });
+    validateDeck(title, description);
+
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('decks')
+        .insert({
+            user_id: userId,
+            title,
+            description: description || '',
+            folder_id: folderId || null,
+            class_id: classId || null,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+
+    if (tagIds.length > 0) {
+        const { error: deckTagsError } = await supabase
+            .from('deck_tags')
+            .insert(tagIds.map((tagId) => ({ deck_id: data.id, tag_id: tagId })));
+        if (deckTagsError) _sbThrow(deckTagsError);
+    }
+
+    return data;
 };
 
 export const updateDeck = async (id, title, description, folderId, tagIds = [], classId = null) => {
-    return await authFetch(`/decks/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ title, description, folder_id: folderId, tagIds, class_id: classId })
+    validateDeck(title, description);
+
+    const deckId = Number(id);
+    const { data, error } = await supabase
+        .from('decks')
+        .update({
+            title,
+            description: description || '',
+            folder_id: folderId || null,
+            class_id: classId || null,
+        })
+        .eq('id', deckId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+
+    const { error: deleteTagsError } = await supabase
+        .from('deck_tags')
+        .delete()
+        .eq('deck_id', deckId);
+    if (deleteTagsError) _sbThrow(deleteTagsError);
+
+    if (tagIds.length > 0) {
+        const { error: insertTagsError } = await supabase
+            .from('deck_tags')
+            .insert(tagIds.map((tagId) => ({ deck_id: deckId, tag_id: tagId })));
+        if (insertTagsError) _sbThrow(insertTagsError);
+    }
+
+    return data;
+};
+
+export const deleteDeck = async (id) => {
+    const { error } = await supabase
+        .from('decks')
+        .delete()
+        .eq('id', Number(id));
+    if (error) _sbThrow(error);
+    return { message: 'Deck deleted' };
+};
+
+export const duplicateDeck = async (id) => {
+    const [sourceDeck, userId] = await Promise.all([
+        getDeck(id),
+        getAppUserId(),
+    ]);
+
+    if (sourceDeck.user_id !== userId) {
+        const error = new Error('Not authorized');
+        error.status = 403;
+        throw error;
+    }
+
+    const { data: newDeck, error } = await supabase
+        .from('decks')
+        .insert({
+            user_id: userId,
+            title: `${sourceDeck.title} (Copy)`,
+            description: sourceDeck.description || '',
+            folder_id: sourceDeck.folder_id || null,
+            class_id: sourceDeck.class_id || null,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+
+    if (sourceDeck.cards?.length > 0) {
+        const { error: cardsError } = await supabase
+            .from('cards')
+            .insert(sourceDeck.cards.map((card) => ({
+                deck_id: newDeck.id,
+                front: card.front || '',
+                back: card.back || '',
+                front_image: card.front_image || null,
+                back_image: card.back_image || null,
+                position: card.position || 0,
+            })));
+        if (cardsError) _sbThrow(cardsError);
+    }
+
+    if (sourceDeck.tags?.length > 0) {
+        const { error: tagsError } = await supabase
+            .from('deck_tags')
+            .insert(sourceDeck.tags.map((tag) => ({
+                deck_id: newDeck.id,
+                tag_id: tag.id,
+            })));
+        if (tagsError) _sbThrow(tagsError);
+    }
+
+    return newDeck;
+};
+
+export const addCard = async (deckId, front, back, front_image = null, back_image = null) => {
+    validateCardContent(front, back, front_image, back_image);
+
+    const numericDeckId = Number(deckId);
+    const { data: cards, error: cardsError } = await supabase
+        .from('cards')
+        .select('position')
+        .eq('deck_id', numericDeckId);
+    if (cardsError) _sbThrow(cardsError);
+
+    const maxPosition = (cards || []).reduce((max, card) => Math.max(max, card.position || 0), -1);
+    const { data, error } = await supabase
+        .from('cards')
+        .insert({
+            deck_id: numericDeckId,
+            front: front || '',
+            back: back || '',
+            front_image: front_image || null,
+            back_image: back_image || null,
+            position: maxPosition + 1,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateCard = async (id, front, back, front_image, back_image) => {
+    validateCardContent(front, back, front_image, back_image);
+
+    const updates = {
+        front: front || '',
+        back: back || '',
+    };
+    if (front_image !== undefined) updates.front_image = front_image;
+    if (back_image !== undefined) updates.back_image = back_image;
+
+    const { data, error } = await supabase
+        .from('cards')
+        .update(updates)
+        .eq('id', Number(id))
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteCard = async (id) => {
+    const { error } = await supabase
+        .from('cards')
+        .delete()
+        .eq('id', Number(id));
+    if (error) _sbThrow(error);
+    return { message: 'Card deleted' };
+};
+
+export const reviewCard = async (id, correct) => {
+    const cardId = Number(id);
+    const { data: card, error: cardError } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('id', cardId)
+        .single();
+    if (cardError) _sbThrow(cardError);
+
+    const currentDifficulty = card.difficulty || 0;
+    const nextDifficulty = correct
+        ? Math.min(5, currentDifficulty + 1)
+        : Math.max(0, currentDifficulty - 1);
+    const intervals = [1, 3, 7, 14, 30, 60];
+    const now = new Date();
+    const nextReview = new Date(now);
+    nextReview.setDate(nextReview.getDate() + intervals[nextDifficulty]);
+
+    const { data, error } = await supabase
+        .from('cards')
+        .update({
+            difficulty: nextDifficulty,
+            times_reviewed: (card.times_reviewed || 0) + 1,
+            times_correct: correct ? (card.times_correct || 0) + 1 : (card.times_correct || 0),
+            last_reviewed: now.toISOString(),
+            next_review: nextReview.toISOString(),
+        })
+        .eq('id', cardId)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const reorderCards = async (deckId, cardIds) => {
+    if (!Array.isArray(cardIds)) {
+        const error = new Error('cardIds array is required');
+        error.status = 400;
+        throw error;
+    }
+
+    await Promise.all(cardIds.map(async (cardId, position) => {
+        const { error } = await supabase
+            .from('cards')
+            .update({ position })
+            .eq('id', Number(cardId));
+        if (error) _sbThrow(error);
+    }));
+
+    return { message: 'Cards reordered' };
+};
+
+export const saveStudySession = async (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) => {
+    const numericDeckId = Number(deckId);
+    const { data, error } = await supabase
+        .from('study_sessions')
+        .insert({
+            deck_id: numericDeckId,
+            cards_studied: cardsStudied || 0,
+            cards_correct: cardsCorrect || 0,
+            duration_seconds: durationSeconds || 0,
+            session_type: sessionType || 'study',
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+
+    const { error: deckError } = await supabase
+        .from('decks')
+        .update({ last_studied: new Date().toISOString() })
+        .eq('id', numericDeckId);
+    if (deckError) _sbThrow(deckError);
+
+    return data;
+};
+
+export const getDeckStats = async (deckId) => {
+    const numericDeckId = Number(deckId);
+    const [{ data: sessions, error: sessionsError }, { data: cards, error: cardsError }] = await Promise.all([
+        supabase
+            .from('study_sessions')
+            .select('*')
+            .eq('deck_id', numericDeckId)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('cards')
+            .select('*')
+            .eq('deck_id', numericDeckId),
+    ]);
+
+    if (sessionsError) _sbThrow(sessionsError);
+    if (cardsError) _sbThrow(cardsError);
+
+    const sessionRows = sessions || [];
+    const cardRows = cards || [];
+    const totalStudied = sessionRows.reduce((sum, session) => sum + (session.cards_studied || 0), 0);
+    const totalCorrect = sessionRows.reduce((sum, session) => sum + (session.cards_correct || 0), 0);
+    const totalTime = sessionRows.reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
+
+    const cardsByDifficulty = {
+        new: cardRows.filter((card) => (card.times_correct || 0) === 0 && (card.times_reviewed || 0) === 0).length,
+        learning: cardRows.filter((card) => (card.times_reviewed || 0) > 0 && (card.times_correct || 0) < 2).length,
+        familiar: cardRows.filter((card) => (card.times_correct || 0) >= 2 && (card.times_correct || 0) < 5).length,
+        mastered: cardRows.filter((card) => (card.times_correct || 0) >= 5).length,
+    };
+
+    return {
+        totalSessions: sessionRows.length,
+        totalCardsStudied: totalStudied,
+        totalStudied,
+        totalCorrect,
+        accuracy: totalStudied > 0 ? Math.round((totalCorrect / totalStudied) * 100) : 0,
+        totalTimeSeconds: totalTime,
+        totalTime,
+        cardCount: cardRows.length,
+        masteredCount: cardsByDifficulty.mastered,
+        cardsByDifficulty,
+        recentSessions: sessionRows.slice(0, 10),
+    };
+};
+
+export const getThemes = async () => {
+    const { data, error } = await supabase.from('themes').select('*');
+    if (error) _sbThrow(error);
+
+    return (data || []).sort((left, right) => {
+        const defaultDelta = Number(right.is_default) - Number(left.is_default);
+        if (defaultDelta !== 0) return defaultDelta;
+        return (left.name || '').localeCompare(right.name || '');
     });
 };
-export const deleteDeck = (id) => authFetch(`/decks/${id}`, { method: 'DELETE' });
-export const duplicateDeck = (id) => authFetch(`/decks/${id}/duplicate`, { method: 'POST' });
 
-export const addCard = (deckId, front, back, front_image = null, back_image = null) => authFetch(`/decks/${deckId}/cards`, {
-    method: 'POST',
-    body: JSON.stringify({ front, back, front_image, back_image }),
-});
-export const updateCard = (id, front, back, front_image, back_image) => authFetch(`/cards/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ front, back, front_image, back_image }),
-});
-export const deleteCard = (id) => authFetch(`/cards/${id}`, { method: 'DELETE' });
+export const createTheme = async (themeData) => {
+    const userId = await getAppUserId();
+    const payload = {
+        user_id: userId,
+        name: themeData.name,
+        bg_color: themeData.bg_color,
+        surface_color: themeData.surface_color,
+        text_color: themeData.text_color,
+        secondary_text_color: themeData.secondary_text_color,
+        border_color: themeData.border_color,
+        accent_color: themeData.accent_color,
+        font_family_display: themeData.font_family_display || 'Cormorant Garamond',
+        font_family_body: themeData.font_family_body || 'Lora',
+        is_active: 0,
+        is_default: 0,
+    };
 
-export const reviewCard = (id, correct) => authFetch(`/cards/${id}/review`, {
-    method: 'PUT',
-    body: JSON.stringify({ correct }),
-});
+    const { data, error } = await supabase
+        .from('themes')
+        .insert(payload)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
 
-export const reorderCards = (deckId, cardIds) => authFetch(`/decks/${deckId}/cards/reorder`, {
-    method: 'PUT',
-    body: JSON.stringify({ cardIds }),
-});
+export const updateTheme = async (id, themeData) => {
+    const updates = {};
+    if (themeData.name !== undefined) updates.name = themeData.name;
+    if (themeData.bg_color !== undefined) updates.bg_color = themeData.bg_color;
+    if (themeData.surface_color !== undefined) updates.surface_color = themeData.surface_color;
+    if (themeData.text_color !== undefined) updates.text_color = themeData.text_color;
+    if (themeData.secondary_text_color !== undefined) updates.secondary_text_color = themeData.secondary_text_color;
+    if (themeData.border_color !== undefined) updates.border_color = themeData.border_color;
+    if (themeData.accent_color !== undefined) updates.accent_color = themeData.accent_color;
+    if (themeData.font_family_display !== undefined) updates.font_family_display = themeData.font_family_display;
+    if (themeData.font_family_body !== undefined) updates.font_family_body = themeData.font_family_body;
 
-export const saveStudySession = (deckId, cardsStudied, cardsCorrect, durationSeconds, sessionType) =>
-    authFetch(`/study-sessions`, {
-        method: 'POST',
-        body: JSON.stringify({
-            deck_id: deckId,
-            cards_studied: cardsStudied,
-            cards_correct: cardsCorrect,
-            duration_seconds: durationSeconds,
-            session_type: sessionType,
-        }),
-    });
+    const { data, error } = await supabase
+        .from('themes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
 
-export const getDeckStats = (deckId) => safeFetchObject(authFetch(`/decks/${deckId}/stats`), {});
+export const activateTheme = async (id) => {
+    const userId = await getAppUserId();
 
-export const getThemes = () => safeFetchArray(authFetch('/themes'));
-export const createTheme = (themeData) => authFetch('/themes', {
-    method: 'POST',
-    body: JSON.stringify(themeData),
-});
-export const updateTheme = (id, themeData) => authFetch(`/themes/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(themeData),
-});
-export const activateTheme = (id) => authFetch(`/themes/${id}/activate`, { method: 'PUT' });
-export const deleteTheme = (id) => authFetch(`/themes/${id}`, { method: 'DELETE' });
+    const { error: clearError } = await supabase
+        .from('themes')
+        .update({ is_active: 0 })
+        .eq('user_id', userId);
+    if (clearError) _sbThrow(clearError);
+
+    const { data, error } = await supabase
+        .from('themes')
+        .update({ is_active: 1 })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteTheme = async (id) => {
+    const { error } = await supabase.from('themes').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Theme deleted' };
+};
 
 // ============ SHARING ENDPOINTS ============
 
@@ -677,22 +1143,195 @@ export const reportContent = (reportData) => authFetch('/reports', {
 
 // ============ DIRECT MESSAGES ============
 
-export const getConversations = () => safeFetchArray(authFetch('/messages/conversations'));
-export const getMessages = (userId, limit, before) => {
-    let url = `/messages/${userId}?limit=${limit || 50}`;
-    if (before) url += `&before=${encodeURIComponent(before)}`;
-    return safeFetchArray(authFetch(url));
+const mapMessageRow = (row, currentUser) => ({
+    id: row.id,
+    senderId: row.sender_id,
+    receiverId: row.receiver_id,
+    senderUsername: row.sender_id === currentUser.id ? currentUser.username || null : null,
+    senderAvatar: row.sender_id === currentUser.id ? currentUser.avatar || null : null,
+    content: row.content,
+    messageType: row.message_type || 'text',
+    deckData: parseJsonish(row.deck_data),
+    imageUrl: row.image_url || null,
+    isEdited: Boolean(row.is_edited),
+    isRead: Boolean(row.is_read),
+    createdAt: row.created_at,
+    isMine: row.sender_id === currentUser.id,
+});
+
+export const getConversations = async () => {
+    const currentUser = await getMe();
+    const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+        .order('created_at', { ascending: false });
+    if (error) _sbThrow(error);
+
+    const messages = data || [];
+    const grouped = new Map();
+
+    for (const message of messages) {
+        const otherUserId = message.sender_id === currentUser.id
+            ? message.receiver_id
+            : message.sender_id;
+        const existing = grouped.get(otherUserId);
+
+        if (!existing) {
+            grouped.set(otherUserId, {
+                userId: otherUserId,
+                lastMessage: message.content,
+                lastMessageType: message.message_type || 'text',
+                lastMessageAt: message.created_at,
+                isOwnMessage: message.sender_id === currentUser.id,
+                unreadCount: message.receiver_id === currentUser.id && !message.is_read ? 1 : 0,
+            });
+            continue;
+        }
+
+        if (message.receiver_id === currentUser.id && !message.is_read) {
+            existing.unreadCount += 1;
+        }
+    }
+
+    const profiles = await Promise.all([...grouped.keys()].map(async (userId) => {
+        const profile = await getUserProfile(userId);
+        return [userId, profile];
+    }));
+    const profileMap = new Map(profiles);
+
+    return [...grouped.values()]
+        .map((conversation) => ({
+            ...conversation,
+            username: profileMap.get(conversation.userId)?.username || 'Unknown',
+            avatar: profileMap.get(conversation.userId)?.avatar || null,
+        }))
+        .sort((left, right) => new Date(right.lastMessageAt) - new Date(left.lastMessageAt));
 };
-export const sendMessage = (receiverId, content, messageType = 'text', deckData = null, imageUrl = null) => authFetch('/messages', {
-    method: 'POST',
-    body: JSON.stringify({ receiverId, content, messageType, deckData, imageUrl }),
-});
-export const editMessage = (id, content) => authFetch(`/messages/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ content }),
-});
-export const deleteMessage = (id) => authFetch(`/messages/${id}`, { method: 'DELETE' });
-export const getUnreadCount = () => safeFetchObject(authFetch('/messages/unread/count'), { count: 0 });
+
+export const getMessages = async (userId, limit = 50, before) => {
+    const currentUser = await getMe();
+    let query = supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${Number(userId)}),and(sender_id.eq.${Number(userId)},receiver_id.eq.${currentUser.id})`);
+
+    if (before) {
+        query = query.lt('created_at', before);
+    }
+
+    const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(limit || 50);
+    if (error) _sbThrow(error);
+
+    const { error: readError } = await supabase.rpc('mark_messages_read', {
+        other_user_id: Number(userId),
+    });
+    if (readError) _sbThrow(readError);
+
+    return (data || [])
+        .slice()
+        .sort((left, right) => new Date(left.created_at) - new Date(right.created_at))
+        .map((row) => mapMessageRow(row, currentUser));
+};
+
+export const sendMessage = async (receiverId, content, messageType = 'text', deckData = null, imageUrl = null) => {
+    if (!receiverId) {
+        const error = new Error('Receiver ID is required');
+        error.status = 400;
+        throw error;
+    }
+    if (!content && !imageUrl && !deckData) {
+        const error = new Error('Message content, image or deck is required');
+        error.status = 400;
+        throw error;
+    }
+    if (content && typeof content === 'string' && content.trim().length === 0 && !imageUrl && !deckData) {
+        const error = new Error('Message content cannot be empty');
+        error.status = 400;
+        throw error;
+    }
+    if (content && content.length > 5000) {
+        const error = new Error('Message content must be under 5000 characters');
+        error.status = 400;
+        throw error;
+    }
+
+    const currentUser = await getMe();
+    const { data, error } = await supabase
+        .from('messages')
+        .insert({
+            sender_id: currentUser.id,
+            receiver_id: Number(receiverId),
+            content: content || '',
+            message_type: messageType || 'text',
+            deck_data: deckData ? JSON.stringify(deckData) : null,
+            image_url: imageUrl || null,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return mapMessageRow(data, currentUser);
+};
+
+export const editMessage = async (id, content) => {
+    if (!content) {
+        const error = new Error('Message content is required');
+        error.status = 400;
+        throw error;
+    }
+
+    const currentUser = await getMe();
+    const { data, error } = await supabase
+        .from('messages')
+        .update({
+            content,
+            is_edited: 1,
+        })
+        .eq('id', Number(id))
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return mapMessageRow(data, currentUser);
+};
+
+export const deleteMessage = async (id) => {
+    const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', Number(id));
+    if (error) _sbThrow(error);
+    return { success: true };
+};
+
+export const getUnreadCount = async () => {
+    const currentUser = await getMe();
+    const { count, error } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('receiver_id', currentUser.id)
+        .eq('is_read', 0);
+    if (error) _sbThrow(error);
+    return { count: count || 0 };
+};
+
+export const subscribeToMessages = (currentUserId, handlers = {}) => {
+    const channel = supabase
+        .channel(`messages_${currentUserId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+            handlers.onInsert?.(mapMessageRow(payload.new, { id: currentUserId }));
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+            handlers.onUpdate?.(mapMessageRow(payload.new, { id: currentUserId }));
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+            handlers.onDelete?.(mapMessageRow(payload.old, { id: currentUserId }));
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
 
 // ============ STUDY GROUPS ============
 
@@ -919,6 +1558,7 @@ export default {
     editMessage,
     deleteMessage,
     getUnreadCount,
+    subscribeToMessages,
     generateAiClass,
     adminGetAllUsers,
     adminUpdateUser,

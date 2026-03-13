@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Phase 2 in progress — `classes`, `assignments`, `schedule`, `folders`, and `tags` now use PostgREST end-to-end. Phases 3–4 pending.
+**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass. Phase 3 Edge Function work and broader Phase 4 socket replacement remain.
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -98,8 +98,10 @@ Replace Express CRUD routes with direct Supabase client queries + Row Level Secu
 **No Edge Functions needed for these — PostgREST handles them.**
 
 Completed in code today:
-- `client/src/api/authApi.js` already uses Supabase PostgREST for `folders`, `tags`, `classes`, `assignments`, and `schedule_slots`
-- Legacy Express handlers for `classes`, `assignments`, `schedule`, `folders`, and `tags` have been removed from `server/index.js`
+- `client/src/api/authApi.js` now uses Supabase queries for `folders`, `tags`, `classes`, `assignments`, `schedule_slots`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`
+- `client/src/pages/Messages.jsx` now consumes Supabase Realtime for DM inserts/updates/deletes while keeping Socket.io only for typing indicators
+- Legacy Express handlers for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM CRUD have been removed from `server/index.js`
+- `supabase/migrations/phase2_rls_policies.sql` now includes owner/shared deck policies, card/session policies, DM policies, and the `mark_messages_read` RPC
 
 ### Migration order (simplest first)
 
@@ -209,57 +211,60 @@ CREATE POLICY "owner_all" ON tags FOR ALL
 #### `themes` table
 ```sql
 ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
--- Built-in themes: readable by everyone
-CREATE POLICY "public_read_builtin" ON themes FOR SELECT
-    USING (is_custom = false OR user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()));
-CREATE POLICY "owner_write" ON themes FOR INSERT WITH CHECK (
-    user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid())
-);
-CREATE POLICY "owner_update_delete" ON themes FOR ALL
+CREATE POLICY "owner_all" ON themes FOR ALL
     USING (user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()));
 ```
 
 #### `decks` + `cards` tables
 ```sql
 ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deck_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
 
--- Deck owner
-CREATE POLICY "owner_all" ON decks FOR ALL
-    USING (user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()));
-
--- Group members can read shared decks
-CREATE POLICY "group_member_read" ON decks FOR SELECT
+-- Deck owner can mutate; group members get read-only access to shared decks
+CREATE POLICY "decks_select" ON decks FOR SELECT
     USING (
-        id IN (
-            SELECT deck_id FROM group_decks gd
+        user_id = public.get_app_user_id()
+        OR EXISTS (
+            SELECT 1 FROM group_decks gd
             JOIN group_members gm ON gm.group_id = gd.group_id
-            JOIN users u ON u.id = gm.user_id
-            WHERE u.supabase_auth_id = auth.uid()
+            WHERE gd.deck_id = decks.id
+              AND gm.user_id = public.get_app_user_id()
         )
     );
 
--- Cards follow deck ownership
-CREATE POLICY "deck_owner_all" ON cards FOR ALL
-    USING (
-        deck_id IN (SELECT id FROM decks WHERE user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()))
-    );
+CREATE POLICY "cards_select" ON cards FOR SELECT
+    USING (public.can_read_deck(deck_id));
+CREATE POLICY "cards_write" ON cards FOR ALL
+    USING (public.owns_deck(deck_id));
 ```
 
 #### `study_sessions` table
 ```sql
 ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "owner_all" ON study_sessions FOR ALL
-    USING (user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid()));
+CREATE POLICY "study_sessions_select" ON study_sessions FOR SELECT
+    USING (public.can_read_deck(deck_id));
+CREATE POLICY "study_sessions_write" ON study_sessions FOR ALL
+    USING (public.owns_deck(deck_id));
 ```
 
 #### DM `messages` table
 ```sql
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "sender_or_receiver" ON messages FOR ALL
+CREATE POLICY "messages_select" ON messages FOR SELECT
     USING (
-        sender_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid())
-        OR receiver_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid())
+        (sender_id = public.get_app_user_id() OR receiver_id = public.get_app_user_id())
+        AND public.dm_partner_allowed(
+            CASE
+                WHEN sender_id = public.get_app_user_id() THEN receiver_id
+                ELSE sender_id
+            END
+        )
+    );
+CREATE POLICY "messages_insert" ON messages FOR INSERT
+    WITH CHECK (
+        sender_id = public.get_app_user_id()
+        AND public.dm_partner_allowed(receiver_id)
     );
 ```
 
@@ -665,33 +670,33 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `GET /api/tags` | Complete | 2 | PostgREST |
 | `POST /api/tags` | Complete | 2 | PostgREST |
 | `DELETE /api/tags/:id` | Complete | 2 | PostgREST |
-| `GET /api/decks` | Pending | 2 | PostgREST |
-| `POST /api/decks` | Pending | 2 | PostgREST |
-| `GET /api/decks/:id` | Pending | 2 | PostgREST |
-| `PUT /api/decks/:id` | Pending | 2 | PostgREST |
-| `PUT /api/decks/:id/move` | Pending | 2 | PostgREST |
-| `DELETE /api/decks/:id` | Pending | 2 | PostgREST |
-| `POST /api/decks/:id/duplicate` | Pending | 2 | PostgREST (or Edge Fn) |
-| `POST /api/decks/:id/cards` | Pending | 2 | PostgREST |
-| `PUT /api/cards/:id` | Pending | 2 | PostgREST |
-| `DELETE /api/cards/:id` | Pending | 2 | PostgREST |
-| `PUT /api/cards/:id/progress` | Pending | 2 | PostgREST |
-| `PUT /api/decks/:id/cards/reorder` | Pending | 2 | PostgREST |
-| `PUT /api/cards/:id/review` | Pending | 2 | PostgREST |
-| `POST /api/study-sessions` | Pending | 2 | PostgREST |
-| `GET /api/study-sessions` | Pending | 2 | PostgREST |
-| `GET /api/decks/:id/stats` | Pending | 2 | PostgREST |
-| `GET /api/themes` | Pending | 2 | PostgREST |
-| `POST /api/themes` | Pending | 2 | PostgREST |
-| `DELETE /api/themes/:id` | Pending | 2 | PostgREST |
-| `PUT /api/themes/:id` | Pending | 2 | PostgREST |
-| `PUT /api/themes/:id/activate` | Pending | 2 | PostgREST |
-| `GET /api/messages/conversations` | Pending | 2+4 | PostgREST + Realtime |
-| `GET /api/messages/:userId` | Pending | 2+4 | PostgREST + Realtime |
-| `POST /api/messages` | Pending | 2+4 | PostgREST + Realtime |
-| `PUT /api/messages/:id` | Pending | 2 | PostgREST |
-| `DELETE /api/messages/:id` | Pending | 2 | PostgREST |
-| `GET /api/messages/unread/count` | Pending | 2 | PostgREST |
+| `GET /api/decks` | Complete | 2 | PostgREST |
+| `POST /api/decks` | Complete | 2 | PostgREST |
+| `GET /api/decks/:id` | Complete | 2 | PostgREST |
+| `PUT /api/decks/:id` | Complete | 2 | PostgREST |
+| `PUT /api/decks/:id/move` | Complete | 2 | PostgREST |
+| `DELETE /api/decks/:id` | Complete | 2 | PostgREST |
+| `POST /api/decks/:id/duplicate` | Complete | 2 | PostgREST |
+| `POST /api/decks/:id/cards` | Complete | 2 | PostgREST |
+| `PUT /api/cards/:id` | Complete | 2 | PostgREST |
+| `DELETE /api/cards/:id` | Complete | 2 | PostgREST |
+| `PUT /api/cards/:id/progress` | Complete | 2 | PostgREST |
+| `PUT /api/decks/:id/cards/reorder` | Complete | 2 | PostgREST |
+| `PUT /api/cards/:id/review` | Complete | 2 | PostgREST |
+| `POST /api/study-sessions` | Complete | 2 | PostgREST |
+| `GET /api/study-sessions` | Complete | 2 | PostgREST |
+| `GET /api/decks/:id/stats` | Complete | 2 | PostgREST |
+| `GET /api/themes` | Complete | 2 | PostgREST |
+| `POST /api/themes` | Complete | 2 | PostgREST |
+| `DELETE /api/themes/:id` | Complete | 2 | PostgREST |
+| `PUT /api/themes/:id` | Complete | 2 | PostgREST |
+| `PUT /api/themes/:id/activate` | Complete | 2 | PostgREST |
+| `GET /api/messages/conversations` | Complete | 2+4 | PostgREST + Realtime |
+| `GET /api/messages/:userId` | Complete | 2+4 | PostgREST + Realtime |
+| `POST /api/messages` | Complete | 2+4 | PostgREST + Realtime |
+| `PUT /api/messages/:id` | Complete | 2 | PostgREST |
+| `DELETE /api/messages/:id` | Complete | 2 | PostgREST |
+| `GET /api/messages/unread/count` | Complete | 2 | PostgREST |
 | `GET /api/auth/register` | Complete ✅ | 1 | Supabase Auth |
 | `POST /api/auth/login` | Complete ✅ | 1 | Supabase Auth |
 | `POST /api/auth/oauth/google` | Complete ✅ | 1 | Supabase Auth |
