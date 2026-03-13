@@ -1119,18 +1119,125 @@ export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-da
 
 // ============ SOCIAL / FRIENDS ============
 
-export const searchUsers = (query) => safeFetchArray(authFetch(`/users/search?q=${encodeURIComponent(query)}`));
-export const getUserProfile = (userId) => authFetch(`/users/${userId}`);
-export const getFriends = () => safeFetchArray(authFetch('/friends'));
-export const sendFriendRequest = (userId) => authFetch('/friends/request', {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-});
-export const acceptFriendRequest = (userId) => authFetch('/friends/accept', {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-});
-export const removeFriend = (userId) => authFetch(`/friends/${userId}`, { method: 'DELETE' });
+const normalizeRoleFlags = (row) => {
+    const role = row.role || (row.is_owner ? 'owner' : row.is_admin ? 'admin' : 'user');
+    const isOwner = Boolean(row.is_owner || role === 'owner');
+    const isAdmin = Boolean(row.is_admin || isOwner || role === 'admin');
+
+    return { role, isAdmin, isOwner };
+};
+
+const mapSocialUserRow = (row) => {
+    const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
+
+    return {
+        id: row.id,
+        username: row.username,
+        avatar: row.avatar || null,
+        banner: row.banner || null,
+        bio: row.bio || '',
+        shareCode: row.share_code || null,
+        role,
+        isAdmin,
+        isOwner,
+    };
+};
+
+const mapPublicProfileRow = (row) => {
+    const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
+
+    return {
+        id: row.id,
+        username: row.username,
+        avatar: row.avatar || null,
+        banner: row.banner || null,
+        bio: row.bio || '',
+        shareCode: row.share_code || null,
+        createdAt: row.created_at || null,
+        role,
+        isAdmin,
+        isOwner,
+        deckCount: Number(row.deck_count || 0),
+        friendshipStatus: row.friendship_status || null,
+        friendshipDirection: row.friendship_direction || null,
+    };
+};
+
+const mapFriendRow = (row) => {
+    const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
+
+    return {
+        id: row.id,
+        username: row.username,
+        avatar: row.avatar || null,
+        bio: row.bio || '',
+        status: row.status,
+        role,
+        isAdmin,
+        isOwner,
+        isOutgoing: Boolean(row.is_outgoing),
+        createdAt: row.created_at || null,
+    };
+};
+
+export const searchUsers = async (query) => {
+    const trimmedQuery = (query || '').trim();
+    if (trimmedQuery.length < 2) {
+        return [];
+    }
+
+    const { data, error } = await supabase.rpc('search_public_users', {
+        search_query: trimmedQuery,
+    });
+    if (error) _sbThrow(error);
+    return (data || []).map(mapSocialUserRow);
+};
+
+export const getUserProfile = async (userId) => {
+    const { data, error } = await supabase.rpc('get_public_user_profile', {
+        target_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+
+    const profileRow = Array.isArray(data) ? data[0] : data;
+    if (!profileRow) {
+        const err = new Error('User not found');
+        err.status = 404;
+        throw err;
+    }
+
+    return mapPublicProfileRow(profileRow);
+};
+
+export const getFriends = async () => {
+    const { data, error } = await supabase.rpc('list_friends');
+    if (error) _sbThrow(error);
+    return (data || []).map(mapFriendRow);
+};
+
+export const sendFriendRequest = async (userId) => {
+    const { data, error } = await supabase.rpc('send_friend_request', {
+        target_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'Friend request sent' };
+};
+
+export const acceptFriendRequest = async (userId) => {
+    const { data, error } = await supabase.rpc('accept_friend_request', {
+        requester_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'Friend request accepted' };
+};
+
+export const removeFriend = async (userId) => {
+    const { data, error } = await supabase.rpc('remove_friendship', {
+        target_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'Friend removed' };
+};
 
 // ============ MODERATION (BLOCKS & REPORTS) ============
 export const blockUser = (userId) => authFetch(`/users/${userId}/block`, { method: 'POST' });

@@ -37,6 +37,369 @@ BEGIN
 END;
 $$;
 
+
+-- ========== SOCIAL / FRIENDSHIPS ==========
+
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS users_select_self ON public.users;
+CREATE POLICY users_select_self ON public.users
+  FOR SELECT USING (id = public.get_app_user_id());
+
+
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS friendships_select_participants ON public.friendships;
+CREATE POLICY friendships_select_participants ON public.friendships
+  FOR SELECT USING (
+    user_id = public.get_app_user_id()
+    OR friend_id = public.get_app_user_id()
+  );
+
+DROP POLICY IF EXISTS friendships_insert_sender ON public.friendships;
+CREATE POLICY friendships_insert_sender ON public.friendships
+  FOR INSERT WITH CHECK (
+    user_id = public.get_app_user_id()
+    AND friend_id <> public.get_app_user_id()
+  );
+
+DROP POLICY IF EXISTS friendships_update_participants ON public.friendships;
+CREATE POLICY friendships_update_participants ON public.friendships
+  FOR UPDATE USING (
+    user_id = public.get_app_user_id()
+    OR friend_id = public.get_app_user_id()
+  );
+
+DROP POLICY IF EXISTS friendships_delete_participants ON public.friendships;
+CREATE POLICY friendships_delete_participants ON public.friendships
+  FOR DELETE USING (
+    user_id = public.get_app_user_id()
+    OR friend_id = public.get_app_user_id()
+  );
+
+
+ALTER TABLE public.user_blocks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS user_blocks_select_owner ON public.user_blocks;
+CREATE POLICY user_blocks_select_owner ON public.user_blocks
+  FOR SELECT USING (blocker_id = public.get_app_user_id());
+
+DROP POLICY IF EXISTS user_blocks_insert_owner ON public.user_blocks;
+CREATE POLICY user_blocks_insert_owner ON public.user_blocks
+  FOR INSERT WITH CHECK (
+    blocker_id = public.get_app_user_id()
+    AND blocked_id <> public.get_app_user_id()
+  );
+
+DROP POLICY IF EXISTS user_blocks_delete_owner ON public.user_blocks;
+CREATE POLICY user_blocks_delete_owner ON public.user_blocks
+  FOR DELETE USING (blocker_id = public.get_app_user_id());
+
+
+CREATE OR REPLACE FUNCTION public.search_public_users(search_query text)
+RETURNS TABLE (
+  id integer,
+  username text,
+  avatar text,
+  banner text,
+  bio text,
+  share_code text,
+  role text,
+  is_admin boolean,
+  is_owner boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  WITH app_user_ctx AS (
+    SELECT public.get_app_user_id() AS id
+  ),
+  candidates AS (
+    SELECT
+      u.id,
+      u.username,
+      u.avatar,
+      u.banner,
+      COALESCE(u.bio, '') AS bio,
+      u.share_code,
+      COALESCE(u.role, CASE WHEN COALESCE(u.is_admin, 0) = 1 THEN 'admin' ELSE 'user' END) AS resolved_role
+    FROM public.users u
+    CROSS JOIN app_user_ctx cu
+    WHERE cu.id IS NOT NULL
+      AND LENGTH(TRIM(COALESCE(search_query, ''))) >= 2
+      AND u.id <> cu.id
+      AND (
+        LOWER(u.username) LIKE LOWER('%' || TRIM(search_query) || '%')
+        OR UPPER(COALESCE(u.share_code, '')) = UPPER(TRIM(search_query))
+      )
+  )
+  SELECT
+    c.id,
+    c.username,
+    c.avatar,
+    c.banner,
+    c.bio,
+    c.share_code,
+    c.resolved_role AS role,
+    (c.resolved_role IN ('admin', 'owner')) AS is_admin,
+    (c.resolved_role = 'owner') AS is_owner
+  FROM candidates c
+  ORDER BY c.username ASC
+  LIMIT 20
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_public_user_profile(target_user_id integer)
+RETURNS TABLE (
+  id integer,
+  username text,
+  avatar text,
+  banner text,
+  bio text,
+  share_code text,
+  created_at timestamp,
+  role text,
+  is_admin boolean,
+  is_owner boolean,
+  deck_count integer,
+  friendship_status text,
+  friendship_direction text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  WITH app_user_ctx AS (
+    SELECT public.get_app_user_id() AS id
+  ),
+  friendships_for_target AS (
+    SELECT f.*
+    FROM public.friendships f
+    CROSS JOIN app_user_ctx cu
+    WHERE cu.id IS NOT NULL
+      AND (
+        (f.user_id = cu.id AND f.friend_id = target_user_id)
+        OR (f.user_id = target_user_id AND f.friend_id = cu.id)
+      )
+    LIMIT 1
+  ),
+  target_user AS (
+    SELECT
+      u.id,
+      u.username,
+      u.avatar,
+      u.banner,
+      COALESCE(u.bio, '') AS bio,
+      u.share_code,
+      u.created_at,
+      COALESCE(u.role, CASE WHEN COALESCE(u.is_admin, 0) = 1 THEN 'admin' ELSE 'user' END) AS resolved_role
+    FROM public.users u
+    WHERE u.id = target_user_id
+  )
+  SELECT
+    tu.id,
+    tu.username,
+    tu.avatar,
+    tu.banner,
+    tu.bio,
+    tu.share_code,
+    tu.created_at,
+    tu.resolved_role AS role,
+    (tu.resolved_role IN ('admin', 'owner')) AS is_admin,
+    (tu.resolved_role = 'owner') AS is_owner,
+    COALESCE((SELECT COUNT(*)::integer FROM public.decks d WHERE d.user_id = tu.id), 0) AS deck_count,
+    fft.status AS friendship_status,
+    CASE
+      WHEN fft.user_id = (SELECT id FROM app_user_ctx) THEN 'outgoing'
+      WHEN fft.user_id IS NOT NULL THEN 'incoming'
+      ELSE NULL
+    END AS friendship_direction
+  FROM target_user tu
+  LEFT JOIN friendships_for_target fft ON TRUE
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_friends()
+RETURNS TABLE (
+  id integer,
+  username text,
+  avatar text,
+  bio text,
+  status text,
+  role text,
+  is_admin boolean,
+  is_owner boolean,
+  is_outgoing boolean,
+  created_at timestamp
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  WITH app_user_ctx AS (
+    SELECT public.get_app_user_id() AS id
+  ),
+  friendships_with_profiles AS (
+    SELECT
+      u.id,
+      u.username,
+      u.avatar,
+      COALESCE(u.bio, '') AS bio,
+      f.status,
+      f.user_id AS requester_id,
+      f.created_at,
+      COALESCE(u.role, CASE WHEN COALESCE(u.is_admin, 0) = 1 THEN 'admin' ELSE 'user' END) AS resolved_role
+    FROM public.friendships f
+    JOIN app_user_ctx cu ON (f.user_id = cu.id OR f.friend_id = cu.id)
+    JOIN public.users u ON (CASE WHEN f.user_id = cu.id THEN f.friend_id ELSE f.user_id END) = u.id
+  )
+  SELECT
+    fwp.id,
+    fwp.username,
+    fwp.avatar,
+    fwp.bio,
+    fwp.status,
+    fwp.resolved_role AS role,
+    (fwp.resolved_role IN ('admin', 'owner')) AS is_admin,
+    (fwp.resolved_role = 'owner') AS is_owner,
+    (fwp.requester_id = (SELECT id FROM app_user_ctx)) AS is_outgoing,
+    fwp.created_at
+  FROM friendships_with_profiles fwp
+  ORDER BY fwp.created_at DESC
+$$;
+
+CREATE OR REPLACE FUNCTION public.send_friend_request(target_user_id integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  current_user_is_banned boolean := FALSE;
+  target_username text;
+  existing_status text;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  IF target_user_id = current_user_id THEN
+    RAISE EXCEPTION 'Cannot friend yourself';
+  END IF;
+
+  SELECT COALESCE(is_banned, FALSE)
+  INTO current_user_is_banned
+  FROM public.users
+  WHERE id = current_user_id;
+
+  IF current_user_is_banned THEN
+    RAISE EXCEPTION 'Your account has been restricted from social features.';
+  END IF;
+
+  SELECT username
+  INTO target_username
+  FROM public.users
+  WHERE id = target_user_id;
+
+  IF target_username IS NULL THEN
+    RAISE EXCEPTION 'Unable to send friend request';
+  END IF;
+
+  SELECT status
+  INTO existing_status
+  FROM public.friendships
+  WHERE (user_id = current_user_id AND friend_id = target_user_id)
+     OR (user_id = target_user_id AND friend_id = current_user_id)
+  LIMIT 1;
+
+  IF existing_status = 'accepted' THEN
+    RAISE EXCEPTION 'Already friends';
+  END IF;
+
+  IF existing_status = 'pending' THEN
+    RAISE EXCEPTION 'Friend request already pending';
+  END IF;
+
+  INSERT INTO public.friendships (user_id, friend_id, status)
+  VALUES (current_user_id, target_user_id, 'pending');
+
+  RETURN jsonb_build_object('message', 'Friend request sent', 'username', target_username);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.accept_friend_request(requester_user_id integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  request_exists boolean := FALSE;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF requester_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.friendships
+    WHERE user_id = requester_user_id
+      AND friend_id = current_user_id
+      AND status = 'pending'
+  )
+  INTO request_exists;
+
+  IF NOT request_exists THEN
+    RAISE EXCEPTION 'No pending request found';
+  END IF;
+
+  UPDATE public.friendships
+  SET status = 'accepted'
+  WHERE user_id = requester_user_id
+    AND friend_id = current_user_id;
+
+  RETURN jsonb_build_object('message', 'Friend request accepted');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.remove_friendship(target_user_id integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  DELETE FROM public.friendships
+  WHERE (user_id = current_user_id AND friend_id = target_user_id)
+     OR (user_id = target_user_id AND friend_id = current_user_id);
+
+  RETURN jsonb_build_object('message', 'Friend removed');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.search_public_users(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_public_user_profile(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_friends() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.send_friend_request(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.accept_friend_request(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.remove_friendship(integer) TO authenticated;
+
 -- ─────────────────────────────────────────────────────
 -- 3. Enable RLS + Create policies + Attach trigger
 -- ─────────────────────────────────────────────────────

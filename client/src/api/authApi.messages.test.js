@@ -47,12 +47,6 @@ describe('authApi direct messages via Supabase', () => {
       if (url.endsWith('/auth/me')) {
         return Promise.resolve(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
       }
-      if (url.endsWith('/users/12')) {
-        return Promise.resolve(buildJsonResponse({ id: 12, username: 'bianca', avatar: '/bianca.png' }));
-      }
-      if (url.endsWith('/users/18')) {
-        return Promise.resolve(buildJsonResponse({ id: 18, username: 'marcus', avatar: '/marcus.png' }));
-      }
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -69,6 +63,21 @@ describe('authApi direct messages via Supabase', () => {
     const select = vi.fn().mockReturnValue({ or });
 
     supabase.from.mockReturnValue({ select });
+    supabase.rpc.mockImplementation((fn, params) => {
+      if (fn === 'get_public_user_profile' && params?.target_user_id === 12) {
+        return Promise.resolve({
+          data: [{ id: 12, username: 'bianca', avatar: '/bianca.png', banner: null, bio: '', share_code: 'BIO12345', created_at: null, role: 'user', is_admin: false, is_owner: false, deck_count: 0, friendship_status: null, friendship_direction: null }],
+          error: null,
+        });
+      }
+      if (fn === 'get_public_user_profile' && params?.target_user_id === 18) {
+        return Promise.resolve({
+          data: [{ id: 18, username: 'marcus', avatar: '/marcus.png', banner: null, bio: '', share_code: 'PHY12345', created_at: null, role: 'user', is_admin: false, is_owner: false, deck_count: 0, friendship_status: null, friendship_direction: null }],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
 
     const conversations = await authApi.getConversations();
 
