@@ -130,6 +130,25 @@ const completeRegistration = async (username) => {
     });
 };
 
+const bootstrapSupabaseSession = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error || !data.session?.access_token) {
+        return null;
+    }
+
+    setToken(data.session.access_token);
+
+    try {
+        const result = await completeRegistration();
+        return { user: result.user };
+    } catch (err) {
+        console.warn('[login] Supabase bootstrap failed after legacy login:', err.message);
+        await supabase.auth.signOut().catch(() => {});
+        setToken(null);
+        return null;
+    }
+};
+
 export const register = async (username, email, password) => {
     const { data, error } = await supabase.auth.signUp({
         email,
@@ -184,7 +203,17 @@ export const login = async (email, password) => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-    if (legacyData.token) setToken(legacyData.token);
+    if (legacyData.require2FA) {
+        return legacyData;
+    }
+
+    if (legacyData.token) {
+        const bootstrappedSession = await bootstrapSupabaseSession(email, password);
+        if (bootstrappedSession?.user) {
+            return bootstrappedSession;
+        }
+        setToken(legacyData.token);
+    }
     else if (legacyData.user) setToken('logged_in');
     return legacyData;
 };
