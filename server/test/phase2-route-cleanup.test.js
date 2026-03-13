@@ -44,15 +44,19 @@ describe('Phase 2 legacy route cleanup', () => {
         dbMock.ready.mockResolvedValue();
     });
 
-    it('does not mount the retired classes, assignments, and schedule Express endpoints', async () => {
-        const [classesResponse, assignmentsResponse, scheduleResponse] = await Promise.all([
+    it('does not mount the retired Phase 2 CRUD Express endpoints', async () => {
+        const [classesResponse, assignmentsResponse, scheduleResponse, foldersResponse, tagsResponse] = await Promise.all([
             request(app).get('/api/classes').set('Authorization', authHeader),
             request(app).get('/api/assignments').set('Authorization', authHeader),
             request(app).get('/api/schedule').set('Authorization', authHeader),
+            request(app).get('/api/folders').set('Authorization', authHeader),
+            request(app).get('/api/tags').set('Authorization', authHeader),
         ]);
 
         expect(classesResponse.status).toBe(404);
         expect(assignmentsResponse.status).toBe(404);
         expect(scheduleResponse.status).toBe(404);
+        expect(foldersResponse.status).toBe(404);
+        expect(tagsResponse.status).toBe(404);
     });
 });

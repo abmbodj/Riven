@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Phase 2 in progress — `classes`, `assignments`, and `schedule` now use PostgREST end-to-end. Phases 3–4 pending.
+**Status:** Phase 1 complete. Phase 2 in progress — `classes`, `assignments`, `schedule`, `folders`, and `tags` now use PostgREST end-to-end. Phases 3–4 pending.
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -98,8 +98,8 @@ Replace Express CRUD routes with direct Supabase client queries + Row Level Secu
 **No Edge Functions needed for these — PostgREST handles them.**
 
 Completed in code today:
-- `client/src/api/authApi.js` already uses Supabase PostgREST for `classes`, `assignments`, and `schedule_slots`
-- Legacy Express registration for `server/routes/classes.js`, `server/routes/assignments.js`, and `server/routes/schedule.js` has been removed from `server/index.js`
+- `client/src/api/authApi.js` already uses Supabase PostgREST for `folders`, `tags`, `classes`, `assignments`, and `schedule_slots`
+- Legacy Express handlers for `classes`, `assignments`, `schedule`, `folders`, and `tags` have been removed from `server/index.js`
 
 ### Migration order (simplest first)
 
@@ -658,13 +658,13 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `GET /api/schedule` | Complete | 2 | PostgREST |
 | `POST /api/schedule` | Complete | 2 | PostgREST |
 | `DELETE /api/schedule/:id` | Complete | 2 | PostgREST |
-| `GET /api/folders` | Pending | 2 | PostgREST |
-| `POST /api/folders` | Pending | 2 | PostgREST |
-| `PUT /api/folders/:id` | Pending | 2 | PostgREST |
-| `DELETE /api/folders/:id` | Pending | 2 | PostgREST |
-| `GET /api/tags` | Pending | 2 | PostgREST |
-| `POST /api/tags` | Pending | 2 | PostgREST |
-| `DELETE /api/tags/:id` | Pending | 2 | PostgREST |
+| `GET /api/folders` | Complete | 2 | PostgREST |
+| `POST /api/folders` | Complete | 2 | PostgREST |
+| `PUT /api/folders/:id` | Complete | 2 | PostgREST |
+| `DELETE /api/folders/:id` | Complete | 2 | PostgREST |
+| `GET /api/tags` | Complete | 2 | PostgREST |
+| `POST /api/tags` | Complete | 2 | PostgREST |
+| `DELETE /api/tags/:id` | Complete | 2 | PostgREST |
 | `GET /api/decks` | Pending | 2 | PostgREST |
 | `POST /api/decks` | Pending | 2 | PostgREST |
 | `GET /api/decks/:id` | Pending | 2 | PostgREST |
