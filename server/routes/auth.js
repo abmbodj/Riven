@@ -851,15 +851,23 @@ module.exports = function registerAuthRoutes({
         }
         const token = authHeader.split(' ')[1];
 
+        if (!process.env.SUPABASE_JWT_SECRET) {
+            console.error('[complete-registration] SUPABASE_JWT_SECRET is not set');
+            return res.status(500).json({ error: 'Server misconfiguration: SUPABASE_JWT_SECRET missing' });
+        }
+
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
         } catch (err) {
-            return res.status(401).json({ error: 'Invalid Supabase token' });
+            console.error('[complete-registration] JWT verify failed:', err.message);
+            return res.status(401).json({ error: 'Invalid Supabase token', detail: err.message });
         }
 
-        if (decoded.aud !== 'authenticated' || !decoded.sub) {
-            return res.status(401).json({ error: 'Invalid Supabase token' });
+        // aud may be a string or array depending on Supabase config
+        const aud = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+        if (!aud.includes('authenticated') || !decoded.sub) {
+            return res.status(401).json({ error: 'Invalid Supabase token: unexpected audience' });
         }
 
         const supabaseAuthId = decoded.sub;
