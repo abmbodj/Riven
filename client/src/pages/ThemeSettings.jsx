@@ -13,7 +13,21 @@ import { FOUNDATION_THEME_NAMES, buildThemeDraft } from '../components/themes/th
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
+const SOFT_GRAIN = 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)';
+
+function matchesMediaQuery(query) {
+    return typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia(query).matches;
+}
+
+function getGrainStyle(opacity = 0.12) {
+    return {
+        backgroundImage: SOFT_GRAIN,
+        backgroundSize: '9px 9px',
+        opacity,
+    };
+}
 
 // Deterministic pseudo-random from a seed (no Math.random() in render)
 function seededRandom(seed) {
@@ -384,6 +398,10 @@ export default function ThemeSettings() {
     const { user } = useAuth();
     const toast = useToast();
     const haptics = useHaptics();
+    const simplifyThemeEffects = useMemo(
+        () => matchesMediaQuery('(max-width: 767px), (prefers-reduced-motion: reduce)'),
+        []
+    );
 
     const [showEditor, setShowEditor] = useState(false);
     const [editingTheme, setEditingTheme] = useState(null);
@@ -488,9 +506,6 @@ export default function ThemeSettings() {
 
     return (
         <div className="max-w-4xl md:max-w-7xl mx-auto pb-32 md:px-12 lg:px-24 relative mb-safe min-h-screen">
-            {/* Background noise */}
-            <div className="fixed inset-0 pointer-events-none opacity-[0.15] z-0 md:mix-blend-overlay" style={{ backgroundImage: NOISE_SVG }} />
-
             {/* Header */}
             <header className="mb-8 pt-8 px-4 md:px-0 flex flex-col md:flex-row md:items-end justify-between gap-8 relative z-10">
                 <Motion.div
@@ -528,7 +543,7 @@ export default function ThemeSettings() {
             {/* Active Theme Hero */}
             {activeTheme && (
                 <div className="px-4 md:px-0 relative z-10 mb-14">
-                    <ActiveThemeHero theme={activeTheme} />
+                    <ActiveThemeHero theme={activeTheme} showTexture={!simplifyThemeEffects} />
                 </div>
             )}
 
@@ -541,6 +556,7 @@ export default function ThemeSettings() {
                     activeThemeId={activeTheme?.id}
                     onSelect={(id) => handleSwitchTheme(id, false)}
                     isPro={false}
+                    simplifyMotion={simplifyThemeEffects}
                     carouselIndex={carouselIndices.official}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, official: i }))}
                 />
@@ -551,6 +567,7 @@ export default function ThemeSettings() {
                     activeThemeId={activeTheme?.id}
                     onSelect={(id) => handleSwitchTheme(id, true)}
                     isPro={true}
+                    simplifyMotion={simplifyThemeEffects}
                     carouselIndex={carouselIndices.professional}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, professional: i }))}
                 />
@@ -564,6 +581,7 @@ export default function ThemeSettings() {
                     onEdit={handleEditTheme}
                     onDelete={handleDeleteClick}
                     onCreateNew={handleCreateNew}
+                    simplifyMotion={simplifyThemeEffects}
                     carouselIndex={carouselIndices.custom}
                     onCarouselScroll={(i) => setCarouselIndices(p => ({ ...p, custom: i }))}
                 />
@@ -622,7 +640,7 @@ function getHeroDepthProfile() {
         };
 }
 
-function ActiveThemeHero({ theme }) {
+function ActiveThemeHero({ theme, showTexture }) {
     const heroRef = useRef(null);
     const sceneRef = useRef(null);
     const identityRef = useRef(null);
@@ -912,7 +930,12 @@ function ActiveThemeHero({ theme }) {
             }}
         >
             {/* Noise */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.18] rounded-[2.5rem]" style={{ backgroundImage: NOISE_SVG }} />
+            {showTexture && (
+                <div
+                    className="absolute inset-0 pointer-events-none rounded-[2.5rem]"
+                    style={getGrainStyle(0.12)}
+                />
+            )}
 
             <div
                 ref={sheenRef}
@@ -970,7 +993,7 @@ function ActiveThemeHero({ theme }) {
                 </div>
 
                 {/* Mini UI preview */}
-                <MiniUIPreview theme={theme} containerRef={previewRef} />
+                <MiniUIPreview theme={theme} containerRef={previewRef} showTexture={showTexture} />
             </div>
 
             {/* Inner rim */}
@@ -981,7 +1004,7 @@ function ActiveThemeHero({ theme }) {
 
 // ─── Mini UI Preview ──────────────────────────────────────────────────────────
 
-function MiniUIPreview({ theme, containerRef }) {
+function MiniUIPreview({ theme, containerRef, showTexture }) {
     const archetype = THEME_ARCHETYPES[theme.name] || 'default';
 
     return (
@@ -1005,7 +1028,9 @@ function MiniUIPreview({ theme, containerRef }) {
                 }}
             />
 
-            <div className="absolute inset-0 opacity-[0.1] pointer-events-none" data-depth="6" style={{ backgroundImage: NOISE_SVG }} />
+            {showTexture && (
+                <div className="absolute inset-0 pointer-events-none" data-depth="6" style={getGrainStyle(0.08)} />
+            )}
 
             <div
                 className="absolute -left-12 top-4 h-24 w-40 rounded-full pointer-events-none"
@@ -1116,7 +1141,7 @@ function SectionDivider({ title, subtitle, isPro }) {
 
 // ─── Theme Section ────────────────────────────────────────────────────────────
 
-function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCustom, onEdit, onDelete, isPro, onCreateNew, carouselIndex, onCarouselScroll }) {
+function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCustom, onEdit, onDelete, isPro, onCreateNew, simplifyMotion, carouselIndex, onCarouselScroll }) {
     if (themes.length === 0 && !isCustom) return null;
     if (themes.length === 0 && isCustom) {
         return (
@@ -1149,15 +1174,15 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
             <SectionDivider title={title} subtitle={subtitle} isPro={isPro} />
             <Motion.div
                 variants={container}
-                initial="hidden"
-                animate="show"
+                initial={simplifyMotion ? false : 'hidden'}
+                animate={simplifyMotion ? undefined : 'show'}
                 onScroll={handleScroll}
                 className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none gap-4 md:gap-5 pt-4 md:pt-8 pb-4 px-4 md:px-0 -mx-4 md:mx-0 [&::-webkit-scrollbar]:hidden"
             >
                 {themes.map((theme) => (
                     <Motion.div
                         key={theme.id}
-                        variants={item}
+                        variants={simplifyMotion ? undefined : item}
                         className="snap-center md:snap-align-none shrink-0 w-[72vw] md:w-auto md:shrink"
                     >
                         <ThemeCard
@@ -1167,6 +1192,7 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                             onEdit={onEdit}
                             onDelete={onDelete}
                             isCustom={isCustom}
+                            showAnimatedOverlay={!simplifyMotion && activeThemeId === theme.id}
                         />
                     </Motion.div>
                 ))}
@@ -1190,7 +1216,7 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
 
 // ─── Theme Card ───────────────────────────────────────────────────────────────
 
-function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
+function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, showAnimatedOverlay }) {
     const cardRef = useRef(null);
     const archetype = THEME_ARCHETYPES[theme.name] || 'default';
 
@@ -1236,11 +1262,9 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom }) {
                 className="relative overflow-hidden shrink-0"
                 style={{ height: '54%', backgroundColor: theme.surface_color }}
             >
-                {/* Noise */}
-                <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: NOISE_SVG }} />
-
-                {/* Per-theme animation */}
-                <ThemeAnimationOverlay themeName={theme.name} isHero={false} />
+                {showAnimatedOverlay && (
+                    <ThemeAnimationOverlay themeName={theme.name} isHero={false} />
+                )}
 
                 {/* Signature diagonal accent — varies by archetype */}
                 <CardAccentShape theme={theme} archetype={archetype} isActive={isActive} />
