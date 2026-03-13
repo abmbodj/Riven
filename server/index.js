@@ -169,13 +169,25 @@ io.on('connection', (socket) => {
 
     socket.on('register', (token) => {
         if (!token) return;
+        // Try legacy JWT first
         try {
             const decoded = jwt.verify(token, jwtSecret);
             if (decoded?.id) {
                 connectedUsers.set(parseInt(decoded.id), socket.id);
+                return;
             }
-        } catch (err) {
-            // Invalid token — ignore registration
+        } catch (err) { /* not a legacy JWT */ }
+        // Try Supabase JWT
+        const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
+        if (supabaseJwtSecret) {
+            try {
+                const decoded = jwt.verify(token, supabaseJwtSecret);
+                if (decoded?.sub) {
+                    db.queryOne('SELECT id FROM users WHERE supabase_auth_id = $1', [decoded.sub])
+                        .then(user => { if (user?.id) connectedUsers.set(user.id, socket.id); })
+                        .catch(() => {});
+                }
+            } catch (err) { /* invalid Supabase JWT */ }
         }
     });
 
@@ -301,6 +313,33 @@ async function authMiddleware(req, res, next) {
         return res.status(401).json({ error: 'No token provided' });
     }
 
+    // Try Supabase JWT first (new auth system)
+    const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
+    if (supabaseJwtSecret) {
+        try {
+            const decoded = jwt.verify(token, supabaseJwtSecret);
+            if (decoded.aud === 'authenticated' && decoded.sub) {
+                const dbUser = await db.queryOne(
+                    'SELECT id, email, role, is_admin FROM users WHERE supabase_auth_id = $1',
+                    [decoded.sub]
+                );
+                if (dbUser) {
+                    req.user = {
+                        id: dbUser.id,
+                        email: dbUser.email,
+                        role: dbUser.role || (dbUser.is_admin === 1 ? 'admin' : 'user')
+                    };
+                    return next();
+                }
+                // Supabase token valid but user not yet linked — needs complete-registration
+                return res.status(401).json({ error: 'Account setup required', code: 'ACCOUNT_SETUP_REQUIRED' });
+            }
+        } catch (supabaseErr) {
+            // Not a valid Supabase JWT — fall through to legacy JWT check
+        }
+    }
+
+    // Legacy JWT (custom JWT signed with JWT_SECRET)
     try {
         const decoded = jwt.verify(token, jwtSecret);
         req.user = decoded;

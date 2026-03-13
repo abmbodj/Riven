@@ -838,5 +838,190 @@ module.exports = function registerAuthRoutes({
             res.status(500).json({ error: 'Failed to verify email' });
         }
     });
+
+    // ============ SUPABASE AUTH BRIDGE ============
+
+    // Complete registration for Supabase Auth users.
+    // Called after supabase.auth.signUp() or first OAuth login.
+    // Creates (or links) the app user row in our `users` table.
+    app.post('/api/auth/complete-registration', speedLimiter, authLimiter, async (req, res) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        const token = authHeader.split(' ')[1];
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+        } catch (err) {
+            return res.status(401).json({ error: 'Invalid Supabase token' });
+        }
+
+        if (decoded.aud !== 'authenticated' || !decoded.sub) {
+            return res.status(401).json({ error: 'Invalid Supabase token' });
+        }
+
+        const supabaseAuthId = decoded.sub;
+        const email = decoded.email;
+
+        // Derive username: body > user_metadata.username > full_name slug > email prefix
+        let username = req.body.username
+            || decoded.user_metadata?.username
+            || (decoded.user_metadata?.full_name || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
+            || email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+
+        username = username.slice(0, 30);
+        if (!isValidUsername(username)) {
+            return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
+        }
+
+        try {
+            // Already linked — return existing user
+            const existingLinked = await db.queryOne(
+                'SELECT * FROM users WHERE supabase_auth_id = $1',
+                [supabaseAuthId]
+            );
+            if (existingLinked) {
+                const userRole = existingLinked.role || (existingLinked.is_admin === 1 ? 'admin' : 'user');
+                const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !existingLinked.simulate_free_tier
+                    ? 'lifetime' : (existingLinked.subscription_tier || 'free');
+                return res.json({
+                    user: {
+                        id: existingLinked.id, username: existingLinked.username,
+                        displayName: existingLinked.display_name || existingLinked.username,
+                        email: existingLinked.email, shareCode: existingLinked.share_code,
+                        avatar: existingLinked.avatar, banner: existingLinked.banner,
+                        bio: existingLinked.bio || '', role: userRole,
+                        isAdmin: userRole === 'admin' || userRole === 'owner',
+                        isOwner: userRole === 'owner',
+                        streakData: JSON.parse(existingLinked.streak_data || '{}'),
+                        twoFAEnabled: !!existingLinked.two_fa_enabled,
+                        subscription_tier: effectiveTier,
+                        simulate_free_tier: !!existingLinked.simulate_free_tier,
+                        email_verified: true
+                    }
+                });
+            }
+
+            // Legacy user with same email — link the accounts
+            const existingEmail = await db.queryOne(
+                'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+                [email]
+            );
+            if (existingEmail) {
+                await db.execute(
+                    'UPDATE users SET supabase_auth_id = $1, email_verified = TRUE WHERE id = $2',
+                    [supabaseAuthId, existingEmail.id]
+                );
+                const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [existingEmail.id]);
+                const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+                const effectiveTier = (userRole === 'owner' || userRole === 'admin') && !user.simulate_free_tier
+                    ? 'lifetime' : (user.subscription_tier || 'free');
+                return res.json({
+                    user: {
+                        id: user.id, username: user.username,
+                        displayName: user.display_name || user.username,
+                        email: user.email, shareCode: user.share_code,
+                        avatar: user.avatar, banner: user.banner,
+                        bio: user.bio || '', role: userRole,
+                        isAdmin: userRole === 'admin' || userRole === 'owner',
+                        isOwner: userRole === 'owner',
+                        streakData: JSON.parse(user.streak_data || '{}'),
+                        twoFAEnabled: !!user.two_fa_enabled,
+                        subscription_tier: effectiveTier,
+                        simulate_free_tier: !!user.simulate_free_tier,
+                        email_verified: true
+                    }
+                });
+            }
+
+            // Ensure username is unique
+            let finalUsername = username;
+            let counter = 1;
+            while (await db.queryOne('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [finalUsername])) {
+                finalUsername = `${username}${counter}`;
+                counter++;
+            }
+
+            // Create new user
+            const shareCode = generateShareCode();
+            const displayName = decoded.user_metadata?.full_name || finalUsername;
+            const result = await db.queryOne(
+                'INSERT INTO users (username, display_name, email, supabase_auth_id, share_code, email_verified) VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id',
+                [finalUsername, displayName, email.toLowerCase(), supabaseAuthId, shareCode]
+            );
+            const userId = result.id;
+
+            // Default themes
+            await db.execute(
+                'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                [userId, 'Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 1, 1]
+            );
+            await db.execute(
+                'INSERT INTO themes (user_id, name, bg_color, surface_color, text_color, secondary_text_color, border_color, accent_color, is_active, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                [userId, 'Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 0, 1]
+            );
+
+            // Preset tags
+            const presetTags = [
+                ['Language', '#3b82f6'], ['Science', '#22c55e'], ['Math', '#f59e0b'], ['History', '#8b5cf6'],
+                ['Programming', '#06b6d4'], ['Medical', '#ef4444'], ['Business', '#ec4899'], ['Art', '#f97316']
+            ];
+            for (const [tagName, color] of presetTags) {
+                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, tagName, color]);
+            }
+
+            // Welcome email (fire-and-forget)
+            try {
+                const { sendWelcomeEmail } = require('../utils/email');
+                const baseUrl = process.env.FRONTEND_URL || 'https://riven.rocks';
+                sendWelcomeEmail(email.toLowerCase(), finalUsername, baseUrl).catch(() => {});
+            } catch (e) {}
+
+            res.status(201).json({
+                user: {
+                    id: userId, username: finalUsername, displayName, email: email.toLowerCase(),
+                    shareCode, avatar: null, banner: null, bio: '', role: 'user',
+                    isAdmin: false, isOwner: false, streakData: {}, twoFAEnabled: false,
+                    subscription_tier: 'free', simulate_free_tier: false, email_verified: true
+                }
+            });
+        } catch (error) {
+            console.error('[Auth] complete-registration error:', error);
+            res.status(500).json({ error: 'Registration failed' });
+        }
+    });
+
+    // Link a Supabase account to an existing user (for legacy users upgrading).
+    // Requires a valid legacy JWT in the Authorization header.
+    app.post('/api/auth/link-supabase', authMiddleware, async (req, res) => {
+        const { supabaseAuthId } = req.body;
+        if (!supabaseAuthId) return res.status(400).json({ error: 'supabaseAuthId is required' });
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(supabaseAuthId)) {
+            return res.status(400).json({ error: 'Invalid Supabase auth ID' });
+        }
+
+        try {
+            const existing = await db.queryOne(
+                'SELECT id FROM users WHERE supabase_auth_id = $1',
+                [supabaseAuthId]
+            );
+            if (existing && existing.id !== req.user.id) {
+                return res.status(400).json({ error: 'This Supabase account is already linked to another user' });
+            }
+
+            await db.execute(
+                'UPDATE users SET supabase_auth_id = $1 WHERE id = $2',
+                [supabaseAuthId, req.user.id]
+            );
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[Auth] link-supabase error:', error);
+            res.status(500).json({ error: 'Failed to link account' });
+        }
+    });
 };
 

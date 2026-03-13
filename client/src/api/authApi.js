@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '../lib/supabaseClient';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for production (e.g. Render backend URL)
@@ -110,59 +111,90 @@ const safeFetchObject = async (promise, defaultVal = {}) => {
 
 // ============ AUTH ENDPOINTS ============
 
-export const register = async (username, email, password) => {
-    const data = await authFetch('/auth/register', {
+// Helper: create the app user row after a Supabase Auth signup/OAuth login.
+// The Supabase access token must already be stored via setToken().
+const completeRegistration = async (username) => {
+    return authFetch('/auth/complete-registration', {
         method: 'POST',
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username }),
     });
-    // Token is set as httpOnly cookie AND returned in body
-    if (data.token) {
-        setToken(data.token);
+};
+
+export const register = async (username, email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+    });
+    if (error) throw new Error(error.message);
+
+    // Session available immediately (email confirm disabled) — complete registration now.
+    if (data.session) {
+        setToken(data.session.access_token);
+        const result = await completeRegistration(username);
+        return result.user;
     }
-    return data.user;
+
+    // Email confirmation required — user must verify before logging in.
+    // Return null; the UI should show a "check your email" message.
+    return null;
 };
 
 export const login = async (email, password) => {
+    // Try Supabase Auth first (new users and migrated users)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    const data = await authFetch('/auth/login', {
+    if (!error && data.session) {
+        setToken(data.session.access_token);
+        // Ensure the user row exists in our DB (handles first-time login after migration)
+        try {
+            const result = await completeRegistration();
+            return { user: result.user };
+        } catch (e) {
+            // User row already exists — fetch normally
+            const user = await authFetch('/auth/me');
+            return { user };
+        }
+    }
+
+    // Supabase Auth failed — fall back to legacy Express login (existing users not yet in Supabase)
+    const legacyData = await authFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     });
-
-    // Token is now set as httpOnly cookie by server AND returned in body
-    if (data.token) {
-        setToken(data.token); // Save token for mobile/fallback
-    } else if (data.user) {
-        setToken('logged_in'); // Fallback if no token returned (shouldn't happen now)
-    }
-    // Return the full data object
-    return data;
+    if (legacyData.token) setToken(legacyData.token);
+    else if (legacyData.user) setToken('logged_in');
+    return legacyData;
 };
 
 export const loginWithGoogle = async (credential) => {
-    const data = await authFetch('/auth/oauth/google', {
-        method: 'POST',
-        body: JSON.stringify({ credential }),
+    const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: credential,
     });
-    if (data.token) setToken(data.token);
-    return data;
+    if (error) throw new Error(error.message);
+    setToken(data.session.access_token);
+    const result = await completeRegistration();
+    return { user: result.user };
 };
 
 export const loginWithApple = async (identityToken, user) => {
-    const data = await authFetch('/auth/oauth/apple', {
-        method: 'POST',
-        body: JSON.stringify({ identityToken, user }),
+    const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: identityToken,
     });
-    if (data.token) setToken(data.token);
-    return data;
+    if (error) throw new Error(error.message);
+    setToken(data.session.access_token);
+    const result = await completeRegistration();
+    return { user: result.user };
 };
 
 export const logout = async () => {
-    // Call server to clear httpOnly cookie
     try {
-        await authFetch('/auth/logout', {
-            method: 'POST',
-        });
+        // Sign out of Supabase (clears Supabase session storage)
+        await supabase.auth.signOut();
+        // Also clear legacy httpOnly cookie
+        await authFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
         setToken(null);
     }
@@ -170,6 +202,17 @@ export const logout = async () => {
 
 export const getMe = async () => {
     return authFetch('/auth/me');
+};
+
+// Refresh the stored token from the active Supabase session.
+// Call this on app startup to ensure the token is up to date.
+export const refreshSupabaseToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+        setToken(session.access_token);
+        return session.access_token;
+    }
+    return null;
 };
 
 export const updateProfile = async (updates) => {

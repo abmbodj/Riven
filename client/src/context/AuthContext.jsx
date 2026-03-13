@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import * as authApi from '../api/authApi';
+import { supabase } from '../lib/supabaseClient';
 import { AuthContext, AuthActionsContext } from './authContextDef';
 
 // Re-export for convenience
@@ -18,6 +19,11 @@ export function AuthProvider({ children }) {
     // Initial Session Check
     useEffect(() => {
         const initAuth = async () => {
+            // Restore Supabase session first (handles auto-refresh of expired access tokens)
+            try {
+                await authApi.refreshSupabaseToken();
+            } catch (e) { /* no Supabase session, that's fine */ }
+
             const token = authApi.getToken();
             if (!token) {
                 setLoading(false);
@@ -29,24 +35,34 @@ export function AuthProvider({ children }) {
                 if (userData && userData.id) {
                     setUser(userData);
                 } else {
-                    // Invalid token or session expired
                     authApi.setToken(null);
                     setUser(null);
                 }
             } catch (err) {
                 console.warn('[AuthContext] Session check failed:', err);
-                // On persistent auth error (401/403), clear token
                 if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
                     authApi.setToken(null);
                     setUser(null);
                 }
-                // For network errors (500), do NOT clear token, just fail silently
             } finally {
                 setLoading(false);
             }
         };
 
         initAuth();
+    }, []);
+
+    // Keep stored token in sync when Supabase auto-refreshes it (1hr expiry)
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+                authApi.setToken(session.access_token);
+            }
+            if (event === 'SIGNED_OUT') {
+                authApi.setToken(null);
+            }
+        });
+        return () => subscription.unsubscribe();
     }, []);
 
     // Socket Initialization — C6 fix: depend on user?.id, guard with isMounted
