@@ -13,6 +13,7 @@ import PricingModal from '../components/ui/PricingModal';
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
+import { supabase } from '../lib/supabaseClient';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -392,21 +393,44 @@ export default function GroupDetails() {
 
     const finalizeFileUpload = async () => {
         try {
-            // TODO: Implement real file storage (S3/Supabase Storage) for actual file hosting.
-            // Currently stores a metadata-only reference — no file content is persisted.
-            const referenceUrl = `file-ref://${Date.now()}_${encodeURIComponent(uploadData.file?.name || uploadData.name)}`;
+            const file = uploadData.file;
+            if (!file) throw new Error('No file selected');
+
+            // Build a unique storage path
+            const folder = currentFolderId || 'root';
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storagePath = `${id}/${folder}/${Date.now()}_${safeName}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('group-files')
+                .upload(storagePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            // Get the public URL
+            const { data: urlData } = supabase.storage
+                .from('group-files')
+                .getPublicUrl(storagePath);
+
+            const publicUrl = urlData?.publicUrl;
+            if (!publicUrl) throw new Error('Could not get public URL');
 
             await api.uploadGroupFile(id, {
                 name: uploadData.name,
-                file_url: referenceUrl,
-                file_type: uploadData.file_type || 'pdf',
+                file_url: publicUrl,
+                file_type: uploadData.file_type || file.type || 'application/octet-stream',
                 folder_id: currentFolderId
             });
             toast.success('File uploaded');
             closeUploadModal();
             loadGroup();
-        } catch {
-            toast.error('Failed to upload file');
+        } catch (err) {
+            console.error('File upload error:', err);
+            toast.error(err.message || 'Failed to upload file');
             setUploadStep('form');
         }
     };

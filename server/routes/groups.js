@@ -614,11 +614,29 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             const memberCheck = await db.queryOne('SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
 
-            const file = await db.queryOne('SELECT uploaded_by FROM group_files WHERE id = $1 AND group_id = $2', [fileId, id]);
+            const file = await db.queryOne('SELECT uploaded_by, file_url FROM group_files WHERE id = $1 AND group_id = $2', [fileId, id]);
             if (!file) return res.status(404).json({ error: 'File not found' });
 
             if (memberCheck.role !== 'admin' && file.uploaded_by !== req.user.id) {
                 return res.status(403).json({ error: 'Only admins or the uploader can delete this file' });
+            }
+
+            // Clean up Supabase Storage object if applicable
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const bucketPrefix = '/storage/v1/object/public/group-files/';
+            if (supabaseUrl && serviceKey && file.file_url && file.file_url.includes(bucketPrefix)) {
+                try {
+                    const storagePath = file.file_url.split(bucketPrefix)[1];
+                    if (storagePath) {
+                        await fetch(`${supabaseUrl}/storage/v1/object/group-files/${storagePath}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
+                        });
+                    }
+                } catch (storageErr) {
+                    console.warn('Storage cleanup failed (non-fatal):', storageErr.message);
+                }
             }
 
             await db.execute('DELETE FROM group_files WHERE id = $1 AND group_id = $2', [fileId, id]);
