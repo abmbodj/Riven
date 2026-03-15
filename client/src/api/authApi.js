@@ -154,10 +154,20 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         });
     }
 
-    // Prefer a fresh token from the Supabase session (auto-refreshed) over the
-    // potentially stale one in localStorage, which may have expired.
-    const session = await getActiveSupabaseSession().catch(() => null);
-    const token = session?.access_token || getToken();
+    const getEdgeFunctionToken = async () => {
+        // Try fresh session first, then force-refresh if needed, then fall back to localStorage
+        const session = await getActiveSupabaseSession().catch(() => null);
+        if (session?.access_token) return session.access_token;
+        // Force-refresh the session in case the cached token expired
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: {} }));
+        if (data?.session?.access_token) {
+            setToken(data.session.access_token);
+            return data.session.access_token;
+        }
+        return getToken();
+    };
+
+    const token = await getEdgeFunctionToken();
     const headers = {
         apikey: supabaseAnonKey,
         'Content-Type': 'application/json',
