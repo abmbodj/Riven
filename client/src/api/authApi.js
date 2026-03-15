@@ -81,6 +81,8 @@ const authFetch = async (endpoint, options = {}) => {
             console.error(`[authApi] Error ${endpoint}:`, data);
             const error = new Error(data.error || data.message || `Request failed (${response.status})`);
             error.status = response.status;
+            error.code = data.code;
+            error.body = data;
             throw error;
         }
 
@@ -253,6 +255,24 @@ export const logout = async () => {
 
 export const getMe = async () => {
     return authFetch('/auth/me');
+};
+
+export const restoreSessionUser = async () => {
+    const refreshedSupabaseToken = await refreshSupabaseToken().catch(() => null);
+    const token = getToken();
+    if (!token) {
+        return null;
+    }
+
+    try {
+        return await getMe();
+    } catch (err) {
+        if (refreshedSupabaseToken && err.code === 'ACCOUNT_SETUP_REQUIRED') {
+            const result = await completeRegistration();
+            return result.user;
+        }
+        throw err;
+    }
 };
 
 const resolveCurrentUser = async (currentUserOverride = null) => {
@@ -1623,6 +1643,7 @@ export default {
     login2FA,
     logout,
     getMe,
+    restoreSessionUser,
     updateProfile,
     changePassword,
     deleteAccount,

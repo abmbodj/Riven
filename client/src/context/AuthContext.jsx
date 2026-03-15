@@ -19,28 +19,16 @@ export function AuthProvider({ children }) {
     // Initial Session Check
     useEffect(() => {
         const initAuth = async () => {
-            // Restore Supabase session first (handles auto-refresh of expired access tokens)
             try {
-                await authApi.refreshSupabaseToken();
-            } catch (e) { /* no Supabase session, that's fine */ }
-
-            const token = authApi.getToken();
-            if (!token) {
-                setLoading(false);
-                return;
-            }
-
-            try {
-                const userData = await authApi.getMe();
+                const userData = await authApi.restoreSessionUser();
                 if (userData && userData.id) {
                     setUser(userData);
                 } else {
-                    authApi.setToken(null);
                     setUser(null);
                 }
             } catch (err) {
                 console.warn('[AuthContext] Session check failed:', err);
-                if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
+                if (err.status === 401 || err.status === 403 || (err.message && (err.message.includes('401') || err.message.includes('403')))) {
                     authApi.setToken(null);
                     setUser(null);
                 }

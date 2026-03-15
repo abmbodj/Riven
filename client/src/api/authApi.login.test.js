@@ -31,6 +31,15 @@ const jsonResponse = (body) => ({
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
 
+const errorResponse = (status, body) => ({
+  ok: false,
+  status,
+  headers: {
+    get: () => 'application/json',
+  },
+  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+});
+
 describe('authApi login migration bridge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,5 +77,45 @@ describe('authApi login migration bridge', () => {
       user: { id: 7, email: 'test@example.com', username: 'tester' },
     });
     expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+  });
+
+  it('restores a Supabase session on refresh by completing account setup when the bridge is missing', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } },
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse(401, {
+        error: 'Account setup required',
+        code: 'ACCOUNT_SETUP_REQUIRED',
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        user: { id: 7, email: 'test@example.com', username: 'tester' },
+      }));
+
+    const user = await authApi.restoreSessionUser();
+
+    expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester' });
+    expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/api/auth/me'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer supabase-token',
+        }),
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/api/auth/complete-registration'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer supabase-token',
+        }),
+      }),
+    );
   });
 });
