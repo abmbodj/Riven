@@ -539,45 +539,6 @@ app.post('/api/messages/:id/accept-deck', authMiddleware, async (req, res) => {
 
 registerAdminRoutes({ app, db, authMiddleware });
 
-// Get active messages for current user (non-dismissed, non-expired)
-app.get('/api/messages', authMiddleware, async (req, res) => {
-    try {
-        const messages = await db.query(`
-            SELECT gm.* FROM global_messages gm
-            WHERE gm.is_active = 1 
-            AND (gm.expires_at IS NULL OR gm.expires_at > NOW())
-            AND gm.id NOT IN (
-                SELECT message_id FROM user_dismissed_messages WHERE user_id = $1
-            )
-            ORDER BY gm.created_at DESC
-        `, [req.user.id]);
-
-        res.json(messages.map(m => ({
-            id: m.id,
-            title: m.title,
-            content: m.content,
-            type: m.type,
-            createdAt: m.created_at
-        })));
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch messages' });
-    }
-});
-
-// Dismiss a message (user)
-app.post('/api/messages/:id/dismiss', authMiddleware, async (req, res) => {
-    const { id } = req.params;
-    try {
-        await db.execute(
-            `INSERT INTO user_dismissed_messages (user_id, message_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [req.user.id, id]
-        );
-        res.json({ message: 'Message dismissed' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to dismiss message' });
-    }
-});
-
 // ============ HEALTH CHECK ============
 
 registerHealthRoutes({ app, db });

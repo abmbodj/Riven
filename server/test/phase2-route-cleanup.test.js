@@ -89,6 +89,17 @@ describe('Phase 2 legacy route cleanup', () => {
             blockUserResponse,
             unblockUserResponse,
             reportContentResponse,
+            groupsResponse,
+            groupDetailResponse,
+            groupMembersResponse,
+            groupDecksResponse,
+            groupFoldersResponse,
+            groupFilesResponse,
+            groupSessionsResponse,
+            groupSessionResultsResponse,
+            lmsSettingsResponse,
+            globalMessagesResponse,
+            dismissGlobalMessageResponse,
         ] = await Promise.all([
             request(app).get('/api/classes').set('Authorization', authHeader),
             request(app).get('/api/assignments').set('Authorization', authHeader),
@@ -133,6 +144,17 @@ describe('Phase 2 legacy route cleanup', () => {
             request(app).post('/api/users/2/block').set('Authorization', authHeader),
             request(app).delete('/api/users/2/block').set('Authorization', authHeader),
             request(app).post('/api/reports').set('Authorization', authHeader).send({ contentType: 'user', reason: 'spam' }),
+            request(app).get('/api/groups').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1/members').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1/decks').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1/folders').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1/files').set('Authorization', authHeader),
+            request(app).get('/api/groups/group-1/sessions').set('Authorization', authHeader),
+            request(app).get('/api/groups/sessions/session-1/results').set('Authorization', authHeader),
+            request(app).get('/api/lms/settings').set('Authorization', authHeader),
+            request(app).get('/api/messages').set('Authorization', authHeader),
+            request(app).post('/api/messages/1/dismiss').set('Authorization', authHeader),
         ]);
 
         expect(classesResponse.status).toBe(404);
@@ -178,5 +200,16 @@ describe('Phase 2 legacy route cleanup', () => {
         expect(blockUserResponse.status).toBe(404);
         expect(unblockUserResponse.status).toBe(404);
         expect(reportContentResponse.status).toBe(404);
+        expect(groupsResponse.status).toBe(404);
+        expect(groupDetailResponse.status).toBe(404);
+        expect(groupMembersResponse.status).toBe(404);
+        expect(groupDecksResponse.status).toBe(404);
+        expect(groupFoldersResponse.status).toBe(404);
+        expect(groupFilesResponse.status).toBe(404);
+        expect(groupSessionsResponse.status).toBe(404);
+        expect(groupSessionResultsResponse.status).toBe(404);
+        expect(lmsSettingsResponse.status).toBe(404);
+        expect(globalMessagesResponse.status).toBe(404);
+        expect(dismissGlobalMessageResponse.status).toBe(404);
     });
 });

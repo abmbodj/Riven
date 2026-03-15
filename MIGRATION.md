@@ -733,30 +733,30 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `GET /api/ai/limits` | Pending | 3 | Edge Function |
 | `POST /api/ai/generate-deck` | Pending | 3 | Edge Function |
 | `POST /api/ai/generate-class` | Pending | 3 | Edge Function |
-| `GET /api/groups` | Pending | 2 | PostgREST |
+| `GET /api/groups` | Complete | 2 | Supabase RPC |
 | `POST /api/groups` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id` | Pending | 2 | PostgREST |
+| `GET /api/groups/:id` | Complete | 2 | Supabase RPC |
 | `PUT /api/groups/:id` | Pending | 3 | Edge Function |
 | `DELETE /api/groups/:id` | Pending | 3 | Edge Function |
 | `POST /api/groups/join` | Pending | 3 | Edge Function |
 | `DELETE /api/groups/:id/leave` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id/members` | Pending | 2 | PostgREST |
+| `GET /api/groups/:id/members` | Complete | 2 | Supabase RPC |
 | `DELETE /api/groups/:id/members/:userId` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id/decks` | Pending | 2 | PostgREST |
+| `GET /api/groups/:id/decks` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/:id/decks` | Pending | 3 | Edge Function |
 | `DELETE /api/groups/:id/decks/:deckId` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id/folders` | Pending | 2 | PostgREST |
+| `GET /api/groups/:id/folders` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/:id/folders` | Pending | 3 | Edge Function |
 | `PUT /api/groups/:id/folders/:folderId` | Pending | 3 | Edge Function |
 | `DELETE /api/groups/:id/folders/:folderId` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id/files` | Pending | 2 | PostgREST |
+| `GET /api/groups/:id/files` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/:id/files` | Pending | 3 | Edge Function |
 | `DELETE /api/groups/:id/files/:fileId` | Pending | 3 | Edge Function |
-| `GET /api/groups/:id/sessions` | Pending | 2+4 | PostgREST + Realtime |
+| `GET /api/groups/:id/sessions` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/:id/sessions` | Pending | 3+4 | Edge Fn + Realtime |
 | `POST /api/groups/sessions/:id/join` | Pending | 3+4 | Edge Fn + Realtime |
 | `POST /api/groups/sessions/:id/respond` | Pending | 3+4 | Edge Fn + Realtime |
-| `GET /api/groups/sessions/:id/results` | Pending | 2 | PostgREST |
+| `GET /api/groups/sessions/:id/results` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/sessions/:id/end` | Pending | 3 | Edge Function |
 | `GET /api/users/hearts/status` | Pending | 3 | Edge Function |
 | `GET /api/users/hearts/session/:deckId` | Pending | 3 | Edge Function |
@@ -785,10 +785,10 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/lms/canvas/connect` | Pending | 3 | Edge Function (risk) |
 | `POST /api/lms/canvas/disconnect` | Pending | 3 | Edge Function (risk) |
 | `POST /api/lms/sync` | Pending | 3 | Edge Function (risk) |
-| `GET /api/lms/settings` | Pending | 2 | PostgREST |
+| `GET /api/lms/settings` | Complete | 2 | PostgREST |
 | `POST /api/messages` (global) | Pending | 3 | Edge Function |
-| `GET /api/messages` (global) | Pending | 2 | PostgREST |
-| `POST /api/messages/:id/dismiss` | Pending | 2 | PostgREST |
+| `GET /api/messages` (global) | Complete | 2 | PostgREST |
+| `POST /api/messages/:id/dismiss` | Complete | 2 | PostgREST |
 | `POST /api/messages/:id/accept-deck` | Pending | 3 | Edge Function |
 | `GET /api/health` | Remove | — | Not needed |
 

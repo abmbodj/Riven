@@ -594,7 +594,20 @@ export const connectCanvas = (icalUrl) => authFetch('/lms/canvas/connect', {
     body: JSON.stringify({ icalUrl })
 });
 export const disconnectCanvas = () => authFetch('/lms/canvas/disconnect', { method: 'POST' });
-export const getCanvasSettings = () => authFetch('/lms/settings');
+export const getCanvasSettings = async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('users')
+        .select('canvas_ical_url')
+        .eq('id', userId)
+        .single();
+    if (error) _sbThrow(error);
+
+    return {
+        isConnected: Boolean(data?.canvas_ical_url),
+        canvasUrl: data?.canvas_ical_url ? 'Canvas Feed Active' : '',
+    };
+};
 export const syncCanvas = (adGranted = false) => authFetch('/lms/sync', { method: 'POST', body: JSON.stringify({ adGranted }) });
 
 // --- AI Generation ---
@@ -1651,12 +1664,34 @@ export const subscribeToMessages = (currentUserId, handlers = {}) => {
 
 // ============ STUDY GROUPS ============
 
-export const getGroups = () => safeFetchArray(authFetch('/groups'));
+const callGroupRpc = async (fn, params = {}) => {
+    const { data, error } = await supabase.rpc(fn, params);
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const getGroups = async () => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_user_groups');
+    return data || [];
+})());
 export const createGroup = (name, class_id) => authFetch('/groups', {
     method: 'POST',
     body: JSON.stringify({ name, class_id })
 });
-export const getGroup = (id) => authFetch(`/groups/${id}`);
+export const getGroup = async (id) => {
+    const data = await callGroupRpc('get_group_details', {
+        target_group_id: id,
+    });
+    const group = Array.isArray(data) ? data[0] : data;
+
+    if (!group) {
+        const error = new Error('Group not found');
+        error.status = 404;
+        throw error;
+    }
+
+    return group;
+};
 export const updateGroup = (id, updates) => authFetch(`/groups/${id}`, {
     method: 'PUT',
     body: JSON.stringify(updates)
@@ -1667,17 +1702,32 @@ export const joinGroup = (join_code) => authFetch('/groups/join', {
     body: JSON.stringify({ join_code })
 });
 export const leaveGroup = (id) => authFetch(`/groups/${id}/leave`, { method: 'DELETE' });
-export const getGroupMembers = (id) => safeFetchArray(authFetch(`/groups/${id}/members`));
+export const getGroupMembers = async (id) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_group_members', {
+        target_group_id: id,
+    });
+    return data || [];
+})());
 export const removeGroupMember = (id, userId) => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' });
 
-export const getGroupDecks = (id) => safeFetchArray(authFetch(`/groups/${id}/decks`));
+export const getGroupDecks = async (id) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_group_decks', {
+        target_group_id: id,
+    });
+    return data || [];
+})());
 export const shareDeckToGroup = (id, deck_id) => authFetch(`/groups/${id}/decks`, {
     method: 'POST',
     body: JSON.stringify({ deck_id })
 });
 export const removeDeckFromGroup = (id, deckId) => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' });
 
-export const getGroupFolders = (id) => safeFetchArray(authFetch(`/groups/${id}/folders`));
+export const getGroupFolders = async (id) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_group_folders', {
+        target_group_id: id,
+    });
+    return data || [];
+})());
 export const createGroupFolder = (id, name) => authFetch(`/groups/${id}/folders`, {
     method: 'POST', body: JSON.stringify({ name })
 });
@@ -1686,7 +1736,13 @@ export const renameGroupFolder = (id, folderId, name) => authFetch(`/groups/${id
 });
 export const deleteGroupFolder = (id, folderId) => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' });
 
-export const getGroupFiles = (id, folderId = null) => safeFetchArray(authFetch(`/groups/${id}/files${folderId ? `?folder_id=${folderId}` : ''}`));
+export const getGroupFiles = async (id, folderId = null) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_group_files', {
+        target_group_id: id,
+        target_folder_id: folderId || null,
+    });
+    return data || [];
+})());
 export const uploadGroupFile = (id, data) => authFetch(`/groups/${id}/files`, {
     method: 'POST',
     body: JSON.stringify(data)
@@ -1696,7 +1752,12 @@ export const deleteGroupFile = (id, fileId) => authFetch(`/groups/${id}/files/${
 });
 
 // Cram Sessions
-export const getGroupSessions = (id) => safeFetchArray(authFetch(`/groups/${id}/sessions`));
+export const getGroupSessions = async (id) => safeFetchArray((async () => {
+    const data = await callGroupRpc('list_group_sessions', {
+        target_group_id: id,
+    });
+    return data || [];
+})());
 export const startGroupSession = (id, deckId) => authFetch(`/groups/${id}/sessions`, {
     method: 'POST',
     body: JSON.stringify({ deck_id: deckId })
@@ -1708,7 +1769,12 @@ export const respondToSessionCard = (sessionId, cardId, knewIt) => authFetch(`/g
     method: 'POST',
     body: JSON.stringify({ card_id: cardId, knew_it: knewIt })
 });
-export const getSessionResults = (sessionId) => authFetch(`/groups/sessions/${sessionId}/results`);
+export const getSessionResults = async (sessionId) => {
+    const data = await callGroupRpc('get_group_session_results', {
+        target_session_id: sessionId,
+    });
+    return data || { weakSpots: [], personalStats: {} };
+};
 export const endGroupSession = (sessionId) => authFetch(`/groups/sessions/${sessionId}/end`, {
     method: 'POST'
 });
@@ -1740,8 +1806,54 @@ export const adminUpdateMessage = (id, updates) => authFetch(`/admin/messages/${
 export const adminDeleteMessage = (id) => authFetch(`/admin/messages/${id}`, { method: 'DELETE' });
 
 // User-facing message functions
-export const getActiveMessages = () => safeFetchArray(authFetch('/messages'));
-export const dismissMessage = (id) => authFetch(`/messages/${id}/dismiss`, { method: 'POST' });
+export const getActiveMessages = async () => safeFetchArray((async () => {
+    const userId = await getAppUserId();
+    const now = new Date().toISOString();
+
+    const [
+        { data: messages, error: messagesError },
+        { data: dismissed, error: dismissedError },
+    ] = await Promise.all([
+        supabase
+            .from('global_messages')
+            .select('id, title, content, type, created_at, expires_at')
+            .eq('is_active', 1)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('user_dismissed_messages')
+            .select('message_id')
+            .eq('user_id', userId),
+    ]);
+
+    if (messagesError) _sbThrow(messagesError);
+    if (dismissedError) _sbThrow(dismissedError);
+
+    const dismissedIds = new Set((dismissed || []).map((row) => row.message_id));
+
+    return (messages || [])
+        .filter((message) => !message.expires_at || message.expires_at > now)
+        .filter((message) => !dismissedIds.has(message.id))
+        .map((message) => ({
+            id: message.id,
+            title: message.title,
+            content: message.content,
+            type: message.type,
+            createdAt: message.created_at,
+        }));
+})());
+
+export const dismissMessage = async (id) => {
+    const userId = await getAppUserId();
+    const { error } = await supabase
+        .from('user_dismissed_messages')
+        .insert({
+            user_id: userId,
+            message_id: Number(id),
+        });
+
+    if (error && error.code !== '23505') _sbThrow(error);
+    return { message: 'Message dismissed' };
+};
 
 // ============ 2FA ENDPOINTS ============
 

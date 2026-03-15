@@ -50,6 +50,24 @@ const createUpdateEqChain = () => {
   return { update, eq };
 };
 
+const createSelectEqOrderChain = (data) => {
+  const order = vi.fn().mockResolvedValue({ data, error: null });
+  const eq = vi.fn().mockReturnValue({ order });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, order };
+};
+
+const createSelectEqChain = (data) => {
+  const eq = vi.fn().mockResolvedValue({ data, error: null });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq };
+};
+
+const createInsertChain = () => {
+  const insert = vi.fn().mockResolvedValue({ error: null });
+  return { insert };
+};
+
 describe('authApi user-owned profile data via Supabase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -249,6 +267,69 @@ describe('authApi user-owned profile data via Supabase', () => {
     });
   });
 
+  it('loads LMS settings and global messages through Supabase tables', async () => {
+    const canvasChain = createSelectEqSingleChain({
+      canvas_ical_url: 'https://canvas.example.com/feed.ics',
+    });
+    const messagesChain = createSelectEqOrderChain([
+      {
+        id: 11,
+        title: 'Welcome',
+        content: 'Read this first',
+        type: 'info',
+        created_at: '2026-03-14T18:00:00.000Z',
+        expires_at: null,
+      },
+      {
+        id: 12,
+        title: 'Expired',
+        content: 'Too old',
+        type: 'warning',
+        created_at: '2026-03-01T18:00:00.000Z',
+        expires_at: '2026-03-02T18:00:00.000Z',
+      },
+    ]);
+    const dismissedChain = createSelectEqChain([{ message_id: 99 }]);
+    const insertChain = createInsertChain();
+
+    supabase.from
+      .mockReturnValueOnce({ select: canvasChain.select })
+      .mockReturnValueOnce({ select: messagesChain.select })
+      .mockReturnValueOnce({ select: dismissedChain.select })
+      .mockReturnValueOnce({ insert: insertChain.insert });
+
+    authApi.setToken('supabase-token');
+    const settings = await authApi.getCanvasSettings();
+    const messages = await authApi.getActiveMessages();
+    const dismissed = await authApi.dismissMessage(11);
+
+    expect(canvasChain.select).toHaveBeenCalledWith('canvas_ical_url');
+    expect(canvasChain.eq).toHaveBeenCalledWith('id', 42);
+    expect(settings).toEqual({
+      isConnected: true,
+      canvasUrl: 'Canvas Feed Active',
+    });
+
+    expect(messagesChain.select).toHaveBeenCalledWith('id, title, content, type, created_at, expires_at');
+    expect(messagesChain.eq).toHaveBeenCalledWith('is_active', 1);
+    expect(messagesChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(dismissedChain.select).toHaveBeenCalledWith('message_id');
+    expect(dismissedChain.eq).toHaveBeenCalledWith('user_id', 42);
+    expect(messages).toEqual([{
+      id: 11,
+      title: 'Welcome',
+      content: 'Read this first',
+      type: 'info',
+      createdAt: '2026-03-14T18:00:00.000Z',
+    }]);
+
+    expect(insertChain.insert).toHaveBeenCalledWith({
+      user_id: 42,
+      message_id: 11,
+    });
+    expect(dismissed).toEqual({ message: 'Message dismissed' });
+  });
+
   it('toggles simulate-free tier through Supabase RPC', async () => {
     supabase.rpc.mockResolvedValue({
       data: { simulate_free_tier: true, subscription_tier: 'free' },
@@ -286,5 +367,133 @@ describe('authApi user-owned profile data via Supabase', () => {
       })
     );
     expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
+  });
+
+  it('loads Phase 2 group read endpoints through Supabase RPCs', async () => {
+    supabase.rpc
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'group-1',
+          name: 'Biology Club',
+          class_name: 'Biology',
+          member_count: 3,
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'group-1',
+          name: 'Biology Club',
+          class_name: 'Biology',
+          my_role: 'admin',
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 7,
+          username: 'atlas',
+          display_name: 'Atlas',
+          avatar: '/avatar.png',
+          role: 'admin',
+          joined_at: '2026-03-14T18:00:00.000Z',
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 9,
+          title: 'Cells',
+          shared_by_name: 'atlas',
+          card_count: 12,
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'folder-1',
+          name: 'Week 1',
+          file_count: 2,
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'file-1',
+          name: 'lecture.pdf',
+          uploaded_by_name: 'atlas',
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{
+          id: 'session-1',
+          deck_title: 'Cells',
+          active_members: 2,
+        }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          weakSpots: [{ id: 33, front: 'Mitochondria', incorrect_count: 2 }],
+          personalStats: { total_answered: 10, total_correct: 8 },
+        },
+        error: null,
+      });
+
+    expect(await authApi.getGroups()).toEqual([{
+      id: 'group-1',
+      name: 'Biology Club',
+      class_name: 'Biology',
+      member_count: 3,
+    }]);
+    expect(await authApi.getGroup('group-1')).toEqual({
+      id: 'group-1',
+      name: 'Biology Club',
+      class_name: 'Biology',
+      my_role: 'admin',
+    });
+    expect(await authApi.getGroupMembers('group-1')).toEqual([{
+      id: 7,
+      username: 'atlas',
+      display_name: 'Atlas',
+      avatar: '/avatar.png',
+      role: 'admin',
+      joined_at: '2026-03-14T18:00:00.000Z',
+    }]);
+    expect(await authApi.getGroupDecks('group-1')).toEqual([{
+      id: 9,
+      title: 'Cells',
+      shared_by_name: 'atlas',
+      card_count: 12,
+    }]);
+    expect(await authApi.getGroupFolders('group-1')).toEqual([{
+      id: 'folder-1',
+      name: 'Week 1',
+      file_count: 2,
+    }]);
+    expect(await authApi.getGroupFiles('group-1')).toEqual([{
+      id: 'file-1',
+      name: 'lecture.pdf',
+      uploaded_by_name: 'atlas',
+    }]);
+    expect(await authApi.getGroupSessions('group-1')).toEqual([{
+      id: 'session-1',
+      deck_title: 'Cells',
+      active_members: 2,
+    }]);
+    expect(await authApi.getSessionResults('session-1')).toEqual({
+      weakSpots: [{ id: 33, front: 'Mitochondria', incorrect_count: 2 }],
+      personalStats: { total_answered: 10, total_correct: 8 },
+    });
+
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, 'list_user_groups', {});
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'get_group_details', { target_group_id: 'group-1' });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(3, 'list_group_members', { target_group_id: 'group-1' });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(4, 'list_group_decks', { target_group_id: 'group-1' });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(5, 'list_group_folders', { target_group_id: 'group-1' });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(6, 'list_group_files', { target_group_id: 'group-1', target_folder_id: null });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(7, 'list_group_sessions', { target_group_id: 'group-1' });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(8, 'get_group_session_results', { target_session_id: 'session-1' });
   });
 });

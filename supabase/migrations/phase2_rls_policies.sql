@@ -650,6 +650,478 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.list_user_groups()
+RETURNS TABLE (
+  id uuid,
+  name text,
+  class_id uuid,
+  join_code text,
+  created_by integer,
+  created_at timestamptz,
+  class_name text,
+  member_count integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    g.id,
+    g.name,
+    g.class_id,
+    g.join_code,
+    g.created_by,
+    g.created_at,
+    c.name AS class_name,
+    COUNT(all_members.user_id)::integer AS member_count
+  FROM public.study_groups g
+  JOIN public.group_members gm
+    ON gm.group_id = g.id
+   AND gm.user_id = current_user_id
+  LEFT JOIN public.classes c
+    ON c.id = g.class_id
+  LEFT JOIN public.group_members all_members
+    ON all_members.group_id = g.id
+  GROUP BY g.id, g.name, g.class_id, g.join_code, g.created_by, g.created_at, c.name
+  ORDER BY g.created_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_group_details(target_group_id uuid)
+RETURNS TABLE (
+  id uuid,
+  name text,
+  class_id uuid,
+  join_code text,
+  created_by integer,
+  created_at timestamptz,
+  class_name text,
+  my_role text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  current_role text;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  SELECT gm.role
+  INTO current_role
+  FROM public.group_members gm
+  WHERE gm.group_id = target_group_id
+    AND gm.user_id = current_user_id;
+
+  IF current_role IS NULL THEN
+    RAISE EXCEPTION 'Not a member of this group';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    g.id,
+    g.name,
+    g.class_id,
+    g.join_code,
+    g.created_by,
+    g.created_at,
+    c.name AS class_name,
+    current_role AS my_role
+  FROM public.study_groups g
+  LEFT JOIN public.classes c
+    ON c.id = g.class_id
+  WHERE g.id = target_group_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_group_members(target_group_id uuid)
+RETURNS TABLE (
+  id integer,
+  username text,
+  display_name text,
+  avatar text,
+  role text,
+  joined_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member of this group';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    u.id,
+    u.username,
+    u.display_name,
+    u.avatar,
+    gm.role,
+    gm.joined_at
+  FROM public.group_members gm
+  JOIN public.users u
+    ON u.id = gm.user_id
+  WHERE gm.group_id = target_group_id
+  ORDER BY gm.role ASC, gm.joined_at ASC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_group_decks(target_group_id uuid)
+RETURNS TABLE (
+  id integer,
+  user_id integer,
+  title text,
+  description text,
+  folder_id integer,
+  last_studied timestamp,
+  created_at timestamp,
+  class_id uuid,
+  shared_at timestamptz,
+  shared_by_name text,
+  shared_by_avatar text,
+  card_count integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member of this group';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    d.id,
+    d.user_id,
+    d.title,
+    d.description,
+    d.folder_id,
+    d.last_studied,
+    d.created_at,
+    d.class_id,
+    gd.shared_at,
+    u.username AS shared_by_name,
+    u.avatar AS shared_by_avatar,
+    COUNT(c.id)::integer AS card_count
+  FROM public.group_decks gd
+  JOIN public.decks d
+    ON d.id = gd.deck_id
+  JOIN public.users u
+    ON u.id = gd.shared_by
+  LEFT JOIN public.cards c
+    ON c.deck_id = d.id
+  WHERE gd.group_id = target_group_id
+  GROUP BY
+    d.id,
+    d.user_id,
+    d.title,
+    d.description,
+    d.folder_id,
+    d.last_studied,
+    d.created_at,
+    d.class_id,
+    gd.shared_at,
+    u.username,
+    u.avatar
+  ORDER BY gd.shared_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_group_folders(target_group_id uuid)
+RETURNS TABLE (
+  id uuid,
+  group_id uuid,
+  name text,
+  created_by integer,
+  created_at timestamptz,
+  created_by_name text,
+  file_count integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    f.id,
+    f.group_id,
+    f.name,
+    f.created_by,
+    f.created_at,
+    u.username AS created_by_name,
+    COUNT(gf.id)::integer AS file_count
+  FROM public.group_folders f
+  JOIN public.users u
+    ON u.id = f.created_by
+  LEFT JOIN public.group_files gf
+    ON gf.folder_id = f.id
+  WHERE f.group_id = target_group_id
+  GROUP BY f.id, f.group_id, f.name, f.created_by, f.created_at, u.username
+  ORDER BY f.name ASC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_group_files(
+  target_group_id uuid,
+  target_folder_id uuid DEFAULT NULL
+)
+RETURNS TABLE (
+  id uuid,
+  group_id uuid,
+  folder_id uuid,
+  name text,
+  file_url text,
+  file_type text,
+  uploaded_by integer,
+  uploaded_at timestamptz,
+  uploaded_by_name text,
+  uploaded_by_avatar text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    f.id,
+    f.group_id,
+    f.folder_id,
+    f.name,
+    f.file_url,
+    f.file_type,
+    f.uploaded_by,
+    f.uploaded_at,
+    u.username AS uploaded_by_name,
+    u.avatar AS uploaded_by_avatar
+  FROM public.group_files f
+  JOIN public.users u
+    ON u.id = f.uploaded_by
+  WHERE f.group_id = target_group_id
+    AND (target_folder_id IS NULL OR f.folder_id = target_folder_id)
+  ORDER BY f.uploaded_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_group_sessions(target_group_id uuid)
+RETURNS TABLE (
+  id uuid,
+  group_id uuid,
+  deck_id integer,
+  started_by integer,
+  started_at timestamptz,
+  ended_at timestamptz,
+  status text,
+  deck_title text,
+  deck_desc text,
+  started_by_name text,
+  active_members integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    s.id,
+    s.group_id,
+    s.deck_id,
+    s.started_by,
+    s.started_at,
+    s.ended_at,
+    s.status,
+    d.title AS deck_title,
+    d.description AS deck_desc,
+    u.username AS started_by_name,
+    COUNT(DISTINCT cr.user_id)::integer AS active_members
+  FROM public.cram_sessions s
+  JOIN public.decks d
+    ON d.id = s.deck_id
+  JOIN public.users u
+    ON u.id = s.started_by
+  LEFT JOIN public.cram_responses cr
+    ON cr.session_id = s.id
+  WHERE s.group_id = target_group_id
+    AND s.status = 'active'
+  GROUP BY
+    s.id,
+    s.group_id,
+    s.deck_id,
+    s.started_by,
+    s.started_at,
+    s.ended_at,
+    s.status,
+    d.title,
+    d.description,
+    u.username
+  ORDER BY s.started_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_group_session_results(target_session_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  target_group_id uuid;
+  payload jsonb;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  SELECT s.group_id
+  INTO target_group_id
+  FROM public.cram_sessions s
+  WHERE s.id = target_session_id;
+
+  IF target_group_id IS NULL THEN
+    RAISE EXCEPTION 'Session not found';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = target_group_id
+      AND gm.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'Not a member';
+  END IF;
+
+  SELECT jsonb_build_object(
+    'weakSpots',
+    COALESCE((
+      SELECT jsonb_agg(to_jsonb(weak_spot) ORDER BY weak_spot.incorrect_count DESC)
+      FROM (
+        WITH card_stats AS (
+          SELECT
+            cr.card_id,
+            COUNT(cr.user_id)::integer AS total_responses,
+            SUM(CASE WHEN cr.knew_it = false THEN 1 ELSE 0 END)::integer AS incorrect_count
+          FROM public.cram_responses cr
+          WHERE cr.session_id = target_session_id
+          GROUP BY cr.card_id
+        )
+        SELECT
+          c.id,
+          c.deck_id,
+          c.front,
+          c.back,
+          c.front_image,
+          c.back_image,
+          c.position,
+          c.difficulty,
+          c.times_reviewed,
+          c.times_correct,
+          c.last_reviewed,
+          c.next_review,
+          c.created_at,
+          cs.total_responses,
+          cs.incorrect_count
+        FROM card_stats cs
+        JOIN public.cards c
+          ON c.id = cs.card_id
+        WHERE cs.incorrect_count > 0
+          AND (cs.incorrect_count::float / NULLIF(cs.total_responses, 0)) >= 0.5
+        ORDER BY cs.incorrect_count DESC
+        LIMIT 10
+      ) weak_spot
+    ), '[]'::jsonb),
+    'personalStats',
+    (
+      SELECT jsonb_build_object(
+        'total_answered', COUNT(*)::integer,
+        'total_correct', COALESCE(SUM(CASE WHEN cr.knew_it THEN 1 ELSE 0 END), 0)::integer
+      )
+      FROM public.cram_responses cr
+      WHERE cr.session_id = target_session_id
+        AND cr.user_id = current_user_id
+    )
+  )
+  INTO payload;
+
+  RETURN payload;
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.search_public_users(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_user_profile(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.list_friends() TO authenticated;
@@ -662,6 +1134,14 @@ GRANT EXECUTE ON FUNCTION public.unblock_user(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_report(integer, text, text, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.user_self_update_allowed(integer, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.toggle_simulate_free_tier() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_user_groups() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_group_details(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_group_members(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_group_decks(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_group_folders(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_group_files(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_group_sessions(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_group_session_results(uuid) TO authenticated;
 
 -- ─────────────────────────────────────────────────────
 -- 3. Enable RLS + Create policies + Attach trigger
@@ -1070,3 +1550,29 @@ BEGIN
   END IF;
 END;
 $$;
+
+
+-- ========== GLOBAL_MESSAGES ========== 
+
+ALTER TABLE public.global_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS global_messages_select ON public.global_messages;
+CREATE POLICY global_messages_select ON public.global_messages
+  FOR SELECT USING (public.get_app_user_id() IS NOT NULL);
+
+
+-- ========== USER_DISMISSED_MESSAGES ========== 
+
+ALTER TABLE public.user_dismissed_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS user_dismissed_messages_select ON public.user_dismissed_messages;
+CREATE POLICY user_dismissed_messages_select ON public.user_dismissed_messages
+  FOR SELECT USING (user_id = public.get_app_user_id());
+
+DROP POLICY IF EXISTS user_dismissed_messages_insert ON public.user_dismissed_messages;
+CREATE POLICY user_dismissed_messages_insert ON public.user_dismissed_messages
+  FOR INSERT WITH CHECK (user_id = public.get_app_user_id());
+
+DROP POLICY IF EXISTS user_dismissed_messages_delete ON public.user_dismissed_messages;
+CREATE POLICY user_dismissed_messages_delete ON public.user_dismissed_messages
+  FOR DELETE USING (user_id = public.get_app_user_id());

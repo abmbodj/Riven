@@ -190,20 +190,4 @@ module.exports = function ({ app, db, authMiddleware }) {
         }
     });
 
-    // 4. Canvas connection status
-    app.get('/api/lms/settings', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne(
-                'SELECT canvas_ical_url FROM users WHERE id = $1',
-                [req.user.id]
-            );
-            res.json({
-                isConnected: !!user?.canvas_ical_url,
-                canvasUrl: user?.canvas_ical_url ? 'Canvas Feed Active' : ''
-            });
-        } catch (error) {
-            console.error('LMS Settings Error:', error);
-            res.status(500).json({ error: 'Failed to check Canvas status.' });
-        }
-    });
 };

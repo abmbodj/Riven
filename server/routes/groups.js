@@ -21,26 +21,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
     // Apply authMiddleware to all routes below
     router.use(authMiddleware);
 
-    // 1. GET /api/groups - all groups user belongs to
-    router.get('/', async (req, res) => {
-        try {
-            const query = `
-                SELECT g.*, c.name as class_name,
-                       (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
-                FROM study_groups g
-                JOIN group_members gm ON g.id = gm.group_id
-                LEFT JOIN classes c ON g.class_id = c.id
-                WHERE gm.user_id = $1
-                ORDER BY g.created_at DESC
-            `;
-            const groups = await db.query(query, [req.user.id]);
-            res.json(groups);
-        } catch (error) {
-            console.error('Error fetching groups:', error);
-            res.status(500).json({ error: 'Failed to fetch groups' });
-        }
-    });
-
     // 2. POST /api/groups - create a group
     router.post('/', async (req, res) => {
         const { name, class_id } = req.body;
@@ -105,38 +85,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         } catch (error) {
             console.error('Error creating group:', error);
             res.status(500).json({ error: 'Failed to create group' });
-        }
-    });
-
-    // 3. GET /api/groups/:id - single group details
-    router.get('/:id', async (req, res) => {
-        const { id } = req.params;
-        try {
-            // Verify membership
-            const memberCheck = await db.queryOne(
-                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
-                [id, req.user.id]
-            );
-
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
-
-            const query = `
-                SELECT g.*, c.name as class_name
-                FROM study_groups g
-                LEFT JOIN classes c ON g.class_id = c.id
-                WHERE g.id = $1
-            `;
-            const group = await db.queryOne(query, [id]);
-
-            if (!group) return res.status(404).json({ error: 'Group not found' });
-
-            res.json({
-                ...group,
-                my_role: memberCheck.role
-            });
-        } catch (error) {
-            console.error('Error fetching group details:', error);
-            res.status(500).json({ error: 'Failed to fetch group details' });
         }
     });
 
@@ -294,33 +242,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         }
     });
 
-    // 8. GET /api/groups/:id/members
-    router.get('/:id/members', async (req, res) => {
-        const { id } = req.params;
-        try {
-            // Verify membership
-            const memberCheck = await db.queryOne(
-                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
-                [id, req.user.id]
-            );
-
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
-
-            const members = await db.query(`
-                SELECT u.id, u.username, u.display_name, u.avatar, gm.role, gm.joined_at
-                FROM group_members gm
-                JOIN users u ON gm.user_id = u.id
-                WHERE gm.group_id = $1
-                ORDER BY gm.role ASC, gm.joined_at ASC
-            `, [id]);
-
-            res.json(members);
-        } catch (error) {
-            console.error('Error fetching group members:', error);
-            res.status(500).json({ error: 'Failed to fetch group members' });
-        }
-    });
-
     // 9. DELETE /api/groups/:id/members/:userId - remove member (admin only)
     router.delete('/:id/members/:userId', async (req, res) => {
         const { id, userId } = req.params;
@@ -353,35 +274,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         } catch (error) {
             console.error('Error removing member:', error);
             res.status(500).json({ error: 'Failed to remove member' });
-        }
-    });
-
-    // 10. GET /api/groups/:id/decks
-    router.get('/:id/decks', async (req, res) => {
-        const { id } = req.params;
-        try {
-            // Verify membership
-            const memberCheck = await db.queryOne(
-                'SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2',
-                [id, req.user.id]
-            );
-
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
-
-            const decks = await db.query(`
-                SELECT d.*, gd.shared_at, u.username as shared_by_name, u.avatar as shared_by_avatar,
-                       (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id) as card_count
-                FROM group_decks gd
-                JOIN decks d ON gd.deck_id = d.id
-                JOIN users u ON gd.shared_by = u.id
-                WHERE gd.group_id = $1
-                ORDER BY gd.shared_at DESC
-            `, [id]);
-
-            res.json(decks);
-        } catch (error) {
-            console.error('Error fetching group decks:', error);
-            res.status(500).json({ error: 'Failed to fetch group decks' });
         }
     });
 
@@ -464,28 +356,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         }
     });
 
-    // 13. GET /api/groups/:id/folders
-    router.get('/:id/folders', async (req, res) => {
-        const { id } = req.params;
-        try {
-            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
-
-            const folders = await db.query(`
-                SELECT f.*, u.username as created_by_name,
-                       (SELECT COUNT(*) FROM group_files file WHERE file.folder_id = f.id) as file_count
-                FROM group_folders f
-                JOIN users u ON f.created_by = u.id
-                WHERE f.group_id = $1
-                ORDER BY f.name ASC
-            `, [id]);
-            res.json(folders);
-        } catch (error) {
-            console.error('Error fetching folders:', error);
-            res.status(500).json({ error: 'Failed to fetch folders' });
-        }
-    });
-
     // 14. POST /api/groups/:id/folders
     router.post('/:id/folders', async (req, res) => {
         const { id } = req.params;
@@ -552,41 +422,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         }
     });
 
-    // 17. GET /api/groups/:id/files
-    router.get('/:id/files', async (req, res) => {
-        const { id } = req.params;
-        const { folder_id } = req.query;
-        try {
-            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
-
-            let query = `
-                SELECT f.*, u.username as uploaded_by_name, u.avatar as uploaded_by_avatar
-                FROM group_files f
-                JOIN users u ON f.uploaded_by = u.id
-                WHERE f.group_id = $1
-            `;
-            const params = [id];
-
-            if (folder_id) {
-                if (folder_id === 'null' || folder_id === 'root') {
-                    query += ' AND f.folder_id IS NULL';
-                } else {
-                    query += ' AND f.folder_id = $2';
-                    params.push(folder_id);
-                }
-            }
-
-            query += ' ORDER BY f.uploaded_at DESC';
-
-            const files = await db.query(query, params);
-            res.json(files);
-        } catch (error) {
-            console.error('Error fetching files:', error);
-            res.status(500).json({ error: 'Failed to fetch files' });
-        }
-    });
-
     // 18. POST /api/groups/:id/files
     router.post('/:id/files', async (req, res) => {
         const { id } = req.params;
@@ -650,29 +485,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
     // ==========================================
     // CRAM SESSIONS (Phase 5)
     // ==========================================
-
-    // 20. GET /api/groups/:id/sessions
-    router.get('/:id/sessions', async (req, res) => {
-        const { id } = req.params;
-        try {
-            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
-
-            const sessions = await db.query(`
-                SELECT s.*, d.title as deck_title, d.description as deck_desc, u.username as started_by_name,
-                       (SELECT COUNT(DISTINCT user_id) FROM cram_responses WHERE session_id = s.id) as active_members
-                FROM cram_sessions s
-                JOIN decks d ON s.deck_id = d.id
-                JOIN users u ON s.started_by = u.id
-                WHERE s.group_id = $1 AND s.status = 'active'
-                ORDER BY s.started_at DESC
-            `, [id]);
-            res.json(sessions);
-        } catch (error) {
-            console.error('Error fetching sessions:', error);
-            res.status(500).json({ error: 'Failed to fetch active sessions' });
-        }
-    });
 
     // 21. POST /api/groups/:id/sessions
     router.post('/:id/sessions', async (req, res) => {
@@ -747,52 +559,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
         } catch (error) {
             console.error('Error recording session response:', error);
             res.status(500).json({ error: 'Failed to record response' });
-        }
-    });
-
-    // 24. GET /api/groups/sessions/:sessionId/results
-    router.get('/sessions/:sessionId/results', async (req, res) => {
-        const { sessionId } = req.params;
-        try {
-            const session = await db.queryOne('SELECT * FROM cram_sessions WHERE id = $1', [sessionId]);
-            if (!session) return res.status(404).json({ error: 'Session not found' });
-
-            const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
-            if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
-
-            // Calculate cards that the majority of the group got wrong
-            const results = await db.query(`
-                WITH CardStats as (
-                    SELECT 
-                        card_id, 
-                        COUNT(user_id) as total_responses,
-                        SUM(CASE WHEN knew_it = false THEN 1 ELSE 0 END) as incorrect_count
-                    FROM cram_responses
-                    WHERE session_id = $1
-                    GROUP BY card_id
-                )
-                SELECT c.*, cs.total_responses, cs.incorrect_count
-                FROM CardStats cs
-                JOIN cards c ON cs.card_id = c.id
-                WHERE cs.incorrect_count > 0 
-                  AND CAST(cs.incorrect_count AS FLOAT) / cs.total_responses >= 0.5
-                ORDER BY cs.incorrect_count DESC
-                LIMIT 10
-            `, [sessionId]);
-
-            // Also send back personal stats for this specific user
-            const personalStats = await db.queryOne(`
-                SELECT 
-                    COUNT(*) as total_answered,
-                    SUM(CASE WHEN knew_it = true THEN 1 ELSE 0 END) as total_correct
-                FROM cram_responses
-                WHERE session_id = $1 AND user_id = $2
-            `, [sessionId, req.user.id]);
-
-            res.json({ weakSpots: results, personalStats });
-        } catch (error) {
-            console.error('Error fetching session results:', error);
-            res.status(500).json({ error: 'Failed to compute session results' });
         }
     });
 
