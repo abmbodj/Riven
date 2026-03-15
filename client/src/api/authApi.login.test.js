@@ -39,14 +39,11 @@ const jsonResponse = (body) => ({
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
 
-const errorResponse = (status, body) => ({
-  ok: false,
-  status,
-  headers: {
-    get: () => 'application/json',
-  },
-  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-});
+const createSelectSingleChain = (data, error = null) => {
+  const single = vi.fn().mockResolvedValue({ data, error });
+  const select = vi.fn().mockReturnValue({ single });
+  return { select, single };
+};
 
 describe('authApi login migration bridge', () => {
   beforeEach(() => {
@@ -99,13 +96,14 @@ describe('authApi login migration bridge', () => {
     supabase.auth.getSession.mockResolvedValue({
       data: { session: { access_token: 'supabase-token' } },
     });
+    const { select } = createSelectSingleChain(null, {
+      code: 'PGRST116',
+      message: 'JSON object requested, multiple (or no) rows returned',
+    });
+    supabase.from.mockReturnValue({ select });
 
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(errorResponse(401, {
-        error: 'Account setup required',
-        code: 'ACCOUNT_SETUP_REQUIRED',
-      }))
       .mockResolvedValueOnce(jsonResponse({
         user: { id: 7, email: 'test@example.com', username: 'tester' },
       }));
@@ -116,15 +114,6 @@ describe('authApi login migration bridge', () => {
     expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining('/api/auth/me'),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer supabase-token',
-        }),
-      }),
-    );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
       expect.stringContaining('/api/auth/complete-registration'),
       expect.objectContaining({
         method: 'POST',

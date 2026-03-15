@@ -121,6 +121,20 @@ const isSupabaseSessionToken = (token) => {
     return audiences.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
 };
 
+const getActiveSupabaseSession = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return session?.access_token ? session : null;
+};
+
+const buildAuthRedirectUrl = (path = '') => {
+    const origin = globalThis?.location?.origin;
+    if (!origin || origin === 'null') return undefined;
+    return `${origin.replace(/\/$/, '')}${path}`;
+};
+
+const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
+
 const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } = {}) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -221,7 +235,16 @@ const completeRegistration = async (username) => {
     });
 };
 
-const getLocalMe = async () => authFetch('/auth/me');
+const getLocalMe = async () => {
+    const session = await getActiveSupabaseSession().catch(() => null);
+
+    if (session) {
+        const row = await getSupabaseSelfUserRow();
+        return mapOwnUserRow(row);
+    }
+
+    return authFetch('/auth/me');
+};
 
 const getSupabaseMfaState = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -604,6 +627,25 @@ export const refreshSupabaseToken = async () => {
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
+    if (!newPassword) {
+        const error = new Error('Current and new password are required');
+        error.status = 400;
+        throw error;
+    }
+
+    if (newPassword.length < 8) {
+        const error = new Error('Password must be at least 8 characters');
+        error.status = 400;
+        throw error;
+    }
+
+    const session = await getActiveSupabaseSession().catch(() => null);
+    if (session) {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+        return { message: 'Password changed successfully' };
+    }
+
     return authFetch('/auth/password', {
         method: 'PUT',
         body: JSON.stringify({ currentPassword, newPassword }),
@@ -1656,6 +1698,25 @@ const mapOwnUserRow = (row) => {
         simulate_free_tier: Boolean(row.simulate_free_tier),
         email_verified: Boolean(row.email_verified),
     };
+};
+
+const getSupabaseSelfUserRow = async () => {
+    const { data, error } = await supabase
+        .from('users')
+        .select(SELF_PROFILE_SELECT)
+        .single();
+
+    if (error) {
+        if (error.code === 'PGRST116') {
+            const accountSetupError = new Error('Account setup required');
+            accountSetupError.code = 'ACCOUNT_SETUP_REQUIRED';
+            accountSetupError.status = 401;
+            throw accountSetupError;
+        }
+        _sbThrow(error);
+    }
+
+    return data;
 };
 
 const mapBlockedUserRow = (row) => ({
@@ -2732,14 +2793,83 @@ export const forgotPassword = (email) => authFetch('/auth/forgot-password', {
     body: JSON.stringify({ email }),
 });
 
-export const resetPassword = (token, password) => authFetch('/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password }),
-});
+export const resetPassword = async (token, password) => {
+    if (!token || !password) {
+        const error = new Error('Token and new password are required');
+        error.status = 400;
+        throw error;
+    }
+
+    if (password.length < 8) {
+        const error = new Error('Password must be at least 8 characters');
+        error.status = 400;
+        throw error;
+    }
+
+    if (!isLegacyTokenHash(token)) {
+        let recoveryData = null;
+        try {
+            const redirectTo = buildAuthRedirectUrl('/reset-password');
+            const params = {
+                token_hash: token,
+                type: 'recovery',
+                ...(redirectTo ? { options: { redirectTo } } : {}),
+            };
+            const { data, error } = await supabase.auth.verifyOtp(params);
+            if (!error) {
+                recoveryData = data;
+            }
+        } catch {
+            recoveryData = null;
+        }
+
+        if (recoveryData) {
+            if (recoveryData.session?.access_token) {
+                setToken(recoveryData.session.access_token);
+            }
+
+            const { error } = await supabase.auth.updateUser({ password });
+            if (error) throw error;
+
+            return { message: 'Password has been reset successfully. You can now log in.' };
+        }
+    }
+
+    return authFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+    });
+};
 
 // ============ EMAIL VERIFICATION ============
 
-export const sendVerificationEmail = () => authFetch('/auth/send-verification', { method: 'POST' });
+export const sendVerificationEmail = async () => {
+    const session = await getActiveSupabaseSession().catch(() => null);
+
+    if (session) {
+        try {
+            const row = await getSupabaseSelfUserRow();
+            if (row.email_verified) {
+                return { message: 'Email already verified' };
+            }
+
+            const emailRedirectTo = buildAuthRedirectUrl('/verify-email');
+            const { error } = await supabase.auth.resend({
+                email: row.email,
+                type: 'signup',
+                ...(emailRedirectTo ? { options: { emailRedirectTo } } : {}),
+            });
+
+            if (!error) {
+                return { message: 'Verification email sent' };
+            }
+        } catch {
+            // Fall back to the legacy bridge for linked users that still need server-side handling.
+        }
+    }
+
+    return authFetch('/auth/send-verification', { method: 'POST' });
+};
 
 export const verifyEmail = (token) => authFetch('/auth/verify-email', {
     method: 'POST',
