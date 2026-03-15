@@ -17,7 +17,7 @@ export default function GroupCram() {
     const navigate = useNavigate();
     const haptics = useHaptics();
     const toast = useToast();
-    const { socket, user } = useAuth();
+    const { user } = useAuth();
 
     // Session Data
     const [session, setSession] = useState(null);
@@ -39,9 +39,8 @@ export default function GroupCram() {
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
 
 
-    // Network & Debounce State
+    // Sync & Debounce State
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [socketConnected, setSocketConnected] = useState(true);
     const [activeMembers, setActiveMembers] = useState([]); // Array of connected user IDs/Avatars
 
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
@@ -96,12 +95,9 @@ export default function GroupCram() {
         loadInitialData();
     }, [groupId, sessionId, navigate, toast, fetchResults]);
 
-    // Socket Setup
+    // Live session sync
     useEffect(() => {
         if (!session || isEnded) return;
-
-        const onConnect = () => setSocketConnected(true);
-        const onDisconnect = () => setSocketConnected(false);
 
         const onProgress = (data) => {
             // Pulse UI for the user who answered
@@ -125,37 +121,11 @@ export default function GroupCram() {
             fetchResults();
         };
 
-        if (authApi.canUseSupabaseEdgeFunctions()) {
-            setSocketConnected(true);
-
-            return authApi.subscribeToCramSession(sessionId, {
-                onProgress,
-                onEnded,
-            });
-        }
-
-        if (!socket) return;
-
-        // Register presence
-        socket.emit('register', sessionId);
-        socket.emit('join-room', `session-${sessionId}`);
-
-        // Listeners for robust connection tracking
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
-        socket.on('session-progress', onProgress);
-        socket.on('session-ended', onEnded);
-
-        // Initial check
-        setSocketConnected(socket.connected);
-
-        return () => {
-            socket.off('connect', onConnect);
-            socket.off('disconnect', onDisconnect);
-            socket.off('session-progress', onProgress);
-            socket.off('session-ended', onEnded);
-        };
-    }, [session, isEnded, sessionId, haptics, socket, fetchResults]);
+        return authApi.subscribeToCramSession(sessionId, {
+            onProgress,
+            onEnded,
+        });
+    }, [session, isEnded, sessionId, haptics, fetchResults]);
 
     const handleAnswer = async (knewIt) => {
         if (!isFlipped || isSubmitting) return;
@@ -223,7 +193,7 @@ export default function GroupCram() {
     const handleEndSessionGlobally = () => {
         confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
             await api.endGroupSession(sessionId);
-            // The socket 'session-ended' will fire and transition everyone
+            // The realtime session update will transition everyone
         });
     };
 
@@ -377,10 +347,10 @@ export default function GroupCram() {
                     <span className="font-serif italic text-claude-accent font-bold tracking-wide flex items-center gap-2 text-xl filter drop-shadow-[0_0_8px_rgba(222,185,106,0.5)]">
                         <Zap className="w-4 h-4 fill-claude-accent" /> Group Cram
                     </span>
-                    <div className={`mt-1 flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full transition-colors ${socketConnected ? 'bg-red-500/10 border-red-500/20' : 'bg-claude-secondary/10 border-claude-secondary/20'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-red-400 animate-pulse' : 'bg-claude-secondary'}`} />
-                        <span className={`text-[8px] font-mono tracking-[0.25em] uppercase font-bold ${socketConnected ? 'text-red-300' : 'text-claude-secondary'}`}>
-                            {socketConnected ? 'Live Focus' : 'Reconnecting...'}
+                    <div className="mt-1 flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full transition-colors bg-red-500/10 border-red-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                        <span className="text-[8px] font-mono tracking-[0.25em] uppercase font-bold text-red-300">
+                            Live Focus
                         </span>
                     </div>
                 </div>

@@ -12,7 +12,6 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     isLoggedIn: true,
     user: { id: 99, username: 'Avery' },
-    socket: null,
   }),
 }));
 
@@ -44,6 +43,11 @@ vi.mock('../api/authApi', () => ({
   editMessage: vi.fn(),
   deleteMessage: vi.fn(),
   subscribeToMessages: vi.fn(() => () => {}),
+  subscribeToTypingPresence: vi.fn(() => ({
+    startTyping: vi.fn(),
+    stopTyping: vi.fn(),
+    unsubscribe: vi.fn(),
+  })),
   acceptSharedDeck: vi.fn(),
   reportContent: vi.fn(),
 }));
@@ -106,6 +110,13 @@ describe('Messages desktop workspace', () => {
       expect(screen.getByText('Conversations')).toBeInTheDocument();
     });
 
+    expect(authApi.subscribeToTypingPresence).toHaveBeenCalledWith(
+      99,
+      '21',
+      expect.objectContaining({
+        onTypingChange: expect.any(Function),
+      })
+    );
     expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
     expect(screen.getByText('Marcus')).toBeInTheDocument();
     expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);

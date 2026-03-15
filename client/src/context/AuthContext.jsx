@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { io } from 'socket.io-client';
 import * as authApi from '../api/authApi';
 import { supabase } from '../lib/supabaseClient';
 import { AuthContext, AuthActionsContext } from './authContextDef';
@@ -10,7 +9,6 @@ export { AuthContext, AuthActionsContext };
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [socket, setSocket] = useState(null);
     const [pendingTwoFactor, setPendingTwoFactor] = useState(null);
 
     // Ref to avoid stale closures in callbacks — lets us remove `user` from dependency arrays
@@ -60,41 +58,6 @@ export function AuthProvider({ children }) {
         });
         return () => subscription.unsubscribe();
     }, []);
-
-    // Socket Initialization — C6 fix: depend on user?.id, guard with isMounted
-    useEffect(() => {
-        if (!user?.id) {
-            setSocket(null);
-            return;
-        }
-
-        const serverUrl = authApi.getApiBase().replace(/\/api$/, '');
-        const token = authApi.getToken();
-        let isMounted = true;
-
-        const newSocket = io(serverUrl, {
-            withCredentials: true,
-            transports: ['websocket', 'polling'],
-            extraHeaders: token ? {
-                Authorization: `Bearer ${token}`
-            } : undefined
-        });
-
-        newSocket.on('connect', () => {
-            if (isMounted) {
-                newSocket.emit('register', token);
-            }
-        });
-
-        if (isMounted) {
-            setSocket(newSocket);
-        }
-
-        return () => {
-            isMounted = false;
-            newSocket.disconnect();
-        };
-    }, [user?.id]);
 
     // ============ ACTION CALLBACKS (stable — no user in deps) ============
 
@@ -263,17 +226,16 @@ export function AuthProvider({ children }) {
 
     // ============ CONTEXT VALUES ============
 
-    // State context — only changes when user/loading/socket change
+    // State context — only changes when auth state changes
     const stateValue = useMemo(() => ({
         user,
         loading,
-        socket,
         pendingTwoFactor,
         isLoggedIn: !!user,
         isAdmin: user?.isAdmin || user?.isOwner || false,
         isOwner: user?.isOwner || false,
         role: user?.role || 'user',
-    }), [user, loading, socket, pendingTwoFactor]);
+    }), [user, loading, pendingTwoFactor]);
 
     // Actions context — stable, never triggers re-renders
     const actionsValue = useMemo(() => ({

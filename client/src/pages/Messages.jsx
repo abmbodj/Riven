@@ -18,7 +18,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 // Persistent session-aware message cache — survives page reloads via sessionStorage
 const CACHE_KEY = 'riven_msg_cache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (socket events keep state live in real-time)
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (realtime subscriptions keep state live)
 const MAX_CACHED_CONVERSATIONS = 50;
 const messageCache = {
     _userId: null,
@@ -100,7 +100,7 @@ export default function Messages() {
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
-    const { isLoggedIn, user, socket } = useAuth();
+    const { isLoggedIn, user } = useAuth();
 
     // Ensure cache is valid for current user
     messageCache.ensure(user?.id);
@@ -212,7 +212,7 @@ export default function Messages() {
             loadedMsgIdsRef.current = new Set(cached.map(m => m.id));
             setLoading(false);
 
-            // Skip network call if cache is fresh — socket events keep it live
+            // Skip network call if cache is fresh — realtime subscriptions keep it live
             if (hasFreshCache) return;
         } else {
             setLoading(true);
@@ -489,48 +489,27 @@ export default function Messages() {
             return;
         }
 
-        if (authApi.canUseSupabaseEdgeFunctions()) {
-            const presence = authApi.subscribeToTypingPresence(user?.id, userId, {
-                onTypingChange: setIsTyping,
-            });
+        const presence = authApi.subscribeToTypingPresence(user?.id, userId, {
+            onTypingChange: setIsTyping,
+        });
 
-            typingPresenceRef.current = presence;
-
-            return () => {
-                presence.stopTyping?.();
-                presence.unsubscribe?.();
-                if (typingPresenceRef.current === presence) {
-                    typingPresenceRef.current = null;
-                }
-            };
-        }
-
-        if (!socket) return;
-
-        const handleTyping = ({ senderId, isTyping: typingStatus }) => {
-            if (userId && senderId === parseInt(userId)) {
-                setIsTyping(typingStatus);
-            }
-        };
-
-        socket.on('typing', handleTyping);
+        typingPresenceRef.current = presence;
 
         return () => {
-            socket.off('typing', handleTyping);
+            presence.stopTyping?.();
+            presence.unsubscribe?.();
+            if (typingPresenceRef.current === presence) {
+                typingPresenceRef.current = null;
+            }
         };
-    }, [socket, user?.id, userId]);
+    }, [user?.id, userId]);
 
     const typingTimeoutRef = useRef(null);
 
     const handleTypingStart = () => {
         if (!userId) return;
 
-        if (authApi.canUseSupabaseEdgeFunctions()) {
-            typingPresenceRef.current?.startTyping?.();
-        } else {
-            if (!socket) return;
-            socket.emit('typing', { receiverId: parseInt(userId), isTyping: true });
-        }
+        typingPresenceRef.current?.startTyping?.();
 
         // Clear existing timeout
         if (typingTimeoutRef.current) {
@@ -539,11 +518,7 @@ export default function Messages() {
 
         // Set a timeout to stop typing after 2.5s of inactivity
         typingTimeoutRef.current = setTimeout(() => {
-            if (authApi.canUseSupabaseEdgeFunctions()) {
-                typingPresenceRef.current?.stopTyping?.();
-            } else if (socket) {
-                socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
-            }
+            typingPresenceRef.current?.stopTyping?.();
         }, 2500);
     };
 
@@ -590,11 +565,7 @@ export default function Messages() {
 
         // Stop typing indicator immediately
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        if (authApi.canUseSupabaseEdgeFunctions()) {
-            typingPresenceRef.current?.stopTyping?.();
-        } else if (socket && userId) {
-            socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
-        }
+        typingPresenceRef.current?.stopTyping?.();
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);

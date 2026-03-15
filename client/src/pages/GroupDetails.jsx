@@ -19,7 +19,7 @@ export default function GroupDetails() {
     const navigate = useNavigate();
     const haptics = useHaptics();
     const toast = useToast();
-    const { socket, user } = useAuth();
+    const { user } = useAuth();
     const [group, setGroup] = useState(null);
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
@@ -109,27 +109,13 @@ export default function GroupDetails() {
             loadGroup(); // refresh
         };
 
-        if (authApi.canUseSupabaseEdgeFunctions()) {
-            return authApi.subscribeToGroupSessionEvents(id, {
-                onStarted: onSessionStarted,
-                onEnded: onSessionEnded,
-            });
-        }
-
-        if (socket) {
-            socket.on(`group-${id}-session-started`, onSessionStarted);
-            socket.on(`group-${id}-session-ended`, onSessionEnded); // if this socket was also in the room
-        }
-
-        return () => {
-            if (socket) {
-                socket.off(`group-${id}-session-started`, onSessionStarted);
-                socket.off(`group-${id}-session-ended`, onSessionEnded);
-            }
-        };
+        return authApi.subscribeToGroupSessionEvents(id, {
+            onStarted: onSessionStarted,
+            onEnded: onSessionEnded,
+        });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, loadGroup, socket, toast]);
+    }, [id, loadGroup, toast]);
 
     // Fetch files separately when folder changes (avoids full group re-fetch)
     useEffect(() => {
