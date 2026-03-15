@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to legacy-only or sync-sensitive helpers (`POST /api/auth/forgot-password`, legacy 2FA, guest migration, and fallback paths for historical reset/verify tokens).
+**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to legacy-only or sync-sensitive helpers (`POST /api/auth/forgot-password`, legacy 2FA, and fallback paths for historical reset/verify tokens).
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -70,6 +70,7 @@ Same dual-JWT logic applied.
 - Active Supabase sessions now resend verification emails via `supabase.auth.resend()`, with the legacy route kept as a compatibility fallback
 - Active Supabase sessions now delete accounts through the `account-actions` Edge Function, with the legacy `DELETE /api/auth/account` route kept as a fallback for non-Supabase tokens
 - Supabase email verification `token_hash` links now verify through the `verify-email` Edge Function, with legacy hex tokens still falling back to `POST /api/auth/verify-email`
+- Active Supabase sessions now import guest decks/cards/tags/folders/study history directly through PostgREST, with the legacy guest-migration route kept as a fallback for non-Supabase tokens
 
 **`client/src/context/AuthContext.jsx`:**
 - `initAuth` calls `refreshSupabaseToken()` first to restore expired Supabase sessions

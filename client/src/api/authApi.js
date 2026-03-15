@@ -1603,10 +1603,163 @@ export const acceptSharedDeck = async (messageId) => {
 
 // ============ GUEST DATA MIGRATION ============
 
-export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-data', {
-    method: 'POST',
-    body: JSON.stringify(guestData),
-});
+export const migrateGuestData = async (guestData) => {
+    if (!canUseSupabaseEdgeFunctions()) {
+        return authFetch('/auth/migrate-guest-data', {
+            method: 'POST',
+            body: JSON.stringify(guestData),
+        });
+    }
+
+    const userId = await getAppUserId();
+    const folders = Array.isArray(guestData?.folders) ? guestData.folders : [];
+    const tags = Array.isArray(guestData?.tags) ? guestData.tags : [];
+    const decks = Array.isArray(guestData?.decks) ? guestData.decks : [];
+    const cards = Array.isArray(guestData?.cards) ? guestData.cards : [];
+    const deckTags = Array.isArray(guestData?.deckTags) ? guestData.deckTags : [];
+    const studySessions = Array.isArray(guestData?.studySessions) ? guestData.studySessions : [];
+
+    const folderIdMap = {};
+    const tagIdMap = {};
+    const deckIdMap = {};
+    let importedTagCount = 0;
+
+    for (const folder of folders) {
+        const { data, error } = await supabase
+            .from('folders')
+            .insert({
+                user_id: userId,
+                name: folder.name,
+                color: folder.color || '#6366f1',
+                icon: folder.icon || 'folder',
+                created_at: folder.created_at || new Date().toISOString(),
+            })
+            .select()
+            .single();
+        if (error) _sbThrow(error);
+        folderIdMap[folder.id] = data.id;
+    }
+
+    if (tags.length > 0) {
+        const { data: existingTags, error: existingTagsError } = await supabase
+            .from('tags')
+            .select('id, name')
+            .eq('user_id', userId);
+        if (existingTagsError) _sbThrow(existingTagsError);
+
+        const existingTagIdsByName = new Map((existingTags || []).map((tag) => [tag.name.toLowerCase(), tag.id]));
+
+        for (const tag of tags.filter((entry) => !entry.is_preset)) {
+            const normalizedName = tag.name.toLowerCase();
+            const existingTagId = existingTagIdsByName.get(normalizedName);
+            if (existingTagId) {
+                tagIdMap[tag.id] = existingTagId;
+                continue;
+            }
+
+            const { data, error } = await supabase
+                .from('tags')
+                .insert({
+                    user_id: userId,
+                    name: tag.name,
+                    color: tag.color,
+                    is_preset: false,
+                    created_at: tag.created_at || new Date().toISOString(),
+                })
+                .select()
+                .single();
+            if (error) _sbThrow(error);
+
+            tagIdMap[tag.id] = data.id;
+            existingTagIdsByName.set(normalizedName, data.id);
+            importedTagCount += 1;
+        }
+    }
+
+    for (const deck of decks) {
+        const { data, error } = await supabase
+            .from('decks')
+            .insert({
+                user_id: userId,
+                title: deck.title,
+                description: deck.description || '',
+                folder_id: deck.folder_id ? folderIdMap[deck.folder_id] || null : null,
+                created_at: deck.created_at || new Date().toISOString(),
+                last_studied: deck.last_studied || null,
+            })
+            .select()
+            .single();
+        if (error) _sbThrow(error);
+        deckIdMap[deck.id] = data.id;
+    }
+
+    const cardPayloads = cards
+        .map((card) => {
+            const newDeckId = deckIdMap[card.deck_id];
+            if (!newDeckId) return null;
+            return {
+                deck_id: newDeckId,
+                front: card.front,
+                back: card.back,
+                position: card.position || 0,
+                difficulty: card.difficulty || 0,
+                times_reviewed: card.times_reviewed || 0,
+                times_correct: card.times_correct || 0,
+                last_reviewed: card.last_reviewed || null,
+                next_review: card.next_review || null,
+                created_at: card.created_at || new Date().toISOString(),
+            };
+        })
+        .filter(Boolean);
+
+    if (cardPayloads.length > 0) {
+        const { error } = await supabase.from('cards').insert(cardPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    const deckTagPayloads = deckTags
+        .map((entry) => {
+            const newDeckId = deckIdMap[entry.deck_id];
+            const newTagId = tagIdMap[entry.tag_id];
+            if (!newDeckId || !newTagId) return null;
+            return { deck_id: newDeckId, tag_id: newTagId };
+        })
+        .filter(Boolean);
+
+    if (deckTagPayloads.length > 0) {
+        const { error } = await supabase.from('deck_tags').insert(deckTagPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    const sessionPayloads = studySessions
+        .map((session) => {
+            const newDeckId = deckIdMap[session.deck_id];
+            if (!newDeckId) return null;
+            return {
+                deck_id: newDeckId,
+                cards_studied: session.cards_studied || 0,
+                cards_correct: session.cards_correct || 0,
+                duration_seconds: session.duration_seconds || 0,
+                session_type: session.session_type || 'study',
+                created_at: session.created_at || new Date().toISOString(),
+            };
+        })
+        .filter(Boolean);
+
+    if (sessionPayloads.length > 0) {
+        const { error } = await supabase.from('study_sessions').insert(sessionPayloads);
+        if (error) _sbThrow(error);
+    }
+
+    return {
+        message: 'Guest data migrated successfully',
+        imported: {
+            folders: Object.keys(folderIdMap).length,
+            tags: importedTagCount,
+            decks: Object.keys(deckIdMap).length,
+        },
+    };
+};
 
 const loadCurrentUserRow = async () => {
     const userId = await getAppUserId();
