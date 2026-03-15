@@ -37,6 +37,53 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.user_self_update_allowed(
+  target_user_id integer,
+  candidate jsonb
+)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_row jsonb;
+BEGIN
+  IF target_user_id IS NULL OR target_user_id <> public.get_app_user_id() OR candidate IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT to_jsonb(u)
+  INTO current_row
+  FROM public.users u
+  WHERE u.id = target_user_id;
+
+  IF current_row IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  RETURN (
+    candidate
+      - 'username'
+      - 'display_name'
+      - 'bio'
+      - 'avatar'
+      - 'banner'
+      - 'streak_data'
+      - 'pet_customization'
+  ) = (
+    current_row
+      - 'username'
+      - 'display_name'
+      - 'bio'
+      - 'avatar'
+      - 'banner'
+      - 'streak_data'
+      - 'pet_customization'
+  );
+END;
+$$;
+
 
 -- ========== SOCIAL / FRIENDSHIPS ==========
 
@@ -49,7 +96,7 @@ CREATE POLICY users_select_self ON public.users
 DROP POLICY IF EXISTS users_update_self ON public.users;
 CREATE POLICY users_update_self ON public.users
   FOR UPDATE USING (id = public.get_app_user_id())
-  WITH CHECK (id = public.get_app_user_id());
+  WITH CHECK (public.user_self_update_allowed(id, to_jsonb(users)));
 
 
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
@@ -558,6 +605,51 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.toggle_simulate_free_tier()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  current_role text;
+  current_value boolean := FALSE;
+  next_value boolean;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  SELECT
+    COALESCE(role, CASE WHEN COALESCE(is_admin, 0) = 1 THEN 'admin' ELSE 'user' END),
+    COALESCE(simulate_free_tier, FALSE)
+  INTO current_role, current_value
+  FROM public.users
+  WHERE id = current_user_id;
+
+  IF current_role IS NULL THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+
+  IF current_role NOT IN ('owner', 'admin') THEN
+    RAISE EXCEPTION 'Owner or Admin only';
+  END IF;
+
+  next_value := NOT current_value;
+
+  UPDATE public.users
+  SET simulate_free_tier = next_value
+  WHERE id = current_user_id;
+
+  RETURN jsonb_build_object(
+    'simulate_free_tier',
+    next_value,
+    'subscription_tier',
+    CASE WHEN next_value THEN 'free' ELSE 'lifetime' END
+  );
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.search_public_users(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_user_profile(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.list_friends() TO authenticated;
@@ -568,6 +660,8 @@ GRANT EXECUTE ON FUNCTION public.list_blocked_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.block_user(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.unblock_user(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_report(integer, text, text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_self_update_allowed(integer, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.toggle_simulate_free_tier() TO authenticated;
 
 -- ─────────────────────────────────────────────────────
 -- 3. Enable RLS + Create policies + Attach trigger

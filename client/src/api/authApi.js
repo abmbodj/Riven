@@ -1791,7 +1791,11 @@ export const refillHearts = (amount) => authFetch('/users/hearts/refill', { meth
 export const practiceRefill = () => authFetch('/users/hearts/practice-refill', { method: 'POST' });
 
 // Owner: Simulate Free Tier toggle
-export const toggleSimulateFree = () => authFetch('/auth/simulate-free', { method: 'POST' });
+export const toggleSimulateFree = async () => {
+    const { data, error } = await supabase.rpc('toggle_simulate_free_tier');
+    if (error) _sbThrow(error);
+    return data || { simulate_free_tier: false, subscription_tier: 'lifetime' };
+};
 
 // ============ REFERRALS API ============
 export const getReferralInfo = () => authFetch('/referrals/me');

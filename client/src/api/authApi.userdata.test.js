@@ -11,6 +11,7 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
     },
@@ -52,6 +53,7 @@ const createUpdateEqChain = () => {
 describe('authApi user-owned profile data via Supabase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    supabase.rpc.mockReset();
     localStorage.clear();
     authApi.setToken(null);
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, email: 'test@example.com' }));
@@ -214,5 +216,17 @@ describe('authApi user-owned profile data via Supabase', () => {
         specialPlants: [],
       },
     });
+  });
+
+  it('toggles simulate-free tier through Supabase RPC', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: { simulate_free_tier: true, subscription_tier: 'free' },
+      error: null,
+    });
+
+    const result = await authApi.toggleSimulateFree();
+
+    expect(supabase.rpc).toHaveBeenCalledWith('toggle_simulate_free_tier');
+    expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
   });
 });

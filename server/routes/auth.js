@@ -747,22 +747,6 @@ module.exports = function registerAuthRoutes({
         }
     });
 
-    // Toggle simulate free tier (owner only)
-    app.post('/api/auth/simulate-free', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne('SELECT role, simulate_free_tier FROM users WHERE id = $1', [req.user.id]);
-            const userRole = user.role || 'user';
-            if (userRole !== 'owner' && userRole !== 'admin') return res.status(403).json({ error: 'Owner or Admin only' });
-
-            const newVal = !user.simulate_free_tier;
-            await db.execute('UPDATE users SET simulate_free_tier = $1 WHERE id = $2', [newVal, req.user.id]);
-            res.json({ simulate_free_tier: newVal, subscription_tier: newVal ? 'free' : 'lifetime' });
-        } catch (error) {
-            console.error('POST /api/auth/simulate-free error:', error);
-            res.status(500).json({ error: 'Failed to toggle free tier' });
-        }
-    });
-
     // ============ FORGOT / RESET PASSWORD ============
 
     const crypto = require('crypto');

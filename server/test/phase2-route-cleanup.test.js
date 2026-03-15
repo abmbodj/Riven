@@ -79,6 +79,7 @@ describe('Phase 2 legacy route cleanup', () => {
             getStreakResponse,
             getPetResponse,
             updatePetResponse,
+            toggleSimulateFreeResponse,
             searchUsersResponse,
             userProfileResponse,
             friendsResponse,
@@ -123,6 +124,7 @@ describe('Phase 2 legacy route cleanup', () => {
             request(app).get('/api/auth/streak').set('Authorization', authHeader),
             request(app).get('/api/auth/pet').set('Authorization', authHeader),
             request(app).put('/api/auth/pet').set('Authorization', authHeader).send({ customization: { gardenTheme: 'cottage' } }),
+            request(app).post('/api/auth/simulate-free').set('Authorization', authHeader),
             request(app).get('/api/users/search?q=bi').set('Authorization', authHeader),
             request(app).get('/api/users/2').set('Authorization', authHeader),
             request(app).get('/api/friends').set('Authorization', authHeader),
@@ -168,6 +170,7 @@ describe('Phase 2 legacy route cleanup', () => {
         expect(getStreakResponse.status).toBe(404);
         expect(getPetResponse.status).toBe(404);
         expect(updatePetResponse.status).toBe(404);
+        expect(toggleSimulateFreeResponse.status).toBe(404);
         expect(searchUsersResponse.status).toBe(404);
         expect(userProfileResponse.status).toBe(404);
         expect(friendsResponse.status).toBe(404);
