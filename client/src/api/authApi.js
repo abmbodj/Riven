@@ -358,7 +358,16 @@ export const register = async (username, email, password) => {
         method: 'POST',
         body: JSON.stringify({ username, email, password }),
     });
-    if (legacyData.token) setToken(legacyData.token);
+
+    // Legacy register now creates a Supabase Auth user — sign in to get a
+    // proper Supabase session so edge functions work immediately.
+    const { data: sbLogin } = await supabase.auth.signInWithPassword({ email, password }).catch(() => ({ data: {} }));
+    if (sbLogin?.session?.access_token) {
+        setToken(sbLogin.session.access_token);
+    } else if (legacyData.token) {
+        setToken(legacyData.token);
+    }
+
     return legacyData.user;
 };
 
