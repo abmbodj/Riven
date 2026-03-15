@@ -758,11 +758,11 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/groups/sessions/:id/respond` | Pending | 3+4 | Edge Fn + Realtime |
 | `GET /api/groups/sessions/:id/results` | Complete | 2 | Supabase RPC |
 | `POST /api/groups/sessions/:id/end` | Pending | 3 | Edge Function |
-| `GET /api/users/hearts/status` | Pending | 3 | Edge Function |
-| `GET /api/users/hearts/session/:deckId` | Pending | 3 | Edge Function |
-| `POST /api/users/hearts/decrement` | Pending | 3 | Edge Function |
-| `POST /api/users/hearts/refill` | Pending | 3 | Edge Function |
-| `POST /api/users/hearts/practice-refill` | Pending | 3 | Edge Function |
+| `GET /api/users/hearts/status` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `GET /api/users/hearts/session/:deckId` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/users/hearts/decrement` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/users/hearts/refill` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/users/hearts/practice-refill` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/webhooks/stripe` | Pending | 3 | Edge Function |
 | `POST /api/stripe/create-checkout-session` | Pending | 3 | Edge Function |
 | `POST /api/stripe/create-portal-session` | Pending | 3 | Edge Function |

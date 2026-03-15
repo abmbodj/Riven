@@ -96,6 +96,95 @@ const authFetch = async (endpoint, options = {}) => {
     }
 };
 
+const parseJwtPayload = (token) => {
+    if (!token || typeof token !== 'string') return null;
+
+    const segments = token.split('.');
+    if (segments.length < 2) return null;
+
+    try {
+        const base64 = segments[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+        return JSON.parse(atob(padded));
+    } catch {
+        return null;
+    }
+};
+
+const isSupabaseSessionToken = (token) => {
+    if (!token || token === 'logged_in') return false;
+
+    const payload = parseJwtPayload(token);
+    if (!payload) return false;
+
+    const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    return audiences.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
+};
+
+const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } = {}) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        const error = new Error('Supabase Edge Functions are not configured');
+        error.code = 'EDGE_FUNCTIONS_NOT_CONFIGURED';
+        throw error;
+    }
+
+    const url = new URL(`${supabaseUrl}/functions/v1/${functionName}`);
+    if (query) {
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                url.searchParams.set(key, String(value));
+            }
+        });
+    }
+
+    const token = getToken();
+    const headers = {
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+    };
+
+    if (token && token !== 'logged_in') {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url.toString(), {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const contentType = response.headers.get('content-type');
+    let data = {};
+
+    if (contentType && contentType.includes('application/json')) {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+    }
+
+    if (!response.ok) {
+        const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+        error.status = response.status;
+        error.code = data.code;
+        error.body = data;
+        throw error;
+    }
+
+    return data;
+};
+
+const canUseSupabaseEdgeFunctions = () => isSupabaseSessionToken(getToken());
+
+const shouldFallbackFromEdgeFunction = (error) => (
+    error?.code === 'EDGE_FUNCTIONS_NOT_CONFIGURED'
+    || error?.status === 404
+    || error?.status === 502
+    || error?.status === 503
+    || error?.status === 504
+);
+
 
 // Helper for safe data fetching — returns defaults for network/server errors,
 // but re-throws auth errors (401/403) so session expiry is properly handled
@@ -2235,11 +2324,80 @@ export const verifyEmail = (token) => authFetch('/auth/verify-email', {
 });
 
 // ============ HEARTS API ============
-export const getHeartsStatus = () => authFetch('/users/hearts/status');
-export const getSessionHearts = (deckId) => authFetch(`/users/hearts/session/${deckId}`);
-export const decrementHeart = () => authFetch('/users/hearts/decrement', { method: 'POST' });
-export const refillHearts = (amount) => authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) });
-export const practiceRefill = () => authFetch('/users/hearts/practice-refill', { method: 'POST' });
+export const getHeartsStatus = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('hearts', {
+                method: 'GET',
+                query: { action: 'status' },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/users/hearts/status');
+};
+
+export const getSessionHearts = async (deckId) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('hearts', {
+                method: 'GET',
+                query: { action: 'session', deckId },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch(`/users/hearts/session/${deckId}`);
+};
+
+export const decrementHeart = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('hearts', {
+                method: 'POST',
+                body: { action: 'decrement' },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/users/hearts/decrement', { method: 'POST' });
+};
+
+export const refillHearts = async (amount) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('hearts', {
+                method: 'POST',
+                body: { action: 'refill', amount },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) });
+};
+
+export const practiceRefill = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('hearts', {
+                method: 'POST',
+                body: { action: 'practice-refill' },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/users/hearts/practice-refill', { method: 'POST' });
+};
 
 // Owner: Simulate Free Tier toggle
 export const toggleSimulateFree = async () => {
