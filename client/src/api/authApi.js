@@ -2881,10 +2881,23 @@ export const sendVerificationEmail = async () => {
     return authFetch('/auth/send-verification', { method: 'POST' });
 };
 
-export const verifyEmail = (token) => authFetch('/auth/verify-email', {
-    method: 'POST',
-    body: JSON.stringify({ token }),
-});
+export const verifyEmail = async (token) => {
+    if (!isLegacyTokenHash(token)) {
+        try {
+            return await edgeFunctionFetch('verify-email', {
+                method: 'POST',
+                body: { token },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+    });
+};
 
 // ============ HEARTS API ============
 export const getHeartsStatus = async () => {
