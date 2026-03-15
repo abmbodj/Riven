@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
+    const [pendingTwoFactor, setPendingTwoFactor] = useState(null);
 
     // Ref to avoid stale closures in callbacks — lets us remove `user` from dependency arrays
     const userRef = useRef(user);
@@ -21,15 +22,21 @@ export function AuthProvider({ children }) {
         const initAuth = async () => {
             try {
                 const userData = await authApi.restoreSessionUser();
-                if (userData && userData.id) {
+                if (userData?.require2FA) {
+                    setPendingTwoFactor(userData);
+                    setUser(null);
+                } else if (userData && userData.id) {
+                    setPendingTwoFactor(null);
                     setUser(userData);
                 } else {
+                    setPendingTwoFactor(null);
                     setUser(null);
                 }
             } catch (err) {
                 console.warn('[AuthContext] Session check failed:', err);
                 if (err.status === 401 || err.status === 403 || (err.message && (err.message.includes('401') || err.message.includes('403')))) {
                     authApi.setToken(null);
+                    setPendingTwoFactor(null);
                     setUser(null);
                 }
             } finally {
@@ -48,6 +55,7 @@ export function AuthProvider({ children }) {
             }
             if (event === 'SIGNED_OUT') {
                 authApi.setToken(null);
+                setPendingTwoFactor(null);
             }
         });
         return () => subscription.unsubscribe();
@@ -95,10 +103,13 @@ export function AuthProvider({ children }) {
             const data = await authApi.login(email, password);
 
             if (data.require2FA) {
+                setPendingTwoFactor(data);
+                setUser(null);
                 return data;
             }
 
             if (data.user) {
+                setPendingTwoFactor(null);
                 setUser(data.user);
                 return data.user;
             }
@@ -119,7 +130,13 @@ export function AuthProvider({ children }) {
     const signInWithGoogle = useCallback(async (credential) => {
         try {
             const data = await authApi.loginWithGoogle(credential);
+            if (data.require2FA) {
+                setPendingTwoFactor(data);
+                setUser(null);
+                return data;
+            }
             if (data.user) {
+                setPendingTwoFactor(null);
                 setUser(data.user);
                 return data.user;
             }
@@ -133,7 +150,13 @@ export function AuthProvider({ children }) {
     const signInWithApple = useCallback(async (identityToken, appleUser) => {
         try {
             const data = await authApi.loginWithApple(identityToken, appleUser);
+            if (data.require2FA) {
+                setPendingTwoFactor(data);
+                setUser(null);
+                return data;
+            }
             if (data.user) {
+                setPendingTwoFactor(null);
                 setUser(data.user);
                 return data.user;
             }
@@ -144,8 +167,9 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    const signInWith2FA = useCallback(async (tempToken, code) => {
-        const userData = await authApi.login2FA(tempToken, code);
+    const signInWith2FA = useCallback(async (challenge, code) => {
+        const userData = await authApi.login2FA(challenge, code);
+        setPendingTwoFactor(null);
         setUser(userData);
         return userData;
     }, []);
@@ -153,6 +177,14 @@ export function AuthProvider({ children }) {
     const signOut = useCallback(() => {
         authApi.logout().catch(console.warn);
         authApi.setToken(null);
+        setPendingTwoFactor(null);
+        setUser(null);
+    }, []);
+
+    const cancelPendingTwoFactor = useCallback(() => {
+        authApi.logout().catch(console.warn);
+        authApi.setToken(null);
+        setPendingTwoFactor(null);
         setUser(null);
     }, []);
 
@@ -236,11 +268,12 @@ export function AuthProvider({ children }) {
         user,
         loading,
         socket,
+        pendingTwoFactor,
         isLoggedIn: !!user,
         isAdmin: user?.isAdmin || user?.isOwner || false,
         isOwner: user?.isOwner || false,
         role: user?.role || 'user',
-    }), [user, loading, socket]);
+    }), [user, loading, socket, pendingTwoFactor]);
 
     // Actions context — stable, never triggers re-renders
     const actionsValue = useMemo(() => ({
@@ -249,6 +282,7 @@ export function AuthProvider({ children }) {
         signInWithGoogle,
         signInWithApple,
         signInWith2FA,
+        cancelPendingTwoFactor,
         signOut,
         updateProfile,
         changePassword,
@@ -274,7 +308,7 @@ export function AuthProvider({ children }) {
         dismissMessage,
         toggleSimulateFree
     }), [
-        signIn, signUp, signInWithGoogle, signInWithApple, signInWith2FA, signOut, updateProfile, changePassword,
+        signIn, signUp, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
         deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser,
         adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
         adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,

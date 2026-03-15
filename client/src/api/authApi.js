@@ -132,6 +132,60 @@ const completeRegistration = async (username) => {
     });
 };
 
+const getLocalMe = async () => authFetch('/auth/me');
+
+const getSupabaseMfaState = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+        return {
+            hasSession: false,
+            enabled: false,
+            factorId: null,
+            currentLevel: null,
+            nextLevel: null,
+        };
+    }
+
+    const [{ data: aalData, error: aalError }, { data: factorData, error: factorError }] = await Promise.all([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        supabase.auth.mfa.listFactors(),
+    ]);
+
+    if (aalError) throw aalError;
+    if (factorError) throw factorError;
+
+    const verifiedTotpFactors = Array.isArray(factorData?.totp)
+        ? factorData.totp
+        : (factorData?.all || []).filter((factor) => factor.factor_type === 'totp' && factor.status === 'verified');
+
+    return {
+        hasSession: true,
+        enabled: verifiedTotpFactors.length > 0,
+        factorId: verifiedTotpFactors[0]?.id || null,
+        currentLevel: aalData?.currentLevel || null,
+        nextLevel: aalData?.nextLevel || null,
+    };
+};
+
+const mergeUserWithMfaState = (user, mfaState) => {
+    if (!user) return user;
+
+    return {
+        ...user,
+        twoFAEnabled: Boolean(user.twoFAEnabled || mfaState?.enabled),
+    };
+};
+
+const requiresSupabaseMfaChallenge = (mfaState) => (
+    Boolean(
+        mfaState?.enabled
+        && mfaState?.factorId
+        && mfaState?.nextLevel === 'aal2'
+        && mfaState?.currentLevel !== 'aal2'
+    )
+);
+
 const bootstrapSupabaseSession = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error || !data.session?.access_token) {
@@ -190,14 +244,62 @@ export const login = async (email, password) => {
     if (!error && data.session) {
         setToken(data.session.access_token);
         // Ensure the user row exists in our DB (handles first-time login after migration)
+        let user;
         try {
             const result = await completeRegistration();
-            return { user: result.user };
+            user = result.user;
         } catch {
             // User row already exists — fetch normally
-            const user = await authFetch('/auth/me');
-            return { user };
+            user = await getLocalMe();
         }
+
+        const mfaState = await getSupabaseMfaState().catch(() => ({
+            hasSession: true,
+            enabled: false,
+            factorId: null,
+            currentLevel: null,
+            nextLevel: null,
+        }));
+
+        // Existing legacy 2FA users still need the temp-token flow until they
+        // explicitly move their factor into Supabase MFA.
+        if (user?.twoFAEnabled && !mfaState.enabled) {
+            await supabase.auth.signOut().catch(() => {});
+            setToken(null);
+
+            const legacyData = await authFetch('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password }),
+            });
+            if (legacyData.require2FA) {
+                return {
+                    ...legacyData,
+                    provider: 'legacy',
+                };
+            }
+
+            if (legacyData.token) {
+                const bootstrappedSession = await bootstrapSupabaseSession(email, password);
+                if (bootstrappedSession?.user) {
+                    return bootstrappedSession;
+                }
+                setToken(legacyData.token);
+            } else if (legacyData.user) {
+                setToken('logged_in');
+            }
+
+            return legacyData;
+        }
+
+        if (requiresSupabaseMfaChallenge(mfaState)) {
+            return {
+                require2FA: true,
+                provider: 'supabase',
+                factorId: mfaState.factorId,
+            };
+        }
+
+        return { user: mergeUserWithMfaState(user, mfaState) };
     }
 
     // Supabase Auth failed — fall back to legacy Express login (existing users not yet in Supabase)
@@ -206,7 +308,10 @@ export const login = async (email, password) => {
         body: JSON.stringify({ email, password }),
     });
     if (legacyData.require2FA) {
-        return legacyData;
+        return {
+            ...legacyData,
+            provider: 'legacy',
+        };
     }
 
     if (legacyData.token) {
@@ -228,7 +333,42 @@ export const loginWithGoogle = async (credential) => {
     if (error) throw new Error(error.message);
     setToken(data.session.access_token);
     const result = await completeRegistration();
-    return { user: result.user };
+    const mfaState = await getSupabaseMfaState().catch(() => ({
+        hasSession: true,
+        enabled: false,
+        factorId: null,
+        currentLevel: null,
+        nextLevel: null,
+    }));
+
+    if (result.user?.twoFAEnabled && !mfaState.enabled) {
+        await supabase.auth.signOut().catch(() => {});
+        setToken(null);
+
+        const legacyData = await authFetch('/auth/oauth/google', {
+            method: 'POST',
+            body: JSON.stringify({ credential }),
+        });
+        if (legacyData.require2FA) {
+            return {
+                ...legacyData,
+                provider: 'legacy',
+            };
+        }
+
+        if (legacyData.token) setToken(legacyData.token);
+        return legacyData;
+    }
+
+    if (requiresSupabaseMfaChallenge(mfaState)) {
+        return {
+            require2FA: true,
+            provider: 'supabase',
+            factorId: mfaState.factorId,
+        };
+    }
+
+    return { user: mergeUserWithMfaState(result.user, mfaState) };
 };
 
 export const loginWithApple = async (identityToken, _user) => {
@@ -239,7 +379,42 @@ export const loginWithApple = async (identityToken, _user) => {
     if (error) throw new Error(error.message);
     setToken(data.session.access_token);
     const result = await completeRegistration();
-    return { user: result.user };
+    const mfaState = await getSupabaseMfaState().catch(() => ({
+        hasSession: true,
+        enabled: false,
+        factorId: null,
+        currentLevel: null,
+        nextLevel: null,
+    }));
+
+    if (result.user?.twoFAEnabled && !mfaState.enabled) {
+        await supabase.auth.signOut().catch(() => {});
+        setToken(null);
+
+        const legacyData = await authFetch('/auth/oauth/apple', {
+            method: 'POST',
+            body: JSON.stringify({ identityToken, user: _user }),
+        });
+        if (legacyData.require2FA) {
+            return {
+                ...legacyData,
+                provider: 'legacy',
+            };
+        }
+
+        if (legacyData.token) setToken(legacyData.token);
+        return legacyData;
+    }
+
+    if (requiresSupabaseMfaChallenge(mfaState)) {
+        return {
+            require2FA: true,
+            provider: 'supabase',
+            factorId: mfaState.factorId,
+        };
+    }
+
+    return { user: mergeUserWithMfaState(result.user, mfaState) };
 };
 
 export const logout = async () => {
@@ -254,7 +429,12 @@ export const logout = async () => {
 };
 
 export const getMe = async () => {
-    return authFetch('/auth/me');
+    const [user, mfaState] = await Promise.all([
+        getLocalMe(),
+        getSupabaseMfaState().catch(() => null),
+    ]);
+
+    return mergeUserWithMfaState(user, mfaState);
 };
 
 export const restoreSessionUser = async () => {
@@ -265,11 +445,52 @@ export const restoreSessionUser = async () => {
     }
 
     try {
-        return await getMe();
+        const [user, mfaState] = await Promise.all([
+            getLocalMe(),
+            getSupabaseMfaState().catch(() => ({
+                hasSession: false,
+                enabled: false,
+                factorId: null,
+                currentLevel: null,
+                nextLevel: null,
+            })),
+        ]);
+
+        if (mfaState.hasSession && user?.twoFAEnabled && !mfaState.enabled) {
+            await supabase.auth.signOut().catch(() => {});
+            setToken(null);
+            return null;
+        }
+
+        if (requiresSupabaseMfaChallenge(mfaState)) {
+            return {
+                require2FA: true,
+                provider: 'supabase',
+                factorId: mfaState.factorId,
+            };
+        }
+
+        return mergeUserWithMfaState(user, mfaState);
     } catch (err) {
         if (refreshedSupabaseToken && err.code === 'ACCOUNT_SETUP_REQUIRED') {
             const result = await completeRegistration();
-            return result.user;
+            const mfaState = await getSupabaseMfaState().catch(() => ({
+                hasSession: false,
+                enabled: false,
+                factorId: null,
+                currentLevel: null,
+                nextLevel: null,
+            }));
+
+            if (requiresSupabaseMfaChallenge(mfaState)) {
+                return {
+                    require2FA: true,
+                    provider: 'supabase',
+                    factorId: mfaState.factorId,
+                };
+            }
+
+            return mergeUserWithMfaState(result.user, mfaState);
         }
         throw err;
     }
@@ -1857,16 +2078,131 @@ export const dismissMessage = async (id) => {
 
 // ============ 2FA ENDPOINTS ============
 
-export const setup2FA = () => authFetch('/auth/2fa/setup', { method: 'POST' });
-export const verify2FA = (token) => authFetch('/auth/2fa/verify', {
-    method: 'POST',
-    body: JSON.stringify({ token })
-});
-export const disable2FA = (password) => authFetch('/auth/2fa/disable', {
-    method: 'POST',
-    body: JSON.stringify({ password })
-});
-export const login2FA = async (tempToken, token) => {
+export const getActiveTwoFactorProvider = async () => {
+    const mfaState = await getSupabaseMfaState().catch(() => ({
+        hasSession: false,
+        enabled: false,
+    }));
+
+    if (mfaState.hasSession && mfaState.enabled) {
+        return 'supabase';
+    }
+
+    return 'legacy';
+};
+
+export const setup2FA = async () => {
+    const mfaState = await getSupabaseMfaState().catch(() => ({
+        hasSession: false,
+        enabled: false,
+    }));
+
+    if (!mfaState.hasSession) {
+        const legacyData = await authFetch('/auth/2fa/setup', { method: 'POST' });
+        return {
+            provider: 'legacy',
+            ...legacyData,
+        };
+    }
+
+    const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        issuer: 'Riven',
+        friendlyName: 'Riven',
+    });
+    if (error) throw error;
+
+    return {
+        provider: 'supabase',
+        factorId: data.id,
+        secret: data.totp.secret,
+        qrCode: data.totp.qr_code,
+    };
+};
+
+export const verify2FA = async (setupDataOrToken, maybeToken) => {
+    const setupData = typeof setupDataOrToken === 'object' && setupDataOrToken
+        ? setupDataOrToken
+        : null;
+    const token = setupData ? maybeToken : setupDataOrToken;
+
+    if (setupData?.provider === 'supabase' && setupData.factorId) {
+        const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+            factorId: setupData.factorId,
+            code: token,
+        });
+        if (error) throw error;
+        if (data?.access_token) setToken(data.access_token);
+        return { message: '2FA enabled successfully' };
+    }
+
+    return authFetch('/auth/2fa/verify', {
+        method: 'POST',
+        body: JSON.stringify({ token })
+    });
+};
+
+export const disable2FA = async (input) => {
+    const payload = typeof input === 'object' && input
+        ? input
+        : { password: input };
+
+    if (payload.provider === 'legacy') {
+        return authFetch('/auth/2fa/disable', {
+            method: 'POST',
+            body: JSON.stringify({ password: payload.password })
+        });
+    }
+
+    const mfaState = await getSupabaseMfaState().catch(() => ({
+        hasSession: false,
+        enabled: false,
+        factorId: null,
+    }));
+
+    if (mfaState.hasSession && mfaState.enabled && mfaState.factorId) {
+        if (!payload.code) {
+            const error = new Error('Verification code is required');
+            error.status = 400;
+            throw error;
+        }
+
+        const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+            factorId: mfaState.factorId,
+            code: payload.code,
+        });
+        if (error) throw error;
+        if (data?.access_token) setToken(data.access_token);
+
+        const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+            factorId: mfaState.factorId,
+        });
+        if (unenrollError) throw unenrollError;
+
+        return { message: '2FA disabled successfully' };
+    }
+
+    return authFetch('/auth/2fa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password: payload.password })
+    });
+};
+
+export const login2FA = async (challengeOrTempToken, token) => {
+    if (challengeOrTempToken?.provider === 'supabase' && challengeOrTempToken.factorId) {
+        const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+            factorId: challengeOrTempToken.factorId,
+            code: token,
+        });
+        if (error) throw error;
+        if (data?.access_token) setToken(data.access_token);
+        return getMe();
+    }
+
+    const tempToken = typeof challengeOrTempToken === 'string'
+        ? challengeOrTempToken
+        : challengeOrTempToken?.tempToken;
+
     const data = await authFetch('/auth/2fa/login', {
         method: 'POST',
         body: JSON.stringify({ tempToken, token })
@@ -1944,6 +2280,7 @@ export default {
     updateStreak,
     getPetCustomization,
     updatePetCustomization,
+    getActiveTwoFactorProvider,
     setup2FA,
     verify2FA,
     disable2FA,

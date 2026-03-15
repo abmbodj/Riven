@@ -6,7 +6,7 @@ import useHaptics from '../../hooks/useHaptics';
 import AuthLayout from './AuthLayout';
 import AlertModal from '../AlertModal';
 
-const TwoFAChallenge = ({ tempToken, onBack, onLoginSuccess }) => {
+const TwoFAChallenge = ({ challenge, onBack, onLoginSuccess }) => {
     const { signInWith2FA } = useAuth();
     const haptics = useHaptics();
     const toast = useToast();
@@ -21,7 +21,7 @@ const TwoFAChallenge = ({ tempToken, onBack, onLoginSuccess }) => {
 
         setLoading(true);
         try {
-            await signInWith2FA(tempToken, code);
+            await signInWith2FA(challenge, code);
             toast.success('Welcome back!');
             haptics.success();
             onLoginSuccess({ require2FA: false });

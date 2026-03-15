@@ -11,24 +11,22 @@ import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 // Simple orchestrator component
 // No complex logic, just state switching
 export default function Account() {
-    const { isLoggedIn, loading } = useAuth();
+    const { isLoggedIn, loading, pendingTwoFactor, cancelPendingTwoFactor } = useAuth();
     const [searchParams] = useSearchParams();
     const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
     const [authView, setAuthView] = useState(initialMode); // 'login', 'signup', 'forgot', or '2fa'
-    const [tempToken, setTempToken] = useState(null);
 
     // Reset view when auth state changes
     useEffect(() => {
         if (isLoggedIn) {
             setTimeout(() => {
                 setAuthView('profile');
-                setTempToken(null);
             }, 0);
-        } else if (!tempToken) {
+        } else if (!pendingTwoFactor) {
             setTimeout(() => setAuthView(prev => prev === 'profile' ? 'login' : prev), 0);
         }
-    }, [isLoggedIn, tempToken]);
+    }, [isLoggedIn, pendingTwoFactor]);
 
     // Show loading spinner while checking session
     if (loading) {
@@ -45,12 +43,12 @@ export default function Account() {
     }
 
     // Handle 2FA View
-    if (tempToken) {
+    if (pendingTwoFactor) {
         return (
             <TwoFAChallenge
-                tempToken={tempToken}
-                onBack={() => setTempToken(null)}
-                onLoginSuccess={() => setTempToken(null)}
+                challenge={pendingTwoFactor}
+                onBack={cancelPendingTwoFactor}
+                onLoginSuccess={() => {}}
             />
         );
     }
@@ -81,11 +79,7 @@ export default function Account() {
         <LoginForm
             onSwitchToSignup={() => setAuthView('signup')}
             onForgotPassword={() => setAuthView('forgot')}
-            onLoginSuccess={(result) => {
-                if (result?.require2FA) {
-                    setTempToken(result.tempToken);
-                }
-            }}
+            onLoginSuccess={() => {}}
         />
     );
 }

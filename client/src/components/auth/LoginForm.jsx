@@ -31,7 +31,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
             const result = await signIn(form.email, form.password);
 
             if (result?.require2FA) {
-                onLoginSuccess({ require2FA: true, tempToken: result.tempToken });
+                onLoginSuccess(result);
             } else {
                 toast.success('Welcome back.');
                 haptics.success();

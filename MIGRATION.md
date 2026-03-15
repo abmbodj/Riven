@@ -708,10 +708,10 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/auth/forgot-password` | Complete | 1 | Supabase Auth |
 | `POST /api/auth/reset-password` | Complete | 1 | Supabase Auth |
 | `POST /api/auth/send-verification` | Complete | 1 | Supabase Auth |
-| `POST /api/auth/2fa/setup` | Pending | 1 | Supabase MFA or Keep |
-| `POST /api/auth/2fa/verify` | Pending | 1 | Supabase MFA or Keep |
-| `POST /api/auth/2fa/disable` | Pending | 1 | Supabase MFA or Keep |
-| `POST /api/auth/2fa/login` | Pending | 1 | Keep (existing users) |
+| `POST /api/auth/2fa/setup` | Complete ✅ | 1 | Supabase MFA + legacy fallback |
+| `POST /api/auth/2fa/verify` | Complete ✅ | 1 | Supabase MFA + legacy fallback |
+| `POST /api/auth/2fa/disable` | Complete ✅ | 1 | Supabase MFA + legacy fallback |
+| `POST /api/auth/2fa/login` | Complete ✅ | 1 | Keep (existing users) |
 | `PUT /api/auth/profile` | Complete | 0 | PostgREST |
 | `PUT /api/auth/password` | Complete | 1 | Supabase Auth |
 | `DELETE /api/auth/account` | Complete | 1 | Supabase Auth + Edge Fn |

@@ -5,7 +5,7 @@ import * as authApi from '../api/authApi';
 import { useToast } from '../hooks/useToast';
 
 export default function TwoFactorAuthModal({ isOpen, onClose }) {
-    const { user, updateProfile } = useAuth();
+    const { user, refreshUser } = useAuth();
     const toast = useToast();
 
     // Modes: 'intro', 'setup', 'verify', 'disable'
@@ -15,16 +15,29 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
     // Setup data
     const [secret, setSecret] = useState('');
     const [qrCode, setQrCode] = useState('');
+    const [setupData, setSetupData] = useState(null);
     const [verifyCode, setVerifyCode] = useState('');
 
     // Disable data
     const [password, setPassword] = useState('');
+    const [disableCode, setDisableCode] = useState('');
+    const [disableProvider, setDisableProvider] = useState('legacy');
 
     useEffect(() => {
         if (isOpen) {
             setMode(user?.twoFAEnabled ? 'intro' : 'intro');
             setVerifyCode('');
             setPassword('');
+            setDisableCode('');
+            setSetupData(null);
+
+            if (user?.twoFAEnabled) {
+                authApi.getActiveTwoFactorProvider()
+                    .then(setDisableProvider)
+                    .catch(() => setDisableProvider('legacy'));
+            } else {
+                setDisableProvider('supabase');
+            }
         }
     }, [isOpen, user]);
 
@@ -34,6 +47,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
         setLoading(true);
         try {
             const data = await authApi.setup2FA();
+            setSetupData(data);
             setSecret(data.secret);
             setQrCode(data.qrCode);
             setMode('setup');
@@ -48,8 +62,8 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
         e.preventDefault();
         setLoading(true);
         try {
-            await authApi.verify2FA(verifyCode);
-            await updateProfile({}); // Refresh user state
+            await authApi.verify2FA(setupData, verifyCode);
+            await refreshUser();
             toast.success('2FA enabled successfully');
             onClose();
         } catch {
@@ -63,12 +77,16 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
         e.preventDefault();
         setLoading(true);
         try {
-            await authApi.disable2FA(password);
-            await updateProfile({}); // Refresh user state
+            if (disableProvider === 'supabase') {
+                await authApi.disable2FA({ provider: 'supabase', code: disableCode });
+            } else {
+                await authApi.disable2FA({ provider: 'legacy', password });
+            }
+            await refreshUser();
             toast.success('2FA disabled');
             onClose();
         } catch {
-            toast.error('Incorrect password');
+            toast.error(disableProvider === 'supabase' ? 'Invalid code. Please try again.' : 'Incorrect password');
         } finally {
             setLoading(false);
         }
@@ -202,14 +220,22 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                             <form onSubmit={handleDisable} className="space-y-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
-                                        Confirm Password
+                                        {disableProvider === 'supabase' ? 'Authenticator Code' : 'Confirm Password'}
                                     </label>
                                     <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        type={disableProvider === 'supabase' ? 'text' : 'password'}
+                                        inputMode={disableProvider === 'supabase' ? 'numeric' : undefined}
+                                        autoComplete={disableProvider === 'supabase' ? 'one-time-code' : 'current-password'}
+                                        value={disableProvider === 'supabase' ? disableCode : password}
+                                        onChange={(e) => {
+                                            if (disableProvider === 'supabase') {
+                                                setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                            } else {
+                                                setPassword(e.target.value);
+                                            }
+                                        }}
                                         className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
-                                        placeholder="••••••••"
+                                        placeholder={disableProvider === 'supabase' ? '000000' : '••••••••'}
                                         required
                                     />
                                 </div>
@@ -224,7 +250,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={loading || !password}
+                                        disabled={loading || (disableProvider === 'supabase' ? disableCode.length !== 6 : !password)}
                                         className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
                                     >
                                         {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Disable 2FA'}

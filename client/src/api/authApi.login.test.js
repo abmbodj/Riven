@@ -14,8 +14,16 @@ vi.mock('../lib/supabaseClient', () => ({
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       signInWithPassword: vi.fn(),
+      signInWithIdToken: vi.fn(),
       signUp: vi.fn(),
       signOut: vi.fn().mockResolvedValue({ error: null }),
+      mfa: {
+        getAuthenticatorAssuranceLevel: vi.fn(),
+        listFactors: vi.fn(),
+        challengeAndVerify: vi.fn(),
+        enroll: vi.fn(),
+        unenroll: vi.fn(),
+      },
     },
   },
 }));
@@ -45,6 +53,14 @@ describe('authApi login migration bridge', () => {
     vi.clearAllMocks();
     localStorage.clear();
     authApi.setToken(null);
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal1' },
+      error: null,
+    });
+    supabase.auth.mfa.listFactors.mockResolvedValue({
+      data: { all: [], totp: [] },
+      error: null,
+    });
   });
 
   it('bootstraps a Supabase session after a successful legacy login fallback', async () => {
@@ -96,7 +112,7 @@ describe('authApi login migration bridge', () => {
 
     const user = await authApi.restoreSessionUser();
 
-    expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester' });
+    expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false });
     expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
@@ -117,5 +133,68 @@ describe('authApi login migration bridge', () => {
         }),
       }),
     );
+  });
+
+  it('returns a Supabase MFA challenge when a verified factor still needs verification', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } },
+    });
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } },
+      error: null,
+    });
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal2' },
+      error: null,
+    });
+    supabase.auth.mfa.listFactors.mockResolvedValue({
+      data: {
+        all: [{ id: 'factor-1', factor_type: 'totp', status: 'verified' }],
+        totp: [{ id: 'factor-1', factor_type: 'totp', status: 'verified' }],
+      },
+      error: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({
+      user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false },
+    }));
+
+    const result = await authApi.login('test@example.com', 'password123');
+
+    expect(result).toEqual({
+      require2FA: true,
+      provider: 'supabase',
+      factorId: 'factor-1',
+    });
+    expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+  });
+
+  it('falls back to the legacy 2FA challenge for existing linked users without a Supabase factor', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } },
+    });
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { session: { access_token: 'supabase-token' } },
+      error: null,
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: true },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        require2FA: true,
+        tempToken: 'legacy-temp-token',
+      }));
+
+    const result = await authApi.login('test@example.com', 'password123');
+
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    expect(result).toEqual({
+      require2FA: true,
+      tempToken: 'legacy-temp-token',
+      provider: 'legacy',
+    });
   });
 });
