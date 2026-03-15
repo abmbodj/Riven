@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
-import { UIContext } from '../contexts/UIContext';
-export { UIContext };
+import { createContext, useState, useCallback } from 'react';
+export const UIContext = createContext(null);
 
 
 

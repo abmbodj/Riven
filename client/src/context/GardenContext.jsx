@@ -1,8 +1,7 @@
-import { useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import * as authApi from '../api/authApi';
-import { GardenContext } from '../contexts/GardenContext';
-export { GardenContext };
+export const GardenContext = createContext(null);
 
 
 

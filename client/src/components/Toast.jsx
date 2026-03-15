@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import X from 'lucide-react/dist/esm/icons/x';
-import { ToastContext } from '../contexts/ToastContext';
+import { ToastContext } from '../context/ToastContext';
 export { ToastContext };
 
 
