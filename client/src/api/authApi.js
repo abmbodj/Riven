@@ -154,7 +154,10 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         });
     }
 
-    const token = getToken();
+    // Prefer a fresh token from the Supabase session (auto-refreshed) over the
+    // potentially stale one in localStorage, which may have expired.
+    const session = await getActiveSupabaseSession().catch(() => null);
+    const token = session?.access_token || getToken();
     const headers = {
         apikey: supabaseAnonKey,
         'Content-Type': 'application/json',
