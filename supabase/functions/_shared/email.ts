@@ -84,6 +84,34 @@ const primaryButton = (text: string, url: string) => `
   </td></tr>
 </table>`;
 
+export const sendWelcomeEmail = async (email: string, username: string) => {
+  const appUrl = Deno.env.get('FRONTEND_URL') || 'https://riven.rocks';
+
+  const html = emailShell(`
+    <h2 style="font-size: 24px; font-weight: 400; color: #e4ddd0; margin: 0 0 8px; line-height: 1.3;">
+      Welcome, ${username}
+    </h2>
+    <p style="color: #8fa6a8; font-size: 15px; line-height: 1.7; margin: 0 0 4px;">
+      Your garden has been planted. Riven is where knowledge takes root — create decks, study with spaced repetition, and watch your mastery grow.
+    </p>
+
+    ${primaryButton('BEGIN STUDYING', `${appUrl}/decks`)}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 8px;">
+      <tr><td style="padding: 16px; background: rgba(122,158,114,0.08); border-radius: 10px; border: 1px solid rgba(122,158,114,0.12);">
+        <p style="color: #7a9e72; font-size: 11px; letter-spacing: 2px; margin: 0 0 10px; font-weight: bold;">GETTING STARTED</p>
+        <p style="color: #8fa6a8; font-size: 13px; line-height: 1.65; margin: 0;">
+          <span style="color: #deb96a;">①</span>&ensp;Create your first deck<br>
+          <span style="color: #deb96a;">②</span>&ensp;Add cards — or let AI generate them<br>
+          <span style="color: #deb96a;">③</span>&ensp;Study daily to grow your streak
+        </p>
+      </td></tr>
+    </table>
+  `);
+
+  return sendEmail({ to: email, subject: 'Welcome to Riven', html });
+};
+
 export const sendPasswordResetEmail = async (email: string, resetToken: string, baseUrl: string) => {
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 

@@ -18,21 +18,12 @@ describe('client auth bridge guard', () => {
       '2fa/login',
       '2fa/setup',
       '2fa/verify',
-      'account',
-      'complete-registration',
-      'forgot-password',
       'login',
-      'logout',
       'me',
-      'migrate-guest-data',
       'oauth/apple',
       'oauth/google',
-      'password',
       'register',
-      'reset-password',
-      'send-verification',
       'simulate-free',
-      'verify-email',
     ]);
   });
 });

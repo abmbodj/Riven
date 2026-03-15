@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 
 // Authentication API - communicates with server for cross-device sync
-// Set VITE_API_URL for production (e.g. Render backend URL)
+// Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
 let API_BASE = import.meta.env.VITE_API_URL;
 
 if (!API_BASE) {
@@ -209,7 +209,7 @@ const safeFetchObject = async (promise, defaultVal = {}) => {
 // Helper: create the app user row after a Supabase Auth signup/OAuth login.
 // The Supabase access token must already be stored via setToken().
 const completeRegistration = async (username) => {
-    return authFetch('/auth/complete-registration', {
+    return edgeFunctionFetch('complete-registration', {
         method: 'POST',
         body: JSON.stringify({ username }),
     });
