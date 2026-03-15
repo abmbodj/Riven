@@ -260,4 +260,31 @@ describe('authApi user-owned profile data via Supabase', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('toggle_simulate_free_tier');
     expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
   });
+
+  it('falls back to the legacy auth route when the Supabase session is not privileged', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'Owner or Admin only' },
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
+      simulate_free_tier: true,
+      subscription_tier: 'free',
+    }));
+    authApi.setToken('legacy-jwt');
+
+    const result = await authApi.toggleSimulateFree();
+
+    expect(supabase.rpc).toHaveBeenCalledWith('toggle_simulate_free_tier');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:3000/api/auth/simulate-free',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer legacy-jwt',
+        }),
+      })
+    );
+    expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
+  });
 });

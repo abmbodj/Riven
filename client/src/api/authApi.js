@@ -1796,7 +1796,11 @@ export const practiceRefill = () => authFetch('/users/hearts/practice-refill', {
 // Owner: Simulate Free Tier toggle
 export const toggleSimulateFree = async () => {
     const { data, error } = await supabase.rpc('toggle_simulate_free_tier');
-    if (error) _sbThrow(error);
+    if (error) {
+        // Compatibility fallback for accounts still authenticated through the
+        // app JWT while their Supabase session is missing or belongs elsewhere.
+        return authFetch('/auth/simulate-free', { method: 'POST' });
+    }
     return data || { simulate_free_tier: false, subscription_tier: 'lifetime' };
 };
 

@@ -282,6 +282,47 @@ describe('Auth Core Endpoints', () => {
         });
     });
 
+    describe('POST /api/auth/simulate-free', () => {
+        it('toggles simulate-free mode for owner accounts', async () => {
+            dbMock.pool.query
+                .mockResolvedValueOnce({
+                    rows: [{
+                        role: 'owner',
+                        is_admin: 1,
+                        simulate_free_tier: false,
+                    }],
+                })
+                .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+            const res = await request(app)
+                .post('/api/auth/simulate-free')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({
+                simulate_free_tier: true,
+                subscription_tier: 'free',
+            });
+        });
+
+        it('rejects non-owner, non-admin accounts', async () => {
+            dbMock.pool.query.mockResolvedValueOnce({
+                rows: [{
+                    role: 'user',
+                    is_admin: 0,
+                    simulate_free_tier: false,
+                }],
+            });
+
+            const res = await request(app)
+                .post('/api/auth/simulate-free')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toBe('Owner or Admin only');
+        });
+    });
+
     // ============ PASSWORD CHANGE ============
 
     describe('PUT /api/auth/password', () => {

@@ -747,6 +747,38 @@ module.exports = function registerAuthRoutes({
         }
     });
 
+    app.post('/api/auth/simulate-free', authMiddleware, async (req, res) => {
+        try {
+            const user = await db.queryOne(
+                'SELECT role, is_admin, simulate_free_tier FROM users WHERE id = $1',
+                [req.user.id]
+            );
+
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            const userRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
+            if (userRole !== 'owner' && userRole !== 'admin') {
+                return res.status(403).json({ error: 'Owner or Admin only' });
+            }
+
+            const nextValue = !Boolean(user.simulate_free_tier);
+            await db.execute(
+                'UPDATE users SET simulate_free_tier = $1 WHERE id = $2',
+                [nextValue, req.user.id]
+            );
+
+            res.json({
+                simulate_free_tier: nextValue,
+                subscription_tier: nextValue ? 'free' : 'lifetime',
+            });
+        } catch (error) {
+            console.error('POST /api/auth/simulate-free error:', error);
+            res.status(500).json({ error: 'Failed to update simulate free tier' });
+        }
+    });
+
     // ============ FORGOT / RESET PASSWORD ============
 
     const crypto = require('crypto');

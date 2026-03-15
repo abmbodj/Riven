@@ -719,7 +719,7 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `GET /api/auth/streak` | Complete | 0 | PostgREST |
 | `GET /api/auth/pet` | Complete | 0 | PostgREST |
 | `PUT /api/auth/pet` | Complete | 0 | PostgREST |
-| `POST /api/auth/simulate-free` | Complete | 0 | Supabase RPC |
+| `POST /api/auth/simulate-free` | Complete | 1 | Supabase RPC + compatibility route |
 | `GET /api/users/search` | Complete | 0 | Supabase RPC |
 | `GET /api/users/:id` | Complete | 0 | Supabase RPC |
 | `GET /api/friends` | Complete | 0 | Supabase RPC |
