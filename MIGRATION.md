@@ -766,9 +766,9 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/webhooks/stripe` | Pending | 3 | Edge Function |
 | `POST /api/stripe/create-checkout-session` | Pending | 3 | Edge Function |
 | `POST /api/stripe/create-portal-session` | Pending | 3 | Edge Function |
-| `GET /api/referrals/me` | Pending | 3 | Edge Function |
-| `POST /api/referrals/apply` | Pending | 3 | Edge Function |
-| `POST /api/referrals/check-qualification` | Pending | 3 | Edge Function |
+| `GET /api/referrals/me` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/referrals/apply` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/referrals/check-qualification` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `GET /api/admin/users` | Pending | 3 | Edge Function |
 | `PUT /api/admin/users/:id/role` | Pending | 3 | Edge Function |
 | `PUT /api/admin/users/:id` | Pending | 3 | Edge Function |

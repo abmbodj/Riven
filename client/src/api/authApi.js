@@ -2411,9 +2411,50 @@ export const toggleSimulateFree = async () => {
 };
 
 // ============ REFERRALS API ============
-export const getReferralInfo = () => authFetch('/referrals/me');
-export const applyReferralCode = (code) => authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) });
-export const checkReferralQualification = () => authFetch('/referrals/check-qualification', { method: 'POST' });
+export const getReferralInfo = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('referrals', {
+                method: 'GET',
+                query: { action: 'me' },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/referrals/me');
+};
+
+export const applyReferralCode = async (code) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('referrals', {
+                method: 'POST',
+                body: { action: 'apply', code },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) });
+};
+
+export const checkReferralQualification = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('referrals', {
+                method: 'POST',
+                body: { action: 'check-qualification' },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/referrals/check-qualification', { method: 'POST' });
+};
 
 // Rewarded Ads API
 export const getAdStatus = () => authFetch('/ads/status');
