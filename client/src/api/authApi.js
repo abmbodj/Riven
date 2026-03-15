@@ -175,7 +175,7 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
     return data;
 };
 
-const canUseSupabaseEdgeFunctions = () => isSupabaseSessionToken(getToken());
+export const canUseSupabaseEdgeFunctions = () => isSupabaseSessionToken(getToken());
 
 const shouldFallbackFromEdgeFunction = (error) => (
     error?.code === 'EDGE_FUNCTIONS_NOT_CONFIGURED'
@@ -2076,6 +2076,23 @@ const callGroupActionEndpoint = async ({ method, action, payload, fallback }) =>
     return fallback();
 };
 
+const callGroupSessionEndpoint = async ({ action, payload, fallback }) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('group-sessions', {
+                method: 'POST',
+                body: { action, ...(payload || {}) },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return fallback();
+};
+
 export const getGroups = async () => safeFetchArray((async () => {
     const data = await callGroupRpc('list_user_groups');
     return data || [];
@@ -2229,16 +2246,28 @@ export const getGroupSessions = async (id) => safeFetchArray((async () => {
     });
     return data || [];
 })());
-export const startGroupSession = (id, deckId) => authFetch(`/groups/${id}/sessions`, {
-    method: 'POST',
-    body: JSON.stringify({ deck_id: deckId })
+export const startGroupSession = (id, deckId) => callGroupSessionEndpoint({
+    action: 'session-start',
+    payload: { groupId: id, deckId },
+    fallback: () => authFetch(`/groups/${id}/sessions`, {
+        method: 'POST',
+        body: JSON.stringify({ deck_id: deckId })
+    }),
 });
-export const joinGroupSession = (sessionId) => authFetch(`/groups/sessions/${sessionId}/join`, {
-    method: 'POST'
+export const joinGroupSession = (sessionId) => callGroupSessionEndpoint({
+    action: 'session-join',
+    payload: { sessionId },
+    fallback: () => authFetch(`/groups/sessions/${sessionId}/join`, {
+        method: 'POST'
+    }),
 });
-export const respondToSessionCard = (sessionId, cardId, knewIt) => authFetch(`/groups/sessions/${sessionId}/respond`, {
-    method: 'POST',
-    body: JSON.stringify({ card_id: cardId, knew_it: knewIt })
+export const respondToSessionCard = (sessionId, cardId, knewIt) => callGroupSessionEndpoint({
+    action: 'session-respond',
+    payload: { sessionId, cardId, knewIt },
+    fallback: () => authFetch(`/groups/sessions/${sessionId}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({ card_id: cardId, knew_it: knewIt })
+    }),
 });
 export const getSessionResults = async (sessionId) => {
     const data = await callGroupRpc('get_group_session_results', {
@@ -2246,9 +2275,88 @@ export const getSessionResults = async (sessionId) => {
     });
     return data || { weakSpots: [], personalStats: {} };
 };
-export const endGroupSession = (sessionId) => authFetch(`/groups/sessions/${sessionId}/end`, {
-    method: 'POST'
+export const endGroupSession = (sessionId) => callGroupSessionEndpoint({
+    action: 'session-end',
+    payload: { sessionId },
+    fallback: () => authFetch(`/groups/sessions/${sessionId}/end`, {
+        method: 'POST'
+    }),
 });
+
+export const subscribeToGroupSessionEvents = (groupId, handlers = {}) => {
+    if (!canUseSupabaseEdgeFunctions()) {
+        return () => {};
+    }
+
+    const channel = supabase
+        .channel(`group_sessions_${groupId}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'cram_sessions',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            if (payload?.new?.status === 'active') {
+                handlers.onStarted?.(payload.new);
+            }
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'cram_sessions',
+            filter: `group_id=eq.${groupId}`,
+        }, (payload) => {
+            if (payload?.new?.status === 'ended' && payload?.old?.status !== 'ended') {
+                handlers.onEnded?.(payload.new);
+                return;
+            }
+
+            if (payload?.new?.status === 'active' && payload?.old?.status !== 'active') {
+                handlers.onStarted?.(payload.new);
+            }
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
+
+export const subscribeToCramSession = (sessionId, handlers = {}) => {
+    if (!canUseSupabaseEdgeFunctions()) {
+        return () => {};
+    }
+
+    const channel = supabase
+        .channel(`cram_session_${sessionId}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'cram_responses',
+            filter: `session_id=eq.${sessionId}`,
+        }, (payload) => {
+            handlers.onProgress?.({ userId: payload?.new?.user_id });
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'cram_responses',
+            filter: `session_id=eq.${sessionId}`,
+        }, (payload) => {
+            handlers.onProgress?.({ userId: payload?.new?.user_id });
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'cram_sessions',
+            filter: `id=eq.${sessionId}`,
+        }, (payload) => {
+            if (payload?.new?.status === 'ended' && payload?.old?.status !== 'ended') {
+                handlers.onEnded?.(payload.new);
+            }
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
 
 // ============ ADMIN ENDPOINTS ============
 

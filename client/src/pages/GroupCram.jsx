@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap, Power } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import * as authApi from '../api/authApi';
 import useHaptics from '../hooks/useHaptics';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
@@ -97,11 +98,7 @@ export default function GroupCram() {
 
     // Socket Setup
     useEffect(() => {
-        if (!session || isEnded || !socket) return;
-
-        // Register presence
-        socket.emit('register', sessionId);
-        socket.emit('join-room', `session-${sessionId}`);
+        if (!session || isEnded) return;
 
         const onConnect = () => setSocketConnected(true);
         const onDisconnect = () => setSocketConnected(false);
@@ -127,6 +124,21 @@ export default function GroupCram() {
             setIsEnded(true);
             fetchResults();
         };
+
+        if (authApi.canUseSupabaseEdgeFunctions()) {
+            setSocketConnected(true);
+
+            return authApi.subscribeToCramSession(sessionId, {
+                onProgress,
+                onEnded,
+            });
+        }
+
+        if (!socket) return;
+
+        // Register presence
+        socket.emit('register', sessionId);
+        socket.emit('join-room', `session-${sessionId}`);
 
         // Listeners for robust connection tracking
         socket.on('connect', onConnect);

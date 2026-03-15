@@ -753,11 +753,11 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/groups/:id/files` | Complete | 3 | Edge Function + Express fallback |
 | `DELETE /api/groups/:id/files/:fileId` | Complete | 3 | Edge Function + Express fallback |
 | `GET /api/groups/:id/sessions` | Complete | 2 | Supabase RPC |
-| `POST /api/groups/:id/sessions` | Pending | 3+4 | Edge Fn + Realtime |
-| `POST /api/groups/sessions/:id/join` | Pending | 3+4 | Edge Fn + Realtime |
-| `POST /api/groups/sessions/:id/respond` | Pending | 3+4 | Edge Fn + Realtime |
+| `POST /api/groups/:id/sessions` | Complete | 3+4 | Edge Function + Supabase Realtime + Express fallback |
+| `POST /api/groups/sessions/:id/join` | Complete | 3+4 | Edge Function + Supabase Realtime + Express fallback |
+| `POST /api/groups/sessions/:id/respond` | Complete | 3+4 | Edge Function + Supabase Realtime + Express fallback |
 | `GET /api/groups/sessions/:id/results` | Complete | 2 | Supabase RPC |
-| `POST /api/groups/sessions/:id/end` | Pending | 3 | Edge Function |
+| `POST /api/groups/sessions/:id/end` | Complete | 3+4 | Edge Function + Supabase Realtime + Express fallback |
 | `GET /api/users/hearts/status` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `GET /api/users/hearts/session/:deckId` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/users/hearts/decrement` | Complete ✅ | 3 | Edge Function + Express fallback |

@@ -13,7 +13,6 @@ import PricingModal from '../components/ui/PricingModal';
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
-import { supabase } from '../lib/supabaseClient';
 
 export default function GroupDetails() {
     const { id } = useParams();
@@ -100,7 +99,7 @@ export default function GroupDetails() {
         // Listen for real-time session events
         const onSessionStarted = (data) => {
             // New session started in this group
-            if (data && data.sessionId) {
+            if (data && (data.sessionId || data.id)) {
                 loadGroup(); // refresh to get full session details from DB
                 toast.show('A live cram session just started!');
             }
@@ -109,6 +108,13 @@ export default function GroupDetails() {
         const onSessionEnded = () => {
             loadGroup(); // refresh
         };
+
+        if (authApi.canUseSupabaseEdgeFunctions()) {
+            return authApi.subscribeToGroupSessionEvents(id, {
+                onStarted: onSessionStarted,
+                onEnded: onSessionEnded,
+            });
+        }
 
         if (socket) {
             socket.on(`group-${id}-session-started`, onSessionStarted);
@@ -123,7 +129,7 @@ export default function GroupDetails() {
         };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, loadGroup, socket]);
+    }, [id, loadGroup, socket, toast]);
 
     // Fetch files separately when folder changes (avoids full group re-fetch)
     useEffect(() => {
