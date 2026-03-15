@@ -210,7 +210,22 @@ export function AuthProvider({ children }) {
 
     const toggleSimulateFree = useCallback(async () => {
         const result = await authApi.toggleSimulateFree();
-        setUser(prev => prev ? { ...prev, subscription_tier: result.subscription_tier, simulate_free_tier: result.simulate_free_tier } : prev);
+
+        try {
+            const refreshedUser = await authApi.getMe();
+            if (refreshedUser?.id) {
+                setUser(refreshedUser);
+                return result;
+            }
+        } catch (error) {
+            console.warn('[AuthContext] Simulate-free refresh failed:', error);
+        }
+
+        setUser(prev => prev ? {
+            ...prev,
+            subscription_tier: result.subscription_tier ?? prev.subscription_tier,
+            simulate_free_tier: result.simulate_free_tier ?? prev.simulate_free_tier,
+        } : prev);
         return result;
     }, []);
 

@@ -1230,6 +1230,9 @@ const mapFriendRow = (row) => {
 
 const mapOwnUserRow = (row) => {
     const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
+    const effectiveTier = (role === 'owner' || role === 'admin') && !Boolean(row.simulate_free_tier)
+        ? 'lifetime'
+        : (row.subscription_tier || 'free');
 
     return {
         id: row.id,
@@ -1247,7 +1250,7 @@ const mapOwnUserRow = (row) => {
         isOwner,
         createdAt: row.created_at || null,
         twoFAEnabled: Boolean(row.two_fa_enabled),
-        subscription_tier: row.subscription_tier || 'free',
+        subscription_tier: effectiveTier,
         simulate_free_tier: Boolean(row.simulate_free_tier),
         email_verified: Boolean(row.email_verified),
     };

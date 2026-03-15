@@ -115,10 +115,41 @@ describe('authApi user-owned profile data via Supabase', () => {
       isOwner: false,
       createdAt: '2026-03-14T18:00:00.000Z',
       twoFAEnabled: true,
-      subscription_tier: 'free',
+      subscription_tier: 'lifetime',
       simulate_free_tier: false,
       email_verified: true,
     });
+  });
+
+  it('preserves free-tier mapping for simulated admin users', async () => {
+    const { select, eq } = createSelectEqSingleChain({
+      id: 42,
+      username: 'atlas',
+      display_name: 'Atlas',
+      email: 'test@example.com',
+      share_code: 'ABCD1234',
+      avatar: null,
+      banner: null,
+      bio: '',
+      streak_data: '{}',
+      pet_customization: '{}',
+      role: 'admin',
+      is_admin: 1,
+      created_at: '2026-03-14T18:00:00.000Z',
+      two_fa_enabled: false,
+      subscription_tier: 'free',
+      simulate_free_tier: true,
+      email_verified: true,
+    });
+    supabase.from.mockReturnValue({ select });
+
+    authApi.setToken('supabase-token');
+    const user = await authApi.updateProfile({});
+
+    expect(select).toHaveBeenCalled();
+    expect(eq).toHaveBeenCalledWith('id', 42);
+    expect(user.subscription_tier).toBe('free');
+    expect(user.simulate_free_tier).toBe(true);
   });
 
   it('refreshes the current profile when updateProfile is called with no fields', async () => {

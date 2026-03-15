@@ -839,15 +839,18 @@ function BroadcastsTab({ messages, form, setForm, showForm, setShowForm, onSubmi
 
 function AccountTab({ user, isOwner, toggleSimulateFree }) {
     const [toggling, setToggling] = React.useState(false);
+    const [toggleError, setToggleError] = React.useState('');
     const simulatingFree = !!user?.simulate_free_tier;
     const currentTier = user?.subscription_tier || 'free';
 
     const handleToggle = async () => {
         setToggling(true);
+        setToggleError('');
         try {
             await toggleSimulateFree();
         } catch (err) {
             console.error(err);
+            setToggleError(err?.message || 'Failed to update simulate-free mode');
         } finally {
             setToggling(false);
         }
@@ -927,6 +930,11 @@ function AccountTab({ user, isOwner, toggleSimulateFree }) {
                             <div className="mt-4 p-3 rounded-xl bg-red-900/15 border border-red-500/20 text-red-300/80 text-[11px] flex items-start gap-2 leading-relaxed">
                                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                                 <span>Free mode is active. You will see hearts, limits, and paywalls. Toggle off to restore Lifetime access.</span>
+                            </div>
+                        )}
+                        {toggleError && (
+                            <div className="mt-4 p-3 rounded-xl bg-red-900/15 border border-red-500/20 text-red-300/80 text-[11px] leading-relaxed">
+                                {toggleError}
                             </div>
                         )}
                     </div>
