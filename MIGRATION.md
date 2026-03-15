@@ -764,8 +764,8 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/users/hearts/refill` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/users/hearts/practice-refill` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/webhooks/stripe` | Pending | 3 | Edge Function |
-| `POST /api/stripe/create-checkout-session` | Pending | 3 | Edge Function |
-| `POST /api/stripe/create-portal-session` | Pending | 3 | Edge Function |
+| `POST /api/stripe/create-checkout-session` | Complete ✅ | 3 | Edge Function + Express fallback |
+| `POST /api/stripe/create-portal-session` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `GET /api/referrals/me` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/referrals/apply` | Complete ✅ | 3 | Edge Function + Express fallback |
 | `POST /api/referrals/check-qualification` | Complete ✅ | 3 | Edge Function + Express fallback |

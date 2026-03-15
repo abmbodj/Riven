@@ -9,7 +9,7 @@ import {
     X,
     Zap,
 } from 'lucide-react';
-import { getApiBase, getToken } from '../../api/authApi';
+import { createCheckoutSessionUrl } from '../../api/stripe';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
@@ -122,23 +122,13 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             const priceId = pkgType === 'lifetime' ? PRICE_IDS.lifetime : PRICE_IDS.monthly;
             const isSubscription = pkgType !== 'lifetime';
 
-            const response = await fetch(`${getApiBase()}/stripe/create-checkout-session`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${getToken()}`,
-                },
-                credentials: 'include',
-                body: JSON.stringify({ priceId, isSubscription }),
-            });
-
-            const data = await response.json();
-            if (data.url) {
-                window.location.href = data.url;
+            const url = await createCheckoutSessionUrl({ priceId, isSubscription });
+            if (url) {
+                window.location.href = url;
                 return;
             }
 
-            throw new Error(data.error || 'Failed to create checkout session');
+            throw new Error('Failed to create checkout session');
         } catch (err) {
             console.error('[PricingModal] Purchase error:', err);
             setError(err.message || 'Failed to initiate purchase. Please try again.');

@@ -2456,6 +2456,39 @@ export const checkReferralQualification = async () => {
     return authFetch('/referrals/check-qualification', { method: 'POST' });
 };
 
+// ============ STRIPE API ============
+export const createStripeCheckoutSession = async ({ priceId, isSubscription }) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('create-checkout', {
+                method: 'POST',
+                body: { priceId, isSubscription },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/stripe/create-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({ priceId, isSubscription }),
+    });
+};
+
+export const createStripePortalSession = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('create-portal', {
+                method: 'POST',
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
+    return authFetch('/stripe/create-portal-session', { method: 'POST' });
+};
+
 // Rewarded Ads API
 export const getAdStatus = () => authFetch('/ads/status');
 export const requestAdReward = (feature, options = {}) => authFetch('/ads/request-reward', { method: 'POST', body: JSON.stringify({ feature, ...options }) });
@@ -2586,6 +2619,10 @@ export default {
     getReferralInfo,
     applyReferralCode,
     checkReferralQualification,
+
+    // Stripe API
+    createStripeCheckoutSession,
+    createStripePortalSession,
 
     // Password Reset
     forgotPassword,
