@@ -1877,9 +1877,18 @@ const mapOwnUserRow = (row) => {
 };
 
 const getSupabaseSelfUserRow = async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.id) {
+        const err = new Error('Account setup required');
+        err.code = 'ACCOUNT_SETUP_REQUIRED';
+        err.status = 401;
+        throw err;
+    }
+
     const { data, error } = await supabase
         .from('users')
         .select(SELF_PROFILE_SELECT)
+        .eq('supabase_auth_id', authUser.id)
         .single();
 
     if (error) {
