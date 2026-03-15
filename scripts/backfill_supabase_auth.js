@@ -74,7 +74,9 @@ async function backfill() {
                 const listRes = await adminFetch('/admin/users', {
                     query: { email: user.email },
                 });
-                const existing = Array.isArray(listRes?.users) && listRes.users[0];
+                // Filter for exact email match (admin API does partial matching)
+                const existing = Array.isArray(listRes?.users) &&
+                    listRes.users.find(u => u.email?.toLowerCase() === user.email.toLowerCase());
 
                 if (existing?.id) {
                     authUserId = existing.id;
