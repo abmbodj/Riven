@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to privileged or legacy-only helpers (`DELETE /api/auth/account`, `POST /api/auth/forgot-password`, `POST /api/auth/verify-email`, legacy 2FA, guest migration).
+**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to legacy-only or sync-sensitive helpers (`POST /api/auth/forgot-password`, `POST /api/auth/verify-email`, legacy 2FA, guest migration).
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -68,6 +68,7 @@ Same dual-JWT logic applied.
 - Active Supabase sessions now use `supabase.auth.updateUser()` for password changes instead of `PUT /api/auth/password`
 - Supabase `token_hash` password reset links now complete in the client via `verifyOtp()` + `updateUser()`, with legacy hex tokens still falling back to `POST /api/auth/reset-password`
 - Active Supabase sessions now resend verification emails via `supabase.auth.resend()`, with the legacy route kept as a compatibility fallback
+- Active Supabase sessions now delete accounts through the `account-actions` Edge Function, with the legacy `DELETE /api/auth/account` route kept as a fallback for non-Supabase tokens
 
 **`client/src/context/AuthContext.jsx`:**
 - `initAuth` calls `refreshSupabaseToken()` first to restore expired Supabase sessions
@@ -726,7 +727,7 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/auth/2fa/login` | Complete ✅ | 1 | Keep (existing users) |
 | `PUT /api/auth/profile` | Complete | 0 | PostgREST |
 | `PUT /api/auth/password` | Complete | 1 | Direct Supabase password update for active sessions + legacy fallback |
-| `DELETE /api/auth/account` | Complete | 1 | Supabase Auth + Edge Fn |
+| `DELETE /api/auth/account` | Complete | 1 | `account-actions` Edge Function for active sessions + legacy fallback |
 | `PUT /api/auth/streak` | Complete | 0 | PostgREST |
 | `GET /api/auth/streak` | Complete | 0 | PostgREST |
 | `GET /api/auth/pet` | Complete | 0 | PostgREST |

@@ -653,6 +653,16 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 export const deleteAccount = async (password) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            await edgeFunctionFetch('account-actions', { method: 'DELETE' });
+            await logout();
+            return;
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) throw error;
+        }
+    }
+
     await authFetch('/auth/account', {
         method: 'DELETE',
         body: JSON.stringify({ password }),

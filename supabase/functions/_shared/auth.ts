@@ -55,7 +55,7 @@ export const resolveSupabaseUser = async (request: Request) => {
   }
 
   if (linkedUser?.id) {
-    return { id: linkedUser.id };
+    return { id: linkedUser.id, authId: data.user.id };
   }
 
   const email = data.user.email?.toLowerCase();
@@ -81,5 +81,5 @@ export const resolveSupabaseUser = async (request: Request) => {
     throw error;
   }
 
-  return { id: emailUser.id };
+  return { id: emailUser.id, authId: data.user.id };
 };
