@@ -165,26 +165,50 @@ module.exports = function registerAuthRoutes({
             // Default display_name to username
             const displayName = username;
 
-            // Create a Supabase Auth user so supabase_auth_id is linked and RLS works
+            // Create or find a Supabase Auth user so supabase_auth_id is linked and RLS works
             let supabaseAuthId = null;
             try {
                 const { serviceRoleKey } = getSupabaseConfig();
                 if (serviceRoleKey) {
-                    const authUser = await supabaseFetch('/admin/users', {
-                        method: 'POST',
-                        apiKey: serviceRoleKey,
-                        accessToken: serviceRoleKey,
-                        body: {
-                            email: email.toLowerCase(),
-                            password,
-                            email_confirm: true,
-                            user_metadata: { username },
-                        },
-                    });
-                    supabaseAuthId = authUser?.id || null;
+                    try {
+                        // Try creating a new Supabase Auth user
+                        const authUser = await supabaseFetch('/admin/users', {
+                            method: 'POST',
+                            apiKey: serviceRoleKey,
+                            accessToken: serviceRoleKey,
+                            body: {
+                                email: email.toLowerCase(),
+                                password,
+                                email_confirm: true,
+                                user_metadata: { username },
+                            },
+                        });
+                        supabaseAuthId = authUser?.id || null;
+                    } catch (createErr) {
+                        // User may already exist (e.g. frontend signUp created an unconfirmed user).
+                        // Look them up and confirm their email so signInWithPassword works.
+                        console.warn('[register] Create failed, looking up existing Supabase Auth user:', createErr.message);
+                        const listRes = await supabaseFetch('/admin/users', {
+                            method: 'GET',
+                            apiKey: serviceRoleKey,
+                            accessToken: serviceRoleKey,
+                            query: { email: email.toLowerCase() },
+                        });
+                        const existing = Array.isArray(listRes?.users) && listRes.users[0];
+                        if (existing?.id) {
+                            supabaseAuthId = existing.id;
+                            // Confirm email + update password so signInWithPassword works
+                            await supabaseFetch(`/admin/users/${existing.id}`, {
+                                method: 'PUT',
+                                apiKey: serviceRoleKey,
+                                accessToken: serviceRoleKey,
+                                body: { email_confirm: true, password },
+                            });
+                        }
+                    }
                 }
             } catch (err) {
-                console.warn('[register] Supabase Auth user creation failed (continuing with legacy):', err.message);
+                console.warn('[register] Supabase Auth user setup failed (continuing with legacy):', err.message);
             }
 
             const result = await db.queryOne(
