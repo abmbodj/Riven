@@ -19,6 +19,11 @@ export const getSupabaseAdmin = (): any => {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: {
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
   }) as any;
 
   return cachedAdminClient;
