@@ -1207,6 +1207,13 @@ const mapFriendRow = (row) => {
     };
 };
 
+const mapBlockedUserRow = (row) => ({
+    id: row.id,
+    username: row.username,
+    avatar: row.avatar || null,
+    blocked_at: row.blocked_at || null,
+});
+
 export const searchUsers = async (query) => {
     const trimmedQuery = (query || '').trim();
     if (trimmedQuery.length < 2) {
@@ -1267,13 +1274,39 @@ export const removeFriend = async (userId) => {
 };
 
 // ============ MODERATION (BLOCKS & REPORTS) ============
-export const blockUser = (userId) => authFetch(`/users/${userId}/block`, { method: 'POST' });
-export const unblockUser = (userId) => authFetch(`/users/${userId}/block`, { method: 'DELETE' });
-export const getBlockedUsers = () => safeFetchArray(authFetch('/blocked-users'));
-export const reportContent = (reportData) => authFetch('/reports', {
-    method: 'POST',
-    body: JSON.stringify(reportData)
-});
+export const blockUser = async (userId) => {
+    const { data, error } = await supabase.rpc('block_user', {
+        target_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'User blocked successfully' };
+};
+
+export const unblockUser = async (userId) => {
+    const { data, error } = await supabase.rpc('unblock_user', {
+        target_user_id: Number(userId),
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'User unblocked successfully' };
+};
+
+export const getBlockedUsers = async () => safeFetchArray((async () => {
+    const { data, error } = await supabase.rpc('list_blocked_users');
+    if (error) _sbThrow(error);
+    return (data || []).map(mapBlockedUserRow);
+})());
+
+export const reportContent = async (reportData) => {
+    const { data, error } = await supabase.rpc('submit_report', {
+        target_user_id: reportData?.reportedUserId == null ? null : Number(reportData.reportedUserId),
+        report_content_type: reportData?.contentType ?? null,
+        report_content_id: reportData?.contentId ?? null,
+        report_reason: reportData?.reason ?? null,
+        report_details: reportData?.details ?? null,
+    });
+    if (error) _sbThrow(error);
+    return data || { message: 'Report submitted successfully. Our team will review it shortly.' };
+};
 
 // ============ DIRECT MESSAGES ============
 

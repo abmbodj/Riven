@@ -50,12 +50,17 @@ describe('Phase 2 RLS migration', () => {
 
         expect(migrationSql).toContain('ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;');
         expect(migrationSql).toContain('ALTER TABLE public.user_blocks ENABLE ROW LEVEL SECURITY;');
+        expect(migrationSql).toContain('ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.search_public_users(search_query text)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.get_public_user_profile(target_user_id integer)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.list_friends()');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.send_friend_request(target_user_id integer)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.accept_friend_request(requester_user_id integer)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.remove_friendship(target_user_id integer)');
+        expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.list_blocked_users()');
+        expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.block_user(target_user_id integer)');
+        expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.unblock_user(target_user_id integer)');
+        expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.submit_report(');
     });
 
     it('avoids reserved current_user identifiers in social SQL functions', () => {

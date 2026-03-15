@@ -74,6 +74,16 @@ describe('Phase 2 legacy route cleanup', () => {
             updateMessageResponse,
             deleteMessageResponse,
             unreadCountResponse,
+            searchUsersResponse,
+            userProfileResponse,
+            friendsResponse,
+            friendRequestResponse,
+            acceptFriendRequestResponse,
+            removeFriendResponse,
+            blockedUsersResponse,
+            blockUserResponse,
+            unblockUserResponse,
+            reportContentResponse,
         ] = await Promise.all([
             request(app).get('/api/classes').set('Authorization', authHeader),
             request(app).get('/api/assignments').set('Authorization', authHeader),
@@ -103,6 +113,16 @@ describe('Phase 2 legacy route cleanup', () => {
             request(app).put('/api/messages/1').set('Authorization', authHeader).send({ content: 'edited' }),
             request(app).delete('/api/messages/1').set('Authorization', authHeader),
             request(app).get('/api/messages/unread/count').set('Authorization', authHeader),
+            request(app).get('/api/users/search?q=bi').set('Authorization', authHeader),
+            request(app).get('/api/users/2').set('Authorization', authHeader),
+            request(app).get('/api/friends').set('Authorization', authHeader),
+            request(app).post('/api/friends/request').set('Authorization', authHeader).send({ userId: 2 }),
+            request(app).post('/api/friends/accept').set('Authorization', authHeader).send({ userId: 2 }),
+            request(app).delete('/api/friends/2').set('Authorization', authHeader),
+            request(app).get('/api/blocked-users').set('Authorization', authHeader),
+            request(app).post('/api/users/2/block').set('Authorization', authHeader),
+            request(app).delete('/api/users/2/block').set('Authorization', authHeader),
+            request(app).post('/api/reports').set('Authorization', authHeader).send({ contentType: 'user', reason: 'spam' }),
         ]);
 
         expect(classesResponse.status).toBe(404);
@@ -133,5 +153,15 @@ describe('Phase 2 legacy route cleanup', () => {
         expect(updateMessageResponse.status).toBe(404);
         expect(deleteMessageResponse.status).toBe(404);
         expect(unreadCountResponse.status).toBe(404);
+        expect(searchUsersResponse.status).toBe(404);
+        expect(userProfileResponse.status).toBe(404);
+        expect(friendsResponse.status).toBe(404);
+        expect(friendRequestResponse.status).toBe(404);
+        expect(acceptFriendRequestResponse.status).toBe(404);
+        expect(removeFriendResponse.status).toBe(404);
+        expect(blockedUsersResponse.status).toBe(404);
+        expect(blockUserResponse.status).toBe(404);
+        expect(unblockUserResponse.status).toBe(404);
+        expect(reportContentResponse.status).toBe(404);
     });
 });

@@ -27,6 +27,7 @@ describe('authApi social features via Supabase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     supabase.rpc.mockReset();
+    supabase.from.mockReset();
     authApi.setToken('supabase-token');
   });
 
@@ -170,5 +171,71 @@ describe('authApi social features via Supabase', () => {
     expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'remove_friendship', { target_user_id: 12 });
     expect(accepted).toEqual({ message: 'Friend request accepted' });
     expect(removed).toEqual({ message: 'Friend removed' });
+  });
+
+  it('loads blocked users through Supabase RPC', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: [
+        {
+          id: 44,
+          username: 'blocked-user',
+          avatar: '/blocked.png',
+          blocked_at: '2026-03-14T12:00:00.000Z',
+        },
+      ],
+      error: null,
+    });
+
+    const blockedUsers = await authApi.getBlockedUsers();
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_blocked_users');
+    expect(blockedUsers).toEqual([
+      {
+        id: 44,
+        username: 'blocked-user',
+        avatar: '/blocked.png',
+        blocked_at: '2026-03-14T12:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('blocks and unblocks users through Supabase RPC', async () => {
+    supabase.rpc
+      .mockResolvedValueOnce({ data: { message: 'User blocked successfully' }, error: null })
+      .mockResolvedValueOnce({ data: { message: 'User unblocked successfully' }, error: null });
+
+    const blocked = await authApi.blockUser(44);
+    const unblocked = await authApi.unblockUser(44);
+
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, 'block_user', { target_user_id: 44 });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'unblock_user', { target_user_id: 44 });
+    expect(blocked).toEqual({ message: 'User blocked successfully' });
+    expect(unblocked).toEqual({ message: 'User unblocked successfully' });
+  });
+
+  it('submits reports through Supabase RPC', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: { message: 'Report submitted successfully. Our team will review it shortly.' },
+      error: null,
+    });
+
+    const result = await authApi.reportContent({
+      reportedUserId: 12,
+      contentType: 'message',
+      contentId: '42',
+      reason: 'Harassment',
+      details: 'Repeated abusive messages',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('submit_report', {
+      target_user_id: 12,
+      report_content_type: 'message',
+      report_content_id: '42',
+      report_reason: 'Harassment',
+      report_details: 'Repeated abusive messages',
+    });
+    expect(result).toEqual({
+      message: 'Report submitted successfully. Our team will review it shortly.',
+    });
   });
 });

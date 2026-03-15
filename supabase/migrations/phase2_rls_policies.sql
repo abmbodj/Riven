@@ -96,6 +96,17 @@ CREATE POLICY user_blocks_delete_owner ON public.user_blocks
   FOR DELETE USING (blocker_id = public.get_app_user_id());
 
 
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS reports_select_reporter ON public.reports;
+CREATE POLICY reports_select_reporter ON public.reports
+  FOR SELECT USING (reporter_id = public.get_app_user_id());
+
+DROP POLICY IF EXISTS reports_insert_reporter ON public.reports;
+CREATE POLICY reports_insert_reporter ON public.reports
+  FOR INSERT WITH CHECK (reporter_id = public.get_app_user_id());
+
+
 CREATE OR REPLACE FUNCTION public.search_public_users(search_query text)
 RETURNS TABLE (
   id integer,
@@ -393,12 +404,165 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.list_blocked_users()
+RETURNS TABLE (
+  id integer,
+  username text,
+  avatar text,
+  blocked_at timestamp
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT
+    u.id,
+    u.username,
+    u.avatar,
+    ub.created_at AS blocked_at
+  FROM public.user_blocks ub
+  JOIN public.users u ON u.id = ub.blocked_id
+  WHERE ub.blocker_id = public.get_app_user_id()
+  ORDER BY ub.created_at DESC
+$$;
+
+CREATE OR REPLACE FUNCTION public.block_user(target_user_id integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  IF target_user_id = current_user_id THEN
+    RAISE EXCEPTION 'Cannot block yourself';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE id = target_user_id
+  ) THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+
+  DELETE FROM public.friendships
+  WHERE (user_id = current_user_id AND friend_id = target_user_id)
+     OR (user_id = target_user_id AND friend_id = current_user_id);
+
+  INSERT INTO public.user_blocks (blocker_id, blocked_id)
+  VALUES (current_user_id, target_user_id)
+  ON CONFLICT (blocker_id, blocked_id) DO NOTHING;
+
+  RETURN jsonb_build_object('message', 'User blocked successfully');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.unblock_user(target_user_id integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  DELETE FROM public.user_blocks
+  WHERE blocker_id = current_user_id
+    AND blocked_id = target_user_id;
+
+  RETURN jsonb_build_object('message', 'User unblocked successfully');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.submit_report(
+  target_user_id integer,
+  report_content_type text,
+  report_content_id text,
+  report_reason text,
+  report_details text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  current_user_id integer := public.get_app_user_id();
+  normalized_content_type text := LOWER(BTRIM(COALESCE(report_content_type, '')));
+  normalized_content_id text := NULLIF(BTRIM(COALESCE(report_content_id, '')), '');
+  normalized_reason text := BTRIM(COALESCE(report_reason, ''));
+  normalized_details text := NULLIF(BTRIM(COALESCE(report_details, '')), '');
+  valid_content_types text[] := ARRAY['user', 'deck', 'message', 'group', 'other'];
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Must be logged in';
+  END IF;
+
+  IF normalized_content_type = '' OR normalized_reason = '' THEN
+    RAISE EXCEPTION 'Missing required report fields';
+  END IF;
+
+  IF LENGTH(normalized_reason) > 500 THEN
+    RAISE EXCEPTION 'Reason must be a string under 500 characters';
+  END IF;
+
+  IF normalized_details IS NOT NULL AND LENGTH(normalized_details) > 2000 THEN
+    RAISE EXCEPTION 'Details must be under 2000 characters';
+  END IF;
+
+  IF NOT (normalized_content_type = ANY(valid_content_types)) THEN
+    RAISE EXCEPTION 'Invalid content type';
+  END IF;
+
+  INSERT INTO public.reports (
+    reporter_id,
+    reported_user_id,
+    content_type,
+    content_id,
+    reason,
+    details
+  )
+  VALUES (
+    current_user_id,
+    target_user_id,
+    normalized_content_type,
+    normalized_content_id,
+    normalized_reason,
+    COALESCE(normalized_details, '')
+  );
+
+  RETURN jsonb_build_object(
+    'message',
+    'Report submitted successfully. Our team will review it shortly.'
+  );
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.search_public_users(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_user_profile(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.list_friends() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.send_friend_request(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_friend_request(integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.remove_friendship(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_blocked_users() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.block_user(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.unblock_user(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_report(integer, text, text, text, text) TO authenticated;
 
 -- ─────────────────────────────────────────────────────
 -- 3. Enable RLS + Create policies + Attach trigger

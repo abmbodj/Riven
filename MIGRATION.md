@@ -304,7 +304,6 @@ Replace remaining Express routes with Deno serverless functions hosted on Supaba
 | `referrals` | `/api/referrals/*` | Multi-table SQL, clean port |
 | `lms-sync` | `/api/lms/*` | **High risk**: `node-ical` may not work in Deno — may need rewrite with native URL parsing |
 | `admin-actions` | `/api/admin/*` | Use `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS |
-| `social` | `/api/friends/*`, `/api/users/search`, `/api/reports/*` | Pure SQL, clean port |
 | `groups` | `/api/groups/*` | Largest function — batch or split |
 | `send-email` | Internal email util | `resend` npm package works via esm.sh |
 
@@ -721,16 +720,16 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `GET /api/auth/pet` | Pending | 2 | PostgREST |
 | `PUT /api/auth/pet` | Pending | 2 | PostgREST |
 | `POST /api/auth/simulate-free` | Pending | 3 | Edge Function |
-| `GET /api/users/search` | Pending | 3 | Edge Function |
-| `GET /api/users/:id` | Pending | 2 | PostgREST |
-| `GET /api/friends` | Pending | 2 | PostgREST |
-| `POST /api/friends/request` | Pending | 3 | Edge Function |
-| `POST /api/friends/accept` | Pending | 3 | Edge Function |
-| `DELETE /api/friends/:userId` | Pending | 2 | PostgREST |
-| `GET /api/blocked-users` | Pending | 2 | PostgREST |
-| `POST /api/users/:id/block` | Pending | 3 | Edge Function |
-| `DELETE /api/users/:id/block` | Pending | 2 | PostgREST |
-| `POST /api/reports` | Pending | 3 | Edge Function |
+| `GET /api/users/search` | Complete | 0 | Supabase RPC |
+| `GET /api/users/:id` | Complete | 0 | Supabase RPC |
+| `GET /api/friends` | Complete | 0 | Supabase RPC |
+| `POST /api/friends/request` | Complete | 0 | Supabase RPC |
+| `POST /api/friends/accept` | Complete | 0 | Supabase RPC |
+| `DELETE /api/friends/:userId` | Complete | 0 | Supabase RPC |
+| `GET /api/blocked-users` | Complete | 0 | Supabase RPC |
+| `POST /api/users/:id/block` | Complete | 0 | Supabase RPC |
+| `DELETE /api/users/:id/block` | Complete | 0 | Supabase RPC |
+| `POST /api/reports` | Complete | 0 | Supabase RPC |
 | `GET /api/ai/limits` | Pending | 3 | Edge Function |
 | `POST /api/ai/generate-deck` | Pending | 3 | Edge Function |
 | `POST /api/ai/generate-class` | Pending | 3 | Edge Function |
