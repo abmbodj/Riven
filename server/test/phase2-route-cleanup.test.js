@@ -74,6 +74,11 @@ describe('Phase 2 legacy route cleanup', () => {
             updateMessageResponse,
             deleteMessageResponse,
             unreadCountResponse,
+            updateProfileResponse,
+            updateStreakResponse,
+            getStreakResponse,
+            getPetResponse,
+            updatePetResponse,
             searchUsersResponse,
             userProfileResponse,
             friendsResponse,
@@ -113,6 +118,11 @@ describe('Phase 2 legacy route cleanup', () => {
             request(app).put('/api/messages/1').set('Authorization', authHeader).send({ content: 'edited' }),
             request(app).delete('/api/messages/1').set('Authorization', authHeader),
             request(app).get('/api/messages/unread/count').set('Authorization', authHeader),
+            request(app).put('/api/auth/profile').set('Authorization', authHeader).send({ bio: 'updated' }),
+            request(app).put('/api/auth/streak').set('Authorization', authHeader).send({ streakData: { currentStreak: 2 } }),
+            request(app).get('/api/auth/streak').set('Authorization', authHeader),
+            request(app).get('/api/auth/pet').set('Authorization', authHeader),
+            request(app).put('/api/auth/pet').set('Authorization', authHeader).send({ customization: { gardenTheme: 'cottage' } }),
             request(app).get('/api/users/search?q=bi').set('Authorization', authHeader),
             request(app).get('/api/users/2').set('Authorization', authHeader),
             request(app).get('/api/friends').set('Authorization', authHeader),
@@ -153,6 +163,11 @@ describe('Phase 2 legacy route cleanup', () => {
         expect(updateMessageResponse.status).toBe(404);
         expect(deleteMessageResponse.status).toBe(404);
         expect(unreadCountResponse.status).toBe(404);
+        expect(updateProfileResponse.status).toBe(404);
+        expect(updateStreakResponse.status).toBe(404);
+        expect(getStreakResponse.status).toBe(404);
+        expect(getPetResponse.status).toBe(404);
+        expect(updatePetResponse.status).toBe(404);
         expect(searchUsersResponse.status).toBe(404);
         expect(userProfileResponse.status).toBe(404);
         expect(friendsResponse.status).toBe(404);

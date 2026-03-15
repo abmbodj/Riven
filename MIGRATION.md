@@ -712,13 +712,13 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/auth/2fa/verify` | Pending | 1 | Supabase MFA or Keep |
 | `POST /api/auth/2fa/disable` | Pending | 1 | Supabase MFA or Keep |
 | `POST /api/auth/2fa/login` | Pending | 1 | Keep (existing users) |
-| `PUT /api/auth/profile` | Pending | 2 | PostgREST |
+| `PUT /api/auth/profile` | Complete | 0 | PostgREST |
 | `PUT /api/auth/password` | Complete | 1 | Supabase Auth |
 | `DELETE /api/auth/account` | Complete | 1 | Supabase Auth + Edge Fn |
-| `PUT /api/auth/streak` | Pending | 2 | PostgREST |
-| `GET /api/auth/streak` | Pending | 2 | PostgREST |
-| `GET /api/auth/pet` | Pending | 2 | PostgREST |
-| `PUT /api/auth/pet` | Pending | 2 | PostgREST |
+| `PUT /api/auth/streak` | Complete | 0 | PostgREST |
+| `GET /api/auth/streak` | Complete | 0 | PostgREST |
+| `GET /api/auth/pet` | Complete | 0 | PostgREST |
+| `PUT /api/auth/pet` | Complete | 0 | PostgREST |
 | `POST /api/auth/simulate-free` | Pending | 3 | Edge Function |
 | `GET /api/users/search` | Complete | 0 | Supabase RPC |
 | `GET /api/users/:id` | Complete | 0 | Supabase RPC |

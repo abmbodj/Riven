@@ -46,6 +46,11 @@ DROP POLICY IF EXISTS users_select_self ON public.users;
 CREATE POLICY users_select_self ON public.users
   FOR SELECT USING (id = public.get_app_user_id());
 
+DROP POLICY IF EXISTS users_update_self ON public.users;
+CREATE POLICY users_update_self ON public.users
+  FOR UPDATE USING (id = public.get_app_user_id())
+  WITH CHECK (id = public.get_app_user_id());
+
 
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 

@@ -293,13 +293,6 @@ export const refreshSupabaseToken = async () => {
     return null;
 };
 
-export const updateProfile = async (updates) => {
-    return authFetch('/auth/profile', {
-        method: 'PUT',
-        body: JSON.stringify(updates),
-    });
-};
-
 export const changePassword = async (currentPassword, newPassword) => {
     return authFetch('/auth/password', {
         method: 'PUT',
@@ -318,39 +311,56 @@ export const deleteAccount = async (password) => {
 
 // ============ STREAK ENDPOINTS ============
 
-export const getStreak = async () => {
-    return safeFetchObject(authFetch('/auth/streak'), {});
-};
-
-export const updateStreak = async (streakData) => {
-    return authFetch('/auth/streak', {
-        method: 'PUT',
-        body: JSON.stringify({ streakData }),
-    });
-};
-
-// ============ PET CUSTOMIZATION ============
-
-export const getPetCustomization = async () => {
-    return safeFetchObject(authFetch('/auth/pet'), { decorations: [], specialPlants: [] });
-};
-
-export const updatePetCustomization = async (customization) => {
-    return authFetch('/auth/pet', {
-        method: 'PUT',
-        body: JSON.stringify({ customization }),
-    });
-};
-
 // ============ DATA ENDPOINTS — Supabase PostgREST (Phase 2) ============
 // RLS policies handle auth — see supabase/migrations/phase2_rls_policies.sql
 
 /** Throw in the same shape authFetch uses so callers don't break */
 const _sbThrow = (error) => {
     const err = new Error(error.message || 'Supabase query failed');
-    err.status = error.code === 'PGRST301' ? 401 : 500;
+    err.code = error.code;
+    err.details = error.details;
+    err.hint = error.hint;
+    err.status = error.code === 'PGRST301'
+        ? 401
+        : error.code === '42501'
+            ? 403
+            : ['23505', '23514', '22P02'].includes(error.code)
+                ? 400
+                : 500;
     throw err;
 };
+
+const DEFAULT_PET_CUSTOMIZATION = {
+    gardenTheme: 'cottage',
+    decorations: [],
+    specialPlants: [],
+};
+
+const SELF_PROFILE_SELECT = [
+    'id',
+    'username',
+    'display_name',
+    'email',
+    'share_code',
+    'avatar',
+    'banner',
+    'bio',
+    'streak_data',
+    'pet_customization',
+    'role',
+    'is_admin',
+    'created_at',
+    'two_fa_enabled',
+    'subscription_tier',
+    'simulate_free_tier',
+    'email_verified',
+].join(', ');
+
+const isValidProfileUsername = (username) => (
+    username.length >= 2
+    && username.length <= 30
+    && /^[a-zA-Z0-9_]+$/.test(username)
+);
 
 const getAppUserId = async () => {
     const token = getToken();
@@ -1144,6 +1154,17 @@ export const migrateGuestData = (guestData) => authFetch('/auth/migrate-guest-da
     body: JSON.stringify(guestData),
 });
 
+const loadCurrentUserRow = async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('users')
+        .select(SELF_PROFILE_SELECT)
+        .eq('id', userId)
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
 // ============ SOCIAL / FRIENDS ============
 
 const normalizeRoleFlags = (row) => {
@@ -1207,12 +1228,128 @@ const mapFriendRow = (row) => {
     };
 };
 
+const mapOwnUserRow = (row) => {
+    const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
+
+    return {
+        id: row.id,
+        username: row.username,
+        displayName: row.display_name || row.username,
+        email: row.email,
+        shareCode: row.share_code || null,
+        avatar: row.avatar || null,
+        banner: row.banner || null,
+        bio: row.bio || '',
+        streakData: parseJsonish(row.streak_data) || {},
+        petCustomization: parseJsonish(row.pet_customization) || DEFAULT_PET_CUSTOMIZATION,
+        role,
+        isAdmin,
+        isOwner,
+        createdAt: row.created_at || null,
+        twoFAEnabled: Boolean(row.two_fa_enabled),
+        subscription_tier: row.subscription_tier || 'free',
+        simulate_free_tier: Boolean(row.simulate_free_tier),
+        email_verified: Boolean(row.email_verified),
+    };
+};
+
 const mapBlockedUserRow = (row) => ({
     id: row.id,
     username: row.username,
     avatar: row.avatar || null,
     blocked_at: row.blocked_at || null,
 });
+
+// ============ PROFILE / STREAK / PET DATA ============
+
+export const updateProfile = async (updates = {}) => {
+    const nextUpdates = {};
+
+    if (updates.username !== undefined) {
+        const username = updates.username.trim();
+        if (!isValidProfileUsername(username)) {
+            const error = new Error('Username must be 2-30 characters, alphanumeric and underscores only');
+            error.status = 400;
+            throw error;
+        }
+        nextUpdates.username = username;
+    }
+
+    if (updates.displayName !== undefined) nextUpdates.display_name = updates.displayName.trim();
+    if (updates.bio !== undefined) nextUpdates.bio = updates.bio;
+    if (updates.avatar !== undefined) nextUpdates.avatar = updates.avatar;
+    if (updates.banner !== undefined) nextUpdates.banner = updates.banner;
+
+    try {
+        if (!Object.keys(nextUpdates).length) {
+            return mapOwnUserRow(await loadCurrentUserRow());
+        }
+
+        const userId = await getAppUserId();
+        const { data, error } = await supabase
+            .from('users')
+            .update(nextUpdates)
+            .eq('id', userId)
+            .select(SELF_PROFILE_SELECT)
+            .single();
+        if (error) _sbThrow(error);
+        return mapOwnUserRow(data);
+    } catch (error) {
+        if (error.code === '23505') {
+            const duplicateUsernameError = new Error('Username already taken');
+            duplicateUsernameError.status = 400;
+            throw duplicateUsernameError;
+        }
+        throw error;
+    }
+};
+
+export const getStreak = async () => safeFetchObject((async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('users')
+        .select('streak_data')
+        .eq('id', userId)
+        .single();
+    if (error) _sbThrow(error);
+    return parseJsonish(data?.streak_data) || {};
+})(), {});
+
+export const updateStreak = async (streakData) => {
+    const userId = await getAppUserId();
+    const { error } = await supabase
+        .from('users')
+        .update({ streak_data: JSON.stringify(streakData || {}) })
+        .eq('id', userId);
+    if (error) _sbThrow(error);
+    return { message: 'Streak data saved' };
+};
+
+// ============ PET CUSTOMIZATION ============
+
+export const getPetCustomization = async () => safeFetchObject((async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('users')
+        .select('pet_customization')
+        .eq('id', userId)
+        .single();
+    if (error) _sbThrow(error);
+    return parseJsonish(data?.pet_customization) || DEFAULT_PET_CUSTOMIZATION;
+})(), DEFAULT_PET_CUSTOMIZATION);
+
+export const updatePetCustomization = async (customization) => {
+    const userId = await getAppUserId();
+    const { error } = await supabase
+        .from('users')
+        .update({ pet_customization: JSON.stringify(customization || DEFAULT_PET_CUSTOMIZATION) })
+        .eq('id', userId);
+    if (error) _sbThrow(error);
+    return {
+        message: 'Garden customization saved',
+        customization: customization || DEFAULT_PET_CUSTOMIZATION,
+    };
+};
 
 export const searchUsers = async (query) => {
     const trimmedQuery = (query || '').trim();

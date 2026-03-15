@@ -51,6 +51,7 @@ describe('Phase 2 RLS migration', () => {
         expect(migrationSql).toContain('ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;');
         expect(migrationSql).toContain('ALTER TABLE public.user_blocks ENABLE ROW LEVEL SECURITY;');
         expect(migrationSql).toContain('ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;');
+        expect(migrationSql).toContain('CREATE POLICY users_update_self ON public.users');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.search_public_users(search_query text)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.get_public_user_profile(target_user_id integer)');
         expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.list_friends()');

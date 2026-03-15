@@ -585,42 +585,6 @@ module.exports = function registerAuthRoutes({
         }
     });
 
-    // Update profile
-    app.put('/api/auth/profile', authMiddleware, async (req, res) => {
-        const { username, displayName, bio, avatar, banner } = req.body;
-        try {
-            // Uniqueness check for username if it's changing
-            if (username) {
-                if (!isValidUsername(username)) {
-                    return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
-                }
-                const existing = await db.queryOne('SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2', [username, req.user.id]);
-                if (existing) return res.status(400).json({ error: 'Username already taken' });
-            }
-
-            await db.execute(
-                'UPDATE users SET username = COALESCE($1, username), display_name = COALESCE($2, display_name), bio = COALESCE($3, bio), avatar = COALESCE($4, avatar), banner = COALESCE($5, banner) WHERE id = $6',
-                [username, displayName, bio, avatar, banner, req.user.id]
-            );
-
-            const user = await db.queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
-            const updatedRole = user.role || (user.is_admin === 1 ? 'admin' : 'user');
-            const effectiveTierProfile = (updatedRole === 'owner' || updatedRole === 'admin') && !user.simulate_free_tier ? 'lifetime' : (user.subscription_tier || 'free');
-            res.json({
-                id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
-                avatar: user.avatar, banner: user.banner, bio: user.bio || '', streakData: JSON.parse(user.streak_data || '{}'),
-                role: updatedRole, isAdmin: updatedRole === 'admin' || updatedRole === 'owner',
-                isOwner: updatedRole === 'owner', createdAt: user.created_at,
-                twoFAEnabled: !!user.two_fa_enabled,
-                subscription_tier: effectiveTierProfile,
-                simulate_free_tier: !!user.simulate_free_tier
-            });
-        } catch (error) {
-            console.error('PUT /api/auth/profile error:', error);
-            res.status(500).json({ error: 'Failed to update profile' });
-        }
-    });
-
     // Change password
     app.put('/api/auth/password', authMiddleware, async (req, res) => {
         const { currentPassword, newPassword } = req.body;
@@ -691,51 +655,6 @@ module.exports = function registerAuthRoutes({
         } catch (error) {
             console.error('DELETE /api/auth/account error:', error);
             res.status(500).json({ error: 'Failed to delete account' });
-        }
-    });
-
-    // Streak endpoints
-    app.put('/api/auth/streak', authMiddleware, async (req, res) => {
-        const { streakData } = req.body;
-        try {
-            await db.execute('UPDATE users SET streak_data = $1 WHERE id = $2', [JSON.stringify(streakData), req.user.id]);
-            res.json({ message: 'Streak data saved' });
-        } catch (error) {
-            console.error('PUT /api/auth/streak error:', error);
-            res.status(500).json({ error: 'Failed to save streak data' });
-        }
-    });
-
-    app.get('/api/auth/streak', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne('SELECT streak_data FROM users WHERE id = $1', [req.user.id]);
-            res.json(JSON.parse(user.streak_data || '{}'));
-        } catch (error) {
-            console.error('GET /api/auth/streak error:', error);
-            res.status(500).json({ error: 'Failed to fetch streak data' });
-        }
-    });
-
-    // Garden customization endpoints (uses pet_customization column)
-    app.get('/api/auth/pet', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne('SELECT pet_customization FROM users WHERE id = $1', [req.user.id]);
-            const defaultCustomization = { gardenTheme: 'cottage', decorations: [], specialPlants: [] };
-            res.json(user?.pet_customization ? JSON.parse(user.pet_customization) : defaultCustomization);
-        } catch (error) {
-            console.error('GET /api/auth/pet error:', error);
-            res.status(500).json({ error: 'Failed to fetch garden customization' });
-        }
-    });
-
-    app.put('/api/auth/pet', authMiddleware, async (req, res) => {
-        const { customization } = req.body;
-        try {
-            await db.execute('UPDATE users SET pet_customization = $1 WHERE id = $2', [JSON.stringify(customization), req.user.id]);
-            res.json({ message: 'Garden customization saved', customization });
-        } catch (error) {
-            console.error('PUT /api/auth/pet error:', error);
-            res.status(500).json({ error: 'Failed to save garden customization' });
         }
     });
 
