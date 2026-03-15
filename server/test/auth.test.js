@@ -225,6 +225,63 @@ describe('Auth Core Endpoints', () => {
         });
     });
 
+    describe('GET /api/auth/me', () => {
+        it('accepts a Supabase token via auth API fallback when local JWT verification fails', async () => {
+            const originalSupabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
+            process.env.SUPABASE_JWT_SECRET = 'wrong-secret';
+
+            dbMock.pool.query
+                .mockResolvedValueOnce({
+                    rows: [{ id: 1, email: 'test@example.com', role: 'user', is_admin: 0 }],
+                })
+                .mockResolvedValueOnce({
+                    rows: [{
+                        id: 1,
+                        username: 'testuser',
+                        display_name: 'Test User',
+                        email: 'test@example.com',
+                        share_code: 'ABC12345',
+                        avatar: null,
+                        banner: null,
+                        bio: '',
+                        streak_data: '{}',
+                        pet_customization: '{}',
+                        role: 'user',
+                        is_admin: 0,
+                        is_banned: false,
+                        created_at: '2026-03-14T00:00:00.000Z',
+                        two_fa_enabled: false,
+                        subscription_tier: 'free',
+                        simulate_free_tier: false,
+                        email_verified: true,
+                    }],
+                });
+
+            global.fetch = vi.fn().mockResolvedValue(mockJsonResponse({
+                id: SUPABASE_AUTH_ID,
+                email: 'test@example.com',
+            }));
+
+            const res = await request(app)
+                .get('/api/auth/me')
+                .set('Authorization', supabaseAuthHeader);
+
+            process.env.SUPABASE_JWT_SECRET = originalSupabaseJwtSecret;
+
+            expect(res.status).toBe(200);
+            expect(res.body.email).toBe('test@example.com');
+            expect(global.fetch).toHaveBeenCalledWith(
+                `${SUPABASE_URL}/auth/v1/user`,
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        Authorization: supabaseAuthHeader,
+                        apikey: SUPABASE_ANON_KEY,
+                    }),
+                })
+            );
+        });
+    });
+
     // ============ PASSWORD CHANGE ============
 
     describe('PUT /api/auth/password', () => {

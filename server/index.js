@@ -295,6 +295,37 @@ function generateShareCode() {
 }
 
 // Auth middleware
+async function verifySupabaseTokenViaAuthApi(token) {
+    const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey || !token) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                apikey: supabaseAnonKey,
+            },
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const authUser = await response.json();
+        if (!authUser?.id) {
+            return null;
+        }
+
+        return authUser;
+    } catch {
+        return null;
+    }
+}
+
 async function authMiddleware(req, res, next) {
     // Read token from httpOnly cookie (preferred) or Authorization header (backward compatibility)
     let token = req.cookies.token;
@@ -356,6 +387,23 @@ async function authMiddleware(req, res, next) {
         }
         next();
     } catch (err) {
+        const authUser = await verifySupabaseTokenViaAuthApi(token);
+        if (authUser?.id) {
+            const dbUser = await db.queryOne(
+                'SELECT id, email, role, is_admin FROM users WHERE supabase_auth_id = $1',
+                [authUser.id]
+            );
+            if (dbUser) {
+                req.user = {
+                    id: dbUser.id,
+                    email: dbUser.email,
+                    role: dbUser.role || (dbUser.is_admin === 1 ? 'admin' : 'user')
+                };
+                return next();
+            }
+            return res.status(401).json({ error: 'Account setup required', code: 'ACCOUNT_SETUP_REQUIRED' });
+        }
+
         return res.status(401).json({ error: 'Invalid token' });
     }
 }
