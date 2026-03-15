@@ -2951,10 +2951,21 @@ export const login2FA = async (challengeOrTempToken, token) => {
 
 // ============ PASSWORD RESET ============
 
-export const forgotPassword = (email) => authFetch('/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-});
+export const forgotPassword = async (email) => {
+    try {
+        return await edgeFunctionFetch('forgot-password', {
+            method: 'POST',
+            body: { email },
+        });
+    } catch (error) {
+        if (!shouldFallbackFromEdgeFunction(error)) throw error;
+    }
+
+    return authFetch('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+};
 
 export const resetPassword = async (token, password) => {
     if (!token || !password) {
