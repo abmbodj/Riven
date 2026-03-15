@@ -96,30 +96,7 @@ const authFetch = async (endpoint, options = {}) => {
     }
 };
 
-const parseJwtPayload = (token) => {
-    if (!token || typeof token !== 'string') return null;
 
-    const segments = token.split('.');
-    if (segments.length < 2) return null;
-
-    try {
-        const base64 = segments[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-        return JSON.parse(atob(padded));
-    } catch {
-        return null;
-    }
-};
-
-const isSupabaseSessionToken = (token) => {
-    if (!token || token === 'logged_in') return false;
-
-    const payload = parseJwtPayload(token);
-    if (!payload) return false;
-
-    const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    return audiences.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
-};
 
 const getActiveSupabaseSession = async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
@@ -201,16 +178,6 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
 
     return data;
 };
-
-export const canUseSupabaseEdgeFunctions = () => isSupabaseSessionToken(getToken());
-
-const shouldFallbackFromEdgeFunction = (error) => (
-    error?.code === 'EDGE_FUNCTIONS_NOT_CONFIGURED'
-    || error?.status === 404
-    || error?.status === 502
-    || error?.status === 503
-    || error?.status === 504
-);
 
 
 // Helper for safe data fetching — returns defaults for network/server errors,
@@ -553,10 +520,7 @@ export const loginWithApple = async (identityToken, _user) => {
 
 export const logout = async () => {
     try {
-        // Sign out of Supabase (clears Supabase session storage)
         await supabase.auth.signOut();
-        // Also clear legacy httpOnly cookie
-        await authFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
         setToken(null);
     }
@@ -648,7 +612,7 @@ export const refreshSupabaseToken = async () => {
     return null;
 };
 
-export const changePassword = async (currentPassword, newPassword) => {
+export const changePassword = async (_currentPassword, newPassword) => {
     if (!newPassword) {
         const error = new Error('Current and new password are required');
         error.status = 400;
@@ -661,35 +625,13 @@ export const changePassword = async (currentPassword, newPassword) => {
         throw error;
     }
 
-    const session = await getActiveSupabaseSession().catch(() => null);
-    if (session) {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) throw error;
-        return { message: 'Password changed successfully' };
-    }
-
-    return authFetch('/auth/password', {
-        method: 'PUT',
-        body: JSON.stringify({ currentPassword, newPassword }),
-    });
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    return { message: 'Password changed successfully' };
 };
 
-export const deleteAccount = async (password) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            await edgeFunctionFetch('account-actions', { method: 'DELETE' });
-            await logout();
-            return;
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    await authFetch('/auth/account', {
-        method: 'DELETE',
-        body: JSON.stringify({ password }),
-    });
-    // Clear httpOnly cookie
+export const deleteAccount = async () => {
+    await edgeFunctionFetch('account-actions', { method: 'DELETE' });
     await logout();
 };
 
@@ -973,34 +915,18 @@ export const deleteScheduleSlot = async (id) => {
 };
 
 // --- LMS Integration (Canvas)
-const callCanvasLmsEndpoint = async ({ action, payload, fallback }) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('canvas-lms', {
-                method: 'POST',
-                body: { action, ...(payload || {}) },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
-
-    return fallback();
-};
+const callCanvasLmsEndpoint = ({ action, payload }) =>
+    edgeFunctionFetch('canvas-lms', {
+        method: 'POST',
+        body: { action, ...(payload || {}) },
+    });
 
 export const connectCanvas = (icalUrl) => callCanvasLmsEndpoint({
     action: 'connect',
     payload: { icalUrl },
-    fallback: () => authFetch('/lms/canvas/connect', {
-        method: 'POST',
-        body: JSON.stringify({ icalUrl })
-    }),
 });
 export const disconnectCanvas = () => callCanvasLmsEndpoint({
     action: 'disconnect',
-    fallback: () => authFetch('/lms/canvas/disconnect', { method: 'POST' }),
 });
 export const getCanvasSettings = async () => {
     const userId = await getAppUserId();
@@ -1019,60 +945,16 @@ export const getCanvasSettings = async () => {
 export const syncCanvas = (adGranted = false) => callCanvasLmsEndpoint({
     action: 'sync',
     payload: { adGranted },
-    fallback: () => authFetch('/lms/sync', { method: 'POST', body: JSON.stringify({ adGranted }) }),
 });
 
 // --- AI Generation ---
-export const getAILimits = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('ai-limits', { method: 'GET' });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
+export const getAILimits = () => edgeFunctionFetch('ai-limits', { method: 'GET' });
 
-    return authFetch('/ai/limits');
-};
-export const generateAiDeck = async (notes, file, deckName, classId) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('generate-deck', {
-                body: { notes, file, deckName, classId },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
+export const generateAiDeck = (notes, file, deckName, classId) =>
+    edgeFunctionFetch('generate-deck', { body: { notes, file, deckName, classId } });
 
-    return await authFetch('/ai/generate-deck', {
-        method: 'POST',
-        body: JSON.stringify({ notes, file, deckName, classId })
-    });
-};
-
-export const generateAiClass = async (notes, file) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('generate-class', {
-                body: { notes, file },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
-
-    return await authFetch('/ai/generate-class', {
-        method: 'POST',
-        body: JSON.stringify({ notes, file })
-    });
-};
+export const generateAiClass = (notes, file) =>
+    edgeFunctionFetch('generate-class', { body: { notes, file } });
 
 const parseJsonish = (value) => {
     if (!value) return null;
@@ -1606,33 +1488,12 @@ export const deleteTheme = async (id) => {
 
 // ============ SHARING ENDPOINTS ============
 
-export const acceptSharedDeck = async (messageId) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('accept-shared-deck', {
-                method: 'POST',
-                body: { messageId },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
-
-    return authFetch(`/messages/${messageId}/accept-deck`, { method: 'POST' });
-};
+export const acceptSharedDeck = (messageId) =>
+    edgeFunctionFetch('accept-shared-deck', { method: 'POST', body: { messageId } });
 
 // ============ GUEST DATA MIGRATION ============
 
 export const migrateGuestData = async (guestData) => {
-    if (!canUseSupabaseEdgeFunctions()) {
-        return authFetch('/auth/migrate-guest-data', {
-            method: 'POST',
-            body: JSON.stringify(guestData),
-        });
-    }
-
     const userId = await getAppUserId();
     const folders = Array.isArray(guestData?.folders) ? guestData.folders : [];
     const tags = Array.isArray(guestData?.tags) ? guestData.tags : [];
@@ -2370,39 +2231,17 @@ const callGroupRpc = async (fn, params = {}) => {
     return data;
 };
 
-const callGroupActionEndpoint = async ({ method, action, payload, fallback }) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('group-actions', {
-                method,
-                body: { action, ...(payload || {}) },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
+const callGroupActionEndpoint = ({ method, action, payload }) =>
+    edgeFunctionFetch('group-actions', {
+        method,
+        body: { action, ...(payload || {}) },
+    });
 
-    return fallback();
-};
-
-const callGroupSessionEndpoint = async ({ action, payload, fallback }) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('group-sessions', {
-                method: 'POST',
-                body: { action, ...(payload || {}) },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
-
-    return fallback();
-};
+const callGroupSessionEndpoint = ({ action, payload }) =>
+    edgeFunctionFetch('group-sessions', {
+        method: 'POST',
+        body: { action, ...(payload || {}) },
+    });
 
 export const getGroups = async () => safeFetchArray((async () => {
     const data = await callGroupRpc('list_user_groups');
@@ -2412,10 +2251,6 @@ export const createGroup = (name, class_id) => callGroupActionEndpoint({
     method: 'POST',
     action: 'group-create',
     payload: { name, class_id },
-    fallback: () => authFetch('/groups', {
-        method: 'POST',
-        body: JSON.stringify({ name, class_id })
-    }),
 });
 export const getGroup = async (id) => {
     const data = await callGroupRpc('get_group_details', {
@@ -2435,31 +2270,21 @@ export const updateGroup = (id, updates) => callGroupActionEndpoint({
     method: 'PUT',
     action: 'group-update',
     payload: { groupId: id, ...updates },
-    fallback: () => authFetch(`/groups/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updates)
-    }),
 });
 export const deleteGroup = (id) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-delete',
     payload: { groupId: id },
-    fallback: () => authFetch(`/groups/${id}`, { method: 'DELETE' }),
 });
 export const joinGroup = (join_code) => callGroupActionEndpoint({
     method: 'POST',
     action: 'group-join',
     payload: { join_code },
-    fallback: () => authFetch('/groups/join', {
-        method: 'POST',
-        body: JSON.stringify({ join_code })
-    }),
 });
 export const leaveGroup = (id) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-leave',
     payload: { groupId: id },
-    fallback: () => authFetch(`/groups/${id}/leave`, { method: 'DELETE' }),
 });
 export const getGroupMembers = async (id) => safeFetchArray((async () => {
     const data = await callGroupRpc('list_group_members', {
@@ -2471,7 +2296,6 @@ export const removeGroupMember = (id, userId) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-member-remove',
     payload: { groupId: id, userId },
-    fallback: () => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' }),
 });
 
 export const getGroupDecks = async (id) => safeFetchArray((async () => {
@@ -2484,16 +2308,11 @@ export const shareDeckToGroup = (id, deck_id) => callGroupActionEndpoint({
     method: 'POST',
     action: 'group-deck-share',
     payload: { groupId: id, deck_id },
-    fallback: () => authFetch(`/groups/${id}/decks`, {
-        method: 'POST',
-        body: JSON.stringify({ deck_id })
-    }),
 });
 export const removeDeckFromGroup = (id, deckId) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-deck-remove',
     payload: { groupId: id, deckId },
-    fallback: () => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' }),
 });
 
 export const getGroupFolders = async (id) => safeFetchArray((async () => {
@@ -2506,23 +2325,16 @@ export const createGroupFolder = (id, name) => callGroupActionEndpoint({
     method: 'POST',
     action: 'group-folder-create',
     payload: { groupId: id, name },
-    fallback: () => authFetch(`/groups/${id}/folders`, {
-        method: 'POST', body: JSON.stringify({ name })
-    }),
 });
 export const renameGroupFolder = (id, folderId, name) => callGroupActionEndpoint({
     method: 'PUT',
     action: 'group-folder-update',
     payload: { groupId: id, folderId, name },
-    fallback: () => authFetch(`/groups/${id}/folders/${folderId}`, {
-        method: 'PUT', body: JSON.stringify({ name })
-    }),
 });
 export const deleteGroupFolder = (id, folderId) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-folder-delete',
     payload: { groupId: id, folderId },
-    fallback: () => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' }),
 });
 
 export const getGroupFiles = async (id, folderId = null) => safeFetchArray((async () => {
@@ -2536,18 +2348,11 @@ export const uploadGroupFile = (id, data) => callGroupActionEndpoint({
     method: 'POST',
     action: 'group-file-upload',
     payload: { groupId: id, ...data },
-    fallback: () => authFetch(`/groups/${id}/files`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
 });
 export const deleteGroupFile = (id, fileId) => callGroupActionEndpoint({
     method: 'DELETE',
     action: 'group-file-delete',
     payload: { groupId: id, fileId },
-    fallback: () => authFetch(`/groups/${id}/files/${fileId}`, {
-        method: 'DELETE'
-    }),
 });
 
 // Cram Sessions
@@ -2560,25 +2365,14 @@ export const getGroupSessions = async (id) => safeFetchArray((async () => {
 export const startGroupSession = (id, deckId) => callGroupSessionEndpoint({
     action: 'session-start',
     payload: { groupId: id, deckId },
-    fallback: () => authFetch(`/groups/${id}/sessions`, {
-        method: 'POST',
-        body: JSON.stringify({ deck_id: deckId })
-    }),
 });
 export const joinGroupSession = (sessionId) => callGroupSessionEndpoint({
     action: 'session-join',
     payload: { sessionId },
-    fallback: () => authFetch(`/groups/sessions/${sessionId}/join`, {
-        method: 'POST'
-    }),
 });
 export const respondToSessionCard = (sessionId, cardId, knewIt) => callGroupSessionEndpoint({
     action: 'session-respond',
     payload: { sessionId, cardId, knewIt },
-    fallback: () => authFetch(`/groups/sessions/${sessionId}/respond`, {
-        method: 'POST',
-        body: JSON.stringify({ card_id: cardId, knew_it: knewIt })
-    }),
 });
 export const getSessionResults = async (sessionId) => {
     const data = await callGroupRpc('get_group_session_results', {
@@ -2589,16 +2383,9 @@ export const getSessionResults = async (sessionId) => {
 export const endGroupSession = (sessionId) => callGroupSessionEndpoint({
     action: 'session-end',
     payload: { sessionId },
-    fallback: () => authFetch(`/groups/sessions/${sessionId}/end`, {
-        method: 'POST'
-    }),
 });
 
 export const subscribeToGroupSessionEvents = (groupId, handlers = {}) => {
-    if (!canUseSupabaseEdgeFunctions()) {
-        return () => {};
-    }
-
     const channel = supabase
         .channel(`group_sessions_${groupId}`)
         .on('postgres_changes', {
@@ -2632,10 +2419,6 @@ export const subscribeToGroupSessionEvents = (groupId, handlers = {}) => {
 };
 
 export const subscribeToCramSession = (sessionId, handlers = {}) => {
-    if (!canUseSupabaseEdgeFunctions()) {
-        return () => {};
-    }
-
     const channel = supabase
         .channel(`cram_session_${sessionId}`)
         .on('postgres_changes', {
@@ -2671,23 +2454,12 @@ export const subscribeToCramSession = (sessionId, handlers = {}) => {
 
 // ============ ADMIN ENDPOINTS ============
 
-const callAdminEndpoint = async ({ method = 'GET', action, query, body, fallback }) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('admin-actions', {
-                method,
-                query: method === 'GET' ? { action, ...query } : undefined,
-                body: method === 'GET' ? undefined : { action, ...body },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) {
-                throw error;
-            }
-        }
-    }
-
-    return fallback();
-};
+const callAdminEndpoint = ({ method = 'GET', action, query, body }) =>
+    edgeFunctionFetch('admin-actions', {
+        method,
+        query: method === 'GET' ? { action, ...query } : undefined,
+        body: method === 'GET' ? undefined : { action, ...body },
+    });
 
 const normalizeAdminReport = (report) => {
     const reporterUsername = report?.reporter_username || report?.reporter_name || 'Unknown';
@@ -2708,30 +2480,25 @@ const normalizeAdminReport = (report) => {
 export const adminGetAllUsers = () => safeFetchArray(callAdminEndpoint({
     method: 'GET',
     action: 'users',
-    fallback: () => authFetch('/admin/users'),
 }));
 export const adminUpdateUser = (userId, updates) => callAdminEndpoint({
     method: 'PUT',
     action: 'user-update',
     body: { userId, ...updates },
-    fallback: () => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) }),
 });
 export const adminDeleteUser = (userId) => callAdminEndpoint({
     method: 'DELETE',
     action: 'user-delete',
     body: { userId },
-    fallback: () => authFetch(`/admin/users/${userId}`, { method: 'DELETE' }),
 });
 export const adminGetStats = () => safeFetchObject(callAdminEndpoint({
     method: 'GET',
     action: 'stats',
-    fallback: () => authFetch('/admin/stats'),
 }));
 export const adminUpdateUserRole = (userId, role) => callAdminEndpoint({
     method: 'PUT',
     action: 'user-role',
     body: { userId, role },
-    fallback: () => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
 });
 
 // Admin moderation functions
@@ -2739,7 +2506,6 @@ export const adminGetReports = async () => safeFetchArray((async () => {
     const reports = await callAdminEndpoint({
         method: 'GET',
         action: 'reports',
-        fallback: () => authFetch('/admin/reports'),
     });
     return Array.isArray(reports) ? reports.map(normalizeAdminReport) : [];
 })());
@@ -2747,50 +2513,37 @@ export const adminResolveReport = (reportId) => callAdminEndpoint({
     method: 'POST',
     action: 'report-resolve',
     body: { reportId },
-    fallback: () => authFetch(`/admin/reports/${reportId}/resolve`, { method: 'POST' }),
 });
 export const adminCloseReport = (reportId) => callAdminEndpoint({
     method: 'POST',
     action: 'report-close',
     body: { reportId },
-    fallback: () => authFetch(`/admin/reports/${reportId}/close`, { method: 'POST' }),
 });
 export const adminBanUser = (userId) => callAdminEndpoint({
     method: 'POST',
     action: 'user-ban',
     body: { userId },
-    fallback: () => authFetch(`/admin/users/${userId}/ban`, { method: 'POST' }),
 });
 
 // Admin message functions
 export const adminGetMessages = () => safeFetchArray(callAdminEndpoint({
     method: 'GET',
     action: 'messages',
-    fallback: () => authFetch('/admin/messages'),
 }));
 export const adminCreateMessage = (title, content, type, expiresAt) => callAdminEndpoint({
     method: 'POST',
     action: 'message-create',
     body: { title, content, type, expiresAt },
-    fallback: () => authFetch('/admin/messages', {
-        method: 'POST',
-        body: JSON.stringify({ title, content, type, expiresAt })
-    }),
 });
 export const adminUpdateMessage = (id, updates) => callAdminEndpoint({
     method: 'PUT',
     action: 'message-update',
     body: { messageId: id, ...updates },
-    fallback: () => authFetch(`/admin/messages/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updates)
-    }),
 });
 export const adminDeleteMessage = (id) => callAdminEndpoint({
     method: 'DELETE',
     action: 'message-delete',
     body: { messageId: id },
-    fallback: () => authFetch(`/admin/messages/${id}`, { method: 'DELETE' }),
 });
 
 // User-facing message functions
@@ -2982,21 +2735,8 @@ export const login2FA = async (challengeOrTempToken, token) => {
 
 // ============ PASSWORD RESET ============
 
-export const forgotPassword = async (email) => {
-    try {
-        return await edgeFunctionFetch('forgot-password', {
-            method: 'POST',
-            body: { email },
-        });
-    } catch (error) {
-        if (!shouldFallbackFromEdgeFunction(error)) throw error;
-    }
-
-    return authFetch('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-    });
-};
+export const forgotPassword = (email) =>
+    edgeFunctionFetch('forgot-password', { method: 'POST', body: { email } });
 
 export const resetPassword = async (token, password) => {
     if (!token || !password) {
@@ -3040,142 +2780,48 @@ export const resetPassword = async (token, password) => {
         }
     }
 
-    try {
-        return await edgeFunctionFetch('reset-password', {
-            method: 'POST',
-            body: { token, password },
-        });
-    } catch (error) {
-        if (!shouldFallbackFromEdgeFunction(error)) throw error;
-    }
-
-    return authFetch('/auth/reset-password', {
+    return edgeFunctionFetch('reset-password', {
         method: 'POST',
-        body: JSON.stringify({ token, password }),
+        body: { token, password },
     });
 };
 
 // ============ EMAIL VERIFICATION ============
 
 export const sendVerificationEmail = async () => {
-    const session = await getActiveSupabaseSession().catch(() => null);
-
-    if (session) {
-        try {
-            const row = await getSupabaseSelfUserRow();
-            if (row.email_verified) {
-                return { message: 'Email already verified' };
-            }
-
-            const emailRedirectTo = buildAuthRedirectUrl('/verify-email');
-            const { error } = await supabase.auth.resend({
-                email: row.email,
-                type: 'signup',
-                ...(emailRedirectTo ? { options: { emailRedirectTo } } : {}),
-            });
-
-            if (!error) {
-                return { message: 'Verification email sent' };
-            }
-        } catch {
-            // Fall back to the legacy bridge for linked users that still need server-side handling.
-        }
+    const row = await getSupabaseSelfUserRow();
+    if (row.email_verified) {
+        return { message: 'Email already verified' };
     }
 
-    return authFetch('/auth/send-verification', { method: 'POST' });
-};
-
-export const verifyEmail = async (token) => {
-    try {
-        return await edgeFunctionFetch('verify-email', {
-            method: 'POST',
-            body: { token },
-        });
-    } catch (error) {
-        if (!shouldFallbackFromEdgeFunction(error)) throw error;
-    }
-
-    return authFetch('/auth/verify-email', {
-        method: 'POST',
-        body: JSON.stringify({ token }),
+    const emailRedirectTo = buildAuthRedirectUrl('/verify-email');
+    const { error } = await supabase.auth.resend({
+        email: row.email,
+        type: 'signup',
+        ...(emailRedirectTo ? { options: { emailRedirectTo } } : {}),
     });
+    if (error) throw error;
+    return { message: 'Verification email sent' };
 };
+
+export const verifyEmail = (token) =>
+    edgeFunctionFetch('verify-email', { method: 'POST', body: { token } });
 
 // ============ HEARTS API ============
-export const getHeartsStatus = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('hearts', {
-                method: 'GET',
-                query: { action: 'status' },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
+export const getHeartsStatus = () =>
+    edgeFunctionFetch('hearts', { method: 'GET', query: { action: 'status' } });
 
-    return authFetch('/users/hearts/status');
-};
+export const getSessionHearts = (deckId) =>
+    edgeFunctionFetch('hearts', { method: 'GET', query: { action: 'session', deckId } });
 
-export const getSessionHearts = async (deckId) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('hearts', {
-                method: 'GET',
-                query: { action: 'session', deckId },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
+export const decrementHeart = () =>
+    edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'decrement' } });
 
-    return authFetch(`/users/hearts/session/${deckId}`);
-};
+export const refillHearts = (amount) =>
+    edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'refill', amount } });
 
-export const decrementHeart = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('hearts', {
-                method: 'POST',
-                body: { action: 'decrement' },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/users/hearts/decrement', { method: 'POST' });
-};
-
-export const refillHearts = async (amount) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('hearts', {
-                method: 'POST',
-                body: { action: 'refill', amount },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/users/hearts/refill', { method: 'POST', body: JSON.stringify({ amount }) });
-};
-
-export const practiceRefill = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('hearts', {
-                method: 'POST',
-                body: { action: 'practice-refill' },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/users/hearts/practice-refill', { method: 'POST' });
-};
+export const practiceRefill = () =>
+    edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'practice-refill' } });
 
 // Owner: Simulate Free Tier toggle
 export const toggleSimulateFree = async () => {
@@ -3189,88 +2835,22 @@ export const toggleSimulateFree = async () => {
 };
 
 // ============ REFERRALS API ============
-export const getReferralInfo = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('referrals', {
-                method: 'GET',
-                query: { action: 'me' },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
+export const getReferralInfo = () =>
+    edgeFunctionFetch('referrals', { method: 'GET', query: { action: 'me' } });
 
-    return authFetch('/referrals/me');
-};
+export const applyReferralCode = (code) =>
+    edgeFunctionFetch('referrals', { method: 'POST', body: { action: 'apply', code } });
 
-export const applyReferralCode = async (code) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('referrals', {
-                method: 'POST',
-                body: { action: 'apply', code },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/referrals/apply', { method: 'POST', body: JSON.stringify({ code }) });
-};
-
-export const checkReferralQualification = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('referrals', {
-                method: 'POST',
-                body: { action: 'check-qualification' },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/referrals/check-qualification', { method: 'POST' });
-};
+export const checkReferralQualification = () =>
+    edgeFunctionFetch('referrals', { method: 'POST', body: { action: 'check-qualification' } });
 
 // ============ STRIPE API ============
-export const createStripeCheckoutSession = async ({ priceId, isSubscription }) => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('create-checkout', {
-                method: 'POST',
-                body: { priceId, isSubscription },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
+export const createStripeCheckoutSession = ({ priceId, isSubscription }) =>
+    edgeFunctionFetch('create-checkout', { method: 'POST', body: { priceId, isSubscription } });
 
-    return authFetch('/stripe/create-checkout-session', {
-        method: 'POST',
-        body: JSON.stringify({ priceId, isSubscription }),
-    });
-};
+export const createStripePortalSession = () =>
+    edgeFunctionFetch('create-portal', { method: 'POST' });
 
-export const createStripePortalSession = async () => {
-    if (canUseSupabaseEdgeFunctions()) {
-        try {
-            return await edgeFunctionFetch('create-portal', {
-                method: 'POST',
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
-    }
-
-    return authFetch('/stripe/create-portal-session', { method: 'POST' });
-};
-
-// Rewarded Ads API
-export const getAdStatus = () => authFetch('/ads/status');
-export const requestAdReward = (feature, options = {}) => authFetch('/ads/request-reward', { method: 'POST', body: JSON.stringify({ feature, ...options }) });
-export const claimAdReward = (rewardToken) => authFetch('/ads/claim-reward', { method: 'POST', body: JSON.stringify({ rewardToken }) });
 
 export default {
     getToken,
@@ -3411,8 +2991,4 @@ export default {
     sendVerificationEmail,
     verifyEmail,
 
-    // Rewarded Ads API
-    getAdStatus,
-    requestAdReward,
-    claimAdReward,
 };

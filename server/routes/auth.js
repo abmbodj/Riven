@@ -281,6 +281,21 @@ module.exports = function registerAuthRoutes({
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
+            // Sync password to Supabase Auth so future Supabase logins work
+            if (user.supabase_auth_id) {
+                try {
+                    const { serviceRoleKey } = getSupabaseConfig();
+                    if (serviceRoleKey) {
+                        supabaseFetch(`/admin/users/${user.supabase_auth_id}`, {
+                            method: 'PUT',
+                            apiKey: serviceRoleKey,
+                            accessToken: serviceRoleKey,
+                            body: { password },
+                        }).catch(() => {});
+                    }
+                } catch (_) {}
+            }
+
             // Check 2FA
             if (user.two_fa_enabled) {
                 const tempToken = jwt.sign({ id: user.id, email: user.email, type: '2fa_pending' }, jwtSecret, { expiresIn: '5m' });
@@ -359,6 +374,25 @@ module.exports = function registerAuthRoutes({
             ];
             for (const [tagName, color] of presetTags) {
                 await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING', [userId, tagName, color]);
+            }
+
+            // Link Supabase Auth user so supabase_auth_id is set for RLS
+            try {
+                const { serviceRoleKey } = getSupabaseConfig();
+                if (serviceRoleKey) {
+                    const listRes = await supabaseFetch('/admin/users', {
+                        method: 'GET',
+                        apiKey: serviceRoleKey,
+                        accessToken: serviceRoleKey,
+                        query: { email: email.toLowerCase() },
+                    });
+                    const existing = Array.isArray(listRes?.users) && listRes.users[0];
+                    if (existing?.id) {
+                        await db.execute('UPDATE users SET supabase_auth_id = $1 WHERE id = $2', [existing.id, userId]);
+                    }
+                }
+            } catch (e) {
+                console.warn('[handleOAuthUser] Supabase Auth link failed:', e.message);
             }
 
             user = await db.queryOne('SELECT * FROM users WHERE id = $1', [userId]);
