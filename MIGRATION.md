@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass. Phase 3 Edge Function work and broader Phase 4 socket replacement remain.
+**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code.
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -480,6 +480,8 @@ Completed in code today:
 - `client/src/context/AuthContext.jsx` no longer creates or exposes a client Socket.io connection
 - `client/src/pages/Messages.jsx` now uses Supabase Presence for DM typing indicators without a Socket.io fallback
 - `client/src/pages/GroupDetails.jsx` and `client/src/pages/GroupCram.jsx` now rely on Supabase Realtime subscriptions for group session updates without page-level Socket.io listeners
+- `server/index.js` no longer boots a Socket.io server, and `server/routes/groups.js` no longer emits Socket.io events for group sessions
+- `socket.io` and `socket.io-client` have been removed from the server and client package manifests
 - `client/src/api/authApi.js` now exposes a `subscribeToTypingPresence()` helper for DM typing presence channels
 
 ### DM Messages → Postgres CDC
@@ -580,7 +582,7 @@ channel.on('broadcast', { event: 'response' }, ({ payload }) => {
 
 ### Removing Socket.io
 
-Once all real-time features are migrated:
+This is now complete in code:
 
 1. Remove from `server/index.js`:
    - `const { Server } = require('socket.io');`

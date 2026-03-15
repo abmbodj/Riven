@@ -12,7 +12,7 @@ function generateJoinCode() {
     return result;
 }
 
-module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) {
+module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     const router = express.Router();
 
     // Mount router at /api/groups
@@ -501,11 +501,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                 [id, deck_id, req.user.id]
             );
 
-            // Optional: Broadcast explicitly to the group room if we track them
-            if (io) {
-                io.emit(`group-${id}-session-started`, { sessionId: newSession.id, deckId: deck_id });
-            }
-
             res.json(newSession);
         } catch (error) {
             console.error('Error starting session:', error);
@@ -526,7 +521,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [session.group_id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member of this group' });
 
-            // Just return success. Real-time presence is handled by clients tracking via socket.io rooms (e.g., room "session-UUID")
+            // Just return success. Realtime presence is handled by Supabase subscriptions.
             res.json({ message: 'Joined session successfully', session });
         } catch (error) {
             console.error('Error joining session:', error);
@@ -548,12 +543,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
                 ON CONFLICT (session_id, user_id, card_id) 
                 DO UPDATE SET knew_it = EXCLUDED.knew_it, responded_at = now()
             `, [sessionId, req.user.id, card_id, knew_it]);
-
-            // Broadcast via Socket so other group members see progress indicator blips
-            if (io) {
-                // We emit to everyone tracking this session ID
-                io.to(`session-${sessionId}`).emit('session-progress', { userId: req.user.id });
-            }
 
             res.json({ success: true });
         } catch (error) {
@@ -577,11 +566,6 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware, io }) 
             }
 
             await db.execute("UPDATE cram_sessions SET status = 'ended', ended_at = now() WHERE id = $1", [sessionId]);
-
-            if (io) {
-                io.to(`session-${sessionId}`).emit('session-ended');
-                io.emit(`group-${session.group_id}-session-ended`);
-            }
 
             res.json({ message: 'Session ended' });
         } catch (error) {

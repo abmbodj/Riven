@@ -3,7 +3,6 @@ if (process.env.NODE_ENV !== 'test') {
 }
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -132,103 +131,6 @@ app.use(helmet({
     },
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-
-const io = new Server(server, {
-    cors: {
-        origin: function (origin, callback) {
-            if (!origin) return callback(null, true);
-
-            const cleanOrigin = origin.replace(/\/$/, '');
-
-            if (process.env.ALLOWED_ORIGINS) {
-                const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) || cleanOrigin.endsWith('.vercel.app');
-                if (isAllowed) {
-                    callback(null, true);
-                } else {
-                    return callback(new Error('Not allowed by CORS'));
-                }
-            } else {
-                callback(null, true);
-            }
-        },
-        methods: ["GET", "POST"],
-        credentials: true
-    }
-});
-
-// Map to store connected users: userId -> socketId
-const connectedUsers = new Map();
-
-io.on('connection', (socket) => {
-    // We expect the client to pass their token or userId in the handshake or auth.
-    // However, it's simpler if they just emit a 'register' event shortly after connecting
-    // since we use HttpOnly cookies that sockets may not easily read depending on cross-origin setup.
-
-    socket.on('register', (token) => {
-        if (!token) return;
-        // Try legacy JWT first
-        try {
-            const decoded = jwt.verify(token, jwtSecret);
-            if (decoded?.id) {
-                connectedUsers.set(parseInt(decoded.id), socket.id);
-                return;
-            }
-        } catch (err) { /* not a legacy JWT */ }
-        // Try Supabase JWT
-        const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET;
-        if (supabaseJwtSecret) {
-            try {
-                const decoded = jwt.verify(token, supabaseJwtSecret);
-                if (decoded?.sub) {
-                    db.queryOne('SELECT id FROM users WHERE supabase_auth_id = $1', [decoded.sub])
-                        .then(user => { if (user?.id) connectedUsers.set(user.id, socket.id); })
-                        .catch(() => {});
-                }
-            } catch (err) { /* invalid Supabase JWT */ }
-        }
-    });
-
-    socket.on('typing', ({ receiverId, isTyping }) => {
-        const parsedReceiverId = parseInt(receiverId);
-        if (isNaN(parsedReceiverId)) return;
-        const receiverSocketId = connectedUsers.get(parsedReceiverId);
-        if (receiverSocketId) {
-            let senderId = null;
-            for (const [id, sid] of connectedUsers.entries()) {
-                if (sid === socket.id) {
-                    senderId = id;
-                    break;
-                }
-            }
-            if (senderId) {
-                io.to(receiverSocketId).emit('typing', { senderId, isTyping });
-            }
-        }
-    });
-
-    socket.on('join-room', (roomId) => {
-        if (roomId && typeof roomId === 'string') socket.join(roomId);
-    });
-
-    socket.on('leave-room', (roomId) => {
-        if (roomId && typeof roomId === 'string') socket.leave(roomId);
-    });
-
-    socket.on('disconnect', () => {
-        // Remove from map
-        for (const [userId, socketId] of connectedUsers.entries()) {
-            if (socketId === socket.id) {
-                connectedUsers.delete(userId);
-                // console.log(`[Socket] User ${userId} disconnected`);
-                break;
-            }
-        }
-    });
-});
-
-// Make io accessible to routes via app locals
-app.locals.io = io;
-app.locals.connectedUsers = connectedUsers;
 
 app.use(cookieParser());
 // Stripe webhook needs raw body for signature verification
@@ -462,7 +364,7 @@ app.use('/api/stripe', authMiddleware, stripeRouter);
 
 // ============ GROUPS ============
 
-registerGroupsRoutes({ app, db, authMiddleware, io });
+registerGroupsRoutes({ app, db, authMiddleware });
 
 // ============ MESSAGES ============
 
