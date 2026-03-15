@@ -165,9 +165,31 @@ module.exports = function registerAuthRoutes({
             // Default display_name to username
             const displayName = username;
 
+            // Create a Supabase Auth user so supabase_auth_id is linked and RLS works
+            let supabaseAuthId = null;
+            try {
+                const { serviceRoleKey } = getSupabaseConfig();
+                if (serviceRoleKey) {
+                    const authUser = await supabaseFetch('/admin/users', {
+                        method: 'POST',
+                        apiKey: serviceRoleKey,
+                        accessToken: serviceRoleKey,
+                        body: {
+                            email: email.toLowerCase(),
+                            password,
+                            email_confirm: true,
+                            user_metadata: { username },
+                        },
+                    });
+                    supabaseAuthId = authUser?.id || null;
+                }
+            } catch (err) {
+                console.warn('[register] Supabase Auth user creation failed (continuing with legacy):', err.message);
+            }
+
             const result = await db.queryOne(
-                'INSERT INTO users (username, display_name, email, password, share_code) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-                [username, displayName, email.toLowerCase(), hashedPassword, shareCode]
+                'INSERT INTO users (username, display_name, email, password, share_code, supabase_auth_id, email_verified) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+                [username, displayName, email.toLowerCase(), hashedPassword, shareCode, supabaseAuthId, supabaseAuthId ? true : false]
             );
             const userId = result.id;
 
