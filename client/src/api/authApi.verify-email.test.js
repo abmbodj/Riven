@@ -68,7 +68,7 @@ describe('authApi verify email edge migration', () => {
     expect(result).toEqual({ message: 'Email verified successfully' });
   });
 
-  it('falls back to the legacy verify-email route for historical hex tokens', async () => {
+  it('uses the verify-email edge function for historical hex tokens too', async () => {
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       message: 'Email verified successfully',
     }));
@@ -76,9 +76,12 @@ describe('authApi verify email edge migration', () => {
     const result = await authApi.verifyEmail('a'.repeat(64));
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/verify-email'),
+      'https://supabase.test/functions/v1/verify-email',
       expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({
+          apikey: 'supabase-anon-key',
+        }),
         body: JSON.stringify({ token: 'a'.repeat(64) }),
       }),
     );

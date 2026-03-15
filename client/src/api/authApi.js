@@ -3009,6 +3009,15 @@ export const resetPassword = async (token, password) => {
         }
     }
 
+    try {
+        return await edgeFunctionFetch('reset-password', {
+            method: 'POST',
+            body: { token, password },
+        });
+    } catch (error) {
+        if (!shouldFallbackFromEdgeFunction(error)) throw error;
+    }
+
     return authFetch('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify({ token, password }),
@@ -3046,15 +3055,13 @@ export const sendVerificationEmail = async () => {
 };
 
 export const verifyEmail = async (token) => {
-    if (!isLegacyTokenHash(token)) {
-        try {
-            return await edgeFunctionFetch('verify-email', {
-                method: 'POST',
-                body: { token },
-            });
-        } catch (error) {
-            if (!shouldFallbackFromEdgeFunction(error)) throw error;
-        }
+    try {
+        return await edgeFunctionFetch('verify-email', {
+            method: 'POST',
+            body: { token },
+        });
+    } catch (error) {
+        if (!shouldFallbackFromEdgeFunction(error)) throw error;
     }
 
     return authFetch('/auth/verify-email', {

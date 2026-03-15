@@ -1,6 +1,6 @@
 # Riven: Render → Supabase Full Migration Guide
 
-**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to legacy-only compatibility helpers (legacy 2FA and fallback paths for historical reset/verify tokens).
+**Status:** Phase 1 complete. Core Phase 2 content/data CRUD now runs through Supabase for `classes`, `assignments`, `schedule`, `folders`, `tags`, `themes`, `decks`, `cards`, `study_sessions`, and DM `messages`. Additional Phase 2 profile/social/group/system-message routes still need a separate cleanup pass, and Phase 3 Edge Function work remains. Phase 4 socket replacement is complete in code. The remaining auth bridge is now mostly limited to legacy-only compatibility helpers (legacy 2FA and deployment fallbacks while older clients/functions roll forward).
 **Goal:** Eliminate Render backend, consolidate onto Supabase (Auth, PostgREST, Edge Functions, Realtime, Storage).
 
 ---
@@ -67,10 +67,10 @@ Same dual-JWT logic applied.
 - Active Supabase sessions now read the current profile directly from the `users` table instead of `GET /api/auth/me`
 - Active Supabase sessions now use `supabase.auth.updateUser()` for password changes instead of `PUT /api/auth/password`
 - Forgot-password requests now go through the `forgot-password` Edge Function first, preserving Supabase recovery emails for linked users and legacy reset-token emails for older accounts, with the Express route kept as a deployment fallback
-- Supabase `token_hash` password reset links now complete in the client via `verifyOtp()` + `updateUser()`, with legacy hex tokens still falling back to `POST /api/auth/reset-password`
+- Supabase `token_hash` password reset links now complete in the client via `verifyOtp()` + `updateUser()`, while historical hex reset tokens now complete through the `reset-password` Edge Function, with the Express route kept only as a deployment fallback
 - Active Supabase sessions now resend verification emails via `supabase.auth.resend()`, with the legacy route kept as a compatibility fallback
 - Active Supabase sessions now delete accounts through the `account-actions` Edge Function, with the legacy `DELETE /api/auth/account` route kept as a fallback for non-Supabase tokens
-- Supabase email verification `token_hash` links now verify through the `verify-email` Edge Function, with legacy hex tokens still falling back to `POST /api/auth/verify-email`
+- Supabase email verification `token_hash` links and historical hex verification tokens now both verify through the `verify-email` Edge Function, with the Express route kept only as a deployment fallback
 - Active Supabase sessions now import guest decks/cards/tags/folders/study history directly through PostgREST, with the legacy guest-migration route kept as a fallback for non-Supabase tokens
 
 **`client/src/context/AuthContext.jsx`:**
@@ -722,9 +722,9 @@ npm uninstall express pg bcryptjs jsonwebtoken socket.io cors ...
 | `POST /api/auth/logout` | Complete ✅ | 1 | Supabase Auth |
 | `GET /api/auth/me` | Complete ✅ | 1 | Direct Supabase `users` read for active sessions; legacy fallback remains |
 | `POST /api/auth/forgot-password` | Complete | 1 | `forgot-password` Edge Function first + legacy fallback |
-| `POST /api/auth/reset-password` | Complete | 1 | Supabase `token_hash` path + legacy fallback |
+| `POST /api/auth/reset-password` | Complete | 1 | Client `token_hash` path + `reset-password` Edge Function for historical tokens + legacy fallback |
 | `POST /api/auth/send-verification` | Complete | 1 | Supabase resend for active sessions + legacy fallback |
-| `POST /api/auth/verify-email` | Complete | 1 | `verify-email` Edge Function for Supabase token hashes + legacy fallback |
+| `POST /api/auth/verify-email` | Complete | 1 | `verify-email` Edge Function for token hashes and historical tokens + legacy fallback |
 | `POST /api/auth/2fa/setup` | Complete ✅ | 1 | Supabase MFA + legacy fallback |
 | `POST /api/auth/2fa/verify` | Complete ✅ | 1 | Supabase MFA + legacy fallback |
 | `POST /api/auth/2fa/disable` | Complete ✅ | 1 | Supabase MFA + legacy fallback |

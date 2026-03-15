@@ -200,6 +200,8 @@ describe('authApi Supabase auth bridge reductions', () => {
   });
 
   it('keeps the legacy reset flow for old hex reset tokens', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       message: 'Password has been reset successfully. You can now log in.',
     }));
@@ -208,9 +210,52 @@ describe('authApi Supabase auth bridge reductions', () => {
 
     expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
     expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          apikey: 'supabase-anon-key',
+        }),
+        body: JSON.stringify({ token: 'a'.repeat(64), password: 'new-password-123' }),
+      }),
+    );
+    expect(result).toEqual({
+      message: 'Password has been reset successfully. You can now log in.',
+    });
+  });
+
+  it('falls back to the legacy reset route when the reset-password edge function is unavailable', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: {
+          get: () => 'application/json',
+        },
+        text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Function not found' })),
+      })
+      .mockResolvedValueOnce(buildJsonResponse({
+        message: 'Password has been reset successfully. You can now log in.',
+      }));
+
+    const result = await authApi.resetPassword('a'.repeat(64), 'new-password-123');
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://supabase.test/functions/v1/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
       expect.stringContaining('/api/auth/reset-password'),
       expect.objectContaining({
         method: 'POST',
+        body: JSON.stringify({ token: 'a'.repeat(64), password: 'new-password-123' }),
       }),
     );
     expect(result).toEqual({

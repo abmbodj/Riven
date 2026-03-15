@@ -4,6 +4,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
+const isLegacyTokenHash = (token: string) => /^[a-f0-9]{64}$/i.test(token);
+
 const getAnonAuthClient = () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -42,6 +44,45 @@ serve(async (request) => {
       return jsonResponse({ error: 'Token is required' }, { status: 400 });
     }
 
+    const admin = getSupabaseAdmin();
+    if (isLegacyTokenHash(token)) {
+      const now = new Date().toISOString();
+      const { data: record, error: recordError } = await admin
+        .from('email_verification_tokens')
+        .select('user_id')
+        .eq('token', token)
+        .gt('expires_at', now)
+        .maybeSingle();
+
+      if (recordError) {
+        throw recordError;
+      }
+
+      if (!record?.user_id) {
+        return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 });
+      }
+
+      const { error: updateLegacyUserError } = await admin
+        .from('users')
+        .update({ email_verified: true })
+        .eq('id', record.user_id);
+
+      if (updateLegacyUserError) {
+        throw updateLegacyUserError;
+      }
+
+      const { error: deleteTokenError } = await admin
+        .from('email_verification_tokens')
+        .delete()
+        .eq('user_id', record.user_id);
+
+      if (deleteTokenError) {
+        throw deleteTokenError;
+      }
+
+      return jsonResponse({ message: 'Email verified successfully' });
+    }
+
     const authClient = getAnonAuthClient();
     const redirectTo = resolveRedirectTo();
     const verifyParams = {
@@ -55,7 +96,6 @@ serve(async (request) => {
       return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 });
     }
 
-    const admin = getSupabaseAdmin();
     const { error: updateError } = await admin
       .from('users')
       .update({ email_verified: true })

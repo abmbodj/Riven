@@ -726,9 +726,13 @@
       ]
     }
   },
+  "redirects": {
+    "https://esm.sh/@types/bcryptjs@~2.4.6/index.d.ts": "https://esm.sh/@types/bcryptjs@2.4.6/index.d.ts"
+  },
   "remote": {
     "https://deno.land/std@0.224.0/async/delay.ts": "f90dd685b97c2f142b8069082993e437b1602b8e2561134827eeb7c12b95c499",
     "https://deno.land/std@0.224.0/http/server.ts": "f9313804bf6467a1704f45f76cb6cd0a3396a3b31c316035e6a4c2035d1ea514",
+    "https://esm.sh/bcryptjs@2.4.3": "49851f367e562ad6e108c851ced8948944ea392fd46e576f7fdb1eb9e1ffddf0",
     "https://esm.sh/stripe@20.4.0?target=denonext": "c9db416f873ea950446ac3ebb8f8ba9ee2b73587d939030d6433de5e73c2f307"
   },
   "workspace": {
