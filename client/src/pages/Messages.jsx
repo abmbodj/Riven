@@ -141,6 +141,7 @@ export default function Messages() {
     // "New messages" pill — shown when user is scrolled up and new messages arrive
     const [showNewMessagesPill, setShowNewMessagesPill] = useState(false);
     const isNearBottomRef = useRef(true);
+    const typingPresenceRef = useRef(null);
 
     // GSAP reveal for conversations list
     useEffect(() => {
@@ -482,8 +483,28 @@ export default function Messages() {
         };
     }, [chatUser, hydrateConversationMessages, invalidateConversations, loadConversations, user?.id, userId]);
 
-    // Socket listeners are kept only for typing indicators.
     useEffect(() => {
+        if (!userId) {
+            setIsTyping(false);
+            return;
+        }
+
+        if (authApi.canUseSupabaseEdgeFunctions()) {
+            const presence = authApi.subscribeToTypingPresence(user?.id, userId, {
+                onTypingChange: setIsTyping,
+            });
+
+            typingPresenceRef.current = presence;
+
+            return () => {
+                presence.stopTyping?.();
+                presence.unsubscribe?.();
+                if (typingPresenceRef.current === presence) {
+                    typingPresenceRef.current = null;
+                }
+            };
+        }
+
         if (!socket) return;
 
         const handleTyping = ({ senderId, isTyping: typingStatus }) => {
@@ -497,15 +518,19 @@ export default function Messages() {
         return () => {
             socket.off('typing', handleTyping);
         };
-    }, [socket, userId]);
+    }, [socket, user?.id, userId]);
 
     const typingTimeoutRef = useRef(null);
 
     const handleTypingStart = () => {
-        if (!socket || !userId) return;
+        if (!userId) return;
 
-        // Emit typing status
-        socket.emit('typing', { receiverId: parseInt(userId), isTyping: true });
+        if (authApi.canUseSupabaseEdgeFunctions()) {
+            typingPresenceRef.current?.startTyping?.();
+        } else {
+            if (!socket) return;
+            socket.emit('typing', { receiverId: parseInt(userId), isTyping: true });
+        }
 
         // Clear existing timeout
         if (typingTimeoutRef.current) {
@@ -514,7 +539,11 @@ export default function Messages() {
 
         // Set a timeout to stop typing after 2.5s of inactivity
         typingTimeoutRef.current = setTimeout(() => {
-            socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+            if (authApi.canUseSupabaseEdgeFunctions()) {
+                typingPresenceRef.current?.stopTyping?.();
+            } else if (socket) {
+                socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+            }
         }, 2500);
     };
 
@@ -561,7 +590,11 @@ export default function Messages() {
 
         // Stop typing indicator immediately
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        if (socket && userId) socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+        if (authApi.canUseSupabaseEdgeFunctions()) {
+            typingPresenceRef.current?.stopTyping?.();
+        } else if (socket && userId) {
+            socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
+        }
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);

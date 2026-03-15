@@ -2051,6 +2051,62 @@ export const subscribeToMessages = (currentUserId, handlers = {}) => {
     return () => supabase.removeChannel(channel);
 };
 
+export const subscribeToTypingPresence = (currentUserId, otherUserId, handlers = {}) => {
+    const normalizedCurrentUserId = Number(currentUserId);
+    const normalizedOtherUserId = Number(otherUserId);
+
+    if (!Number.isInteger(normalizedCurrentUserId) || !Number.isInteger(normalizedOtherUserId)) {
+        return {
+            startTyping: () => Promise.resolve(),
+            stopTyping: () => Promise.resolve(),
+            unsubscribe: () => {},
+        };
+    }
+
+    const channelName = `dm_${Math.min(normalizedCurrentUserId, normalizedOtherUserId)}_${Math.max(normalizedCurrentUserId, normalizedOtherUserId)}`;
+    const channel = supabase.channel(channelName, {
+        config: {
+            presence: {
+                key: `user-${normalizedCurrentUserId}`,
+            },
+        },
+    });
+
+    const syncTypingState = () => {
+        const state = channel.presenceState?.() || {};
+        const isOtherUserTyping = Object.values(state)
+            .flat()
+            .some((presence) => Number(presence?.userId) === normalizedOtherUserId && presence?.isTyping === true);
+
+        handlers.onTypingChange?.(isOtherUserTyping);
+    };
+
+    channel.on('presence', { event: 'sync' }, syncTypingState);
+    channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            await channel.track({
+                userId: normalizedCurrentUserId,
+                isTyping: false,
+            });
+        }
+    });
+
+    return {
+        startTyping: () => channel.track({
+            userId: normalizedCurrentUserId,
+            isTyping: true,
+        }),
+        stopTyping: () => channel.track({
+            userId: normalizedCurrentUserId,
+            isTyping: false,
+        }),
+        unsubscribe: () => {
+            channel.untrack?.();
+            supabase.removeChannel(channel);
+        },
+    };
+};
+
 // ============ STUDY GROUPS ============
 
 const callGroupRpc = async (fn, params = {}) => {
@@ -2932,6 +2988,7 @@ export default {
     deleteMessage,
     getUnreadCount,
     subscribeToMessages,
+    subscribeToTypingPresence,
     generateAiClass,
     adminGetAllUsers,
     adminUpdateUser,

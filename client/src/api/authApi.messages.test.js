@@ -392,4 +392,49 @@ describe('authApi direct messages via Supabase', () => {
     unsubscribe();
     expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
   });
+
+  it('tracks DM typing state through Supabase Presence', async () => {
+    const syncHandler = vi.fn();
+    const track = vi.fn().mockResolvedValue(undefined);
+    const untrack = vi.fn();
+    const presenceState = vi.fn(() => ({
+      'user-12': [{ userId: 12, isTyping: true }],
+    }));
+    const subscribe = vi.fn((callback) => {
+      callback?.('SUBSCRIBED');
+      return channel;
+    });
+    const on = vi.fn().mockImplementation((_event, _config, handler) => {
+      syncHandler.mockImplementation(handler);
+      return channel;
+    });
+
+    const channel = { on, subscribe, track, untrack, presenceState };
+    supabase.channel.mockReturnValue(channel);
+
+    const onTypingChange = vi.fn();
+    const typing = authApi.subscribeToTypingPresence(42, 12, {
+      onTypingChange,
+    });
+
+    await Promise.resolve();
+
+    expect(supabase.channel).toHaveBeenCalledWith('dm_12_42', expect.any(Object));
+    expect(track).toHaveBeenCalledWith({ userId: 42, isTyping: false });
+
+    syncHandler();
+    expect(onTypingChange).toHaveBeenCalledWith(true);
+    expect(typing.startTyping).toBeTypeOf('function');
+    expect(typing.stopTyping).toBeTypeOf('function');
+
+    await typing.startTyping();
+    await typing.stopTyping();
+
+    expect(track).toHaveBeenNthCalledWith(2, { userId: 42, isTyping: true });
+    expect(track).toHaveBeenNthCalledWith(3, { userId: 42, isTyping: false });
+
+    typing.unsubscribe();
+    expect(untrack).toHaveBeenCalledTimes(1);
+    expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
+  });
 });

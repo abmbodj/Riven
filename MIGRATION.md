@@ -476,6 +476,10 @@ supabase secrets set GEMINI_API_KEY=xxx STRIPE_SECRET_KEY=xxx STRIPE_WEBHOOK_SEC
 
 Replace Socket.io with Supabase Realtime (Postgres CDC) and Presence.
 
+Completed in code today:
+- `client/src/pages/Messages.jsx` now uses Supabase Presence for DM typing indicators on Supabase sessions, with Socket.io retained only as a legacy-session fallback
+- `client/src/api/authApi.js` now exposes a `subscribeToTypingPresence()` helper for DM typing presence channels
+
 ### DM Messages → Postgres CDC
 
 The Phase 2 SQL now configures DM Realtime automatically by:
