@@ -244,6 +244,10 @@ if (global.__TEST_DB_MOCK__) {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
+            await client.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS tags_user_id_name_unique
+                    ON tags (user_id, LOWER(name))
+            `);
 
             // Decks table
             await client.query(`

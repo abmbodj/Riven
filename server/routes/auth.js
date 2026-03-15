@@ -233,7 +233,7 @@ module.exports = function registerAuthRoutes({
                 ['Programming', '#06b6d4'], ['Medical', '#ef4444'], ['Business', '#ec4899'], ['Art', '#f97316']
             ];
             for (const [name, color] of presetTags) {
-                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, name, color]);
+                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING', [userId, name, color]);
             }
 
             const token = jwt.sign({ id: userId, email: email.toLowerCase(), role: 'user' }, jwtSecret, { expiresIn: '30d' });
@@ -358,7 +358,7 @@ module.exports = function registerAuthRoutes({
                 ['Programming', '#06b6d4'], ['Medical', '#ef4444'], ['Business', '#ec4899'], ['Art', '#f97316']
             ];
             for (const [tagName, color] of presetTags) {
-                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, tagName, color]);
+                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING', [userId, tagName, color]);
             }
 
             user = await db.queryOne('SELECT * FROM users WHERE id = $1', [userId]);
@@ -1178,7 +1178,7 @@ module.exports = function registerAuthRoutes({
                 ['Programming', '#06b6d4'], ['Medical', '#ef4444'], ['Business', '#ec4899'], ['Art', '#f97316']
             ];
             for (const [tagName, color] of presetTags) {
-                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1)', [userId, tagName, color]);
+                await db.execute('INSERT INTO tags (user_id, name, color, is_preset) VALUES ($1, $2, $3, 1) ON CONFLICT DO NOTHING', [userId, tagName, color]);
             }
 
             // Welcome email (fire-and-forget)
