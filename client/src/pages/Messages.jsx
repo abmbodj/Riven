@@ -172,13 +172,13 @@ export default function Messages() {
             if (messageCache.conversations) {
                 setConversations(messageCache.conversations);
             }
-            const data = await authApi.getConversations();
+            const data = await authApi.getConversations(user);
             messageCache.setConversations(data);
             setConversations(data);
         } catch {
             // Failed to load conversations silently
         }
-    }, []);
+    }, [user]);
 
     // Invalidate conversations cache so the list refreshes on next visit
     const invalidateConversations = useCallback(() => {
@@ -218,27 +218,50 @@ export default function Messages() {
         }
 
         try {
-            const [messagesData, userData] = await Promise.all([
-                authApi.getMessages(targetUserId),
+            const conversationFallback = conversations.find((conversation) => String(conversation.userId) === String(targetUserId));
+            const [messagesResult, userResult] = await Promise.allSettled([
+                authApi.getMessages(targetUserId, 50, undefined, user),
                 authApi.getUserProfile(targetUserId)
             ]);
-            const hydratedMessages = hydrateConversationMessages(messagesData, userData);
+
+            if (messagesResult.status !== 'fulfilled') {
+                throw messagesResult.reason;
+            }
+
+            const fallbackUser = cachedUser
+                || (conversationFallback ? {
+                    id: conversationFallback.userId,
+                    username: conversationFallback.username,
+                    avatar: conversationFallback.avatar ?? null,
+                } : null)
+                || chatUser
+                || { id: Number(targetUserId), username: 'Unknown', avatar: null };
+
+            const resolvedUser = userResult.status === 'fulfilled'
+                ? userResult.value
+                : fallbackUser;
+
+            if (userResult.status !== 'fulfilled') {
+                console.warn('[Messages] Failed to load chat profile:', userResult.reason?.message || userResult.reason);
+            }
+
+            const hydratedMessages = hydrateConversationMessages(messagesResult.value, resolvedUser);
 
             messageCache.setMessages(targetUserId, hydratedMessages);
-            messageCache.setUser(targetUserId, userData);
+            messageCache.setUser(targetUserId, resolvedUser);
 
             // Seed loaded IDs so fetched messages don't animate
             loadedMsgIdsRef.current = new Set(hydratedMessages.map(m => m.id));
 
             setMessages(hydratedMessages);
-            setChatUser(userData);
+            setChatUser(resolvedUser);
         } catch {
             toast.error('Failed to load messages');
             navigate('/messages');
         } finally {
             setLoading(false);
         }
-    }, [hydrateConversationMessages, navigate, toast]);
+    }, [chatUser, conversations, hydrateConversationMessages, navigate, toast, user]);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -325,7 +348,7 @@ export default function Messages() {
         const oldestMessage = messages[0];
         const prevHeight = scrollParentRef.current?.scrollHeight || 0;
         try {
-            const olderMessages = await authApi.getMessages(userId, 50, oldestMessage.createdAt);
+            const olderMessages = await authApi.getMessages(userId, 50, oldestMessage.createdAt, user);
             if (olderMessages.length < 50) setHasMore(false);
             if (olderMessages.length > 0) {
                 // Mark old messages as loaded so they don't animate
@@ -349,7 +372,7 @@ export default function Messages() {
         } finally {
             setLoadingMore(false);
         }
-    }, [hasMore, loadingMore, messages, userId, toast]);
+    }, [hasMore, loadingMore, messages, toast, user, userId]);
 
     // Detect scroll near top to trigger loading older messages
     useEffect(() => {
@@ -376,7 +399,7 @@ export default function Messages() {
             setTimeout(async () => {
                 try {
                     const [msgs, profile] = await Promise.all([
-                        authApi.getMessages(conv.userId),
+                        authApi.getMessages(conv.userId, 50, undefined, user),
                         authApi.getUserProfile(conv.userId)
                     ]);
                     messageCache.setMessages(conv.userId, msgs);
@@ -384,7 +407,7 @@ export default function Messages() {
                 } catch { /* prefetch failure is non-critical */ }
             }, 0);
         });
-    }, [conversations, userId]);
+    }, [conversations, user, userId]);
 
     // Supabase Realtime listeners for DM rows
     useEffect(() => {
@@ -514,7 +537,7 @@ export default function Messages() {
             if (!newMessage.trim() || sending) return;
             setSending(true);
             try {
-                const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim());
+                const updatedMsg = await authApi.editMessage(editingMessageId, newMessage.trim(), user);
                 setMessages(prev => {
                     const updated = prev.map(m => m.id === editingMessageId ? updatedMsg : m);
                     if (userId) messageCache.setMessages(userId, updated);
@@ -541,7 +564,7 @@ export default function Messages() {
         if (socket && userId) socket.emit('typing', { receiverId: parseInt(userId), isTyping: false });
 
         try {
-            const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview);
+            const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);
             setMessages(prev => {
                 const updated = [...prev, message];
                 messageCache.setMessages(userId, updated);

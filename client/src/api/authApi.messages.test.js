@@ -161,6 +161,40 @@ describe('authApi direct messages via Supabase', () => {
     ]);
   });
 
+  it('loads messages with a provided current user and does not fail when mark_messages_read errors', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [
+        { id: 11, sender_id: 12, receiver_id: 42, content: 'older', message_type: 'text', deck_data: null, image_url: null, is_edited: 0, is_read: 1, created_at: '2026-03-13T12:05:00.000Z' },
+      ],
+      error: null,
+    });
+    const order = vi.fn().mockReturnValue({ limit });
+    const or = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ or });
+
+    supabase.from.mockReturnValue({ select });
+    supabase.rpc.mockResolvedValue({ data: null, error: { message: 'missing rpc' } });
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const messages = await authApi.getMessages(
+      12,
+      50,
+      undefined,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+    );
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(messages).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledWith('[authApi] Failed to mark messages as read:', 'missing rpc');
+
+    warnSpy.mockRestore();
+  });
+
   it('creates messages in Supabase with sender_id and serialized deck payloads', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
       id: 42,
@@ -214,6 +248,52 @@ describe('authApi direct messages via Supabase', () => {
       createdAt: '2026-03-13T12:12:00.000Z',
       isMine: true,
     });
+  });
+
+  it('creates messages without fetching auth/me when a current user override is provided', async () => {
+    globalThis.fetch = vi.fn(() => {
+      throw new Error('getMe should not be called');
+    });
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 88,
+        sender_id: 42,
+        receiver_id: 12,
+        content: 'hello',
+        message_type: 'text',
+        deck_data: null,
+        image_url: null,
+        is_edited: 0,
+        is_read: 0,
+        created_at: '2026-03-13T12:15:00.000Z',
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+
+    supabase.from.mockReturnValue({ insert });
+
+    const message = await authApi.sendMessage(
+      12,
+      'hello',
+      'text',
+      null,
+      null,
+      { id: 42, username: 'avery', avatar: '/me.png' },
+    );
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith({
+      sender_id: 42,
+      receiver_id: 12,
+      content: 'hello',
+      message_type: 'text',
+      deck_data: null,
+      image_url: null,
+    });
+    expect(message.senderUsername).toBe('avery');
   });
 
   it('subscribes to Supabase Realtime and maps row payloads into message events', () => {

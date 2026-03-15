@@ -41,7 +41,7 @@ const ProfileView = () => {
             try {
                 const [friends, unread] = await Promise.all([
                     authApi.getFriends().catch(() => []),
-                    authApi.getUnreadCount().catch(() => ({ count: 0 }))
+                    authApi.getUnreadCount(user).catch(() => ({ count: 0 }))
                 ]);
                 if (mounted) {
                     setStats({
@@ -57,7 +57,7 @@ const ProfileView = () => {
         };
         loadStats();
         return () => { mounted = false; };
-    }, []);
+    }, [user]);
 
     const handleSignOut = () => {
         haptics.medium();

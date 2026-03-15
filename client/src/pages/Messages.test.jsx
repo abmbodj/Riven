@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Messages from './Messages.jsx';
+
+const toast = {
+  error: vi.fn(),
+  success: vi.fn(),
+};
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -12,10 +17,7 @@ vi.mock('../hooks/useAuth', () => ({
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-  }),
+  useToast: () => toast,
 }));
 
 vi.mock('../hooks/useHaptics', () => ({
@@ -49,6 +51,11 @@ vi.mock('../api/authApi', () => ({
 const authApi = await import('../api/authApi');
 
 describe('Messages desktop workspace', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+  });
+
   it('shows conversations alongside the active chat thread', async () => {
     authApi.getConversations.mockResolvedValue([
       {
@@ -126,5 +133,45 @@ describe('Messages desktop workspace', () => {
       expect(screen.getAllByText('Bianca').length).toBeGreaterThan(0);
       expect(screen.queryByText('Marcus')).not.toBeInTheDocument();
     });
+  });
+
+  it('keeps the thread open when the chat profile lookup fails', async () => {
+    authApi.getConversations.mockResolvedValue([
+      {
+        userId: 21,
+        username: 'Bianca',
+        avatar: null,
+        unreadCount: 0,
+        lastMessage: 'See you in lab',
+        lastMessageAt: new Date().toISOString(),
+        lastMessageType: 'text',
+        isOwnMessage: false,
+      },
+    ]);
+    authApi.getMessages.mockResolvedValue([
+      {
+        id: 1,
+        isMine: false,
+        senderAvatar: null,
+        content: 'See you in lab',
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    authApi.getUserProfile.mockRejectedValue(new Error('RPC missing'));
+
+    render(
+      <MemoryRouter initialEntries={['/messages/21']}>
+        <Routes>
+          <Route path="/messages/:userId" element={<Messages />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Replying to Bianca')).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);
+    expect(toast.error).not.toHaveBeenCalledWith('Failed to load messages');
   });
 });

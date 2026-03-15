@@ -255,6 +255,13 @@ export const getMe = async () => {
     return authFetch('/auth/me');
 };
 
+const resolveCurrentUser = async (currentUserOverride = null) => {
+    if (currentUserOverride?.id) {
+        return currentUserOverride;
+    }
+    return getMe();
+};
+
 // Refresh the stored token from the active Supabase session.
 // Call this on app startup to ensure the token is up to date.
 export const refreshSupabaseToken = async () => {
@@ -1266,8 +1273,8 @@ const mapMessageRow = (row, currentUser) => ({
     isMine: row.sender_id === currentUser.id,
 });
 
-export const getConversations = async () => {
-    const currentUser = await getMe();
+export const getConversations = async (currentUserOverride = null) => {
+    const currentUser = await resolveCurrentUser(currentUserOverride);
     const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -1316,8 +1323,8 @@ export const getConversations = async () => {
         .sort((left, right) => new Date(right.lastMessageAt) - new Date(left.lastMessageAt));
 };
 
-export const getMessages = async (userId, limit = 50, before) => {
-    const currentUser = await getMe();
+export const getMessages = async (userId, limit = 50, before, currentUserOverride = null) => {
+    const currentUser = await resolveCurrentUser(currentUserOverride);
     let query = supabase
         .from('messages')
         .select('*')
@@ -1335,7 +1342,9 @@ export const getMessages = async (userId, limit = 50, before) => {
     const { error: readError } = await supabase.rpc('mark_messages_read', {
         other_user_id: Number(userId),
     });
-    if (readError) _sbThrow(readError);
+    if (readError) {
+        console.warn('[authApi] Failed to mark messages as read:', readError.message || readError);
+    }
 
     return (data || [])
         .slice()
@@ -1343,7 +1352,14 @@ export const getMessages = async (userId, limit = 50, before) => {
         .map((row) => mapMessageRow(row, currentUser));
 };
 
-export const sendMessage = async (receiverId, content, messageType = 'text', deckData = null, imageUrl = null) => {
+export const sendMessage = async (
+    receiverId,
+    content,
+    messageType = 'text',
+    deckData = null,
+    imageUrl = null,
+    currentUserOverride = null
+) => {
     if (!receiverId) {
         const error = new Error('Receiver ID is required');
         error.status = 400;
@@ -1365,7 +1381,7 @@ export const sendMessage = async (receiverId, content, messageType = 'text', dec
         throw error;
     }
 
-    const currentUser = await getMe();
+    const currentUser = await resolveCurrentUser(currentUserOverride);
     const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -1382,14 +1398,14 @@ export const sendMessage = async (receiverId, content, messageType = 'text', dec
     return mapMessageRow(data, currentUser);
 };
 
-export const editMessage = async (id, content) => {
+export const editMessage = async (id, content, currentUserOverride = null) => {
     if (!content) {
         const error = new Error('Message content is required');
         error.status = 400;
         throw error;
     }
 
-    const currentUser = await getMe();
+    const currentUser = await resolveCurrentUser(currentUserOverride);
     const { data, error } = await supabase
         .from('messages')
         .update({
@@ -1412,8 +1428,8 @@ export const deleteMessage = async (id) => {
     return { success: true };
 };
 
-export const getUnreadCount = async () => {
-    const currentUser = await getMe();
+export const getUnreadCount = async (currentUserOverride = null) => {
+    const currentUser = await resolveCurrentUser(currentUserOverride);
     const { count, error } = await supabase
         .from('messages')
         .select('id', { count: 'exact', head: true })
