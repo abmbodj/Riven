@@ -212,6 +212,10 @@ export const prepareAiSource = async ({ notes, file, parseDocx, onParseError }) 
       }
     } catch (error) {
       onParseError?.(error);
+      // If we failed to parse a document type, don't send the raw binary to the AI
+      if (DOCX_MIME_TYPES.has(file.mimeType) || file.mimeType === 'text/plain') {
+        keepFile = false;
+      }
     }
   }
 
