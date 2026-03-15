@@ -76,6 +76,7 @@ Same dual-JWT logic applied.
 **`client/src/context/AuthContext.jsx`:**
 - `initAuth` calls `refreshSupabaseToken()` first to restore expired Supabase sessions
 - `onAuthStateChange` listener syncs token on `TOKEN_REFRESHED` / `SIGNED_OUT`
+- `client/src/auth-bridge-guard.test.js` now locks the approved `/auth/*` compatibility surface so newly reintroduced bridge routes fail tests
 
 ### 2FA strategy
 - Existing users with `two_fa_enabled = true`: still go through `POST /api/auth/2fa/login` on Express after Supabase login
