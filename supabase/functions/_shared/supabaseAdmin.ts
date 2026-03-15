@@ -14,6 +14,12 @@ export const getSupabaseAdmin = (): any => {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
   }
 
+  // Debug: log the JWT role claim to verify the key is actually the service_role key
+  try {
+    const payload = JSON.parse(atob(serviceRoleKey.split('.')[1]));
+    console.log('[supabaseAdmin] key role claim:', payload.role, '| key starts with:', serviceRoleKey.slice(0, 20));
+  } catch { /* ignore */ }
+
   cachedAdminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
