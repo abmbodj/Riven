@@ -1,7 +1,53 @@
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
+
+export type RequestError = Error & {
+  status?: number;
+  statusCode?: number;
+  canWatchAd?: boolean;
+};
+
+export const normalizeRequestError = (error: unknown): RequestError => {
+  if (error instanceof Error) {
+    return error as RequestError;
+  }
+
+  const normalized = new Error('Unknown server error') as RequestError;
+
+  if (typeof error === 'string' && error.trim()) {
+    normalized.message = error;
+    return normalized;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybeError = error as {
+      message?: unknown;
+      status?: unknown;
+      statusCode?: unknown;
+      canWatchAd?: unknown;
+    };
+
+    if (typeof maybeError.message === 'string' && maybeError.message.trim()) {
+      normalized.message = maybeError.message;
+    }
+
+    if (typeof maybeError.status === 'number') {
+      normalized.status = maybeError.status;
+    }
+
+    if (typeof maybeError.statusCode === 'number') {
+      normalized.statusCode = maybeError.statusCode;
+    }
+
+    if (typeof maybeError.canWatchAd === 'boolean') {
+      normalized.canWatchAd = maybeError.canWatchAd;
+    }
+  }
+
+  return normalized;
 };
 
 export const jsonResponse = (body: unknown, init: ResponseInit = {}) =>

@@ -899,11 +899,35 @@ export const deleteScheduleSlot = async (id) => {
 };
 
 // --- LMS Integration (Canvas)
-export const connectCanvas = (icalUrl) => authFetch('/lms/canvas/connect', {
-    method: 'POST',
-    body: JSON.stringify({ icalUrl })
+const callCanvasLmsEndpoint = async ({ action, payload, fallback }) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('canvas-lms', {
+                method: 'POST',
+                body: { action, ...(payload || {}) },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return fallback();
+};
+
+export const connectCanvas = (icalUrl) => callCanvasLmsEndpoint({
+    action: 'connect',
+    payload: { icalUrl },
+    fallback: () => authFetch('/lms/canvas/connect', {
+        method: 'POST',
+        body: JSON.stringify({ icalUrl })
+    }),
 });
-export const disconnectCanvas = () => authFetch('/lms/canvas/disconnect', { method: 'POST' });
+export const disconnectCanvas = () => callCanvasLmsEndpoint({
+    action: 'disconnect',
+    fallback: () => authFetch('/lms/canvas/disconnect', { method: 'POST' }),
+});
 export const getCanvasSettings = async () => {
     const userId = await getAppUserId();
     const { data, error } = await supabase
@@ -918,11 +942,39 @@ export const getCanvasSettings = async () => {
         canvasUrl: data?.canvas_ical_url ? 'Canvas Feed Active' : '',
     };
 };
-export const syncCanvas = (adGranted = false) => authFetch('/lms/sync', { method: 'POST', body: JSON.stringify({ adGranted }) });
+export const syncCanvas = (adGranted = false) => callCanvasLmsEndpoint({
+    action: 'sync',
+    payload: { adGranted },
+    fallback: () => authFetch('/lms/sync', { method: 'POST', body: JSON.stringify({ adGranted }) }),
+});
 
 // --- AI Generation ---
-export const getAILimits = () => authFetch('/ai/limits');
+export const getAILimits = async () => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('ai-limits', { method: 'GET' });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return authFetch('/ai/limits');
+};
 export const generateAiDeck = async (notes, file, deckName, classId) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('generate-deck', {
+                body: { notes, file, deckName, classId },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
     return await authFetch('/ai/generate-deck', {
         method: 'POST',
         body: JSON.stringify({ notes, file, deckName, classId })
@@ -930,6 +982,18 @@ export const generateAiDeck = async (notes, file, deckName, classId) => {
 };
 
 export const generateAiClass = async (notes, file) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('generate-class', {
+                body: { notes, file },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
     return await authFetch('/ai/generate-class', {
         method: 'POST',
         body: JSON.stringify({ notes, file })
@@ -1468,7 +1532,22 @@ export const deleteTheme = async (id) => {
 
 // ============ SHARING ENDPOINTS ============
 
-export const acceptSharedDeck = (messageId) => authFetch(`/messages/${messageId}/accept-deck`, { method: 'POST' });
+export const acceptSharedDeck = async (messageId) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('accept-shared-deck', {
+                method: 'POST',
+                body: { messageId },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return authFetch(`/messages/${messageId}/accept-deck`, { method: 'POST' });
+};
 
 // ============ GUEST DATA MIGRATION ============
 
@@ -1980,13 +2059,35 @@ const callGroupRpc = async (fn, params = {}) => {
     return data;
 };
 
+const callGroupActionEndpoint = async ({ method, action, payload, fallback }) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('group-actions', {
+                method,
+                body: { action, ...(payload || {}) },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return fallback();
+};
+
 export const getGroups = async () => safeFetchArray((async () => {
     const data = await callGroupRpc('list_user_groups');
     return data || [];
 })());
-export const createGroup = (name, class_id) => authFetch('/groups', {
+export const createGroup = (name, class_id) => callGroupActionEndpoint({
     method: 'POST',
-    body: JSON.stringify({ name, class_id })
+    action: 'group-create',
+    payload: { name, class_id },
+    fallback: () => authFetch('/groups', {
+        method: 'POST',
+        body: JSON.stringify({ name, class_id })
+    }),
 });
 export const getGroup = async (id) => {
     const data = await callGroupRpc('get_group_details', {
@@ -2002,23 +2103,48 @@ export const getGroup = async (id) => {
 
     return group;
 };
-export const updateGroup = (id, updates) => authFetch(`/groups/${id}`, {
+export const updateGroup = (id, updates) => callGroupActionEndpoint({
     method: 'PUT',
-    body: JSON.stringify(updates)
+    action: 'group-update',
+    payload: { groupId: id, ...updates },
+    fallback: () => authFetch(`/groups/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+    }),
 });
-export const deleteGroup = (id) => authFetch(`/groups/${id}`, { method: 'DELETE' });
-export const joinGroup = (join_code) => authFetch('/groups/join', {
+export const deleteGroup = (id) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-delete',
+    payload: { groupId: id },
+    fallback: () => authFetch(`/groups/${id}`, { method: 'DELETE' }),
+});
+export const joinGroup = (join_code) => callGroupActionEndpoint({
     method: 'POST',
-    body: JSON.stringify({ join_code })
+    action: 'group-join',
+    payload: { join_code },
+    fallback: () => authFetch('/groups/join', {
+        method: 'POST',
+        body: JSON.stringify({ join_code })
+    }),
 });
-export const leaveGroup = (id) => authFetch(`/groups/${id}/leave`, { method: 'DELETE' });
+export const leaveGroup = (id) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-leave',
+    payload: { groupId: id },
+    fallback: () => authFetch(`/groups/${id}/leave`, { method: 'DELETE' }),
+});
 export const getGroupMembers = async (id) => safeFetchArray((async () => {
     const data = await callGroupRpc('list_group_members', {
         target_group_id: id,
     });
     return data || [];
 })());
-export const removeGroupMember = (id, userId) => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' });
+export const removeGroupMember = (id, userId) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-member-remove',
+    payload: { groupId: id, userId },
+    fallback: () => authFetch(`/groups/${id}/members/${userId}`, { method: 'DELETE' }),
+});
 
 export const getGroupDecks = async (id) => safeFetchArray((async () => {
     const data = await callGroupRpc('list_group_decks', {
@@ -2026,11 +2152,21 @@ export const getGroupDecks = async (id) => safeFetchArray((async () => {
     });
     return data || [];
 })());
-export const shareDeckToGroup = (id, deck_id) => authFetch(`/groups/${id}/decks`, {
+export const shareDeckToGroup = (id, deck_id) => callGroupActionEndpoint({
     method: 'POST',
-    body: JSON.stringify({ deck_id })
+    action: 'group-deck-share',
+    payload: { groupId: id, deck_id },
+    fallback: () => authFetch(`/groups/${id}/decks`, {
+        method: 'POST',
+        body: JSON.stringify({ deck_id })
+    }),
 });
-export const removeDeckFromGroup = (id, deckId) => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' });
+export const removeDeckFromGroup = (id, deckId) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-deck-remove',
+    payload: { groupId: id, deckId },
+    fallback: () => authFetch(`/groups/${id}/decks/${deckId}`, { method: 'DELETE' }),
+});
 
 export const getGroupFolders = async (id) => safeFetchArray((async () => {
     const data = await callGroupRpc('list_group_folders', {
@@ -2038,13 +2174,28 @@ export const getGroupFolders = async (id) => safeFetchArray((async () => {
     });
     return data || [];
 })());
-export const createGroupFolder = (id, name) => authFetch(`/groups/${id}/folders`, {
-    method: 'POST', body: JSON.stringify({ name })
+export const createGroupFolder = (id, name) => callGroupActionEndpoint({
+    method: 'POST',
+    action: 'group-folder-create',
+    payload: { groupId: id, name },
+    fallback: () => authFetch(`/groups/${id}/folders`, {
+        method: 'POST', body: JSON.stringify({ name })
+    }),
 });
-export const renameGroupFolder = (id, folderId, name) => authFetch(`/groups/${id}/folders/${folderId}`, {
-    method: 'PUT', body: JSON.stringify({ name })
+export const renameGroupFolder = (id, folderId, name) => callGroupActionEndpoint({
+    method: 'PUT',
+    action: 'group-folder-update',
+    payload: { groupId: id, folderId, name },
+    fallback: () => authFetch(`/groups/${id}/folders/${folderId}`, {
+        method: 'PUT', body: JSON.stringify({ name })
+    }),
 });
-export const deleteGroupFolder = (id, folderId) => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' });
+export const deleteGroupFolder = (id, folderId) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-folder-delete',
+    payload: { groupId: id, folderId },
+    fallback: () => authFetch(`/groups/${id}/folders/${folderId}`, { method: 'DELETE' }),
+});
 
 export const getGroupFiles = async (id, folderId = null) => safeFetchArray((async () => {
     const data = await callGroupRpc('list_group_files', {
@@ -2053,12 +2204,22 @@ export const getGroupFiles = async (id, folderId = null) => safeFetchArray((asyn
     });
     return data || [];
 })());
-export const uploadGroupFile = (id, data) => authFetch(`/groups/${id}/files`, {
+export const uploadGroupFile = (id, data) => callGroupActionEndpoint({
     method: 'POST',
-    body: JSON.stringify(data)
+    action: 'group-file-upload',
+    payload: { groupId: id, ...data },
+    fallback: () => authFetch(`/groups/${id}/files`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
 });
-export const deleteGroupFile = (id, fileId) => authFetch(`/groups/${id}/files/${fileId}`, {
-    method: 'DELETE'
+export const deleteGroupFile = (id, fileId) => callGroupActionEndpoint({
+    method: 'DELETE',
+    action: 'group-file-delete',
+    payload: { groupId: id, fileId },
+    fallback: () => authFetch(`/groups/${id}/files/${fileId}`, {
+        method: 'DELETE'
+    }),
 });
 
 // Cram Sessions
@@ -2091,29 +2252,127 @@ export const endGroupSession = (sessionId) => authFetch(`/groups/sessions/${sess
 
 // ============ ADMIN ENDPOINTS ============
 
-export const adminGetAllUsers = () => safeFetchArray(authFetch('/admin/users'));
-export const adminUpdateUser = (userId, updates) => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) });
-export const adminDeleteUser = (userId) => authFetch(`/admin/users/${userId}`, { method: 'DELETE' });
-export const adminGetStats = () => safeFetchObject(authFetch('/admin/stats'));
-export const adminUpdateUserRole = (userId, role) => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
+const callAdminEndpoint = async ({ method = 'GET', action, query, body, fallback }) => {
+    if (canUseSupabaseEdgeFunctions()) {
+        try {
+            return await edgeFunctionFetch('admin-actions', {
+                method,
+                query: method === 'GET' ? { action, ...query } : undefined,
+                body: method === 'GET' ? undefined : { action, ...body },
+            });
+        } catch (error) {
+            if (!shouldFallbackFromEdgeFunction(error)) {
+                throw error;
+            }
+        }
+    }
+
+    return fallback();
+};
+
+const normalizeAdminReport = (report) => {
+    const reporterUsername = report?.reporter_username || report?.reporter_name || 'Unknown';
+    const reportedUsername = report?.reported_username || report?.reported_name || 'Unknown';
+    const resolverUsername = report?.resolver_username || report?.resolver_name || null;
+
+    return {
+        ...report,
+        reporter_name: report?.reporter_name || reporterUsername,
+        reported_name: report?.reported_name || reportedUsername,
+        resolver_name: report?.resolver_name || resolverUsername,
+        reporter_username: reporterUsername,
+        reported_username: reportedUsername,
+        resolver_username: resolverUsername,
+    };
+};
+
+export const adminGetAllUsers = () => safeFetchArray(callAdminEndpoint({
+    method: 'GET',
+    action: 'users',
+    fallback: () => authFetch('/admin/users'),
+}));
+export const adminUpdateUser = (userId, updates) => callAdminEndpoint({
+    method: 'PUT',
+    action: 'user-update',
+    body: { userId, ...updates },
+    fallback: () => authFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) }),
+});
+export const adminDeleteUser = (userId) => callAdminEndpoint({
+    method: 'DELETE',
+    action: 'user-delete',
+    body: { userId },
+    fallback: () => authFetch(`/admin/users/${userId}`, { method: 'DELETE' }),
+});
+export const adminGetStats = () => safeFetchObject(callAdminEndpoint({
+    method: 'GET',
+    action: 'stats',
+    fallback: () => authFetch('/admin/stats'),
+}));
+export const adminUpdateUserRole = (userId, role) => callAdminEndpoint({
+    method: 'PUT',
+    action: 'user-role',
+    body: { userId, role },
+    fallback: () => authFetch(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+});
 
 // Admin moderation functions
-export const adminGetReports = () => safeFetchArray(authFetch('/admin/reports'));
-export const adminResolveReport = (reportId) => authFetch(`/admin/reports/${reportId}/resolve`, { method: 'POST' });
-export const adminCloseReport = (reportId) => authFetch(`/admin/reports/${reportId}/close`, { method: 'POST' });
-export const adminBanUser = (userId) => authFetch(`/admin/users/${userId}/ban`, { method: 'POST' });
+export const adminGetReports = async () => safeFetchArray((async () => {
+    const reports = await callAdminEndpoint({
+        method: 'GET',
+        action: 'reports',
+        fallback: () => authFetch('/admin/reports'),
+    });
+    return Array.isArray(reports) ? reports.map(normalizeAdminReport) : [];
+})());
+export const adminResolveReport = (reportId) => callAdminEndpoint({
+    method: 'POST',
+    action: 'report-resolve',
+    body: { reportId },
+    fallback: () => authFetch(`/admin/reports/${reportId}/resolve`, { method: 'POST' }),
+});
+export const adminCloseReport = (reportId) => callAdminEndpoint({
+    method: 'POST',
+    action: 'report-close',
+    body: { reportId },
+    fallback: () => authFetch(`/admin/reports/${reportId}/close`, { method: 'POST' }),
+});
+export const adminBanUser = (userId) => callAdminEndpoint({
+    method: 'POST',
+    action: 'user-ban',
+    body: { userId },
+    fallback: () => authFetch(`/admin/users/${userId}/ban`, { method: 'POST' }),
+});
 
 // Admin message functions
-export const adminGetMessages = () => safeFetchArray(authFetch('/admin/messages'));
-export const adminCreateMessage = (title, content, type, expiresAt) => authFetch('/admin/messages', {
+export const adminGetMessages = () => safeFetchArray(callAdminEndpoint({
+    method: 'GET',
+    action: 'messages',
+    fallback: () => authFetch('/admin/messages'),
+}));
+export const adminCreateMessage = (title, content, type, expiresAt) => callAdminEndpoint({
     method: 'POST',
-    body: JSON.stringify({ title, content, type, expiresAt })
+    action: 'message-create',
+    body: { title, content, type, expiresAt },
+    fallback: () => authFetch('/admin/messages', {
+        method: 'POST',
+        body: JSON.stringify({ title, content, type, expiresAt })
+    }),
 });
-export const adminUpdateMessage = (id, updates) => authFetch(`/admin/messages/${id}`, {
+export const adminUpdateMessage = (id, updates) => callAdminEndpoint({
     method: 'PUT',
-    body: JSON.stringify(updates)
+    action: 'message-update',
+    body: { messageId: id, ...updates },
+    fallback: () => authFetch(`/admin/messages/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+    }),
 });
-export const adminDeleteMessage = (id) => authFetch(`/admin/messages/${id}`, { method: 'DELETE' });
+export const adminDeleteMessage = (id) => callAdminEndpoint({
+    method: 'DELETE',
+    action: 'message-delete',
+    body: { messageId: id },
+    fallback: () => authFetch(`/admin/messages/${id}`, { method: 'DELETE' }),
+});
 
 // User-facing message functions
 export const getActiveMessages = async () => safeFetchArray((async () => {

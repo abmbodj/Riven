@@ -1,8 +1,8 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-let cachedAdminClient: ReturnType<typeof createClient> | null = null;
+let cachedAdminClient: any = null;
 
-export const getSupabaseAdmin = () => {
+export const getSupabaseAdmin = (): any => {
   if (cachedAdminClient) {
     return cachedAdminClient;
   }
@@ -19,7 +19,7 @@ export const getSupabaseAdmin = () => {
       persistSession: false,
       autoRefreshToken: false,
     },
-  });
+  }) as any;
 
   return cachedAdminClient;
 };

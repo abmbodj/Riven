@@ -228,7 +228,7 @@ export default function GroupDetails() {
 
     const handleRegenerateCode = async () => {
         try {
-            await api.updateGroup(id, { regenerate_code: true });
+            await api.updateGroup(id, { regenerate_code: true, class_id: group?.class_id || null });
             toast.success('Join code regenerated');
             loadGroup();
         } catch (err) {
