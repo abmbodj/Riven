@@ -69,6 +69,7 @@ export const resolveSupabaseUser = async (request: Request) => {
     .from('users')
     .select('id')
     .eq('email', email)
+    .limit(1)
     .maybeSingle();
 
   if (emailUserError) {
