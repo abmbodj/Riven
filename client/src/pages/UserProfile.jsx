@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, MessageCircle, UserPlus, UserMinus, Check, X,
-    Clock, Layers, Calendar, Shield, Leaf, User, ShieldAlert, Ban
+    Clock, Layers, Calendar, Shield, Leaf, User, ShieldAlert, Ban, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
@@ -192,28 +192,33 @@ export default function UserProfile() {
                     </button>
                 </div>
 
-                <div className="h-44 overflow-hidden relative rounded-b-[3rem] shadow-sm">
-                    {profile.banner ? (
-                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${profile.banner})` }}>
-                            <div className="absolute inset-0 bg-black/20"></div>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="absolute inset-0 bg-claude-bg rounded-b-[3rem]"></div>
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1.2 }}
-                                transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
-                                className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl rounded-b-[3rem]"
-                            />
-                            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+                <div className="mx-4 mt-4 rounded-[3rem] glass-shell">
+                    <div className="h-44 overflow-hidden relative rounded-[2.65rem] shadow-sm border border-white/15">
+                        {profile.banner ? (
+                            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${profile.banner})` }}>
+                                <div className="absolute inset-0 bg-black/20"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="absolute inset-0 bg-[#0f2026]"></div>
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1.2 }}
+                                    transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+                                    className="absolute top-[-50%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.15),transparent_60%)] blur-3xl"
+                                />
+                                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
 
-                            {/* Floating Leaves */}
-                            <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
-                                <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-claude-accent/5" />
-                            </motion.div>
-                        </>
-                    )}
+                                {/* Floating Leaves */}
+                                <motion.div animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+                                    <Leaf className="absolute -bottom-8 -right-8 w-40 h-40 text-claude-accent/5" />
+                                </motion.div>
+                                <motion.div animate={{ y: [0, 10, 0], rotate: [-12, -15, -12] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
+                                    <Leaf className="absolute -top-4 -left-6 w-32 h-32 text-claude-accent/5 opacity-40" />
+                                </motion.div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Avatar */}
@@ -269,19 +274,25 @@ export default function UserProfile() {
 
                 {/* Stats Bento */}
                 <div className="gsap-profile-item grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-claude-border/10 rounded-[2rem] p-5 text-center shadow-sm">
-                        <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold text-claude-text mb-1">
+                    <div className="group relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95">
+                        <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div className="w-12 h-12 rounded-full bg-claude-bg/80 flex items-center justify-center border border-claude-secondary/10 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
                             <Layers className="w-5 h-5 text-claude-accent" />
-                            {profile.deckCount}
                         </div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Decks</p>
+                        <div className="text-center z-10">
+                            <span className="block text-2xl font-display font-bold text-claude-text">{profile.deckCount}</span>
+                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Decks</span>
+                        </div>
                     </div>
-                    <div className="bg-claude-surface/40 md:backdrop-blur-md border border-claude-border/10 rounded-[2rem] p-5 text-center shadow-sm">
-                        <div className="flex items-center justify-center gap-2 text-[16px] font-display font-bold text-claude-text mb-1 h-[32px]">
-                            <Calendar className="w-4 h-4 text-claude-secondary/80" />
-                            {formatDate(profile.createdAt)}
+                    <div className="group relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95">
+                        <div className="absolute inset-0 bg-gradient-to-br from-claude-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div className="w-12 h-12 rounded-full bg-claude-bg/80 flex items-center justify-center border border-claude-secondary/10 shadow-inner group-hover:scale-110 transition-transform duration-300 z-10">
+                            <Calendar className="w-5 h-5 text-claude-secondary/80" />
                         </div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Joined</p>
+                        <div className="text-center z-10">
+                            <span className="block text-[15px] font-display font-bold text-claude-text">{formatDate(profile.createdAt)}</span>
+                            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary">Joined</span>
+                        </div>
                     </div>
                 </div>
 
@@ -348,20 +359,34 @@ export default function UserProfile() {
                     </AnimatePresence>
                 </div>
 
-                <div className="gsap-profile-item mt-8 pt-8 border-t border-claude-border/10 flex flex-col gap-2">
+                <div className="gsap-profile-item mt-8 glass-panel glass-shell rounded-[2rem] overflow-hidden shadow-sm lg:p-3 lg:space-y-2">
                     <button
                         onClick={() => setIsReportModalOpen(true)}
-                        className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                        className="w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.08)] lg:border lg:border-white/[0.06] border-b border-white/[0.06] last:border-b-0"
                     >
-                        <ShieldAlert className="w-4 h-4" />
-                        Report User
+                        <div className="absolute inset-0 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-red-500/8 to-transparent pointer-events-none lg:rounded-[1.5rem] transition-opacity duration-300"></div>
+                        <div className="w-10 h-10 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-red-500/10 transition-all duration-300 shrink-0 relative z-10">
+                            <ShieldAlert className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
+                        </div>
+                        <div className="flex-1 text-left relative z-10">
+                            <p className="font-display tracking-wide text-[16px] text-red-500/80 group-hover:text-red-500 font-medium transition-colors">Report User</p>
+                            <p className="text-[11px] font-mono text-red-500/40 group-hover:text-red-500/60 transition-colors">Flag inappropriate content</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-red-500/20 group-hover:text-red-500 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                     </button>
                     <button
                         onClick={() => setIsBlockModalOpen(true)}
-                        className="flex items-center gap-2 justify-center py-3 text-sm font-medium text-claude-secondary hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                        className="w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.08)] lg:border lg:border-white/[0.06]"
                     >
-                        <Ban className="w-4 h-4" />
-                        Block User
+                        <div className="absolute inset-0 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-red-500/8 to-transparent pointer-events-none lg:rounded-[1.5rem] transition-opacity duration-300"></div>
+                        <div className="w-10 h-10 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-red-500/10 transition-all duration-300 shrink-0 relative z-10">
+                            <Ban className="w-5 h-5 text-red-500/70 group-hover:text-red-500 transition-colors" />
+                        </div>
+                        <div className="flex-1 text-left relative z-10">
+                            <p className="font-display tracking-wide text-[16px] text-red-500/80 group-hover:text-red-500 font-medium transition-colors">Block User</p>
+                            <p className="text-[11px] font-mono text-red-500/40 group-hover:text-red-500/60 transition-colors">Prevent all interactions</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-red-500/20 group-hover:text-red-500 group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow] relative z-10" />
                     </button>
                 </div>
 
