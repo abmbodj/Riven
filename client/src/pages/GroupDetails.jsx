@@ -235,7 +235,8 @@ export default function GroupDetails() {
         try {
             await api.updateGroup(id, { regenerate_code: true, class_id: group?.class_id || null });
             toast.success('Join code regenerated');
-            loadGroup();
+            const groupRes = await api.getGroupInfo(id);
+            setGroup(groupRes);
         } catch (err) {
             toast.error(err.message || 'Failed to regenerate code');
         }
@@ -280,7 +281,6 @@ export default function GroupDetails() {
             try {
                 await api.removeGroupMember(id, userId);
                 toast.success('Member removed');
-                loadGroup(); // Silent background sync
             } catch {
                 setMembers(prevMembers); // Rollback
                 toast.error('Failed to remove member');
@@ -327,7 +327,8 @@ export default function GroupDetails() {
             await api.shareDeckToGroup(id, deckId);
             toast.success('Deck shared with group!');
             setShowShareDeckModal(false);
-            loadGroup();
+            const decksRes = await api.getGroupDecks(id);
+            setSharedDecks(decksRes || []);
         } catch (err) {
             toast.error(err.message || 'Failed to share deck');
         }
@@ -341,7 +342,6 @@ export default function GroupDetails() {
             try {
                 await api.removeDeckFromGroup(id, deckId);
                 toast.success('Deck removed');
-                loadGroup(); // Sync
             } catch {
                 setSharedDecks(prevDecks); // Rollback
                 toast.error('Failed to remove deck');
@@ -353,7 +353,7 @@ export default function GroupDetails() {
         confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
             await api.endGroupSession(sessionId);
             toast.success('Session ended');
-            loadGroup();
+            refreshSessions();
         });
     };
 
@@ -365,7 +365,8 @@ export default function GroupDetails() {
             toast.success('Folder created');
             setShowCreateFolderModal(false);
             setNewFolderName('');
-            loadGroup();
+            const fetchedFolders = await api.getGroupFolders(id);
+            setFolders(fetchedFolders || []);
         } catch {
             toast.error('Failed to create folder');
         }
@@ -382,7 +383,6 @@ export default function GroupDetails() {
                 await api.deleteGroupFolder(id, folderId);
                 toast.success('Folder deleted');
                 if (currentFolderId === folderId) setCurrentFolderId(null);
-                loadGroup(); // Sync
             } catch {
                 setFolders(prevFolders); // Rollback
                 toast.error('Failed to delete folder');
@@ -432,7 +432,8 @@ export default function GroupDetails() {
             });
             toast.success('File uploaded');
             closeUploadModal();
-            loadGroup();
+            const updatedFiles = await api.getGroupFiles(id, currentFolderId);
+            setFiles(updatedFiles || []);
         } catch (err) {
             console.error('File upload error:', err);
             toast.error(err.message || 'Failed to upload file');
@@ -488,7 +489,6 @@ export default function GroupDetails() {
             try {
                 await api.deleteGroupFile(id, fileId);
                 toast.success('File removed');
-                loadGroup(); // Sync
             } catch {
                 setFiles(prevFiles); // Rollback
                 toast.error('Failed to remove file');

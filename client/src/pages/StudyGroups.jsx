@@ -3,6 +3,7 @@ import { Users, Plus, RefreshCw, X, Link as LinkIcon, Calendar, ArrowRight } fro
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import * as authApi from '../api/authApi';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +18,7 @@ export default function StudyGroups() {
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeSessions, setActiveSessions] = useState({});
 
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -52,6 +54,51 @@ export default function StudyGroups() {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // Subscribe to realtime session events for all groups
+    useEffect(() => {
+        if (groups.length === 0) return;
+
+        // Fetch active sessions for all groups
+        const fetchAllSessions = async () => {
+            const sessionMap = {};
+            await Promise.all(
+                groups.map(async (group) => {
+                    try {
+                        const sessions = await api.getGroupSessions(group.id);
+                        const active = (sessions || []).filter(s => s.status === 'active');
+                        if (active.length > 0) sessionMap[group.id] = active.length;
+                    } catch { /* silently fail for individual groups */ }
+                })
+            );
+            setActiveSessions(sessionMap);
+        };
+        fetchAllSessions();
+
+        // Subscribe to each group's session events
+        const unsubscribers = groups.map((group) =>
+            authApi.subscribeToGroupSessionEvents(group.id, {
+                onStarted: () => {
+                    setActiveSessions(prev => ({
+                        ...prev,
+                        [group.id]: (prev[group.id] || 0) + 1,
+                    }));
+                },
+                onEnded: () => {
+                    setActiveSessions(prev => {
+                        const newCount = (prev[group.id] || 1) - 1;
+                        if (newCount <= 0) {
+                            const { [group.id]: _, ...rest } = prev;
+                            return rest;
+                        }
+                        return { ...prev, [group.id]: newCount };
+                    });
+                },
+            })
+        );
+
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [groups]);
 
     const handleCreate = async (e) => {
         e.preventDefault();
@@ -238,6 +285,15 @@ export default function StudyGroups() {
                                             ) : (
                                                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-claude-surface/50 rounded-md border border-claude-border/80">
                                                     <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-claude-secondary">Independent</span>
+                                                </div>
+                                            )}
+                                            {activeSessions[group.id] > 0 && (
+                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 rounded-md border border-red-500/20">
+                                                    <span className="relative flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                                                    </span>
+                                                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-red-500">Live</span>
                                                 </div>
                                             )}
                                         </div>
