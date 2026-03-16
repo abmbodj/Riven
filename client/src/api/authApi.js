@@ -228,12 +228,11 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         const validateWithSupabaseAuth = async (candidateToken) => {
             if (!isTokenEligibleForEdge(candidateToken)) return false;
 
-            const getUser = supabase?.auth?.getUser;
-            if (typeof getUser !== 'function') {
+            if (typeof supabase?.auth?.getUser !== 'function') {
                 return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
             }
 
-            const { data: userData, error: userError } = await getUser(candidateToken).catch(() => ({
+            const { data: userData, error: userError } = await supabase.auth.getUser(candidateToken).catch(() => ({
                 data: { user: null },
                 error: new Error('Token validation failed'),
             }));
@@ -247,9 +246,8 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
             return session.access_token;
         }
 
-        const refreshSession = supabase?.auth?.refreshSession;
-        const { data } = typeof refreshSession === 'function'
-            ? await refreshSession().catch(() => ({ data: {} }))
+        const { data } = typeof supabase?.auth?.refreshSession === 'function'
+            ? await supabase.auth.refreshSession().catch(() => ({ data: {} }))
             : { data: {} };
         if (data?.session?.access_token && await validateWithSupabaseAuth(data.session.access_token)) {
             setToken(data.session.access_token);
@@ -749,9 +747,8 @@ export const refreshSupabaseToken = async () => {
         return null;
     }
 
-    const getUser = supabase?.auth?.getUser;
-    if (typeof getUser === 'function') {
-        const { data, error } = await getUser(accessToken).catch(() => ({ data: { user: null }, error: new Error('Failed to validate session') }));
+    if (typeof supabase?.auth?.getUser === 'function') {
+        const { data, error } = await supabase.auth.getUser(accessToken).catch(() => ({ data: { user: null }, error: new Error('Failed to validate session') }));
         if (error || !data?.user?.id) {
             await supabase.auth.signOut().catch(() => {});
             setToken(null);
