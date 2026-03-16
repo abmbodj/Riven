@@ -40,10 +40,12 @@ function getRelativeDueLabel(dueValue, now = new Date()) {
 
     const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diffDays = Math.round((dueDay - nowDay) / 86400000);
+    const diffMs = dueDay - nowDay;
+    const diffDays = Math.round(diffMs / 86400000);
 
     if (diffDays < 0) {
-        return `Overdue ${Math.abs(diffDays)}d`;
+        const absDays = Math.abs(diffDays);
+        return `Overdue ${formatDuration(absDays)}`;
     }
     if (diffDays === 0) {
         return 'Due Today';
@@ -51,7 +53,30 @@ function getRelativeDueLabel(dueValue, now = new Date()) {
     if (diffDays === 1) {
         return 'Due Tomorrow';
     }
-    return `Due in ${diffDays}d`;
+    return `Due in ${formatDuration(diffDays)}`;
+}
+
+function formatDuration(totalDays) {
+    if (totalDays < 7) {
+        return `${totalDays}d`;
+    }
+    if (totalDays < 30) {
+        const weeks = Math.floor(totalDays / 7);
+        const days = totalDays % 7;
+        return days > 0 ? `${weeks}w ${days}d` : `${weeks}w`;
+    }
+    if (totalDays < 365) {
+        const months = Math.floor(totalDays / 30);
+        const days = totalDays % 30;
+        return days > 0 ? `${months}mo ${days}d` : `${months}mo`;
+    }
+    const years = Math.floor(totalDays / 365);
+    const remainingDays = totalDays % 365;
+    const months = Math.floor(remainingDays / 30);
+    if (months > 0) {
+        return `${years}y ${months}mo`;
+    }
+    return `${years}y`;
 }
 
 function formatDueDateTime(dueValue) {
