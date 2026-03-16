@@ -129,7 +129,7 @@ function QueueChip({ icon, eyebrow, title, meta, to, tone = 'default' }) {
     return (
         <Link
             to={to}
-            className={`tap-action group inline-flex min-h-[52px] min-w-[220px] items-center gap-3 rounded-2xl border px-3 py-2.5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${toneClasses}`}
+            className={`tap-action group inline-flex min-h-[44px] min-w-[180px] items-center gap-3 rounded-2xl border px-2.5 py-2 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 sm:min-h-[52px] sm:min-w-[220px] sm:px-3 sm:py-2.5 ${toneClasses}`}
         >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-claude-border bg-claude-bg/50 text-claude-accent">
                 {React.createElement(icon, { className: 'h-4 w-4' })}
@@ -570,7 +570,7 @@ function DashboardHome() {
 
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
-            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-claude-border bg-claude-surface p-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-6 lg:p-7">
+            <div className="relative mb-6 overflow-hidden rounded-[34px] border border-claude-border bg-claude-surface p-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-6 lg:p-7">
                 <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/10 to-transparent" />
                 <div className="gsap-hero relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-center">
@@ -579,14 +579,14 @@ function DashboardHome() {
                             <CalendarDays className="h-4 w-4" />
                             {greeting} • {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                         </p>
-                        <h1 className="mb-2 text-3xl font-serif font-bold italic leading-none tracking-tight text-claude-text sm:text-5xl">
+                        <h1 className="mb-2 text-2xl font-serif font-bold italic leading-none tracking-tight text-claude-text sm:text-5xl">
                             Today Queue
                         </h1>
-                        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-claude-secondary sm:text-base">
+                        <p className="mb-3 max-w-2xl text-sm leading-relaxed text-claude-secondary sm:mb-4 sm:text-base">
                             {heroSummary}
                         </p>
 
-                        <div className="mb-4 flex flex-wrap items-center gap-3">
+                        <div className="mb-3 flex flex-wrap items-center gap-3 sm:mb-4">
                             <Link
                                 to={todayQueue[0].to}
                                 className="tap-action inline-flex items-center gap-3 rounded-2xl bg-claude-accent px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-claude-bg shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
@@ -614,7 +614,7 @@ function DashboardHome() {
                         </div>
                     </div>
 
-                    <div className="xl:justify-self-end">
+                    <div className="hidden xl:block xl:justify-self-end">
                         <Link to="/garden" className="tap-action group block rounded-[26px] border border-claude-border bg-claude-bg/30 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60">
                             <div className="flex items-center gap-4">
                                 <div className="relative flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-2xl border border-claude-border bg-claude-bg/50 shadow-sm transition-transform group-hover:-translate-y-1">

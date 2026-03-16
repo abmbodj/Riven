@@ -739,8 +739,6 @@ export default function StudyMode() {
                                                 <img
                                                     src={currentCard.front_image}
                                                     alt="Card front"
-                                                    loading="lazy"
-                                                    decoding="async"
                                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                                 />
                                             )}
@@ -792,8 +790,6 @@ export default function StudyMode() {
                                                 <img
                                                     src={currentCard.back_image}
                                                     alt="Card back"
-                                                    loading="lazy"
-                                                    decoding="async"
                                                     className="max-h-[35%] max-w-full object-contain rounded-lg mb-3"
                                                 />
                                             )}
