@@ -32,7 +32,12 @@ export function AuthProvider({ children }) {
                 }
             } catch (err) {
                 console.warn('[AuthContext] Session check failed:', err);
-                if (err.status === 401 || err.status === 403 || (err.message && (err.message.includes('401') || err.message.includes('403')))) {
+                if (
+                    err.code === authApi.AUTH_SESSION_EXPIRED_CODE
+                    || err.status === 401
+                    || err.status === 403
+                    || (err.message && (err.message.includes('401') || err.message.includes('403')))
+                ) {
                     authApi.setToken(null);
                     setPendingTwoFactor(null);
                     setUser(null);
@@ -43,6 +48,18 @@ export function AuthProvider({ children }) {
         };
 
         initAuth();
+    }, []);
+
+    useEffect(() => {
+        const handleAuthExpired = () => {
+            authApi.setToken(null);
+            setPendingTwoFactor(null);
+            setUser(null);
+            setLoading(false);
+        };
+
+        window.addEventListener(authApi.AUTH_SESSION_EXPIRED_EVENT, handleAuthExpired);
+        return () => window.removeEventListener(authApi.AUTH_SESSION_EXPIRED_EVENT, handleAuthExpired);
     }, []);
 
     // Keep stored token in sync when Supabase auto-refreshes it (1hr expiry)

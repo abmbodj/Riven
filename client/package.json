@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.2.0",
+    "@marsidev/react-turnstile": "^1.4.2",
     "@react-oauth/google": "^0.13.4",
     "@revenuecat/purchases-js": "^1.26.3",
     "@supabase/supabase-js": "^2.99.1",

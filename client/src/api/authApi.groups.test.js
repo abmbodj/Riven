@@ -124,18 +124,19 @@ describe('authApi group edge migration', () => {
     );
   });
 
-  it('falls back to the legacy member removal route when the edge function is unavailable', async () => {
+  it('surfaces edge errors when group member removal function is unavailable', async () => {
     authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }))
-      .mockResolvedValueOnce(buildJsonResponse({ message: 'User removed successfully' }));
+      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }));
 
-    const result = await authApi.removeGroupMember('group-1', 12);
+    await expect(authApi.removeGroupMember('group-1', 12)).rejects.toMatchObject({
+      status: 404,
+      message: 'Function not found',
+    });
 
-    expect(result).toEqual({ message: 'User removed successfully' });
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://supabase.test/functions/v1/group-actions',
       expect.objectContaining({
         method: 'DELETE',
@@ -146,32 +147,32 @@ describe('authApi group edge migration', () => {
         }),
       }),
     );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/groups/group-1/members/12'),
-      expect.objectContaining({
-        method: 'DELETE',
-      }),
-    );
   });
 
-  it('uses the legacy deck-sharing route for non-Supabase tokens', async () => {
+  it('forces re-login for non-Supabase tokens on group deck sharing', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'user@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      message: 'Deck shared successfully',
-    }));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
-    await authApi.shareDeckToGroup('group-1', 44);
+    await expect(authApi.shareDeckToGroup('group-1', 44)).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+      message: 'Session expired. Please sign in again.',
+    });
+
+    expect(authApi.getToken()).toBeNull();
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/groups/group-1/decks'),
+      'https://supabase.test/functions/v1/group-actions',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          apikey: 'supabase-anon-key',
         }),
       }),
     );
+
+    const requestOptions = globalThis.fetch.mock.calls[0][1];
+    expect(requestOptions.headers.Authorization).toBeUndefined();
   });
 
   it('uses the group edge function for file uploads', async () => {

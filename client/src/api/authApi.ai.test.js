@@ -120,34 +120,21 @@ describe('authApi AI edge migration', () => {
     );
   });
 
-  it('falls back to the legacy generate-class route when the edge function is unavailable', async () => {
+  it('surfaces edge errors when the generate-class function is unavailable', async () => {
     authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }))
-      .mockResolvedValueOnce(buildJsonResponse({
-        classData: {
-          name: 'Chemistry 101',
-          professor: 'Dr. Stone',
-          room: 'Lab 2',
-          times: [],
-          assignments: [],
-        },
-      }));
+      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }));
 
-    const result = await authApi.generateAiClass('Syllabus notes', { data: 'abc', mimeType: 'application/pdf' });
-
-    expect(result).toEqual({
-      classData: {
-        name: 'Chemistry 101',
-        professor: 'Dr. Stone',
-        room: 'Lab 2',
-        times: [],
-        assignments: [],
-      },
+    await expect(
+      authApi.generateAiClass('Syllabus notes', { data: 'abc', mimeType: 'application/pdf' })
+    ).rejects.toMatchObject({
+      status: 404,
+      message: 'Function not found',
     });
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://supabase.test/functions/v1/generate-class',
       expect.objectContaining({
         method: 'POST',
@@ -157,34 +144,30 @@ describe('authApi AI edge migration', () => {
         }),
       }),
     );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/ai/generate-class'),
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    );
   });
 
-  it('uses the legacy AI limits route for non-Supabase tokens', async () => {
+  it('forces re-login for non-Supabase tokens on AI limits', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'user@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      remaining: 3,
-      max: 10,
-      characterLimit: 15000,
-      flashcardRange: [5, 15],
-      canWatchAd: false,
-    }));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
-    await authApi.getAILimits();
+    await expect(authApi.getAILimits()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+      message: 'Session expired. Please sign in again.',
+    });
+
+    expect(authApi.getToken()).toBeNull();
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/ai/limits'),
+      'https://supabase.test/functions/v1/ai-limits',
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          apikey: 'supabase-anon-key',
         }),
       }),
     );
+
+    const requestOptions = globalThis.fetch.mock.calls[0][1];
+    expect(requestOptions.headers.Authorization).toBeUndefined();
   });
 });

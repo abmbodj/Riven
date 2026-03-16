@@ -83,48 +83,47 @@ describe('authApi hearts edge migration', () => {
     );
   });
 
-  it('uses the legacy Express route for non-Supabase tokens', async () => {
+  it('does not send legacy tokens to the hearts edge function', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      hearts: 12,
-      max: 40,
-      isUnlimited: false,
-    }));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
-    await authApi.getHeartsStatus();
+    await expect(authApi.getHeartsStatus()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+      message: 'Session expired. Please sign in again.',
+    });
+
+    expect(authApi.getToken()).toBeNull();
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/users/hearts/status'),
+      'https://supabase.test/functions/v1/hearts?action=status',
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          apikey: 'supabase-anon-key',
         }),
       }),
     );
+
+    const requestOptions = globalThis.fetch.mock.calls[0][1];
+    expect(requestOptions.headers.Authorization).toBeUndefined();
   });
 
-  it('falls back to the legacy Express route when the hearts edge function is unavailable', async () => {
+  it('forces re-login when the hearts edge function returns invalid JWT', async () => {
     authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }))
-      .mockResolvedValueOnce(buildJsonResponse({
-        hearts: 9,
-        max: 40,
-        isUnlimited: false,
-      }));
+      .mockResolvedValueOnce(buildErrorResponse(401, { message: 'Invalid JWT' }));
 
-    const status = await authApi.getHeartsStatus();
+    await expect(authApi.getHeartsStatus()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+      message: 'Session expired. Please sign in again.',
+    });
 
-    expect(status).toEqual({ hearts: 9, max: 40, isUnlimited: false });
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
+    expect(authApi.getToken()).toBeNull();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://supabase.test/functions/v1/hearts?action=status',
-      expect.any(Object),
-    );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/users/hearts/status'),
       expect.any(Object),
     );
   });

@@ -29,6 +29,8 @@ export const getApiBase = () => API_BASE;
 // cookie jars so we fall back to in-memory + sessionStorage. localStorage is
 // only used on native platforms where XSS surface is minimal.
 const TOKEN_KEY = 'riven_auth_token';
+export const AUTH_SESSION_EXPIRED_CODE = 'AUTH_SESSION_EXPIRED';
+export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
 const tokenStore = useLocalStorage ? localStorage : sessionStorage;
 
@@ -50,6 +52,54 @@ export const setToken = (token) => {
         cachedAppUserId = null;
         cachedAuthToken = normalizedToken;
     }
+};
+
+const decodeJwtPayload = (token) => {
+    if (typeof token !== 'string') return null;
+    const segments = token.split('.');
+    if (segments.length !== 3) return null;
+
+    try {
+        const normalized = segments[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        const json = atob(padded);
+        return JSON.parse(json);
+    } catch {
+        return null;
+    }
+};
+
+const isSupabaseAccessToken = (token) => {
+    if (!token || token === 'logged_in') return false;
+    const payload = decodeJwtPayload(token);
+    if (!payload) return false;
+
+    const audience = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    return audience.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
+};
+
+const shouldForceReauthFromEdgeError = (status, message) => {
+    if (status !== 401) return false;
+    const normalized = String(message || '').toLowerCase();
+    return normalized.includes('invalid jwt')
+        || normalized.includes('invalid token')
+        || normalized.includes('unauthorized')
+        || normalized.includes('missing bearer');
+};
+
+const emitAuthSessionExpired = () => {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+    }
+};
+
+const forceReauth = async () => {
+    const signOut = supabase?.auth?.signOut;
+    if (typeof signOut === 'function') {
+        await signOut().catch(() => {});
+    }
+    setToken(null);
+    emitAuthSessionExpired();
 };
 
 function getCsrfToken() {
@@ -149,16 +199,21 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
     }
 
     const getEdgeFunctionToken = async () => {
-        // Try fresh session first, then force-refresh if needed, then fall back to localStorage
+        // Try fresh session first, then force-refresh once, then use stored token only if it is a Supabase access token.
         const session = await getActiveSupabaseSession().catch(() => null);
         if (session?.access_token) return session.access_token;
-        // Force-refresh the session in case the cached token expired
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: {} }));
+
+        const refreshSession = supabase?.auth?.refreshSession;
+        const { data } = typeof refreshSession === 'function'
+            ? await refreshSession().catch(() => ({ data: {} }))
+            : { data: {} };
         if (data?.session?.access_token) {
             setToken(data.session.access_token);
             return data.session.access_token;
         }
-        return getToken();
+
+        const storedToken = getToken();
+        return isSupabaseAccessToken(storedToken) ? storedToken : null;
     };
 
     const token = await getEdgeFunctionToken();
@@ -190,6 +245,13 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         error.status = response.status;
         error.code = data.code;
         error.body = data;
+
+        if (shouldForceReauthFromEdgeError(response.status, error.message)) {
+            await forceReauth();
+            error.code = AUTH_SESSION_EXPIRED_CODE;
+            error.message = 'Session expired. Please sign in again.';
+        }
+
         throw error;
     }
 

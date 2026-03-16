@@ -109,55 +109,48 @@ describe('authApi referrals edge migration', () => {
     );
   });
 
-  it('uses the legacy Express route for non-Supabase tokens', async () => {
+  it('forces re-login for non-Supabase tokens on referrals', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      referralCode: 'RIVEN123',
-      referrals: [],
-      qualifiedCount: 0,
-      targetCount: 5,
-      rewardEarned: false,
-    }));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
-    await authApi.getReferralInfo();
+    await expect(authApi.getReferralInfo()).rejects.toMatchObject({
+      status: 401,
+      code: authApi.AUTH_SESSION_EXPIRED_CODE,
+      message: 'Session expired. Please sign in again.',
+    });
+
+    expect(authApi.getToken()).toBeNull();
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/referrals/me'),
+      'https://supabase.test/functions/v1/referrals?action=me',
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          apikey: 'supabase-anon-key',
         }),
       }),
     );
+
+    const requestOptions = globalThis.fetch.mock.calls[0][1];
+    expect(requestOptions.headers.Authorization).toBeUndefined();
   });
 
-  it('falls back to the legacy Express route when the referrals edge function is unavailable', async () => {
+  it('surfaces edge errors when the referrals function is unavailable', async () => {
     authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }))
-      .mockResolvedValueOnce(buildJsonResponse({
-        qualified: true,
-        hasDeck: true,
-        sessions: 12,
-      }));
+      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }));
 
-    const result = await authApi.checkReferralQualification();
+    await expect(authApi.checkReferralQualification()).rejects.toMatchObject({
+      status: 404,
+      message: 'Function not found',
+    });
 
-    expect(result).toEqual({ qualified: true, hasDeck: true, sessions: 12 });
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://supabase.test/functions/v1/referrals',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ action: 'check-qualification' }),
-      }),
-    );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/referrals/check-qualification'),
-      expect.objectContaining({
-        method: 'POST',
       }),
     );
   });

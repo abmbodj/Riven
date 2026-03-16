@@ -1,12 +1,9 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔎 Scanning for secrets with TruffleHog..."
 
 # We run trufflehog on git, scanning uncommitted changes and avoiding full history scans on every commit.
 if command -v trufflehog >/dev/null 2>&1; then
   # Scan staged changes for secrets
-  trufflehog git file://. --only-verified --fail-verified --since-commit HEAD
+  trufflehog git file://. --results=verified --fail --since-commit HEAD
   
   if [ $? -ne 0 ]; then
     echo "❌ Secrets detected! Commit blocked by TruffleHog. Please remove sensitive data before committing."
