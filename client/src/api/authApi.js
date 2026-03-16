@@ -92,6 +92,11 @@ const tokenBelongsToSupabaseUrl = (token, supabaseUrl) => {
     }
 };
 
+const isTokenEligibleForEdge = (token) => (
+    isSupabaseAccessToken(token)
+    && !isJwtExpired(token)
+);
+
 const isJwtExpired = (token) => {
     const payload = decodeJwtPayload(token);
     if (!payload || typeof payload.exp !== 'number') return false;
@@ -220,35 +225,45 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
     }
 
     const getEdgeFunctionToken = async () => {
+        const validateWithSupabaseAuth = async (candidateToken) => {
+            if (!isTokenEligibleForEdge(candidateToken)) return false;
+
+            const getUser = supabase?.auth?.getUser;
+            if (typeof getUser !== 'function') {
+                return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
+            }
+
+            const { data: userData, error: userError } = await getUser(candidateToken).catch(() => ({
+                data: { user: null },
+                error: new Error('Token validation failed'),
+            }));
+
+            return !userError && Boolean(userData?.user?.id);
+        };
+
         // Try fresh session first, then force-refresh once, then use stored token only if it is a Supabase access token.
         const session = await getActiveSupabaseSession().catch(() => null);
-        if (session?.access_token) return session.access_token;
+        if (session?.access_token && await validateWithSupabaseAuth(session.access_token)) {
+            return session.access_token;
+        }
 
         const refreshSession = supabase?.auth?.refreshSession;
         const { data } = typeof refreshSession === 'function'
             ? await refreshSession().catch(() => ({ data: {} }))
             : { data: {} };
-        if (data?.session?.access_token) {
+        if (data?.session?.access_token && await validateWithSupabaseAuth(data.session.access_token)) {
             setToken(data.session.access_token);
             return data.session.access_token;
         }
 
         const storedToken = getToken();
-        if (
-            !isSupabaseAccessToken(storedToken)
-            || isJwtExpired(storedToken)
-            || !tokenBelongsToSupabaseUrl(storedToken, supabaseUrl)
-        ) {
+        if (!storedToken) {
             return null;
         }
 
-        const getUser = supabase?.auth?.getUser;
-        if (typeof getUser === 'function') {
-            const { data: userData, error: userError } = await getUser(storedToken).catch(() => ({ data: { user: null }, error: new Error('Stored token validation failed') }));
-            if (userError || !userData?.user?.id) {
-                setToken(null);
-                return null;
-            }
+        if (!await validateWithSupabaseAuth(storedToken)) {
+            setToken(null);
+            return null;
         }
 
         return storedToken;

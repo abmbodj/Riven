@@ -74,7 +74,7 @@ describe('authApi login migration bridge', () => {
       error: { message: 'Invalid login credentials' },
     });
     supabase.auth.signUp.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
       error: null,
     });
 
@@ -97,7 +97,7 @@ describe('authApi login migration bridge', () => {
     expect(result).toEqual({
       user: { id: 7, email: 'test@example.com', username: 'tester' },
     });
-    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
   });
 
   it('restores a Supabase session on refresh by completing account setup when the bridge is missing', async () => {
@@ -134,10 +134,10 @@ describe('authApi login migration bridge', () => {
 
   it('returns a Supabase MFA challenge when a verified factor still needs verification', async () => {
     supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
     });
     supabase.auth.signInWithPassword.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
       error: null,
     });
     supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
@@ -163,15 +163,15 @@ describe('authApi login migration bridge', () => {
       provider: 'supabase',
       factorId: 'factor-1',
     });
-    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
   });
 
   it('falls back to the legacy 2FA challenge for existing linked users without a Supabase factor', async () => {
     supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
     });
     supabase.auth.signInWithPassword.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
       error: null,
     });
 

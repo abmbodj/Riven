@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -67,17 +66,10 @@ serve(async (request) => {
     }
     const token = authorization.slice('Bearer '.length);
 
-    // Verify token with Supabase Auth (can't use resolveSupabaseUser because
-    // the user row may not exist yet — that's what we're creating)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-
-    const authClient = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: authData, error: authError } = await authClient.auth.getUser(token);
+    // Verify token with project admin client. This avoids anon-key mismatch issues
+    // while still validating that the bearer token belongs to this Supabase project.
+    const admin = getSupabaseAdmin();
+    const { data: authData, error: authError } = await admin.auth.getUser(token);
     if (authError || !authData.user) {
       return jsonResponse({ error: 'Invalid Supabase token' }, { status: 401 }, request);
     }
@@ -105,8 +97,6 @@ serve(async (request) => {
         request,
       );
     }
-
-    const admin = getSupabaseAdmin();
 
     // 1. Already linked — return existing user
     const { data: existingLinked } = await admin
