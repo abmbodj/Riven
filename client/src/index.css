@@ -553,12 +553,43 @@
   }
 
   .mobile-fab-button {
+    position: relative;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* Rotating liquid-metal conic gradient — sits behind the inner disc */
+  .mobile-fab-button::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      rgba(222, 185, 106, 0.12) 0deg,
+      #deb96a 45deg,
+      #f5d98a 90deg,
+      #deb96a 120deg,
+      rgba(160, 120, 48, 0.2) 180deg,
+      rgba(222, 185, 106, 0.08) 220deg,
+      #a07830 270deg,
+      #deb96a 315deg,
+      rgba(222, 185, 106, 0.12) 360deg
+    );
+    animation: liquidMetalSpin 3s linear infinite;
+    z-index: 0;
+  }
+
+  /* Inner disc that masks the gradient into a ring, holds the button face */
+  .mobile-fab-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
     background: linear-gradient(145deg, var(--botanical-forest) 0%, color-mix(in srgb, var(--botanical-forest) 80%, #1a3a20) 100%);
-    border: 2.5px solid var(--bg-color);
-    box-shadow:
-      0 4px 20px rgba(122, 158, 114, 0.35),
-      0 0 0 1px rgba(255, 255, 255, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    z-index: 1;
   }
 
   .mobile-fab-menu {
@@ -821,6 +852,11 @@ iframe[src*="revenuecat.com"] {
 body.rc-billing-active .fixed.inset-0.z-\[999\] {
   z-index: 50 !important;
   pointer-events: none !important;
+}
+
+@keyframes liquidMetalSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Fallback: if the billing overlay hangs/freezes, let users at least interact with the modal again after a delay or if they force-close */
