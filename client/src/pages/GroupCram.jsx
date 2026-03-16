@@ -193,7 +193,8 @@ export default function GroupCram() {
     const handleEndSessionGlobally = () => {
         confirmAction('End Session', 'Are you sure you want to end this session for everyone?', async () => {
             await api.endGroupSession(sessionId);
-            // The realtime session update will transition everyone
+            setIsEnded(true);
+            fetchResults();
         });
     };
 
