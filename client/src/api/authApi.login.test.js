@@ -13,6 +13,7 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
       signInWithPassword: vi.fn(),
       signInWithIdToken: vi.fn(),
       signUp: vi.fn(),
@@ -31,6 +32,8 @@ vi.mock('../lib/supabaseClient', () => ({
 import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
 
+const SUPABASE_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwic3ViIjoiYXV0aC11c2VyIiwiZXhwIjo0MTAyNDQ0ODAwfQ.sig';
+
 const jsonResponse = (body) => ({
   ok: true,
   headers: {
@@ -41,8 +44,9 @@ const jsonResponse = (body) => ({
 
 const createSelectSingleChain = (data, error = null) => {
   const single = vi.fn().mockResolvedValue({ data, error });
-  const select = vi.fn().mockReturnValue({ single });
-  return { select, single };
+  const eq = vi.fn().mockReturnValue({ single });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, single };
 };
 
 describe('authApi login migration bridge', () => {
@@ -56,6 +60,10 @@ describe('authApi login migration bridge', () => {
     });
     supabase.auth.mfa.listFactors.mockResolvedValue({
       data: { all: [], totp: [] },
+      error: null,
+    });
+    supabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-user' } },
       error: null,
     });
   });
@@ -94,7 +102,7 @@ describe('authApi login migration bridge', () => {
 
   it('restores a Supabase session on refresh by completing account setup when the bridge is missing', async () => {
     supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
     });
     const { select } = createSelectSingleChain(null, {
       code: 'PGRST116',
@@ -111,14 +119,14 @@ describe('authApi login migration bridge', () => {
     const user = await authApi.restoreSessionUser();
 
     expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false });
-    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining('/api/auth/complete-registration'),
+      expect.stringContaining('/functions/v1/complete-registration'),
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: 'Bearer supabase-token',
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
         }),
       }),
     );

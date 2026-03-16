@@ -13,6 +13,7 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
       updateUser: vi.fn(),
       verifyOtp: vi.fn(),
       resend: vi.fn(),
@@ -28,6 +29,8 @@ vi.mock('../lib/supabaseClient', () => ({
 import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
 
+const SUPABASE_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwic3ViIjoiYXV0aC11c2VyIiwiZXhwIjo0MTAyNDQ0ODAwfQ.sig';
+
 const buildJsonResponse = (body) => ({
   ok: true,
   headers: {
@@ -38,8 +41,9 @@ const buildJsonResponse = (body) => ({
 
 const createSelectSingleChain = (data, error = null) => {
   const single = vi.fn().mockResolvedValue({ data, error });
-  const select = vi.fn().mockReturnValue({ single });
-  return { select, single };
+  const eq = vi.fn().mockReturnValue({ single });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, single };
 };
 
 describe('authApi Supabase auth bridge reductions', () => {
@@ -54,6 +58,10 @@ describe('authApi Supabase auth bridge reductions', () => {
 
     supabase.auth.getSession.mockResolvedValue({
       data: { session: null },
+      error: null,
+    });
+    supabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-user' } },
       error: null,
     });
     supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
@@ -80,7 +88,7 @@ describe('authApi Supabase auth bridge reductions', () => {
 
   it('loads the current user directly from Supabase when a session is active', async () => {
     supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
       error: null,
     });
 
@@ -135,7 +143,7 @@ describe('authApi Supabase auth bridge reductions', () => {
 
   it('completes registration on refresh when the Supabase session exists but the app row is missing', async () => {
     supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
       error: null,
     });
 
@@ -152,11 +160,11 @@ describe('authApi Supabase auth bridge reductions', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/complete-registration'),
+      expect.stringContaining('/functions/v1/complete-registration'),
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: 'Bearer supabase-token',
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
         }),
       }),
     );
@@ -224,7 +232,7 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
   });
 
-  it('falls back to the legacy reset route when the reset-password edge function is unavailable', async () => {
+  it('surfaces reset-password edge errors when the function is unavailable', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     globalThis.fetch = vi
@@ -241,7 +249,7 @@ describe('authApi Supabase auth bridge reductions', () => {
         message: 'Password has been reset successfully. You can now log in.',
       }));
 
-    const result = await authApi.resetPassword('a'.repeat(64), 'new-password-123');
+    await expect(authApi.resetPassword('a'.repeat(64), 'new-password-123')).rejects.toThrow('Function not found');
 
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
@@ -250,17 +258,7 @@ describe('authApi Supabase auth bridge reductions', () => {
         method: 'POST',
       }),
     );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/auth/reset-password'),
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ token: 'a'.repeat(64), password: 'new-password-123' }),
-      }),
-    );
-    expect(result).toEqual({
-      message: 'Password has been reset successfully. You can now log in.',
-    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('resends email verification through Supabase when the user has an active Supabase session', async () => {
