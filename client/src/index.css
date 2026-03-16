@@ -559,7 +559,7 @@
     box-shadow: none;
   }
 
-  /* Rotating liquid-metal conic gradient — chrome/silver ring */
+  /* Liquid metal ring — irregular gradient, organic flow */
   .mobile-fab-button::before {
     content: '';
     position: absolute;
@@ -567,19 +567,29 @@
     border-radius: 50%;
     background: conic-gradient(
       from 0deg,
-      rgba(48, 52, 60, 0.9) 0deg,
-      #ffffff 40deg,
-      #e8ecf0 70deg,
-      #a8b0b8 100deg,
-      #687078 140deg,
-      rgba(32, 36, 42, 0.95) 180deg,
-      #505860 220deg,
-      #9098a0 260deg,
-      #d0d4d8 300deg,
-      #ffffff 340deg,
-      rgba(48, 52, 60, 0.9) 360deg
+      #2c3038 0deg,
+      #3a3e48 25deg,
+      #505860 45deg,
+      #787c84 55deg,
+      #a0a4ac 65deg,
+      #d8dce0 75deg,
+      #ffffff 85deg,
+      #e0e4e8 95deg,
+      #909498 110deg,
+      #484c54 130deg,
+      #282c34 160deg,
+      #383c44 185deg,
+      #606468 200deg,
+      #b0b4b8 215deg,
+      #f0f4f8 230deg,
+      #c8ccd0 245deg,
+      #707478 265deg,
+      #404448 290deg,
+      #2c3038 320deg,
+      #585c64 345deg,
+      #2c3038 360deg
     );
-    animation: liquidMetalSpin 3s linear infinite;
+    animation: liquidMetalFlow 4.5s cubic-bezier(0.35, 0.1, 0.25, 0.9) infinite;
     z-index: 0;
   }
 
@@ -856,9 +866,15 @@ body.rc-billing-active .fixed.inset-0.z-\[999\] {
   pointer-events: none !important;
 }
 
-@keyframes liquidMetalSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Uneven rotation — speeds up and slows down like liquid sloshing */
+@keyframes liquidMetalFlow {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(72deg); }
+  38% { transform: rotate(158deg); }
+  55% { transform: rotate(245deg); }
+  72% { transform: rotate(318deg); }
+  88% { transform: rotate(352deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Fallback: if the billing overlay hangs/freezes, let users at least interact with the modal again after a delay or if they force-close */
