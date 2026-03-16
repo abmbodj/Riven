@@ -325,6 +325,272 @@ export const generateDeckFromAi = async ({
   };
 };
 
+// ─────────────────────────────────────────────────────
+// Study Guide generation
+// ─────────────────────────────────────────────────────
+
+const buildGuidePrompt = () => `
+You are an expert tutor creating a comprehensive study guide.
+Given the following notes, document, or image, produce a well-structured study guide as a Tiptap-compatible JSON document.
+
+Rules:
+1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
+2. No markdown formatting, backticks, or conversational text outside the JSON object.
+3. Use these node types:
+   - { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
+   - { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
+   - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
+   - { "type": "horizontalRule" }
+4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
+5. Organize content with: Overview, Key Concepts, Important Details, and Summary sections.
+6. Be thorough — cover all important material from the source.
+7. Use bold for key terms and italic for definitions or emphasis.
+`;
+
+const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+  const contents = [{ text: buildGuidePrompt() }];
+
+  if (hasProcessedNotes) {
+    contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
+  }
+
+  if (keepFile) {
+    contents.push({
+      inlineData: {
+        data: file.data,
+        mimeType: file.mimeType,
+      },
+    });
+  }
+
+  return contents;
+};
+
+export const generateStudyGuideFromAi = async ({
+  userId,
+  notes,
+  file,
+  title,
+  noteId,
+  classId,
+  aiLimitsContext,
+  apiKey,
+  parseDocx,
+  generateContent,
+  createGuide,
+  deleteGuide,
+  onParseError,
+}) => {
+  ensureApiKey(apiKey);
+
+  const { processedNotes, hasProcessedNotes, keepFile } = await prepareAiSource({
+    notes,
+    file,
+    parseDocx,
+    onParseError,
+  });
+
+  if (!hasProcessedNotes && !keepFile) {
+    throw createHttpError('Notes or a file are required to generate a study guide.', 400);
+  }
+
+  const characterLimit = aiLimitsContext?.characterLimit || 15000;
+  if (hasProcessedNotes && processedNotes.length > characterLimit) {
+    throw createHttpError(
+      `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+      400,
+    );
+  }
+
+  const rawResponse = await generateContent({
+    model: 'gemini-2.5-flash',
+    contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file }),
+  });
+
+  const guideContent = parseAiJsonResponse(
+    rawResponse,
+    'AI generated invalid study guide format. Please try again.',
+  );
+
+  if (!guideContent || typeof guideContent !== 'object' || guideContent.type !== 'doc') {
+    throw createHttpError('AI failed to generate a valid study guide.', 500);
+  }
+
+  const finalTitle = title || 'AI Study Guide';
+  let createdGuide = null;
+
+  try {
+    createdGuide = await createGuide({
+      userId,
+      title: finalTitle,
+      content: guideContent,
+      noteId: noteId || null,
+      classId: classId || null,
+    });
+  } catch (error) {
+    if (createdGuide?.id && typeof deleteGuide === 'function') {
+      try {
+        await deleteGuide(createdGuide.id);
+      } catch {
+        // Ignore cleanup failures
+      }
+    }
+    throw error;
+  }
+
+  return {
+    message: 'Study guide generated successfully',
+    guide_id: createdGuide.id,
+    title: finalTitle,
+  };
+};
+
+// ─────────────────────────────────────────────────────
+// Mock Exam generation
+// ─────────────────────────────────────────────────────
+
+const buildExamPrompt = () => `
+You are an expert tutor creating a challenging but fair practice exam.
+Given the following notes, document, or image, produce a set of multiple-choice questions to test the student's understanding.
+
+Rules:
+1. Output ONLY a valid JSON array of question objects, with absolutely no markdown formatting, backticks, or conversational text outside the array.
+2. Each question must have exactly these keys:
+   - "question": A clear, well-formed question string.
+   - "options": An array of exactly 4 answer choices (strings). One must be correct.
+   - "correct_answer": The exact string from options that is the correct answer.
+   - "explanation": A brief explanation of why the correct answer is right.
+3. Generate between 10 and 20 questions depending on the length and density of the source material.
+4. Cover a wide range of topics from the material.
+5. Include a mix of difficulty levels (easy, medium, hard).
+6. Make distractors (wrong answers) plausible but clearly incorrect.
+7. Avoid trick questions or ambiguous wording.
+
+Example JSON format:
+[
+  {
+    "question": "What is the primary function of mitochondria?",
+    "options": ["Protein synthesis", "Energy production", "DNA replication", "Cell division"],
+    "correct_answer": "Energy production",
+    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration."
+  }
+]
+`;
+
+const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+  const contents = [{ text: buildExamPrompt() }];
+
+  if (hasProcessedNotes) {
+    contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
+  }
+
+  if (keepFile) {
+    contents.push({
+      inlineData: {
+        data: file.data,
+        mimeType: file.mimeType,
+      },
+    });
+  }
+
+  return contents;
+};
+
+export const generateExamFromAi = async ({
+  userId,
+  notes,
+  file,
+  title,
+  sourceType,
+  sourceId,
+  classId,
+  aiLimitsContext,
+  apiKey,
+  parseDocx,
+  generateContent,
+  createExam,
+  deleteExam,
+  onParseError,
+}) => {
+  ensureApiKey(apiKey);
+
+  const { processedNotes, hasProcessedNotes, keepFile } = await prepareAiSource({
+    notes,
+    file,
+    parseDocx,
+    onParseError,
+  });
+
+  if (!hasProcessedNotes && !keepFile) {
+    throw createHttpError('Notes or a file are required to generate an exam.', 400);
+  }
+
+  const characterLimit = aiLimitsContext?.characterLimit || 15000;
+  if (hasProcessedNotes && processedNotes.length > characterLimit) {
+    throw createHttpError(
+      `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+      400,
+    );
+  }
+
+  const rawResponse = await generateContent({
+    model: 'gemini-2.5-flash',
+    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file }),
+  });
+
+  const questions = parseAiJsonResponse(
+    rawResponse,
+    'AI generated invalid exam format. Please try again.',
+  );
+
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw createHttpError('AI failed to generate any exam questions.', 500);
+  }
+
+  // Validate question structure
+  const validQuestions = questions.filter(q =>
+    q.question && Array.isArray(q.options) && q.options.length === 4
+    && q.correct_answer && q.options.includes(q.correct_answer)
+  );
+
+  if (validQuestions.length === 0) {
+    throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);
+  }
+
+  const finalTitle = title || 'AI Mock Exam';
+  let createdExam = null;
+
+  try {
+    createdExam = await createExam({
+      userId,
+      title: finalTitle,
+      sourceType: sourceType || 'notes',
+      sourceId: sourceId || null,
+      classId: classId || null,
+      questions: validQuestions,
+    });
+  } catch (error) {
+    if (createdExam?.id && typeof deleteExam === 'function') {
+      try {
+        await deleteExam(createdExam.id);
+      } catch {
+        // Ignore cleanup failures
+      }
+    }
+    throw error;
+  }
+
+  return {
+    message: 'Mock exam generated successfully',
+    exam_id: createdExam.id,
+    question_count: validQuestions.length,
+  };
+};
+
 export const generateClassPreview = async ({
   notes,
   file,

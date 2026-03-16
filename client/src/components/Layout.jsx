@@ -40,7 +40,7 @@ const getPrimaryNavItems = (isLoggedIn) => [
         to: '/decks',
         icon: Layers,
         label: 'Study',
-        matchers: ['/decks', '/deck', '/create']
+        matchers: ['/decks', '/deck', '/create', '/notes', '/note', '/guides', '/guide', '/exams', '/exam']
     },
     { id: 'fab', isFab: true },
     {
@@ -69,7 +69,7 @@ export default function Layout({ children }) {
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
     const { isLoggedIn, user } = useContext(AuthContext) || {};
     const primaryNavItems = getPrimaryNavItems(isLoggedIn);
-    const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test');
+    const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test') || /^\/exam\/[^/]+$/.test(location.pathname);
     const isCreatePage = location.pathname === '/create';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);

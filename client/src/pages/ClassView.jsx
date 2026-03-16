@@ -24,6 +24,7 @@ export default function ClassView() {
     const [cls, setCls] = useState(null);
     const [assignments, setAssignments] = useState([]);
     const [decks, setDecks] = useState([]);
+    const [notes, setNotes] = useState([]);
     const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showPricingModal, setShowPricingModal] = useState(false);
@@ -72,6 +73,9 @@ export default function ClassView() {
 
             const allDecks = await api.getDecks();
             setDecks(allDecks.filter(d => d.class_id === id));
+
+            const notesData = await api.getNotes(id).catch(() => []);
+            setNotes(notesData);
 
             const scheduleData = await api.getSchedule();
             setScheduleSlots(scheduleData.filter(s => s.class_id === id));
@@ -509,6 +513,38 @@ export default function ClassView() {
                                     <Layers className="mx-auto mb-3 h-8 w-8 text-claude-secondary/60" />
                                     <p className="font-serif italic text-claude-text">No linked decks yet</p>
                                     <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Generate or create one from this class.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="glass-panel rounded-[28px] p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">
+                                    Notes <span className="opacity-40 text-[10px]">({notes.length})</span>
+                                </h3>
+                                <a href={`/note/new?classId=${id}`} className="text-claude-accent text-[10px] font-mono font-bold uppercase tracking-widest tap-action">+ New</a>
+                            </div>
+                            {notes.length > 0 ? (
+                                <div className="space-y-3">
+                                    {notes.map(note => (
+                                        <a
+                                            key={note.id}
+                                            href={`/note/${note.id}`}
+                                            className="group relative block rounded-2xl border border-claude-border bg-claude-bg/15 p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                                        >
+                                            <h4 className="font-serif text-lg font-bold truncate text-claude-text group-hover:text-claude-text transition-colors">
+                                                {note.title || 'Untitled'}
+                                            </h4>
+                                            <span className="font-mono text-[10px] uppercase tracking-widest text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] font-bold">
+                                                {new Date(note.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            </span>
+                                        </a>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-claude-border px-4 py-8 text-center">
+                                    <p className="font-serif italic text-claude-text">No notes yet</p>
+                                    <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Create a note linked to this class.</p>
                                 </div>
                             )}
                         </div>

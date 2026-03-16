@@ -109,6 +109,62 @@ export const api = {
     generateAiClass: (notes, file) => isLoggedIn()
         ? serverApi.generateAiClass(notes, file)
         : Promise.reject(new Error('Must be logged in to generate AI class')),
+    generateAiGuide: (notes, file, title, noteId, classId) => isLoggedIn()
+        ? serverApi.generateAiGuide(notes, file, title, noteId, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI study guide')),
+    generateAiExam: (notes, file, title, sourceType, sourceId, classId) => isLoggedIn()
+        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI exam')),
+
+    // ============ NOTES ============
+    getNotes: (classId) => isLoggedIn()
+        ? serverApi.getNotes(classId)
+        : Promise.resolve([]),
+    getNote: (id) => isLoggedIn()
+        ? serverApi.getNote(id)
+        : Promise.reject(new Error('Must be logged in to view notes')),
+    createNote: (title, content, classId) => isLoggedIn()
+        ? serverApi.createNote(title, content, classId)
+        : Promise.reject(new Error('Must be logged in to create notes')),
+    updateNote: (id, updates) => isLoggedIn()
+        ? serverApi.updateNote(id, updates)
+        : Promise.reject(new Error('Must be logged in to update notes')),
+    deleteNote: (id) => isLoggedIn()
+        ? serverApi.deleteNote(id)
+        : Promise.reject(new Error('Must be logged in to delete notes')),
+
+    // ============ STUDY GUIDES ============
+    getStudyGuides: (classId) => isLoggedIn()
+        ? serverApi.getStudyGuides(classId)
+        : Promise.resolve([]),
+    getStudyGuide: (id) => isLoggedIn()
+        ? serverApi.getStudyGuide(id)
+        : Promise.reject(new Error('Must be logged in to view study guides')),
+    updateStudyGuide: (id, updates) => isLoggedIn()
+        ? serverApi.updateStudyGuide(id, updates)
+        : Promise.reject(new Error('Must be logged in to update study guides')),
+    deleteStudyGuide: (id) => isLoggedIn()
+        ? serverApi.deleteStudyGuide(id)
+        : Promise.reject(new Error('Must be logged in to delete study guides')),
+
+    // ============ MOCK EXAMS ============
+    getMockExams: (classId) => isLoggedIn()
+        ? serverApi.getMockExams(classId)
+        : Promise.resolve([]),
+    getMockExam: (id) => isLoggedIn()
+        ? serverApi.getMockExam(id)
+        : Promise.reject(new Error('Must be logged in to view mock exams')),
+    deleteMockExam: (id) => isLoggedIn()
+        ? serverApi.deleteMockExam(id)
+        : Promise.reject(new Error('Must be logged in to delete mock exams')),
+
+    // ============ EXAM ATTEMPTS ============
+    createExamAttempt: (examId, score, total, answers) => isLoggedIn()
+        ? serverApi.createExamAttempt(examId, score, total, answers)
+        : Promise.reject(new Error('Must be logged in to save exam attempts')),
+    getExamAttempts: (examId) => isLoggedIn()
+        ? serverApi.getExamAttempts(examId)
+        : Promise.resolve([]),
 
     // ============ SCHEDULE ============
     getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),

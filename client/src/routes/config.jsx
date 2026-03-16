@@ -1,9 +1,10 @@
 import { lazy } from 'react';
 import Home from '../pages/Home.jsx';
-import Decks from '../pages/Decks.jsx';
+import StudyDashboard from '../pages/StudyDashboard.jsx';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 
 // Lazy load pages
+const DeckLibrary = lazy(() => import('../pages/DeckLibrary.jsx'));
 const Classes = lazy(() => import('../pages/Classes.jsx'));
 const ClassView = lazy(() => import('../pages/ClassView.jsx'));
 const CreateDeck = lazy(() => import('../pages/CreateDeck.jsx'));
@@ -24,17 +25,24 @@ const EditProfile = lazy(() => import('../pages/EditProfile.jsx'));
 const Settings = lazy(() => import('../pages/Settings.jsx'));
 const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
 const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
-
 const GroupCram = lazy(() => import('../pages/GroupCram.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
 const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('../pages/TermsOfService.jsx'));
 
+// Study Dashboard modules
+const NotesLibrary = lazy(() => import('../pages/NotesLibrary.jsx'));
+const NoteEditor = lazy(() => import('../pages/NoteEditor.jsx'));
+const GuidesLibrary = lazy(() => import('../pages/GuidesLibrary.jsx'));
+const GuideView = lazy(() => import('../pages/GuideView.jsx'));
+const ExamsLibrary = lazy(() => import('../pages/ExamsLibrary.jsx'));
+const ExamView = lazy(() => import('../pages/ExamView.jsx'));
+
 export const routesConfig = [
   // Public Routes
   { path: '/', element: <Home mode="landing" /> },
-  { path: '/decks', element: <Decks /> },
+  { path: '/decks', element: <StudyDashboard /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '/verify-email', element: <VerifyEmail /> },
@@ -46,6 +54,13 @@ export const routesConfig = [
     element: <ProtectedRoute />,
     children: [
       { path: '/dashboard', element: <Home mode="dashboard" /> },
+      { path: '/decks/library', element: <DeckLibrary /> },
+      { path: '/notes', element: <NotesLibrary /> },
+      { path: '/note/:id', element: <NoteEditor /> },
+      { path: '/guides', element: <GuidesLibrary /> },
+      { path: '/guide/:id', element: <GuideView /> },
+      { path: '/exams', element: <ExamsLibrary /> },
+      { path: '/exam/:id', element: <ExamView /> },
       { path: '/classes', element: <Classes /> },
       { path: '/class/:id', element: <ClassView /> },
       { path: '/create', element: <CreateDeck /> },

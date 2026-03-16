@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-    Layers, ChevronRight, RefreshCw, Sparkles, Folder,
+    Layers, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
     Menu, Filter, Library
 } from 'lucide-react';
@@ -118,7 +118,7 @@ DeckCard.displayName = 'DeckCard';
 
 
 
-export default function Decks() {
+export default function DeckLibrary() {
     const toast = useToast();
     const [decks, setDecks] = useState([]);
     const [folders, setFolders] = useState([]);
@@ -478,10 +478,14 @@ export default function Decks() {
             {/* Header Area */}
             <div className="mb-6 pt-4 px-1 flex items-end justify-between">
                 <div>
+                    <Link to="/decks" className="inline-flex items-center gap-1 text-claude-secondary hover:text-claude-accent transition-colors mb-1.5 tap-action">
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Study</span>
+                    </Link>
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
                         <span className="px-1.5 py-0.5 bg-claude-accent text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">Library</span>
                     </div>
-                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Decks</h1>
+                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Flashcards</h1>
                 </div>
                 <div className="flex items-center gap-2">
 

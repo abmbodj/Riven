@@ -979,6 +979,165 @@ export const generateAiDeck = (notes, file, deckName, classId) =>
 export const generateAiClass = (notes, file) =>
     edgeFunctionFetch('generate-class', { body: { notes, file } });
 
+export const generateAiGuide = (notes, file, title, noteId, classId) =>
+    edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId } });
+
+export const generateAiExam = (notes, file, title, sourceType, sourceId, classId) =>
+    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId } });
+
+// --- Notes (PostgREST) ---
+
+export const getNotes = async (classId) => {
+    let query = supabase.from('notes').select('*').order('updated_at', { ascending: false });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const getNote = async (id) => {
+    const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const createNote = async (title, content, classId) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('notes')
+        .insert({
+            user_id: userId,
+            title: title || 'Untitled',
+            content: content || {},
+            class_id: classId || null,
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateNote = async (id, updates) => {
+    const payload = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.class_id !== undefined) payload.class_id = updates.class_id;
+    const { data, error } = await supabase
+        .from('notes')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteNote = async (id) => {
+    const { error } = await supabase.from('notes').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Note deleted' };
+};
+
+// --- Study Guides (PostgREST) ---
+
+export const getStudyGuides = async (classId) => {
+    let query = supabase.from('study_guides').select('*').order('updated_at', { ascending: false });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const getStudyGuide = async (id) => {
+    const { data, error } = await supabase
+        .from('study_guides')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const updateStudyGuide = async (id, updates) => {
+    const payload = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.class_id !== undefined) payload.class_id = updates.class_id;
+    const { data, error } = await supabase
+        .from('study_guides')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteStudyGuide = async (id) => {
+    const { error } = await supabase.from('study_guides').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Study guide deleted' };
+};
+
+// --- Mock Exams (PostgREST) ---
+
+export const getMockExams = async (classId) => {
+    let query = supabase.from('mock_exams').select('*').order('created_at', { ascending: false });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const getMockExam = async (id) => {
+    const { data, error } = await supabase
+        .from('mock_exams')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteMockExam = async (id) => {
+    const { error } = await supabase.from('mock_exams').delete().eq('id', id);
+    if (error) _sbThrow(error);
+    return { message: 'Mock exam deleted' };
+};
+
+// --- Exam Attempts (PostgREST) ---
+
+export const createExamAttempt = async (examId, score, total, answers) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('exam_attempts')
+        .insert({
+            user_id: userId,
+            exam_id: examId,
+            score,
+            total,
+            answers: answers || [],
+        })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const getExamAttempts = async (examId) => {
+    const { data, error } = await supabase
+        .from('exam_attempts')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('completed_at', { ascending: false });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
 const parseJsonish = (value) => {
     if (!value) return null;
     if (typeof value === 'object') return value;

@@ -16,6 +16,12 @@
     "@revenuecat/purchases-js": "^1.26.3",
     "@supabase/supabase-js": "^2.99.1",
     "@tanstack/react-virtual": "^3.13.21",
+    "@tiptap/extension-horizontal-rule": "^3.20.2",
+    "@tiptap/extension-placeholder": "^3.20.2",
+    "@tiptap/pm": "^3.20.2",
+    "@tiptap/react": "^3.20.2",
+    "@tiptap/starter-kit": "^3.20.2",
+    "@tiptap/suggestion": "^3.20.2",
     "docx-preview": "^0.3.7",
     "gsap": "^3.14.2",
     "idb": "^8.0.3",
@@ -25,6 +31,7 @@
     "react-dom": "^19.2.0",
     "react-pdf": "^10.4.1",
     "react-router-dom": "^7.13.1",
+    "tippy.js": "^6.3.7",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
