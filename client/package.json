@@ -19,7 +19,7 @@
     "docx-preview": "^0.3.7",
     "gsap": "^3.14.2",
     "idb": "^8.0.3",
-    "motion": "^12.34.0",
+    "motion": "^12.36.0",
     "react": "^19.2.0",
     "react-apple-signin-auth": "^1.1.2",
     "react-dom": "^19.2.0",
