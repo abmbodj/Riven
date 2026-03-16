@@ -13,6 +13,7 @@ import PricingModal from '../components/ui/PricingModal';
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
+import { supabase } from '../lib/supabaseClient';
 
 export default function GroupDetails() {
     const { id } = useParams();
