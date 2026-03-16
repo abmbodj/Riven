@@ -120,9 +120,8 @@ const emitAuthSessionExpired = () => {
 };
 
 const forceReauth = async () => {
-    const signOut = supabase?.auth?.signOut;
-    if (typeof signOut === 'function') {
-        await signOut().catch(() => {});
+    if (typeof supabase?.auth?.signOut === 'function') {
+        await supabase.auth.signOut().catch(() => {});
     }
     setToken(null);
     emitAuthSessionExpired();
@@ -205,7 +204,7 @@ const buildAuthRedirectUrl = (path = '') => {
 
 const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
 
-const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } = {}) => {
+const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, skipForceReauth = false } = {}) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -297,7 +296,7 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         error.code = data.code;
         error.body = data;
 
-        if (shouldForceReauthFromEdgeError(response.status, error.message)) {
+        if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, error.message)) {
             await forceReauth();
             error.code = AUTH_SESSION_EXPIRED_CODE;
             error.message = 'Session expired. Please sign in again.';
@@ -342,6 +341,7 @@ const completeRegistration = async (username) => {
     return edgeFunctionFetch('complete-registration', {
         method: 'POST',
         body: { username },
+        skipForceReauth: true,
     });
 };
 
