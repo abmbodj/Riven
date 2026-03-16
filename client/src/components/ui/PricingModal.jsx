@@ -237,7 +237,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         </div>
 
                         <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-                            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-52 custom-scrollbar md:px-8 md:py-8 md:pb-8">
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-44 custom-scrollbar md:px-8 md:py-8 md:pb-8">
                                 <div className="mb-4 grid grid-cols-2 gap-2 md:hidden">
                                     {PLANS.map((plan) => {
                                         const styles = PLAN_STYLES[plan.id];
@@ -326,7 +326,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                         setSuccess(null);
                                                     }
                                                 }}
-                                                className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
+                                                className={`tap-action group relative overflow-hidden rounded-[1.75rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] md:p-6 ${
                                                     isSelected ? styles.activeCard : styles.card
                                                 } ${!isSelected && !isDisabled ? 'hover:-translate-y-1 hover:border-claude-border' : ''} ${
                                                     isDisabled ? 'cursor-default opacity-55' : ''
@@ -336,7 +336,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div className="min-w-0">
-                                                        <div className="mb-3 flex items-center gap-3">
+                                                        <div className="mb-2 flex items-center gap-3 md:mb-3">
                                                             <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${styles.iconWrap}`}>
                                                                 <Icon className="h-5 w-5" />
                                                             </div>
@@ -344,20 +344,20 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
                                                                     {plan.kicker}
                                                                 </p>
-                                                                <h3 className="mt-1 font-display text-[1.7rem] font-bold italic tracking-tight text-claude-text md:text-2xl">
+                                                                <h3 className="mt-1 font-display text-xl font-bold italic tracking-tight text-claude-text md:text-2xl">
                                                                     {plan.name}
                                                                 </h3>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-end gap-2">
-                                                            <span className="text-[2rem] font-bold tracking-tight text-claude-text md:text-4xl">
+                                                            <span className="text-2xl font-bold tracking-tight text-claude-text md:text-4xl">
                                                                 {plan.price}
                                                             </span>
                                                             <span className="pb-1 text-sm text-claude-secondary/80">{plan.period}</span>
                                                         </div>
 
-                                                        <p className="mt-2 max-w-sm text-sm leading-relaxed text-claude-secondary">
+                                                        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-claude-secondary md:mt-2">
                                                             {plan.summary}
                                                         </p>
                                                     </div>
@@ -381,7 +381,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                     </div>
                                                 </div>
 
-                                                <ul className="mt-5 space-y-2.5">
+                                                <ul className="mt-3 space-y-2 md:mt-5 md:space-y-2.5">
                                                     {plan.features.map((feature) => (
                                                         <li key={feature} className="flex items-start gap-3 text-sm text-claude-text/80">
                                                             <Check className={`mt-0.5 h-4 w-4 shrink-0 ${styles.check}`} />
@@ -505,7 +505,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         Selected plan
                                     </p>
                                     <div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
-                                        <span className="font-display text-[1.7rem] font-bold italic text-claude-text">
+                                        <span className="font-display text-xl font-bold italic text-claude-text">
                                             {selectedPlanData.name}
                                         </span>
                                         <span className="pb-0.5 text-sm text-claude-secondary/80">

@@ -444,31 +444,31 @@ export default function GardenLanding() {
             </section>
 
             {/* Pricing Section */}
-            <section className="relative w-full bg-[#0a1017] border-y border-[#1e3840]/50 py-32 lg:py-48 shadow-[inset_0_20px_40px_rgba(0,0,0,0.5)]">
+            <section className="relative w-full bg-[#0a1017] border-y border-[#1e3840]/50 py-16 sm:py-24 lg:py-48 shadow-[inset_0_20px_40px_rgba(0,0,0,0.5)]">
                 <div className="max-w-7xl mx-auto px-4 lg:px-12 flex flex-col items-center">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, margin: "-100px" }}
                         transition={{ duration: 1, ease: "easeOut" }}
-                        className="text-center mb-20"
+                        className="text-center mb-10 lg:mb-20"
                     >
                         <h2 className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">Simple transparent growth</h2>
                         <p className="text-[#8fa6a8] font-sans tracking-wide uppercase text-sm">No hidden limits. Cultivate endlessly.</p>
                     </motion.div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 w-full max-w-6xl">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 w-full max-w-6xl">
                         {/* Free Tier */}
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                            className="p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-[#1e3840] flex flex-col hover:border-[#3d7276]/50 transition-colors duration-500"
+                            className="p-5 sm:p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-[#1e3840] flex flex-col hover:border-[#3d7276]/50 transition-colors duration-500"
                         >
                             <h3 className="text-lg uppercase tracking-widest font-sans text-[#8fa6a8] mb-2">Seedling (Free)</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">$0<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
-                            <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
+                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$0<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
+                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-[#3d7276]"></div> Create flashcards & decks
                                 </li>
@@ -490,12 +490,12 @@ export default function GardenLanding() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-                            className="relative p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 scale-100 lg:scale-105 z-10"
+                            className="relative p-5 sm:p-8 lg:p-10 rounded-3xl bg-gradient-to-b from-[#1b4044]/30 to-[#0d141e] border border-[#deb96a]/30 shadow-[0_0_40px_rgba(222,185,106,0.05)] flex flex-col overflow-hidden hover:border-[#deb96a]/50 hover:shadow-[0_0_50px_rgba(222,185,106,0.1)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 scale-100 lg:scale-105 z-10"
                         >
                             <span className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#deb96a] text-[#0d141e] text-[9px] font-sans font-bold px-3 py-1 rounded-b-lg uppercase tracking-widest">Most Popular</span>
                             <h3 className="text-lg uppercase tracking-widest font-sans text-[#deb96a] mb-2 mt-2">Supporter</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#deb96a] mb-6">$5.99<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
-                            <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
+                            <div className="text-4xl lg:text-5xl font-serif text-[#deb96a] mb-4 lg:mb-6">$5.99<span className="text-lg text-[#8fa6a8] font-sans">/mo</span></div>
+                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-[#deb96a]"></div> Unlimited Hearts & AI Gen
                                 </li>
@@ -520,11 +520,11 @@ export default function GardenLanding() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-100px" }}
                             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                            className="relative p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-amber-500/20 flex flex-col hover:border-amber-500/40 transition-colors duration-500"
+                            className="relative p-5 sm:p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-amber-500/20 flex flex-col hover:border-amber-500/40 transition-colors duration-500"
                         >
                             <h3 className="text-lg uppercase tracking-widest font-sans text-amber-500/80 mb-2">Lifetime</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-6">$29.99<span className="text-lg text-[#8fa6a8] font-sans"> once</span></div>
-                            <ul className="space-y-4 mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
+                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$29.99<span className="text-lg text-[#8fa6a8] font-sans"> once</span></div>
+                            <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> All Supporter Benefits
                                 </li>
