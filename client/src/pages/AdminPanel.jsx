@@ -392,7 +392,7 @@ function OverviewTab({ stats }) {
                 </h3>
                 <div className="space-y-2">
                     {stats.topDecks?.map((deck, i) => (
-                        <div key={deck.id ?? deck.title || i} className="flex items-center gap-3 p-3.5 rounded-xl botanical-card">
+                        <div key={deck.id ?? (deck.title || i)} className="flex items-center gap-3 p-3.5 rounded-xl botanical-card">
                             <div className="w-9 h-9 rounded-lg bg-claude-bg/60 border border-claude-border flex items-center justify-center text-xs font-display font-bold text-claude-secondary">
                                 #{i + 1}
                             </div>
