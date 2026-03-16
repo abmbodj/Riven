@@ -365,7 +365,7 @@ Rules:
 
         } catch (error) {
             console.error('AI Class Generation Error:', error);
-            res.status(500).json({ error: `An error occurred: ${error.message || 'Unknown server error'}` });
+            res.status(500).json({ error: 'An unexpected error occurred during AI class generation.' });
         }
     });
 

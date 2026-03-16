@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { sendPasswordResetEmail } from '../_shared/email.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const getAnonAuthClient = () => {
@@ -36,17 +36,17 @@ const buildResetToken = () => Array.from(
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
     const { email } = await request.json().catch(() => ({}));
     if (!email || typeof email !== 'string') {
-      return jsonResponse({ error: 'Email is required' }, { status: 400 });
+      return jsonResponse({ error: 'Email is required' }, { status: 400 }, request);
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -112,7 +112,7 @@ serve(async (request) => {
 
     return jsonResponse({
       message: 'If an account with that email exists, a reset link has been sent.',
-    });
+    }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
@@ -121,6 +121,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to process request' },
       { status },
+      request,
     );
   }
 });

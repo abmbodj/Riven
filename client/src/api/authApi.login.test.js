@@ -89,7 +89,7 @@ describe('authApi login migration bridge', () => {
     expect(result).toEqual({
       user: { id: 7, email: 'test@example.com', username: 'tester' },
     });
-    expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
   });
 
   it('restores a Supabase session on refresh by completing account setup when the bridge is missing', async () => {
@@ -111,7 +111,7 @@ describe('authApi login migration bridge', () => {
     const user = await authApi.restoreSessionUser();
 
     expect(user).toEqual({ id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: false });
-    expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining('/api/auth/complete-registration'),
@@ -155,7 +155,7 @@ describe('authApi login migration bridge', () => {
       provider: 'supabase',
       factorId: 'factor-1',
     });
-    expect(localStorage.getItem('riven_auth_token')).toBe('supabase-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe('supabase-token');
   });
 
   it('falls back to the legacy 2FA challenge for existing linked users without a Supabase factor', async () => {

@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { acceptSharedDeckCore } from '../_shared/acceptSharedDeckCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 type SharedDeckRecord = {
@@ -32,11 +32,11 @@ const parseMessageId = (value: unknown) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -136,7 +136,7 @@ serve(async (request) => {
       },
     });
 
-    return jsonResponse(result, { status: 201 });
+    return jsonResponse(result, { status: 201 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -146,6 +146,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Internal server error' },
       { status },
+      request,
     );
   }
 });

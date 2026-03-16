@@ -17,7 +17,7 @@ import {
   updateAdminUser,
   updateAdminUserRole,
 } from '../_shared/admin.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 
 const parseId = (value: unknown, label: string) => {
   const parsed = Number(value);
@@ -33,11 +33,11 @@ const parseId = (value: unknown, label: string) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (!['GET', 'POST', 'PUT', 'DELETE'].includes(request.method)) {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -48,70 +48,70 @@ serve(async (request) => {
 
     if (request.method === 'GET' && action === 'users') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await listAdminUsers());
+      return jsonResponse(await listAdminUsers(), {}, request);
     }
 
     if (request.method === 'GET' && action === 'stats') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await getAdminStats());
+      return jsonResponse(await getAdminStats(), {}, request);
     }
 
     if (request.method === 'GET' && action === 'messages') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await listAdminMessages());
+      return jsonResponse(await listAdminMessages(), {}, request);
     }
 
     if (request.method === 'GET' && action === 'reports') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await listAdminReports());
+      return jsonResponse(await listAdminReports(), {}, request);
     }
 
     if (request.method === 'PUT' && action === 'user-role') {
       const actor = await requireOwnerActor(authUser.id);
-      return jsonResponse(await updateAdminUserRole(actor, parseId(body.userId, 'userId'), body.role));
+      return jsonResponse(await updateAdminUserRole(actor, parseId(body.userId, 'userId'), body.role), {}, request);
     }
 
     if (request.method === 'PUT' && action === 'user-update') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await updateAdminUser(actor, parseId(body.userId, 'userId'), body));
+      return jsonResponse(await updateAdminUser(actor, parseId(body.userId, 'userId'), body), {}, request);
     }
 
     if (request.method === 'PUT' && action === 'message-update') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await updateAdminMessage(parseId(body.messageId ?? body.id, 'messageId'), body));
+      return jsonResponse(await updateAdminMessage(parseId(body.messageId ?? body.id, 'messageId'), body), {}, request);
     }
 
     if (request.method === 'POST' && action === 'message-create') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await createAdminMessage(actor, body), { status: 201 });
+      return jsonResponse(await createAdminMessage(actor, body), { status: 201 }, request);
     }
 
     if (request.method === 'POST' && action === 'report-resolve') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await setAdminReportStatus(actor, parseId(body.reportId, 'reportId'), 'resolved'));
+      return jsonResponse(await setAdminReportStatus(actor, parseId(body.reportId, 'reportId'), 'resolved'), {}, request);
     }
 
     if (request.method === 'POST' && action === 'report-close') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await setAdminReportStatus(actor, parseId(body.reportId, 'reportId'), 'closed'));
+      return jsonResponse(await setAdminReportStatus(actor, parseId(body.reportId, 'reportId'), 'closed'), {}, request);
     }
 
     if (request.method === 'POST' && action === 'user-ban') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await banAdminUser(actor, parseId(body.userId, 'userId')));
+      return jsonResponse(await banAdminUser(actor, parseId(body.userId, 'userId')), {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'user-delete') {
       const actor = await requireAdminActor(authUser.id);
-      return jsonResponse(await deleteAdminUser(actor, parseId(body.userId, 'userId')));
+      return jsonResponse(await deleteAdminUser(actor, parseId(body.userId, 'userId')), {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'message-delete') {
       await requireAdminActor(authUser.id);
-      return jsonResponse(await deleteAdminMessage(parseId(body.messageId ?? body.id, 'messageId')));
+      return jsonResponse(await deleteAdminMessage(parseId(body.messageId ?? body.id, 'messageId')), {}, request);
     }
 
-    return jsonResponse({ error: 'Unsupported action' }, { status: 400 });
+    return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -121,6 +121,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Internal server error' },
       { status },
+      request,
     );
   }
 });

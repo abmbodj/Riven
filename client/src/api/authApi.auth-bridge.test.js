@@ -192,7 +192,7 @@ describe('authApi Supabase auth bridge reductions', () => {
       },
     });
     expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: 'new-password-123' });
-    expect(localStorage.getItem('riven_auth_token')).toBe('recovery-token');
+    expect(sessionStorage.getItem('riven_auth_token')).toBe('recovery-token');
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: 'Password has been reset successfully. You can now log in.',

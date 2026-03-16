@@ -1,8 +1,28 @@
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+const ALLOWED_ORIGINS = [
+  Deno.env.get('FRONTEND_URL') || 'https://riven.rocks',
+  Deno.env.get('CLIENT_URL'),
+  'https://riven-virid.vercel.app',
+  'capacitor://localhost',
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean) as string[];
+
+export function getCorsHeaders(req?: Request): Record<string, string> {
+  const origin = req?.headers?.get('origin') ?? '';
+  const isAllowed =
+    ALLOWED_ORIGINS.some((o) => origin === o) ||
+    origin.endsWith('.vercel.app');
+
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+/** @deprecated Use getCorsHeaders(req) for origin-aware CORS. Kept for backward compat. */
+export const corsHeaders = getCorsHeaders();
 
 export type RequestError = Error & {
   status?: number;
@@ -50,12 +70,12 @@ export const normalizeRequestError = (error: unknown): RequestError => {
   return normalized;
 };
 
-export const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
+export const jsonResponse = (body: unknown, init: ResponseInit = {}, req?: Request) =>
   new Response(JSON.stringify(body), {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders,
+      ...(req ? getCorsHeaders(req) : corsHeaders),
       ...(init.headers ?? {}),
     },
   });

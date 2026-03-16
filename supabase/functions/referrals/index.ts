@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const REFERRAL_CODE_LENGTH = 8;
@@ -282,7 +282,7 @@ const checkReferralQualification = async (userId: number) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   try {
@@ -292,21 +292,21 @@ serve(async (request) => {
     const authUser = await resolveSupabaseUser(request);
 
     if (action === 'me') {
-      return jsonResponse(await getReferralInfo(authUser.id));
+      return jsonResponse(await getReferralInfo(authUser.id), {}, request);
     }
 
     if (action === 'apply') {
-      return jsonResponse(await applyReferralCode(authUser.id, body.code));
+      return jsonResponse(await applyReferralCode(authUser.id, body.code), {}, request);
     }
 
     if (action === 'check-qualification') {
-      return jsonResponse(await checkReferralQualification(authUser.id));
+      return jsonResponse(await checkReferralQualification(authUser.id), {}, request);
     }
 
-    return jsonResponse({ error: 'Unsupported action' }, { status: 400 });
+    return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error) {
     console.error('[referrals edge function] error', error);
     const status = typeof error?.status === 'number' ? error.status : 500;
-    return jsonResponse({ error: error?.message || 'Internal server error' }, { status });
+    return jsonResponse({ error: error?.message || 'Internal server error' }, { status }, request);
   }
 });

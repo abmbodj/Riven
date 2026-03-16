@@ -114,7 +114,7 @@ export default function FileViewer({ file, isOpen, onClose }) {
     const [isTextLoading, setIsTextLoading] = useState(false);
     const [pdfContainerWidth, setPdfContainerWidth] = useState(0);
 
-    const docxContainerRef = useRef(null);
+    const docxIframeRef = useRef(null);
     const pdfContainerRef = useRef(null);
 
     const fileInfo = useMemo(() => resolveFileKind(file), [file]);
@@ -129,9 +129,10 @@ export default function FileViewer({ file, isOpen, onClose }) {
     }, [file, isOpen]);
 
     useEffect(() => {
-        if (!isOpen || fileInfo.kind !== 'docx' || !file?.url || !docxContainerRef.current) return;
+        if (!isOpen || fileInfo.kind !== 'docx' || !file?.url) return;
 
         let isCancelled = false;
+        let blobUrl = null;
         setIsDocxLoading(true);
 
         const renderDocx = async () => {
@@ -140,15 +141,25 @@ export default function FileViewer({ file, isOpen, onClose }) {
                 if (!response.ok) throw new Error('Could not fetch document');
                 const arrayBuffer = await response.arrayBuffer();
 
-                if (!docxContainerRef.current || isCancelled) return;
+                if (isCancelled) return;
 
-                docxContainerRef.current.innerHTML = '';
-                await renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
+                const container = document.createElement('div');
+                await renderAsync(arrayBuffer, container, undefined, {
                     className: 'docx-preview',
                     inWrapper: false,
                     ignoreWidth: false,
-                    ignoreHeight: false
+                    ignoreHeight: false,
                 });
+
+                if (isCancelled) return;
+
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:16px;font-family:system-ui,sans-serif;}</style></head><body>${container.innerHTML}</body></html>`;
+                const blob = new Blob([html], { type: 'text/html' });
+                blobUrl = URL.createObjectURL(blob);
+
+                if (docxIframeRef.current && !isCancelled) {
+                    docxIframeRef.current.src = blobUrl;
+                }
             } catch {
                 if (!isCancelled) {
                     setDocxError('Unable to render this DOCX in-app.');
@@ -162,6 +173,7 @@ export default function FileViewer({ file, isOpen, onClose }) {
 
         return () => {
             isCancelled = true;
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
         };
     }, [isOpen, file, fileInfo.kind]);
 
@@ -381,7 +393,13 @@ export default function FileViewer({ file, isOpen, onClose }) {
                         </div>
                     ) : (
                         <div className="mx-auto max-w-5xl bg-white rounded-lg shadow-lg p-3 sm:p-6">
-                            <div ref={docxContainerRef} className="docx-render-container min-h-[360px]" />
+                            <iframe
+                                ref={docxIframeRef}
+                                sandbox="allow-same-origin"
+                                title="DOCX preview"
+                                className="w-full min-h-[360px] border-0 rounded"
+                                style={{ height: '70vh' }}
+                            />
                         </div>
                     )}
                 </div>

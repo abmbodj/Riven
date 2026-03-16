@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { sendWelcomeEmail } from '../_shared/email.ts';
 
@@ -49,18 +49,18 @@ const mapUserRow = (row: Record<string, unknown>) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
     // Extract bearer token
     const authorization = request.headers.get('Authorization');
     if (!authorization?.startsWith('Bearer ')) {
-      return jsonResponse({ error: 'No token provided' }, { status: 401 });
+      return jsonResponse({ error: 'No token provided' }, { status: 401 }, request);
     }
     const token = authorization.slice('Bearer '.length);
 
@@ -76,13 +76,13 @@ serve(async (request) => {
 
     const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData.user) {
-      return jsonResponse({ error: 'Invalid Supabase token' }, { status: 401 });
+      return jsonResponse({ error: 'Invalid Supabase token' }, { status: 401 }, request);
     }
 
     const supabaseAuthId = authData.user.id;
     const email = authData.user.email;
     if (!email) {
-      return jsonResponse({ error: 'No email on Supabase Auth account' }, { status: 400 });
+      return jsonResponse({ error: 'No email on Supabase Auth account' }, { status: 400 }, request);
     }
 
     // Parse username from body
@@ -99,6 +99,7 @@ serve(async (request) => {
       return jsonResponse(
         { error: 'Username must be 2-30 characters, alphanumeric and underscores only' },
         { status: 400 },
+        request,
       );
     }
 
@@ -112,7 +113,7 @@ serve(async (request) => {
       .maybeSingle();
 
     if (existingLinked) {
-      return jsonResponse({ user: mapUserRow(existingLinked) });
+      return jsonResponse({ user: mapUserRow(existingLinked) }, {}, request);
     }
 
     // 2. Legacy user with same email — link accounts
@@ -135,7 +136,7 @@ serve(async (request) => {
         .eq('id', existingEmail.id)
         .single();
 
-      return jsonResponse({ user: mapUserRow(updatedUser) });
+      return jsonResponse({ user: mapUserRow(updatedUser) }, {}, request);
     }
 
     // 3. Create new user — ensure unique username
@@ -211,7 +212,7 @@ serve(async (request) => {
         isAdmin: false, isOwner: false, streakData: {}, twoFAEnabled: false,
         subscription_tier: 'free', simulate_free_tier: false, email_verified: true,
       },
-    }, { status: 201 });
+    }, { status: 201 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
@@ -219,6 +220,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Registration failed' },
       { status },
+      request,
     );
   }
 });

@@ -17,7 +17,7 @@ import {
   uploadGroupFileAction,
 } from '../_shared/groupActionsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 type CreateGroupPayload = {
@@ -54,11 +54,11 @@ const requirePositiveInt = (value: unknown, label: string) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (!['POST', 'PUT', 'DELETE'].includes(request.method)) {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -158,7 +158,7 @@ serve(async (request) => {
         generateCode: generateJoinCode,
       });
 
-      return jsonResponse(result, { status: 201 });
+      return jsonResponse(result, { status: 201 }, request);
     }
 
     if (request.method === 'PUT' && action === 'group-update') {
@@ -204,7 +204,7 @@ serve(async (request) => {
         generateCode: generateJoinCode,
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-delete') {
@@ -222,7 +222,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'POST' && action === 'group-join') {
@@ -254,7 +254,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-leave') {
@@ -283,7 +283,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-member-remove') {
@@ -304,7 +304,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'POST' && action === 'group-deck-share') {
@@ -347,7 +347,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-deck-remove') {
@@ -378,7 +378,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'POST' && action === 'group-folder-create') {
@@ -403,7 +403,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'PUT' && action === 'group-folder-update') {
@@ -437,7 +437,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-folder-delete') {
@@ -457,7 +457,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'POST' && action === 'group-file-upload') {
@@ -485,7 +485,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (request.method === 'DELETE' && action === 'group-file-delete') {
@@ -522,10 +522,10 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
-    return jsonResponse({ error: 'Unsupported action' }, { status: 400 });
+    return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -535,6 +535,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Internal server error' },
       { status },
+      request,
     );
   }
 });

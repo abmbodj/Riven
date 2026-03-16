@@ -24,10 +24,15 @@ export const getApiBase = () => API_BASE;
 
 
 
-// Helper functions for local auth state
-// Store actual JWT on all platforms so Authorization header works as fallback
-// when httpOnly cookies fail (e.g. iOS PWA/Add-to-Home-Screen has separate cookie jar)
-export const getToken = () => localStorage.getItem('riven_auth_token');
+// SECURITY NOTE: Storing JWTs client-side is an XSS risk. We prefer httpOnly
+// cookies (set by the server), but Capacitor/iOS PWA environments have broken
+// cookie jars so we fall back to in-memory + sessionStorage. localStorage is
+// only used on native platforms where XSS surface is minimal.
+const TOKEN_KEY = 'riven_auth_token';
+const useLocalStorage = Capacitor.isNativePlatform();
+const tokenStore = useLocalStorage ? localStorage : sessionStorage;
+
+export const getToken = () => tokenStore.getItem(TOKEN_KEY);
 let cachedAppUserId = null;
 let cachedAuthToken = null;
 
@@ -35,9 +40,10 @@ export const setToken = (token) => {
     const normalizedToken = token || null;
 
     if (normalizedToken) {
-        localStorage.setItem('riven_auth_token', normalizedToken);
+        tokenStore.setItem(TOKEN_KEY, normalizedToken);
     } else {
-        localStorage.removeItem('riven_auth_token');
+        tokenStore.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_KEY);
     }
 
     if (normalizedToken !== cachedAuthToken) {
@@ -45,6 +51,11 @@ export const setToken = (token) => {
         cachedAuthToken = normalizedToken;
     }
 };
+
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)riven_csrf=([^;]+)/);
+    return match ? match[1] : '';
+}
 
 // Fetch wrapper with dual auth (Cookie + Header)
 const authFetch = async (endpoint, options = {}) => {
@@ -55,10 +66,16 @@ const authFetch = async (endpoint, options = {}) => {
         ...options.headers,
     };
 
-    // Always attach Authorization header as fallback for when cookies fail
-    // (iOS PWA mode, Safari ITP, cross-origin on native, etc.)
     if (token && token !== 'logged_in') {
         headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const method = (options.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+        const csrf = getCsrfToken();
+        if (csrf) {
+            headers['x-csrf-token'] = csrf;
+        }
     }
 
     try {

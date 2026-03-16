@@ -1,12 +1,12 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { ALLOWED_PRICES, getStripeClient, getStripeUser, resolveBaseUrl } from '../_shared/stripe.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   try {
@@ -14,20 +14,20 @@ serve(async (request) => {
     const priceId = typeof body.priceId === 'string' ? body.priceId : '';
 
     if (!priceId) {
-      return jsonResponse({ error: 'Missing priceId in request body' }, { status: 400 });
+      return jsonResponse({ error: 'Missing priceId in request body' }, { status: 400 }, request);
     }
 
     const allowedPrice = ALLOWED_PRICES[priceId as keyof typeof ALLOWED_PRICES];
     if (!allowedPrice) {
       console.warn(`[Stripe] Rejected unknown priceId: ${priceId}`);
-      return jsonResponse({ error: 'Invalid price selected.' }, { status: 400 });
+      return jsonResponse({ error: 'Invalid price selected.' }, { status: 400 }, request);
     }
 
     const authUser = await resolveSupabaseUser(request);
     const user = await getStripeUser(authUser.id);
 
     if (!user.email) {
-      return jsonResponse({ error: 'User email is required for checkout' }, { status: 400 });
+      return jsonResponse({ error: 'User email is required for checkout' }, { status: 400 }, request);
     }
 
     const stripe = getStripeClient();
@@ -63,7 +63,7 @@ serve(async (request) => {
       throw new Error('Failed to create checkout session');
     }
 
-    return jsonResponse({ url: session.url });
+    return jsonResponse({ url: session.url }, {}, request);
   } catch (error) {
     console.error('[create-checkout edge function] error', error);
     const status = typeof error?.statusCode === 'number'
@@ -72,6 +72,6 @@ serve(async (request) => {
         ? error.status
         : 500;
 
-    return jsonResponse({ error: error?.message || 'Failed to create checkout session' }, { status });
+    return jsonResponse({ error: error?.message || 'Failed to create checkout session' }, { status }, request);
   }
 });

@@ -2,16 +2,16 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getAiLimitStatus } from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'GET') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -25,7 +25,7 @@ serve(async (request) => {
 
     if (error) throw error;
     if (!user) {
-      return jsonResponse({ error: 'User not found' }, { status: 401 });
+      return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
     }
 
     const { remaining, max, characterLimit, flashcardRange, canWatchAd } = getAiLimitStatus({ user });
@@ -36,7 +36,7 @@ serve(async (request) => {
       characterLimit,
       flashcardRange,
       canWatchAd,
-    });
+    }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -46,6 +46,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to fetch AI limits' },
       { status },
+      request,
     );
   }
 });

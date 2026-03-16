@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { jsonResponse, corsHeaders } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const REGEN_MINUTES = 15;
@@ -86,7 +86,7 @@ const getDeckCardCount = async (deckId: string) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   try {
@@ -97,17 +97,17 @@ serve(async (request) => {
     const authUser = await resolveSupabaseUser(request);
 
     if (action === 'status') {
-      return jsonResponse(await getUpdatedHearts(authUser.id));
+      return jsonResponse(await getUpdatedHearts(authUser.id), {}, request);
     }
 
     if (action === 'session') {
       const deckId = url.searchParams.get('deckId');
       if (!deckId) {
-        return jsonResponse({ error: 'deckId is required' }, { status: 400 });
+        return jsonResponse({ error: 'deckId is required' }, { status: 400 }, request);
       }
 
       const status = await getUpdatedHearts(authUser.id);
-      if (status.isUnlimited) return jsonResponse(status);
+      if (status.isUnlimited) return jsonResponse(status, {}, request);
 
       const deckSize = await getDeckCardCount(deckId);
       const sessionMax = Math.max(10, Math.min(40, Math.round(deckSize * 0.25)));
@@ -116,14 +116,14 @@ serve(async (request) => {
         ...status,
         sessionHearts: Math.min(sessionMax, Number(status.hearts)),
         sessionMax,
-      });
+      }, {}, request);
     }
 
     if (action === 'decrement') {
       const status = await getUpdatedHearts(authUser.id);
-      if (status.isUnlimited) return jsonResponse(status);
+      if (status.isUnlimited) return jsonResponse(status, {}, request);
       if (Number(status.hearts) <= 0) {
-        return jsonResponse({ error: 'Out of hearts' }, { status: 400 });
+        return jsonResponse({ error: 'Out of hearts' }, { status: 400 }, request);
       }
 
       const now = new Date();
@@ -133,31 +133,31 @@ serve(async (request) => {
       }
 
       await updateUser(authUser.id, updates);
-      return jsonResponse(await getUpdatedHearts(authUser.id));
+      return jsonResponse(await getUpdatedHearts(authUser.id), {}, request);
     }
 
     if (action === 'refill') {
       const currentUser = await getHeartsRow(authUser.id);
       if (currentUser.role !== 'admin' && currentUser.role !== 'owner') {
-        return jsonResponse({ error: 'Admin access required. Use practice mode to earn hearts.' }, { status: 403 });
+        return jsonResponse({ error: 'Admin access required. Use practice mode to earn hearts.' }, { status: 403 }, request);
       }
 
       const targetUserId = body.targetUserId ? Number(body.targetUserId) : authUser.id;
       const status = await getUpdatedHearts(targetUserId);
-      if (status.isUnlimited) return jsonResponse(status);
+      if (status.isUnlimited) return jsonResponse(status, {}, request);
 
       const heartsToAdd = body.amount ? Math.min(Number(body.amount), GLOBAL_MAX) : GLOBAL_MAX;
       await updateUser(targetUserId, {
         hearts: Math.min(GLOBAL_MAX, Number(status.hearts) + heartsToAdd),
       });
 
-      return jsonResponse(await getUpdatedHearts(targetUserId));
+      return jsonResponse(await getUpdatedHearts(targetUserId), {}, request);
     }
 
     if (action === 'practice-refill') {
       const status = await getUpdatedHearts(authUser.id);
       if (status.isUnlimited) {
-        return jsonResponse({ ...status, practiceUsed: 0, practiceMax: PRACTICE_MAX_PER_HOUR });
+        return jsonResponse({ ...status, practiceUsed: 0, practiceMax: PRACTICE_MAX_PER_HOUR }, {}, request);
       }
 
       const user = await getHeartsRow(authUser.id);
@@ -173,7 +173,7 @@ serve(async (request) => {
           error: `Practice refill limit reached. Try again in ${Math.max(1, minutesLeft)} minutes.`,
           practiceUsed,
           practiceMax: PRACTICE_MAX_PER_HOUR,
-        }, { status: 429 });
+        }, { status: 429 }, request);
       }
 
       await updateUser(authUser.id, {
@@ -187,13 +187,13 @@ serve(async (request) => {
         heartsAdded: PRACTICE_REFILL_AMOUNT,
         practiceUsed: practiceUsed + 1,
         practiceMax: PRACTICE_MAX_PER_HOUR,
-      });
+      }, {}, request);
     }
 
-    return jsonResponse({ error: 'Unsupported action' }, { status: 400 });
+    return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error) {
     console.error('[hearts edge function] error', error);
     const status = typeof error?.status === 'number' ? error.status : 500;
-    return jsonResponse({ error: error?.message || 'Internal server error' }, { status });
+    return jsonResponse({ error: error?.message || 'Internal server error' }, { status }, request);
   }
 });

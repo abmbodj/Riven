@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const isLegacyTokenHash = (token: string) => /^[a-f0-9]{64}$/i.test(token);
@@ -31,17 +31,17 @@ const resolveRedirectTo = () => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
     const { token } = await request.json().catch(() => ({}));
     if (!token || typeof token !== 'string') {
-      return jsonResponse({ error: 'Token is required' }, { status: 400 });
+      return jsonResponse({ error: 'Token is required' }, { status: 400 }, request);
     }
 
     const admin = getSupabaseAdmin();
@@ -59,7 +59,7 @@ serve(async (request) => {
       }
 
       if (!record?.user_id) {
-        return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 });
+        return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 }, request);
       }
 
       const { error: updateLegacyUserError } = await admin
@@ -80,7 +80,7 @@ serve(async (request) => {
         throw deleteTokenError;
       }
 
-      return jsonResponse({ message: 'Email verified successfully' });
+      return jsonResponse({ message: 'Email verified successfully' }, {}, request);
     }
 
     const authClient = getAnonAuthClient();
@@ -93,7 +93,7 @@ serve(async (request) => {
 
     const { data, error } = await authClient.auth.verifyOtp(verifyParams);
     if (error || !data.user?.id) {
-      return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 });
+      return jsonResponse({ error: 'Invalid or expired verification link' }, { status: 400 }, request);
     }
 
     const { error: updateError } = await admin
@@ -105,7 +105,7 @@ serve(async (request) => {
       throw updateError;
     }
 
-    return jsonResponse({ message: 'Email verified successfully' });
+    return jsonResponse({ message: 'Email verified successfully' }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
@@ -114,6 +114,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to verify email' },
       { status },
+      request,
     );
   }
 });

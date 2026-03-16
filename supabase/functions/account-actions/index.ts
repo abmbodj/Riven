@@ -1,16 +1,16 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'DELETE') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -28,7 +28,7 @@ serve(async (request) => {
     }
 
     if (!userRow?.id) {
-      return jsonResponse({ error: 'User not found' }, { status: 404 });
+      return jsonResponse({ error: 'User not found' }, { status: 404 }, request);
     }
 
     const authUserId = userRow.supabase_auth_id || actor.authId;
@@ -49,7 +49,7 @@ serve(async (request) => {
       throw deleteUserError;
     }
 
-    return jsonResponse({ message: 'Account deleted successfully' });
+    return jsonResponse({ message: 'Account deleted successfully' }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
@@ -58,6 +58,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to delete account' },
       { status },
+      request,
     );
   }
 });

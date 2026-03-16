@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { hash } from 'https://esm.sh/bcryptjs@2.4.3';
 
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const isLegacyTokenHash = (token: string) => /^[a-f0-9]{64}$/i.test(token);
@@ -54,28 +54,29 @@ const buildBaseUrl = (request: Request) => {
   return origin || fallback || 'http://localhost:5173';
 };
 
-const invalidResetResponse = () => jsonResponse(
+const invalidResetResponse = (req: Request) => jsonResponse(
   { error: 'Invalid or expired reset link. Please request a new one.' },
   { status: 400 },
+  req,
 );
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
     const { token, password } = await request.json().catch(() => ({}));
     if (!token || !password || typeof token !== 'string' || typeof password !== 'string') {
-      return jsonResponse({ error: 'Token and new password are required' }, { status: 400 });
+      return jsonResponse({ error: 'Token and new password are required' }, { status: 400 }, request);
     }
 
     if (password.length < 8) {
-      return jsonResponse({ error: 'Password must be at least 8 characters' }, { status: 400 });
+      return jsonResponse({ error: 'Password must be at least 8 characters' }, { status: 400 }, request);
     }
 
     if (isLegacyTokenHash(token)) {
@@ -94,7 +95,7 @@ serve(async (request) => {
       }
 
       if (!resetRecord?.id) {
-        return invalidResetResponse();
+        return invalidResetResponse(request);
       }
 
       const hashedPassword = await hash(password, 12);
@@ -127,7 +128,7 @@ serve(async (request) => {
         throw cleanupError;
       }
 
-      return jsonResponse({ message: 'Password has been reset successfully. You can now log in.' });
+      return jsonResponse({ message: 'Password has been reset successfully. You can now log in.' }, {}, request);
     }
 
     const authClient = getAnonAuthClient();
@@ -139,22 +140,22 @@ serve(async (request) => {
     });
 
     if (error) {
-      return invalidResetResponse();
+      return invalidResetResponse(request);
     }
 
     const accessToken = data?.session?.access_token;
     if (!accessToken) {
-      return invalidResetResponse();
+      return invalidResetResponse(request);
     }
 
     const recoveryClient = getAuthenticatedAuthClient(accessToken);
     const { error: updateError } = await recoveryClient.auth.updateUser({ password });
 
     if (updateError) {
-      return invalidResetResponse();
+      return invalidResetResponse(request);
     }
 
-    return jsonResponse({ message: 'Password has been reset successfully. You can now log in.' });
+    return jsonResponse({ message: 'Password has been reset successfully. You can now log in.' }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
@@ -163,6 +164,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to reset password' },
       { status },
+      request,
     );
   }
 });

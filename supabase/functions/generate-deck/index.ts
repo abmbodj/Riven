@@ -5,7 +5,7 @@ import mammoth from 'npm:mammoth@1.11.0';
 
 import { consumeAiQuota, generateDeckFromAi } from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 type PersistUsagePayload = {
@@ -33,11 +33,11 @@ type GeneratedCard = {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -52,7 +52,7 @@ serve(async (request) => {
 
     if (error) throw error;
     if (!user) {
-      return jsonResponse({ error: 'User not found' }, { status: 401 });
+      return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
     }
 
     const aiLimitsContext = await consumeAiQuota({
@@ -131,7 +131,7 @@ serve(async (request) => {
       },
     });
 
-    return jsonResponse(result, { status: 201 });
+    return jsonResponse(result, { status: 201 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -147,6 +147,6 @@ serve(async (request) => {
       body.canWatchAd = requestError.canWatchAd;
     }
 
-    return jsonResponse(body, { status });
+    return jsonResponse(body, { status }, request);
   }
 });

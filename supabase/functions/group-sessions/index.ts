@@ -7,7 +7,7 @@ import {
   startGroupSessionAction,
 } from '../_shared/groupSessionsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const requireId = (value: unknown, label: string) => {
@@ -34,11 +34,11 @@ const requirePositiveInt = (value: unknown, label: string) => {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -111,7 +111,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result, { status: 201 });
+      return jsonResponse(result, { status: 201 }, request);
     }
 
     if (action === 'session-join') {
@@ -122,7 +122,7 @@ serve(async (request) => {
         loadMembership,
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (action === 'session-respond') {
@@ -160,7 +160,7 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
     if (action === 'session-end') {
@@ -182,10 +182,10 @@ serve(async (request) => {
         },
       });
 
-      return jsonResponse(result);
+      return jsonResponse(result, {}, request);
     }
 
-    return jsonResponse({ error: 'Unsupported action' }, { status: 400 });
+    return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -195,6 +195,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Internal server error' },
       { status },
+      request,
     );
   }
 });

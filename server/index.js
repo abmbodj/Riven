@@ -1,6 +1,7 @@
 if (process.env.NODE_ENV !== 'test') {
     require('dotenv').config({ override: true });
 }
+const crypto = require('crypto');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -50,11 +51,12 @@ if (!JWT_SECRET) {
 }
 const jwtSecret = JWT_SECRET;
 
-// Rate limiters (strict in production, relaxed in dev)
-const isProdEnv = process.env.NODE_ENV === 'production';
+// Rate limiters — default to production-safe values; only relax when
+// NODE_ENV is explicitly set to 'development' or 'test'.
+const isDevEnv = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isProdEnv ? 10 : 100,
+    max: isDevEnv ? 100 : 10,
     message: { error: 'Too many attempts, please try again later' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -62,7 +64,7 @@ const authLimiter = rateLimit({
 
 const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000,
-    delayAfter: isProdEnv ? 3 : 20,
+    delayAfter: isDevEnv ? 20 : 3,
     delayMs: (hits) => hits * 200
 });
 
@@ -74,51 +76,42 @@ const apiLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// CORS
+// CORS — always enforce an allowlist. ALLOWED_ORIGINS overrides the defaults.
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:5173', 'http://localhost:3000', 'https://riven-virid.vercel.app', 'capacitor://localhost', 'http://localhost'];
+    : [
+        'https://riven.rocks',
+        'https://riven-virid.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'capacitor://localhost',
+        'http://localhost',
+    ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, or same-origin in some cases)
         if (!origin) return callback(null, true);
 
-        // In development, allow any origin (e.g. mobile devices on LAN)
-        if (process.env.NODE_ENV !== 'production') {
+        if (isDevEnv) {
             return callback(null, true);
         }
 
-        // Clean origin (remove trailing slash just in case)
         const cleanOrigin = origin.replace(/\/$/, '');
+        const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) ||
+            cleanOrigin.endsWith('.vercel.app');
 
-        if (process.env.ALLOWED_ORIGINS) {
-            // Check if origin matches allowed list or ends with .vercel.app
-            const isAllowed = allowedOrigins.some(o => cleanOrigin === o.replace(/\/$/, '')) ||
-                cleanOrigin.endsWith('.vercel.app');
-
-            if (isAllowed) {
-                callback(null, true);
-            } else {
-                console.error(`[CORS] Blocked request from origin: ${cleanOrigin} (Not in ALLOWED_ORIGINS)`);
-                // Passing false instead of new Error() prevents Express from returning a 500 status code.
-                // It just omits the CORS headers, resulting in a cleaner browser 403/CORS error if needed.
-                // However, let's actually just allow it and log the warning for now to prevent users from getting permanently stuck if they misconfigure strings!
-                // To be fully safe in production you would pass false, but to fix this issue let's accept it but heavily log.
-                // Actually, since they explicitly want strict (Option 1), let's block it securely but without 500ing:
-                callback(null, false);
-            }
+        if (isAllowed) {
+            callback(null, true);
         } else {
-            callback(null, true); // Allow all by default if no STRICT whitelist is provided
+            console.error(`[CORS] Blocked origin: ${cleanOrigin}`);
+            callback(null, false);
         }
     },
     credentials: true
 }));
 
-// Re-enable Content Security Policy (Helmet default) but allow frontend endpoints
-const helmetConnectSrc = process.env.ALLOWED_ORIGINS
-    ? ["'self'", ...allowedOrigins, "https://*.vercel.app"]
-    : ["'self'", "*"];
+// Security headers via Helmet
+const helmetConnectSrc = ["'self'", ...allowedOrigins, "https://*.vercel.app"];
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -126,19 +119,28 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             connectSrc: helmetConnectSrc,
             imgSrc: ["'self'", "data:", "blob:", "https:"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
         },
     },
-    crossOriginResourcePolicy: { policy: "cross-origin" }
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    permissionsPolicy: {
+        features: {
+            camera: [],
+            microphone: [],
+            geolocation: [],
+        },
+    },
 }));
 
 app.use(compression());
 app.use(cookieParser());
 // Stripe webhook needs raw body for signature verification
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '10mb' }));
+// AI routes accept base64 file uploads — allow larger payloads there only
+app.use('/api/ai', express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Recursive Deep XSS Sanitization utility function
 function sanitizeDeep(obj) {
@@ -175,6 +177,47 @@ app.use((req, res, next) => {
 
 app.use('/api/', apiLimiter);
 
+// CSRF protection via double-submit cookie pattern.
+// A random token is set in a readable cookie; the client must echo it
+// back in the X-CSRF-Token header on state-changing requests.
+const CSRF_COOKIE = 'riven_csrf';
+const CSRF_HEADER = 'x-csrf-token';
+const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+app.use('/api/', (req, res, next) => {
+    // Skip for webhook endpoints (server-to-server, verified by signature)
+    if (req.path.startsWith('/webhooks/')) return next();
+
+    // Issue a CSRF token cookie if one doesn't exist yet
+    if (!req.cookies[CSRF_COOKIE]) {
+        const token = crypto.randomBytes(32).toString('hex');
+        res.cookie(CSRF_COOKIE, token, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            path: '/',
+            maxAge: 24 * 60 * 60 * 1000,
+        });
+        // Allow the first request through (the client will pick up the cookie for subsequent requests)
+        if (CSRF_SAFE_METHODS.has(req.method)) return next();
+        // For the very first mutating request before the client has the cookie, skip enforcement
+        // (the auth token still protects the endpoint)
+        return next();
+    }
+
+    // Safe methods don't need CSRF validation
+    if (CSRF_SAFE_METHODS.has(req.method)) return next();
+
+    const cookieToken = req.cookies[CSRF_COOKIE];
+    const headerToken = req.headers[CSRF_HEADER];
+
+    if (!headerToken || headerToken !== cookieToken) {
+        return res.status(403).json({ error: 'CSRF token mismatch' });
+    }
+
+    next();
+});
+
 // Ensure DB schema is ready before handling API requests (serverless cold-start safety)
 app.use('/api/', async (req, res, next) => {
     try {
@@ -185,8 +228,6 @@ app.use('/api/', async (req, res, next) => {
         res.status(503).json({ error: 'Database initializing, please retry' });
     }
 });
-
-const crypto = require('crypto');
 
 // Generate share code
 function generateShareCode() {

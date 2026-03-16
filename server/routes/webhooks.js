@@ -71,7 +71,8 @@ module.exports = function ({ app, db }) {
         } catch (err) {
             console.error('[Stripe Webhook] ❌ Signature verification failed:', err.message);
             console.error('[Stripe Webhook] Hint: Check if STRIPE_WEBHOOK_SECRET in Render matches the secret for THIS SPECIFIC ENDPOINT in the Stripe Dashboard.');
-            return res.status(400).send(`Webhook Error: ${err.message}`);
+            console.error('[Stripe Webhook] Signature verification detail:', err.message);
+            return res.status(400).send('Webhook signature verification failed');
         }
 
         console.log(`[Stripe Webhook] 🔔 Received event: ${event.type}`);

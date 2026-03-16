@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
-import { corsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
 import { processStripeWebhookEvent } from '../_shared/stripeWebhookCore.mjs';
@@ -124,11 +124,11 @@ const persistence = {
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(request) });
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 });
+    return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
@@ -143,7 +143,7 @@ serve(async (request) => {
     if (!signature) {
       return new Response('Webhook Error: Missing stripe-signature header', {
         status: 400,
-        headers: corsHeaders,
+        headers: getCorsHeaders(request),
       });
     }
 
@@ -159,13 +159,13 @@ serve(async (request) => {
       console.error('[stripe-webhook edge function] signature verification failed', requestError);
       return new Response(`Webhook Error: ${requestError.message || 'Invalid signature'}`, {
         status: 400,
-        headers: corsHeaders,
+        headers: getCorsHeaders(request),
       });
     }
 
     if (await hasProcessedEvent(event.id)) {
       console.info(`[Stripe Webhook] Skipping duplicate event: ${event.id}`);
-      return jsonResponse({ received: true, duplicate: true });
+      return jsonResponse({ received: true, duplicate: true }, {}, request);
     }
 
     await processStripeWebhookEvent({
@@ -177,7 +177,7 @@ serve(async (request) => {
 
     await markProcessedEvent(event.id);
 
-    return jsonResponse({ received: true });
+    return jsonResponse({ received: true }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 
@@ -191,6 +191,7 @@ serve(async (request) => {
     return jsonResponse(
       { error: requestError.message || 'Failed to process Stripe webhook' },
       { status },
+      request,
     );
   }
 });
