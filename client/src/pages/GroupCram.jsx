@@ -325,6 +325,16 @@ export default function GroupCram() {
                         </button>
                     )}
                 </motion.div>
+
+                {confirmModal.show && (
+                    <ConfirmModal
+                        isOpen={true}
+                        title={confirmModal.title}
+                        message={confirmModal.message}
+                        onConfirm={handleConfirmAction}
+                        onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })}
+                    />
+                )}
             </div>
         );
     }
