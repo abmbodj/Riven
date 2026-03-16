@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
     ArrowRight,
@@ -91,6 +91,13 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState(getDefaultPlan(currentTier));
+    const closeTimerRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -146,7 +153,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             const updatedUser = await refreshUser();
             if (updatedUser.subscription_tier !== 'free') {
                 setSuccess(`Welcome back, ${updatedUser.subscription_tier}. Your access has been restored.`);
-                setTimeout(onClose, 1800);
+                closeTimerRef.current = setTimeout(onClose, 1800);
             } else {
                 setError('No active subscription found yet. If you just paid, wait a minute and try again.');
             }

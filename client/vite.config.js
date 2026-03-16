@@ -83,20 +83,6 @@ export default defineConfig({
                 statuses: [0, 200]
               }
             }
-          },
-          {
-            urlPattern: /^https:\/\/www\.transparenttextures\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'texture-cache',
-              expiration: {
-                maxEntries: 5,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
           }
         ]
       }
@@ -115,11 +101,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Core vendor chunk - loads immediately
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // UI library chunk - loads with first page
-          'vendor-ui': ['lucide-react'],
-          // Database chunk - loads when needed
           'vendor-db': ['idb']
         }
       }

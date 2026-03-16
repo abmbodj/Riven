@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -279,7 +277,6 @@
   /* Hardware acceleration for smooth animations */
   .gpu-accelerate {
     transform: translateZ(0);
-    will-change: transform;
     backface-visibility: hidden;
   }
 
@@ -290,8 +287,6 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     scroll-behavior: smooth;
-    transform: translateZ(0);
-    will-change: transform;
   }
 
   /* Native-feeling bottom sheet */
@@ -302,8 +297,6 @@
     max-height: 90dvh;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    transform: translateZ(0);
-    will-change: transform;
   }
 
   /* Pull indicator for sheets */
@@ -313,11 +306,11 @@
 
   /* Page transitions */
   .page-enter {
-    @apply animate-in fade-in slide-in-from-right-4 duration-200;
+    animation: pageEnter 200ms ease-out both;
   }
 
   .page-exit {
-    @apply animate-out fade-out slide-out-to-left-4 duration-150;
+    animation: pageExit 150ms ease-in both;
   }
 
   /* Native button press states */
@@ -451,13 +444,14 @@
     -webkit-overflow-scrolling: touch;
     max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px);
     max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px);
-    transform: translateZ(0);
-    will-change: transform;
   }
 
   /* Prevent double-tap zoom on buttons */
   .tap-action {
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   /* Botanical card with glassmorphic feel */
@@ -538,7 +532,7 @@
     position: relative;
     background-color: #fcfaf2;
     background-image:
-      url("https://www.transparenttextures.com/patterns/natural-paper.png"),
+      url("/textures/natural-paper.png"),
       linear-gradient(to bottom right, rgba(255, 255, 255, 0.4), transparent);
     box-shadow:
       0 1px 1px rgba(0, 0, 0, 0.1),
@@ -575,19 +569,6 @@
     transform: translateY(-8px) scale(1.02);
   }
 
-  /* Mobile Touch Optimizations */
-  .tap-action {
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-    position: relative;
-  }
-
   /* Visceral tap response */
   .active-scale:active {
     transform: scale(0.96);
@@ -617,6 +598,16 @@
       overflow: hidden;
     }
   }
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateX(1rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pageExit {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-1rem); }
 }
 
 /* ─── Pro Theme Animations ───────────────────────────────────────────────────── */

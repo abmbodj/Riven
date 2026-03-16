@@ -792,7 +792,7 @@ export default function DeckView() {
                                 {/* Card Body */}
                                 <div className={`relative bg-claude-surface border border-claude-border p-5 transition-transform duration-300 z-10 custom-shadow ${swipedCard === card.id ? '-translate-x-24' : 'translate-x-0'}`}>
                                     {/* Subtle paper grain */}
-                                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
 
                                     {editingCard === card.id ? (
                                         <div className="space-y-4 relative z-10">

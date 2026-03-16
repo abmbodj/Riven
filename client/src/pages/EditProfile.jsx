@@ -141,7 +141,7 @@ export default function EditProfile() {
                                 transition={{ duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
                                 className="absolute top-[-50%] left-[-20%] h-[140%] w-[140%] bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--accent-color)_15%,transparent),transparent_60%)] blur-3xl"
                             />
-                            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] md:mix-blend-overlay"></div>
+                            <div className="absolute inset-0 opacity-10 bg-[url('/textures/cubes.png')] md:mix-blend-overlay"></div>
 
                             <MotionDiv
                                 animate={{ y: [0, -10, 0], rotate: [12, 15, 12] }}

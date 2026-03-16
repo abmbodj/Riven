@@ -1,10 +1,14 @@
+const queryCache = require('../utils/queryCache');
+
 module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
     // GET /api/classes
     app.get('/api/classes', authMiddleware, async (req, res) => {
         try {
-            const classes = await db.query(
-                `SELECT * FROM classes WHERE user_id = $1 ORDER BY created_at DESC`,
-                [req.user.id]
+            const classes = await queryCache.wrap(req.user.id, 'classes', () =>
+                db.query(
+                    `SELECT * FROM classes WHERE user_id = $1 ORDER BY created_at DESC`,
+                    [req.user.id]
+                )
             );
             res.json(classes);
         } catch (error) {
@@ -24,6 +28,7 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
                  VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
                 [req.user.id, name, color || null, professor || null, room || null, zoom_link || null]
             );
+            queryCache.invalidate(req.user.id, 'classes');
             res.status(201).json(result);
         } catch (error) {
             console.error('POST /api/classes error:', error);
@@ -55,6 +60,7 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
                     zoom_link !== undefined ? zoom_link : cls.zoom_link,
                     id]
             );
+            queryCache.invalidate(req.user.id, 'classes');
             res.json(result);
         } catch (error) {
             console.error('PUT /api/classes error:', error);
@@ -71,6 +77,7 @@ module.exports = function registerClassesRoutes({ app, db, authMiddleware }) {
             if (cls.user_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
 
             await db.execute('DELETE FROM classes WHERE id = $1', [id]);
+            queryCache.invalidate(req.user.id, 'classes');
             res.json({ message: 'Class deleted' });
         } catch (error) {
             console.error('DELETE /api/classes error:', error);

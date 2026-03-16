@@ -12,9 +12,11 @@ const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
+const compression = require('compression');
 const slowDown = require('express-slow-down');
 const xss = require('xss');
 const db = require('./db');
+const queryCache = require('./utils/queryCache');
 const registerAuthRoutes = require('./routes/auth');
 const registerSocialRoutes = require('./routes/social');
 const registerHealthRoutes = require('./routes/health');
@@ -132,6 +134,7 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
+app.use(compression());
 app.use(cookieParser());
 // Stripe webhook needs raw body for signature verification
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));

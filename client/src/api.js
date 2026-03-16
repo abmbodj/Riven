@@ -60,16 +60,27 @@ export const api = {
     },
 
     // ============ CLASSES ============
-    getClasses: () => isLoggedIn() ? serverApi.getClasses() : Promise.resolve([]),
-    createClass: (name, color, professor, room, zoom_link) => isLoggedIn()
-        ? serverApi.createClass(name, color, professor, room, zoom_link)
-        : Promise.reject(new Error('Must be logged in to manage classes')),
-    updateClass: (id, name, color, professor, room, zoom_link) => isLoggedIn()
-        ? serverApi.updateClass(id, name, color, professor, room, zoom_link)
-        : Promise.reject(new Error('Must be logged in to manage classes')),
-    deleteClass: (id) => isLoggedIn()
-        ? serverApi.deleteClass(id)
-        : Promise.reject(new Error('Must be logged in to manage classes')),
+    getClasses: () => isLoggedIn()
+        ? cache.wrap(cacheKey('classes'), () => serverApi.getClasses(), CACHE_TTL.medium)
+        : Promise.resolve([]),
+    createClass: (name, color, professor, room, zoom_link) => {
+        cache.delete(cacheKey('classes'));
+        return isLoggedIn()
+            ? serverApi.createClass(name, color, professor, room, zoom_link)
+            : Promise.reject(new Error('Must be logged in to manage classes'));
+    },
+    updateClass: (id, name, color, professor, room, zoom_link) => {
+        cache.delete(cacheKey('classes'));
+        return isLoggedIn()
+            ? serverApi.updateClass(id, name, color, professor, room, zoom_link)
+            : Promise.reject(new Error('Must be logged in to manage classes'));
+    },
+    deleteClass: (id) => {
+        cache.delete(cacheKey('classes'));
+        return isLoggedIn()
+            ? serverApi.deleteClass(id)
+            : Promise.reject(new Error('Must be logged in to manage classes'));
+    },
 
     // ============ ASSIGNMENTS ============
     getAssignments: (classId) => isLoggedIn() ? serverApi.getAssignments(classId) : Promise.resolve([]),
@@ -109,24 +120,38 @@ export const api = {
         : Promise.reject(new Error('Must be logged in to manage schedule')),
 
     // ============ DECKS ============
-    getDecks: () => isLoggedIn()
-        ? serverApi.getDecks()
-        : db.getDecks(),
+    getDecks: () => cache.wrap(
+        cacheKey('decks'),
+        () => isLoggedIn() ? serverApi.getDecks() : db.getDecks(),
+        CACHE_TTL.short
+    ),
     getDeck: (id) => isLoggedIn()
         ? serverApi.getDeck(id)
         : db.getDeck(id),
-    createDeck: (title, description, folderId, tagIds, classId) => isLoggedIn()
-        ? serverApi.createDeck(title, description, folderId, tagIds || [], classId)
-        : db.createDeck(title, description, folderId, tagIds || [], classId),
-    updateDeck: (id, title, description, folderId, tagIds, classId) => isLoggedIn()
-        ? serverApi.updateDeck(id, title, description, folderId, tagIds || [], classId)
-        : db.updateDeck(id, title, description, folderId, tagIds || [], classId),
-    deleteDeck: (id) => isLoggedIn()
-        ? serverApi.deleteDeck(id)
-        : db.deleteDeck(id),
-    duplicateDeck: (id) => isLoggedIn()
-        ? serverApi.duplicateDeck(id)
-        : db.duplicateDeck(id),
+    createDeck: (title, description, folderId, tagIds, classId) => {
+        cache.delete(cacheKey('decks'));
+        return isLoggedIn()
+            ? serverApi.createDeck(title, description, folderId, tagIds || [], classId)
+            : db.createDeck(title, description, folderId, tagIds || [], classId);
+    },
+    updateDeck: (id, title, description, folderId, tagIds, classId) => {
+        cache.delete(cacheKey('decks'));
+        return isLoggedIn()
+            ? serverApi.updateDeck(id, title, description, folderId, tagIds || [], classId)
+            : db.updateDeck(id, title, description, folderId, tagIds || [], classId);
+    },
+    deleteDeck: (id) => {
+        cache.delete(cacheKey('decks'));
+        return isLoggedIn()
+            ? serverApi.deleteDeck(id)
+            : db.deleteDeck(id);
+    },
+    duplicateDeck: (id) => {
+        cache.delete(cacheKey('decks'));
+        return isLoggedIn()
+            ? serverApi.duplicateDeck(id)
+            : db.duplicateDeck(id);
+    },
     exportDeck: (id, format) => isLoggedIn()
         ? serverApi.getDeck(id).then(deck => deck)
         : db.exportDeck(id, format),

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { X, ThumbsUp, ThumbsDown, Users, CheckCircle2, Zap, Power } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -44,6 +44,24 @@ export default function GroupCram() {
     const [activeMembers, setActiveMembers] = useState([]); // Array of connected user IDs/Avatars
 
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
+
+    const pendingTimers = useRef(new Set());
+
+    useEffect(() => {
+        return () => {
+            pendingTimers.current.forEach(id => clearTimeout(id));
+            pendingTimers.current.clear();
+        };
+    }, []);
+
+    const safeTimeout = useCallback((fn, ms) => {
+        const id = setTimeout(() => {
+            pendingTimers.current.delete(id);
+            fn();
+        }, ms);
+        pendingTimers.current.add(id);
+        return id;
+    }, []);
 
     const fetchResults = useCallback(async () => {
         try {
@@ -108,7 +126,7 @@ export default function GroupCram() {
                 setActiveMembers(prev => prev.map(m =>
                     m.id === data.userId ? { ...m, isPulsing: true } : m
                 ));
-                setTimeout(() => {
+                safeTimeout(() => {
                     setActiveMembers(prev => prev.map(m =>
                         m.id === data.userId ? { ...m, isPulsing: false } : m
                     ));
@@ -125,7 +143,7 @@ export default function GroupCram() {
             onProgress,
             onEnded,
         });
-    }, [session, isEnded, sessionId, haptics, fetchResults]);
+    }, [session, isEnded, sessionId, haptics, fetchResults, safeTimeout]);
 
     const handleAnswer = async (knewIt) => {
         if (!isFlipped || isSubmitting) return;
@@ -143,7 +161,7 @@ export default function GroupCram() {
                     const newStatus = await api.decrementHeart();
                     setHeartsStatus(newStatus);
                     if (newStatus.hearts <= 0) {
-                        setTimeout(() => setShowOutOfHearts(true), 150);
+                        safeTimeout(() => setShowOutOfHearts(true), 150);
                     }
                 } catch (err) {
                     console.error("Failed to decrement heart", err);
@@ -152,7 +170,7 @@ export default function GroupCram() {
 
             if (currentIndex < cards.length - 1) {
                 setIsFlipped(false);
-                setTimeout(() => setCurrentIndex(c => c + 1), 150);
+                safeTimeout(() => setCurrentIndex(c => c + 1), 150);
             } else {
                 setIsFlipped(false);
                 setIsFinished(true);
@@ -165,7 +183,7 @@ export default function GroupCram() {
             }
         } finally {
             // Unblock submission rapidly to maintain flow, but prevent double-tap bursts
-            setTimeout(() => setIsSubmitting(false), 300);
+            safeTimeout(() => setIsSubmitting(false), 300);
         }
     };
 
@@ -233,7 +251,7 @@ export default function GroupCram() {
                         transition={{ delay: 0.2 }}
                         className="glass-panel rounded-[2rem] p-8 overflow-hidden relative shadow-sm"
                     >
-                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
 
                         <div className="flex flex-col items-center mb-8">
                             <h3 className="font-serif italic font-bold text-2xl text-claude-text mb-2 text-center">Group Weak Spots</h3>
@@ -294,7 +312,7 @@ export default function GroupCram() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="max-w-md w-full text-center relative z-10 p-10 glass-panel rounded-[2.5rem] shadow-sm flex flex-col items-center"
                 >
-                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
 
                     <span className="text-6xl mb-8 block animate-bounce" style={{ animationDuration: '2.5s' }}>☕️</span>
                     <h2 className="text-3xl font-serif italic font-bold text-claude-text mb-4">You finished!</h2>

@@ -14,7 +14,9 @@ function App() {
         <MobileWarning />
         <RootLayout>
           <ErrorBoundary>
-            <AppRoutes />
+            <Suspense fallback={<PageLoader />}>
+              <AppRoutes />
+            </Suspense>
           </ErrorBoundary>
         </RootLayout>
       </BrowserRouter>

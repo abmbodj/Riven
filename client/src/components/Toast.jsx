@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
@@ -11,24 +11,41 @@ export { ToastContext };
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
     const idCounter = useRef(0);
+    const toastTimers = useRef(new Map());
+
+    useEffect(() => {
+        return () => {
+            toastTimers.current.forEach(timerId => clearTimeout(timerId));
+            toastTimers.current.clear();
+        };
+    }, []);
 
     const dismiss = useCallback((id) => {
         setToasts(prev => prev.filter(t => t.id !== id));
+        const timerId = toastTimers.current.get(id);
+        if (timerId) {
+            clearTimeout(timerId);
+            toastTimers.current.delete(id);
+        }
     }, []);
 
     const show = useCallback((message, type = 'success') => {
         const id = ++idCounter.current;
         setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
+        const timerId = setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
+            toastTimers.current.delete(id);
         }, 3500);
+        toastTimers.current.set(id, timerId);
     }, []);
 
     const success = useCallback((message) => show(message, 'success'), [show]);
     const error = useCallback((message) => show(message, 'error'), [show]);
 
+    const value = useMemo(() => ({ show, success, error }), [show, success, error]);
+
     return (
-        <ToastContext.Provider value={{ show, success, error }}>
+        <ToastContext.Provider value={value}>
             {children}
             <div
                 role="status"

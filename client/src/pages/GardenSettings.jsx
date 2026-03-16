@@ -26,7 +26,7 @@ const getLast7Days = (lastStudyDate, currentStreak) => {
         const dayLabel = d.toLocaleDateString('en-US', { weekday: 'narrow' });
         // Simple heuristic: if streak covers this day, mark as active
         const isActive = currentStreak > i;
-        days.push({ label: dayLabel, active: isActive, isToday: i === 0 });
+        days.push({ label: dayLabel, active: isActive, isToday: i === 0, dateKey: d.toISOString().slice(0, 10) });
     }
     return days;
 };
@@ -143,8 +143,8 @@ export default function GardenSettings() {
             >
                 <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mb-3">This Week</div>
                 <div className="flex items-center justify-between gap-1">
-                    {weekDays.map((day, i) => (
-                        <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                    {weekDays.map((day) => (
+                        <div key={day.dateKey} className="flex flex-col items-center gap-1.5 flex-1">
                             <div
                                 className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-mono transition-colors ${day.active
                                     ? 'bg-claude-accent/20 text-claude-accent'

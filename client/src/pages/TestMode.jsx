@@ -26,8 +26,25 @@ export default function TestMode() {
     const [heartsLoading, setHeartsLoading] = useState(true);
 
     const inputRef = useRef(null);
+    const pendingTimers = useRef(new Set());
     const { incrementStreak } = useStreakContext();
     const haptics = useHaptics();
+
+    useEffect(() => {
+        return () => {
+            pendingTimers.current.forEach(id => clearTimeout(id));
+            pendingTimers.current.clear();
+        };
+    }, []);
+
+    const safeTimeout = useCallback((fn, ms) => {
+        const id = setTimeout(() => {
+            pendingTimers.current.delete(id);
+            fn();
+        }, ms);
+        pendingTimers.current.add(id);
+        return id;
+    }, []);
 
     const generateTest = useCallback((deckCards, mode) => {
         const minCards = mode === 'multiple' ? 4 : 1;
@@ -116,7 +133,7 @@ export default function TestMode() {
                     const newStatus = await api.decrementHeart();
                     setHeartsStatus(newStatus);
                     if (newStatus.hearts <= 0) {
-                        setTimeout(() => setShowOutOfHearts(true), 1200);
+                        safeTimeout(() => setShowOutOfHearts(true), 1200);
                     }
                 } catch (err) {
                     console.error("Failed to decrement heart", err);
@@ -124,7 +141,7 @@ export default function TestMode() {
             }
         }
 
-        setTimeout(() => {
+        safeTimeout(() => {
             setSelectedAnswer(null);
             setShowFeedback(false);
 
@@ -165,7 +182,7 @@ export default function TestMode() {
                     const newStatus = await api.decrementHeart();
                     setHeartsStatus(newStatus);
                     if (newStatus.hearts <= 0) {
-                        setTimeout(() => setShowOutOfHearts(true), 2000);
+                        safeTimeout(() => setShowOutOfHearts(true), 2000);
                     }
                 } catch (err) {
                     console.error("Failed to decrement heart", err);
@@ -173,7 +190,7 @@ export default function TestMode() {
             }
         }
 
-        setTimeout(() => {
+        safeTimeout(() => {
             setShowFeedback(false);
             setTypedAnswer('');
 
@@ -183,7 +200,7 @@ export default function TestMode() {
                 setShowResult(true);
                 incrementStreak();
             }
-        }, 2000); // Longer timeout to see the correct answer
+        }, 2000);
     };
 
     if (loading || heartsLoading) return (
@@ -613,7 +630,7 @@ export default function TestMode() {
 
                                 return (
                                     <button
-                                        key={idx}
+                                        key={option}
                                         onClick={() => handleMultipleAnswer(option)}
                                         disabled={showFeedback}
                                         className={`w-full text-left p-4 rounded-2xl border transition-[transform,opacity,color,background-color,border-color,box-shadow] ${showCorrect

@@ -52,6 +52,7 @@ export default function Avatar({ src, size = 'md', className = '' }) {
         <img
             src={src}
             alt=""
+            loading="lazy"
             className={`${sizeClasses[size]} rounded-full aspect-square object-cover bg-claude-bg shrink-0 ${className}`}
             onError={() => setImageError(true)}
         />

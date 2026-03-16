@@ -396,7 +396,7 @@ export default function Messages() {
             .slice(0, 5)
             .filter(c => !messageCache.messages[c.userId] ||
                 Date.now() - (messageCache.times[c.userId] || 0) > CACHE_TTL);
-        toPrefetch.forEach(conv => {
+        const timers = toPrefetch.map(conv =>
             setTimeout(async () => {
                 try {
                     const [msgs, profile] = await Promise.all([
@@ -406,8 +406,9 @@ export default function Messages() {
                     messageCache.setMessages(conv.userId, msgs);
                     messageCache.setUser(conv.userId, profile);
                 } catch { /* prefetch failure is non-critical */ }
-            }, 0);
-        });
+            }, 0)
+        );
+        return () => timers.forEach(id => clearTimeout(id));
     }, [conversations, user, userId]);
 
     // Supabase Realtime listeners for DM rows
@@ -505,6 +506,12 @@ export default function Messages() {
     }, [user?.id, userId]);
 
     const typingTimeoutRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+    }, []);
 
     const handleTypingStart = () => {
         if (!userId) return;

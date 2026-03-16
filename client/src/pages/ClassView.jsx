@@ -310,7 +310,7 @@ export default function ClassView() {
             <div className="px-4 sm:px-6 py-6">
                 {/* Class Details Hero */}
                 <div className="relative bg-claude-surface border border-claude-border p-6 rounded-sm shadow-sm mb-8 overflow-hidden">
-                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8" style={{ color: cls.color || 'var(--accent-color)' }}>
                         <Library className="w-full h-full" />
                     </div>

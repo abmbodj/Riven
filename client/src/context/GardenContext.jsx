@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AuthContext } from './AuthContext';
 import * as authApi from '../api/authApi';
 export const GardenContext = createContext(null);
@@ -55,11 +55,10 @@ export function GardenProvider({ children }) {
         });
     }, [updateCustomization]);
 
+    const value = useMemo(() => ({ customization, setStageOverride }), [customization, setStageOverride]);
+
     return (
-        <GardenContext.Provider value={{
-            customization,
-            setStageOverride
-        }}>
+        <GardenContext.Provider value={value}>
             {children}
         </GardenContext.Provider>
     );

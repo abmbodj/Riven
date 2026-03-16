@@ -196,7 +196,7 @@ export default function StudyGroups() {
                     }}
                     className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-claude-accent/40 shadow-sm hover:shadow-claude-accent/10"
                 >
-                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                     <div className="absolute top-0 right-0 w-24 h-24 bg-claude-accent/5 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-claude-accent/10 transition-colors duration-500" />
 
                     <div className="w-12 h-12 mb-3 bg-claude-accent/10 rounded-2xl flex items-center justify-center border border-claude-accent/20 group-hover:scale-110 transition-transform duration-300 ease-out">
@@ -209,7 +209,7 @@ export default function StudyGroups() {
                     onClick={() => { haptics.light(); setShowJoinModal(true); }}
                     className="group relative overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] glass-panel rounded-3xl tap-action transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-claude-secondary/40 shadow-sm"
                 >
-                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
 
                     <div className="w-12 h-12 mb-3 bg-claude-surface rounded-2xl flex items-center justify-center border border-claude-border group-hover:scale-110 transition-transform duration-300 ease-out">
                         <LinkIcon className="w-6 h-6 text-claude-secondary group-hover:text-claude-text transition-colors" />
@@ -264,7 +264,7 @@ export default function StudyGroups() {
                                     onClick={() => navigate(`/groups/${group.id}`)}
                                     className="glass-panel rounded-[1.5rem] p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(222,185,106,0.1)] hover:border-claude-accent/30 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 cursor-pointer tap-action group relative overflow-hidden flex flex-col justify-between min-h-[160px]"
                                 >
-                                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                                     {/* Subtle gradient hover effect */}
                                     <div className="absolute -right-20 -bottom-20 w-40 h-40 bg-claude-accent/5 rounded-full blur-2xl group-hover:bg-claude-accent/10 transition-colors duration-500 pointer-events-none" />
 
@@ -305,6 +305,7 @@ export default function StudyGroups() {
                                                     <img
                                                         src={`https://api.dicebear.com/7.x/notionists/svg?seed=${group.id}_${idx}`}
                                                         alt="Member"
+                                                        loading="lazy"
                                                         className="w-full h-full object-cover opacity-80"
                                                     />
                                                 </div>

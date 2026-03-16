@@ -31,14 +31,26 @@ class Cache {
         this.store.clear();
     }
 
-    // Helper to wrap async functions with caching
+    // Helper to wrap async functions with caching + in-flight deduplication
     async wrap(key, fn, ttl) {
         const cached = this.get(key);
         if (cached !== null) return cached;
 
-        const result = await fn();
-        this.set(key, result, ttl);
-        return result;
+        // Deduplicate concurrent calls for the same key
+        if (this._inflight?.has(key)) return this._inflight.get(key);
+        if (!this._inflight) this._inflight = new Map();
+
+        const promise = fn().then(result => {
+            this.set(key, result, ttl);
+            this._inflight.delete(key);
+            return result;
+        }).catch(err => {
+            this._inflight.delete(key);
+            throw err;
+        });
+
+        this._inflight.set(key, promise);
+        return promise;
     }
 
     startGarbageCollection(intervalMs = 60000) { // Default 1m interval

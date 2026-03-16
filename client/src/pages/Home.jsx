@@ -571,7 +571,7 @@ function DashboardHome() {
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
             <div className="relative mb-6 overflow-hidden rounded-[34px] border border-claude-border bg-claude-surface p-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-6 lg:p-7">
-                <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('/textures/paper-fibers.png')]" />
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/10 to-transparent" />
                 <div className="gsap-hero relative z-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-center">
                     <div className="min-w-0">
@@ -757,7 +757,7 @@ function DashboardHome() {
                                             to={`/deck/${deck.id}`}
                                             className="tap-action group relative block cursor-pointer overflow-hidden rounded-2xl border border-[#d1c9b8]/80 bg-[#fcfaf2]/[0.98] p-5 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-[#deb96a]/60 hover:shadow-lg active:bg-[#f4f1e8] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#deb96a]"
                                         >
-                                            <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                                            <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('/textures/paper-fibers.png')]" />
                                             <div className="absolute right-2 top-2 translate-x-2 transform text-claude-accent opacity-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] group-hover:translate-x-0 group-hover:opacity-100">
                                                 <Play className="h-4 w-4 fill-current" />
                                             </div>

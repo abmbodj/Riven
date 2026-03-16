@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback } from 'react';
+import { createContext, useState, useCallback, useMemo } from 'react';
 export const UIContext = createContext(null);
 
 
@@ -9,8 +9,10 @@ export function UIProvider({ children }) {
     const showBottomNav = useCallback(() => setHideBottomNav(false), []);
     const hideNav = useCallback(() => setHideBottomNav(true), []);
 
+    const value = useMemo(() => ({ hideBottomNav, showBottomNav, hideNav }), [hideBottomNav, showBottomNav, hideNav]);
+
     return (
-        <UIContext.Provider value={{ hideBottomNav, showBottomNav, hideNav }}>
+        <UIContext.Provider value={value}>
             {children}
         </UIContext.Provider>
     );

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from './api';
 import { ThemeContext } from './context/themeContext';
 import useAuth from './hooks/useAuth';
@@ -107,8 +107,10 @@ export function ThemeProvider({ children }) {
         setThemes(prev => prev.filter(t => t.id !== themeId));
     }, [activeTheme]);
 
+    const value = useMemo(() => ({ themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme }), [themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme]);
+
     return (
-        <ThemeContext.Provider value={{ themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme }}>
+        <ThemeContext.Provider value={value}>
             {children}
         </ThemeContext.Provider>
     );

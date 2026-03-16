@@ -177,7 +177,7 @@ export default function GroupDetails() {
 
         // GSAP Micro-interactions
         const cards = gsap.utils.toArray('.gsap-hover-card');
-        cards.forEach(card => {
+        const cleanups = cards.map(card => {
             const onEnter = () => gsap.to(card, { y: -2, scale: 1.01, duration: 0.3, ease: 'power2.out' });
             const onLeave = () => gsap.to(card, { y: 0, scale: 1, duration: 0.4, ease: 'power2.out' });
             const onDown = () => gsap.to(card, { scale: 0.98, duration: 0.1, ease: 'power1.inOut' });
@@ -197,8 +197,10 @@ export default function GroupDetails() {
                 card.removeEventListener('mouseup', onUp);
                 card.removeEventListener('touchstart', onDown);
                 card.removeEventListener('touchend', onUp);
-            }
+            };
         });
+
+        return () => { cleanups.forEach(fn => fn()); };
     }, [loading, group, sharedDecks, sessions, folders, files]);
 
     const handleCopyCode = async () => {
@@ -638,7 +640,7 @@ export default function GroupDetails() {
                                 {members.map(member => (
                                     <div key={member.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-claude-border/30 group transition-colors">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
+                                            <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-8 h-8 rounded-full bg-white border border-claude-border" />
                                             <div className="min-w-0">
                                                 <div className="text-sm font-bold text-claude-text truncate">{member.display_name || member.username}</div>
                                                 <div className="text-xs text-claude-secondary truncate">@{member.username} {member.role === 'admin' && '· Admin'}</div>
@@ -945,7 +947,7 @@ export default function GroupDetails() {
                             {members.map(member => (
                                 <div key={member.id} className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
+                                        <img src={member.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.username}`} alt="" loading="lazy" className="w-12 h-12 rounded-full bg-white border border-claude-border p-0.5" />
                                         <div className="min-w-0">
                                             <div className="font-bold text-sm truncate text-claude-text">{member.display_name || member.username}</div>
                                             <div className="text-xs font-medium text-claude-secondary truncate mt-0.5">@{member.username} {member.role === 'admin' && '· Admin'}</div>
