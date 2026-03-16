@@ -146,12 +146,19 @@ serve(async (request) => {
       },
     });
 
-    // Wait for file to be processed
+    // Wait for file to be processed (max 120s to stay within edge function timeout)
+    const MAX_WAIT_MS = 120_000;
+    const POLL_INTERVAL_MS = 3_000;
+    const startWait = Date.now();
+
     let file = uploadedFile;
     while (file.state === 'PROCESSING') {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const fetched = await ai.files.get({ name: file.name! });
-      file = fetched;
+      if (Date.now() - startWait > MAX_WAIT_MS) {
+        ai.files.delete({ name: file.name! }).catch(() => {});
+        throw createHttpError('Audio processing timed out. Try a shorter recording or retry.', 504);
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      file = await ai.files.get({ name: file.name! });
     }
 
     if (file.state === 'FAILED') {
@@ -192,7 +199,7 @@ serve(async (request) => {
       .from('notes')
       .update({
         enhanced_content: enhancedContent,
-        audio_url: audioPath,
+        audio_url: null, // audio deleted after processing
         source_type: 'audio',
       })
       .eq('id', noteId)
@@ -200,8 +207,9 @@ serve(async (request) => {
 
     if (updateError) throw updateError;
 
-    // Cleanup: delete file from Gemini (fire-and-forget)
+    // Cleanup: delete files from Gemini and Supabase Storage (fire-and-forget)
     ai.files.delete({ name: file.name! }).catch(() => {});
+    admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
     return jsonResponse(
       {

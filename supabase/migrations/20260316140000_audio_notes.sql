@@ -33,6 +33,17 @@ CREATE POLICY "Users can upload own note audio"
     AND (storage.foldername(name))[1] = (public.get_app_user_id())::text
   );
 
+-- Users can update (upsert) their own audio files
+DROP POLICY IF EXISTS "Users can update own note audio" ON storage.objects;
+CREATE POLICY "Users can update own note audio"
+  ON storage.objects
+  FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'note-audio'
+    AND (storage.foldername(name))[1] = (public.get_app_user_id())::text
+  );
+
 -- Users can read their own audio files
 DROP POLICY IF EXISTS "Users can read own note audio" ON storage.objects;
 CREATE POLICY "Users can read own note audio"

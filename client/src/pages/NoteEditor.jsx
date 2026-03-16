@@ -235,6 +235,7 @@ export default function NoteEditor() {
             setEnhancedContent(result.enhanced_content);
             setViewMode('enhanced');
             setShowEnhanceBanner(false);
+            setAudioPath(null); // audio deleted server-side after processing
             recorder.setProcessingState('complete');
             toast.success('Notes enhanced with AI');
         } catch (err) {
