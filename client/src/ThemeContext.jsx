@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from './api';
 import { ThemeContext } from './context/themeContext';
+import useAuth from './hooks/useAuth';
 
 function resolveColorScheme(hexColor) {
     if (!hexColor) return 'dark';
@@ -22,6 +23,7 @@ function resolveColorScheme(hexColor) {
 }
 
 export function ThemeProvider({ children }) {
+    const { isLoggedIn } = useAuth();
     const [themes, setThemes] = useState([]);
     const [activeTheme, setActiveTheme] = useState(null);
 
@@ -64,7 +66,7 @@ export function ThemeProvider({ children }) {
             // Failed to load themes silently
         });
         return () => { mounted = false; };
-    }, [applyTheme]);
+    }, [applyTheme, isLoggedIn]);
 
     const switchTheme = useCallback(async (themeId) => {
         try {
