@@ -18,6 +18,7 @@ vi.mock('../lib/supabaseClient', () => ({
 }));
 
 import * as authApi from './authApi';
+import { supabase } from '../lib/supabaseClient';
 
 const buildJsonResponse = (body) => ({
   ok: true,
@@ -52,6 +53,7 @@ describe('authApi hearts edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
   });
@@ -61,7 +63,9 @@ describe('authApi hearts edge migration', () => {
   });
 
   it('uses the hearts edge function for Supabase session tokens', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       hearts: 40,
       max: 40,
@@ -109,7 +113,9 @@ describe('authApi hearts edge migration', () => {
   });
 
   it('forces re-login when the hearts edge function returns invalid JWT', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce(buildErrorResponse(401, { message: 'Invalid JWT' }));

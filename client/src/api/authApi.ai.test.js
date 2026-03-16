@@ -18,6 +18,7 @@ vi.mock('../lib/supabaseClient', () => ({
 }));
 
 import * as authApi from './authApi';
+import { supabase } from '../lib/supabaseClient';
 
 const buildJsonResponse = (body) => ({
   ok: true,
@@ -52,6 +53,7 @@ describe('authApi AI edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
   });
@@ -61,7 +63,9 @@ describe('authApi AI edge migration', () => {
   });
 
   it('uses the AI limits edge function for Supabase sessions', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       remaining: 9,
       max: 10,
@@ -92,7 +96,9 @@ describe('authApi AI edge migration', () => {
   });
 
   it('uses the generate-deck edge function for Supabase sessions', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       message: 'Deck generated successfully',
       deck_id: 55,
@@ -121,7 +127,9 @@ describe('authApi AI edge migration', () => {
   });
 
   it('surfaces edge errors when the generate-class function is unavailable', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }));

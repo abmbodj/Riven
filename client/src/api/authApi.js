@@ -78,6 +78,20 @@ const isSupabaseAccessToken = (token) => {
     return audience.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
 };
 
+const tokenBelongsToSupabaseUrl = (token, supabaseUrl) => {
+    if (!token || !supabaseUrl) return false;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.iss !== 'string') return false;
+
+    try {
+        const tokenIssuer = new URL(payload.iss);
+        const expected = new URL(supabaseUrl);
+        return tokenIssuer.host === expected.host;
+    } catch {
+        return false;
+    }
+};
+
 const isJwtExpired = (token) => {
     const payload = decodeJwtPayload(token);
     if (!payload || typeof payload.exp !== 'number') return false;
@@ -220,7 +234,24 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query } 
         }
 
         const storedToken = getToken();
-        return isSupabaseAccessToken(storedToken) ? storedToken : null;
+        if (
+            !isSupabaseAccessToken(storedToken)
+            || isJwtExpired(storedToken)
+            || !tokenBelongsToSupabaseUrl(storedToken, supabaseUrl)
+        ) {
+            return null;
+        }
+
+        const getUser = supabase?.auth?.getUser;
+        if (typeof getUser === 'function') {
+            const { data: userData, error: userError } = await getUser(storedToken).catch(() => ({ data: { user: null }, error: new Error('Stored token validation failed') }));
+            if (userError || !userData?.user?.id) {
+                setToken(null);
+                return null;
+            }
+        }
+
+        return storedToken;
     };
 
     const token = await getEdgeFunctionToken();
