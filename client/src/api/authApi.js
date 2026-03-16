@@ -297,9 +297,15 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, s
         error.body = data;
 
         if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, error.message)) {
-            await forceReauth();
-            error.code = AUTH_SESSION_EXPIRED_CODE;
-            error.message = 'Session expired. Please sign in again.';
+            // Only destroy the session if it is genuinely invalid.
+            // The Supabase gateway may reject valid tokens (e.g. --no-verify-jwt not set),
+            // so check whether the session is still alive before force-logging out.
+            const stillValid = await getActiveSupabaseSession().catch(() => null);
+            if (!stillValid) {
+                await forceReauth();
+                error.code = AUTH_SESSION_EXPIRED_CODE;
+                error.message = 'Session expired. Please sign in again.';
+            }
         }
 
         throw error;
