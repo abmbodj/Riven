@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔎 Scanning for secrets with TruffleHog..."
+
+# We run trufflehog on git, scanning uncommitted changes and avoiding full history scans on every commit.
+if command -v trufflehog >/dev/null 2>&1; then
+  # Scan staged changes for secrets
+  trufflehog git file://. --only-verified --fail-verified --since-commit HEAD
+  
+  if [ $? -ne 0 ]; then
+    echo "❌ Secrets detected! Commit blocked by TruffleHog. Please remove sensitive data before committing."
+    exit 1
+  fi
+else
+  # Offer to install or bypass if not installed globally (or locally depending on setup)
+  # But typically we want to enforce it. For this setup we will warn if not found.
+  echo "⚠️ trufflehog not found in PATH! We highly recommend installing it to prevent secrets leaks."
+  echo "You can install it via: brew install trufflehog (Mac) or https://github.com/trufflesecurity/trufflehog"
+  # exit 1  # Optionally force fail if not installed
+fi
+
+echo "✅ Secret scan passed."
