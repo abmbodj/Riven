@@ -21,6 +21,7 @@ import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
 import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
+import MobileBottomNav from './MobileBottomNav.jsx';
 import { useToast } from '../hooks/useToast';
 import { sendVerificationEmail } from '../api/authApi';
 
@@ -72,7 +73,6 @@ export default function Layout({ children }) {
     const isCreatePage = location.pathname === '/create';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
-    const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
     const [resendingEmail, setResendingEmail] = useState(false);
@@ -313,7 +313,7 @@ export default function Layout({ children }) {
 
                     {/* Main content with page transitions */}
                     <main className={`${isFullscreenPage ? '' : isStudyOrTest ? '' : 'px-4 py-4 lg:px-8 lg:py-6'
-                        } ${hideBottomNav ? (isFullscreenPage ? '' : 'pb-6') : 'pb-24 lg:pb-6'
+                        } ${hideBottomNav ? (isFullscreenPage ? '' : 'pb-6') : 'pb-28 lg:pb-6'
                         } ${!isOffline && !showVerifyBanner ? 'safe-area-top' : ''
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
@@ -327,125 +327,12 @@ export default function Layout({ children }) {
                         </div>
                     </main>
 
-                    {/* FAB Overlay Menu */}
-                    <AnimatePresence>
-                        {isFabMenuOpen && !hideBottomNav && (
-                            <>
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    onClick={() => setIsFabMenuOpen(false)}
-                                    className="fixed inset-0 bg-black/50 md:backdrop-blur-sm z-10 cursor-pointer"
-                                />
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
-                                    animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-                                    exit={{ opacity: 0, y: 20, scale: 0.9, x: "-50%" }}
-                                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                    className="fixed bottom-24 left-1/2 glass-panel rounded-2xl z-20 flex flex-col gap-2 p-3 min-w-[220px]"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsFabMenuOpen(false);
-                                            setIsCommandPaletteOpen(true);
-                                        }}
-                                        className="flex items-center gap-3 p-3 rounded-xl border border-claude-border bg-claude-bg/15 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-text cursor-pointer touch-target"
-                                    >
-                                        <Search className="w-5 h-5 text-claude-accent" />
-                                        <span>Search</span>
-                                    </button>
-                                    <Link
-                                        to="/create"
-                                        onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 rounded-xl bg-claude-accent/10 border border-claude-accent/20 transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
-                                    >
-                                        <Plus className="w-5 h-5" />
-                                        <span>Create Deck</span>
-                                    </Link>
-                                    <Link
-                                        to="/garden"
-                                        onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
-                                    >
-                                        <Sprout className="w-5 h-5" />
-                                        <span>Garden</span>
-                                    </Link>
-                                    <Link
-                                        to="/themes"
-                                        onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-accent cursor-pointer touch-target"
-                                    >
-                                        <Palette className="w-5 h-5" />
-                                        <span>Themes</span>
-                                    </Link>
-                                    <Link
-                                        to="/settings"
-                                        onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary cursor-pointer touch-target"
-                                    >
-                                        <Settings className="w-5 h-5 shrink-0" />
-                                        <span className="leading-tight">Settings</span>
-                                    </Link>
-                                    <Link
-                                        to="/account"
-                                        onClick={() => setIsFabMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 hover:glass-panel rounded-xl transition-colors font-mono text-xs font-bold uppercase tracking-widest text-claude-secondary cursor-pointer touch-target"
-                                    >
-                                        <User className="w-5 h-5 shrink-0" />
-                                        <span className="leading-tight">Profile</span>
-                                    </Link>
-                                </motion.div>
-                            </>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Bottom navigation — mobile only, hidden on desktop */}
+                    {/* Mobile bottom navigation + FAB overlay */}
                     {!hideBottomNav && (
-                        <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 w-full border-t border-claude-border/40 z-20 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] glass-panel lg:hidden" style={{ borderBottom: 'none' }}>
-                            <div className="flex items-stretch h-16 sm:h-20 max-w-5xl mx-auto">
-                                {primaryNavItems.map((item) => {
-                                    if (item.isFab) {
-                                        return (
-                                            <button key="fab" onClick={() => setIsFabMenuOpen(!isFabMenuOpen)} aria-label={isFabMenuOpen ? 'Close menu' : 'Open quick actions'} aria-expanded={isFabMenuOpen} className="flex-1 flex items-center justify-center tap-action">
-                                                <motion.div
-                                                    animate={{ rotate: isFabMenuOpen ? 45 : 0 }}
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                    className="w-12 h-12 -mt-4 rounded-full flex items-center justify-center shadow-botanical-glow border-[3px] border-claude-bg"
-                                                    style={{ backgroundColor: 'var(--botanical-forest)' }}
-                                                >
-                                                    <Plus className="w-6 h-6 text-white" />
-                                                </motion.div>
-                                            </button>
-                                        );
-                                    }
-
-                                    const isActive = routeMatches(location.pathname, item.matchers);
-
-                                    return (
-                                        <Link
-                                            key={item.to}
-                                            to={item.to}
-                                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors tap-action cursor-pointer ${isActive ? 'text-claude-accent' : 'text-claude-secondary hover:text-claude-text'}`}
-                                        >
-                                            <div className="relative">
-                                                <item.icon className="w-5 h-5" />
-                                                {isActive && (
-                                                    <motion.div
-                                                        layoutId="nav-indicator"
-                                                        className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-claude-accent"
-                                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                                    />
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] font-mono font-medium tracking-wide">{item.label}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </nav>
+                        <MobileBottomNav
+                            primaryNavItems={primaryNavItems}
+                            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                        />
                     )}
                 </div>
             </div>
