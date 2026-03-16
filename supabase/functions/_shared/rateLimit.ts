@@ -1,0 +1,91 @@
+/**
+ * Rate limiting for Supabase Edge Functions using Upstash Redis.
+ * Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Supabase secrets.
+ * If not set, rate limiting is skipped (allows local dev without Upstash).
+ */
+
+import { Redis } from 'npm:@upstash/redis@1.28.0';
+import { Ratelimit } from 'npm:@upstash/ratelimit@0.4.4';
+import { getCorsHeaders } from './http.ts';
+
+export type RateLimitPreset = 'default' | 'webhook' | 'admin';
+
+const PRESETS: Record<RateLimitPreset, { limit: number; window: string }> = {
+  default: { limit: 60, window: '1 m' },
+  webhook: { limit: 300, window: '1 m' },
+  admin: { limit: 30, window: '1 m' },
+};
+
+function getIdentifier(request: Request): string {
+  const auth = request.headers.get('Authorization');
+  if (auth?.startsWith('Bearer ')) {
+    return `auth:${auth.slice(7, 50)}`;
+  }
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    request.headers.get('cf-connecting-ip') ||
+    'anonymous';
+  return `ip:${ip}`;
+}
+
+let cachedLimiters: Map<string, Ratelimit> | null = null;
+
+function getLimiter(preset: RateLimitPreset): Ratelimit | null {
+  const url = Deno.env.get('UPSTASH_REDIS_REST_URL');
+  const token = Deno.env.get('UPSTASH_REDIS_REST_TOKEN');
+
+  if (!url || !token) {
+    return null;
+  }
+
+  if (!cachedLimiters) {
+    const redis = new Redis({ url, token });
+    cachedLimiters = new Map();
+    for (const [key, config] of Object.entries(PRESETS)) {
+      cachedLimiters.set(
+        key,
+        new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(config.limit, config.window),
+          analytics: false,
+        })
+      );
+    }
+  }
+
+  return cachedLimiters.get(preset) ?? null;
+}
+
+/**
+ * Check rate limit. Returns 429 Response if over limit, otherwise null.
+ * Call at the start of your handler (after OPTIONS) and return early if non-null.
+ */
+export async function checkRateLimit(
+  request: Request,
+  preset: RateLimitPreset = 'default'
+): Promise<Response | null> {
+  const limiter = getLimiter(preset);
+  if (!limiter) {
+    return null;
+  }
+
+  const identifier = getIdentifier(request);
+  const { success } = await limiter.limit(identifier);
+
+  if (!success) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+      {
+        status: 429,
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json',
+          'Retry-After': '60',
+        },
+      }
+    );
+  }
+
+  return null;
+}

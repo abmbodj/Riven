@@ -8,6 +8,7 @@ import {
 } from '../_shared/groupSessionsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const requireId = (value: unknown, label: string) => {
@@ -36,6 +37,8 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);

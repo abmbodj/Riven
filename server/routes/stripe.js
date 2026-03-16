@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
+const { createCheckoutSchema } = require('../schemas/stripe');
+const { handleValidationErrors } = require('../utils/validate');
 
 module.exports = function ({ db }) {
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -18,17 +20,13 @@ module.exports = function ({ db }) {
     };
 
     // ── Create Checkout Session ──────────────────────────────────
-    router.post('/create-checkout-session', async (req, res) => {
+    router.post('/create-checkout-session', createCheckoutSchema, handleValidationErrors, async (req, res) => {
         try {
             const { priceId, isSubscription } = req.body;
             const user = req.user;
 
             if (!user) {
                 return res.status(401).json({ error: 'Authentication required' });
-            }
-
-            if (!priceId) {
-                return res.status(400).json({ error: 'Missing priceId in request body' });
             }
 
             // Validate priceId against server-side allowlist

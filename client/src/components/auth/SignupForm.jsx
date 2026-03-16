@@ -7,6 +7,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import AuthLayout from './AuthLayout';
 import OAuthButtons from './OAuthButtons';
+import { registerSchema } from '../../schemas/auth';
 
 const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const { signUp } = useAuth();
@@ -21,13 +22,10 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!form.username || !form.email || !form.password) {
-            setAlert({ show: true, title: 'Missing Fields', message: 'All fields are required', type: 'warning' });
-            return;
-        }
-
-        if (form.password.length < 6) {
-            setAlert({ show: true, title: 'Weak Password', message: 'Password must be at least 6 characters long', type: 'warning' });
+        const result = registerSchema.safeParse(form);
+        if (!result.success) {
+            const first = result.error.errors[0];
+            setAlert({ show: true, title: 'Validation Error', message: first?.message || 'Please check your input', type: 'warning' });
             return;
         }
 

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
 import { processStripeWebhookEvent } from '../_shared/stripeWebhookCore.mjs';
@@ -126,6 +127,8 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'webhook');
+  if (rl) return rl;
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);

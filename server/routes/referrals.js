@@ -1,3 +1,6 @@
+const { applyReferralSchema } = require('../schemas/referrals');
+const { handleValidationErrors } = require('../utils/validate');
+
 module.exports = function ({ app, db, authMiddleware }) {
 
     // Helper: Generate a unique 8-char referral code
@@ -57,9 +60,8 @@ module.exports = function ({ app, db, authMiddleware }) {
     });
 
     // POST: Apply a referral code during/after signup
-    app.post('/api/referrals/apply', authMiddleware, async (req, res) => {
+    app.post('/api/referrals/apply', authMiddleware, applyReferralSchema, handleValidationErrors, async (req, res) => {
         const { code } = req.body;
-        if (!code) return res.status(400).json({ error: 'Referral code required' });
 
         // Members don't need referral codes
         const subscriber = await db.queryOne('SELECT subscription_tier FROM users WHERE id = $1', [req.user.id]);

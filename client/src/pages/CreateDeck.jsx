@@ -6,6 +6,7 @@ import {
     Upload, FileText, Loader2, Layers, Wand2
 } from 'lucide-react';
 import { api } from '../api';
+import { deckTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
 
@@ -154,11 +155,14 @@ export default function CreateDeck() {
 
     const handleManualSubmit = async (e) => {
         e.preventDefault();
-        if (!title.trim()) return;
-
+        const result = deckTitleSchema.safeParse(title.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Invalid deck title');
+            return;
+        }
         setLoading(true);
         try {
-            const newDeck = await api.createDeck(title, description, selectedFolder, selectedTags, selectedClass);
+            const newDeck = await api.createDeck(result.data, description, selectedFolder, selectedTags, selectedClass);
             toast.success('Deck created!');
             navigate(`/deck/${newDeck.id}`);
         } catch {
@@ -170,8 +174,9 @@ export default function CreateDeck() {
 
     const handleAIGenerate = async (e) => {
         e.preventDefault();
-        if (!title.trim()) {
-            toast.error('Give your deck a name first');
+        const titleResult = deckTitleSchema.safeParse(title.trim());
+        if (!titleResult.success) {
+            toast.error(titleResult.error.errors[0]?.message || 'Give your deck a name first');
             return;
         }
         if (!aiFile && !aiNotes.trim()) {
@@ -184,7 +189,7 @@ export default function CreateDeck() {
             const result = await api.generateAiDeck(
                 aiNotes,
                 aiFile,
-                title,
+                titleResult.data,
                 selectedClass
             );
             toast.success(`Generated ${result.card_count} flashcards!`);

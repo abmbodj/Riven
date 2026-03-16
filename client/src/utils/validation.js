@@ -34,7 +34,7 @@ export function truncate(str, maxLength = 500) {
 }
 
 /**
- * Validate deck title (1-100 chars)
+ * Validate deck title (1-200 chars) — aligned with backend
  * @param {string} title
  * @returns {{ valid: boolean, error?: string }}
  */
@@ -42,14 +42,14 @@ export function validateDeckTitle(title) {
     if (!title || !title.trim()) {
         return { valid: false, error: 'Title is required' };
     }
-    if (title.trim().length > 100) {
-        return { valid: false, error: 'Title must be 100 characters or less' };
+    if (title.trim().length > 200) {
+        return { valid: false, error: 'Title must be 200 characters or less' };
     }
     return { valid: true };
 }
 
 /**
- * Validate card content (1-2000 chars)
+ * Validate card content (1-5000 chars) — aligned with backend
  * @param {string} content
  * @param {string} field - 'front' or 'back'
  * @returns {{ valid: boolean, error?: string }}
@@ -58,8 +58,8 @@ export function validateCardContent(content, field = 'Content') {
     if (!content || !content.trim()) {
         return { valid: false, error: `${field} is required` };
     }
-    if (content.trim().length > 2000) {
-        return { valid: false, error: `${field} must be 2000 characters or less` };
+    if (content.trim().length > 5000) {
+        return { valid: false, error: `${field} must be 5000 characters or less` };
     }
     return { valid: true };
 }

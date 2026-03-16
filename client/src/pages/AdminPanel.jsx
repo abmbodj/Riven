@@ -11,6 +11,7 @@ import {
     RefreshCw
 } from 'lucide-react';
 
+import { messageTitleSchema, messageContentSchema } from '../schemas/forms';
 import OverviewTab from '../components/admin/OverviewTab';
 import UsersTab from '../components/admin/UsersTab';
 import ReportsTab from '../components/admin/ReportsTab';
@@ -124,15 +125,21 @@ export default function AdminPanel() {
 
     const handleCreateMessage = async (e) => {
         e.preventDefault();
-        if (!messageForm.title.trim() || !messageForm.content.trim()) {
-            toast.error('Title and content are required');
+        const titleResult = messageTitleSchema.safeParse(messageForm.title.trim());
+        const contentResult = messageContentSchema.safeParse(messageForm.content.trim());
+        if (!titleResult.success) {
+            toast.error(titleResult.error.errors[0]?.message || 'Title is required');
+            return;
+        }
+        if (!contentResult.success) {
+            toast.error(contentResult.error.errors[0]?.message || 'Content is required');
             return;
         }
         setFormLoading(true);
         try {
             const newMessage = await adminCreateMessage(
-                messageForm.title.trim(),
-                messageForm.content.trim(),
+                titleResult.data,
+                contentResult.data,
                 messageForm.type
             );
             setMessages(prev => [newMessage, ...prev]);

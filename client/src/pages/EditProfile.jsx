@@ -12,6 +12,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
 import { useGSAP } from '../hooks/useGSAP';
+import { usernameSchema, displayNameSchema, bioSchema } from '../schemas/forms';
 
 const MotionDiv = motion.div;
 
@@ -93,9 +94,9 @@ export default function EditProfile() {
 
         try {
             await updateProfile({
-                username: username.trim(),
-                displayName: displayName.trim(),
-                bio: bio.trim(),
+                username: usernameResult.data,
+                displayName: displayResult.data,
+                bio: bioResult.data,
                 avatar,
                 banner
             });

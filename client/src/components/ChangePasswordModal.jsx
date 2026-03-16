@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Lock, Save, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { changePasswordSchema } from '../schemas/auth';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -17,8 +18,9 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (newPassword.length < 6) {
-            toast.error('Password must be at least 6 characters');
+        const result = changePasswordSchema.safeParse({ currentPassword, newPassword });
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Please check your input');
             return;
         }
 

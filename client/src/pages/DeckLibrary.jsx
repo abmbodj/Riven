@@ -11,6 +11,7 @@ import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
 import OnboardingArt from '../components/OnboardingArt';
+import { folderNameSchema, tagNameSchema } from '../schemas/forms';
 
 
 
@@ -231,13 +232,17 @@ export default function DeckLibrary() {
     // Folder actions
     const handleCreateFolder = async (e) => {
         e.preventDefault();
-        if (!newFolder.name.trim()) return;
+        const result = folderNameSchema.safeParse(newFolder.name.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Invalid folder name');
+            return;
+        }
         try {
             if (editingFolder) {
-                await api.updateFolder(editingFolder.id, newFolder.name, newFolder.color);
+                await api.updateFolder(editingFolder.id, result.data, newFolder.color);
                 toast.success('Folder updated');
             } else {
-                await api.createFolder(newFolder.name, newFolder.color);
+                await api.createFolder(result.data, newFolder.color);
                 toast.success('Folder created');
             }
             setShowFolderModal(false);
@@ -265,9 +270,13 @@ export default function DeckLibrary() {
     // Tag actions
     const handleCreateTag = async (e) => {
         e.preventDefault();
-        if (!newTag.name.trim()) return;
+        const result = tagNameSchema.safeParse(newTag.name.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Invalid tag name');
+            return;
+        }
         try {
-            await api.createTag(newTag.name, newTag.color);
+            await api.createTag(result.data, newTag.color);
             toast.success('Tag created');
             setShowTagModal(false);
             setNewTag({ name: '', color: '#3b82f6' });

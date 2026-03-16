@@ -3,12 +3,15 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { getAiLimitStatus } from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);

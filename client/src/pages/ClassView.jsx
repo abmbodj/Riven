@@ -5,6 +5,7 @@ import {
     ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload
 } from 'lucide-react';
 import { api } from '../api';
+import { assignmentTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -113,17 +114,18 @@ export default function ClassView() {
 
     const handleSaveAssignment = async (e) => {
         e.preventDefault();
-        if (!assignForm.title.trim()) {
-            toast.error('Title is required');
+        const result = assignmentTitleSchema.safeParse(assignForm.title.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Title is required');
             return;
         }
 
         try {
             if (editingAssign) {
-                await api.updateAssignment(editingAssign.id, assignForm);
+                await api.updateAssignment(editingAssign.id, { ...assignForm, title: result.data });
                 toast.success('Assignment updated');
             } else {
-                await api.createAssignment(id, assignForm.title, assignForm.description, assignForm.due_date);
+                await api.createAssignment(id, result.data, assignForm.description, assignForm.due_date);
                 toast.success('Assignment created');
             }
             setShowAssignModal(false);

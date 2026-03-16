@@ -3,6 +3,7 @@ import { Users, Plus, RefreshCw, X, Link as LinkIcon, Calendar, ArrowRight } fro
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
+import { groupNameSchema, joinCodeSchema } from '../schemas/forms';
 import * as authApi from '../api/authApi';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
@@ -102,15 +103,16 @@ export default function StudyGroups() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
-        if (!createData.name.trim() || isSubmitting) {
-            if (!createData.name.trim()) toast.error('Group name is required');
+        const result = groupNameSchema.safeParse(createData.name.trim());
+        if (!result.success || isSubmitting) {
+            if (!result.success) toast.error(result.error.errors[0]?.message || 'Group name is required');
             return;
         }
 
         setIsSubmitting(true);
         try {
             haptics.medium();
-            const newGroup = await api.createGroup(createData.name, createData.class_id || null);
+            const newGroup = await api.createGroup(result.data, createData.class_id || null);
             toast.success('Study Group created successfully!');
             setShowCreateModal(false);
             setCreateData({ name: '', class_id: '' });
@@ -124,15 +126,16 @@ export default function StudyGroups() {
 
     const handleJoin = async (e) => {
         e.preventDefault();
-        if (!joinCode.trim() || joinCode.length < 3 || isSubmitting) {
-            if (!joinCode.trim()) toast.error('Join code is required');
+        const result = joinCodeSchema.safeParse(joinCode.trim());
+        if (!result.success || isSubmitting) {
+            if (!result.success) toast.error(result.error.errors[0]?.message || 'Join code is required');
             return;
         }
 
         setIsSubmitting(true);
         try {
             haptics.medium();
-            const res = await api.joinGroup(joinCode);
+            const res = await api.joinGroup(result.data);
             toast.success('Successfully joined group!');
             setShowJoinModal(false);
             setJoinCode('');

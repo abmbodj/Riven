@@ -3,6 +3,7 @@ import { X, Shield, QrCode, Check, Copy, Loader2, AlertTriangle } from 'lucide-r
 import { useAuth } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
 import { useToast } from '../hooks/useToast';
+import { twoFactorVerifySchema } from '../schemas/auth';
 
 export default function TwoFactorAuthModal({ isOpen, onClose }) {
     const { user, refreshUser } = useAuth();
@@ -60,6 +61,11 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
 
     const handleVerify = async (e) => {
         e.preventDefault();
+        const result = twoFactorVerifySchema.safeParse({ token: verifyCode });
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Invalid code');
+            return;
+        }
         setLoading(true);
         try {
             await authApi.verify2FA(setupData, verifyCode);

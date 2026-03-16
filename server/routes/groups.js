@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
+const { createGroupSchema, joinGroupSchema, updateGroupSchema, groupIdParamSchema, shareDeckSchema, createFolderSchema, createFileSchema, memberIdParamSchema } = require('../schemas/groups');
+const { handleValidationErrors } = require('../utils/validate');
 
 // Generate a group join code (e.g. RIV-4X2)
 function generateJoinCode() {
@@ -22,10 +24,8 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     router.use(authMiddleware);
 
     // 2. POST /api/groups - create a group
-    router.post('/', async (req, res) => {
+    router.post('/', createGroupSchema, handleValidationErrors, async (req, res) => {
         const { name, class_id } = req.body;
-
-        if (!name) return res.status(400).json({ error: 'Group name is required' });
 
         try {
             // Check if user is banned
@@ -89,7 +89,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 4. PUT /api/groups/:id - update group (admin only)
-    router.put('/:id', async (req, res) => {
+    router.put('/:id', updateGroupSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         const { name, class_id, regenerate_code } = req.body;
 
@@ -137,7 +137,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 5. DELETE /api/groups/:id - delete group (admin only)
-    router.delete('/:id', async (req, res) => {
+    router.delete('/:id', groupIdParamSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         try {
             // Verify admin status
@@ -159,11 +159,8 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 6. POST /api/groups/join - join via code
-    router.post('/join', async (req, res) => {
+    router.post('/join', joinGroupSchema, handleValidationErrors, async (req, res) => {
         const { join_code } = req.body;
-
-        if (!join_code) return res.status(400).json({ error: 'Join code is required' });
-
         const formattedCode = join_code.toUpperCase().trim();
 
         try {
@@ -199,7 +196,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 7. DELETE /api/groups/:id/leave - leave a group
-    router.delete('/:id/leave', async (req, res) => {
+    router.delete('/:id/leave', groupIdParamSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         try {
             // Check if they are the only admin
@@ -243,7 +240,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 9. DELETE /api/groups/:id/members/:userId - remove member (admin only)
-    router.delete('/:id/members/:userId', async (req, res) => {
+    router.delete('/:id/members/:userId', memberIdParamSchema, handleValidationErrors, async (req, res) => {
         const { id, userId } = req.params;
         try {
             // Verify admin status
@@ -278,11 +275,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 11. POST /api/groups/:id/decks - share a deck
-    router.post('/:id/decks', async (req, res) => {
+    router.post('/:id/decks', shareDeckSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         const { deck_id } = req.body;
-
-        if (!deck_id) return res.status(400).json({ error: 'Deck ID is required' });
 
         try {
             // Verify membership
@@ -325,7 +320,7 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 12. DELETE /api/groups/:id/decks/:deckId - remove deck
-    router.delete('/:id/decks/:deckId', async (req, res) => {
+    router.delete('/:id/decks/:deckId', groupIdParamSchema, handleValidationErrors, async (req, res) => {
         const { id, deckId } = req.params;
         try {
             // Verify membership & role
@@ -357,10 +352,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 14. POST /api/groups/:id/folders
-    router.post('/:id/folders', async (req, res) => {
+    router.post('/:id/folders', createFolderSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         const { name } = req.body;
-        if (!name) return res.status(400).json({ error: 'Folder name required' });
         try {
             const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member' });
@@ -423,10 +417,9 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
     });
 
     // 18. POST /api/groups/:id/files
-    router.post('/:id/files', async (req, res) => {
+    router.post('/:id/files', createFileSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         const { name, file_url, file_type, folder_id } = req.body;
-        if (!name || !file_url || !file_type) return res.status(400).json({ error: 'Missing file metadata' });
         try {
             const memberCheck = await db.queryOne('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [id, req.user.id]);
             if (!memberCheck) return res.status(403).json({ error: 'Not a member' });

@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
+import { themeNameSchema } from '../schemas/forms';
 import { motion as Motion } from 'motion/react';
 import gsap from 'gsap';
 import ThemeEditorModal from '../components/themes/ThemeEditorModal.jsx';
@@ -470,9 +471,10 @@ export default function ThemeSettings() {
 
     const handleSaveTheme = async (e) => {
         e.preventDefault();
-        if (!themeForm.name.trim()) {
+        const result = themeNameSchema.safeParse(themeForm.name.trim());
+        if (!result.success) {
             haptics.error();
-            toast.error('Identity required');
+            toast.error(result.error.errors[0]?.message || 'Identity required');
             return;
         }
         if (!editingTheme && !canCreateCustomThemes) {
@@ -481,12 +483,13 @@ export default function ThemeSettings() {
             return;
         }
         try {
+            const themePayload = { ...themeForm, name: result.data };
             if (editingTheme) {
-                await updateTheme(editingTheme.id, themeForm);
+                await updateTheme(editingTheme.id, themePayload);
                 haptics.success();
                 toast.success('Atmosphere refined');
             } else {
-                await addTheme(themeForm);
+                await addTheme(themePayload);
                 haptics.success();
                 toast.success('New atmosphere materialized');
             }

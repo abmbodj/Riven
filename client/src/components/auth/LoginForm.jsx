@@ -7,6 +7,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import AlertModal from '../AlertModal';
 import AuthLayout from './AuthLayout';
 import OAuthButtons from './OAuthButtons';
+import { loginSchema } from '../../schemas/auth';
 
 const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     const { signIn } = useAuth();
@@ -21,8 +22,10 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!form.email || !form.password) {
-            setAlert({ show: true, title: 'Missing Fields', message: 'Please fill in all fields', type: 'warning' });
+        const result = loginSchema.safeParse(form);
+        if (!result.success) {
+            const first = result.error.errors[0];
+            setAlert({ show: true, title: 'Validation Error', message: first?.message || 'Please check your input', type: 'warning' });
             return;
         }
 

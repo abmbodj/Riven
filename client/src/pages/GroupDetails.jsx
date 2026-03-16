@@ -4,6 +4,7 @@ import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Us
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '../hooks/useToast';
 import { api } from '../api';
+import { groupNameSchema, folderNameSchema, fileNameSchema } from '../schemas/forms';
 import ConfirmModal from '../components/ConfirmModal';
 import ReportModal from '../components/ui/ReportModal';
 import useHaptics from '../hooks/useHaptics';
@@ -218,10 +219,11 @@ export default function GroupDetails() {
 
     const handleUpdateGroup = async (e) => {
         e.preventDefault();
-        if (!editData.name.trim()) return toast.error('Name is required');
+        const result = groupNameSchema.safeParse(editData.name.trim());
+        if (!result.success) return toast.error(result.error.errors[0]?.message || 'Name is required');
 
         try {
-            await api.updateGroup(id, { name: editData.name, class_id: editData.class_id || null });
+            await api.updateGroup(id, { name: result.data, class_id: editData.class_id || null });
             toast.success('Group updated');
             setShowSettings(false);
 
@@ -361,9 +363,13 @@ export default function GroupDetails() {
 
     const handleCreateFolder = async (e) => {
         e.preventDefault();
-        if (!newFolderName.trim()) return;
+        const result = folderNameSchema.safeParse(newFolderName.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Folder name is required');
+            return;
+        }
         try {
-            await api.createGroupFolder(id, newFolderName.trim());
+            await api.createGroupFolder(id, result.data);
             toast.success('Folder created');
             setShowCreateFolderModal(false);
             setNewFolderName('');
@@ -394,7 +400,11 @@ export default function GroupDetails() {
 
     const handleUploadInitialSubmit = (e) => {
         e.preventDefault();
-        if (!uploadData.name.trim() || !uploadData.file) return toast.error('Name and file required');
+        const result = fileNameSchema.safeParse(uploadData.name.trim());
+        if (!result.success || !uploadData.file) {
+            toast.error(result.success ? 'File is required' : (result.error.errors[0]?.message || 'Name and file required'));
+            return;
+        }
         setUploadStep('ai_prompt');
     };
 

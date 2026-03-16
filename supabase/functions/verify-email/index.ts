@@ -2,7 +2,9 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { verifyEmailSchema } from '../_shared/validation.ts';
 
 const isLegacyTokenHash = (token: string) => /^[a-f0-9]{64}$/i.test(token);
 
@@ -33,16 +35,24 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
-    const { token } = await request.json().catch(() => ({}));
-    if (!token || typeof token !== 'string') {
-      return jsonResponse({ error: 'Token is required' }, { status: 400 }, request);
+    const body = await request.json().catch(() => ({}));
+    const parsed = verifyEmailSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonResponse(
+        { error: parsed.error.errors[0]?.message ?? 'Invalid request' },
+        { status: 400 },
+        request
+      );
     }
+    const { token } = parsed.data;
 
     const admin = getSupabaseAdmin();
     if (isLegacyTokenHash(token)) {

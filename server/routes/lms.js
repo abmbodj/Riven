@@ -1,18 +1,11 @@
+const { canvasConnectSchema } = require('../schemas/lms');
+const { handleValidationErrors } = require('../utils/validate');
+
 module.exports = function ({ app, db, authMiddleware }) {
 
     // 1. Save Canvas credentials (now just an iCal link)
-    app.post('/api/lms/canvas/connect', authMiddleware, async (req, res) => {
+    app.post('/api/lms/canvas/connect', authMiddleware, canvasConnectSchema, handleValidationErrors, async (req, res) => {
         const { icalUrl } = req.body;
-
-        if (!icalUrl || typeof icalUrl !== 'string') {
-            return res.status(400).json({ error: 'Canvas Calendar Link is required.' });
-        }
-
-        // Validate it looks like a Canvas iCal URL
-        // Allow any domain (like canvas.arcadia.edu) as long as it has the correct feed path
-        if (!icalUrl.includes('/feeds/calendars/')) {
-            return res.status(400).json({ error: 'Invalid link. Be sure it comes from your Canvas Calendar Feed.' });
-        }
 
         try {
             const ical = require('node-ical');

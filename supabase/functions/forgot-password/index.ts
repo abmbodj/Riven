@@ -3,7 +3,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { sendPasswordResetEmail } from '../_shared/email.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { forgotPasswordSchema } from '../_shared/validation.ts';
 
 const getAnonAuthClient = () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -38,16 +40,24 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
-    const { email } = await request.json().catch(() => ({}));
-    if (!email || typeof email !== 'string') {
-      return jsonResponse({ error: 'Email is required' }, { status: 400 }, request);
+    const body = await request.json().catch(() => ({}));
+    const parsed = forgotPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonResponse(
+        { error: parsed.error.errors[0]?.message ?? 'Invalid request' },
+        { status: 400 },
+        request
+      );
     }
+    const { email } = parsed.data;
 
     const normalizedEmail = email.trim().toLowerCase();
     const admin = getSupabaseAdmin();

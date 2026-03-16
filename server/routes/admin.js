@@ -1,3 +1,6 @@
+const { updateUserRoleSchema, createMessageSchema } = require('../schemas/admin');
+const { handleValidationErrors } = require('../utils/validate');
+
 module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
     async function adminMiddleware(req, res, next) {
         try {
@@ -51,13 +54,9 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
     });
 
     // Change a user's role (Owner only)
-    app.put('/api/admin/users/:id/role', authMiddleware, ownerMiddleware, async (req, res) => {
+    app.put('/api/admin/users/:id/role', authMiddleware, ownerMiddleware, updateUserRoleSchema, handleValidationErrors, async (req, res) => {
         const { id } = req.params;
         const { role } = req.body;
-
-        if (!['user', 'admin', 'friends'].includes(role)) {
-            return res.status(400).json({ error: 'Role must be "user", "admin", or "friends"' });
-        }
 
         try {
             const target = await db.queryOne('SELECT * FROM users WHERE id = $1', [id]);
@@ -249,20 +248,8 @@ module.exports = function registerAdminRoutes({ app, db, authMiddleware }) {
     });
 
     // Create a global message (admin)
-    app.post('/api/admin/messages', authMiddleware, adminMiddleware, async (req, res) => {
+    app.post('/api/admin/messages', authMiddleware, adminMiddleware, createMessageSchema, handleValidationErrors, async (req, res) => {
         const { title, content, type, expiresAt } = req.body;
-
-        if (!title || !content) {
-            return res.status(400).json({ error: 'Title and content are required' });
-        }
-
-        if (title.length > 100) {
-            return res.status(400).json({ error: 'Title must be under 100 characters' });
-        }
-
-        if (content.length > 1000) {
-            return res.status(400).json({ error: 'Content must be under 1000 characters' });
-        }
 
         const validTypes = ['info', 'warning', 'success', 'error'];
         const messageType = validTypes.includes(type) ? type : 'info';

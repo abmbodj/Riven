@@ -18,7 +18,9 @@ import {
 } from '../_shared/groupActionsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { createGroupSchema, joinGroupSchema } from '../_shared/validation.ts';
 
 type CreateGroupPayload = {
   name: string;
@@ -56,6 +58,8 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (!['POST', 'PUT', 'DELETE'].includes(request.method)) {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
@@ -106,10 +110,18 @@ serve(async (request) => {
     };
 
     if (request.method === 'POST' && action === 'group-create') {
+      const createParsed = createGroupSchema.safeParse(body);
+      if (!createParsed.success) {
+        return jsonResponse(
+          { error: createParsed.error.errors[0]?.message ?? 'Invalid group data' },
+          { status: 400 },
+          request
+        );
+      }
       const result = await createGroupAction({
         actorId: authUser.id,
-        name: body.name,
-        classId: body.class_id,
+        name: createParsed.data.name,
+        classId: createParsed.data.class_id ?? undefined,
         isActorBanned: loadUserBanState,
         isCodeTaken: async (joinCode: string) => {
           const { data, error } = await admin
@@ -226,9 +238,17 @@ serve(async (request) => {
     }
 
     if (request.method === 'POST' && action === 'group-join') {
+      const joinParsed = joinGroupSchema.safeParse(body);
+      if (!joinParsed.success) {
+        return jsonResponse(
+          { error: joinParsed.error.errors[0]?.message ?? 'Invalid join data' },
+          { status: 400 },
+          request
+        );
+      }
       const result = await joinGroupAction({
         actorId: authUser.id,
-        joinCode: body.join_code,
+        joinCode: joinParsed.data.join_code,
         isActorBanned: loadUserBanState,
         loadGroupByCode: async (joinCode: string) => {
           const { data, error } = await admin

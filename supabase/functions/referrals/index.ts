@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
+import { referralCodeSchema } from '../_shared/validation.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
 const REFERRAL_CODE_LENGTH = 8;
@@ -148,11 +150,7 @@ const getReferralInfo = async (userId: number) => {
   };
 };
 
-const applyReferralCode = async (userId: number, code: unknown) => {
-  const normalizedCode = typeof code === 'string' ? code.trim().toUpperCase() : '';
-  if (!normalizedCode) {
-    throw httpError(400, 'Referral code required');
-  }
+const applyReferralCode = async (userId: number, code: string) => {
 
   const admin = getSupabaseAdmin();
   const user = await getUser(userId);
@@ -168,7 +166,7 @@ const applyReferralCode = async (userId: number, code: unknown) => {
   const { data: referrer, error: referrerError } = await admin
     .from('users')
     .select('id')
-    .eq('referral_code', normalizedCode)
+    .eq('referral_code', code)
     .maybeSingle();
 
   if (referrerError) throw referrerError;
@@ -284,6 +282,8 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   try {
     const url = new URL(request.url);
@@ -296,7 +296,15 @@ serve(async (request) => {
     }
 
     if (action === 'apply') {
-      return jsonResponse(await applyReferralCode(authUser.id, body.code), {}, request);
+      const parsed = referralCodeSchema.safeParse(body.code);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Invalid referral code' },
+          { status: 400 },
+          request
+        );
+      }
+      return jsonResponse(await applyReferralCode(authUser.id, parsed.data), {}, request);
     }
 
     if (action === 'check-qualification') {

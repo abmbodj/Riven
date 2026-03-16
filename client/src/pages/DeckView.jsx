@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, BookOpen, Trash2, Plus, X, ArrowLeft, Pencil, Check, Folder, Calendar, Hash, FileText, Copy, Download, BarChart3, ChevronUp, ChevronDown, Share2, GripVertical } from 'lucide-react';
 import { api } from '../api';
+import { deckTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
@@ -307,9 +308,13 @@ export default function DeckView() {
     };
 
     const handleSaveDeck = async () => {
-        if (!editDeckData.title.trim()) return;
+        const result = deckTitleSchema.safeParse(editDeckData.title.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Title is required');
+            return;
+        }
         try {
-            await api.updateDeck(id, editDeckData.title, editDeckData.description, editDeckData.folder_id, editDeckData.tagIds, editDeckData.class_id);
+            await api.updateDeck(id, result.data, editDeckData.description, editDeckData.folder_id, editDeckData.tagIds, editDeckData.class_id);
             setEditingDeck(false);
             toast.success('Deck saved');
             loadDeck();

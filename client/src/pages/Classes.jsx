@@ -11,6 +11,7 @@ import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
+import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
 
 const CLASS_COLORS = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -145,19 +146,21 @@ export default function Classes() {
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!formData.name.trim()) {
-            toast.error('Class name is required');
+        const result = classNameSchema.safeParse(formData.name.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Class name is required');
             return;
         }
+        const validatedName = result.data;
 
         try {
             let savedClassId;
             if (editingClass) {
-                await api.updateClass(editingClass.id, formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                await api.updateClass(editingClass.id, validatedName, formData.color, formData.professor, formData.room, formData.zoom_link);
                 savedClassId = editingClass.id;
                 toast.success('Class updated');
             } else {
-                const newClass = await api.createClass(formData.name, formData.color, formData.professor, formData.room, formData.zoom_link);
+                const newClass = await api.createClass(validatedName, formData.color, formData.professor, formData.room, formData.zoom_link);
                 savedClassId = newClass?.id;
                 toast.success('Class created');
             }
@@ -274,14 +277,15 @@ export default function Classes() {
     };
 
     const handleCanvasConnect = async () => {
-        if (!canvasFormUrl.trim()) {
-            toast.error('Please enter a valid Canvas link.');
+        const result = canvasIcalUrlSchema.safeParse(canvasFormUrl.trim());
+        if (!result.success) {
+            toast.error(result.error.errors[0]?.message || 'Please enter a valid Canvas link.');
             return;
         }
 
         setCanvasStatus(prev => ({ ...prev, loading: true }));
         try {
-            await api.connectCanvas(canvasFormUrl);
+            await api.connectCanvas(result.data);
             setCanvasStatus(prev => ({ ...prev, isConnected: true, url: 'Canvas Feed Active', loading: false }));
             setCanvasFormUrl('');
             toast.success('Canvas connected! Beginning initial sync...');

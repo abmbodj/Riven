@@ -11,6 +11,7 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import PricingModal from '../components/ui/PricingModal';
+import { canvasIcalUrlSchema, referralCodeSchema } from '../schemas/forms';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -200,30 +201,24 @@ export default function Settings() {
     }, []);
 
     const handleConnectCanvas = async () => {
-        // Strict empty field validation based on user rule
-        const errors = {
-            url: !canvasForm.url.trim()
-        };
-
-        setFormErrors(errors);
-
-        if (errors.url) {
+        const result = canvasIcalUrlSchema.safeParse(canvasForm.url.trim());
+        if (!result.success) {
+            const msg = result.error.errors[0]?.message || 'Invalid Canvas link';
+            setFormErrors({ url: true });
             haptics.error();
-            toast.error('Please fill in the Calendar Link');
+            toast.error(msg);
             setCanvasNotice({
                 tone: 'error',
                 title: 'Canvas feed required',
-                detail: 'Paste the read-only .ics Calendar Feed link before connecting.'
+                detail: msg
             });
-
-            // Clear errors after animation
             setTimeout(() => setFormErrors({ url: false }), 2000);
             return;
         }
 
         setConnectingCanvas(true);
         try {
-            const submittedUrl = canvasForm.url.trim();
+            const submittedUrl = result.data;
             await api.connectCanvas(submittedUrl);
             toast.success('Canvas connected successfully!');
             haptics.success();
@@ -894,10 +889,14 @@ function ReferralCard() {
     };
 
     const handleApply = async () => {
-        if (!applyCode.trim()) return;
+        const result = referralCodeSchema.safeParse(applyCode.trim());
+        if (!result.success) {
+            toast(result.error.errors[0]?.message || 'Invalid referral code');
+            return;
+        }
         setApplying(true);
         try {
-            await api.applyReferralCode(applyCode.trim());
+            await api.applyReferralCode(result.data);
             toast('Referral code applied!');
             setApplyCode('');
             setReferralNotice({

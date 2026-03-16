@@ -1,3 +1,6 @@
+const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, changePasswordSchema, twoFactorVerifySchema } = require('../schemas/auth');
+const { handleValidationErrors } = require('../utils/validate');
+
 module.exports = function registerAuthRoutes({
     app,
     db,
@@ -133,21 +136,8 @@ module.exports = function registerAuthRoutes({
     };
 
     // Register
-    app.post('/api/auth/register', speedLimiter, authLimiter, async (req, res) => {
+    app.post('/api/auth/register', speedLimiter, authLimiter, registerSchema, handleValidationErrors, async (req, res) => {
         const { username, email, password } = req.body;
-
-        if (!username || !email || !password) {
-            return res.status(400).json({ error: 'All fields are required' });
-        }
-        if (!isValidEmail(email)) {
-            return res.status(400).json({ error: 'Invalid email format' });
-        }
-        if (!isValidUsername(username)) {
-            return res.status(400).json({ error: 'Username must be 2-30 characters, alphanumeric and underscores only' });
-        }
-        if (password.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
 
         try {
             const existingEmail = await db.queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -264,11 +254,8 @@ module.exports = function registerAuthRoutes({
     });
 
     // Login (via email or username)
-    app.post('/api/auth/login', speedLimiter, authLimiter, async (req, res) => {
+    app.post('/api/auth/login', speedLimiter, authLimiter, loginSchema, handleValidationErrors, async (req, res) => {
         const { email, password } = req.body; // 'email' holds either email or username
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email/Username and password are required' });
-        }
 
         try {
             const user = await db.queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)', [email]);
@@ -516,7 +503,7 @@ module.exports = function registerAuthRoutes({
     });
 
     // 2FA Verify (Enable)
-    app.post('/api/auth/2fa/verify', authMiddleware, async (req, res) => {
+    app.post('/api/auth/2fa/verify', authMiddleware, twoFactorVerifySchema, handleValidationErrors, async (req, res) => {
         let { token } = req.body;
         if (token) token = token.toString().trim();
 
@@ -666,14 +653,8 @@ module.exports = function registerAuthRoutes({
     });
 
     // Change password
-    app.put('/api/auth/password', authMiddleware, async (req, res) => {
+    app.put('/api/auth/password', authMiddleware, changePasswordSchema, handleValidationErrors, async (req, res) => {
         const { currentPassword, newPassword } = req.body;
-        if (!newPassword) {
-            return res.status(400).json({ error: 'Current and new password are required' });
-        }
-        if (newPassword.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
 
         try {
             const supabaseSession = getSupabaseSessionToken(req);
@@ -865,9 +846,8 @@ module.exports = function registerAuthRoutes({
     const { sendPasswordResetEmail, sendEmailVerification, sendWelcomeEmail } = require('../utils/email');
 
     // Request password reset
-    app.post('/api/auth/forgot-password', speedLimiter, passwordResetLimiter, async (req, res) => {
+    app.post('/api/auth/forgot-password', speedLimiter, passwordResetLimiter, forgotPasswordSchema, handleValidationErrors, async (req, res) => {
         const { email } = req.body;
-        if (!email) return res.status(400).json({ error: 'Email is required' });
 
         try {
             // Always return success to prevent email enumeration
@@ -919,10 +899,8 @@ module.exports = function registerAuthRoutes({
     });
 
     // Reset password with token
-    app.post('/api/auth/reset-password', speedLimiter, passwordResetLimiter, async (req, res) => {
+    app.post('/api/auth/reset-password', speedLimiter, passwordResetLimiter, resetPasswordSchema, handleValidationErrors, async (req, res) => {
         const { token, password } = req.body;
-        if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
-        if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
         try {
             const resetRecord = await db.queryOne(
@@ -1023,9 +1001,8 @@ module.exports = function registerAuthRoutes({
     });
 
     // Verify email with token
-    app.post('/api/auth/verify-email', async (req, res) => {
+    app.post('/api/auth/verify-email', verifyEmailSchema, handleValidationErrors, async (req, res) => {
         const { token } = req.body;
-        if (!token) return res.status(400).json({ error: 'Token is required' });
 
         try {
             const record = await db.queryOne(

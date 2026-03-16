@@ -3,7 +3,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { hash } from 'https://esm.sh/bcryptjs@2.4.3';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { resetPasswordSchema } from '../_shared/validation.ts';
 
 const isLegacyTokenHash = (token: string) => /^[a-f0-9]{64}$/i.test(token);
 
@@ -64,20 +66,24 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'default');
+  if (rl) return rl;
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
-    const { token, password } = await request.json().catch(() => ({}));
-    if (!token || !password || typeof token !== 'string' || typeof password !== 'string') {
-      return jsonResponse({ error: 'Token and new password are required' }, { status: 400 }, request);
+    const body = await request.json().catch(() => ({}));
+    const parsed = resetPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonResponse(
+        { error: parsed.error.errors[0]?.message ?? 'Invalid request' },
+        { status: 400 },
+        request
+      );
     }
-
-    if (password.length < 8) {
-      return jsonResponse({ error: 'Password must be at least 8 characters' }, { status: 400 }, request);
-    }
+    const { token, password } = parsed.data;
 
     if (isLegacyTokenHash(token)) {
       const admin = getSupabaseAdmin();

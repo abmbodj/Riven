@@ -18,6 +18,7 @@ import {
   updateAdminUserRole,
 } from '../_shared/admin.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
 
 const parseId = (value: unknown, label: string) => {
   const parsed = Number(value);
@@ -35,6 +36,8 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
+  const rl = await checkRateLimit(request, 'admin');
+  if (rl) return rl;
 
   if (!['GET', 'POST', 'PUT', 'DELETE'].includes(request.method)) {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);

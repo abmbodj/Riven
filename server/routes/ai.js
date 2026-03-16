@@ -1,6 +1,8 @@
 const express = require('express');
 const { GoogleGenAI } = require('@google/genai');
 const mammoth = require('mammoth');
+const { generateDeckSchema, generateClassSchema } = require('../schemas/ai');
+const { handleValidationErrors } = require('../utils/validate');
 
 module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator }) {
 
@@ -89,7 +91,7 @@ module.exports = function ({ app, db, authMiddleware, rateLimit, ipKeyGenerator 
     });
 
     // Generate Flashcards Deck from Notes or File
-    app.post('/api/ai/generate-deck', authMiddleware, checkAndConsumeAILimit, async (req, res) => {
+    app.post('/api/ai/generate-deck', authMiddleware, checkAndConsumeAILimit, generateDeckSchema, handleValidationErrors, async (req, res) => {
         try {
             const { notes, file, deckName, classId } = req.body;
 
@@ -246,7 +248,7 @@ Example JSON format:
     });
 
     // Generate Class from Syllabus
-    app.post('/api/ai/generate-class', authMiddleware, checkAndConsumeAILimit, async (req, res) => {
+    app.post('/api/ai/generate-class', authMiddleware, checkAndConsumeAILimit, generateClassSchema, handleValidationErrors, async (req, res) => {
         try {
             const { file, notes } = req.body;
 
