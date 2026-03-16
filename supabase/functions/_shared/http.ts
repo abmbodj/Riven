@@ -1,14 +1,16 @@
 const ALLOWED_ORIGINS = [
-  Deno.env.get('FRONTEND_URL') || 'https://riven.rocks',
+  Deno.env.get('FRONTEND_URL'),
   Deno.env.get('CLIENT_URL'),
+  'https://riven.rocks',
+  'https://www.riven.rocks',
   'https://riven-virid.vercel.app',
   'capacitor://localhost',
   'http://localhost:5173',
   'http://localhost:3000',
-].filter(Boolean) as string[];
+].filter(Boolean).map((o) => (o as string).replace(/\/+$/, '')) as string[];
 
 export function getCorsHeaders(req?: Request): Record<string, string> {
-  const origin = req?.headers?.get('origin') ?? '';
+  const origin = (req?.headers?.get('origin') ?? '').replace(/\/+$/, '');
   const isAllowed =
     ALLOWED_ORIGINS.some((o) => origin === o) ||
     origin.endsWith('.vercel.app');
