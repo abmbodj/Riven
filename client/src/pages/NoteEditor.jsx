@@ -2,13 +2,31 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown
+    ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown,
+    Mic, Sparkles, AlertCircle
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
+import useAudioRecorder from '../hooks/useAudioRecorder';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+
+function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function WaveformBars() {
+    return (
+        <div className="waveform-bars" aria-hidden="true">
+            <div className="waveform-bar" />
+            <div className="waveform-bar" />
+            <div className="waveform-bar" />
+        </div>
+    );
+}
 
 export default function NoteEditor() {
     const { id } = useParams();
@@ -20,6 +38,7 @@ export default function NoteEditor() {
     const [noteId, setNoteId] = useState(isNew ? null : id);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState(null);
+    const [enhancedContent, setEnhancedContent] = useState(null);
     const [classId, setClassId] = useState(searchParams.get('classId') || null);
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(!isNew);
@@ -32,9 +51,18 @@ export default function NoteEditor() {
     // AI generation states
     const [generating, setGenerating] = useState(null); // 'flashcards' | 'guide' | 'exam' | null
 
+    // Audio & enhancement states
+    const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
+    const [enhancing, setEnhancing] = useState(false);
+    const [enhanceError, setEnhanceError] = useState(null);
+    const [viewMode, setViewMode] = useState('original'); // 'original' | 'enhanced'
+    const [audioPath, setAudioPath] = useState(null);
+
     const saveTimerRef = useRef(null);
     const contentRef = useRef(content);
     const titleRef = useRef(title);
+
+    const recorder = useAudioRecorder(noteId);
 
     // Load note data
     useEffect(() => {
@@ -48,8 +76,14 @@ export default function NoteEditor() {
                     setTitle(note.title || '');
                     setContent(note.content || {});
                     setClassId(note.class_id || null);
+                    setAudioPath(note.audio_url || null);
                     titleRef.current = note.title || '';
                     contentRef.current = note.content || {};
+
+                    if (note.enhanced_content) {
+                        setEnhancedContent(note.enhanced_content);
+                        setViewMode('enhanced');
+                    }
                 }
             } catch (err) {
                 toast.error('Failed to load note');
@@ -60,6 +94,13 @@ export default function NoteEditor() {
         };
         load();
     }, [id, isNew, navigate, toast]);
+
+    // Show enhance banner when recording stops
+    useEffect(() => {
+        if (recorder.state === 'stopped') {
+            setShowEnhanceBanner(true);
+        }
+    }, [recorder.state]);
 
     // Auto-save with debounce
     const saveNote = useCallback(async () => {
@@ -135,8 +176,85 @@ export default function NoteEditor() {
         return texts.join('\n');
     };
 
+    // ─── Audio recording ───
+
+    const handleMicToggle = async () => {
+        if (recorder.state === 'recording') {
+            recorder.stop();
+        } else if (recorder.state === 'idle' || recorder.state === 'error') {
+            // Ensure note is saved before recording (need a noteId for storage path)
+            if (!noteId) {
+                setSaving(true);
+                try {
+                    const newNote = await api.createNote(
+                        titleRef.current || 'Untitled',
+                        contentRef.current || {},
+                        classId
+                    );
+                    setNoteId(newNote.id);
+                    window.history.replaceState(null, '', `/note/${newNote.id}`);
+                    setSaved(true);
+                } catch {
+                    toast.error('Save note before recording');
+                    setSaving(false);
+                    return;
+                }
+                setSaving(false);
+            }
+            recorder.start();
+        }
+    };
+
+    const handleEnhance = async () => {
+        const blob = recorder.getBlob();
+        if (!blob || !noteId) return;
+
+        setEnhancing(true);
+        setEnhanceError(null);
+        recorder.setProcessingState('uploading');
+
+        try {
+            // Upload audio to Supabase Storage
+            const uploadResult = await api.uploadNoteAudio(noteId, blob);
+            const storagePath = uploadResult.path;
+            setAudioPath(storagePath);
+
+            recorder.setProcessingState('processing');
+
+            // Extract user notes for mode detection
+            const userNotes = extractText(contentRef.current).trim() || null;
+
+            // Call enhance edge function
+            const result = await api.enhanceNoteWithAudio(
+                noteId,
+                storagePath,
+                userNotes,
+                titleRef.current || 'Untitled'
+            );
+
+            setEnhancedContent(result.enhanced_content);
+            setViewMode('enhanced');
+            setShowEnhanceBanner(false);
+            recorder.setProcessingState('complete');
+            toast.success('Notes enhanced with AI');
+        } catch (err) {
+            recorder.setProcessingState('error');
+            if (err.status === 429) {
+                setShowPricingModal(true);
+            } else {
+                setEnhanceError(err.message || 'Enhancement failed');
+            }
+        } finally {
+            setEnhancing(false);
+        }
+    };
+
+    // ─── AI generation handlers ───
+
     const handleGenerateFlashcards = async () => {
-        const text = extractText(contentRef.current);
+        // Use enhanced content if viewing it, otherwise original
+        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('flashcards');
@@ -153,7 +271,8 @@ export default function NoteEditor() {
     };
 
     const handleGenerateGuide = async () => {
-        const text = extractText(contentRef.current);
+        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('guide');
@@ -170,7 +289,8 @@ export default function NoteEditor() {
     };
 
     const handleGenerateExam = async () => {
-        const text = extractText(contentRef.current);
+        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('exam');
@@ -204,6 +324,14 @@ export default function NoteEditor() {
     );
 
     const selectedClass = classes.find(c => c.id === classId);
+    const isRecording = recorder.state === 'recording';
+    const micDisabled = enhancing || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
+
+    const micLabel = isRecording
+        ? `Stop recording (${formatDuration(recorder.duration)})`
+        : recorder.state === 'uploading' ? 'Uploading audio'
+        : recorder.state === 'processing' ? 'Enhancing notes'
+        : 'Record lecture';
 
     return (
         <div className="relative min-h-screen pb-32">
@@ -237,6 +365,40 @@ export default function NoteEditor() {
                             </span>
                         </div>
 
+                        {/* Mic button */}
+                        <button
+                            onClick={handleMicToggle}
+                            disabled={micDisabled}
+                            aria-label={micLabel}
+                            className={`relative p-2 transition-all tap-action disabled:opacity-50 ${
+                                isRecording
+                                    ? 'text-claude-accent ring-2 ring-claude-accent/30 rounded-full'
+                                    : 'text-claude-secondary hover:text-claude-accent'
+                            }`}
+                        >
+                            {isRecording ? (
+                                <WaveformBars />
+                            ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Mic className="w-4 h-4" />
+                            )}
+                        </button>
+
+                        {/* Duration counter (during recording) */}
+                        <AnimatePresence>
+                            {isRecording && (
+                                <motion.span
+                                    initial={{ opacity: 0, x: -4 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -4 }}
+                                    className="text-[9px] font-mono text-claude-accent tabular-nums"
+                                >
+                                    {formatDuration(recorder.duration)}
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+
                         <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
                             <Trash2 className="w-4 h-4" />
                         </button>
@@ -246,6 +408,138 @@ export default function NoteEditor() {
 
             {/* Editor Area */}
             <div className="max-w-3xl mx-auto px-4 pt-6">
+                {/* Recovery banner */}
+                <AnimatePresence>
+                    {recorder.hasRecoveryData && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className="mb-4 p-3 rounded-xl glass-panel border border-claude-border flex items-center justify-between gap-3"
+                        >
+                            <div className="flex items-center gap-2 text-claude-secondary">
+                                <AlertCircle className="w-4 h-4 text-claude-accent shrink-0" />
+                                <span className="text-[11px] font-mono">Unfinished recording found</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={async () => {
+                                        await recorder.recoverAudio();
+                                        setShowEnhanceBanner(true);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors tap-action"
+                                >
+                                    Recover
+                                </button>
+                                <button
+                                    onClick={() => recorder.discardRecovery()}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary hover:text-red-400 transition-colors tap-action"
+                                >
+                                    Discard
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Enhancement banner */}
+                <AnimatePresence>
+                    {showEnhanceBanner && !enhancedContent && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className="mb-4 p-3 rounded-xl glass-panel border border-claude-accent/20 flex items-center justify-between gap-3"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-claude-accent shrink-0" />
+                                <span className="text-[11px] font-mono text-claude-text">
+                                    {recorder.duration < 10
+                                        ? 'Recording may be too short for reliable notes'
+                                        : 'Lecture captured \u2014 Enhance your notes with AI'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleEnhance}
+                                    disabled={enhancing}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-claude-accent text-claude-bg hover:bg-claude-accent/90 transition-colors tap-action disabled:opacity-50"
+                                >
+                                    {enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                    Enhance
+                                </button>
+                                <button
+                                    onClick={() => setShowEnhanceBanner(false)}
+                                    className="p-1 text-claude-secondary hover:text-claude-text transition-colors tap-action"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Enhancement error banner */}
+                <AnimatePresence>
+                    {enhanceError && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className="mb-4 p-3 rounded-xl glass-panel border border-red-400/20 flex items-center justify-between gap-3"
+                        >
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                                <span className="text-[11px] font-mono text-claude-text">
+                                    Enhancement failed. Your notes are saved.
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleEnhance}
+                                    disabled={enhancing}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider text-claude-accent hover:bg-claude-accent/10 transition-colors tap-action"
+                                >
+                                    Retry
+                                </button>
+                                <button
+                                    onClick={() => setEnhanceError(null)}
+                                    className="p-1 text-claude-secondary hover:text-claude-text transition-colors tap-action"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* View mode toggle (when enhanced content exists) */}
+                {enhancedContent && (
+                    <div className="mb-4 flex items-center gap-1">
+                        <button
+                            onClick={() => setViewMode('enhanced')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors tap-action ${
+                                viewMode === 'enhanced'
+                                    ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/30'
+                                    : 'text-claude-secondary hover:text-claude-text border border-transparent'
+                            }`}
+                        >
+                            <Sparkles className="w-3 h-3" />
+                            AI Enhanced
+                        </button>
+                        <button
+                            onClick={() => setViewMode('original')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors tap-action ${
+                                viewMode === 'original'
+                                    ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/30'
+                                    : 'text-claude-secondary hover:text-claude-text border border-transparent'
+                            }`}
+                        >
+                            My Notes
+                        </button>
+                    </div>
+                )}
+
                 {/* Class picker */}
                 <div className="mb-4 relative">
                     <button
@@ -298,13 +592,23 @@ export default function NoteEditor() {
                     className="w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none mb-2 tracking-tight leading-tight"
                 />
 
-                {/* Tiptap Editor */}
-                <TiptapEditor
-                    content={content}
-                    onUpdate={handleContentUpdate}
-                    editable={true}
-                    placeholder="Start writing, or type / for commands..."
-                />
+                {/* Tiptap Editor — switches between original and enhanced */}
+                {viewMode === 'enhanced' && enhancedContent ? (
+                    <TiptapEditor
+                        key="enhanced"
+                        content={enhancedContent}
+                        editable={false}
+                        placeholder=""
+                    />
+                ) : (
+                    <TiptapEditor
+                        key="original"
+                        content={content}
+                        onUpdate={handleContentUpdate}
+                        editable={true}
+                        placeholder="Start writing, or type / for commands..."
+                    />
+                )}
             </div>
 
             {/* AI Actions — Fixed bottom bar */}

@@ -1042,6 +1042,22 @@ export const deleteNote = async (id) => {
     return { message: 'Note deleted' };
 };
 
+export const uploadNoteAudio = async (noteId, audioBlob) => {
+    const userId = await getAppUserId();
+    const path = `${userId}/${noteId}.webm`;
+    const { error } = await supabase.storage
+        .from('note-audio')
+        .upload(path, audioBlob, {
+            contentType: 'audio/webm',
+            upsert: true,
+        });
+    if (error) _sbThrow(error);
+    return { path };
+};
+
+export const enhanceNoteWithAudio = (noteId, audioPath, userNotes, title) =>
+    edgeFunctionFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title } });
+
 // --- Study Guides (PostgREST) ---
 
 export const getStudyGuides = async (classId) => {

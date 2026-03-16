@@ -132,6 +132,12 @@ export const api = {
     deleteNote: (id) => isLoggedIn()
         ? serverApi.deleteNote(id)
         : Promise.reject(new Error('Must be logged in to delete notes')),
+    uploadNoteAudio: (noteId, audioBlob) => isLoggedIn()
+        ? serverApi.uploadNoteAudio(noteId, audioBlob)
+        : Promise.reject(new Error('Must be logged in to upload audio')),
+    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title)
+        : Promise.reject(new Error('Must be logged in to enhance notes')),
 
     // ============ STUDY GUIDES ============
     getStudyGuides: (classId) => isLoggedIn()
