@@ -78,6 +78,13 @@ const isSupabaseAccessToken = (token) => {
     return audience.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
 };
 
+const isJwtExpired = (token) => {
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') return false;
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    return payload.exp <= nowInSeconds;
+};
+
 const shouldForceReauthFromEdgeError = (status, message) => {
     if (status !== 401) return false;
     const normalized = String(message || '').toLowerCase();
@@ -290,7 +297,7 @@ const safeFetchObject = async (promise, defaultVal = {}) => {
 const completeRegistration = async (username) => {
     return edgeFunctionFetch('complete-registration', {
         method: 'POST',
-        body: JSON.stringify({ username }),
+        body: { username },
     });
 };
 
@@ -684,11 +691,30 @@ const resolveCurrentUser = async (currentUserOverride = null) => {
 // Call this on app startup to ensure the token is up to date.
 export const refreshSupabaseToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-        setToken(session.access_token);
-        return session.access_token;
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+        return null;
     }
-    return null;
+
+    // Guard against stale or malformed persisted sessions before any edge call.
+    if (!isSupabaseAccessToken(accessToken) || isJwtExpired(accessToken)) {
+        await supabase.auth.signOut().catch(() => {});
+        setToken(null);
+        return null;
+    }
+
+    const getUser = supabase?.auth?.getUser;
+    if (typeof getUser === 'function') {
+        const { data, error } = await getUser(accessToken).catch(() => ({ data: { user: null }, error: new Error('Failed to validate session') }));
+        if (error || !data?.user?.id) {
+            await supabase.auth.signOut().catch(() => {});
+            setToken(null);
+            return null;
+        }
+    }
+
+    setToken(accessToken);
+    return accessToken;
 };
 
 export const changePassword = async (_currentPassword, newPassword) => {
