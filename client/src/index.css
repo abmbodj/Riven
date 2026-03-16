@@ -559,7 +559,7 @@
     box-shadow: none;
   }
 
-  /* Rotating liquid-metal conic gradient — sits behind the inner disc */
+  /* Rotating liquid-metal conic gradient — chrome/silver ring */
   .mobile-fab-button::before {
     content: '';
     position: absolute;
@@ -567,21 +567,23 @@
     border-radius: 50%;
     background: conic-gradient(
       from 0deg,
-      rgba(222, 185, 106, 0.12) 0deg,
-      #deb96a 45deg,
-      #f5d98a 90deg,
-      #deb96a 120deg,
-      rgba(160, 120, 48, 0.2) 180deg,
-      rgba(222, 185, 106, 0.08) 220deg,
-      #a07830 270deg,
-      #deb96a 315deg,
-      rgba(222, 185, 106, 0.12) 360deg
+      rgba(48, 52, 60, 0.9) 0deg,
+      #ffffff 40deg,
+      #e8ecf0 70deg,
+      #a8b0b8 100deg,
+      #687078 140deg,
+      rgba(32, 36, 42, 0.95) 180deg,
+      #505860 220deg,
+      #9098a0 260deg,
+      #d0d4d8 300deg,
+      #ffffff 340deg,
+      rgba(48, 52, 60, 0.9) 360deg
     );
     animation: liquidMetalSpin 3s linear infinite;
     z-index: 0;
   }
 
-  /* Inner disc that masks the gradient into a ring, holds the button face */
+  /* Inner disc — masks gradient to ring, holds button face */
   .mobile-fab-button::after {
     content: '';
     position: absolute;
