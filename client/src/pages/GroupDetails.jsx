@@ -424,8 +424,13 @@ export default function GroupDetails() {
             const publicUrl = urlData?.publicUrl;
             if (!publicUrl) throw new Error('Could not get public URL');
 
+            const originalExt = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+            const nameToSave = originalExt && !uploadData.name.toLowerCase().endsWith(`.${originalExt}`)
+                ? `${uploadData.name}.${originalExt}`
+                : uploadData.name;
+
             await api.uploadGroupFile(id, {
-                name: uploadData.name,
+                name: nameToSave,
                 file_url: publicUrl,
                 file_type: uploadData.file_type || file.type || 'application/octet-stream',
                 folder_id: currentFolderId

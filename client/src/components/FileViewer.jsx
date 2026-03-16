@@ -59,7 +59,7 @@ function getExtension(file) {
 }
 
 function normalizeMime(file) {
-    const rawType = String(file?.mimeType || file?.contentType || file?.type || '').toLowerCase();
+    const rawType = String(file?.mimeType || file?.contentType || file?.type || file?.file_type || '').toLowerCase();
     if (rawType === 'image') return 'image/*';
     if (rawType === 'pdf') return 'application/pdf';
     if (rawType === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
