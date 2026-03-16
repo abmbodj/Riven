@@ -66,6 +66,7 @@ test-results/
 _agents/
 _agent/
 brain/
+.claude/
 # Only ignore media that is likely agent recordings or temporary browser captures
 # Re-including project assets manually if they were caught by a broad rule
 # But better to just ignore the specific brain/ directory and recordings
