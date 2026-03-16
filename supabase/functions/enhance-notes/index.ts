@@ -130,7 +130,6 @@ serve(async (request) => {
     };
     const audioMimeType = mimeMap[ext] || 'audio/webm';
 
-    // Upload to Gemini File API
     const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
     if (!apiKey) {
       throw createHttpError('AI integration is not configured on the server.', 500);
@@ -138,50 +137,72 @@ serve(async (request) => {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const uploadedFile = await ai.files.upload({
-      file: new Blob([audioUint8], { type: audioMimeType }),
-      config: {
-        mimeType: audioMimeType,
-        displayName: `lecture-${noteId}`,
-      },
-    });
-
-    // Wait for file to be processed (max 120s to stay within edge function timeout)
-    const MAX_WAIT_MS = 120_000;
-    const POLL_INTERVAL_MS = 3_000;
-    const startWait = Date.now();
-
-    let file = uploadedFile;
-    while (file.state === 'PROCESSING') {
-      if (Date.now() - startWait > MAX_WAIT_MS) {
-        ai.files.delete({ name: file.name! }).catch(() => {});
-        throw createHttpError('Audio processing timed out. Try a shorter recording or retry.', 504);
-      }
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-      file = await ai.files.get({ name: file.name! });
-    }
-
-    if (file.state === 'FAILED') {
-      throw createHttpError('Audio processing failed. Please try again.', 500);
-    }
-
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
     const systemPrompt = isEnhanceMode
       ? buildEnhancePrompt(userNotes)
       : GENERATE_PROMPT;
 
-    // Call Gemini with audio file reference
+    const INLINE_DATA_LIMIT = 20 * 1024 * 1024; // 20MB
+    const useInlineData = audioUint8.byteLength < INLINE_DATA_LIMIT;
+
+    let geminiFileName: string | null = null;
+    let audioContent: Record<string, unknown>;
+
+    if (useInlineData) {
+      // Small files: send directly as base64 inline data (no upload/polling overhead)
+      const base64Audio = btoa(
+        audioUint8.reduce((data, byte) => data + String.fromCharCode(byte), ''),
+      );
+      audioContent = {
+        inlineData: {
+          data: base64Audio,
+          mimeType: audioMimeType,
+        },
+      };
+    } else {
+      // Large files (>20MB): use Gemini File API with upload + polling
+      const uploadedFile = await ai.files.upload({
+        file: new Blob([audioUint8], { type: audioMimeType }),
+        config: {
+          mimeType: audioMimeType,
+          displayName: `lecture-${noteId}`,
+        },
+      });
+
+      const MAX_WAIT_MS = 120_000;
+      const POLL_INTERVAL_MS = 3_000;
+      const startWait = Date.now();
+
+      let file = uploadedFile;
+      while (file.state === 'PROCESSING') {
+        if (Date.now() - startWait > MAX_WAIT_MS) {
+          ai.files.delete({ name: file.name! }).catch(() => {});
+          throw createHttpError('Audio processing timed out. Try a shorter recording or retry.', 504);
+        }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        file = await ai.files.get({ name: file.name! });
+      }
+
+      if (file.state === 'FAILED') {
+        throw createHttpError('Audio processing failed. Please try again.', 500);
+      }
+
+      geminiFileName = file.name!;
+      audioContent = {
+        fileData: {
+          fileUri: file.uri!,
+          mimeType: audioMimeType,
+        },
+      };
+    }
+
+    // Call Gemini with audio
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
         { text: systemPrompt },
-        {
-          fileData: {
-            fileUri: file.uri!,
-            mimeType: audioMimeType,
-          },
-        },
+        audioContent,
       ],
     });
 
@@ -207,8 +228,10 @@ serve(async (request) => {
 
     if (updateError) throw updateError;
 
-    // Cleanup: delete files from Gemini and Supabase Storage (fire-and-forget)
-    ai.files.delete({ name: file.name! }).catch(() => {});
+    // Cleanup: delete files from Gemini (if used) and Supabase Storage
+    if (geminiFileName) {
+      ai.files.delete({ name: geminiFileName }).catch(() => {});
+    }
     admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
     return jsonResponse(

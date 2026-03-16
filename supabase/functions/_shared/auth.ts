@@ -82,5 +82,12 @@ export const resolveSupabaseUser = async (request: Request) => {
     throw error;
   }
 
+  // Link supabase_auth_id so RLS get_app_user_id() works for future queries
+  await admin
+    .from('users')
+    .update({ supabase_auth_id: data.user.id })
+    .eq('id', emailUser.id)
+    .is('supabase_auth_id', null);
+
   return { id: emailUser.id, authId: data.user.id };
 };

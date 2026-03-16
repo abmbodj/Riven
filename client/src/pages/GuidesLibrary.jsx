@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload
+    BookOpen, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, Check
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -82,7 +82,7 @@ export default function GuidesLibrary() {
 
     // Generate form
     const [genSource, setGenSource] = useState('note'); // 'note' | 'file'
-    const [selectedNote, setSelectedNote] = useState(null);
+    const [selectedNotes, setSelectedNotes] = useState([]);
     const [genFile, setGenFile] = useState(null);
     const [genTitle, setGenTitle] = useState('');
 
@@ -132,23 +132,35 @@ export default function GuidesLibrary() {
         return texts.join('\n');
     };
 
+    const toggleNoteSelection = (noteId) => {
+        setSelectedNotes(prev =>
+            prev.includes(noteId)
+                ? prev.filter(id => id !== noteId)
+                : [...prev, noteId]
+        );
+    };
+
     const handleGenerate = async () => {
         let noteText = '';
         let file = null;
         let noteId = null;
         let classId = null;
 
-        if (genSource === 'note' && selectedNote) {
-            const note = notes.find(n => n.id === selectedNote);
-            if (!note) { toast.error('Select a note'); return; }
-            noteText = extractTextFromNote(note);
-            noteId = note.id;
-            classId = note.class_id;
-            if (!noteText.trim()) { toast.error('Selected note is empty'); return; }
+        if (genSource === 'note' && selectedNotes.length > 0) {
+            const selected = selectedNotes.map(id => notes.find(n => n.id === id)).filter(Boolean);
+            if (selected.length === 0) { toast.error('Select at least one note'); return; }
+            noteText = selected.map(note => {
+                const title = note.title || 'Untitled';
+                const text = extractTextFromNote(note);
+                return `--- ${title} ---\n${text}`;
+            }).join('\n\n');
+            if (!noteText.trim()) { toast.error('Selected notes are empty'); return; }
+            noteId = selected.length === 1 ? selected[0].id : null;
+            classId = selected[0].class_id;
         } else if (genSource === 'file' && genFile) {
             file = genFile;
         } else {
-            toast.error(genSource === 'note' ? 'Select a note' : 'Upload a file');
+            toast.error(genSource === 'note' ? 'Select at least one note' : 'Upload a file');
             return;
         }
 
@@ -253,18 +265,29 @@ export default function GuidesLibrary() {
                                 </div>
 
                                 {genSource === 'note' ? (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        {notes.length === 0 ? (
-                                            <p className="text-claude-secondary italic font-serif text-sm text-center py-4">No notes yet</p>
-                                        ) : notes.map(note => (
-                                            <button
-                                                key={note.id}
-                                                onClick={() => setSelectedNote(note.id)}
-                                                className={`w-full p-3 rounded-xl text-left border transition-all ${selectedNote === note.id ? 'bg-claude-accent/10 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-text'}`}
-                                            >
-                                                <span className="font-serif italic text-sm">{note.title || 'Untitled'}</span>
-                                            </button>
-                                        ))}
+                                    <div>
+                                        {selectedNotes.length > 1 && (
+                                            <p className="text-[10px] font-mono text-claude-accent mb-2 tracking-wider">{selectedNotes.length} notes selected — will be combined</p>
+                                        )}
+                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                            {notes.length === 0 ? (
+                                                <p className="text-claude-secondary italic font-serif text-sm text-center py-4">No notes yet</p>
+                                            ) : notes.map(note => {
+                                                const isSelected = selectedNotes.includes(note.id);
+                                                return (
+                                                    <button
+                                                        key={note.id}
+                                                        onClick={() => toggleNoteSelection(note.id)}
+                                                        className={`w-full p-3 rounded-xl text-left border transition-all flex items-center gap-3 ${isSelected ? 'bg-claude-accent/10 border-claude-accent/40 text-claude-accent' : 'glass-panel border-claude-border text-claude-text'}`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-claude-accent border-claude-accent' : 'border-claude-border'}`}>
+                                                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                        <span className="font-serif italic text-sm truncate">{note.title || 'Untitled'}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 ) : (
                                     <div>
@@ -311,7 +334,7 @@ export default function GuidesLibrary() {
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Study Guides</h1>
                 </div>
                 <button
-                    onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNote(null); setGenFile(null); setGenTitle(''); }}
+                    onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNotes([]); setGenFile(null); setGenTitle(''); }}
                     className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
                 >
                     <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
