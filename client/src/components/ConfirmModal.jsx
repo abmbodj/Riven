@@ -102,8 +102,8 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = 'De
                             </button>
                         </div>
 
-                        {/* Safe area padding for mobile */}
-                        <div className="h-safe-bottom sm:hidden" />
+                        {/* Safe area + bottom nav padding for mobile */}
+                        <div className="sm:hidden" style={{ height: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }} />
                     </motion.div>
                 </div>
             )}
