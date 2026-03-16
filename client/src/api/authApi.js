@@ -762,7 +762,13 @@ export const getTags = async () => {
         .order('is_preset', { ascending: false })
         .order('name');
     if (error) _sbThrow(error);
-    return data || [];
+    const seen = new Set();
+    return (data || []).filter(tag => {
+        const key = tag.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 };
 
 export const createTag = async (name, color) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -50,6 +50,19 @@ export default function GroupDetails() {
 
     // Active Cram Sessions
     const [sessions, setSessions] = useState([]);
+    const sessionRefreshTimer = useRef(null);
+
+    const refreshSessions = useCallback(() => {
+        if (sessionRefreshTimer.current) clearTimeout(sessionRefreshTimer.current);
+        sessionRefreshTimer.current = setTimeout(async () => {
+            try {
+                const sessionsRes = await api.getGroupSessions(id);
+                setSessions(sessionsRes || []);
+            } catch (err) {
+                console.error('Failed to refresh sessions:', err);
+            }
+        }, 500);
+    }, [id]);
 
     const [editData, setEditData] = useState({ name: '', class_id: '' });
     const [classes, setClasses] = useState([]);
@@ -97,26 +110,25 @@ export default function GroupDetails() {
     useEffect(() => {
         loadGroup();
 
-        // Listen for real-time session events
-        const onSessionStarted = (data) => {
-            // New session started in this group
-            if (data && (data.sessionId || data.id)) {
-                loadGroup(); // refresh to get full session details from DB
-                toast.show('A live cram session just started!');
-            }
-        };
-
-        const onSessionEnded = () => {
-            loadGroup(); // refresh
-        };
-
         return authApi.subscribeToGroupSessionEvents(id, {
-            onStarted: onSessionStarted,
-            onEnded: onSessionEnded,
+            onStarted: (data) => {
+                if (data && data.id) {
+                    refreshSessions();
+                    toast.show('A live cram session just started!');
+                }
+            },
+            onEnded: () => refreshSessions(),
         });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, loadGroup, toast]);
+    }, [id, loadGroup, refreshSessions, toast]);
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (sessionRefreshTimer.current) clearTimeout(sessionRefreshTimer.current);
+        };
+    }, []);
 
     // Fetch files separately when folder changes (avoids full group re-fetch)
     useEffect(() => {
@@ -211,9 +223,9 @@ export default function GroupDetails() {
             toast.success('Group updated');
             setShowSettings(false);
 
-            // Clear current group state to avoid stale class labels
-            setGroup(null);
-            loadGroup();
+            // Refresh only group info to get updated name/class
+            const groupRes = await api.getGroupInfo(id);
+            setGroup(groupRes);
         } catch (err) {
             toast.error(err.message || 'Failed to update');
         }
