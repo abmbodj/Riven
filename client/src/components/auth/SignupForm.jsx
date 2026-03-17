@@ -53,7 +53,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     return (
         <AuthLayout
             title="Sign up"
-            subtitle="Begin your cultivation."
+            subtitle="Create your account."
             showBackLink={true}
         >
             <div className="w-full">
@@ -132,14 +132,11 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
             </form>
 
             <div className="mt-4 pt-4 border-t border-[#1e3840]/60 flex flex-col items-center gap-3">
-                <p className="text-sm font-sans text-[#8fa6a8] text-center">
-                    Already an initiate?
-                </p>
                 <button
                     onClick={onSwitchToLogin}
                     className="w-full py-3 border border-[#deb96a]/30 rounded-xl text-[#deb96a] font-sans font-medium hover:bg-[#deb96a]/5 transition-colors active:scale-[0.98]"
                 >
-                    Return to archive
+                    Already have an account? Log in
                 </button>
             </div>
 

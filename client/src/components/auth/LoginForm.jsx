@@ -54,7 +54,7 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
     return (
         <AuthLayout
             title="Log in"
-            subtitle="Access your knowledge sanctuary."
+            subtitle="Welcome back."
             showBackLink={true}
         >
             <div className="w-full">
@@ -131,14 +131,11 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
             </form>
 
             <div className="mt-4 pt-4 border-t border-[#1e3840]/60 flex flex-col items-center gap-3">
-                <p className="text-sm font-sans text-[#8fa6a8] text-center">
-                    A novel approach to retention.
-                </p>
                 <button
                     onClick={onSwitchToSignup}
                     className="w-full py-3 border border-[#deb96a]/30 rounded-xl text-[#deb96a] font-sans font-medium hover:bg-[#deb96a]/5 transition-colors active:scale-[0.98]"
                 >
-                    Establish an account
+                    Create an account
                 </button>
             </div>
 

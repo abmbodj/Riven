@@ -73,7 +73,7 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
                         Grow your knowledge, one card at a time.
                     </h3>
                     <p className="text-[#8fa6a8] text-base leading-relaxed mb-10 font-sans font-light">
-                        A serene space for studying, retaining, and mastering your subjects with spaced repetition.
+                        Study smarter with spaced repetition.
                     </p>
 
                     {/* Feature Highlights */}
@@ -95,7 +95,7 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
 
                 {/* Bottom Attribution */}
                 <div className="absolute bottom-8 left-0 right-0 text-center text-[10px] font-mono uppercase tracking-[0.3em] text-[#8fa6a8]/30">
-                    Riven — A serene space for study
+                    Riven
                 </div>
             </div>
         </div>
