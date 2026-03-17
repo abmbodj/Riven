@@ -351,6 +351,9 @@ function DashboardHome() {
     const [assignments, setAssignments] = useState([]);
     const [decks, setDecks] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [notes, setNotes] = useState([]);
+    const [guides, setGuides] = useState([]);
+    const [exams, setExams] = useState([]);
     const [pricingOpen, setPricingOpen] = useState(false);
 
     useGSAP(() => {
@@ -423,14 +426,20 @@ function DashboardHome() {
     useEffect(() => {
         const loadDashboard = async () => {
             try {
-                const [assignData, decksData, classesData] = await Promise.all([
+                const [assignData, decksData, classesData, notesData, guidesData, examsData] = await Promise.all([
                     api.getAssignments().catch(() => []),
                     api.getDecks().catch(() => []),
-                    api.getClasses().catch(() => [])
+                    api.getClasses().catch(() => []),
+                    api.getNotes().catch(() => []),
+                    api.getStudyGuides().catch(() => []),
+                    api.getMockExams().catch(() => []),
                 ]);
                 setAssignments(assignData || []);
                 setDecks(decksData || []);
                 setClasses(classesData || []);
+                setNotes(notesData || []);
+                setGuides(guidesData || []);
+                setExams(examsData || []);
             } catch (err) {
                 console.error('Dashboard load error', err);
                 toast.error('Failed to load dashboard data');
@@ -503,6 +512,38 @@ function DashboardHome() {
         () => [...decks].sort((left, right) => new Date(right.created_at) - new Date(left.created_at)).slice(0, 4),
         [decks]
     );
+
+    const recentStudyItems = useMemo(() => {
+        const typed = [
+            ...decks.map((d) => ({
+                ...d,
+                _type: 'flashcard',
+                _date: d.last_studied || d.created_at,
+                _route: `/deck/${d.id}`,
+            })),
+            ...notes.map((n) => ({
+                ...n,
+                _type: 'note',
+                _date: n.updated_at || n.created_at,
+                _route: `/note/${n.id}`,
+            })),
+            ...guides.map((g) => ({
+                ...g,
+                _type: 'guide',
+                _date: g.updated_at || g.created_at,
+                _route: `/guide/${g.id}`,
+            })),
+            ...exams.map((e) => ({
+                ...e,
+                _type: 'exam',
+                _date: e.created_at,
+                _route: `/exam/${e.id}`,
+            })),
+        ];
+        return typed
+            .sort((a, b) => new Date(b._date) - new Date(a._date))
+            .slice(0, 4);
+    }, [decks, notes, guides, exams]);
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
     const focusDeck = recentDecks[0] ?? null;
@@ -830,32 +871,37 @@ function DashboardHome() {
                 />
 
                 <div>
-                    <SectionHeading icon={Layers} title="Recent Decks" to="/decks" />
+                    <SectionHeading icon={Clock} title="Recently Visited" to="/notes" />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {recentDecks.length > 0 ? (
-                            recentDecks.map((deck) => {
-                                const associatedClass = classesById.get(deck.class_id);
+                        {recentStudyItems.length > 0 ? (
+                            recentStudyItems.map((item) => {
+                                const associatedClass = classesById.get(item.class_id);
+                                const isFlashcard = item._type === 'flashcard';
+                                const TypeIcon = isFlashcard ? Layers : item._type === 'note' ? BookOpen : item._type === 'guide' ? Sparkles : CheckCircle2;
+                                const typeLabel = isFlashcard ? `${item.cardCount || 0} Cards` : item._type === 'note' ? 'Note' : item._type === 'guide' ? 'Study Guide' : 'Mock Exam';
+                                const HoverIcon = isFlashcard ? Play : ArrowRight;
 
                                 return (
-                                    <div key={deck.id} className="gsap-deck-card">
+                                    <div key={`${item._type}-${item.id}`} className="gsap-deck-card">
                                         <Link
-                                            to={`/deck/${deck.id}`}
+                                            to={item._route}
                                             className="tap-action group relative block cursor-pointer overflow-hidden rounded-2xl border border-[#d1c9b8]/80 bg-[#fcfaf2]/[0.98] p-5 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-[#deb96a]/60 hover:shadow-lg active:bg-[#f4f1e8] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#deb96a]"
                                         >
                                             <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('/textures/paper-fibers.png')]" />
                                             <div className="absolute right-2 top-2 translate-x-2 transform text-claude-accent opacity-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] group-hover:translate-x-0 group-hover:opacity-100">
-                                                <Play className="h-4 w-4 fill-current" />
+                                                <HoverIcon className={`h-4 w-4${isFlashcard ? ' fill-current' : ''}`} />
                                             </div>
 
                                             <div className="relative z-10 pr-6">
                                                 <h3 className="mb-3 line-clamp-2 font-serif text-lg font-bold italic leading-[1.1] tracking-tight text-[#1a1c1d] transition-colors duration-300 group-hover:text-claude-accent">
-                                                    {deck.title}
+                                                    {item.title}
                                                 </h3>
 
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <div className="flex items-center gap-1.5 rounded-sm border border-[#e8e4d8] bg-[#f4f1e8] px-2 py-0.5 shadow-sm">
+                                                        <TypeIcon className="h-2.5 w-2.5 text-[#5d6466]" />
                                                         <span className="text-[8px] font-bold uppercase tracking-wider text-[#5d6466] sm:text-[9px]">
-                                                            {deck.cardCount || 0} Cards
+                                                            {typeLabel}
                                                         </span>
                                                     </div>
                                                     {associatedClass ? (
@@ -881,10 +927,10 @@ function DashboardHome() {
                             })
                         ) : (
                             <div className="glass-panel col-span-full rounded-3xl border-2 border-dashed border-claude-border py-10 text-center opacity-60">
-                                <Layers className="mx-auto mb-2 h-8 w-8 text-claude-secondary opacity-50" />
-                                <p className="font-serif italic text-botanical-parchment">No decks yet</p>
+                                <Clock className="mx-auto mb-2 h-8 w-8 text-claude-secondary opacity-50" />
+                                <p className="font-serif italic text-botanical-parchment">No study activity yet</p>
                                 <Link to="/create" className="mt-2 font-mono text-[10px] uppercase tracking-widest text-claude-accent hover:underline">
-                                    Create one now
+                                    Create or open something
                                 </Link>
                             </div>
                         )}
