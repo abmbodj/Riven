@@ -354,7 +354,7 @@ export default function ClassView() {
                                     <h2 className="font-serif text-2xl font-bold italic text-claude-text">
                                         {nextAssignment ? 'Next priority is already in view.' : 'Use this page to plan, study, and keep pace.'}
                                     </h2>
-                                    <p className="max-w-2xl text-sm text-claude-secondary">
+                                    <p className="text-sm text-claude-secondary overflow-hidden">
                                         {nextAssignment
                                             ? `${nextAssignment.title}${nextAssignment.due_date ? ` is due ${new Date(nextAssignment.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ' is your next active task.'}`
                                             : 'Create the next assignment, add a class time, or jump into one of the linked decks.'}

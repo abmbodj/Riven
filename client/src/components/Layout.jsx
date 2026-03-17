@@ -312,7 +312,7 @@ export default function Layout({ children }) {
                     </AnimatePresence>
 
                     {/* Main content with page transitions */}
-                    <main className={`${isFullscreenPage ? '' : isStudyOrTest ? '' : 'px-4 py-4 lg:px-8 lg:py-6'
+                    <main className={`[overflow-x:clip] ${isFullscreenPage ? '' : isStudyOrTest ? '' : 'px-4 py-4 lg:px-8 lg:py-6'
                         } ${hideBottomNav ? (isFullscreenPage ? '' : 'pb-6') : 'pb-28 lg:pb-6'
                         } ${!isOffline && !showVerifyBanner ? 'safe-area-top' : ''
                         }`}>
