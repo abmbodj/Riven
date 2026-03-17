@@ -133,6 +133,7 @@ export default function Messages() {
     const fileInputRef = useRef(null);
     const loadedMsgIdsRef = useRef(new Set());
     const deletingIdsRef = useRef(new Set());
+    const animateSentRef = useRef(new Set());
     const convListRef = useRef(null);
     const chatViewRef = useRef(null);
 
@@ -591,6 +592,7 @@ export default function Messages() {
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);
+            loadedMsgIdsRef.current.add(message.id); // prevent isNew flash before scroll
             setMessages(prev => {
                 const updated = [...prev, message];
                 messageCache.setMessages(userId, updated);
@@ -600,9 +602,16 @@ export default function Messages() {
             setNewMessage('');
             setImagePreview(null);
             inputRef.current?.focus();
-            // Instant scroll to bottom for own sent messages (double-rAF to let virtualizer measure first)
+            // Scroll first, then trigger the sent animation so virtualizer measures correctly
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => scrollToBottom('auto'));
+                requestAnimationFrame(() => {
+                    scrollToBottom('auto');
+                    requestAnimationFrame(() => {
+                        animateSentRef.current.add(message.id);
+                        setMessages(prev => [...prev]); // re-render to apply animation class
+                        setTimeout(() => animateSentRef.current.delete(message.id), 250);
+                    });
+                });
             });
         } catch {
             haptics.error();
@@ -1019,13 +1028,14 @@ export default function Messages() {
                             const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
                             const isNew = !loadedMsgIdsRef.current.has(msg.id);
                             const isDeleting = deletingIdsRef.current.has(msg.id);
+                            const isSentAnimating = animateSentRef.current.has(msg.id);
 
                             return (
                                 <div
                                     key={msg.id}
                                     ref={virtualizer.measureElement}
                                     data-index={i}
-                                    className={`pb-4 ${isDeleting ? 'animate-msg-out' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
+                                    className={`pb-4 ${isDeleting ? 'animate-msg-out' : isSentAnimating ? 'animate-msg-in-sent' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
                                     style={{
                                         position: 'absolute',
                                         top: 0,
@@ -1176,11 +1186,7 @@ export default function Messages() {
                         {/* Typing indicator — positioned after last virtual item */}
                         <AnimatePresence>
                         {isTyping && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                            <div
                                 style={{
                                     position: 'absolute',
                                     top: 0,
@@ -1190,31 +1196,38 @@ export default function Messages() {
                                 }}
                                 className="pb-4"
                             >
-                                <div className="flex justify-start">
-                                    <div className="flex items-end gap-2 max-w-[85%]">
-                                        <div className="w-8 shrink-0 mb-1">
-                                            <Avatar src={chatUser?.avatar} size="xs" />
-                                        </div>
-                                        <div className="glass-panel rounded-[20px] rounded-bl-sm px-3.5 py-2.5 flex gap-1.5 items-center shadow-sm">
-                                            <motion.div
-                                                className="w-2 h-2 bg-claude-text/40 rounded-full"
-                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0, ease: "easeInOut" }}
-                                            />
-                                            <motion.div
-                                                className="w-2 h-2 bg-claude-text/50 rounded-full"
-                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
-                                            />
-                                            <motion.div
-                                                className="w-2 h-2 bg-claude-text/60 rounded-full"
-                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
-                                            />
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                                >
+                                    <div className="flex justify-start">
+                                        <div className="flex items-end gap-2 max-w-[85%]">
+                                            <div className="w-8 shrink-0 mb-1">
+                                                <Avatar src={chatUser?.avatar} size="xs" />
+                                            </div>
+                                            <div className="glass-panel rounded-[20px] rounded-bl-sm px-3.5 py-2.5 flex gap-1.5 items-center shadow-sm">
+                                                <motion.div
+                                                    className="w-2 h-2 bg-claude-text/40 rounded-full"
+                                                    animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                    transition={{ duration: 0.9, repeat: Infinity, delay: 0, ease: "easeInOut" }}
+                                                />
+                                                <motion.div
+                                                    className="w-2 h-2 bg-claude-text/50 rounded-full"
+                                                    animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                    transition={{ duration: 0.9, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
+                                                />
+                                                <motion.div
+                                                    className="w-2 h-2 bg-claude-text/60 rounded-full"
+                                                    animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                    transition={{ duration: 0.9, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
+                                </motion.div>
+                            </div>
                         )}
                         </AnimatePresence>
                     </div>
