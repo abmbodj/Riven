@@ -922,7 +922,48 @@ export default function Messages() {
 
     // Conversations List View
     if (!userId) {
-        return renderConversationsList();
+        return (
+            <>
+                {/* Mobile: full-width list (unchanged) */}
+                <div className="lg:hidden">
+                    {renderConversationsList()}
+                </div>
+
+                {/* Desktop (lg+): two-column layout */}
+                <div className="hidden lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6 lg:items-start lg:min-h-[calc(100dvh-6rem)]">
+                    {/* Left: conversations sidebar — same as when embedded in chat view */}
+                    <aside className="lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-claude-border lg:bg-claude-bg/70 lg:p-5 lg:backdrop-blur-xl">
+                        {renderConversationsList({ embedded: true })}
+                    </aside>
+
+                    {/* Right: empty state */}
+                    <div className="relative flex items-center justify-center lg:rounded-[32px] lg:border lg:border-claude-border lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:bg-claude-bg/70 lg:backdrop-blur-xl">
+                        {/* Corner accents */}
+                        <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/20" />
+                        <div className="absolute top-3 right-3 w-3 h-3 border-t border-r border-claude-accent/20" />
+                        <div className="absolute bottom-3 left-3 w-3 h-3 border-b border-l border-claude-accent/20" />
+                        <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/20" />
+
+                        <div className="text-center px-8">
+                            <div className="relative mx-auto mb-6 w-16 h-16">
+                                <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
+                                    <Send className="w-7 h-7 text-claude-accent" />
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-claude-accent/15 flex items-center justify-center">
+                                    <Leaf className="w-2.5 h-2.5 text-claude-accent" />
+                                </div>
+                            </div>
+                            <h2 className="font-display text-xl font-bold text-claude-text mb-2">
+                                Select a conversation
+                            </h2>
+                            <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                Choose someone to message
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
     }
 
     // Chat View
@@ -961,7 +1002,10 @@ export default function Messages() {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="font-display font-semibold truncate">{chatUser.username}</p>
-                            <p className="text-xs text-claude-secondary font-mono">Tap to view profile</p>
+                            <p className="text-xs text-claude-secondary font-mono">
+                                <span className="lg:hidden">Tap to view profile</span>
+                                <span className="hidden lg:inline">Click to view profile</span>
+                            </p>
 	                        </div>
 	                    </Link>
 	                )}
