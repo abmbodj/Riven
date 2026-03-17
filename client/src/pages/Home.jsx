@@ -732,6 +732,51 @@ function DashboardHome() {
                             </span>
                         </div>
 
+                        {/* Class snapshot: desktop only, fills left-column vertical space */}
+                        {classes.length > 0 && (
+                            <div className="gsap-hero-row mt-5 hidden border-t border-claude-border/30 pt-4 lg:block">
+                                <div className="space-y-0.5">
+                                    {classes.slice(0, 4).map((classItem) => {
+                                        const insight = classInsights.get(classItem.id);
+                                        return (
+                                            <Link
+                                                key={classItem.id}
+                                                to={`/class/${classItem.id}`}
+                                                className="tap-action group flex items-center gap-3 rounded-xl px-2 py-2 transition-[background-color,color] hover:bg-claude-bg/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                            >
+                                                <div
+                                                    className="h-2 w-2 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: classItem.color || '#7a9e72' }}
+                                                />
+                                                <span className="min-w-0 flex-1 truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary transition-colors group-hover:text-claude-text">
+                                                    {classItem.name}
+                                                </span>
+                                                {insight?.activeCount > 0 && (
+                                                    <span className="shrink-0 font-mono text-[9px] font-bold text-claude-secondary/50">
+                                                        {insight.activeCount} active
+                                                    </span>
+                                                )}
+                                                {insight?.nextDueLabel && (
+                                                    <span className="shrink-0 rounded border border-claude-border/40 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-claude-secondary/50">
+                                                        {insight.nextDueLabel}
+                                                    </span>
+                                                )}
+                                                <ArrowRight className="h-3 w-3 shrink-0 text-claude-secondary/30 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-claude-accent" />
+                                            </Link>
+                                        );
+                                    })}
+                                    {classes.length > 4 && (
+                                        <Link
+                                            to="/classes"
+                                            className="tap-action block px-2 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-claude-secondary/40 transition-colors hover:text-claude-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                        >
+                                            +{classes.length - 4} more classes
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* QueueChips: mobile horizontal scroll only */}
                         <div className="gsap-hero-row -mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1 hide-scrollbar lg:hidden">
                             {todayQueue.map((item) => (
