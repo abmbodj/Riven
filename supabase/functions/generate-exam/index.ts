@@ -88,7 +88,15 @@ serve(async (request) => {
       },
       generateContent: async ({ model, contents }: AiContentRequest) => {
         aiClient ??= new GoogleGenAI({ apiKey });
-        const response = await aiClient.models.generateContent({ model, contents });
+        const response = await aiClient.models.generateContent({
+          model,
+          contents,
+          config: {
+            temperature: 0,
+            thinkingConfig: { thinkingBudget: 0 },
+            responseMimeType: 'application/json',
+          },
+        });
         return response.text;
       },
       createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {

@@ -207,6 +207,11 @@ serve(async (request) => {
         { text: systemPrompt },
         audioContent,
       ],
+      config: {
+        temperature: 0,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json',
+      },
     });
 
     const enhancedContent = parseAiJsonResponse(
