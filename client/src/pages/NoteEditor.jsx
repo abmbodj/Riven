@@ -366,40 +366,6 @@ export default function NoteEditor() {
                             </span>
                         </div>
 
-                        {/* Mic button */}
-                        <button
-                            onClick={handleMicToggle}
-                            disabled={micDisabled}
-                            aria-label={micLabel}
-                            className={`relative p-2 transition-all tap-action disabled:opacity-50 ${
-                                isRecording
-                                    ? 'text-claude-accent ring-2 ring-claude-accent/30 rounded-full'
-                                    : 'text-claude-secondary hover:text-claude-accent'
-                            }`}
-                        >
-                            {isRecording ? (
-                                <WaveformBars />
-                            ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Mic className="w-4 h-4" />
-                            )}
-                        </button>
-
-                        {/* Duration counter (during recording) */}
-                        <AnimatePresence>
-                            {isRecording && (
-                                <motion.span
-                                    initial={{ opacity: 0, x: -4 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -4 }}
-                                    className="text-[9px] font-mono text-claude-accent tabular-nums"
-                                >
-                                    {formatDuration(recorder.duration)}
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
-
                         <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
                             <Trash2 className="w-4 h-4" />
                         </button>
@@ -613,9 +579,28 @@ export default function NoteEditor() {
             </div>
 
             {/* AI Actions — Fixed bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-20 bg-claude-bg/90 backdrop-blur-md border-t border-claude-border/20 pb-safe">
+            <div className="fixed bottom-24 lg:bottom-0 left-0 right-0 z-20 bg-claude-bg/90 backdrop-blur-md border-t border-claude-border/20 lg:pb-safe">
                 <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
                     <span className="text-[8px] font-mono uppercase tracking-widest text-claude-secondary/50 shrink-0 mr-1">AI</span>
+
+                    <button
+                        onClick={handleMicToggle}
+                        disabled={micDisabled}
+                        aria-label={micLabel}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border transition-all tap-action shrink-0 disabled:opacity-50 ${
+                            isRecording
+                                ? 'text-claude-accent border-claude-accent/40 bg-claude-accent/10'
+                                : 'border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30'
+                        }`}
+                    >
+                        {isRecording ? (
+                            <><WaveformBars /><span className="tabular-nums">{formatDuration(recorder.duration)}</span></>
+                        ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" />Processing</>
+                        ) : (
+                            <><Mic className="w-3.5 h-3.5" />Audio</>
+                        )}
+                    </button>
 
                     <button
                         onClick={handleGenerateFlashcards}

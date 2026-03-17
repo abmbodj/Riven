@@ -199,7 +199,7 @@ export default function GuideView() {
             </div>
 
             {/* AI Actions */}
-            <div className="fixed bottom-0 left-0 right-0 z-20 bg-claude-bg/90 backdrop-blur-md border-t border-claude-border/20 pb-safe">
+            <div className="fixed bottom-24 lg:bottom-0 left-0 right-0 z-20 bg-claude-bg/90 backdrop-blur-md border-t border-claude-border/20 lg:pb-safe">
                 <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
                     <span className="text-[8px] font-mono uppercase tracking-widest text-claude-secondary/50 shrink-0 mr-1">AI</span>
 

@@ -97,7 +97,13 @@ export const api = {
     connectCanvas: (icalUrl) => isLoggedIn() ? serverApi.connectCanvas(icalUrl) : Promise.reject(new Error('Must be logged in to connect LMS')),
     disconnectCanvas: () => isLoggedIn() ? serverApi.disconnectCanvas() : Promise.reject(new Error('Must be logged in')),
     getCanvasSettings: () => isLoggedIn() ? serverApi.getCanvasSettings() : Promise.resolve({ isConnected: false }),
-    syncCanvas: (adGranted) => isLoggedIn() ? serverApi.syncCanvas(adGranted) : Promise.reject(new Error('Must be logged in to sync LMS')),
+    syncCanvas: (adGranted) => {
+        if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to sync LMS'));
+        return serverApi.syncCanvas(adGranted).then(res => {
+            cache.delete(cacheKey('classes'));
+            return res;
+        });
+    },
 
     // AI Generation
     getAILimits: () => isLoggedIn()

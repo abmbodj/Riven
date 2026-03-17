@@ -213,10 +213,16 @@ export default function StudyMode() {
     }, [cardsStudied, cardsCorrect]);
 
     useEffect(() => {
-        Promise.all([
-            api.getDeck(id),
-            api.getHeartsStatus()
-        ]).then(([data, heartsData]) => {
+        // Hearts are non-critical — fetch in parallel without blocking card render
+        api.getHeartsStatus().then(heartsData => {
+            setHeartsStatus(heartsData);
+            if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
+                setShowOutOfHearts(true);
+            }
+        }).catch(() => {});
+
+        // Deck is the critical path — show cards as soon as it arrives
+        api.getDeck(id).then((data) => {
             const sortedCards = [...data.cards].sort((a, b) => {
                 if (!a.next_review && !b.next_review) return 0;
                 if (!a.next_review) return -1;
@@ -265,10 +271,6 @@ export default function StudyMode() {
             setDidResumeSession(hasResumedSession);
             setSessionStartedAt(nextStartedAt);
             startTime.current = nextStartedAt;
-            setHeartsStatus(heartsData);
-            if (!heartsData.isUnlimited && heartsData.hearts <= 0) {
-                setShowOutOfHearts(true);
-            }
             setLoading(false);
         }).catch(() => {
             setLoading(false);
