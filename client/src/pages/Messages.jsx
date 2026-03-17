@@ -974,7 +974,7 @@ export default function Messages() {
             </aside>
 	            <div
 	                ref={chatViewRef}
-	                className="relative flex flex-col bg-claude-bg h-[calc(100dvh-4rem)] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+	                className="relative flex flex-col bg-claude-bg mx-3 mt-2 rounded-[24px] border border-white/[0.08] h-[calc(100dvh-4rem-0.5rem)] sm:mx-auto sm:mt-0 sm:rounded-none sm:border-0 sm:max-w-md sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:mt-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
 	            >
             {/* Botanical Chat Header with decorative elements */}
             <div className="header-blur flex items-center gap-3 p-4 border-b border-white/[0.06] shrink-0 relative z-20">
