@@ -705,7 +705,7 @@ function DashboardHome() {
 
                         {/* Adaptive headline */}
                         <h1 className="gsap-hero-row mb-1 font-display text-[1.75rem] font-bold italic leading-[1.05] tracking-tight text-claude-text sm:text-4xl lg:text-5xl">
-                            {heroState.headline}
+                            Home
                         </h1>
 
                         {/* Contextual subtitle */}
