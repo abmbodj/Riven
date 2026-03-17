@@ -132,6 +132,7 @@ export default function Messages() {
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
     const loadedMsgIdsRef = useRef(new Set());
+    const deletingIdsRef = useRef(new Set());
     const convListRef = useRef(null);
     const chatViewRef = useRef(null);
 
@@ -590,8 +591,6 @@ export default function Messages() {
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);
-            // Mark own message as "already loaded" so it doesn't get the entrance animation (prevents visual jump)
-            loadedMsgIdsRef.current.add(message.id);
             setMessages(prev => {
                 const updated = [...prev, message];
                 messageCache.setMessages(userId, updated);
@@ -617,15 +616,21 @@ export default function Messages() {
         if (!window.confirm('Are you sure you want to delete this message?')) return;
         try {
             await authApi.deleteMessage(msgId);
-            setMessages(prev => {
-                const updated = prev.filter(m => m.id !== msgId);
-                if (userId) messageCache.setMessages(userId, updated);
-                return updated;
-            });
-            invalidateConversations();
             setActiveMenuId(null);
+            // Trigger exit animation, then remove from state
+            deletingIdsRef.current.add(msgId);
+            setMessages(prev => [...prev]); // re-render to apply animate-msg-out
             toast.success('Message deleted');
             haptics.medium();
+            setTimeout(() => {
+                deletingIdsRef.current.delete(msgId);
+                setMessages(prev => {
+                    const updated = prev.filter(m => m.id !== msgId);
+                    if (userId) messageCache.setMessages(userId, updated);
+                    return updated;
+                });
+                invalidateConversations();
+            }, 200);
         } catch {
             toast.error('Failed to delete message');
             haptics.error();
@@ -1013,13 +1018,14 @@ export default function Messages() {
                             const msg = messages[i];
                             const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
                             const isNew = !loadedMsgIdsRef.current.has(msg.id);
+                            const isDeleting = deletingIdsRef.current.has(msg.id);
 
                             return (
                                 <div
                                     key={msg.id}
                                     ref={virtualizer.measureElement}
                                     data-index={i}
-                                    className={`pb-4 ${isNew ? 'animate-msg-in' : ''}`}
+                                    className={`pb-4 ${isDeleting ? 'animate-msg-out' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
                                     style={{
                                         position: 'absolute',
                                         top: 0,
@@ -1168,8 +1174,13 @@ export default function Messages() {
                         })}
 
                         {/* Typing indicator — positioned after last virtual item */}
+                        <AnimatePresence>
                         {isTyping && (
-                            <div
+                            <motion.div
+                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
                                 style={{
                                     position: 'absolute',
                                     top: 0,
@@ -1203,21 +1214,28 @@ export default function Messages() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         )}
+                        </AnimatePresence>
                     </div>
                 )}
 
                 {/* "New messages" pill — shown when scrolled up and new messages arrive */}
+                <AnimatePresence>
                 {showNewMessagesPill && (
-                    <button
+                    <motion.button
+                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                        transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
                         onClick={() => scrollToBottom('smooth')}
-                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-claude-accent text-white text-xs font-mono shadow-lg shadow-claude-accent/30 hover:brightness-110 active:scale-95 transition-all animate-msg-in"
+                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-claude-accent text-white text-xs font-mono shadow-lg shadow-claude-accent/30 hover:brightness-110 active:scale-95 transition-all"
                     >
                         <ChevronDown className="w-3.5 h-3.5" />
                         New messages
-                    </button>
+                    </motion.button>
                 )}
+                </AnimatePresence>
             </div>
 
             {/* Native PWA Docked Message Input */}
