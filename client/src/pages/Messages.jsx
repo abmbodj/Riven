@@ -974,7 +974,7 @@ export default function Messages() {
             </aside>
 	            <div
 	                ref={chatViewRef}
-	                className="relative flex flex-col bg-claude-bg mx-3 mt-2 rounded-[24px] border border-white/[0.08] h-[calc(100dvh-4rem-0.5rem)] sm:mx-auto sm:mt-0 sm:rounded-none sm:border-0 sm:max-w-md sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:mt-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+	                className="relative flex flex-col bg-claude-bg h-[calc(100dvh-4rem)] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
 	            >
             {/* Botanical Chat Header with decorative elements */}
             <div className="header-blur flex items-center gap-3 p-4 border-b border-white/[0.06] shrink-0 relative z-20">
@@ -1311,10 +1311,13 @@ export default function Messages() {
 	                animate={{ y: 0, opacity: 1 }}
 	                transition={{ delay: 0.2 }}
 	                onSubmit={handleSendMessage}
-	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell rounded-t-3xl lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:border-0"
+	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:border-0"
                 style={{
-                    paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
-                    paddingTop: '8px'
+                    paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+                    paddingTop: '8px',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderBottom: 'none',
                 }}
             >
 	                <div className="px-3 flex flex-col gap-2">
