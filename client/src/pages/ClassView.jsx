@@ -263,7 +263,7 @@ export default function ClassView() {
     if (loading) return (
         <div className="p-6 pt-4 min-h-screen">
             <div className="h-8 w-24 bg-claude-border rounded-xl animate-pulse mb-6" />
-            <div className="h-24 w-full bg-claude-surface border border-claude-border rounded-sm animate-pulse mb-8" />
+            <div className="h-24 w-full bg-claude-surface/60 rounded-[28px] animate-pulse mb-8" />
             <div className="space-y-4">
                 {[1, 2, 3].map(i => <div key={i} className="h-16 w-full bg-claude-surface rounded-xl animate-pulse" />)}
             </div>
@@ -315,8 +315,12 @@ export default function ClassView() {
 
             <div className="px-4 sm:px-6 py-6">
                 {/* Class Details Hero */}
-                <div className="relative bg-claude-surface border border-claude-border p-6 rounded-sm shadow-sm mb-8 overflow-hidden">
-                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
+                <div className="relative glass-panel-premium p-6 sm:p-8 lg:p-10 rounded-[28px] mb-8 overflow-hidden">
+                    {/* Class-color radial glow — desktop larger */}
+                    <div
+                        className="absolute -top-12 -right-12 w-40 h-40 lg:w-72 lg:h-72 rounded-full blur-3xl opacity-20 lg:opacity-25 pointer-events-none"
+                        style={{ backgroundColor: cls.color || 'var(--accent-color)' }}
+                    />
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8" style={{ color: cls.color || 'var(--accent-color)' }}>
                         <Library className="w-full h-full" />
                     </div>
@@ -336,7 +340,7 @@ export default function ClassView() {
                         )}
                         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                             {statTiles.map((tile) => (
-                                <div key={tile.label} className="rounded-2xl border border-claude-border bg-claude-surface/60 px-4 py-3">
+                                <div key={tile.label} className="glass-item rounded-2xl px-4 py-3">
                                     <div className="font-mono text-lg font-bold text-claude-text">{tile.value}</div>
                                     <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-claude-secondary">{tile.label}</div>
                                 </div>
@@ -347,8 +351,13 @@ export default function ClassView() {
 
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
                     <div className="space-y-8">
-                        <div className="rounded-[28px] border border-claude-border bg-[linear-gradient(145deg,rgba(22,39,45,0.96),rgba(17,29,35,0.96))] p-5 shadow-[0_24px_48px_rgba(0,0,0,0.16)]">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="glass-panel-premium rounded-[28px] p-5 lg:p-7 relative overflow-hidden">
+                            {/* Class-color accent glow for workbench */}
+                            <div
+                                className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-15 pointer-events-none"
+                                style={{ backgroundColor: cls.color || 'var(--accent-color)' }}
+                            />
+                            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                 <div className="space-y-2">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Class Workbench</p>
                                     <h2 className="font-serif text-2xl font-bold italic text-claude-text">
@@ -391,8 +400,15 @@ export default function ClassView() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.95 }}
                                                 onClick={() => openEditAssign(a)}
-                                                className={`group relative glass-panel rounded-2xl p-4 cursor-pointer hover:glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                                                className={`group relative glass-item rounded-2xl p-4 cursor-pointer hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-hidden ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
                                             >
+                                                {/* Doing status: left accent strip using class color */}
+                                                {a.status === 'Doing' && (
+                                                    <div
+                                                        className="absolute left-0 inset-y-0 w-[3px] rounded-l-2xl"
+                                                        style={{ backgroundColor: cls.color || 'var(--accent-color)' }}
+                                                    />
+                                                )}
                                                 <div className="flex items-start gap-4">
                                                     <button
                                                         onClick={(e) => toggleAssignStatus(e, a)}
@@ -441,7 +457,7 @@ export default function ClassView() {
                     </div>
 
                     <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-                        <div className="glass-panel rounded-[28px] p-5">
+                        <div className="glass-panel-premium rounded-[28px] p-5">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">
                                     Class Times <span className="opacity-40 text-[10px]">({scheduleSlots.length})</span>
@@ -459,7 +475,7 @@ export default function ClassView() {
                             ) : (
                                 <div className="space-y-3">
                                     {scheduleSlots.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time)).map(slot => (
-                                        <div key={slot.id} className={`relative group rounded-2xl border px-4 py-3 ${nextScheduleSlot?.id === slot.id ? 'border-claude-accent/30 bg-claude-accent/8' : 'border-claude-border bg-claude-bg/15'}`}>
+                                        <div key={slot.id} className={`relative group glass-item rounded-2xl px-4 py-3 transition-colors ${nextScheduleSlot?.id === slot.id ? 'border-white/20 bg-white/[0.06]' : ''}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm tracking-tighter" style={{ backgroundColor: `${cls.color || 'var(--accent-color)'}20`, color: cls.color || 'var(--accent-color)' }}>
                                                     {DAY_LABELS[slot.day_of_week]}
@@ -480,7 +496,7 @@ export default function ClassView() {
                             )}
                         </div>
 
-                        <div className="glass-panel rounded-[28px] p-5">
+                        <div className="glass-panel-premium rounded-[28px] p-5">
                             <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary mb-4 flex items-center gap-2">
                                 Study Decks <span className="opacity-40 text-[10px]">({decks.length})</span>
                             </h3>
@@ -490,7 +506,7 @@ export default function ClassView() {
                                         <a
                                             key={deck.id}
                                             href={`/deck/${deck.id}`}
-                                            className="group relative block rounded-2xl border border-claude-border bg-claude-bg/15 p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                                            className="group relative block glass-item rounded-2xl p-4 hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action cursor-pointer"
                                         >
                                             <div className="flex items-start gap-4">
                                                 <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-inner mt-0.5"
@@ -519,7 +535,7 @@ export default function ClassView() {
                             )}
                         </div>
 
-                        <div className="glass-panel rounded-[28px] p-5">
+                        <div className="glass-panel-premium rounded-[28px] p-5">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">
                                     Notes <span className="opacity-40 text-[10px]">({notes.length})</span>
@@ -532,7 +548,7 @@ export default function ClassView() {
                                         <a
                                             key={note.id}
                                             href={`/note/${note.id}`}
-                                            className="group relative block rounded-2xl border border-claude-border bg-claude-bg/15 p-4 hover:border-claude-accent/25 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                                            className="group relative block glass-item rounded-2xl p-4 hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action cursor-pointer"
                                         >
                                             <h4 className="font-serif text-lg font-bold truncate text-claude-text group-hover:text-claude-text transition-colors">
                                                 {note.title || 'Untitled'}
