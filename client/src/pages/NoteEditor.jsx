@@ -38,7 +38,6 @@ export default function NoteEditor() {
     const [noteId, setNoteId] = useState(isNew ? null : id);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState(null);
-    const [enhancedContent, setEnhancedContent] = useState(null);
     const [classId, setClassId] = useState(searchParams.get('classId') || null);
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(!isNew);
@@ -55,7 +54,6 @@ export default function NoteEditor() {
     const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
     const [enhancing, setEnhancing] = useState(false);
     const [enhanceError, setEnhanceError] = useState(null);
-    const [viewMode, setViewMode] = useState('original'); // 'original' | 'enhanced'
     const [audioPath, setAudioPath] = useState(null);
 
     const saveTimerRef = useRef(null);
@@ -81,8 +79,8 @@ export default function NoteEditor() {
                     contentRef.current = note.content || {};
 
                     if (note.enhanced_content) {
-                        setEnhancedContent(note.enhanced_content);
-                        setViewMode('enhanced');
+                        setContent(note.enhanced_content);
+                        contentRef.current = note.enhanced_content;
                     }
                 }
             } catch (err) {
@@ -232,8 +230,9 @@ export default function NoteEditor() {
                 titleRef.current || 'Untitled'
             );
 
-            setEnhancedContent(result.enhanced_content);
-            setViewMode('enhanced');
+            setContent(result.enhanced_content);
+            contentRef.current = result.enhanced_content;
+            await api.updateNote(noteId, { content: result.enhanced_content });
             setShowEnhanceBanner(false);
             setAudioPath(null); // audio deleted server-side after processing
             recorder.setProcessingState('complete');
@@ -253,8 +252,7 @@ export default function NoteEditor() {
     // ─── AI generation handlers ───
 
     const handleGenerateFlashcards = async () => {
-        // Use enhanced content if viewing it, otherwise original
-        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const source = contentRef.current;
         const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
@@ -272,7 +270,7 @@ export default function NoteEditor() {
     };
 
     const handleGenerateGuide = async () => {
-        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const source = contentRef.current;
         const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
@@ -290,7 +288,7 @@ export default function NoteEditor() {
     };
 
     const handleGenerateExam = async () => {
-        const source = viewMode === 'enhanced' && enhancedContent ? enhancedContent : contentRef.current;
+        const source = contentRef.current;
         const text = extractText(source);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
@@ -480,33 +478,6 @@ export default function NoteEditor() {
                     )}
                 </AnimatePresence>
 
-                {/* View mode toggle (when enhanced content exists) */}
-                {enhancedContent && (
-                    <div className="mb-4 flex items-center gap-1">
-                        <button
-                            onClick={() => setViewMode('enhanced')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors tap-action ${
-                                viewMode === 'enhanced'
-                                    ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/30'
-                                    : 'text-claude-secondary hover:text-claude-text border border-transparent'
-                            }`}
-                        >
-                            <Sparkles className="w-3 h-3" />
-                            AI Enhanced
-                        </button>
-                        <button
-                            onClick={() => setViewMode('original')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-colors tap-action ${
-                                viewMode === 'original'
-                                    ? 'bg-claude-accent/15 text-claude-accent border border-claude-accent/30'
-                                    : 'text-claude-secondary hover:text-claude-text border border-transparent'
-                            }`}
-                        >
-                            My Notes
-                        </button>
-                    </div>
-                )}
-
                 {/* Class picker */}
                 <div className="mb-4 relative">
                     <button
@@ -559,23 +530,13 @@ export default function NoteEditor() {
                     className="w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none mb-2 tracking-tight leading-tight"
                 />
 
-                {/* Tiptap Editor — switches between original and enhanced */}
-                {viewMode === 'enhanced' && enhancedContent ? (
-                    <TiptapEditor
-                        key="enhanced"
-                        content={enhancedContent}
-                        editable={false}
-                        placeholder=""
-                    />
-                ) : (
-                    <TiptapEditor
-                        key="original"
-                        content={content}
-                        onUpdate={handleContentUpdate}
-                        editable={true}
-                        placeholder="Start writing, or type / for commands..."
-                    />
-                )}
+                {/* Tiptap Editor */}
+                <TiptapEditor
+                    content={content}
+                    onUpdate={handleContentUpdate}
+                    editable={true}
+                    placeholder="Start writing, or type / for commands..."
+                />
             </div>
 
             {/* AI Actions — Fixed bottom bar */}
