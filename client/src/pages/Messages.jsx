@@ -1024,6 +1024,7 @@ export default function Messages() {
                 ref={scrollParentRef}
                 className="flex-1 overflow-y-auto scroll-container relative"
                 style={{
+                    paddingBottom: '96px',
                     backgroundImage: `radial-gradient(ellipse at 15% 88%, rgba(222, 185, 106, 0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 18%, rgba(122, 158, 114, 0.05) 0%, transparent 40%)`
                 }}
             >
@@ -1310,7 +1311,7 @@ export default function Messages() {
 	                animate={{ y: 0, opacity: 1 }}
 	                transition={{ delay: 0.2 }}
 	                onSubmit={handleSendMessage}
-	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell rounded-t-3xl overflow-hidden lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:border-0"
+	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell rounded-t-3xl lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:border-0"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
                     paddingTop: '8px'
