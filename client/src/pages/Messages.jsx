@@ -143,6 +143,18 @@ export default function Messages() {
     const isNearBottomRef = useRef(true);
     const typingPresenceRef = useRef(null);
 
+    // Dismiss message context menu on click outside
+    useEffect(() => {
+        if (!activeMenuId) return;
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('[data-msg-menu]')) {
+                setActiveMenuId(null);
+            }
+        };
+        document.addEventListener('pointerdown', handleClickOutside);
+        return () => document.removeEventListener('pointerdown', handleClickOutside);
+    }, [activeMenuId]);
+
     // GSAP reveal for conversations list
     useEffect(() => {
         if (userId || !convListRef.current) return;
@@ -309,8 +321,10 @@ export default function Messages() {
     useEffect(() => {
         if (messages.length > prevMsgCountRef.current) {
             if (isNearBottomRef.current) {
-                // Small delay so virtualizer measures the new item first
-                requestAnimationFrame(() => scrollToBottom('smooth'));
+                // Double-rAF so virtualizer measures the new item before scrolling
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => scrollToBottom('auto'));
+                });
             } else {
                 setShowNewMessagesPill(true);
             }
@@ -576,6 +590,8 @@ export default function Messages() {
 
         try {
             const message = await authApi.sendMessage(userId, newMessage.trim() || '', 'text', null, imagePreview, user);
+            // Mark own message as "already loaded" so it doesn't get the entrance animation (prevents visual jump)
+            loadedMsgIdsRef.current.add(message.id);
             setMessages(prev => {
                 const updated = [...prev, message];
                 messageCache.setMessages(userId, updated);
@@ -585,6 +601,10 @@ export default function Messages() {
             setNewMessage('');
             setImagePreview(null);
             inputRef.current?.focus();
+            // Instant scroll to bottom for own sent messages (double-rAF to let virtualizer measure first)
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => scrollToBottom('auto'));
+            });
         } catch {
             haptics.error();
             toast.error('Failed to send message');
@@ -1006,6 +1026,7 @@ export default function Messages() {
                                         left: 0,
                                         width: '100%',
                                         transform: `translateY(${virtualRow.start}px)`,
+                                        zIndex: activeMenuId === msg.id ? 20 : 'auto',
                                     }}
                                 >
                                     <div className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}>
@@ -1076,7 +1097,7 @@ export default function Messages() {
                                                     )}
 
                                                     {/* Message Options (Edit/Delete/Report) */}
-                                                    <div className={`absolute ${msg.isMine ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex`}>
+                                                    <div data-msg-menu className={`absolute ${msg.isMine ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 ${activeMenuId === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity flex`}>
                                                         <div className="relative">
                                                             <button
                                                                 onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
@@ -1163,21 +1184,21 @@ export default function Messages() {
                                         <div className="w-8 shrink-0 mb-1">
                                             <Avatar src={chatUser?.avatar} size="xs" />
                                         </div>
-                                        <div className="glass-panel rounded-[20px] rounded-bl-sm px-4 py-3 flex gap-1.5 items-center h-[38px] shadow-sm">
+                                        <div className="glass-panel rounded-[20px] rounded-bl-sm px-3.5 py-2.5 flex gap-1.5 items-center shadow-sm">
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-claude-secondary/60 rounded-full"
-                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                                transition={{ duration: 1, repeat: Infinity, delay: 0, ease: "easeInOut" }}
+                                                className="w-2 h-2 bg-claude-text/40 rounded-full"
+                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0, ease: "easeInOut" }}
                                             />
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-claude-secondary/70 rounded-full"
-                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                                transition={{ duration: 1, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
+                                                className="w-2 h-2 bg-claude-text/50 rounded-full"
+                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0.2, ease: "easeInOut" }}
                                             />
                                             <motion.div
-                                                className="w-1.5 h-1.5 bg-claude-secondary/80 rounded-full"
-                                                animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
-                                                transition={{ duration: 1, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
+                                                className="w-2 h-2 bg-claude-text/60 rounded-full"
+                                                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                                transition={{ duration: 0.9, repeat: Infinity, delay: 0.4, ease: "easeInOut" }}
                                             />
                                         </div>
                                     </div>
