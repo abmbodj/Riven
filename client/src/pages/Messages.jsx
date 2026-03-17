@@ -974,10 +974,10 @@ export default function Messages() {
             </aside>
 	            <div
 	                ref={chatViewRef}
-	                className="fixed inset-0 bg-claude-bg z-50 flex flex-col safe-area-top sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+	                className="relative flex flex-col bg-claude-bg h-[calc(100dvh-4rem)] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
 	            >
             {/* Botanical Chat Header with decorative elements */}
-            <div className="header-blur flex items-center gap-3 p-4 border-b border-claude-border shrink-0 relative z-20 bg-claude-bg/90 md:backdrop-blur-xl">
+            <div className="header-blur flex items-center gap-3 p-4 border-b border-white/[0.06] shrink-0 relative z-20">
                 {/* Decorative corner marks */}
                 <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-claude-accent/20 rounded-tl" />
                 <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-claude-accent/20 rounded-br" />
@@ -1024,8 +1024,7 @@ export default function Messages() {
                 ref={scrollParentRef}
                 className="flex-1 overflow-y-auto scroll-container relative"
                 style={{
-                    paddingBottom: '96px',
-                    backgroundImage: `radial-gradient(circle at 20% 80%, rgba(122, 158, 114, 0.03) 0%, transparent 50%)`
+                    backgroundImage: `radial-gradient(ellipse at 15% 88%, rgba(222, 185, 106, 0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 18%, rgba(122, 158, 114, 0.05) 0%, transparent 40%)`
                 }}
             >
                 {loading ? (
@@ -1144,12 +1143,19 @@ export default function Messages() {
                                                 /* Text/Image Message Bubble */
                                                 <div
                                                     className={`relative group px-4 py-3 rounded-2xl ${msg.isMine
-                                                        ? 'bg-claude-accent text-white rounded-br-sm shadow-sm md:shadow-lg shadow-claude-accent/20'
-                                                        : 'glass-panel rounded-bl-sm text-claude-text'
+                                                        ? 'text-white rounded-br-sm'
+                                                        : 'rounded-bl-sm text-claude-text'
                                                         }`}
                                                     style={msg.isMine ? {
-                                                        background: 'linear-gradient(135deg, rgba(122, 158, 114, 0.95) 0%, rgba(122, 158, 114, 1) 100%)'
-                                                    } : {}}
+                                                        background: 'linear-gradient(145deg, rgba(134, 174, 125, 0.98) 0%, rgba(110, 152, 103, 1) 100%)',
+                                                        boxShadow: '0 4px 16px rgba(122, 158, 114, 0.35), 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.22)',
+                                                    } : {
+                                                        backdropFilter: 'blur(16px) saturate(180%)',
+                                                        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                                                        background: 'rgba(30, 56, 64, 0.88)',
+                                                        boxShadow: '0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                    }}
                                                 >
                                                     {/* Subtle corner accent for received messages */}
                                                     {!msg.isMine && (
@@ -1219,6 +1225,9 @@ export default function Messages() {
                                                     {msg.isEdited && (
                                                         <span className="text-[10px] opacity-70 ml-2 italic">(edited)</span>
                                                     )}
+                                                    <p className={`text-[9px] font-mono mt-1.5 opacity-40 select-none ${msg.isMine ? 'text-right' : 'text-left'}`}>
+                                                        {formatTime(msg.createdAt)}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
@@ -1301,7 +1310,7 @@ export default function Messages() {
 	                animate={{ y: 0, opacity: 1 }}
 	                transition={{ delay: 0.2 }}
 	                onSubmit={handleSendMessage}
-	                className="fixed bottom-0 left-0 right-0 z-[60] sm:max-w-md sm:mx-auto bg-claude-bg/90 md:backdrop-blur-xl border-t border-claude-border/50 lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:max-w-none"
+	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell rounded-t-3xl overflow-hidden lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:border-0"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
                     paddingTop: '8px'

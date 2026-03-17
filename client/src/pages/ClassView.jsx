@@ -406,7 +406,7 @@ export default function ClassView() {
                                                             {a.title}
                                                         </h4>
                                                         {a.description && (
-                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1">{a.description}</p>
+                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 break-all">{a.description}</p>
                                                         )}
                                                         {a.due_date && (
                                                             <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
