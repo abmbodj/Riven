@@ -333,7 +333,7 @@ export default function NoteEditor() {
         : 'Record lecture';
 
     return (
-        <div className="relative min-h-screen pb-32">
+        <div className="relative min-h-screen pb-8">
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
                 isOpen={deleteConfirm}
@@ -344,15 +344,15 @@ export default function NoteEditor() {
             />
 
             {/* Header */}
-            <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10 px-4 py-3">
-                <div className="flex items-center justify-between max-w-3xl mx-auto">
+            <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10 px-4 pt-3 pb-2">
+                {/* Top row: nav + save + delete */}
+                <div className="flex items-center justify-between max-w-3xl mx-auto mb-2">
                     <button onClick={() => navigate('/notes')} className="flex items-center gap-1 text-claude-secondary hover:text-claude-accent transition-colors tap-action">
                         <ChevronLeft className="w-5 h-5" />
                         <span className="text-[10px] font-mono font-bold uppercase tracking-widest hidden sm:inline">Notes</span>
                     </button>
 
                     <div className="flex items-center gap-3">
-                        {/* Save indicator */}
                         <div className="flex items-center gap-1.5">
                             {saving ? (
                                 <Loader2 className="w-3.5 h-3.5 text-claude-secondary animate-spin" />
@@ -363,11 +363,61 @@ export default function NoteEditor() {
                                 {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
                             </span>
                         </div>
-
                         <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
                             <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
+                </div>
+
+                {/* AI Actions row */}
+                <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <button
+                        onClick={handleMicToggle}
+                        disabled={micDisabled}
+                        aria-label={micLabel}
+                        className={`inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border transition-all tap-action shrink-0 disabled:opacity-50 ${
+                            isRecording
+                                ? 'text-claude-accent border-claude-accent/40 bg-claude-accent/10'
+                                : 'border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30'
+                        }`}
+                    >
+                        {isRecording ? (
+                            <><WaveformBars /><span className="tabular-nums">{formatDuration(recorder.duration)}</span></>
+                        ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Processing</span></>
+                        ) : (
+                            <><Mic className="w-3.5 h-3.5" /><span>Audio</span></>
+                        )}
+                    </button>
+
+                    <div className="w-px h-4 bg-claude-border/30 shrink-0 mx-0.5" />
+
+                    <button
+                        onClick={handleGenerateFlashcards}
+                        disabled={!!generating}
+                        className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                    >
+                        {generating === 'flashcards' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
+                        <span>Flashcards</span>
+                    </button>
+
+                    <button
+                        onClick={handleGenerateGuide}
+                        disabled={!!generating}
+                        className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                    >
+                        {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+                        <span>Study Guide</span>
+                    </button>
+
+                    <button
+                        onClick={handleGenerateExam}
+                        disabled={!!generating}
+                        className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                    >
+                        {generating === 'exam' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
+                        <span>Mock Exam</span>
+                    </button>
                 </div>
             </div>
 
@@ -539,58 +589,6 @@ export default function NoteEditor() {
                 />
             </div>
 
-            {/* AI Actions — Fixed bottom bar */}
-            <div className="fixed bottom-24 lg:bottom-0 left-0 right-0 z-20 bg-claude-bg/90 backdrop-blur-md border-t border-claude-border/20 lg:pb-safe">
-                <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                    <span className="text-[8px] font-mono uppercase tracking-widest text-claude-secondary/50 shrink-0 mr-1">AI</span>
-
-                    <button
-                        onClick={handleMicToggle}
-                        disabled={micDisabled}
-                        aria-label={micLabel}
-                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border transition-all tap-action shrink-0 disabled:opacity-50 ${
-                            isRecording
-                                ? 'text-claude-accent border-claude-accent/40 bg-claude-accent/10'
-                                : 'border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30'
-                        }`}
-                    >
-                        {isRecording ? (
-                            <><WaveformBars /><span className="tabular-nums">{formatDuration(recorder.duration)}</span></>
-                        ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" />Processing</>
-                        ) : (
-                            <><Mic className="w-3.5 h-3.5" />Audio</>
-                        )}
-                    </button>
-
-                    <button
-                        onClick={handleGenerateFlashcards}
-                        disabled={!!generating}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
-                    >
-                        {generating === 'flashcards' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
-                        Flashcards
-                    </button>
-
-                    <button
-                        onClick={handleGenerateGuide}
-                        disabled={!!generating}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
-                    >
-                        {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
-                        Study Guide
-                    </button>
-
-                    <button
-                        onClick={handleGenerateExam}
-                        disabled={!!generating}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
-                    >
-                        {generating === 'exam' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-                        Mock Exam
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }
