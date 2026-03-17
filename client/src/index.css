@@ -477,6 +477,51 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(222, 185, 106, 0.1);
   }
 
+  /* Premium Glassmorphism Panel — for Up Next / Past Due */
+  .glass-panel-premium {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface-color) 55%, transparent) 0%,
+      color-mix(in srgb, var(--bg-color) 50%, transparent) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow:
+      0 20px 60px -16px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .glass-panel-premium::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(circle at top left, rgba(222, 185, 106, 0.10), transparent 40%),
+      radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.08), transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Danger tint override for Past Due */
+  .glass-panel-premium.glass-danger::before {
+    background:
+      radial-gradient(circle at top left, rgba(248, 113, 113, 0.12), transparent 40%),
+      radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.06), transparent 45%);
+  }
+
+  /* Inner glass card — for AssignmentItem inside premium panels */
+  .glass-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
   /* Premium Glass Panel */
   .glass-panel {
     background: rgba(30, 56, 64, 0.95);

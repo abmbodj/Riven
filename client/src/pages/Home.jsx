@@ -11,7 +11,6 @@ import {
     Clock,
     Layers,
     Leaf,
-    Library,
     MessageCircle,
     Play,
     Sparkles
@@ -203,7 +202,7 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="group flex min-h-[92px] flex-col gap-3 rounded-2xl border border-white/5 p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-panel sm:flex-row sm:items-start"
+            className="group flex min-h-[92px] flex-col gap-3 rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-item sm:flex-row sm:items-start"
         >
             <div className="flex min-w-0 flex-1 items-start gap-3">
                 <button
@@ -268,7 +267,7 @@ function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
             {pastDue.length > 0 && (
                 <div className="mb-6">
                     <SectionHeading icon={Clock} title="Past Due" tone="danger" />
-                    <div className="glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
+                    <div className="glass-panel-premium glass-danger relative overflow-hidden rounded-3xl p-5 md:p-6">
                         <div className="relative z-10 space-y-2">
                             <AnimatePresence>
                                 {visiblePastDue.map((assignment) => (
@@ -296,7 +295,7 @@ function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
             )}
 
             <SectionHeading icon={Sparkles} title="Up Next" to="/classes" />
-            <div className="glass-panel relative overflow-hidden rounded-3xl p-5 md:p-6">
+            <div className="glass-panel-premium relative overflow-hidden rounded-3xl p-5 md:p-6">
                 {upcoming.length > 0 ? (
                     <div className="relative z-10 space-y-2">
                         <AnimatePresence>
@@ -893,62 +892,6 @@ function DashboardHome() {
                 </div>
             </div>
 
-            {/* ZONE C — Class Rail */}
-            {classes.length > 0 ? (
-                <div className="mb-10">
-                    <SectionHeading icon={Library} title="Your Classes" to="/classes" />
-                    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 hide-scrollbar sm:mx-0 sm:px-0 lg:grid lg:grid-cols-2 lg:gap-3 lg:overflow-visible lg:px-0 xl:grid-cols-3">
-                        {classes.map((classItem) => {
-                            const insight = classInsights.get(classItem.id);
-                            const activeCount = insight?.activeCount ?? 0;
-                            const nextDueLabel = insight?.nextDueLabel;
-
-                            return (
-                                <div key={classItem.id} className="gsap-class-pill">
-                                    <Link
-                                        to={`/class/${classItem.id}`}
-                                        className="tap-action touch-target group relative flex min-h-[126px] min-w-[220px] cursor-pointer flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-white/10 p-4 glass-panel transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                                    >
-                                        <div
-                                            className="pointer-events-none absolute inset-y-0 left-0 w-1.5"
-                                            style={{ backgroundColor: classItem.color || '#7a9e72' }}
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-
-                                        <div className="relative z-10 flex items-start justify-between gap-3">
-                                            <span
-                                                title={classItem.name}
-                                                className="line-clamp-2 block min-w-0 max-w-[calc(100%-1.5rem)] pr-2 font-serif text-base font-bold leading-snug text-botanical-parchment transition-colors group-hover:text-claude-accent"
-                                            >
-                                                {classItem.name}
-                                            </span>
-                                            <div
-                                                className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full shadow-sm ring-2 ring-white/10 transition-transform group-hover:scale-125"
-                                                style={{ backgroundColor: classItem.color || '#7a9e72' }}
-                                            />
-                                        </div>
-
-                                        <div className="relative z-10 flex flex-wrap items-center gap-2">
-                                            <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-secondary">
-                                                {activeCount} Active
-                                            </span>
-                                            {nextDueLabel ? (
-                                                <span className="rounded-md border border-claude-accent/20 bg-claude-accent/10 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-accent">
-                                                    Next {nextDueLabel}
-                                                </span>
-                                            ) : (
-                                                <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-claude-secondary">
-                                                    No Due Date
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Link>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            ) : null}
 
             <PricingModal
                 isOpen={pricingOpen}
