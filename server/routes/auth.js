@@ -1133,6 +1133,119 @@ module.exports = function registerAuthRoutes({
         }
     });
 
+    // Bridge endpoint: generate a fresh Supabase Auth session for an authenticated Express user.
+    // Used when the client's Supabase session has expired/been lost but the Express JWT is still valid.
+    app.post('/api/auth/supabase-token', authMiddleware, async (req, res) => {
+        try {
+            const { serviceRoleKey } = getSupabaseConfig();
+            if (!serviceRoleKey) {
+                return res.status(500).json({ error: 'Supabase service role key is not configured' });
+            }
+
+            // Look up user to get email and supabase_auth_id
+            const user = await db.queryOne(
+                'SELECT id, email, supabase_auth_id FROM users WHERE id = $1',
+                [req.user.id]
+            );
+            if (!user?.email) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            let supabaseAuthId = user.supabase_auth_id;
+
+            // If user has no Supabase Auth account, create one
+            if (!supabaseAuthId) {
+                try {
+                    const crypto = require('crypto');
+                    const tempPassword = crypto.randomBytes(32).toString('hex');
+                    const authUser = await supabaseFetch('/admin/users', {
+                        method: 'POST',
+                        apiKey: serviceRoleKey,
+                        accessToken: serviceRoleKey,
+                        body: {
+                            email: user.email,
+                            password: tempPassword,
+                            email_confirm: true,
+                        },
+                    });
+                    supabaseAuthId = authUser.id;
+
+                    // Link the new Supabase Auth user to the app user
+                    await db.execute(
+                        'UPDATE users SET supabase_auth_id = $1 WHERE id = $2',
+                        [supabaseAuthId, user.id]
+                    );
+                } catch (createErr) {
+                    // User might already exist in Supabase Auth — look them up
+                    try {
+                        const listRes = await supabaseFetch('/admin/users', {
+                            method: 'GET',
+                            apiKey: serviceRoleKey,
+                            accessToken: serviceRoleKey,
+                            query: { filter: user.email },
+                        });
+                        const existing = listRes.users?.find(u => u.email?.toLowerCase() === user.email.toLowerCase());
+                        if (existing?.id) {
+                            supabaseAuthId = existing.id;
+                            await db.execute(
+                                'UPDATE users SET supabase_auth_id = $1 WHERE id = $2',
+                                [supabaseAuthId, user.id]
+                            );
+                        } else {
+                            console.error('[Auth] supabase-token: failed to create or find Supabase Auth user:', createErr.message);
+                            return res.status(500).json({ error: 'Failed to create Supabase Auth account' });
+                        }
+                    } catch (lookupErr) {
+                        console.error('[Auth] supabase-token: lookup failed:', lookupErr.message);
+                        return res.status(500).json({ error: 'Failed to resolve Supabase Auth account' });
+                    }
+                }
+            }
+
+            // Generate a magic link for this user, then verify it server-side to get a session
+            const linkRes = await supabaseFetch('/admin/generate_link', {
+                method: 'POST',
+                apiKey: serviceRoleKey,
+                accessToken: serviceRoleKey,
+                body: {
+                    type: 'magiclink',
+                    email: user.email,
+                },
+            });
+
+            const hashedToken = linkRes.properties?.hashed_token;
+            if (!hashedToken) {
+                console.error('[Auth] supabase-token: no hashed_token in generate_link response');
+                return res.status(500).json({ error: 'Failed to generate auth link' });
+            }
+
+            // Verify the OTP to get access_token + refresh_token
+            const { authUrl } = getSupabaseConfig();
+            const verifyRes = await supabaseFetch('/verify', {
+                method: 'POST',
+                apiKey: serviceRoleKey,
+                body: {
+                    type: 'magiclink',
+                    token_hash: hashedToken,
+                },
+            });
+
+            if (!verifyRes.access_token) {
+                console.error('[Auth] supabase-token: verify did not return access_token');
+                return res.status(500).json({ error: 'Failed to verify auth link' });
+            }
+
+            res.json({
+                access_token: verifyRes.access_token,
+                refresh_token: verifyRes.refresh_token,
+                expires_in: verifyRes.expires_in,
+            });
+        } catch (error) {
+            console.error('[Auth] supabase-token error:', error);
+            res.status(500).json({ error: 'Failed to generate Supabase token' });
+        }
+    });
+
     // Link a Supabase account to an existing user (for legacy users upgrading).
     // Requires a valid legacy JWT in the Authorization header.
     app.post('/api/auth/link-supabase', authMiddleware, async (req, res) => {
