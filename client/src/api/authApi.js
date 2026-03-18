@@ -3,24 +3,23 @@ import { supabase } from '../lib/supabaseClient';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
-let API_BASE = import.meta.env.VITE_API_URL;
+const resolveApiBase = () => {
+    let apiBase = import.meta.env.VITE_API_URL;
 
-if (!API_BASE) {
-    if (Capacitor.isNativePlatform()) {
-        // On iOS Simulator, localhost correctly resolving to the Mac's host IP for servers
-        // (Note: For physical devices, VITE_API_URL must be explicitly set to the Mac's local network IP in .env)
-        API_BASE = 'http://localhost:3000/api';
-    } else {
-        API_BASE = '/api';
+    if (!apiBase) {
+        if (Capacitor.isNativePlatform()) {
+            // On iOS Simulator, localhost correctly resolves to the Mac's host IP for servers.
+            // For physical devices, VITE_API_URL must be explicitly set to the Mac's local network IP.
+            apiBase = 'http://localhost:3000/api';
+        } else {
+            apiBase = '/api';
+        }
     }
-}
 
-// Remove trailing slash if present to avoid double slashes
-if (API_BASE && API_BASE.endsWith('/')) {
-    API_BASE = API_BASE.slice(0, -1);
-}
+    return apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+};
 
-export const getApiBase = () => API_BASE;
+export const getApiBase = () => resolveApiBase();
 
 
 
@@ -33,6 +32,7 @@ export const AUTH_SESSION_EXPIRED_CODE = 'AUTH_SESSION_EXPIRED';
 export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
 const tokenStore = useLocalStorage ? localStorage : sessionStorage;
+const csrfTokenCache = new Map();
 
 export const getToken = () => tokenStore.getItem(TOKEN_KEY);
 let cachedAppUserId = null;
@@ -113,68 +113,170 @@ function getCsrfToken() {
     return match ? match[1] : '';
 }
 
-// Fetch wrapper with dual auth (Cookie + Header)
-const authFetch = async (endpoint, options = {}) => {
-    const token = getToken();
+const getApiOrigin = () => {
+    if (typeof window === 'undefined') return null;
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-    };
+    try {
+        return new URL(getApiBase(), window.location.origin).origin;
+    } catch {
+        return null;
+    }
+};
 
-    if (token && token !== 'logged_in') {
-        headers['Authorization'] = `Bearer ${token}`;
+const getCsrfCacheKey = () => getApiOrigin() || getApiBase();
+
+const isCrossOriginApiBase = () => (
+    typeof window !== 'undefined'
+    && Boolean(getApiOrigin())
+    && getApiOrigin() !== window.location.origin
+);
+
+const clearCachedCsrfToken = () => {
+    const cacheKey = getCsrfCacheKey();
+    if (cacheKey) {
+        csrfTokenCache.delete(cacheKey);
+    }
+};
+
+const cacheCsrfToken = (token) => {
+    const normalizedToken = typeof token === 'string' ? token.trim() : '';
+    if (!normalizedToken) return '';
+
+    const cacheKey = getCsrfCacheKey();
+    if (cacheKey) {
+        csrfTokenCache.set(cacheKey, normalizedToken);
     }
 
-    const method = (options.method || 'GET').toUpperCase();
-    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-        let csrf = getCsrfToken();
-        if (!csrf) {
-            // Prime the CSRF cookie with a GET request, then re-read it.
-            // This handles the case where a stale cookie exists server-side but the
-            // browser hasn't made any GET to our API yet (e.g. first login after Supabase call).
-            await fetch(`${API_BASE}/csrf`, { credentials: 'include' }).catch(() => {});
-            csrf = getCsrfToken();
-        }
-        if (csrf) {
-            headers['x-csrf-token'] = csrf;
-        }
+    return normalizedToken;
+};
+
+const getCachedCsrfToken = () => {
+    const cacheKey = getCsrfCacheKey();
+    if (!cacheKey) return '';
+    return csrfTokenCache.get(cacheKey) || '';
+};
+
+const extractCsrfToken = async (response) => {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        return '';
+    }
+
+    const text = await response.text().catch(() => '');
+    if (!text) {
+        return '';
     }
 
     try {
-        const response = await fetch(`${API_BASE}${endpoint}`, {
-            ...options,
-            headers,
-            credentials: 'include',
-            signal: options.signal || AbortSignal.timeout(10000),
-        });
+        const data = JSON.parse(text);
+        return typeof data?.csrfToken === 'string' ? data.csrfToken : '';
+    } catch {
+        return '';
+    }
+};
 
-        // Handle empty or non-JSON responses
-        const contentType = response.headers.get('content-type');
-        let data = {};
+const primeCsrfToken = async () => {
+    const cachedToken = getCachedCsrfToken();
+    if (cachedToken) {
+        return cachedToken;
+    }
 
-        if (contentType && contentType.includes('application/json')) {
-            const text = await response.text();
-            data = text ? JSON.parse(text) : {};
+    if (!isCrossOriginApiBase()) {
+        const sameOriginCookieToken = getCsrfToken();
+        if (sameOriginCookieToken) {
+            return cacheCsrfToken(sameOriginCookieToken);
+        }
+    }
+
+    const response = await fetch(`${getApiBase()}/csrf`, {
+        credentials: 'include',
+    }).catch(() => null);
+
+    if (!response) {
+        return '';
+    }
+
+    const responseToken = await extractCsrfToken(response);
+    if (responseToken) {
+        return cacheCsrfToken(responseToken);
+    }
+
+    if (!isCrossOriginApiBase()) {
+        const refreshedCookieToken = getCsrfToken();
+        if (refreshedCookieToken) {
+            return cacheCsrfToken(refreshedCookieToken);
+        }
+    }
+
+    return '';
+};
+
+// Fetch wrapper with dual auth (Cookie + Header)
+const authFetch = async (endpoint, options = {}) => {
+    const method = (options.method || 'GET').toUpperCase();
+    const requiresCsrf = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+
+    const executeRequest = async ({ allowCsrfRetry = true } = {}) => {
+        const token = getToken();
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+
+        if (token && token !== 'logged_in') {
+            headers.Authorization = `Bearer ${token}`;
         }
 
-        if (!response.ok) {
-            console.error(`[authApi] Error ${endpoint}:`, data);
-            const error = new Error(data.error || data.message || `Request failed (${response.status})`);
-            error.status = response.status;
-            error.code = data.code;
-            error.body = data;
+        if (requiresCsrf) {
+            const csrfToken = await primeCsrfToken();
+            if (csrfToken) {
+                headers['x-csrf-token'] = csrfToken;
+            }
+        }
+
+        try {
+            const response = await fetch(`${getApiBase()}${endpoint}`, {
+                ...options,
+                headers,
+                credentials: 'include',
+                signal: options.signal || AbortSignal.timeout(10000),
+            });
+
+            // Handle empty or non-JSON responses
+            const contentType = response.headers.get('content-type');
+            let data = {};
+
+            if (contentType && contentType.includes('application/json')) {
+                const text = await response.text();
+                data = text ? JSON.parse(text) : {};
+            }
+
+            if (!response.ok) {
+                if (allowCsrfRetry && requiresCsrf && response.status === 403 && data?.error === 'CSRF token mismatch') {
+                    clearCachedCsrfToken();
+                    await primeCsrfToken().catch(() => '');
+                    return executeRequest({ allowCsrfRetry: false });
+                }
+
+                console.error(`[authApi] Error ${endpoint}:`, data);
+                const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+                error.status = response.status;
+                error.code = data.code;
+                error.body = data;
+                throw error;
+            }
+
+            return data;
+        } catch (error) {
+            if (error.name === 'SyntaxError') {
+                console.error('[authApi] JSON Parse Error:', error);
+                throw new Error('Server returned an invalid response');
+            }
             throw error;
         }
+    };
 
-        return data;
-    } catch (error) {
-        if (error.name === 'SyntaxError') {
-            console.error('[authApi] JSON Parse Error:', error);
-            throw new Error('Server returned an invalid response');
-        }
-        throw error;
-    }
+    return executeRequest();
 };
 
 const getSupabaseUrl = () => (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');

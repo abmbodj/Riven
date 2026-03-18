@@ -188,10 +188,12 @@ app.use('/api/', (req, res, next) => {
     // Skip for webhook endpoints (server-to-server, verified by signature)
     if (req.path.startsWith('/webhooks/')) return next();
 
+    const csrfToken = req.cookies[CSRF_COOKIE] || crypto.randomBytes(32).toString('hex');
+    res.locals.csrfToken = csrfToken;
+
     // Issue a CSRF token cookie if one doesn't exist yet
     if (!req.cookies[CSRF_COOKIE]) {
-        const token = crypto.randomBytes(32).toString('hex');
-        res.cookie(CSRF_COOKIE, token, {
+        res.cookie(CSRF_COOKIE, csrfToken, {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -221,7 +223,10 @@ app.use('/api/', (req, res, next) => {
 // Lightweight endpoint for the client to prime the CSRF cookie before making mutating requests.
 app.get('/api/csrf', (req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.json({ ok: true });
+    res.json({
+        ok: true,
+        csrfToken: res.locals.csrfToken || req.cookies[CSRF_COOKIE] || null,
+    });
 });
 
 // Ensure DB schema is ready before handling API requests (serverless cold-start safety)

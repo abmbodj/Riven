@@ -238,6 +238,75 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
   });
 
+  it('hydrates a missing Supabase session from a cross-origin auth bridge using the returned csrf token', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', 'https://legacy.riven.test/api');
+    authApi.setToken('legacy-token');
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({
+        ok: true,
+        csrfToken: 'csrf-token-123',
+      }))
+      .mockResolvedValueOnce(buildJsonResponse({
+        access_token: SUPABASE_ACCESS_TOKEN,
+        refresh_token: 'refresh-token',
+      }))
+      .mockResolvedValueOnce(buildJsonResponse({
+        remaining: 7,
+        max: 10,
+        characterLimit: 15000,
+        flashcardRange: [5, 15],
+        canWatchAd: false,
+        isPremium: false,
+      }));
+
+    const result = await authApi.getAILimits();
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://legacy.riven.test/api/csrf',
+      expect.objectContaining({
+        credentials: 'include',
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://legacy.riven.test/api/auth/supabase-token',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer legacy-token',
+          'x-csrf-token': 'csrf-token-123',
+        }),
+      }),
+    );
+    expect(supabase.auth.setSession).toHaveBeenCalledWith({
+      access_token: SUPABASE_ACCESS_TOKEN,
+      refresh_token: 'refresh-token',
+    });
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
+      'https://supabase.test/functions/v1/ai-limits',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+          apikey: 'supabase-anon-key',
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      remaining: 7,
+      max: 10,
+      characterLimit: 15000,
+      flashcardRange: [5, 15],
+      canWatchAd: false,
+      isPremium: false,
+    });
+  });
+
   it('changes the password through Supabase when the current session is Supabase-backed', async () => {
     supabase.auth.getSession.mockResolvedValue({
       data: { session: { access_token: 'supabase-token' } },
