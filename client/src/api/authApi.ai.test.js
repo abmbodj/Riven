@@ -63,6 +63,32 @@ describe('authApi AI edge migration', () => {
     vi.unstubAllEnvs();
   });
 
+  it('uses explicit edge fetches even when supabase.functions.invoke is available', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
+    supabase.functions = { invoke: vi.fn() };
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      remaining: 9,
+      max: 10,
+      characterLimit: 15000,
+      flashcardRange: [5, 15],
+      canWatchAd: false,
+    }));
+
+    const result = await authApi.getAILimits();
+
+    expect(result).toEqual({
+      remaining: 9,
+      max: 10,
+      characterLimit: 15000,
+      flashcardRange: [5, 15],
+      canWatchAd: false,
+    });
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the AI limits edge function for Supabase sessions', async () => {
     const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
     authApi.setToken(token);
