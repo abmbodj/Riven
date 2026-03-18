@@ -218,56 +218,26 @@ const buildAuthRedirectUrl = (path = '') => {
 const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
 
 // Shared token resolution for edge function calls.
-// Returns a valid Supabase access token or throws AUTH_SESSION_EXPIRED if none available.
-const resolveEdgeFunctionToken = async (supabaseUrl, { skipForceReauth = false } = {}) => {
-    const isEligibleToken = (candidateToken) => {
-        if (!isTokenEligibleForEdge(candidateToken)) return false;
-        return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
-    };
-
-    // 1. Try cached session — if the access_token is still valid, use it immediately (no network call).
+// Uses the Supabase client's own session — the same token that PostgREST uses successfully.
+// No client-side JWT validation; the Supabase gateway validates server-side.
+const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false } = {}) => {
+    // 1. Get the active Supabase session (same token the JS client uses for DB queries).
     const session = await getActiveSupabaseSession().catch(() => null);
-    if (session?.access_token && isEligibleToken(session.access_token)) {
+    if (session?.access_token) {
         return session.access_token;
     }
 
-    // 2. Access token expired or missing — try refreshing the session.
+    // 2. Session missing or expired — try refreshing via the refresh_token.
     if (typeof supabase?.auth?.refreshSession === 'function') {
         const { data } = await supabase.auth.refreshSession().catch(() => ({ data: {} }));
-        if (data?.session?.access_token && isEligibleToken(data.session.access_token)) {
+        if (data?.session?.access_token) {
             setToken(data.session.access_token);
             return data.session.access_token;
         }
     }
 
-    // 3. Refresh failed — check the stored token as a last resort.
-    const storedToken = getToken();
-    if (storedToken && isEligibleToken(storedToken)) {
-        return storedToken;
-    }
-
-    // 4. Client-side Supabase session is dead — try bridging from Express session.
-    //    The server can generate a fresh Supabase token if the Express JWT cookie is valid.
-    try {
-        const bridgeData = await authFetch('/auth/supabase-token', { method: 'POST' });
-        if (bridgeData?.access_token && isEligibleToken(bridgeData.access_token)) {
-            // Restore the full Supabase session so auto-refresh works going forward
-            if (bridgeData.refresh_token) {
-                await supabase.auth.setSession({
-                    access_token: bridgeData.access_token,
-                    refresh_token: bridgeData.refresh_token,
-                }).catch(() => {});
-            }
-            setToken(bridgeData.access_token);
-            return bridgeData.access_token;
-        }
-    } catch {
-        // Express session also dead or bridge not available — fall through
-    }
-
-    // 5. All token sources exhausted — trigger re-auth.
+    // 3. No Supabase session at all — force re-login.
     if (!skipForceReauth) {
-        console.warn('[edgeFunctionFetch] No valid Supabase token available — forcing re-auth');
         setToken(null);
         await forceReauth();
         const error = new Error('Session expired. Please sign in again.');
@@ -553,18 +523,6 @@ export const login = async (email, password) => {
                     return bootstrappedSession;
                 }
                 setToken(legacyData.token);
-                try {
-                    const bridgeData = await authFetch('/auth/supabase-token', { method: 'POST' });
-                    if (bridgeData?.access_token && isSupabaseAccessToken(bridgeData.access_token)) {
-                        if (bridgeData.refresh_token) {
-                            await supabase.auth.setSession({
-                                access_token: bridgeData.access_token,
-                                refresh_token: bridgeData.refresh_token,
-                            }).catch(() => {});
-                        }
-                        setToken(bridgeData.access_token);
-                    }
-                } catch { /* bridge not available */ }
             } else if (legacyData.user) {
                 setToken('logged_in');
             }
@@ -600,24 +558,7 @@ export const login = async (email, password) => {
         if (bootstrappedSession?.user) {
             return bootstrappedSession;
         }
-
-        // Bootstrap failed — store the legacy token temporarily so authFetch works,
-        // then try the server bridge to get a proper Supabase session.
         setToken(legacyData.token);
-        try {
-            const bridgeData = await authFetch('/auth/supabase-token', { method: 'POST' });
-            if (bridgeData?.access_token && isSupabaseAccessToken(bridgeData.access_token)) {
-                if (bridgeData.refresh_token) {
-                    await supabase.auth.setSession({
-                        access_token: bridgeData.access_token,
-                        refresh_token: bridgeData.refresh_token,
-                    }).catch(() => {});
-                }
-                setToken(bridgeData.access_token);
-            }
-        } catch {
-            // Bridge not available — legacy token remains (edge functions will use bridge at call time)
-        }
     }
     else if (legacyData.user) setToken('logged_in');
     return legacyData;
