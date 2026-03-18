@@ -47,6 +47,6 @@ describe('Layout primary navigation', () => {
 
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
 
-    expect(await screen.findByPlaceholderText('Search anything in Riven...')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Search current Riven...')).toBeInTheDocument();
   });
 });

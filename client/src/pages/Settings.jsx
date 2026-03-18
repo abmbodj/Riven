@@ -26,25 +26,43 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
 
-const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false }) => (
+const SURFACE_TEXTURE = {
+    backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)',
+    backgroundSize: '10px 10px'
+};
+
+const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null }) => (
     <button
         onClick={onClick}
-        className={`w-full py-4 px-5 flex items-center gap-4 ${!noBorder ? 'border-b border-claude-border/' : ''} active:bg-claude-border/5 transition-colors group relative overflow-hidden`}
+        aria-pressed={toggle !== null ? toggleValue : undefined}
+        className={`tap-action group relative flex min-h-[76px] w-full items-center gap-4 overflow-hidden px-5 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
     >
-        <div className={`p-2.5 rounded-xl ${destructive ? 'bg-red-500/10 text-red-500' : 'bg-claude-bg text-claude-text/70 shadow-sm border border-claude-border/5'} group-hover:scale-110 transition-transform duration-300`}>
+        {!noBorder && (
+            <div className="pointer-events-none absolute inset-x-5 bottom-0 h-px bg-claude-border/60" />
+        )}
+        <div className={`relative z-10 rounded-[1.1rem] border p-2.5 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 group-hover:-translate-y-0.5 ${destructive ? 'border-red-500/20 bg-red-500/10 text-red-400' : 'border-claude-border/70 bg-claude-bg/75 text-claude-text/70'}`}>
             {IconComponent && <IconComponent className="w-5 h-5" />}
         </div>
-        <div className="flex-1 text-left z-10">
-            <p className={`font-display text-[16px] tracking-wide font-medium ${destructive ? 'text-red-400' : 'text-claude-text group-hover:text-claude-accent transition-colors'}`}>{title}</p>
-            {description && <p className="text-[11px] font-mono text-claude-secondary mt-0.5">{description}</p>}
+        <div className="relative z-10 min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className={`font-display text-[16px] font-medium tracking-[0.01em] ${destructive ? 'text-red-400' : 'text-claude-text transition-colors group-hover:text-claude-accent'}`}>{title}</p>
+                    {description && <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary/85">{description}</p>}
+                </div>
+                {badge && (
+                    <span className={`mt-0.5 shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] ${destructive ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-claude-border/70 bg-claude-bg/70 text-claude-secondary'}`}>
+                        {badge}
+                    </span>
+                )}
+            </div>
         </div>
 
         {toggle !== null ? (
-            <div className={`w-12 h-7 rounded-full relative transition-colors duration-300 ${toggleValue ? 'bg-claude-accent shadow-inner' : 'glass-panel border border-claude-border/30'}`}>
-                <div className={`absolute top-[3px] w-[20px] h-[20px] bg-white rounded-full transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 shadow-sm ${toggleValue ? 'left-[24px]' : 'left-[3px]'}`} />
-            </div>
+            <span className="switch-track shrink-0" data-checked={toggleValue ? 'true' : 'false'}>
+                <span className="switch-thumb" />
+            </span>
         ) : (
-            <ChevronRight className={`w-5 h-5 ${destructive ? 'text-red-500/50' : 'text-claude-border/30 group-hover:text-claude-accent group-hover:translate-x-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]'}`} />
+            <ChevronRight className={`relative z-10 w-5 h-5 shrink-0 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 ${destructive ? 'text-red-500/55 group-hover:text-red-400' : 'text-claude-secondary/40 group-hover:translate-x-1 group-hover:text-claude-accent'}`} />
         )}
     </button>
 );
@@ -97,16 +115,19 @@ const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
                             : 'text-claude-secondary';
 
     return (
-        <div className="mb-3 px-1">
-            <p className={`text-[10px] font-mono uppercase tracking-[0.22em] ${eyebrowTone}`}>
-                {eyebrow}
-            </p>
-            <div className="mt-1">
-                <h2 className="font-display text-xl font-semibold tracking-[0.01em] text-claude-text">
+        <div className="mb-4 px-1">
+            <div className="flex items-center gap-3">
+                <p className={`text-[10px] font-mono uppercase tracking-[0.24em] ${eyebrowTone}`}>
+                    {eyebrow}
+                </p>
+                <div className="h-px flex-1 bg-claude-border/60" />
+            </div>
+            <div className="mt-3">
+                <h2 className="font-serif text-[1.9rem] font-semibold italic leading-none tracking-[-0.03em] text-claude-text">
                     {title}
                 </h2>
                 {description && (
-                    <p className="mt-1 text-[11px] font-mono text-claude-secondary/75">
+                    <p className="mt-2 max-w-2xl text-[11px] font-mono uppercase leading-relaxed tracking-[0.12em] text-claude-secondary/78">
                         {description}
                     </p>
                 )}
@@ -129,9 +150,45 @@ const SectionCard = ({ children, tone = 'default', className = '' }) => {
                         : 'border-claude-border/70 bg-claude-surface/95';
 
     return (
-        <div className={`rounded-[1.75rem] border shadow-sm backdrop-blur ${toneClasses} ${className}`}>
-            {children}
+        <div className={`relative isolate overflow-hidden rounded-[1.9rem] border shadow-[0_18px_42px_rgba(0,0,0,0.16)] backdrop-blur ${toneClasses} ${className}`}>
+            <div className="pointer-events-none absolute inset-0 opacity-[0.09]" style={SURFACE_TEXTURE} />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+            <div className="relative z-10">
+                {children}
+            </div>
         </div>
+    );
+};
+
+const QuickJumpButton = ({ icon: IconComponent, label, meta, onClick, tone = 'default' }) => {
+    const toneClasses = tone === 'accent'
+        ? 'border-claude-accent/20 bg-claude-accent/[0.06]'
+        : tone === 'info'
+            ? 'border-blue-400/20 bg-blue-400/[0.05]'
+            : tone === 'warning'
+                ? 'border-amber-500/20 bg-amber-500/[0.05]'
+                : tone === 'danger'
+                    ? 'border-red-500/20 bg-red-500/[0.05]'
+                    : 'border-claude-border/70 bg-claude-bg/45';
+
+    return (
+        <button
+            onClick={onClick}
+            className={`tap-action group flex min-h-[72px] w-full items-center gap-3 rounded-[1.2rem] border px-4 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 active:scale-[0.99] ${toneClasses}`}
+        >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-claude-border/70 bg-claude-bg/70 text-claude-text/75 transition-colors group-hover:text-claude-accent">
+                <IconComponent className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="font-display text-base leading-none text-claude-text transition-colors group-hover:text-claude-accent">
+                    {label}
+                </p>
+                <p className="mt-2 truncate text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary/80">
+                    {meta}
+                </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-claude-secondary/45 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 group-hover:translate-x-1 group-hover:text-claude-accent" />
+        </button>
     );
 };
 
@@ -316,16 +373,62 @@ export default function Settings() {
         setModals(prev => ({ ...prev, [name]: false }));
     };
 
+    const aiAllowanceSummary = aiLimits.loading
+        ? 'Checking allowance'
+        : `${aiLimits.remaining} / ${aiLimits.max} left`;
+
+    const quickLinks = [
+        { id: 'security-panel', label: 'Security', meta: securitySummary, icon: Shield },
+        { id: 'membership-panel', label: 'Plan & access', meta: membershipSummary, icon: Sparkles, tone: 'accent' },
+        { id: 'theme-panel', label: 'Theme & atmosphere', meta: activeTheme?.name || 'Current theme', icon: isLightMode ? Sun : Moon },
+        { id: 'integrations-panel', label: 'Integrations', meta: canvasSummary, icon: Network, tone: 'info' },
+        { id: 'limits-panel', label: 'AI limits', meta: aiAllowanceSummary, icon: Sun, tone: 'warning' },
+        { id: 'notifications-panel', label: 'Notifications', meta: 'Reminders & alerts', icon: Bell },
+        { id: 'privacy-panel', label: 'Safety controls', meta: 'Blocked accounts', icon: UserMinus },
+        { id: 'support-panel', label: 'Help & policies', meta: 'Support + docs', icon: Mail },
+        { id: 'danger-panel', label: 'Danger zone', meta: 'Sign out or delete', icon: Trash2, tone: 'danger' },
+    ];
+
+    const scrollToSection = useCallback((sectionId) => {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        haptics.light();
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [haptics]);
+
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text pb-24 font-sans">
-            {/* Minimalist Floating Header */}
-            <div className="sticky top-0 z-50 bg-claude-bg/80 md:backdrop-blur-xl border-b border-claude-border/5 pb-2 pt-12">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-claude-border/5 pb-4">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-claude-surface rounded-full shadow-sm border border-claude-border/5 hover:bg-claude-border/10 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
+            <div className="sticky top-0 z-50 border-b border-claude-border/60 bg-claude-bg/88 safe-area-top md:backdrop-blur-xl">
+                <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 lg:px-8">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="tap-action touch-target rounded-full border border-claude-border/70 bg-claude-surface/80 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-accent active:scale-95"
+                    >
                         <ArrowLeft className="w-5 h-5 text-claude-text" />
                     </button>
-                    <h1 className="font-display text-xl tracking-wider text-claude-text font-bold">Settings</h1>
-                    <div className="w-12" /> {/* Spacer */}
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.26em] text-claude-secondary">
+                                Settings atlas
+                            </span>
+                            <span className="rounded-full border border-claude-border/70 bg-claude-bg/60 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/85">
+                                {activeTheme?.name || 'Current theme'}
+                            </span>
+                        </div>
+                        <h1 className="mt-3 font-serif text-[2.35rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2.8rem]">
+                            Settings
+                        </h1>
+                    </div>
+
+                    <div className="hidden lg:flex items-center gap-2">
+                        <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                            {membershipSummary}
+                        </span>
+                        <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                            {securitySummary}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -333,87 +436,118 @@ export default function Settings() {
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
-                className="mx-auto max-w-7xl px-5 py-6 lg:px-8"
+                className="mx-auto max-w-7xl px-4 py-6 lg:px-8"
             >
-                <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[340px,minmax(0,1fr)] xl:items-start xl:gap-8">
-                    <div className="space-y-6 xl:sticky xl:top-28">
-                        <motion.div variants={itemVariants}>
+                <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[360px,minmax(0,1fr)] xl:items-start xl:gap-8">
+                    <div className="space-y-6 xl:sticky xl:top-32">
+                        <motion.div id="overview-panel" variants={itemVariants}>
                             <SectionHeader
                                 eyebrow="Overview"
                                 title="Workspace snapshot"
                                 description="See account status, study automation, and visual setup before you change anything."
                             />
-                            <SectionCard className="p-6 space-y-4">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <h2 className="font-display text-2xl font-semibold text-claude-text">
-                                            Control center
-                                        </h2>
-                                        <p className="mt-1 text-[11px] font-mono text-claude-secondary/75">
-                                            Your account, automation, and atmosphere all in one place.
-                                        </p>
-                                    </div>
-                                    <div className="rounded-full border border-claude-border bg-claude-bg px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                                        Settings
-                                    </div>
-                                </div>
+                            <SectionCard className="overflow-hidden p-6">
+                                <div className="pointer-events-none absolute -top-3 left-12 h-5 w-16 rotate-[-4deg] rounded-sm bg-claude-border/60 shadow-sm" />
+                                <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-claude-accent/10 blur-3xl" />
+                                <div className="pointer-events-none absolute bottom-0 left-0 h-28 w-28 rounded-full bg-botanical-forest/10 blur-3xl" />
 
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-1">
-                                    <div className="rounded-[1.25rem] border border-claude-border bg-claude-bg/70 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/10 p-2.5 text-claude-accent">
-                                                <Sparkles className="h-4 w-4" />
+                                <div className="space-y-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <p className="text-[9px] font-mono uppercase tracking-[0.28em] text-claude-secondary/75">
+                                                Field guide
+                                            </p>
+                                            <h2 className="mt-3 font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text">
+                                                Control center
+                                            </h2>
+                                            <p className="mt-3 max-w-sm text-[11px] font-mono uppercase leading-relaxed tracking-[0.12em] text-claude-secondary/80">
+                                                Account state, study automation, and atmosphere signals in one readable surface.
+                                            </p>
+                                        </div>
+                                        <div className="rounded-full border border-claude-border/70 bg-claude-bg/70 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
+                                            Atlas
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/10 p-2.5 text-claude-accent">
+                                                    <Sparkles className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Plan</p>
+                                                    <p className="mt-1 font-display text-lg text-claude-text">{membershipSummary}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Plan</p>
-                                                <p className="mt-1 font-display text-lg text-claude-text">{membershipSummary}</p>
+                                        </div>
+
+                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-2xl border border-claude-secondary/20 bg-claude-secondary/10 p-2.5 text-claude-secondary">
+                                                    <Shield className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Security</p>
+                                                    <p className="mt-1 font-display text-lg text-claude-text">{securitySummary}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-400">
+                                                    <Network className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Sync</p>
+                                                    <p className="mt-1 font-display text-lg text-claude-text">{canvasSummary}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="rounded-[1.25rem] border border-claude-border bg-claude-bg/70 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="rounded-2xl border border-claude-secondary/20 bg-claude-secondary/10 p-2.5 text-claude-secondary">
-                                                <Shield className="h-4 w-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Security</p>
-                                                <p className="mt-1 font-display text-lg text-claude-text">{securitySummary}</p>
-                                            </div>
-                                        </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <button
+                                            onClick={() => openModal('pricing')}
+                                            className="tap-action flex min-h-[52px] items-center justify-center rounded-[1.1rem] bg-claude-text px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 active:scale-[0.98]"
+                                        >
+                                            Manage plan
+                                        </button>
+                                        <button
+                                            onClick={() => { haptics.light(); navigate('/themes'); }}
+                                            className="tap-action flex min-h-[52px] items-center justify-center rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 active:scale-[0.98]"
+                                        >
+                                            Change atmosphere
+                                        </button>
                                     </div>
-
-                                    <div className="rounded-[1.25rem] border border-claude-border bg-claude-bg/70 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-400">
-                                                <Network className="h-4 w-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Sync</p>
-                                                <p className="mt-1 font-display text-lg text-claude-text">{canvasSummary}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-3 xl:flex-col">
-                                    <button
-                                        onClick={() => openModal('pricing')}
-                                        className="flex-1 rounded-xl bg-claude-text px-4 py-3.5 text-[11px] font-mono uppercase tracking-[0.18em] font-bold text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
-                                    >
-                                        Manage Plan
-                                    </button>
-                                    <button
-                                        onClick={() => { haptics.light(); navigate('/themes'); }}
-                                        className="flex-1 rounded-xl border border-claude-border bg-claude-bg px-4 py-3.5 text-[11px] font-mono uppercase tracking-[0.18em] font-bold text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
-                                    >
-                                        Change Atmosphere
-                                    </button>
                                 </div>
                             </SectionCard>
                         </motion.div>
 
                         <motion.div variants={itemVariants}>
+                            <SectionHeader
+                                eyebrow="Map"
+                                title="Jump to"
+                                description="Scan the settings surface and jump straight to the section you need."
+                            />
+                            <SectionCard className="p-2">
+                                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                                    {quickLinks.map(link => (
+                                        <QuickJumpButton
+                                            key={link.id}
+                                            icon={link.icon}
+                                            label={link.label}
+                                            meta={link.meta}
+                                            tone={link.tone}
+                                            onClick={() => scrollToSection(link.id)}
+                                        />
+                                    ))}
+                                </div>
+                            </SectionCard>
+                        </motion.div>
+
+                        <motion.div id="theme-panel" variants={itemVariants}>
                             <SectionHeader
                                 eyebrow="Appearance"
                                 title="Theme & atmosphere"
@@ -422,7 +556,7 @@ export default function Settings() {
                             <SectionCard className="overflow-hidden">
                                 <button
                                     onClick={() => { haptics.light(); navigate('/themes'); }}
-                                    className="w-full relative overflow-hidden p-6 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
+                                    className="tap-action relative w-full overflow-hidden p-6 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
                                     style={{
                                         backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
                                     }}
@@ -434,30 +568,36 @@ export default function Settings() {
                                         className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none ${isLightMode ? 'bg-amber-100/40' : 'bg-indigo-500/10'}`}
                                     />
 
-                                    <div className="relative z-10 flex items-center justify-between">
-                                        <div className="flex items-center gap-5">
-                                            <div className={`p-4 rounded-2xl transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-claude-surface text-amber-500 border border-amber-900/5' : 'bg-claude-bg text-indigo-400 border border-indigo-100/5'}`}>
-                                                {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
-                                            </div>
-                                            <div>
-                                                <p className={`font-display text-2xl font-medium tracking-tight transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                    {activeTheme?.name || 'Theme'}
-                                                </p>
-                                                <p className={`text-[11px] font-mono uppercase tracking-[0.15em] mt-1.5 opacity-60 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                    Current Atmosphere
-                                                </p>
-                                            </div>
+                                    <div className="relative z-10">
+                                        <div className={`inline-flex rounded-full border px-3 py-1 text-[9px] font-mono uppercase tracking-[0.2em] ${isLightMode ? 'border-[#d6cdc0] bg-white/60 text-[#6f665e]' : 'border-white/10 bg-claude-bg/40 text-[#c2beb6]'}`}>
+                                            Current atmosphere
                                         </div>
 
-                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'} shadow-sm`}>
-                                            <ChevronRight className="w-5 h-5" />
+                                        <div className="mt-5 flex items-center justify-between gap-5">
+                                            <div className="flex items-center gap-5">
+                                                <div className={`rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-claude-surface text-amber-500 border border-amber-900/5' : 'bg-claude-bg text-indigo-400 border border-indigo-100/5'}`}>
+                                                    {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
+                                                </div>
+                                                <div>
+                                                    <p className={`font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                        {activeTheme?.name || 'Theme'}
+                                                    </p>
+                                                    <p className={`mt-3 text-[10px] font-mono uppercase tracking-[0.18em] opacity-65 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                        Tap to change the workspace feel
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className={`flex h-11 w-11 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'} shadow-sm`}>
+                                                <ChevronRight className="w-5 h-5" />
+                                            </div>
                                         </div>
                                     </div>
                                 </button>
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div variants={itemVariants}>
+                        <motion.div id="support-panel" variants={itemVariants}>
                             <SectionHeader
                                 eyebrow="Support"
                                 title="Help & policies"
@@ -468,18 +608,21 @@ export default function Settings() {
                                     icon={Mail}
                                     title="Contact Support"
                                     description="Email the developer"
+                                    badge="Direct"
                                     onClick={() => window.open('mailto:support@Riven.app')}
                                 />
                                 <SettingItem
                                     icon={Shield}
                                     title="Privacy Policy"
                                     description="How we protect your data"
+                                    badge="Policy"
                                     onClick={() => navigate('/privacy')}
                                 />
                                 <SettingItem
                                     icon={BookOpen}
                                     title="Terms of Service"
                                     description="EULA and usage rules"
+                                    badge="Legal"
                                     onClick={() => navigate('/terms')}
                                     noBorder
                                 />
@@ -489,19 +632,19 @@ export default function Settings() {
 
                     <div className="min-w-0 space-y-6">
                         <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="security-panel" variants={itemVariants}>
                                 <SectionHeader
                                     eyebrow="Account"
                                     title="Security"
                                     description="Protect your login and recovery options."
                                 />
                                 <SectionCard className="overflow-hidden">
-                                    <SettingItem icon={Lock} title="Change Password" description="Update your credentials" onClick={() => openModal('password')} />
-                                    <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — Manage 2FA' : 'Add extra security'} onClick={() => openModal('twoFactor')} noBorder />
+                                    <SettingItem icon={Lock} title="Change Password" description="Update your credentials" badge="Access" onClick={() => openModal('password')} />
+                                    <SettingItem icon={Shield} title="Two-Factor Auth" description={user?.twoFAEnabled ? 'Enabled — manage 2FA' : 'Add extra security'} badge={user?.twoFAEnabled ? 'Enabled' : 'Recommended'} onClick={() => openModal('twoFactor')} noBorder />
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="membership-panel" variants={itemVariants}>
                                 <SectionHeader
                                     eyebrow="Membership"
                                     title="Plan & access"
@@ -529,14 +672,13 @@ export default function Settings() {
                                     <div className="pt-2 flex gap-3">
                                         <button
                                             onClick={() => openModal('pricing')}
-                                            className="flex-1 bg-gradient-to-r from-claude-accent to-indigo-500 hover:from-indigo-500 hover:to-claude-accent text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-claude-accent/20"
+                                            className="tap-action flex-1 rounded-[1.1rem] bg-claude-text px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 active:scale-[0.98]"
                                         >
-                                            <Sparkles className="w-4 h-4" />
                                             Upgrade Riven
                                         </button>
                                         <button
                                             onClick={async () => { haptics.light(); try { const u = await refreshUser(); toast(u?.subscription_tier !== 'free' ? 'Subscription restored!' : 'No active subscription found'); } catch { toast('Sync failed, try again'); } }}
-                                            className="p-3.5 bg-claude-bg border border-claude-secondary/10 hover:bg-claude-bg/20 rounded-xl text-claude-secondary hover:text-claude-text transition-colors"
+                                            className="tap-action rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text active:scale-[0.98]"
                                         >
                                             <RefreshCw className="w-4 h-4" />
                                         </button>
@@ -564,11 +706,10 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
                         </div>
-
                         <ReferralCard />
 
                         <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="integrations-panel" variants={itemVariants}>
                                 <SectionHeader
                                     eyebrow="Workspace"
                                     title="Integrations"
@@ -620,7 +761,7 @@ export default function Settings() {
                                 </p>
                                 <button
                                     onClick={() => { haptics.medium(); openModal('pricing'); }}
-                                    className="w-full bg-gradient-to-r from-amber-500 to-amber-400 text-white font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-amber-500/20"
+                                    className="tap-action w-full rounded-[1.1rem] border border-amber-500/20 bg-amber-500/10 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-amber-300 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-amber-500/15 active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     <Crown className="w-4 h-4" />
                                     Upgrade to Connect Canvas
@@ -683,7 +824,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleConnectCanvas}
                                                 disabled={connectingCanvas || !hasCanvasUrl}
-                                                className="w-full bg-claude-text hover:bg-claude-accent text-claude-bg font-mono text-[11px] uppercase tracking-[0.2em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
+                                                className="tap-action w-full bg-claude-text hover:bg-claude-accent text-claude-bg font-mono text-[10px] uppercase tracking-[0.22em] py-3.5 rounded-[1.1rem] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-md"
                                             >
                                                 <Lock className="w-4 h-4" />
                                                 {connectingCanvas ? 'Connecting...' : 'Connect Calendar Feed'}
@@ -717,7 +858,7 @@ export default function Settings() {
                                             <button
                                                 onClick={handleSyncLms}
                                                 disabled={lmsStatus.syncing}
-                                                className="w-full bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-70 font-mono text-[11px] uppercase tracking-[0.15em] py-3.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-blue-500/20"
+                                                className="tap-action w-full bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-70 font-mono text-[10px] uppercase tracking-[0.2em] py-3.5 rounded-[1.1rem] transition-[transform,opacity,color,background-color,border-color,box-shadow] font-bold flex items-center justify-center gap-2 active:scale-[0.98] shadow-md shadow-blue-500/20"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${lmsStatus.syncing ? 'animate-spin' : ''}`} />
                                                 {lmsStatus.syncing ? 'Syncing Courses...' : 'Sync Canvas Now'}
@@ -725,7 +866,7 @@ export default function Settings() {
 
                                             <button
                                                 onClick={handleDisconnectCanvas}
-                                                className="w-full bg-claude-bg border border-claude-secondary/10 text-claude-secondary/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
+                                                className="tap-action w-full bg-claude-bg border border-claude-secondary/10 text-claude-secondary/80 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 font-mono text-[10px] uppercase tracking-[0.2em] py-3 rounded-[1.1rem] transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.98]"
                                             >
                                                 Disconnect Integration
                                             </button>
@@ -737,7 +878,7 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="limits-panel" variants={itemVariants}>
                                 <SectionHeader
                                     eyebrow="Workspace"
                                     title="AI limits"
@@ -792,7 +933,7 @@ export default function Settings() {
                         </div>
 
                         <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="notifications-panel" variants={itemVariants}>
                                 <SectionHeader
                                     eyebrow="Preferences"
                                     title="Notifications"
@@ -803,6 +944,7 @@ export default function Settings() {
                                         icon={Bell}
                                         title="Notifications"
                                         description="Reminders & system updates"
+                                        badge="On"
                                         toggle={true}
                                         toggleValue={true}
                                         onClick={() => {
@@ -814,12 +956,12 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div variants={itemVariants}>
+                            <motion.div id="privacy-panel" variants={itemVariants}>
                                 <BlockedUsersCard />
                             </motion.div>
                         </div>
 
-                        <motion.div variants={itemVariants} className="pt-1">
+                        <motion.div id="danger-panel" variants={itemVariants} className="pt-1">
                             <SectionHeader
                                 eyebrow="Danger"
                                 title="Danger zone"
@@ -827,8 +969,8 @@ export default function Settings() {
                                 tone="danger"
                             />
                             <SectionCard tone="danger" className="overflow-hidden">
-                                <SettingItem icon={LogOut} title="Sign Out" onClick={handleSignOut} destructive />
-                                <SettingItem icon={Trash2} title="Delete Account" description="Permanently erase all data" onClick={() => openModal('delete')} destructive noBorder />
+                                <SettingItem icon={LogOut} title="Sign Out" description="End this session on this device" badge="Session" onClick={handleSignOut} destructive />
+                                <SettingItem icon={Trash2} title="Delete Account" description="Permanently erase all data" badge="Permanent" onClick={() => openModal('delete')} destructive noBorder />
                             </SectionCard>
                         </motion.div>
 

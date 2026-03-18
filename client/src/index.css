@@ -104,9 +104,9 @@
     z-index: -1;
     pointer-events: none;
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(222, 185, 106, 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(122, 158, 114, 0.05) 0%, transparent 40%),
-      radial-gradient(ellipse at 50% 90%, rgba(212, 136, 90, 0.03) 0%, transparent 45%);
+      radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--accent-color) 15%, transparent) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--text-color) 7%, transparent) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 90%, color-mix(in srgb, var(--secondary-text-color) 11%, transparent) 0%, transparent 45%);
   }
 
   #root {
@@ -135,7 +135,7 @@
   }
 
   .focus-ring:focus-visible {
-    @apply ring-2 ring-offset-1 ring-botanical-forest ring-offset-claude-bg;
+    @apply ring-2 ring-offset-1 ring-claude-accent ring-offset-claude-bg;
   }
 
   h1,
@@ -152,7 +152,7 @@
 
   /* Text selection */
   ::selection {
-    background: rgba(222, 185, 106, 0.3);
+    background: color-mix(in srgb, var(--accent-color) 28%, transparent);
     color: var(--text-color);
   }
 
@@ -241,11 +241,13 @@
     color: #162a31;
     @apply px-5 py-4 rounded-xl font-semibold active:scale-[0.97] active:opacity-90 min-h-[52px] flex items-center justify-center;
     transition: transform 150ms, opacity 150ms;
-    box-shadow: 0 4px 24px rgba(222, 185, 106, 0.2), 0 0 0 1px rgba(222, 185, 106, 0.08);
+    box-shadow:
+      0 4px 24px color-mix(in srgb, var(--accent-color) 24%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent-color) 10%, transparent);
   }
 
   .claude-button-primary:hover {
-    background-color: #c9a24e;
+    filter: brightness(0.96) saturate(1.04);
   }
 
   .claude-button-secondary {
@@ -257,7 +259,7 @@
   }
 
   .claude-button-secondary:hover {
-    border-color: #345560;
+    border-color: color-mix(in srgb, var(--accent-color) 24%, var(--border-color));
     background-color: var(--surface-color);
   }
 

@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
+import { getDefaultThemes, THEME_VISUAL_FIELDS } from '../themeCatalog.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2072,14 +2073,75 @@ export const getDeckStats = async (deckId) => {
 };
 
 export const getThemes = async () => {
-    const { data, error } = await supabase.from('themes').select('*');
-    if (error) _sbThrow(error);
-
-    return (data || []).sort((left, right) => {
+    const sortThemes = (themes) => (themes || []).sort((left, right) => {
         const defaultDelta = Number(right.is_default) - Number(left.is_default);
         if (defaultDelta !== 0) return defaultDelta;
         return (left.name || '').localeCompare(right.name || '');
     });
+
+    const selectThemes = async () => {
+        const { data, error } = await supabase.from('themes').select('*');
+        if (error) _sbThrow(error);
+        return data || [];
+    };
+
+    const syncDefaultThemes = async (themes) => {
+        if (!getToken()) return false;
+
+        const existingDefaults = new Map(
+            (themes || [])
+                .filter((theme) => theme.is_default)
+                .map((theme) => [theme.name, theme])
+        );
+        const hasActiveTheme = (themes || []).some((theme) => theme.is_active);
+        const userId = await getAppUserId();
+        let didMutate = false;
+
+        for (const preset of getDefaultThemes()) {
+            const existing = existingDefaults.get(preset.name);
+
+            if (!existing) {
+                const payload = {
+                    user_id: userId,
+                    ...preset,
+                    is_active: hasActiveTheme ? 0 : preset.is_active,
+                };
+                const { error } = await supabase.from('themes').insert(payload);
+                if (error) _sbThrow(error);
+                didMutate = true;
+                continue;
+            }
+
+            const updates = {};
+            for (const field of THEME_VISUAL_FIELDS) {
+                if ((existing[field] || null) !== (preset[field] || null)) {
+                    updates[field] = preset[field];
+                }
+            }
+
+            if (!existing.is_default) {
+                updates.is_default = 1;
+            }
+
+            if (Object.keys(updates).length === 0) continue;
+
+            const { error } = await supabase
+                .from('themes')
+                .update(updates)
+                .eq('id', existing.id);
+            if (error) _sbThrow(error);
+            didMutate = true;
+        }
+
+        return didMutate;
+    };
+
+    let themes = await selectThemes();
+    if (await syncDefaultThemes(themes)) {
+        themes = await selectThemes();
+    }
+
+    return sortThemes(themes);
 };
 
 export const createTheme = async (themeData) => {

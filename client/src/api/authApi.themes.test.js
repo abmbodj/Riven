@@ -19,6 +19,7 @@ vi.mock('../lib/supabaseClient', () => ({
 
 import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
+import { getDefaultThemes } from '../themeCatalog.js';
 
 const buildJsonResponse = (body) => ({
   ok: true,
@@ -62,6 +63,41 @@ describe('authApi themes PostgREST', () => {
 
     expect(select).toHaveBeenCalledWith('*');
     expect(themes.map((theme) => theme.name)).toEqual(['Arctic Frost', 'Riven', 'Custom Drift']);
+  });
+
+  it('syncs missing default themes for authenticated users before returning results', async () => {
+    authApi.setToken('supabase-token');
+
+    const defaultThemes = getDefaultThemes();
+    const initialThemes = [
+      { id: 1, ...defaultThemes.find((theme) => theme.name === 'Riven') },
+      { id: 2, name: 'Custom Drift', is_default: 0, is_active: 0 },
+    ];
+    const syncedThemes = [
+      ...defaultThemes.map((theme, index) => ({ id: index + 10, ...theme })),
+      { id: 2, name: 'Custom Drift', is_default: 0, is_active: 0 },
+    ];
+
+    const select = vi.fn()
+      .mockResolvedValueOnce({ data: initialThemes, error: null })
+      .mockResolvedValueOnce({ data: syncedThemes, error: null });
+    const insert = vi.fn().mockResolvedValue({ data: null, error: null });
+    const updateEq = vi.fn().mockResolvedValue({ data: null, error: null });
+    const update = vi.fn().mockReturnValue({ eq: updateEq });
+
+    supabase.from.mockImplementation(() => ({ select, insert, update }));
+
+    const themes = await authApi.getThemes();
+
+    expect(select).toHaveBeenCalledTimes(2);
+    expect(insert).toHaveBeenCalledTimes(defaultThemes.length - 1);
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 42,
+      name: 'Riven Light',
+      is_default: 1,
+    }));
+    expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
+    expect(themes.some((theme) => theme.name === 'Tech Innovation')).toBe(true);
   });
 
   it('creates custom themes in Supabase with the current app user id', async () => {

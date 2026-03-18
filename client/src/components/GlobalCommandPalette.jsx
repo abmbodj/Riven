@@ -332,7 +332,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
                                             value={query}
                                             onChange={(event) => setQuery(event.target.value)}
                                             onKeyDown={handleInputKeyDown}
-                                            placeholder="Search anything in Riven..."
+                                            placeholder="Search current Riven..."
                                             className="w-full bg-transparent text-base text-white outline-none placeholder:text-claude-secondary"
                                         />
                                         <button

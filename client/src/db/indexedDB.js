@@ -1,4 +1,5 @@
 import { openDB } from 'idb';
+import { getDefaultThemes } from '../themeCatalog.js';
 
 const DB_NAME = 'riven-db';
 const DB_VERSION = 1;
@@ -65,36 +66,23 @@ async function getDB() {
         try {
             // Initialize default themes if needed
             const themeCount = await db.count('themes');
-            const proThemes = [
-                { name: 'Riven', bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0', secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 1, is_default: 1 },
-                { name: 'Arctic Frost', bg_color: '#e8f4fd', surface_color: '#ffffff', text_color: '#0d2b4e', secondary_text_color: '#3d6b9e', border_color: '#b8d8f0', accent_color: '#0080ff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Botanical Garden', bg_color: '#0d1f14', surface_color: '#142a1c', text_color: '#d4e8c2', secondary_text_color: '#7ab885', border_color: '#1e3d28', accent_color: '#5cdb7a', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Desert Rose', bg_color: '#1c0d12', surface_color: '#28131a', text_color: '#f0d9c8', secondary_text_color: '#c4896e', border_color: '#3d1c26', accent_color: '#e8856a', font_family_display: 'Lora', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Forest Canopy', bg_color: '#0a1a0d', surface_color: '#102015', text_color: '#c8e8c0', secondary_text_color: '#6aaa6e', border_color: '#1a3020', accent_color: '#7dde82', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Golden Hour', bg_color: '#1a0f00', surface_color: '#261600', text_color: '#fce8c0', secondary_text_color: '#d4a055', border_color: '#3d2800', accent_color: '#f5a623', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Midnight Galaxy', bg_color: '#06030f', surface_color: '#0e0820', text_color: '#e8e0ff', secondary_text_color: '#9b7fd4', border_color: '#1a1040', accent_color: '#b06aff', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Modern Minimal', bg_color: '#fafafa', surface_color: '#ffffff', text_color: '#0a0a0a', secondary_text_color: '#5a5a5a', border_color: '#e0e0e0', accent_color: '#0a0a0a', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Ocean Depths', bg_color: '#020d18', surface_color: '#051828', text_color: '#c8f0f0', secondary_text_color: '#4db8c8', border_color: '#0a2840', accent_color: '#00d4e8', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 },
-                { name: 'Sunset Blvd', bg_color: '#1a0800', surface_color: '#280d00', text_color: '#ffeee0', secondary_text_color: '#e87040', border_color: '#3d1500', accent_color: '#ff6030', font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: 0, is_default: 1 },
-                { name: 'Tech Innovation', bg_color: '#000000', surface_color: '#0a0a0a', text_color: '#ffffff', secondary_text_color: '#00e5ff', border_color: '#1a1a1a', accent_color: '#00e5ff', font_family_display: 'JetBrains Mono', font_family_body: 'JetBrains Mono', is_active: 0, is_default: 1 },
-                { name: 'Rose', bg_color: '#1a0020', surface_color: '#280030', text_color: '#ffe0f5', secondary_text_color: '#ff80c8', border_color: '#3d0050', accent_color: '#ff4da6', font_family_display: 'Inter', font_family_body: 'Inter', is_active: 0, is_default: 1 }
-            ];
+            const defaultThemes = getDefaultThemes();
 
             if (themeCount === 0) {
-                for (const theme of proThemes) {
+                for (const theme of defaultThemes) {
                     await db.add('themes', theme);
                 }
             } else {
                 // Migration: update default themes and add missing ones
                 const existingThemes = await db.getAll('themes');
-                for (const pro of proThemes) {
-                    const existing = existingThemes.find(t => t.name === pro.name && t.is_default);
+                for (const theme of defaultThemes) {
+                    const existing = existingThemes.find(t => t.name === theme.name && t.is_default);
                     if (existing) {
                         // Update existing default theme with new colors/fonts
-                        await db.put('themes', { ...existing, ...pro });
+                        await db.put('themes', { ...existing, ...theme });
                     } else {
                         // Add if missing
-                        await db.add('themes', pro);
+                        await db.add('themes', theme);
                     }
                 }
 

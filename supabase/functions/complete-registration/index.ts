@@ -18,6 +18,87 @@ const generateShareCode = () => {
   return code;
 };
 
+const DEFAULT_THEMES = [
+  {
+    name: 'Riven',
+    bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0',
+    secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: true,
+  },
+  {
+    name: 'Riven Light',
+    bg_color: '#f5f0e8', surface_color: '#ffffff', text_color: '#1e3840',
+    secondary_text_color: '#6b7d7f', border_color: '#ddd5c8', accent_color: '#deb96a',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Arctic Frost',
+    bg_color: '#eaf2f6', surface_color: '#f9fdff', text_color: '#163038',
+    secondary_text_color: '#607983', border_color: '#cad8de', accent_color: '#89c3d4',
+    font_family_display: 'Instrument Serif', font_family_body: 'Space Grotesk', is_active: false,
+  },
+  {
+    name: 'Botanical Garden',
+    bg_color: '#0d1f14', surface_color: '#142a1c', text_color: '#d4e8c2',
+    secondary_text_color: '#7ab885', border_color: '#1e3d28', accent_color: '#5cdb7a',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Desert Rose',
+    bg_color: '#1c0d12', surface_color: '#28131a', text_color: '#f0d9c8',
+    secondary_text_color: '#c4896e', border_color: '#3d1c26', accent_color: '#e8856a',
+    font_family_display: 'Lora', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Forest Canopy',
+    bg_color: '#0a1a0d', surface_color: '#102015', text_color: '#c8e8c0',
+    secondary_text_color: '#6aaa6e', border_color: '#1a3020', accent_color: '#7dde82',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Golden Hour',
+    bg_color: '#1a0f00', surface_color: '#261600', text_color: '#fce8c0',
+    secondary_text_color: '#d4a055', border_color: '#3d2800', accent_color: '#f5a623',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Midnight Galaxy',
+    bg_color: '#06030f', surface_color: '#0e0820', text_color: '#e8e0ff',
+    secondary_text_color: '#9b7fd4', border_color: '#1a1040', accent_color: '#b06aff',
+    font_family_display: 'Inter', font_family_body: 'Inter', is_active: false,
+  },
+  {
+    name: 'Modern Minimal',
+    bg_color: '#efeae3', surface_color: '#fbf8f3', text_color: '#181512',
+    secondary_text_color: '#70665d', border_color: '#d7cec2', accent_color: '#c88259',
+    font_family_display: 'Space Grotesk', font_family_body: 'Space Grotesk', is_active: false,
+  },
+  {
+    name: 'Ocean Depths',
+    bg_color: '#020d18', surface_color: '#051828', text_color: '#c8f0f0',
+    secondary_text_color: '#4db8c8', border_color: '#0a2840', accent_color: '#00d4e8',
+    font_family_display: 'Inter', font_family_body: 'Inter', is_active: false,
+  },
+  {
+    name: 'Sunset Blvd',
+    bg_color: '#1a0800', surface_color: '#280d00', text_color: '#ffeee0',
+    secondary_text_color: '#e87040', border_color: '#3d1500', accent_color: '#ff6030',
+    font_family_display: 'Cormorant Garamond', font_family_body: 'Lora', is_active: false,
+  },
+  {
+    name: 'Tech Innovation',
+    bg_color: '#061317', surface_color: '#0b1d22', text_color: '#e7faf8',
+    secondary_text_color: '#88a7ab', border_color: '#1f3a40', accent_color: '#71d6ca',
+    font_family_display: 'JetBrains Mono', font_family_body: 'Space Grotesk', is_active: false,
+  },
+  {
+    name: 'Rose',
+    bg_color: '#1a0020', surface_color: '#280030', text_color: '#ffe0f5',
+    secondary_text_color: '#ff80c8', border_color: '#3d0050', accent_color: '#ff4da6',
+    font_family_display: 'Inter', font_family_body: 'Inter', is_active: false,
+  },
+];
+
 const mapUserRow = (row: Record<string, unknown>) => {
   const role = (row.role as string) || (row.is_admin === 1 ? 'admin' : 'user');
   const effectiveTier =
@@ -183,21 +264,11 @@ serve(async (request) => {
     if (insertError) throw insertError;
     const userId = newUser.id;
 
-    // Default themes
-    const themes = [
-      {
-        user_id: userId, name: 'Riven',
-        bg_color: '#162a31', surface_color: '#1e3840', text_color: '#e4ddd0',
-        secondary_text_color: '#8fa6a8', border_color: '#233e46', accent_color: '#deb96a',
-        is_active: true, is_default: true,
-      },
-      {
-        user_id: userId, name: 'Riven Light',
-        bg_color: '#f5f0e8', surface_color: '#ffffff', text_color: '#1e3840',
-        secondary_text_color: '#6b7d7f', border_color: '#ddd5c8', accent_color: '#deb96a',
-        is_active: false, is_default: true,
-      },
-    ];
+    const themes = DEFAULT_THEMES.map((theme) => ({
+      user_id: userId,
+      ...theme,
+      is_default: true,
+    }));
     await admin.from('themes').insert(themes);
 
     // Preset tags

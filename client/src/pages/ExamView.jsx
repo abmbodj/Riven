@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -40,25 +40,8 @@ export default function ExamView() {
 
     const progressBarRef = useRef(null);
     const questionRef = useRef(null);
-    const pendingTimers = useRef(new Set());
     const examStartTime = useRef(Date.now());
     const textareaRef = useRef(null);
-
-    useEffect(() => {
-        return () => {
-            pendingTimers.current.forEach(t => clearTimeout(t));
-            pendingTimers.current.clear();
-        };
-    }, []);
-
-    const safeTimeout = useCallback((fn, ms) => {
-        const t = setTimeout(() => {
-            pendingTimers.current.delete(t);
-            fn();
-        }, ms);
-        pendingTimers.current.add(t);
-        return t;
-    }, []);
 
     useEffect(() => {
         const load = async () => {
@@ -161,7 +144,7 @@ export default function ExamView() {
                 keyPointsMissed: result.keyPointsMissed,
                 explanation: question.explanation,
             }]);
-        } catch (err) {
+        } catch {
             toast.error('Failed to grade answer. Try again.');
         } finally {
             setGradingAnswer(false);
@@ -262,7 +245,7 @@ export default function ExamView() {
             .map(([topic]) => topic);
 
         return (
-            <div className="fullscreen-page flex flex-col overflow-y-auto">
+            <div className="fullscreen-page flex flex-col">
                 <div className="flex items-center justify-between px-6 pt-safe pb-4">
                     <button onClick={() => navigate('/exams')} className="p-2 text-claude-secondary hover:text-claude-text transition-colors tap-action">
                         <X className="w-6 h-6" />
@@ -271,106 +254,123 @@ export default function ExamView() {
                     <div className="w-10" />
                 </div>
 
-                <div className="flex-1 px-6 pb-safe">
+                <div
+                    data-testid="exam-results-scroll"
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-safe sm:px-6"
+                >
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-                        className="w-full max-w-md mx-auto"
+                        className="mx-auto w-full max-w-6xl pb-6 sm:pb-8"
                     >
-                        {/* Score */}
-                        <div className="text-center mb-8">
-                            <div className="w-24 h-24 rounded-full bg-claude-accent/10 flex items-center justify-center mx-auto mb-6">
-                                <Trophy className="w-12 h-12 text-claude-accent" />
-                            </div>
-                            <h2 className="text-4xl sm:text-5xl font-serif italic font-bold text-claude-text mb-2">{percentage}%</h2>
-                            <p className="text-claude-secondary font-mono text-sm mb-4">
-                                {score} of {exam.questions.length} correct
-                            </p>
-                            <div className="w-full h-3 bg-claude-surface rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${percentage}%` }}
-                                    transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                                    className={`h-full rounded-full ${percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Topic Breakdown */}
-                        {Object.keys(topicBreakdown).length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 }}
-                                className="mb-6"
-                            >
-                                <div className="flex items-center gap-2 mb-3">
-                                    <BarChart3 className="w-4 h-4 text-claude-secondary" />
-                                    <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">Topic Breakdown</span>
+                        <div
+                            data-testid="exam-results-layout"
+                            className="grid gap-6 xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] xl:items-start"
+                        >
+                            <div className="space-y-6 xl:sticky xl:top-6">
+                                {/* Score */}
+                                <div className="glass-panel rounded-[32px] border border-claude-border px-5 py-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-6 sm:py-8">
+                                    <div className="w-24 h-24 rounded-full bg-claude-accent/10 flex items-center justify-center mx-auto mb-6">
+                                        <Trophy className="w-12 h-12 text-claude-accent" />
+                                    </div>
+                                    <h2 className="text-4xl sm:text-5xl font-serif italic font-bold text-claude-text mb-2">{percentage}%</h2>
+                                    <p className="text-claude-secondary font-mono text-sm mb-4">
+                                        {score} of {exam.questions.length} correct
+                                    </p>
+                                    <div className="w-full h-3 bg-claude-surface rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${percentage}%` }}
+                                            transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                                            className={`h-full rounded-full ${percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    {Object.entries(topicBreakdown).map(([topic, stats]) => {
-                                        const topicPct = Math.round((stats.correct / stats.total) * 100);
-                                        return (
-                                            <div key={topic} className="glass-panel rounded-xl p-3 border border-claude-border">
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="text-sm text-claude-text font-body truncate mr-2">{topic}</span>
-                                                    <span className={`font-mono text-xs font-bold ${topicPct >= 70 ? 'text-green-400' : topicPct >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                                        {stats.correct}/{stats.total}
-                                                    </span>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-500 ${topicPct >= 70 ? 'bg-green-500' : topicPct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                                        style={{ width: `${topicPct}%` }}
-                                                    />
-                                                </div>
+
+                                {/* Actions */}
+                                <div className="space-y-3">
+                                    {!attemptSaved && (
+                                        <button
+                                            onClick={handleSaveAttempt}
+                                            disabled={savingAttempt}
+                                            className="claude-button-primary w-full py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            {savingAttempt ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                                            {savingAttempt ? 'Saving...' : 'Save Attempt'}
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={() => setShowReview(true)}
+                                        className="w-full py-4 glass-panel rounded-2xl text-claude-text font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-claude-surface transition-colors tap-action"
+                                    >
+                                        <ClipboardList className="w-4 h-4" />
+                                        Review All Questions
+                                    </button>
+
+                                    <button onClick={handleRetake} className="w-full py-4 glass-panel rounded-2xl text-claude-text font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-claude-surface transition-colors tap-action">
+                                        <RefreshCw className="w-4 h-4" />
+                                        Retake Exam
+                                    </button>
+
+                                    <button onClick={() => navigate('/exams')} className="w-full py-3 text-claude-secondary font-mono text-[10px] uppercase tracking-widest font-bold tap-action">
+                                        Back to Exams
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="min-w-0 space-y-6">
+                                {/* Topic Breakdown */}
+                                {Object.keys(topicBreakdown).length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 12 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.5 }}
+                                        className="glass-panel rounded-[32px] border border-claude-border p-4 sm:p-5"
+                                    >
+                                        <div className="flex items-center justify-between gap-3 mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <BarChart3 className="w-4 h-4 text-claude-secondary" />
+                                                <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">Topic Breakdown</span>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </motion.div>
-                        )}
+                                            <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary/70">
+                                                {Object.keys(topicBreakdown).length} topics
+                                            </span>
+                                        </div>
+                                        <div data-testid="topic-breakdown-grid" className="grid gap-3 lg:grid-cols-2">
+                                            {Object.entries(topicBreakdown).map(([topic, stats]) => {
+                                                const topicPct = Math.round((stats.correct / stats.total) * 100);
+                                                return (
+                                                    <div key={topic} className="glass-panel rounded-2xl p-3 border border-claude-border">
+                                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                                            <span className="text-sm text-claude-text font-body truncate">{topic}</span>
+                                                            <span className={`shrink-0 font-mono text-xs font-bold ${topicPct >= 70 ? 'text-green-400' : topicPct >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                                {stats.correct}/{stats.total}
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${topicPct >= 70 ? 'bg-green-500' : topicPct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                                                style={{ width: `${topicPct}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                        {/* Study Path for weak topics */}
-                        {attemptSaved && weakTopics.length > 0 && percentage < 80 && (
-                            <StudyPath
-                                classId={exam.class_id}
-                                weakTopics={weakTopics}
-                                percentage={percentage}
-                            />
-                        )}
-
-                        {/* Actions */}
-                        <div className="space-y-3 mt-6">
-                            {!attemptSaved && (
-                                <button
-                                    onClick={handleSaveAttempt}
-                                    disabled={savingAttempt}
-                                    className="claude-button-primary w-full py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    {savingAttempt ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                    {savingAttempt ? 'Saving...' : 'Save Attempt'}
-                                </button>
-                            )}
-
-                            <button
-                                onClick={() => setShowReview(true)}
-                                className="w-full py-4 glass-panel rounded-2xl text-claude-text font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-claude-surface transition-colors tap-action"
-                            >
-                                <ClipboardList className="w-4 h-4" />
-                                Review All Questions
-                            </button>
-
-                            <button onClick={handleRetake} className="w-full py-4 glass-panel rounded-2xl text-claude-text font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-claude-surface transition-colors tap-action">
-                                <RefreshCw className="w-4 h-4" />
-                                Retake Exam
-                            </button>
-
-                            <button onClick={() => navigate('/exams')} className="w-full py-3 text-claude-secondary font-mono text-[10px] uppercase tracking-widest font-bold tap-action">
-                                Back to Exams
-                            </button>
+                                {/* Study Path for weak topics */}
+                                {attemptSaved && weakTopics.length > 0 && percentage < 80 && (
+                                    <StudyPath
+                                        classId={exam.class_id}
+                                        weakTopics={weakTopics}
+                                        percentage={percentage}
+                                    />
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 </div>

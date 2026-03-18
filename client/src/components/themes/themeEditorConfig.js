@@ -1,4 +1,6 @@
-export const FOUNDATION_THEME_NAMES = ['Riven', 'Riven Light', 'Arctic Frost', 'Modern Minimal', 'Tech Innovation'];
+import { FOUNDATION_THEME_NAMES } from '../../themeCatalog.js';
+
+export { FOUNDATION_THEME_NAMES };
 
 export const DEFAULT_THEME_DARK = {
     name: 'After Hours',

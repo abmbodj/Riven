@@ -154,42 +154,62 @@ function OverlayDepths({ isHero }) {
 }
 
 function OverlayCyber({ isHero }) {
+    const rings = isHero ? [110, 150, 190] : [70, 96];
+    const nodes = isHero ? CYBER_NODES : CYBER_NODES.slice(0, 4);
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* CRT grid */}
+            {/* Blueprint wash */}
             <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(0,229,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.08) 1px, transparent 1px)',
-                backgroundSize: isHero ? '20px 20px' : '10px 10px',
+                background: 'linear-gradient(145deg, #08161b 0%, #0b1f25 48%, #103036 100%)',
+                opacity: 0.55,
             }} />
-            {/* Scanline sweep */}
-            <div className="absolute left-0 right-0" style={{
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.6), transparent)',
-                animation: 'themeScanline 2.5s linear infinite',
-                boxShadow: '0 0 8px rgba(0,229,255,0.8)',
+            {/* Utility grid */}
+            <div className="absolute inset-0" style={{
+                backgroundImage: 'linear-gradient(rgba(113,214,202,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(113,214,202,0.06) 1px, transparent 1px)',
+                backgroundSize: isHero ? '22px 22px' : '12px 12px',
+            }} />
+            {/* Orbital field */}
+            {rings.map((size, index) => (
+                <div
+                    key={size}
+                    className="absolute rounded-full border"
+                    style={{
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        right: isHero ? `${18 + index * 8}px` : `${10 + index * 6}px`,
+                        top: isHero ? `${8 + index * 16}px` : `${4 + index * 10}px`,
+                        borderColor: `rgba(113, 214, 202, ${0.18 - index * 0.04})`,
+                        boxShadow: index === 0 ? '0 0 32px rgba(113,214,202,0.14)' : 'none',
+                    }}
+                />
+            ))}
+            {/* Signal beam */}
+            <div className="absolute inset-y-0 right-[14%] w-[36%]" style={{
+                background: 'linear-gradient(180deg, transparent 0%, rgba(113,214,202,0.18) 18%, rgba(113,214,202,0.04) 100%)',
+                clipPath: 'polygon(58% 0, 100% 0, 46% 100%, 4% 100%)',
+                animation: 'themeShimmer 4.8s ease-in-out infinite',
             }} />
             {/* Data nodes */}
-            {CYBER_NODES.map(n => (
+            {nodes.map(n => (
                 <Motion.div key={n.id}
                     className="absolute"
                     style={{
-                        width: '3px', height: '3px',
+                        width: isHero ? '4px' : '3px',
+                        height: isHero ? '4px' : '3px',
                         left: n.x + '%',
                         top: n.y + '%',
-                        backgroundColor: '#00e5ff',
-                        boxShadow: '0 0 6px #00e5ff, 0 0 12px #00e5ff40',
+                        backgroundColor: '#71d6ca',
+                        boxShadow: '0 0 8px rgba(113,214,202,0.9), 0 0 20px rgba(113,214,202,0.32)',
                         borderRadius: '50%',
                     }}
                     animate={{ opacity: [1, 0.1, 1], scale: [1, 1.5, 1] }}
                     transition={{ duration: 1.2 + n.delay * 0.3, repeat: Infinity, delay: n.delay * 0.2 }}
                 />
             ))}
-            {/* Corner brackets */}
+            {/* Measurement brackets */}
             {isHero && (<>
-                <div className="absolute top-3 left-3 w-4 h-4 border-t border-l border-cyan-400/50" />
-                <div className="absolute top-3 right-3 w-4 h-4 border-t border-r border-cyan-400/50" />
-                <div className="absolute bottom-3 left-3 w-4 h-4 border-b border-l border-cyan-400/50" />
-                <div className="absolute bottom-3 right-3 w-4 h-4 border-b border-r border-cyan-400/50" />
+                <div className="absolute top-3 left-3 w-5 h-5 border-t border-l" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
+                <div className="absolute bottom-3 right-3 w-5 h-5 border-b border-r" style={{ borderColor: 'rgba(113,214,202,0.45)' }} />
             </>)}
         </div>
     );
@@ -295,28 +315,53 @@ function OverlayEmber() {
 }
 
 function OverlayCrystal({ isHero }) {
-    const snow = isHero ? SNOW_PARTICLES : SNOW_PARTICLES.slice(0, 4);
+    const panes = isHero
+        ? [
+            { width: '36%', height: '84%', left: '-4%', top: '-10%', opacity: 0.38, clipPath: 'polygon(12% 0, 100% 0, 70% 100%, 0 100%)' },
+            { width: '42%', height: '66%', left: '28%', top: '-14%', opacity: 0.26, clipPath: 'polygon(18% 0, 100% 0, 82% 100%, 0 100%)' },
+            { width: '28%', height: '88%', right: '-4%', top: '10%', opacity: 0.22, clipPath: 'polygon(26% 0, 100% 0, 70% 100%, 0 100%)' },
+        ]
+        : [
+            { width: '40%', height: '82%', left: '-10%', top: '-12%', opacity: 0.32, clipPath: 'polygon(20% 0, 100% 0, 72% 100%, 0 100%)' },
+            { width: '28%', height: '70%', right: '-6%', top: '12%', opacity: 0.18, clipPath: 'polygon(30% 0, 100% 0, 70% 100%, 0 100%)' },
+        ];
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Ice surface */}
+            {/* Cold paper wash */}
             <div className="absolute inset-0" style={{
-                background: 'linear-gradient(160deg, #ffffff 0%, #d0e8f8 40%, #b8d4f0 100%)',
-                opacity: 0.3,
+                background: 'linear-gradient(145deg, rgba(255,255,255,0.88) 0%, rgba(233,243,248,0.8) 48%, rgba(205,228,236,0.72) 100%)',
+                opacity: 0.52,
             }} />
-            {/* Shimmer */}
-            <div className="absolute inset-y-0 w-2/5" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
-                animation: 'themeShimmer 5s ease-in-out infinite',
+            {/* Refracted sweep */}
+            <div className="absolute inset-y-0 -left-[12%] w-[56%]" style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(137,195,212,0.28) 46%, rgba(255,255,255,0.52) 62%, transparent 100%)',
+                animation: 'themeShimmer 5.8s ease-in-out infinite',
+                filter: 'blur(2px)',
             }} />
-            {/* Snowflakes */}
-            {snow.map(s => (
-                <div key={s.id} className="absolute select-none" style={{
-                    fontSize: (isHero ? 10 : 8) + s.size + 'px',
-                    left: s.x + '%',
-                    top: s.y + '%',
-                    color: `rgba(0,128,255,${0.25 + s.opacity * 0.35})`,
-                    animation: `themeTwinkle ${s.duration}s ${s.delay}s ease-in-out infinite`,
-                }}>❄</div>
+            {/* Glass panes */}
+            {panes.map((pane, index) => (
+                <div
+                    key={index}
+                    className="absolute border"
+                    style={{
+                        ...pane,
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(137,195,212,0.08) 100%)',
+                        borderColor: `rgba(137, 195, 212, ${0.22 - index * 0.04})`,
+                        boxShadow: index === 0 ? '0 0 24px rgba(137,195,212,0.14)' : 'none',
+                    }}
+                />
+            ))}
+            {/* Prism dust */}
+            {SNOW_PARTICLES.slice(0, isHero ? 6 : 4).map((particle) => (
+                <div key={particle.id} className="absolute rounded-full" style={{
+                    width: `${1 + particle.size}px`,
+                    height: `${1 + particle.size}px`,
+                    left: `${particle.x}%`,
+                    top: `${particle.y}%`,
+                    background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(137,195,212,0.18) 65%, transparent 100%)',
+                    animation: `themeTwinkle ${particle.duration}s ${particle.delay}s ease-in-out infinite`,
+                    boxShadow: '0 0 8px rgba(137,195,212,0.25)',
+                }} />
             ))}
         </div>
     );
@@ -363,12 +408,27 @@ function OverlayDusk() {
 }
 
 function OverlayVoid() {
-    // Modern Minimal: clean, pure — the animation IS the absence. A single barely-visible shimmer.
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-y-0 w-1/2" style={{
-                background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.025), transparent)',
-                animation: 'themeShimmer 7s 2s ease-in-out infinite',
+            <div className="absolute inset-0" style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(239,234,227,0.68) 100%)',
+                opacity: 0.48,
+            }} />
+            <div className="absolute inset-y-0 left-[16%] w-px" style={{
+                background: 'linear-gradient(180deg, transparent 0%, rgba(200,130,89,0.48) 30%, transparent 100%)',
+            }} />
+            <div className="absolute inset-y-0 right-[24%] w-[22%]" style={{
+                background: 'linear-gradient(180deg, rgba(200,130,89,0.06) 0%, rgba(200,130,89,0.14) 100%)',
+                borderLeft: '1px solid rgba(200,130,89,0.2)',
+            }} />
+            <div className="absolute inset-0" style={{
+                backgroundImage: 'linear-gradient(rgba(24,21,18,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(24,21,18,0.03) 1px, transparent 1px)',
+                backgroundSize: '100% 20px, 28px 100%',
+                maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.32), transparent 100%)',
+            }} />
+            <div className="absolute inset-y-0 -left-[18%] w-[42%]" style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 30%, rgba(200,130,89,0.12) 54%, transparent 100%)',
+                animation: 'themeShimmer 7.2s 0.8s ease-in-out infinite',
             }} />
         </div>
     );
@@ -1099,13 +1159,18 @@ function MiniUIPreview({ theme, containerRef, showTexture }) {
                 </div>
             )}
             {archetype === 'cyber' && (
-                <div className="absolute bottom-4 right-4 text-[8px] font-mono" data-depth="66" style={{ color: theme.accent_color, opacity: 0.5 }}>
-                    SYS://
+                <div className="absolute bottom-4 right-4 text-[8px] font-mono tracking-[0.22em]" data-depth="66" style={{ color: theme.accent_color, opacity: 0.62 }}>
+                    ORBIT
                 </div>
             )}
             {archetype === 'crystal' && (
-                <div className="absolute top-4 right-4 text-[10px] select-none" data-depth="70" style={{ color: theme.accent_color, opacity: 0.5 }}>
-                    ❄
+                <div className="absolute top-4 right-4 text-[10px] select-none" data-depth="70" style={{ color: theme.accent_color, opacity: 0.58 }}>
+                    ◇
+                </div>
+            )}
+            {archetype === 'void' && (
+                <div className="absolute top-4 right-4 text-[8px] font-mono tracking-[0.24em]" data-depth="64" style={{ color: theme.accent_color, opacity: 0.56 }}>
+                    GRID
                 </div>
             )}
 
@@ -1365,18 +1430,24 @@ function CardAccentShape({ theme, archetype, isActive }) {
             );
 
         case 'cyber':
-            // Hard right-angle corner cut
+            // Orbital frame and telemetry bar
             return (
                 <div className="absolute inset-0 pointer-events-none z-[1]">
-                    <div className="absolute top-0 right-0 w-0 h-0 transition-opacity duration-300"
+                    <div className="absolute -top-6 -right-6 rounded-full border transition-opacity duration-300"
                         style={{
-                            borderLeft: `60px solid transparent`,
-                            borderTop: `80px solid ${theme.accent_color}`,
+                            width: '7.5rem',
+                            height: '7.5rem',
+                            borderColor: `${theme.accent_color}66`,
                             opacity: isActive ? 0.95 : 0.75,
                         }} />
-                    {/* Accent line */}
-                    <div className="absolute bottom-0 left-0 right-0 h-px"
-                        style={{ background: `linear-gradient(90deg, ${theme.accent_color}80, transparent)` }} />
+                    <div className="absolute -top-1 right-10 rounded-full border"
+                        style={{
+                            width: '4rem',
+                            height: '4rem',
+                            borderColor: `${theme.accent_color}45`,
+                        }} />
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px]"
+                        style={{ background: `linear-gradient(90deg, ${theme.accent_color}90, transparent)` }} />
                 </div>
             );
 
@@ -1414,11 +1485,17 @@ function CardAccentShape({ theme, archetype, isActive }) {
             );
 
         case 'crystal':
-            // Top frost gradient
+            // Faceted prism panel
             return (
                 <div className="absolute inset-0 pointer-events-none z-[1]">
-                    <div className="absolute inset-0"
-                        style={{ background: `linear-gradient(180deg, ${theme.accent_color}30 0%, transparent 60%)`, opacity: isActive ? 0.85 : 0.65 }} />
+                    <div className="absolute inset-y-0 right-0 transition-opacity duration-300"
+                        style={{
+                            width: '52%',
+                            background: `linear-gradient(135deg, transparent 18%, ${theme.accent_color}26 44%, rgba(255,255,255,0.44) 62%, transparent 92%)`,
+                            opacity: isActive ? 0.95 : 0.74,
+                        }} />
+                    <div className="absolute top-0 left-0 h-full w-[26%]"
+                        style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)` }} />
                 </div>
             );
 
@@ -1446,13 +1523,15 @@ function CardAccentShape({ theme, archetype, isActive }) {
             );
 
         case 'void':
-            // Minimal — a single vertical line accent
+            // Gallery ruler line and stone slab
             return (
                 <div className="absolute inset-0 pointer-events-none z-[1]">
-                    <div className="absolute top-0 bottom-0 right-12 w-px"
-                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.5 : 0.2 }} />
-                    <div className="absolute top-0 bottom-0 right-0 w-12"
-                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.1 : 0.05 }} />
+                    <div className="absolute top-0 bottom-0 left-8 w-px"
+                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.7 : 0.38 }} />
+                    <div className="absolute top-0 bottom-0 right-0 w-14"
+                        style={{ backgroundColor: theme.accent_color, opacity: isActive ? 0.16 : 0.08 }} />
+                    <div className="absolute top-5 left-8 right-5 h-px"
+                        style={{ backgroundColor: `${theme.text_color}20` }} />
                 </div>
             );
 
