@@ -99,9 +99,20 @@ export default function GuideView() {
 
         setGenerating('flashcards');
         try {
-            const result = await api.generateAiDeck(text, null, `${titleRef.current} - AI`, guideRef.current?.class_id);
-            toast.success(`Generated ${result.card_count} flashcards!`);
-            navigate(`/deck/${result.deck_id}`);
+            const stream = await api.generateAiDeckStream(text, null, `${titleRef.current} - AI`, guideRef.current?.class_id);
+
+            for await (const event of stream.chunks()) {
+                if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    throw err;
+                }
+                if (event.type === 'done') {
+                    toast.success(`Generated ${event.data.card_count} flashcards!`);
+                    navigate(`/deck/${event.data.deck_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate flashcards');
@@ -116,9 +127,20 @@ export default function GuideView() {
 
         setGenerating('exam');
         try {
-            const result = await api.generateAiExam(text, null, `${titleRef.current} Exam`, 'guide', id, guideRef.current?.class_id);
-            toast.success(`Generated ${result.question_count} questions!`);
-            navigate(`/exam/${result.exam_id}`);
+            const stream = await api.generateAiExamStream(text, null, `${titleRef.current} Exam`, 'guide', id, guideRef.current?.class_id);
+
+            for await (const event of stream.chunks()) {
+                if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    throw err;
+                }
+                if (event.type === 'done') {
+                    toast.success(`Generated ${event.data.question_count} questions!`);
+                    navigate(`/exam/${event.data.exam_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate exam');

@@ -16,6 +16,7 @@ import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { createSSEStream } from '../_shared/streaming.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -40,6 +41,9 @@ serve(async (request) => {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
+
+  const reqUrl = new URL(request.url);
+  const useStreaming = reqUrl.searchParams.get('stream') === '1';
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -92,6 +96,177 @@ serve(async (request) => {
       throw createHttpError('AI integration is not configured on the server.', 500);
     }
 
+    // ── STREAMING PATH ──────────────────────────────────
+    if (useStreaming) {
+      const contentBuilders: Record<string, (url: string) => Array<Record<string, unknown>>> = {
+        deck: buildYoutubeDeckContents,
+        guide: buildYoutubeGuideContents,
+        exam: buildYoutubeExamContents,
+        notes: buildYoutubeNotesContents,
+      };
+
+      const contents = contentBuilders[type](normalizedUrl);
+      const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
+
+      (async () => {
+        try {
+          const aiClient = new GoogleGenAI({ apiKey });
+          const streamResponse = await aiClient.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents,
+            config: {
+              temperature: 0,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+
+          let fullText = '';
+          for await (const chunk of streamResponse) {
+            const text = chunk.text ?? '';
+            if (text) {
+              fullText += text;
+              sendChunk(text);
+            }
+          }
+
+          let result: Record<string, unknown>;
+
+          if (type === 'deck') {
+            const flashcards = parseAiJsonResponse(
+              fullText,
+              'AI generated invalid flashcard format. Please try again.',
+            );
+            if (!Array.isArray(flashcards) || flashcards.length === 0) {
+              throw createHttpError('AI failed to generate any usable flashcards.', 500);
+            }
+
+            const finalName = deckName || title || 'YouTube AI Deck';
+            const { data: deck, error: deckErr } = await admin
+              .from('decks')
+              .insert({
+                user_id: authUser.id,
+                title: finalName,
+                description: 'Generated from YouTube via Gemini AI',
+                class_id: classId || null,
+              })
+              .select('id')
+              .single();
+            if (deckErr) throw deckErr;
+
+            const { error: cardErr } = await admin.from('cards').insert(
+              flashcards.map((card: { front: string; back: string }, i: number) => ({
+                deck_id: deck.id,
+                front: card.front,
+                back: card.back,
+                position: i,
+              })),
+            );
+            if (cardErr) {
+              await admin.from('decks').delete().eq('id', deck.id);
+              throw cardErr;
+            }
+
+            result = { deck_id: deck.id, card_count: flashcards.length };
+          } else if (type === 'guide') {
+            const guideContent = parseAiJsonResponse(
+              fullText,
+              'AI generated invalid study guide format. Please try again.',
+            );
+            if (!guideContent || guideContent.type !== 'doc') {
+              throw createHttpError('AI failed to generate a valid study guide.', 500);
+            }
+
+            const finalTitle = title || 'YouTube Study Guide';
+            const { data: guide, error: guideErr } = await admin
+              .from('study_guides')
+              .insert({
+                user_id: authUser.id,
+                title: finalTitle,
+                content: guideContent,
+                note_id: null,
+                class_id: classId || null,
+              })
+              .select('id')
+              .single();
+            if (guideErr) throw guideErr;
+
+            result = { guide_id: guide.id, title: finalTitle };
+          } else if (type === 'exam') {
+            const questions = parseAiJsonResponse(
+              fullText,
+              'AI generated invalid exam format. Please try again.',
+            );
+            const validQs = (Array.isArray(questions) ? questions : []).filter(
+              (q: { question: string; options: string[]; correct_answer: string }) =>
+                q.question &&
+                Array.isArray(q.options) &&
+                q.options.length === 4 &&
+                q.options.includes(q.correct_answer),
+            );
+            if (validQs.length === 0) {
+              throw createHttpError('AI failed to generate any exam questions.', 500);
+            }
+
+            const finalTitle = title || 'YouTube Mock Exam';
+            const { data: exam, error: examErr } = await admin
+              .from('mock_exams')
+              .insert({
+                user_id: authUser.id,
+                title: finalTitle,
+                source_type: 'youtube',
+                source_id: null,
+                class_id: classId || null,
+                questions: validQs,
+              })
+              .select('id')
+              .single();
+            if (examErr) throw examErr;
+
+            result = { exam_id: exam.id, question_count: validQs.length };
+          } else {
+            // notes
+            const noteContent = parseAiJsonResponse(
+              fullText,
+              'AI generated invalid notes format. Please try again.',
+            );
+            if (!noteContent || noteContent.type !== 'doc') {
+              throw createHttpError('AI failed to generate valid notes.', 500);
+            }
+
+            const finalTitle = title || 'YouTube Notes';
+            const { data: note, error: noteErr } = await admin
+              .from('notes')
+              .insert({
+                user_id: authUser.id,
+                title: finalTitle,
+                content: noteContent,
+                class_id: classId || null,
+                source_type: 'import',
+              })
+              .select('id')
+              .single();
+            if (noteErr) throw noteErr;
+
+            result = { note_id: note.id, title: finalTitle };
+          }
+
+          sendDone(result);
+        } catch (err: unknown) {
+          const reqErr = normalizeRequestError(err);
+          sendError(
+            reqErr.message || 'An unexpected error occurred during AI generation.',
+            typeof reqErr.status === 'number' ? reqErr.status : 500,
+            typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {},
+          );
+        } finally {
+          close();
+        }
+      })();
+
+      return response;
+    }
+
+    // ── BATCH PATH (unchanged) ──────────────────────────
     let aiClient: GoogleGenAI | null = null;
 
     const generateContent = async ({ model, contents }: AiContentRequest) => {

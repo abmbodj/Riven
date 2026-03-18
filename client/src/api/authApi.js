@@ -1126,6 +1126,142 @@ export const generateAiExam = (notes, file, title, sourceType, sourceId, classId
 export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName } = {}) =>
     edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName } });
 
+// --- AI Generation (Streaming) ---
+
+const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        const error = new Error('Supabase Edge Functions are not configured');
+        error.code = 'EDGE_FUNCTIONS_NOT_CONFIGURED';
+        throw error;
+    }
+
+    const url = new URL(`${supabaseUrl}/functions/v1/${functionName}`);
+    url.searchParams.set('stream', '1');
+
+    // Reuse the same token resolution as edgeFunctionFetch
+    const getEdgeFunctionToken = async () => {
+        const validateWithSupabaseAuth = async (candidateToken) => {
+            if (!isTokenEligibleForEdge(candidateToken)) return false;
+
+            if (typeof supabase?.auth?.getUser !== 'function') {
+                return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
+            }
+
+            const { data: userData, error: userError } = await supabase.auth.getUser(candidateToken).catch(() => ({
+                data: { user: null },
+                error: new Error('Token validation failed'),
+            }));
+
+            return !userError && Boolean(userData?.user?.id);
+        };
+
+        const session = await getActiveSupabaseSession().catch(() => null);
+        if (session?.access_token && await validateWithSupabaseAuth(session.access_token)) {
+            return session.access_token;
+        }
+
+        const { data } = typeof supabase?.auth?.refreshSession === 'function'
+            ? await supabase.auth.refreshSession().catch(() => ({ data: {} }))
+            : { data: {} };
+        if (data?.session?.access_token && await validateWithSupabaseAuth(data.session.access_token)) {
+            setToken(data.session.access_token);
+            return data.session.access_token;
+        }
+
+        const storedToken = getToken();
+        if (!storedToken) return null;
+        if (!await validateWithSupabaseAuth(storedToken)) {
+            setToken(null);
+            return null;
+        }
+        return storedToken;
+    };
+
+    const token = await getEdgeFunctionToken();
+    const headers = {
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+    };
+
+    if (token && token !== 'logged_in') {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const abortController = new AbortController();
+
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON error */ }
+        const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+        error.status = response.status;
+        error.code = data.code;
+        error.body = data;
+        throw error;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    return {
+        async *chunks() {
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                const events = buffer.split('\n\n');
+                buffer = events.pop(); // incomplete event stays in buffer
+
+                for (const eventBlock of events) {
+                    if (!eventBlock.trim()) continue;
+                    const lines = eventBlock.split('\n');
+                    let eventType = 'chunk';
+                    let data = '';
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) eventType = line.slice(7);
+                        if (line.startsWith('data: ')) data = line.slice(6);
+                    }
+                    if (data) {
+                        try {
+                            yield { type: eventType, data: JSON.parse(data) };
+                        } catch {
+                            // Skip malformed events
+                        }
+                    }
+                }
+            }
+        },
+        abort: () => abortController.abort(),
+    };
+};
+
+export const generateAiDeckStream = (notes, file, deckName, classId) =>
+    edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId } });
+
+export const generateAiGuideStream = (notes, file, title, noteId, classId) =>
+    edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId } });
+
+export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId) =>
+    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId } });
+
+export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName } = {}) =>
+    edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName } });
+
+export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title) =>
+    edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title } });
+
 // --- Notes (PostgREST) ---
 
 export const getNotes = async (classId) => {

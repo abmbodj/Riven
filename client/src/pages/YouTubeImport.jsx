@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -8,6 +8,7 @@ import {
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
+import { createArrayStreamParser } from '../utils/streamingJsonParser';
 
 const CONTENT_TYPES = [
     {
@@ -180,6 +181,9 @@ export default function YouTubeImport() {
         );
     }, []);
 
+    const [streamingPreview, setStreamingPreview] = useState([]); // streamed items for current type
+    const streamAbortRef = useRef(null);
+
     const handleGenerate = async () => {
         if (!youtubeUrl.trim() || selectedTypes.length === 0) return;
 
@@ -197,6 +201,7 @@ export default function YouTubeImport() {
 
         for (let i = 0; i < selectedTypes.length; i++) {
             const type = selectedTypes[i];
+            setStreamingPreview([]);
 
             setProgress(prev => prev.map((item, idx) =>
                 idx === i ? { ...item, status: 'generating' } : item
@@ -204,16 +209,45 @@ export default function YouTubeImport() {
 
             try {
                 const effectiveTitle = customTitle.trim() || videoTitle || undefined;
-                const result = await api.generateFromYoutube(youtubeUrl, type, {
+                const stream = await api.generateFromYoutubeStream(youtubeUrl, type, {
                     title: effectiveTitle,
                     classId: selectedClass || undefined,
                     deckName: effectiveTitle,
                 });
+                streamAbortRef.current = stream.abort;
 
-                setProgress(prev => prev.map((item, idx) =>
-                    idx === i ? { ...item, status: 'done', result } : item
-                ));
-                finalResults.push({ type, result });
+                // For array types (deck, exam), parse items progressively
+                const isArrayType = type === 'deck' || type === 'exam';
+                const parser = isArrayType ? createArrayStreamParser((item) => {
+                    setStreamingPreview(prev => [...prev, item]);
+                }) : null;
+
+                let streamText = '';
+                let result = null;
+
+                for await (const event of stream.chunks()) {
+                    if (event.type === 'chunk') {
+                        if (parser) {
+                            parser.feed(event.data.text);
+                        } else {
+                            streamText += event.data.text;
+                        }
+                    } else if (event.type === 'error') {
+                        const err = new Error(event.data.message);
+                        err.status = event.data.status;
+                        err.body = event.data;
+                        throw err;
+                    } else if (event.type === 'done') {
+                        result = event.data;
+                    }
+                }
+
+                if (result) {
+                    setProgress(prev => prev.map((item, idx) =>
+                        idx === i ? { ...item, status: 'done', result } : item
+                    ));
+                    finalResults.push({ type, result });
+                }
             } catch (err) {
                 if (err.status === 429) {
                     setProgress(prev => prev.map((item, idx) => {
@@ -227,10 +261,13 @@ export default function YouTubeImport() {
                 setProgress(prev => prev.map((item, idx) =>
                     idx === i ? { ...item, status: 'error', error: err.message || 'Generation failed' } : item
                 ));
+            } finally {
+                streamAbortRef.current = null;
             }
         }
 
         setResults(finalResults);
+        setStreamingPreview([]);
 
         // Auto-redirect if exactly one item was generated successfully
         if (finalResults.length === 1) {
@@ -525,16 +562,47 @@ export default function YouTubeImport() {
                                                 {item.label}
                                             </p>
                                             <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-claude-secondary mt-0.5">
-                                                {item.status === 'generating' ? 'Analyzing video...' :
-                                                    item.status === 'done' ? 'Complete' :
-                                                        item.status === 'error' ? (item.error || 'Failed') :
-                                                            'Waiting...'}
+                                                {item.status === 'generating'
+                                                    ? (streamingPreview.length > 0
+                                                        ? `${streamingPreview.length} item${streamingPreview.length !== 1 ? 's' : ''} so far...`
+                                                        : 'Analyzing video...')
+                                                    : item.status === 'done' ? 'Complete'
+                                                    : item.status === 'error' ? (item.error || 'Failed')
+                                                    : 'Waiting...'}
                                             </p>
                                         </div>
                                     </motion.div>
                                 );
                             })}
                         </div>
+
+                        {/* Streaming Preview */}
+                        {streamingPreview.length > 0 && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="space-y-2 max-h-[30vh] overflow-auto"
+                            >
+                                <AnimatePresence>
+                                    {streamingPreview.map((item, i) => (
+                                        <motion.div
+                                            key={i}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.25 }}
+                                            className="rounded-2xl border border-claude-border bg-claude-surface p-3.5"
+                                        >
+                                            <p className="text-sm font-semibold text-botanical-parchment">
+                                                {item.front || item.question || ''}
+                                            </p>
+                                            {item.back && (
+                                                <p className="mt-1 text-xs text-claude-secondary">{item.back}</p>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </motion.div>
+                        )}
                     </motion.div>
                 )}
 

@@ -3,11 +3,20 @@ import { Buffer } from 'node:buffer';
 import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 import mammoth from 'npm:mammoth@1.11.0';
 
-import { consumeAiQuota, generateExamFromAi } from '../_shared/aiCore.mjs';
+import {
+  consumeAiQuota,
+  generateExamFromAi,
+  prepareAiSource,
+  buildExamContents,
+  ensureApiKey,
+  parseAiJsonResponse,
+  createHttpError,
+} from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { createSSEStream } from '../_shared/streaming.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -38,6 +47,9 @@ serve(async (request) => {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
+
+  const url = new URL(request.url);
+  const useStreaming = url.searchParams.get('stream') === '1';
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -70,6 +82,109 @@ serve(async (request) => {
     });
 
     const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+
+    // ── STREAMING PATH ──────────────────────────────────
+    if (useStreaming) {
+      ensureApiKey(apiKey);
+
+      const { processedNotes, hasProcessedNotes, keepFile } = await prepareAiSource({
+        notes: body.notes,
+        file: body.file,
+        parseDocx: async (buffer: Buffer) => {
+          const parsed = await mammoth.extractRawText({ buffer });
+          return parsed.value;
+        },
+        onParseError: (err: unknown) => console.error('Failed to parse document text:', err),
+      });
+
+      if (!hasProcessedNotes && !keepFile) {
+        throw createHttpError('Notes or a file are required to generate an exam.', 400);
+      }
+
+      const characterLimit = aiLimitsContext?.characterLimit || 15000;
+      if (hasProcessedNotes && processedNotes.length > characterLimit) {
+        throw createHttpError(
+          `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+          400,
+        );
+      }
+
+      const contents = buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file });
+      const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
+
+      (async () => {
+        try {
+          const aiClient = new GoogleGenAI({ apiKey });
+          const streamResponse = await aiClient.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents,
+            config: {
+              temperature: 0,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+
+          let fullText = '';
+          for await (const chunk of streamResponse) {
+            const text = chunk.text ?? '';
+            if (text) {
+              fullText += text;
+              sendChunk(text);
+            }
+          }
+
+          const questions = parseAiJsonResponse(
+            fullText,
+            'AI generated invalid exam format. Please try again.',
+          );
+
+          if (!Array.isArray(questions) || questions.length === 0) {
+            throw createHttpError('AI failed to generate any exam questions.', 500);
+          }
+
+          const validQuestions = questions.filter(
+            (q: { question: string; options: string[]; correct_answer: string }) =>
+              q.question && Array.isArray(q.options) && q.options.length === 4
+              && q.correct_answer && q.options.includes(q.correct_answer),
+          );
+
+          if (validQuestions.length === 0) {
+            throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);
+          }
+
+          const finalTitle = body.title || 'AI Mock Exam';
+          const { data: exam, error: examErr } = await admin
+            .from('mock_exams')
+            .insert({
+              user_id: authUser.id,
+              title: finalTitle,
+              source_type: body.sourceType || 'notes',
+              source_id: body.sourceId || null,
+              class_id: body.classId || null,
+              questions: validQuestions,
+            })
+            .select('id')
+            .single();
+
+          if (examErr) throw examErr;
+
+          sendDone({ exam_id: exam.id, question_count: validQuestions.length });
+        } catch (err: unknown) {
+          const reqErr = normalizeRequestError(err);
+          sendError(
+            reqErr.message || 'An unexpected error occurred during AI generation.',
+            typeof reqErr.status === 'number' ? reqErr.status : 500,
+            typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {},
+          );
+        } finally {
+          close();
+        }
+      })();
+
+      return response;
+    }
+
+    // ── BATCH PATH (unchanged) ──────────────────────────
     let aiClient: GoogleGenAI | null = null;
 
     const result = await generateExamFromAi({

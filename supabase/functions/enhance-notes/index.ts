@@ -6,6 +6,7 @@ import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { createSSEStream } from '../_shared/streaming.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -67,6 +68,9 @@ serve(async (request) => {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
+
+  const reqUrl = new URL(request.url);
+  const useStreaming = reqUrl.searchParams.get('stream') === '1';
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -200,13 +204,86 @@ serve(async (request) => {
       };
     }
 
-    // Call Gemini with audio
+    const aiContents = [
+      { text: systemPrompt },
+      audioContent,
+    ];
+
+    // ── STREAMING PATH ──────────────────────────────────
+    if (useStreaming) {
+      const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
+
+      (async () => {
+        try {
+          const streamResponse = await ai.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents: aiContents,
+            config: {
+              temperature: 0,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+
+          let fullText = '';
+          for await (const chunk of streamResponse) {
+            const text = chunk.text ?? '';
+            if (text) {
+              fullText += text;
+              sendChunk(text);
+            }
+          }
+
+          const enhancedContent = parseAiJsonResponse(
+            fullText,
+            'AI generated invalid notes format. Please try again.',
+          );
+
+          if (!enhancedContent || typeof enhancedContent !== 'object' || enhancedContent.type !== 'doc') {
+            throw createHttpError('AI failed to generate valid enhanced notes.', 500);
+          }
+
+          // Update the note with enhanced content
+          const { error: updateError } = await admin
+            .from('notes')
+            .update({
+              enhanced_content: enhancedContent,
+              audio_url: null,
+              source_type: 'audio',
+            })
+            .eq('id', noteId)
+            .eq('user_id', authUser.id);
+
+          if (updateError) throw updateError;
+
+          // Cleanup
+          if (geminiFileName) {
+            ai.files.delete({ name: geminiFileName }).catch(() => {});
+          }
+          admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
+
+          sendDone({
+            enhanced_content: enhancedContent,
+            title: title || 'Enhanced Notes',
+          });
+        } catch (err: unknown) {
+          const reqErr = normalizeRequestError(err);
+          sendError(
+            reqErr.message || 'An unexpected error occurred during note enhancement.',
+            typeof reqErr.status === 'number' ? reqErr.status : 500,
+            typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {},
+          );
+        } finally {
+          close();
+        }
+      })();
+
+      return response;
+    }
+
+    // ── BATCH PATH (unchanged) ──────────────────────────
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: [
-        { text: systemPrompt },
-        audioContent,
-      ],
+      contents: aiContents,
       config: {
         temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },

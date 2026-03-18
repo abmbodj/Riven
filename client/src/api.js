@@ -125,6 +125,23 @@ export const api = {
         ? serverApi.generateFromYoutube(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),
 
+    // AI Generation (Streaming)
+    generateAiDeckStream: (notes, file, deckName, classId) => isLoggedIn()
+        ? serverApi.generateAiDeckStream(notes, file, deckName, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
+    generateAiGuideStream: (notes, file, title, noteId, classId) => isLoggedIn()
+        ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI study guide')),
+    generateAiExamStream: (notes, file, title, sourceType, sourceId, classId) => isLoggedIn()
+        ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId)
+        : Promise.reject(new Error('Must be logged in to generate AI exam')),
+    generateFromYoutubeStream: (youtubeUrl, type, options) => isLoggedIn()
+        ? serverApi.generateFromYoutubeStream(youtubeUrl, type, options)
+        : Promise.reject(new Error('Must be logged in to generate from YouTube')),
+    enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title)
+        : Promise.reject(new Error('Must be logged in to enhance notes')),
+
     // ============ NOTES ============
     getNotes: (classId) => isLoggedIn()
         ? serverApi.getNotes(classId)

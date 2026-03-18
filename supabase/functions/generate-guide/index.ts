@@ -3,11 +3,20 @@ import { Buffer } from 'node:buffer';
 import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 import mammoth from 'npm:mammoth@1.11.0';
 
-import { consumeAiQuota, generateStudyGuideFromAi } from '../_shared/aiCore.mjs';
+import {
+  consumeAiQuota,
+  generateStudyGuideFromAi,
+  prepareAiSource,
+  buildGuideContents,
+  ensureApiKey,
+  parseAiJsonResponse,
+  createHttpError,
+} from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { createSSEStream } from '../_shared/streaming.ts';
 
 type PersistUsagePayload = {
   count: number;
@@ -37,6 +46,9 @@ serve(async (request) => {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
+
+  const url = new URL(request.url);
+  const useStreaming = url.searchParams.get('stream') === '1';
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -69,6 +81,98 @@ serve(async (request) => {
     });
 
     const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+
+    // ── STREAMING PATH ──────────────────────────────────
+    if (useStreaming) {
+      ensureApiKey(apiKey);
+
+      const { processedNotes, hasProcessedNotes, keepFile } = await prepareAiSource({
+        notes: body.notes,
+        file: body.file,
+        parseDocx: async (buffer: Buffer) => {
+          const parsed = await mammoth.extractRawText({ buffer });
+          return parsed.value;
+        },
+        onParseError: (err: unknown) => console.error('Failed to parse document text:', err),
+      });
+
+      if (!hasProcessedNotes && !keepFile) {
+        throw createHttpError('Notes or a file are required to generate a study guide.', 400);
+      }
+
+      const characterLimit = aiLimitsContext?.characterLimit || 15000;
+      if (hasProcessedNotes && processedNotes.length > characterLimit) {
+        throw createHttpError(
+          `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+          400,
+        );
+      }
+
+      const contents = buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file });
+      const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
+
+      (async () => {
+        try {
+          const aiClient = new GoogleGenAI({ apiKey });
+          const streamResponse = await aiClient.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents,
+            config: {
+              temperature: 0,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+
+          let fullText = '';
+          for await (const chunk of streamResponse) {
+            const text = chunk.text ?? '';
+            if (text) {
+              fullText += text;
+              sendChunk(text);
+            }
+          }
+
+          const guideContent = parseAiJsonResponse(
+            fullText,
+            'AI generated invalid study guide format. Please try again.',
+          );
+
+          if (!guideContent || typeof guideContent !== 'object' || guideContent.type !== 'doc') {
+            throw createHttpError('AI failed to generate a valid study guide.', 500);
+          }
+
+          const finalTitle = body.title || 'AI Study Guide';
+          const { data: guide, error: guideErr } = await admin
+            .from('study_guides')
+            .insert({
+              user_id: authUser.id,
+              title: finalTitle,
+              content: guideContent,
+              note_id: body.noteId || null,
+              class_id: body.classId || null,
+            })
+            .select('id')
+            .single();
+
+          if (guideErr) throw guideErr;
+
+          sendDone({ guide_id: guide.id, title: finalTitle });
+        } catch (err: unknown) {
+          const reqErr = normalizeRequestError(err);
+          sendError(
+            reqErr.message || 'An unexpected error occurred during AI generation.',
+            typeof reqErr.status === 'number' ? reqErr.status : 500,
+            typeof reqErr.canWatchAd === 'boolean' ? { canWatchAd: reqErr.canWatchAd } : {},
+          );
+        } finally {
+          close();
+        }
+      })();
+
+      return response;
+    }
+
+    // ── BATCH PATH (unchanged) ──────────────────────────
     let aiClient: GoogleGenAI | null = null;
 
     const result = await generateStudyGuideFromAi({

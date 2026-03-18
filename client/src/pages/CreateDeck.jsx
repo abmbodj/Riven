@@ -9,6 +9,7 @@ import { api } from '../api';
 import { deckTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
+import { createArrayStreamParser } from '../utils/streamingJsonParser';
 
 const MODES = [
     { id: 'manual', label: 'Quick Deck', icon: Layers },
@@ -107,6 +108,9 @@ export default function CreateDeck() {
     const [aiFilePreview, setAiFilePreview] = useState('');
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [streamingCards, setStreamingCards] = useState([]);
+    const [streamPhase, setStreamPhase] = useState('idle'); // 'idle' | 'streaming' | 'saving' | 'done'
+    const streamAbortRef = useRef(null);
     const toast = useToast();
 
     useEffect(() => {
@@ -185,23 +189,48 @@ export default function CreateDeck() {
         }
 
         setIsGeneratingAI(true);
+        setStreamingCards([]);
+        setStreamPhase('streaming');
+
         try {
-            const result = await api.generateAiDeck(
+            const stream = await api.generateAiDeckStream(
                 aiNotes,
                 aiFile,
                 titleResult.data,
                 selectedClass
             );
-            toast.success(`Generated ${result.card_count} flashcards!`);
-            navigate(`/deck/${result.deck_id}`);
+            streamAbortRef.current = stream.abort;
+
+            const parser = createArrayStreamParser((card) => {
+                setStreamingCards(prev => [...prev, { front: card.front, back: card.back }]);
+            });
+
+            for await (const event of stream.chunks()) {
+                if (event.type === 'chunk') {
+                    parser.feed(event.data.text);
+                } else if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    err.body = event.data;
+                    throw err;
+                } else if (event.type === 'done') {
+                    setStreamPhase('done');
+                    toast.success(`Generated ${event.data.card_count} flashcards!`);
+                    navigate(`/deck/${event.data.deck_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) {
                 setShowPricingModal(true);
             } else {
                 toast.error(err.message || 'Failed to generate flashcards');
             }
+            setStreamPhase('idle');
+            setStreamingCards([]);
         } finally {
             setIsGeneratingAI(false);
+            streamAbortRef.current = null;
         }
     };
 
@@ -463,22 +492,56 @@ export default function CreateDeck() {
                                 )}
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() => { setShowClassPicker(true); setShowFolderPicker(false); }}
-                                className="rounded-2xl border border-claude-border bg-claude-surface px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.99]"
-                            >
-                                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">Linked Class</p>
-                                <div className="mt-2 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: selectedClassData?.color || 'var(--secondary-text-color)' }} />
-                                        <span className={selectedClassData ? 'text-botanical-parchment' : 'text-claude-secondary'}>
-                                            {selectedClassData?.name || 'Not linked'}
+                            {streamPhase === 'idle' && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowClassPicker(true); setShowFolderPicker(false); }}
+                                    className="rounded-2xl border border-claude-border bg-claude-surface px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] active:scale-[0.99]"
+                                >
+                                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">Linked Class</p>
+                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <Calendar className="w-5 h-5 text-claude-secondary" style={{ color: selectedClassData?.color || 'var(--secondary-text-color)' }} />
+                                            <span className={selectedClassData ? 'text-botanical-parchment' : 'text-claude-secondary'}>
+                                                {selectedClassData?.name || 'Not linked'}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className="w-5 h-5 text-claude-secondary" />
+                                    </div>
+                                </button>
+                            )}
+
+                            {/* Streaming Preview */}
+                            {streamPhase === 'streaming' && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="space-y-3"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-claude-accent" />
+                                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent font-bold">
+                                            {streamingCards.length} card{streamingCards.length !== 1 ? 's' : ''} generated...
                                         </span>
                                     </div>
-                                    <ChevronDown className="w-5 h-5 text-claude-secondary" />
-                                </div>
-                            </button>
+                                    <div className="space-y-2 max-h-[40vh] overflow-auto">
+                                        <AnimatePresence>
+                                            {streamingCards.map((card, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={{ opacity: 0, y: 12 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                                    className="rounded-2xl border border-claude-border bg-claude-surface p-4"
+                                                >
+                                                    <p className="text-sm font-semibold text-botanical-parchment">{card.front}</p>
+                                                    <p className="mt-1 text-sm text-claude-secondary">{card.back}</p>
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
+                                    </div>
+                                </motion.div>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>

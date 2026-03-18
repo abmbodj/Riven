@@ -98,7 +98,7 @@ Rules:
 5. Due dates must be valid ISO 8601 timestamps if a date parsing is possible. Try to determine the year based on context, otherwise use the current year.
 `;
 
-const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
   const contents = [{ text: buildDeckPrompt() }];
 
   if (hasProcessedNotes) {
@@ -234,7 +234,7 @@ export const parseAiJsonResponse = (rawResponse, invalidMessage) => {
   }
 };
 
-const ensureApiKey = (apiKey) => {
+export const ensureApiKey = (apiKey) => {
   if (!apiKey) {
     throw createHttpError('AI integration is not configured on the server.', 500);
   }
@@ -351,7 +351,7 @@ Rules:
 7. Use bold for key terms and italic for definitions or emphasis.
 `;
 
-const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
   const contents = [{ text: buildGuidePrompt() }];
 
   if (hasProcessedNotes) {
@@ -481,7 +481,7 @@ Example JSON format:
 ]
 `;
 
-const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
   const contents = [{ text: buildExamPrompt() }];
 
   if (hasProcessedNotes) {
