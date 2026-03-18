@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import useHaptics from '../../hooks/useHaptics';
@@ -18,6 +19,9 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [alert, setAlert] = useState({ show: false, title: '', message: '', type: 'info' });
+    const [captchaToken, setCaptchaToken] = useState(null);
+    const turnstileRef = useRef(null);
+    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -29,9 +33,14 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
             return;
         }
 
+        if (turnstileSiteKey && !captchaToken) {
+            setAlert({ show: true, title: 'Verification Required', message: 'Please complete the CAPTCHA verification.', type: 'warning' });
+            return;
+        }
+
         setLoading(true);
         try {
-            await signUp(form.username, form.email, form.password);
+            await signUp(form.username, form.email, form.password, captchaToken);
             toast.success('Your sanctuary awaits.');
             haptics.success();
             if (navigator.vibrate) navigator.vibrate(50);
@@ -45,6 +54,8 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
             if (err.error) errorMessage = err.error;
 
             setAlert({ show: true, title: 'Registration Failed', message: errorMessage, type: 'error' });
+            setCaptchaToken(null);
+            turnstileRef.current?.reset();
         } finally {
             setLoading(false);
         }
@@ -115,10 +126,23 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     </div>
                 </div>
 
+                {turnstileSiteKey && (
+                    <div className="flex justify-center mt-2">
+                        <Turnstile
+                            ref={turnstileRef}
+                            siteKey={turnstileSiteKey}
+                            onSuccess={setCaptchaToken}
+                            onExpire={() => setCaptchaToken(null)}
+                            onError={() => setCaptchaToken(null)}
+                            options={{ theme: 'dark', size: 'flexible' }}
+                        />
+                    </div>
+                )}
+
                 <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-3 rounded-xl hover:bg-white active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 mt-4 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[48px] flex items-center justify-center"
+                    disabled={loading || (turnstileSiteKey && !captchaToken)}
+                    className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-3 rounded-xl hover:bg-white active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 mt-4 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[48px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? (
                         <span className="flex items-center justify-center gap-2">

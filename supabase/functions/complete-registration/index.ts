@@ -80,8 +80,23 @@ serve(async (request) => {
       return jsonResponse({ error: 'No email on Supabase Auth account' }, { status: 400 }, request);
     }
 
-    // Parse username from body
-    const body = await request.json().catch(() => ({})) as { username?: string };
+    // Parse username and captcha token from body
+    const body = await request.json().catch(() => ({})) as { username?: string; captchaToken?: string };
+
+    // Verify Cloudflare Turnstile CAPTCHA for new registrations
+    const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
+    if (turnstileSecret && body.captchaToken) {
+      const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: turnstileSecret, response: body.captchaToken }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        return jsonResponse({ error: 'CAPTCHA verification failed. Please try again.' }, { status: 400 }, request);
+      }
+    }
+
     const meta = authData.user.user_metadata || {};
     let username =
       body.username ||

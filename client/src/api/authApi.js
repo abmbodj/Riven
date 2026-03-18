@@ -343,10 +343,10 @@ const safeFetchObject = async (promise, defaultVal = {}) => {
 
 // Helper: create the app user row after a Supabase Auth signup/OAuth login.
 // The Supabase access token must already be stored via setToken().
-const completeRegistration = async (username) => {
+const completeRegistration = async (username, captchaToken = null) => {
     return edgeFunctionFetch('complete-registration', {
         method: 'POST',
-        body: { username },
+        body: { username, ...(captchaToken ? { captchaToken } : {}) },
         skipForceReauth: true,
     });
 };
@@ -433,7 +433,7 @@ const bootstrapSupabaseSession = async (email, password) => {
     }
 };
 
-export const register = async (username, email, password) => {
+export const register = async (username, email, password, captchaToken = null) => {
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -444,7 +444,7 @@ export const register = async (username, email, password) => {
         // Supabase confirmed immediately (email confirmation disabled in dashboard).
         setToken(data.session.access_token);
         try {
-            const result = await completeRegistration(username);
+            const result = await completeRegistration(username, captchaToken);
             return result.user;
         } catch (e) {
             // complete-registration failed (e.g. JWT secret misconfiguration on server).
@@ -459,7 +459,7 @@ export const register = async (username, email, password) => {
     // The Supabase user (if created) will be linked on first confirmed login.
     const legacyData = await authFetch('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, captchaToken }),
     });
 
     // Legacy register now creates a Supabase Auth user — sign in to get a
@@ -1121,6 +1121,9 @@ export const generateAiGuide = (notes, file, title, noteId, classId) =>
 
 export const generateAiExam = (notes, file, title, sourceType, sourceId, classId) =>
     edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId } });
+
+export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName } = {}) =>
+    edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName } });
 
 // --- Notes (PostgREST) ---
 
@@ -3120,27 +3123,6 @@ export const resetPassword = async (token, password) => {
         body: { token, password },
     });
 };
-
-// ============ EMAIL VERIFICATION ============
-
-export const sendVerificationEmail = async () => {
-    const row = await getSupabaseSelfUserRow();
-    if (row.email_verified) {
-        return { message: 'Email already verified' };
-    }
-
-    const emailRedirectTo = buildAuthRedirectUrl('/verify-email');
-    const { error } = await supabase.auth.resend({
-        email: row.email,
-        type: 'signup',
-        ...(emailRedirectTo ? { options: { emailRedirectTo } } : {}),
-    });
-    if (error) throw error;
-    return { message: 'Verification email sent' };
-};
-
-export const verifyEmail = (token) =>
-    edgeFunctionFetch('verify-email', { method: 'POST', body: { token } });
 
 // ============ HEARTS API ============
 export const getHeartsStatus = () =>

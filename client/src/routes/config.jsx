@@ -27,7 +27,6 @@ const StudyGroups = lazy(() => import('../pages/StudyGroups.jsx'));
 const GroupDetails = lazy(() => import('../pages/GroupDetails.jsx'));
 const GroupCram = lazy(() => import('../pages/GroupCram.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
-const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('../pages/TermsOfService.jsx'));
 
@@ -38,6 +37,7 @@ const GuidesLibrary = lazy(() => import('../pages/GuidesLibrary.jsx'));
 const GuideView = lazy(() => import('../pages/GuideView.jsx'));
 const ExamsLibrary = lazy(() => import('../pages/ExamsLibrary.jsx'));
 const ExamView = lazy(() => import('../pages/ExamView.jsx'));
+const YouTubeImport = lazy(() => import('../pages/YouTubeImport.jsx'));
 
 export const routesConfig = [
   // Public Routes
@@ -45,8 +45,7 @@ export const routesConfig = [
   { path: '/decks', element: <StudyDashboard /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
-  { path: '/verify-email', element: <VerifyEmail /> },
-  { path: '/privacy', element: <PrivacyPolicy /> },
+{ path: '/privacy', element: <PrivacyPolicy /> },
   { path: '/terms', element: <TermsOfService /> },
 
   // Protected Routes
@@ -79,6 +78,7 @@ export const routesConfig = [
       { path: '/groups', element: <StudyGroups /> },
       { path: '/groups/:id', element: <GroupDetails /> },
       { path: '/groups/:groupId/cram/:sessionId', element: <GroupCram /> },
+      { path: '/youtube', element: <YouTubeImport /> },
     ],
   },
 

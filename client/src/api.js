@@ -121,6 +121,9 @@ export const api = {
     generateAiExam: (notes, file, title, sourceType, sourceId, classId) => isLoggedIn()
         ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
+    generateFromYoutube: (youtubeUrl, type, options) => isLoggedIn()
+        ? serverApi.generateFromYoutube(youtubeUrl, type, options)
+        : Promise.reject(new Error('Must be logged in to generate from YouTube')),
 
     // ============ NOTES ============
     getNotes: (classId) => isLoggedIn()

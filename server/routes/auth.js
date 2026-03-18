@@ -1,4 +1,4 @@
-const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, changePasswordSchema, twoFactorVerifySchema } = require('../schemas/auth');
+const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema, twoFactorVerifySchema } = require('../schemas/auth');
 const { handleValidationErrors } = require('../utils/validate');
 
 module.exports = function registerAuthRoutes({
@@ -125,19 +125,31 @@ module.exports = function registerAuthRoutes({
         return responseBody;
     };
 
-    const verifySupabaseTokenHash = async (tokenHash, type, redirectTo) => {
-        const { anonKey } = getSupabaseConfig();
-        return supabaseFetch('/verify', {
-            method: 'POST',
-            apiKey: anonKey,
-            query: { redirect_to: redirectTo },
-            body: { token_hash: tokenHash, type },
-        });
-    };
-
     // Register
     app.post('/api/auth/register', speedLimiter, authLimiter, registerSchema, handleValidationErrors, async (req, res) => {
-        const { username, email, password } = req.body;
+        const { username, email, password, captchaToken } = req.body;
+
+        // Verify Cloudflare Turnstile CAPTCHA
+        const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+        if (turnstileSecret) {
+            if (!captchaToken) {
+                return res.status(400).json({ error: 'CAPTCHA verification is required' });
+            }
+            try {
+                const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ secret: turnstileSecret, response: captchaToken }),
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyData.success) {
+                    return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+                }
+            } catch (err) {
+                console.error('[register] CAPTCHA verification error:', err);
+                return res.status(500).json({ error: 'CAPTCHA verification failed' });
+            }
+        }
 
         try {
             const existingEmail = await db.queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -202,8 +214,8 @@ module.exports = function registerAuthRoutes({
             }
 
             const result = await db.queryOne(
-                'INSERT INTO users (username, display_name, email, password, share_code, supabase_auth_id, email_verified) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-                [username, displayName, email.toLowerCase(), hashedPassword, shareCode, supabaseAuthId, supabaseAuthId ? true : false]
+                'INSERT INTO users (username, display_name, email, password, share_code, supabase_auth_id, email_verified) VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING id',
+                [username, displayName, email.toLowerCase(), hashedPassword, shareCode, supabaseAuthId]
             );
             const userId = result.id;
 
@@ -241,7 +253,7 @@ module.exports = function registerAuthRoutes({
 
             res.status(201).json({
                 token,
-                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, banner: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: false }
+                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, banner: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: true }
             });
 
             // Send welcome email (fire-and-forget, don't block registration)
@@ -843,7 +855,7 @@ module.exports = function registerAuthRoutes({
     // ============ FORGOT / RESET PASSWORD ============
 
     const crypto = require('crypto');
-    const { sendPasswordResetEmail, sendEmailVerification, sendWelcomeEmail } = require('../utils/email');
+    const { sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/email');
 
     // Request password reset
     app.post('/api/auth/forgot-password', speedLimiter, passwordResetLimiter, forgotPasswordSchema, handleValidationErrors, async (req, res) => {
@@ -947,98 +959,6 @@ module.exports = function registerAuthRoutes({
         } catch (error) {
             console.error('[Auth] Reset password error:', error);
             res.status(500).json({ error: 'Failed to reset password' });
-        }
-    });
-
-    // ============ EMAIL VERIFICATION ============
-
-    // Send verification email
-    app.post('/api/auth/send-verification', authMiddleware, async (req, res) => {
-        try {
-            const user = await db.queryOne(
-                'SELECT id, email, email_verified, supabase_auth_id FROM users WHERE id = $1',
-                [req.user.id]
-            );
-            if (!user) return res.status(404).json({ error: 'User not found' });
-            if (user.email_verified) return res.json({ message: 'Email already verified' });
-
-            let usedSupabaseVerification = false;
-            if (user.supabase_auth_id) {
-                try {
-                    const { anonKey } = getSupabaseConfig();
-                    await supabaseFetch('/resend', {
-                        method: 'POST',
-                        apiKey: anonKey,
-                        query: { redirect_to: buildRedirectUrl(req, '/verify-email') },
-                        body: { email: user.email, type: 'signup' },
-                    });
-                    usedSupabaseVerification = true;
-                } catch (supabaseError) {
-                    console.warn('[Auth] Supabase resend verification failed, falling back to legacy flow:', supabaseError.message);
-                }
-            }
-
-            if (!usedSupabaseVerification) {
-                // Invalidate existing tokens
-                await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [user.id]);
-
-                const verifyToken = crypto.randomBytes(32).toString('hex');
-                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-                await db.execute(
-                    'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-                    [user.id, verifyToken, expiresAt.toISOString()]
-                );
-
-                await sendEmailVerification(user.email, verifyToken, buildRedirectUrl(req, ''));
-            }
-
-            res.json({ message: 'Verification email sent' });
-        } catch (error) {
-            console.error('[Auth] Send verification error:', error);
-            res.status(500).json({ error: 'Failed to send verification email' });
-        }
-    });
-
-    // Verify email with token
-    app.post('/api/auth/verify-email', verifyEmailSchema, handleValidationErrors, async (req, res) => {
-        const { token } = req.body;
-
-        try {
-            const record = await db.queryOne(
-                'SELECT * FROM email_verification_tokens WHERE token = $1 AND expires_at > NOW()',
-                [token]
-            );
-
-            if (!record) {
-                try {
-                    const verifyData = await verifySupabaseTokenHash(
-                        token,
-                        'signup',
-                        buildRedirectUrl(req, '/verify-email')
-                    );
-                    const supabaseUserId = verifyData?.user?.id;
-                    if (!supabaseUserId) {
-                        return res.status(400).json({ error: 'Invalid or expired verification link' });
-                    }
-
-                    await db.execute(
-                        'UPDATE users SET email_verified = TRUE WHERE supabase_auth_id = $1',
-                        [supabaseUserId]
-                    );
-                    return res.json({ message: 'Email verified successfully' });
-                } catch {
-                    return res.status(400).json({ error: 'Invalid or expired verification link' });
-                }
-            }
-
-            await db.execute('UPDATE users SET email_verified = TRUE WHERE id = $1', [record.user_id]);
-            await db.execute('DELETE FROM email_verification_tokens WHERE user_id = $1', [record.user_id]);
-
-            res.json({ message: 'Email verified successfully' });
-        } catch (error) {
-            console.error('[Auth] Verify email error:', error);
-            res.status(500).json({ error: 'Failed to verify email' });
         }
     });
 

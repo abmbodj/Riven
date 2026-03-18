@@ -47,6 +47,15 @@ const getBaseActions = (isLoggedIn) => [
         keywords: 'new deck create add'
     },
     {
+        id: 'youtube-import',
+        label: 'YouTube Import',
+        description: 'Generate study materials from a YouTube video',
+        to: '/youtube',
+        icon: Layers,
+        category: 'Action',
+        keywords: 'youtube video import generate ai study notes flashcards'
+    },
+    {
         id: 'classes',
         label: 'Classes',
         description: 'Manage classes and assignments',

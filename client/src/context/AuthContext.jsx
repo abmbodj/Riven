@@ -101,8 +101,8 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    const signUp = useCallback(async (username, email, password) => {
-        const userData = await authApi.register(username, email, password);
+    const signUp = useCallback(async (username, email, password, captchaToken = null) => {
+        const userData = await authApi.register(username, email, password, captchaToken);
         setUser(userData);
         return userData;
     }, []);

@@ -68,14 +68,6 @@ export default function EditProfile() {
     }, [bioError]);
 
     const handleSave = async () => {
-        if (!bio.trim()) {
-            setBioError(true);
-            haptics.error();
-            toast.error('Bio cannot be completely empty');
-            setTimeout(() => setBioError(false), 2000);
-            return;
-        }
-
         if (!username.trim() || !displayName.trim()) {
             haptics.error();
             toast.error('Username and Display Name are required');
@@ -161,11 +153,14 @@ export default function EditProfile() {
 
                     <button
                         onClick={() => { haptics.light(); setShowBannerPicker(true); }}
-                        className="absolute inset-0 z-20 flex items-center justify-center bg-claude-bg/70 opacity-0 backdrop-blur-sm transition-all duration-300 hover:opacity-100 group"
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-claude-bg/40 backdrop-blur-[2px] transition-all duration-300 hover:bg-claude-bg/60 group"
                     >
                         <div className="rounded-full border border-claude-border bg-claude-surface/60 p-3 transition-transform group-hover:scale-110 md:backdrop-blur-md">
                             <Camera className="h-6 w-6 text-claude-text" />
                         </div>
+                        <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-text/70 group-hover:text-claude-text transition-colors">
+                            Tap to change banner
+                        </span>
                     </button>
                 </div>
 
@@ -375,7 +370,7 @@ export default function EditProfile() {
                                     </p>
                                 </div>
                                 <div className="rounded-full border border-claude-secondary/15 bg-claude-surface/80 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary/75 dark:bg-claude-bg/40">
-                                    Required
+                                    Optional
                                 </div>
                             </div>
 

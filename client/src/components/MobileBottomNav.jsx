@@ -7,6 +7,7 @@ import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import User from 'lucide-react/dist/esm/icons/user';
+import Play from 'lucide-react/dist/esm/icons/play';
 
 const routeMatches = (pathname, matchers = []) =>
     matchers.some((m) => pathname === m || pathname.startsWith(`${m}/`));
@@ -14,6 +15,7 @@ const routeMatches = (pathname, matchers = []) =>
 const fabMenuItems = [
     { to: null, id: 'search', icon: Search, label: 'Search', accent: true },
     { to: '/create', id: 'create', icon: Plus, label: 'Create Deck', accent: true },
+    { to: '/youtube', id: 'youtube', icon: Play, label: 'YouTube Import', accent: true },
     { to: '/garden', id: 'garden', icon: Sprout, label: 'Garden', accent: true },
     { to: '/themes', id: 'themes', icon: Palette, label: 'Themes', accent: true },
     { to: '/settings', id: 'settings', icon: Settings, label: 'Settings' },

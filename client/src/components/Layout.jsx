@@ -4,8 +4,6 @@ import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Layers from 'lucide-react/dist/esm/icons/layers';
 import Home from 'lucide-react/dist/esm/icons/home';
 import WifiOff from 'lucide-react/dist/esm/icons/wifi-off';
-import Mail from 'lucide-react/dist/esm/icons/mail';
-import X from 'lucide-react/dist/esm/icons/x';
 import User from 'lucide-react/dist/esm/icons/user';
 import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
@@ -22,8 +20,6 @@ import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
 import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
 import MobileBottomNav from './MobileBottomNav.jsx';
-import { useToast } from '../hooks/useToast';
-import { sendVerificationEmail } from '../api/authApi';
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
     pathname === matcher || pathname.startsWith(`${matcher}/`)
@@ -40,7 +36,7 @@ const getPrimaryNavItems = (isLoggedIn) => [
         to: '/decks',
         icon: Layers,
         label: 'Study',
-        matchers: ['/decks', '/deck', '/create', '/notes', '/note', '/guides', '/guide', '/exams', '/exam']
+        matchers: ['/decks', '/deck', '/create', '/notes', '/note', '/guides', '/guide', '/exams', '/exam', '/youtube']
     },
     { id: 'fab', isFab: true },
     {
@@ -74,27 +70,7 @@ export default function Layout({ children }) {
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-    const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
-    const [resendingEmail, setResendingEmail] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(false);
-    const toast = useToast();
     const pageContentRef = useRef(null);
-    const showVerifyBanner = isLoggedIn && user && user.email_verified === false && !verifyBannerDismissed;
-
-    const handleResendVerification = async () => {
-        if (resendingEmail || resendCooldown) return;
-        setResendingEmail(true);
-        try {
-            await sendVerificationEmail();
-            toast.success('Verification email sent — check your inbox');
-            setResendCooldown(true);
-            setTimeout(() => setResendCooldown(false), 60000);
-        } catch {
-            toast.error('Failed to send verification email');
-        } finally {
-            setResendingEmail(false);
-        }
-    };
 
     // GSAP page enter animation on route change
     useEffect(() => {
@@ -278,43 +254,10 @@ export default function Layout({ children }) {
                         )}
                     </AnimatePresence>
 
-                    {/* Email verification banner */}
-                    <AnimatePresence>
-                        {showVerifyBanner && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                role="alert"
-                                aria-live="polite"
-                                className="sticky top-0 z-30 bg-claude-accent text-botanical-ink px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium overflow-hidden"
-                            >
-                                <Mail className="w-4 h-4 shrink-0" />
-                                <span className="font-mono text-xs tracking-wide">Please verify your email address</span>
-                                <button
-                                    type="button"
-                                    onClick={handleResendVerification}
-                                    disabled={resendingEmail || resendCooldown}
-                                    className="ml-1 px-3 py-1 rounded-full bg-botanical-ink/15 font-mono text-[10px] font-bold uppercase tracking-widest transition-colors hover:bg-botanical-ink/25 disabled:opacity-50 disabled:cursor-not-allowed touch-target"
-                                >
-                                    {resendingEmail ? 'Sending...' : resendCooldown ? 'Sent' : 'Resend Email'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setVerifyBannerDismissed(true)}
-                                    aria-label="Dismiss verification banner"
-                                    className="ml-1 p-1 rounded-full hover:bg-botanical-ink/15 transition-colors touch-target"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
                     {/* Main content with page transitions */}
                     <main className={`[overflow-x:clip] ${isFullscreenPage ? '' : isStudyOrTest ? '' : isMessagesChat ? 'lg:px-8 lg:py-6' : 'px-4 py-4 lg:px-8 lg:py-6'
                         } ${hideBottomNav ? ((isFullscreenPage || isMessagesChat) ? '' : 'pb-6') : 'pb-28 lg:pb-6'
-                        } ${!isOffline && !showVerifyBanner ? 'safe-area-top' : ''
+                        } ${!isOffline ? 'safe-area-top' : ''
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
                         <div className={isFullscreenPage ? '' : 'lg:max-w-5xl lg:mx-auto'}>

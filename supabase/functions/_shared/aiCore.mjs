@@ -591,6 +591,86 @@ export const generateExamFromAi = async ({
   };
 };
 
+// ─────────────────────────────────────────────────────
+// YouTube video source helpers
+// ─────────────────────────────────────────────────────
+
+export const validateYoutubeUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    const isYouTube =
+      parsed.hostname === 'www.youtube.com' ||
+      parsed.hostname === 'youtube.com' ||
+      parsed.hostname === 'youtu.be' ||
+      parsed.hostname === 'm.youtube.com';
+    if (!isYouTube) return false;
+    if (parsed.hostname === 'youtu.be') return parsed.pathname.length > 1;
+    return Boolean(parsed.searchParams.get('v'));
+  } catch {
+    return false;
+  }
+};
+
+export const normalizeYoutubeUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'youtu.be') {
+      return `https://www.youtube.com/watch?v=${parsed.pathname.slice(1).split('/')[0].split('?')[0]}`;
+    }
+    const v = parsed.searchParams.get('v');
+    return `https://www.youtube.com/watch?v=${v}`;
+  } catch {
+    return url;
+  }
+};
+
+const buildYoutubeVideoSource = (youtubeUrl) => ({
+  fileData: { fileUri: youtubeUrl },
+});
+
+export const buildYoutubeDeckContents = (youtubeUrl) => [
+  { text: buildDeckPrompt() },
+  buildYoutubeVideoSource(youtubeUrl),
+];
+
+export const buildYoutubeGuideContents = (youtubeUrl) => [
+  { text: buildGuidePrompt() },
+  buildYoutubeVideoSource(youtubeUrl),
+];
+
+export const buildYoutubeExamContents = (youtubeUrl) => [
+  { text: buildExamPrompt() },
+  buildYoutubeVideoSource(youtubeUrl),
+];
+
+const buildNotesFromVideoPrompt = () => `
+You are an expert note-taker watching an educational YouTube video.
+Produce a concise but complete set of notes as a Tiptap-compatible JSON document.
+
+Rules:
+1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
+2. No markdown formatting, backticks, or conversational text outside the JSON object.
+3. Use these node types:
+   - { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
+   - { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
+   - { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
+   - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
+   - { "type": "horizontalRule" }
+4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
+5. Organize notes with: Key Concepts, Important Details, Notable Examples, and Summary sections.
+6. Prefer bullet lists for discrete facts.
+7. Use bold for key terms and italic for definitions or emphasis.
+8. Be concise but thorough — cover all important material from the video.
+`;
+
+export const buildYoutubeNotesContents = (youtubeUrl) => [
+  { text: buildNotesFromVideoPrompt() },
+  buildYoutubeVideoSource(youtubeUrl),
+];
+
 export const generateClassPreview = async ({
   notes,
   file,
