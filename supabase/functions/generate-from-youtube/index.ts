@@ -120,8 +120,13 @@ serve(async (request) => {
             },
           });
 
+          const STREAM_DEADLINE_MS = 90_000;
+          const deadline = Date.now() + STREAM_DEADLINE_MS;
           let fullText = '';
           for await (const chunk of streamResponse) {
+            if (Date.now() > deadline) {
+              throw createHttpError('Generation timed out. Try a shorter video.', 504);
+            }
             const text = chunk.text ?? '';
             if (text) {
               fullText += text;

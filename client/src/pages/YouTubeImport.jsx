@@ -184,6 +184,34 @@ export default function YouTubeImport() {
     const [streamingPreview, setStreamingPreview] = useState([]); // streamed items for current type
     const streamAbortRef = useRef(null);
 
+    // Progress bar state
+    const [generatingProgress, setGeneratingProgress] = useState(0);
+    const genStartTimeRef = useRef(null);
+
+    useEffect(() => {
+        if (phase !== 'generating') {
+            genStartTimeRef.current = null;
+            setGeneratingProgress(0);
+            return;
+        }
+
+        const activeItem = progress.find(p => p.status === 'generating');
+        if (!activeItem) return;
+
+        // Reset start time when a new item begins generating
+        if (!genStartTimeRef.current) genStartTimeRef.current = Date.now();
+
+        let raf;
+        const tick = () => {
+            const elapsed = Date.now() - genStartTimeRef.current;
+            const pct = 90 * (1 - Math.exp(-elapsed / 30000));
+            setGeneratingProgress(Math.round(pct));
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [phase, progress.map(p => p.status).join()]);
+
     const handleGenerate = async () => {
         if (!youtubeUrl.trim() || selectedTypes.length === 0) return;
 
@@ -203,6 +231,8 @@ export default function YouTubeImport() {
             const type = selectedTypes[i];
             setStreamingPreview([]);
 
+            genStartTimeRef.current = Date.now();
+            setGeneratingProgress(0);
             setProgress(prev => prev.map((item, idx) =>
                 idx === i ? { ...item, status: 'generating' } : item
             ));
@@ -251,6 +281,9 @@ export default function YouTubeImport() {
                     finalResults.push({ type, result });
                 }
             } catch (err) {
+                if (err.name === 'AbortError') {
+                    err.message = 'Generation timed out. Try a shorter video or fewer content types.';
+                }
                 if (err.status === 429) {
                     setProgress(prev => prev.map((item, idx) => {
                         if (idx === i) return { ...item, status: 'error', error: err.message };
@@ -572,6 +605,17 @@ export default function YouTubeImport() {
                                                     : item.status === 'error' ? (item.error || 'Failed')
                                                     : 'Waiting...'}
                                             </p>
+                                            {(item.status === 'generating' || item.status === 'done') && (
+                                                <div className="mt-2 h-1.5 w-full bg-claude-border/30 rounded-full overflow-hidden">
+                                                    <motion.div
+                                                        className="h-full rounded-full"
+                                                        style={{ backgroundColor: ct?.color }}
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: item.status === 'done' ? '100%' : `${generatingProgress}%` }}
+                                                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </motion.div>
                                 );

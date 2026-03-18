@@ -1198,6 +1198,7 @@ const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
     }
 
     const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 120_000);
 
     const response = await fetch(url.toString(), {
         method: 'POST',
@@ -1249,8 +1250,12 @@ const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
                     }
                 }
             }
+            clearTimeout(timeoutId);
         },
-        abort: () => abortController.abort(),
+        abort: () => {
+            clearTimeout(timeoutId);
+            abortController.abort();
+        },
     };
 };
 
