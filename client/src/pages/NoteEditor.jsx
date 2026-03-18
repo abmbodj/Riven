@@ -223,11 +223,13 @@ export default function NoteEditor() {
             const userNotes = extractText(contentRef.current).trim() || null;
 
             // Call enhance edge function
+            const selectedClassName = classes.find(c => c.id === classId)?.name || null;
             const result = await api.enhanceNoteWithAudio(
                 noteId,
                 storagePath,
                 userNotes,
-                titleRef.current || 'Untitled'
+                titleRef.current || 'Untitled',
+                selectedClassName
             );
 
             setContent(result.enhanced_content);
@@ -258,7 +260,8 @@ export default function NoteEditor() {
 
         setGenerating('flashcards');
         try {
-            const result = await api.generateAiDeck(text, null, `${titleRef.current || 'Note'} - AI`, classId);
+            const selectedClassName = classes.find(c => c.id === classId)?.name || null;
+            const result = await api.generateAiDeck(text, null, `${titleRef.current || 'Note'} - AI`, classId, selectedClassName);
             toast.success(`Generated ${result.card_count} flashcards!`);
             navigate(`/deck/${result.deck_id}`);
         } catch (err) {
@@ -276,7 +279,8 @@ export default function NoteEditor() {
 
         setGenerating('guide');
         try {
-            const result = await api.generateAiGuide(text, null, `${titleRef.current || 'Note'} Guide`, noteId, classId);
+            const selectedClassName = classes.find(c => c.id === classId)?.name || null;
+            const result = await api.generateAiGuide(text, null, `${titleRef.current || 'Note'} Guide`, noteId, classId, selectedClassName);
             toast.success('Study guide generated!');
             navigate(`/guide/${result.guide_id}`);
         } catch (err) {
@@ -294,7 +298,8 @@ export default function NoteEditor() {
 
         setGenerating('exam');
         try {
-            const result = await api.generateAiExam(text, null, `${titleRef.current || 'Note'} Exam`, 'notes', noteId, classId);
+            const selectedClassName = classes.find(c => c.id === classId)?.name || null;
+            const result = await api.generateAiExam(text, null, `${titleRef.current || 'Note'} Exam`, 'notes', noteId, classId, selectedClassName);
             toast.success(`Generated ${result.question_count} questions!`);
             navigate(`/exam/${result.exam_id}`);
         } catch (err) {

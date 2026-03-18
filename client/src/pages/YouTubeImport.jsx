@@ -209,10 +209,12 @@ export default function YouTubeImport() {
 
             try {
                 const effectiveTitle = customTitle.trim() || videoTitle || undefined;
+                const selectedClassData = classes.find(c => c.id === selectedClass);
                 const stream = await api.generateFromYoutubeStream(youtubeUrl, type, {
                     title: effectiveTitle,
                     classId: selectedClass || undefined,
                     deckName: effectiveTitle,
+                    className: selectedClassData?.name || undefined,
                 });
                 streamAbortRef.current = stream.abort;
 

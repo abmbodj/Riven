@@ -35,6 +35,36 @@ const appendText = (currentText, nextText) => {
   return `${currentText}\n\n${nextText}`;
 };
 
+const buildSubjectContext = (className) => {
+  const classHint = className
+    ? `This material is from a class called "${className}". Use the class name to determine the subject area.`
+    : 'Infer the subject area from the content itself.';
+
+  return `
+${classHint}
+
+Adapt your formatting to the subject:
+- STEM/Math: Use ordered lists for proofs, derivations, and problem-solving steps. Bold all formulas and equations inline. Use blockquotes for theorems, axioms, and formal definitions. Group by concept → definition → example → application.
+- Science (Bio, Chem, Physics): Group by systems or processes. Bold all terminology on first use. Organize with cause→effect patterns. Include key reactions and formulas inline. Use ordered lists for sequential processes (e.g., steps of mitosis, reaction mechanisms).
+- History/Social Sciences: Use chronological organization when relevant. Bold dates, figures, and events. Build cause→effect chains. Use blockquotes for primary source quotes or key declarations. Organize by era/period → events → significance.
+- Literature/Humanities: Organize by themes or works. Use blockquotes for key passages and quotes. Bold literary terms and concepts. Italicize titles of works. Organize by theme → evidence → analysis.
+- Computer Science: Use code marks for technical terms, function names, and syntax. Organize by concept → implementation → complexity. Include pseudocode in code blocks where helpful.
+- Languages: Bold new vocabulary. Organize by grammar rules → examples → exceptions. Use blockquotes for example sentences.
+- General/Other: Use clear topical organization with bold key terms and logical grouping.
+
+Quality rules (apply to ALL subjects):
+- Scannability: A student must find any concept within 5 seconds of scanning.
+- Hierarchy: H1 for major topics, H2 for subtopics, H3 for fine detail. Never skip levels.
+- Density: Every line must carry useful information. Zero filler, zero repetition.
+- Connections: Explicitly state relationships between concepts (e.g., "X depends on Y because...").
+- Key terms: Bold every important term on first appearance, then use it normally after.
+- Definitions: Use blockquotes for formal definitions, theorems, or critical callouts.
+- Takeaways: End each major section with a 1-2 sentence synthesis of why it matters.
+`;
+};
+
+export { buildSubjectContext };
+
 const cleanAiResponseText = (rawResponse) => {
   let cleaned = String(rawResponse ?? '').trim();
 
@@ -49,9 +79,18 @@ const cleanAiResponseText = (rawResponse) => {
   return cleaned.trim();
 };
 
-const buildDeckPrompt = () => `
+const buildDeckPrompt = (className) => `
 You are an expert tutor creating highly effective spaced-repetition flashcards.
 Extract the most important facts, concepts, and definitions from the provided lecture notes, document, or image, and output them as a precise JSON array of flashcards.
+
+${buildSubjectContext(className)}
+
+Adapt card style to the subject:
+- Math/STEM: "front" = formula or theorem name, "back" = definition + when to use it. Include step-by-step solution cards for key problem types.
+- Science: "front" = term or process name, "back" = definition + mechanism. Include comparison cards (e.g., "How does X differ from Y?").
+- History: "front" = event or figure, "back" = significance + date + context. Include cause→effect cards.
+- CS: "front" = concept or term (in code marks if technical), "back" = definition + example usage.
+- Literature: "front" = literary term or theme, "back" = definition + example from text.
 
 Rules:
 1. Output ONLY a valid JSON array, with absolutely no markdown formatting, backticks, or conversational text outside the array.
@@ -61,6 +100,7 @@ Rules:
 5. Generate between 5 and 15 flashcards depending on the length and density of the source material.
 6. Make the cards atomic (one concept per card).
 7. Ensure definitions are accurate based on the provided material.
+8. Vary question types: define, compare, explain why, apply to scenario, calculate.
 
 Example JSON format:
 [
@@ -102,8 +142,8 @@ Rules:
 5. Due dates must be valid ISO 8601 timestamps if a date parsing is possible. Try to determine the year based on context, otherwise use the current year.
 `;
 
-export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
-  const contents = [{ text: buildDeckPrompt() }];
+export const buildDeckContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
+  const contents = [{ text: buildDeckPrompt(className) }];
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nLecture Notes/Text Content:\n${processedNotes}` });
@@ -254,6 +294,7 @@ export const generateDeckFromAi = async ({
   file,
   deckName,
   classId,
+  className,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -286,7 +327,7 @@ export const generateDeckFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'gemini-2.5-flash',
-    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file }),
+    contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
   const flashcards = parseAiJsonResponse(
@@ -337,9 +378,19 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const buildGuidePrompt = () => `
-You are an expert tutor creating a comprehensive study guide.
+const buildGuidePrompt = (className) => `
+You are an expert tutor creating a comprehensive study guide that feels like premium study material.
 Given the following notes, document, or image, produce a well-structured study guide as a Tiptap-compatible JSON document.
+
+${buildSubjectContext(className)}
+
+Adapt the guide structure to the subject:
+- Math/STEM: Definitions → Theorems (in blockquotes) → Worked Examples (ordered steps) → Practice Problem Setups → Key Formulas Summary
+- Science: Core Concepts → Mechanisms/Processes (ordered steps) → Applications → Key Experiments/Evidence → Terminology Review
+- History: Historical Context → Key Events (chronological, bolded dates) → Analysis & Cause-Effect → Significance → Key Figures
+- CS: Concepts → Implementation Details (with code marks) → Complexity/Trade-offs → Common Patterns → Gotchas
+- Literature: Themes → Key Passages (blockquoted) → Character/Argument Analysis → Critical Interpretations → Vocabulary
+- General: Overview → Key Concepts → Important Details → Connections & Relationships → Summary
 
 Rules:
 1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
@@ -354,13 +405,14 @@ Rules:
    - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
    - { "type": "horizontalRule" }
 4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
-5. Organize content with: Overview, Key Concepts, Important Details, and Summary sections.
-6. Be thorough — cover all important material from the source.
-7. Use bold for key terms and italic for definitions or emphasis.
+5. Be thorough — cover all important material from the source.
+6. Bold every key term on first appearance.
+7. Use blockquotes for definitions, theorems, or critical callouts.
+8. End each major section with a 1-2 sentence takeaway explaining why it matters.
 `;
 
-export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
-  const contents = [{ text: buildGuidePrompt() }];
+export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
+  const contents = [{ text: buildGuidePrompt(className) }];
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
@@ -385,6 +437,7 @@ export const generateStudyGuideFromAi = async ({
   title,
   noteId,
   classId,
+  className,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -416,7 +469,7 @@ export const generateStudyGuideFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'gemini-2.5-flash',
-    contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file }),
+    contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
   const guideContent = parseAiJsonResponse(
@@ -461,9 +514,18 @@ export const generateStudyGuideFromAi = async ({
 // Mock Exam generation
 // ─────────────────────────────────────────────────────
 
-const buildExamPrompt = () => `
-You are an expert tutor creating a challenging but fair practice exam.
+const buildExamPrompt = (className) => `
+You are an expert tutor creating a challenging but fair practice exam that mirrors real university exams.
 Given the following notes, document, or image, produce a set of multiple-choice questions to test the student's understanding.
+
+${buildSubjectContext(className)}
+
+Adapt question style to the subject:
+- Math/STEM: Include calculation-based questions ("Solve for X..."), conceptual questions ("Why does theorem Y require condition Z?"), and application questions ("Given this scenario, which formula applies?").
+- Science: Include process questions ("What happens during phase X?"), comparison questions ("How does A differ from B?"), and application questions ("If condition X changes, what is the effect on Y?").
+- History: Include cause-effect questions ("What led to X?"), significance questions ("Why was event X a turning point?"), and source analysis questions ("Based on the context, what does quote X suggest?").
+- CS: Include conceptual questions, output-prediction questions ("What does this code return?"), and trade-off questions ("When would you choose X over Y?").
+- Literature: Include theme analysis, passage interpretation, and literary device identification questions.
 
 Rules:
 1. Output ONLY a valid JSON array of question objects, with absolutely no markdown formatting, backticks, or conversational text outside the array.
@@ -471,12 +533,13 @@ Rules:
    - "question": A clear, well-formed question string.
    - "options": An array of exactly 4 answer choices (strings). One must be correct.
    - "correct_answer": The exact string from options that is the correct answer.
-   - "explanation": A brief explanation of why the correct answer is right.
+   - "explanation": A brief explanation of why the correct answer is right and why each wrong answer fails.
 3. Generate between 10 and 20 questions depending on the length and density of the source material.
 4. Cover a wide range of topics from the material.
 5. Include a mix of difficulty levels (easy, medium, hard).
 6. Make distractors (wrong answers) plausible but clearly incorrect.
 7. Avoid trick questions or ambiguous wording.
+8. Vary question types: recall, comprehension, application, and analysis.
 
 Example JSON format:
 [
@@ -484,13 +547,13 @@ Example JSON format:
     "question": "What is the primary function of mitochondria?",
     "options": ["Protein synthesis", "Energy production", "DNA replication", "Cell division"],
     "correct_answer": "Energy production",
-    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration."
+    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration. Protein synthesis occurs in ribosomes, DNA replication in the nucleus, and cell division involves the whole cell cycle."
   }
 ]
 `;
 
-export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file }) => {
-  const contents = [{ text: buildExamPrompt() }];
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
+  const contents = [{ text: buildExamPrompt(className) }];
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
@@ -516,6 +579,7 @@ export const generateExamFromAi = async ({
   sourceType,
   sourceId,
   classId,
+  className,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -547,7 +611,7 @@ export const generateExamFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'gemini-2.5-flash',
-    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file }),
+    contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
   const questions = parseAiJsonResponse(
@@ -636,24 +700,26 @@ const buildYoutubeVideoSource = (youtubeUrl) => ({
   fileData: { fileUri: youtubeUrl },
 });
 
-export const buildYoutubeDeckContents = (youtubeUrl) => [
-  { text: buildDeckPrompt() },
+export const buildYoutubeDeckContents = (youtubeUrl, className) => [
+  { text: buildDeckPrompt(className) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-export const buildYoutubeGuideContents = (youtubeUrl) => [
-  { text: buildGuidePrompt() },
+export const buildYoutubeGuideContents = (youtubeUrl, className) => [
+  { text: buildGuidePrompt(className) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-export const buildYoutubeExamContents = (youtubeUrl) => [
-  { text: buildExamPrompt() },
+export const buildYoutubeExamContents = (youtubeUrl, className) => [
+  { text: buildExamPrompt(className) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-const buildNotesFromVideoPrompt = () => `
+const buildNotesFromVideoPrompt = (className) => `
 You are an expert note-taker watching an educational YouTube video.
-Produce a concise but complete set of notes as a Tiptap-compatible JSON document.
+Produce a concise but complete set of notes as a Tiptap-compatible JSON document that feels like premium study material.
+
+${buildSubjectContext(className)}
 
 Rules:
 1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
@@ -668,14 +734,16 @@ Rules:
    - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
    - { "type": "horizontalRule" }
 4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
-5. Organize notes with: Key Concepts, Important Details, Notable Examples, and Summary sections.
-6. Prefer bullet lists for discrete facts.
-7. Use bold for key terms and italic for definitions or emphasis.
-8. Be concise but thorough — cover all important material from the video.
+5. Prefer bullet lists for discrete facts.
+6. Bold every key term on first appearance.
+7. Use blockquotes for definitions, theorems, or critical callouts.
+8. End each major section with a 1-2 sentence takeaway.
+9. Include a "Key Concepts" section listing each concept as bold term + one-line explanation.
+10. Be concise but thorough — cover all important material from the video.
 `;
 
-export const buildYoutubeNotesContents = (youtubeUrl) => [
-  { text: buildNotesFromVideoPrompt() },
+export const buildYoutubeNotesContents = (youtubeUrl, className) => [
+  { text: buildNotesFromVideoPrompt(className) },
   buildYoutubeVideoSource(youtubeUrl),
 ];
 

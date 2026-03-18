@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 
-import { consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
+import { buildSubjectContext, consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -28,28 +28,40 @@ Use these node types:
 For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
 `;
 
-const GENERATE_PROMPT = `You are a lecture notes assistant for university students. Given the audio recording of a lecture, produce clean, well-structured notes as a Tiptap JSON document.
+const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant for university students. Given the audio recording of a lecture, produce clean, well-structured notes as a Tiptap JSON document that feel like premium study material.
+
+${buildSubjectContext(className)}
 
 Structure the output with:
-- A heading for each major topic discussed
+- A heading (H1) for each major topic discussed
+- H2 for subtopics, H3 for fine detail
 - Bullet points for key concepts and details
-- Bold for critical terms and definitions
-- A "Key Concepts" summary section at the end
-- A "Potential Exam Questions" section with 3-5 questions
+- Ordered lists for sequential processes, proofs, or step-by-step explanations
+- Bold every key term on first appearance
+- Blockquotes for formal definitions, theorems, or critical callouts
+- End each major section with a 1-2 sentence takeaway
+- A "Key Concepts" summary section at the end — list each concept as bold term + one-line explanation
+- A "Potential Exam Questions" section with 3-5 questions varying in type: define, compare, explain why, apply to scenario
 
 Be concise. Omit filler, repetition, and off-topic tangents. Focus on what a student would need to study from.
 
 ${TIPTAP_FORMAT_INSTRUCTIONS}`;
 
-const buildEnhancePrompt = (userNotes: string) => `You are a lecture notes assistant. The student took their own notes during a lecture. You also have the full audio recording.
+const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. The student took their own notes during a lecture. You also have the full audio recording.
+
+${buildSubjectContext(className)}
 
 Expand and improve the student's notes using the lecture audio as context:
 - Preserve the student's own phrasing and structure — it reflects their understanding
 - Fill in gaps where the student missed important points
 - Add missing key terms, definitions, and examples from the lecture
-- Improve organization with clear headings and bullet points
-- Add a "Key Concepts" summary section at the end
-- Add a "Potential Exam Questions" section with 3-5 questions
+- Improve organization with clear headings (H1 for major topics, H2 for subtopics, H3 for details) and bullet points
+- Bold every key term on first appearance
+- Use blockquotes for formal definitions, theorems, or critical callouts
+- Use ordered lists for sequential processes or step-by-step explanations
+- End each major section with a 1-2 sentence takeaway
+- Add a "Key Concepts" summary section at the end — list each concept as bold term + one-line explanation
+- Add a "Potential Exam Questions" section with 3-5 questions varying in type: define, compare, explain why, apply to scenario
 
 The student's notes take priority. The audio fills in what they missed.
 
@@ -74,7 +86,7 @@ serve(async (request) => {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { noteId, audioPath, userNotes, title } = body;
+    const { noteId, audioPath, userNotes, title, className } = body;
 
     if (!noteId || !audioPath) {
       return jsonResponse(
@@ -147,8 +159,8 @@ serve(async (request) => {
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
     const systemPrompt = isEnhanceMode
-      ? buildEnhancePrompt(userNotes)
-      : GENERATE_PROMPT;
+      ? buildEnhancePrompt(userNotes, className)
+      : buildGeneratePrompt(className);
 
     const INLINE_DATA_LIMIT = 20 * 1024 * 1024; // 20MB
     const useInlineData = audioUint8.byteLength < INLINE_DATA_LIMIT;

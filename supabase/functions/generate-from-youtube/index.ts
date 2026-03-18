@@ -47,7 +47,7 @@ serve(async (request) => {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { youtubeUrl, type, title, classId, deckName } = body;
+    const { youtubeUrl, type, title, classId, deckName, className } = body;
 
     if (!VALID_TYPES.includes(type as GenerationType)) {
       throw createHttpError(
@@ -98,14 +98,14 @@ serve(async (request) => {
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
-      const contentBuilders: Record<string, (url: string) => Array<Record<string, unknown>>> = {
+      const contentBuilders: Record<string, (url: string, cn?: string) => Array<Record<string, unknown>>> = {
         deck: buildYoutubeDeckContents,
         guide: buildYoutubeGuideContents,
         exam: buildYoutubeExamContents,
         notes: buildYoutubeNotesContents,
       };
 
-      const contents = contentBuilders[type](normalizedUrl);
+      const contents = contentBuilders[type](normalizedUrl, className);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
@@ -289,7 +289,7 @@ serve(async (request) => {
     if (type === 'deck') {
       const rawResponse = await generateContent({
         model: 'gemini-2.5-flash',
-        contents: buildYoutubeDeckContents(normalizedUrl),
+        contents: buildYoutubeDeckContents(normalizedUrl, className),
       });
       const flashcards = parseAiJsonResponse(
         rawResponse,
@@ -336,7 +336,7 @@ serve(async (request) => {
     else if (type === 'guide') {
       const rawResponse = await generateContent({
         model: 'gemini-2.5-flash',
-        contents: buildYoutubeGuideContents(normalizedUrl),
+        contents: buildYoutubeGuideContents(normalizedUrl, className),
       });
       const guideContent = parseAiJsonResponse(
         rawResponse,
@@ -371,7 +371,7 @@ serve(async (request) => {
     else if (type === 'exam') {
       const rawResponse = await generateContent({
         model: 'gemini-2.5-flash',
-        contents: buildYoutubeExamContents(normalizedUrl),
+        contents: buildYoutubeExamContents(normalizedUrl, className),
       });
       const questions = parseAiJsonResponse(
         rawResponse,
@@ -414,7 +414,7 @@ serve(async (request) => {
     else {
       const rawResponse = await generateContent({
         model: 'gemini-2.5-flash',
-        contents: buildYoutubeNotesContents(normalizedUrl),
+        contents: buildYoutubeNotesContents(normalizedUrl, className),
       });
       const noteContent = parseAiJsonResponse(
         rawResponse,

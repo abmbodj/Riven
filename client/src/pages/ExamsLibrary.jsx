@@ -180,7 +180,8 @@ export default function ExamsLibrary() {
 
         setGenerating(true);
         try {
-            const result = await api.generateAiExam(noteText || null, file, genTitle || 'AI Mock Exam', sourceType, sourceId, classId);
+            const className = classId ? classes.find(c => c.id === classId)?.name || null : null;
+            const result = await api.generateAiExam(noteText || null, file, genTitle || 'AI Mock Exam', sourceType, sourceId, classId, className);
             toast.success(`Generated ${result.question_count} questions!`);
             setShowGenerateModal(false);
             navigate(`/exam/${result.exam_id}`);

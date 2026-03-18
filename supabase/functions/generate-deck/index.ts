@@ -113,7 +113,7 @@ serve(async (request) => {
         );
       }
 
-      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file });
+      const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
@@ -199,6 +199,7 @@ serve(async (request) => {
       file: body.file,
       deckName: body.deckName,
       classId: body.classId,
+      className: body.className,
       aiLimitsContext,
       apiKey,
       parseDocx: async (buffer: Buffer) => {

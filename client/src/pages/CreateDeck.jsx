@@ -193,11 +193,13 @@ export default function CreateDeck() {
         setStreamPhase('streaming');
 
         try {
+            const selectedClassData = classes.find(c => c.id === selectedClass);
             const stream = await api.generateAiDeckStream(
                 aiNotes,
                 aiFile,
                 titleResult.data,
-                selectedClass
+                selectedClass,
+                selectedClassData?.name || null
             );
             streamAbortRef.current = stream.abort;
 

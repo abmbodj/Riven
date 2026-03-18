@@ -109,37 +109,37 @@ export const api = {
     getAILimits: () => isLoggedIn()
         ? serverApi.getAILimits()
         : Promise.resolve({ remaining: 10, max: 10, characterLimit: 15000, flashcardRange: [5, 15] }),
-    generateAiDeck: (notes, file, deckName, classId) => isLoggedIn()
-        ? serverApi.generateAiDeck(notes, file, deckName, classId)
+    generateAiDeck: (notes, file, deckName, classId, className) => isLoggedIn()
+        ? serverApi.generateAiDeck(notes, file, deckName, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
     generateAiClass: (notes, file) => isLoggedIn()
         ? serverApi.generateAiClass(notes, file)
         : Promise.reject(new Error('Must be logged in to generate AI class')),
-    generateAiGuide: (notes, file, title, noteId, classId) => isLoggedIn()
-        ? serverApi.generateAiGuide(notes, file, title, noteId, classId)
+    generateAiGuide: (notes, file, title, noteId, classId, className) => isLoggedIn()
+        ? serverApi.generateAiGuide(notes, file, title, noteId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI study guide')),
-    generateAiExam: (notes, file, title, sourceType, sourceId, classId) => isLoggedIn()
-        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId)
+    generateAiExam: (notes, file, title, sourceType, sourceId, classId, className) => isLoggedIn()
+        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
     generateFromYoutube: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutube(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),
 
     // AI Generation (Streaming)
-    generateAiDeckStream: (notes, file, deckName, classId) => isLoggedIn()
-        ? serverApi.generateAiDeckStream(notes, file, deckName, classId)
+    generateAiDeckStream: (notes, file, deckName, classId, className) => isLoggedIn()
+        ? serverApi.generateAiDeckStream(notes, file, deckName, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
-    generateAiGuideStream: (notes, file, title, noteId, classId) => isLoggedIn()
-        ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId)
+    generateAiGuideStream: (notes, file, title, noteId, classId, className) => isLoggedIn()
+        ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI study guide')),
-    generateAiExamStream: (notes, file, title, sourceType, sourceId, classId) => isLoggedIn()
-        ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId)
+    generateAiExamStream: (notes, file, title, sourceType, sourceId, classId, className) => isLoggedIn()
+        ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
     generateFromYoutubeStream: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutubeStream(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),
-    enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title) => isLoggedIn()
-        ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title)
+    enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title, className)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
 
     // ============ NOTES ============
@@ -161,8 +161,8 @@ export const api = {
     uploadNoteAudio: (noteId, audioBlob) => isLoggedIn()
         ? serverApi.uploadNoteAudio(noteId, audioBlob)
         : Promise.reject(new Error('Must be logged in to upload audio')),
-    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title) => isLoggedIn()
-        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title)
+    enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
+        ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
 
     // ============ STUDY GUIDES ============

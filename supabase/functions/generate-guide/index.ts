@@ -108,7 +108,7 @@ serve(async (request) => {
         );
       }
 
-      const contents = buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file });
+      const contents = buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
@@ -182,6 +182,7 @@ serve(async (request) => {
       title: body.title,
       noteId: body.noteId,
       classId: body.classId,
+      className: body.className,
       aiLimitsContext,
       apiKey,
       parseDocx: async (buffer: Buffer) => {

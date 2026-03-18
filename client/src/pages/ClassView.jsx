@@ -243,7 +243,8 @@ export default function ClassView() {
                 assignForm.description,
                 aiFile,
                 `${assignForm.title} - AI ✨`,
-                id
+                id,
+                cls?.name || null
             );
             toast.success(`Generated ${result.card_count} flashcards!`);
             setShowAssignModal(false);

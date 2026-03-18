@@ -99,7 +99,7 @@ export default function GuideView() {
 
         setGenerating('flashcards');
         try {
-            const stream = await api.generateAiDeckStream(text, null, `${titleRef.current} - AI`, guideRef.current?.class_id);
+            const stream = await api.generateAiDeckStream(text, null, `${titleRef.current} - AI`, guideRef.current?.class_id, null);
 
             for await (const event of stream.chunks()) {
                 if (event.type === 'error') {
@@ -127,7 +127,7 @@ export default function GuideView() {
 
         setGenerating('exam');
         try {
-            const stream = await api.generateAiExamStream(text, null, `${titleRef.current} Exam`, 'guide', id, guideRef.current?.class_id);
+            const stream = await api.generateAiExamStream(text, null, `${titleRef.current} Exam`, 'guide', id, guideRef.current?.class_id, null);
 
             for await (const event of stream.chunks()) {
                 if (event.type === 'error') {
