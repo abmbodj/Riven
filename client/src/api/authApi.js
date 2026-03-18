@@ -78,25 +78,6 @@ const isSupabaseAccessToken = (token) => {
     return audience.includes('authenticated') && typeof payload.sub === 'string' && payload.sub.length > 0;
 };
 
-const tokenBelongsToSupabaseUrl = (token, supabaseUrl) => {
-    if (!token || !supabaseUrl) return false;
-    const payload = decodeJwtPayload(token);
-    if (!payload || typeof payload.iss !== 'string') return false;
-
-    try {
-        const tokenIssuer = new URL(payload.iss);
-        const expected = new URL(supabaseUrl);
-        return tokenIssuer.host === expected.host;
-    } catch {
-        return false;
-    }
-};
-
-const isTokenEligibleForEdge = (token) => (
-    isSupabaseAccessToken(token)
-    && !isJwtExpired(token)
-);
-
 const isJwtExpired = (token) => {
     const payload = decodeJwtPayload(token);
     if (!payload || typeof payload.exp !== 'number') return false;
@@ -196,17 +177,54 @@ const authFetch = async (endpoint, options = {}) => {
     }
 };
 
+const getSupabaseUrl = () => (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+const getSupabaseAnonKey = () => import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const hasLegacyAuthCookie = () => (
+    typeof document !== 'undefined'
+    && /(?:^|;\s*)token=/.test(document.cookie || '')
+);
+const canAttemptSupabaseSessionBridge = () => Boolean(getToken()) || hasLegacyAuthCookie();
+
+const hydrateSupabaseSessionFromBridge = async () => {
+    if (!canAttemptSupabaseSessionBridge()) {
+        return null;
+    }
+
+    const bridgeData = await authFetch('/auth/supabase-token', { method: 'POST' });
+    const accessToken = bridgeData?.access_token || null;
+    const refreshToken = bridgeData?.refresh_token || null;
+
+    if (!accessToken) {
+        return null;
+    }
+
+    if (typeof supabase?.auth?.setSession === 'function' && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+        if (error) throw error;
+
+        const session = data?.session || null;
+        if (session?.access_token) {
+            setToken(session.access_token);
+            return session;
+        }
+    }
+
+    setToken(accessToken);
+    return {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+    };
+};
+
 
 
 const getActiveSupabaseSession = async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) throw error;
     return session?.access_token ? session : null;
-};
-
-const hasValidSupabaseSession = async () => {
-    const session = await getActiveSupabaseSession().catch(() => null);
-    return session?.access_token && !isJwtExpired(session.access_token);
 };
 
 const buildAuthRedirectUrl = (path = '') => {
@@ -221,22 +239,11 @@ const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}
 // Uses the Supabase client's own session — the same token that PostgREST uses successfully.
 // No client-side JWT validation; the Supabase gateway validates server-side.
 const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false } = {}) => {
-    // 1. Get the active Supabase session (same token the JS client uses for DB queries).
-    const session = await getActiveSupabaseSession().catch(() => null);
-    if (session?.access_token) {
-        return session.access_token;
+    const accessToken = await refreshSupabaseToken().catch(() => null);
+    if (accessToken) {
+        return accessToken;
     }
 
-    // 2. Session missing or expired — try refreshing via the refresh_token.
-    if (typeof supabase?.auth?.refreshSession === 'function') {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: {} }));
-        if (data?.session?.access_token) {
-            setToken(data.session.access_token);
-            return data.session.access_token;
-        }
-    }
-
-    // 3. No Supabase session at all — force re-login.
     if (!skipForceReauth) {
         setToken(null);
         await forceReauth();
@@ -250,58 +257,65 @@ const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false 
 };
 
 const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, skipForceReauth = false } = {}) => {
-    // Use the Supabase JS client's built-in functions.invoke() — it shares the same
-    // internal auth pipeline (_getAccessToken → auto-refresh) that makes PostgREST
-    // calls succeed. This avoids manual token resolution entirely.
-    const invokeBody = body ? { ...body } : undefined;
+    const supabaseUrl = getSupabaseUrl();
+    const anonKey = getSupabaseAnonKey();
+    const accessToken = await resolveEdgeFunctionToken(supabaseUrl, { skipForceReauth });
+    const url = new URL(`${supabaseUrl}/functions/v1/${functionName}`);
 
-    // Merge query params into the body since functions.invoke doesn't support query strings
-    if (query) {
-        Object.entries(query).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-                if (!invokeBody) return;
-                invokeBody[`_q_${key}`] = String(value);
-            }
-        });
-    }
-
-    const { data, error } = await supabase.functions.invoke(functionName, {
-        body: invokeBody,
-        method,
+    Object.entries(query || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            url.searchParams.set(key, String(value));
+        }
     });
 
-    if (error) {
-        // FunctionsHttpError: error.context is the Response object
-        let status = 500;
-        let errorBody = {};
-        let message = error.message || 'Edge function request failed';
+    const headers = {
+        apikey: anonKey,
+    };
 
-        if (error.context && typeof error.context.json === 'function') {
-            status = error.context.status || 500;
-            try {
-                errorBody = await error.context.json();
-                message = errorBody.error || errorBody.message || message;
-            } catch { /* response body already consumed or not JSON */ }
-        }
+    if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+    }
 
+    if (method !== 'GET' && method !== 'HEAD' && body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    const response = await fetch(url.toString(), {
+        method,
+        headers,
+        body: method !== 'GET' && method !== 'HEAD' && body !== undefined
+            ? JSON.stringify(body)
+            : undefined,
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    let responseBody = {};
+
+    if (contentType.includes('application/json')) {
+        const text = await response.text().catch(() => '');
+        responseBody = text ? JSON.parse(text) : {};
+    } else {
+        const text = await response.text().catch(() => '');
+        responseBody = text ? { message: text } : {};
+    }
+
+    if (!response.ok) {
+        const message = responseBody.error || responseBody.message || 'Edge function request failed';
         const err = new Error(message);
-        err.status = status;
-        err.code = errorBody.code;
-        err.body = errorBody;
+        err.status = response.status;
+        err.code = responseBody.code;
+        err.body = responseBody;
 
-        if (!skipForceReauth && shouldForceReauthFromEdgeError(status, message)) {
-            const stillValid = await hasValidSupabaseSession();
-            if (!stillValid) {
-                await forceReauth();
-                err.code = AUTH_SESSION_EXPIRED_CODE;
-                err.message = 'Session expired. Please sign in again.';
-            }
+        if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, message)) {
+            await forceReauth();
+            err.code = AUTH_SESSION_EXPIRED_CODE;
+            err.message = 'Session expired. Please sign in again.';
         }
 
         throw err;
     }
 
-    return data;
+    return responseBody;
 };
 
 
@@ -733,7 +747,8 @@ export const refreshSupabaseToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     let accessToken = session?.access_token;
     if (!accessToken) {
-        return null;
+        const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+        return bridgedSession?.access_token || null;
     }
 
     // If the cached access_token is expired or malformed, try refreshing
@@ -749,6 +764,11 @@ export const refreshSupabaseToken = async () => {
             return refreshed.session.access_token;
         }
 
+        const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+        if (bridgedSession?.access_token) {
+            return bridgedSession.access_token;
+        }
+
         // Refresh truly failed — session is unrecoverable client-side
         await supabase.auth.signOut().catch(() => {});
         setToken(null);
@@ -759,6 +779,11 @@ export const refreshSupabaseToken = async () => {
     if (typeof supabase?.auth?.getUser === 'function') {
         const { data, error } = await supabase.auth.getUser(accessToken).catch(() => ({ data: { user: null }, error: new Error('Failed to validate session') }));
         if (error || !data?.user?.id) {
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            if (bridgedSession?.access_token) {
+                return bridgedSession.access_token;
+            }
+
             await supabase.auth.signOut().catch(() => {});
             setToken(null);
             return null;
@@ -1134,45 +1159,44 @@ export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName
 // --- AI Generation (Streaming) ---
 
 const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
-    // Use supabase.functions.invoke() for auth — same internal pipeline as PostgREST.
-    // For text/event-stream responses, invoke() returns the raw Response as `data`.
-    const streamBody = { ...(body || {}), stream: true };
-
-    const { data: response, error } = await supabase.functions.invoke(functionName, {
-        body: streamBody,
+    const supabaseUrl = getSupabaseUrl();
+    const anonKey = getSupabaseAnonKey();
+    const accessToken = await resolveEdgeFunctionToken(supabaseUrl);
+    const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: anonKey,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ ...(body || {}), stream: true }),
     });
 
-    if (error) {
-        let status = 500;
+    if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
         let errorBody = {};
-        let message = error.message || 'Edge function request failed';
-
-        if (error.context && typeof error.context.json === 'function') {
-            status = error.context.status || 500;
-            try {
-                errorBody = await error.context.json();
-                message = errorBody.error || errorBody.message || message;
-            } catch { /* already consumed */ }
+        if (contentType.includes('application/json')) {
+            const text = await response.text().catch(() => '');
+            errorBody = text ? JSON.parse(text) : {};
+        } else {
+            const text = await response.text().catch(() => '');
+            errorBody = text ? { message: text } : {};
         }
-
+        const message = errorBody.error || errorBody.message || 'Edge function request failed';
         const err = new Error(message);
-        err.status = status;
+        err.status = response.status;
         err.code = errorBody.code;
         err.body = errorBody;
 
-        if (shouldForceReauthFromEdgeError(status, message)) {
-            const stillValid = await hasValidSupabaseSession();
-            if (!stillValid) {
-                await forceReauth();
-                err.code = AUTH_SESSION_EXPIRED_CODE;
-                err.message = 'Session expired. Please sign in again.';
-            }
+        if (shouldForceReauthFromEdgeError(response.status, message)) {
+            await forceReauth();
+            err.code = AUTH_SESSION_EXPIRED_CODE;
+            err.message = 'Session expired. Please sign in again.';
         }
 
         throw err;
     }
 
-    // For SSE (text/event-stream), invoke() returns the raw Response object
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
@@ -2241,7 +2265,7 @@ const mapFriendRow = (row) => {
 
 const mapOwnUserRow = (row) => {
     const { role, isAdmin, isOwner } = normalizeRoleFlags(row);
-    const effectiveTier = (role === 'owner' || role === 'admin') && !Boolean(row.simulate_free_tier)
+    const effectiveTier = (role === 'owner' || role === 'admin') && !row.simulate_free_tier
         ? 'lifetime'
         : (row.subscription_tier || 'free');
 
@@ -3257,7 +3281,7 @@ export const login2FA = async (challengeOrTempToken, token) => {
 // ============ PASSWORD RESET ============
 
 export const forgotPassword = (email) =>
-    edgeFunctionFetch('forgot-password', { method: 'POST', body: { email } });
+    edgeFunctionFetch('forgot-password', { method: 'POST', body: { email }, skipForceReauth: true });
 
 export const resetPassword = async (token, password) => {
     if (!token || !password) {
@@ -3304,6 +3328,7 @@ export const resetPassword = async (token, password) => {
     return edgeFunctionFetch('reset-password', {
         method: 'POST',
         body: { token, password },
+        skipForceReauth: true,
     });
 };
 

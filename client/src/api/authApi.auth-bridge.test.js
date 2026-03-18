@@ -14,6 +14,7 @@ vi.mock('../lib/supabaseClient', () => ({
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
+      setSession: vi.fn(),
       updateUser: vi.fn(),
       verifyOtp: vi.fn(),
       resend: vi.fn(),
@@ -62,6 +63,10 @@ describe('authApi Supabase auth bridge reductions', () => {
     });
     supabase.auth.getUser.mockResolvedValue({
       data: { user: { id: 'auth-user' } },
+      error: null,
+    });
+    supabase.auth.setSession.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN, refresh_token: 'refresh-token' } },
       error: null,
     });
     supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
@@ -173,6 +178,63 @@ describe('authApi Supabase auth bridge reductions', () => {
       email: 'atlas@example.com',
       username: 'atlas',
       twoFAEnabled: false,
+    });
+  });
+
+  it('hydrates a missing Supabase session from the auth bridge before edge calls', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    authApi.setToken('legacy-token');
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildJsonResponse({
+        access_token: SUPABASE_ACCESS_TOKEN,
+        refresh_token: 'refresh-token',
+      }))
+      .mockResolvedValueOnce(buildJsonResponse({
+        remaining: 7,
+        max: 10,
+        characterLimit: 15000,
+        flashcardRange: [5, 15],
+        canWatchAd: false,
+        isPremium: false,
+      }));
+
+    const result = await authApi.getAILimits();
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/api/auth/supabase-token',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer legacy-token',
+        }),
+      }),
+    );
+    expect(supabase.auth.setSession).toHaveBeenCalledWith({
+      access_token: SUPABASE_ACCESS_TOKEN,
+      refresh_token: 'refresh-token',
+    });
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
+      'https://supabase.test/functions/v1/ai-limits',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+          apikey: 'supabase-anon-key',
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      remaining: 7,
+      max: 10,
+      characterLimit: 15000,
+      flashcardRange: [5, 15],
+      canWatchAd: false,
+      isPremium: false,
     });
   });
 

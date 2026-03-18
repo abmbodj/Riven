@@ -167,16 +167,17 @@ describe('authApi AI edge migration', () => {
 
     expect(authApi.getToken()).toBeNull();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/ai-limits',
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/api/auth/supabase-token',
       expect.objectContaining({
         headers: expect.objectContaining({
-          apikey: 'supabase-anon-key',
+          Authorization: expect.stringContaining('Bearer '),
         }),
       }),
     );
 
-    const requestOptions = globalThis.fetch.mock.calls[0][1];
-    expect(requestOptions.headers.Authorization).toBeUndefined();
+    const requestOptions = globalThis.fetch.mock.calls[1][1];
+    expect(requestOptions.headers.Authorization).toMatch(/^Bearer /);
   });
 });

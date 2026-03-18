@@ -100,17 +100,18 @@ describe('authApi hearts edge migration', () => {
 
     expect(authApi.getToken()).toBeNull();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/hearts?action=status',
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/api/auth/supabase-token',
       expect.objectContaining({
         headers: expect.objectContaining({
-          apikey: 'supabase-anon-key',
+          Authorization: expect.stringContaining('Bearer '),
         }),
       }),
     );
 
-    const requestOptions = globalThis.fetch.mock.calls[0][1];
-    expect(requestOptions.headers.Authorization).toBeUndefined();
+    const requestOptions = globalThis.fetch.mock.calls[1][1];
+    expect(requestOptions.headers.Authorization).toMatch(/^Bearer /);
   });
 
   it('forces re-login when the hearts edge function returns invalid JWT', async () => {
