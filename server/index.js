@@ -218,6 +218,11 @@ app.use('/api/', (req, res, next) => {
     next();
 });
 
+// Lightweight endpoint for the client to prime the CSRF cookie before making mutating requests.
+app.get('/api/csrf', (req, res) => {
+    res.json({ ok: true });
+});
+
 // Ensure DB schema is ready before handling API requests (serverless cold-start safety)
 app.use('/api/', async (req, res, next) => {
     try {

@@ -147,7 +147,14 @@ const authFetch = async (endpoint, options = {}) => {
 
     const method = (options.method || 'GET').toUpperCase();
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-        const csrf = getCsrfToken();
+        let csrf = getCsrfToken();
+        if (!csrf) {
+            // Prime the CSRF cookie with a GET request, then re-read it.
+            // This handles the case where a stale cookie exists server-side but the
+            // browser hasn't made any GET to our API yet (e.g. first login after Supabase call).
+            await fetch(`${API_BASE}/csrf`, { credentials: 'include' }).catch(() => {});
+            csrf = getCsrfToken();
+        }
         if (csrf) {
             headers['x-csrf-token'] = csrf;
         }
