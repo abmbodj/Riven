@@ -1,0 +1,2 @@
+[functions.generate-guide]
+verify_jwt = false

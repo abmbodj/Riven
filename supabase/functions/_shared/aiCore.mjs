@@ -2,7 +2,10 @@ import { Buffer } from 'node:buffer';
 
 const FREE_LIMIT = 10;
 const PREMIUM_LIMIT = 50;
-const RESET_MS = 2 * 60 * 60 * 1000;
+
+const isNewMonth = (lastReset, now) =>
+  lastReset.getUTCFullYear() !== now.getUTCFullYear() ||
+  lastReset.getUTCMonth() !== now.getUTCMonth();
 const DOCX_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
@@ -140,7 +143,7 @@ export const getAiLimitStatus = ({ user, now = new Date() }) => {
   const isPremium = isPremiumUser(user);
   const max = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
   const lastReset = user.last_ai_generation_reset ? new Date(user.last_ai_generation_reset) : null;
-  const needsReset = !lastReset || (now - lastReset > RESET_MS);
+  const needsReset = !lastReset || isNewMonth(lastReset, now);
   let count = Number(user.ai_generations_count ?? 0);
 
   if (needsReset) {

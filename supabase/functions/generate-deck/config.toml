@@ -1,0 +1,2 @@
+[functions.generate-deck]
+verify_jwt = false

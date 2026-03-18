@@ -1,0 +1,2 @@
+[functions.generate-from-youtube]
+verify_jwt = false
