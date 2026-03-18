@@ -574,18 +574,18 @@
     position: relative;
     isolation: isolate;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 88%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 85%, transparent) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+        color-mix(in srgb, var(--surface-color) 45%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 40%, transparent) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
-      0 -4px 40px -8px rgba(0, 0, 0, 0.35),
-      0 24px 60px -20px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+      0 -4px 40px -8px rgba(0, 0, 0, 0.3),
+      0 24px 60px -20px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
   }
 
   .mobile-bottom-nav-shell::before {
@@ -594,8 +594,8 @@
     inset: 0;
     border-radius: inherit;
     background:
-      radial-gradient(ellipse at 50% 0%, rgba(222, 185, 106, 0.08), transparent 50%),
-      radial-gradient(ellipse at 20% 100%, rgba(122, 158, 114, 0.06), transparent 40%);
+      radial-gradient(ellipse at 50% 0%, rgba(222, 185, 106, 0.10), transparent 50%),
+      radial-gradient(ellipse at 20% 100%, rgba(122, 158, 114, 0.08), transparent 40%);
     pointer-events: none;
   }
 
@@ -621,17 +621,17 @@
     position: relative;
     isolation: isolate;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 90%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 85%, transparent) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+        color-mix(in srgb, var(--surface-color) 45%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 40%, transparent) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
-      0 32px 80px -20px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 32px 80px -20px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
   }
 
   .mobile-fab-menu::before {

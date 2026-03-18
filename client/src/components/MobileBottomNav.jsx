@@ -7,15 +7,13 @@ import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import User from 'lucide-react/dist/esm/icons/user';
-import Play from 'lucide-react/dist/esm/icons/play';
 
 const routeMatches = (pathname, matchers = []) =>
     matchers.some((m) => pathname === m || pathname.startsWith(`${m}/`));
 
-const fabMenuItems = [
-    { to: null, id: 'search', icon: Search, label: 'Search', accent: true },
-    { to: '/create', id: 'create', icon: Plus, label: 'Create Deck', accent: true },
-    { to: '/youtube', id: 'youtube', icon: Play, label: 'YouTube Import', accent: true },
+const searchItem = { to: null, id: 'search', icon: Search, label: 'Search' };
+
+const fabGridItems = [
     { to: '/garden', id: 'garden', icon: Sprout, label: 'Garden', accent: true },
     { to: '/themes', id: 'themes', icon: Palette, label: 'Themes', accent: true },
     { to: '/settings', id: 'settings', icon: Settings, label: 'Settings' },
@@ -54,54 +52,62 @@ export default function MobileBottomNav({
                             }}
                         />
                         <motion.div
-                            initial={{ opacity: 0, y: 24, scale: 0.92 }}
+                            initial={{ opacity: 0, y: 30, scale: 0.88 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 16, scale: 0.95 }}
-                            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+                            exit={{ opacity: 0, y: 20, scale: 0.92 }}
+                            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
                             className="fixed bottom-28 left-4 right-4 z-50 mx-auto max-w-[320px] lg:hidden"
                         >
-                            <div className="mobile-fab-menu rounded-3xl p-2 flex flex-col gap-1">
-                                {fabMenuItems.map((item, i) => {
-                                    const Icon = item.icon;
-                                    const isLink = item.to !== null;
-                                    const Comp = isLink ? Link : 'button';
-                                    const compProps = isLink
-                                        ? { to: item.to, onClick: () => handleFabMenuAction(item) }
-                                        : { type: 'button', onClick: () => handleFabMenuAction(item) };
+                            <div className="mobile-fab-menu rounded-3xl p-2.5 flex flex-col gap-2">
+                                {/* Search — hero row */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.05, duration: 0.25 }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => handleFabMenuAction(searchItem)}
+                                        className="flex items-center gap-3.5 w-full px-4 py-3.5 rounded-2xl bg-claude-accent/10 border border-claude-accent/25 transition-colors duration-200 cursor-pointer touch-target active:bg-claude-accent/15"
+                                    >
+                                        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-claude-accent/15">
+                                            <Search className="w-5 h-5 text-claude-accent" />
+                                        </div>
+                                        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-claude-text">
+                                            Search
+                                        </span>
+                                    </button>
+                                </motion.div>
 
-                                    return (
-                                        <motion.div
-                                            key={item.id}
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.04, duration: 0.25 }}
-                                        >
-                                            <Comp
-                                                {...compProps}
-                                                className={`flex items-center gap-3.5 w-full px-4 py-3.5 rounded-2xl transition-colors duration-200 cursor-pointer touch-target ${
-                                                    item.id === 'create'
-                                                        ? 'bg-claude-accent/12 border border-claude-accent/20'
-                                                        : 'hover:bg-white/[0.06] border border-transparent'
-                                                }`}
+                                {/* Grid — 2×2 */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {fabGridItems.map((item, i) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <motion.div
+                                                key={item.id}
+                                                initial={{ opacity: 0, scale: 0.85 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: 0.06 + i * 0.05, type: 'spring', damping: 22, stiffness: 300 }}
                                             >
-                                                <div className={`flex items-center justify-center w-9 h-9 rounded-xl ${
-                                                    item.id === 'create'
-                                                        ? 'bg-claude-accent/15'
-                                                        : 'bg-white/[0.06]'
-                                                }`}>
-                                                    <Icon className={`w-[18px] h-[18px] ${
+                                                <Link
+                                                    to={item.to}
+                                                    onClick={() => handleFabMenuAction(item)}
+                                                    className="flex flex-col items-center justify-center gap-2 w-full min-h-[80px] rounded-2xl bg-white/[0.05] border border-white/[0.08] transition-colors duration-200 cursor-pointer touch-target active:bg-white/[0.10]"
+                                                >
+                                                    <Icon className={`w-[20px] h-[20px] ${
                                                         item.accent ? 'text-claude-accent' : 'text-claude-secondary'
                                                     }`} />
-                                                </div>
-                                                <span className={`font-mono text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                                                    item.accent ? 'text-claude-text' : 'text-claude-secondary'
-                                                }`}>
-                                                    {item.label}
-                                                </span>
-                                            </Comp>
-                                        </motion.div>
-                                    );
-                                })}
+                                                    <span className={`font-mono text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                                                        item.accent ? 'text-claude-text' : 'text-claude-secondary'
+                                                    }`}>
+                                                        {item.label}
+                                                    </span>
+                                                </Link>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </motion.div>
                     </>

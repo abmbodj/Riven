@@ -91,7 +91,11 @@ export default function Classes() {
     const [scheduleSlots, setScheduleSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [viewMode, setViewMode] = useState('Roster'); // 'Roster' | 'Timetable'
+    const [viewMode, setViewMode] = useState('Roster'); // 'Roster' | 'Calendar'
+    const [selectedDay, setSelectedDay] = useState(() => {
+        const today = new Date().getDay(); // 0=Sun, 1=Mon...
+        return today;
+    });
 
     // Modals
     const [showModal, setShowModal] = useState(false);
@@ -391,7 +395,7 @@ export default function Classes() {
             <div className="px-4 sm:px-6">
                 {/* Segmented Control */}
                 <div className="flex glass-panel rounded-xl p-1 mb-6 max-w-xs transition-[transform,opacity,color,background-color,border-color,box-shadow]">
-                    {['Timetable', 'Roster'].map(mode => (
+                    {['Calendar', 'Roster'].map(mode => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
@@ -457,40 +461,146 @@ export default function Classes() {
                     );
                 })()}
 
-                {viewMode === 'Timetable' && (
-                    <div className="animate-fade-in pb-12 overflow-x-auto">
-                        {scheduleSlots.length === 0 ? (
-                            <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl mt-8">
-                                <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                                <h3 className="font-serif italic text-xl text-claude-text opacity-40">Empty Schedule</h3>
-                                <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
+                {viewMode === 'Calendar' && (() => {
+                    if (scheduleSlots.length === 0) {
+                        return (
+                            <div className="animate-fade-in pb-12">
+                                <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl mt-8">
+                                    <Calendar className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
+                                    <h3 className="font-serif italic text-xl text-claude-text opacity-40">Empty Schedule</h3>
+                                    <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Define class times inside your class settings.</p>
+                                </div>
                             </div>
-                        ) : (() => {
-                            // Define calendar bounds
-                            const START_HOUR = 8; // 8 AM
-                            const END_HOUR = 22;  // 10 PM
-                            const TOTAL_HOURS = END_HOUR - START_HOUR;
-                            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-                            const dayIndices = [1, 2, 3, 4, 5]; // Mon-Fri
+                        );
+                    }
 
-                            // Check if weekends have classes, if so include them
-                            const hasWeekendClasses = scheduleSlots.some(s => s.day_of_week === 0 || s.day_of_week === 6);
-                            if (hasWeekendClasses) {
-                                days.unshift('Sunday');
-                                dayIndices.unshift(0);
-                                days.push('Saturday');
-                                dayIndices.push(6);
-                            }
+                    const START_HOUR = 8;
+                    const END_HOUR = 22;
+                    const TOTAL_HOURS = END_HOUR - START_HOUR;
+                    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+                    const dayIndices = [1, 2, 3, 4, 5];
 
-                            const parseTimeToHours = (timeStr) => {
-                                const [hours, minutes] = timeStr.split(':').map(Number);
-                                return hours + minutes / 60;
-                            };
+                    const hasWeekendClasses = scheduleSlots.some(s => s.day_of_week === 0 || s.day_of_week === 6);
+                    if (hasWeekendClasses) {
+                        days.unshift('Sunday');
+                        dayIndices.unshift(0);
+                        days.push('Saturday');
+                        dayIndices.push(6);
+                    }
 
-                            const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                    const parseTimeToHours = (timeStr) => {
+                        const [hours, minutes] = timeStr.split(':').map(Number);
+                        return hours + minutes / 60;
+                    };
 
-                            return (
-                                <div className="min-w-[700px] glass-panel rounded-2xl overflow-hidden mt-4 shadow-sm relative">
+                    const formatTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+                    const dayLabelsShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const todayDow = new Date().getDay();
+
+                    // Mobile: slots for selected day, sorted by start time
+                    const mobileDaySlots = scheduleSlots
+                        .filter(s => s.day_of_week === selectedDay)
+                        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+                    return (
+                        <div className="animate-fade-in pb-12">
+                            {/* ===== MOBILE: Day Agenda View ===== */}
+                            <div className="md:hidden">
+                                {/* Day Pill Selector */}
+                                <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-4 -mx-1 px-1">
+                                    {dayIndices.map((dayIdx) => {
+                                        const isSelected = selectedDay === dayIdx;
+                                        const isToday = todayDow === dayIdx;
+                                        const daySlotCount = scheduleSlots.filter(s => s.day_of_week === dayIdx).length;
+                                        return (
+                                            <button
+                                                key={dayIdx}
+                                                onClick={() => setSelectedDay(dayIdx)}
+                                                className={`relative flex flex-col items-center min-w-[56px] py-2.5 px-3 rounded-2xl font-mono text-[10px] uppercase font-bold tracking-widest transition-all duration-200 tap-action shrink-0 ${isSelected
+                                                    ? 'bg-claude-accent text-claude-text shadow-md shadow-claude-accent/20'
+                                                    : 'glass-panel text-claude-secondary hover:text-claude-text'
+                                                }`}
+                                            >
+                                                <span className="text-[9px] tracking-[0.2em]">{dayLabelsShort[dayIdx]}</span>
+                                                {isToday && (
+                                                    <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-claude-text' : 'bg-claude-accent'}`} />
+                                                )}
+                                                {daySlotCount > 0 && !isToday && (
+                                                    <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-claude-text/50' : 'bg-claude-secondary/40'}`} />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Day Label */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className="font-serif italic text-lg font-bold text-claude-text">{days[dayIndices.indexOf(selectedDay)]}</span>
+                                    {todayDow === selectedDay && (
+                                        <span className="px-2 py-0.5 bg-claude-accent/15 text-claude-accent text-[8px] font-mono font-bold uppercase tracking-[0.2em] rounded-full">Today</span>
+                                    )}
+                                    <div className="flex-1 h-px bg-claude-border/40" />
+                                    <span className="font-mono text-[9px] text-claude-secondary">{mobileDaySlots.length} {mobileDaySlots.length === 1 ? 'class' : 'classes'}</span>
+                                </div>
+
+                                {/* Class Cards */}
+                                {mobileDaySlots.length === 0 ? (
+                                    <div className="text-center py-12 glass-panel rounded-2xl border border-dashed border-claude-border">
+                                        <Clock className="w-8 h-8 text-claude-secondary opacity-30 mx-auto mb-3" />
+                                        <p className="font-serif italic text-claude-text opacity-40">No classes</p>
+                                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_50%,transparent)] text-[9px] font-mono uppercase tracking-widest mt-1">Free day</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {mobileDaySlots.map((slot) => {
+                                            const cls = classes.find(c => c.id === slot.class_id);
+                                            if (!cls || !slot.start_time || !slot.end_time) return null;
+
+                                            return (
+                                                <motion.div
+                                                    key={slot.id}
+                                                    initial={{ opacity: 0, y: 12 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    onClick={() => navigate(`/class/${cls.id}`)}
+                                                    className="relative glass-item rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-hidden group"
+                                                    style={{
+                                                        borderLeftWidth: '4px',
+                                                        borderLeftColor: cls.color || 'var(--accent-color)'
+                                                    }}
+                                                >
+                                                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundColor: cls.color || 'var(--accent-color)' }} />
+                                                    <div className="relative z-10 flex items-center gap-4">
+                                                        <div className="shrink-0 text-center min-w-[52px]">
+                                                            <div className="font-mono text-xs font-bold text-claude-text">{formatTime(slot.start_time)}</div>
+                                                            <div className="w-px h-3 bg-claude-border/60 mx-auto my-1" />
+                                                            <div className="font-mono text-[10px] text-claude-secondary">{formatTime(slot.end_time)}</div>
+                                                        </div>
+                                                        <div className="w-px h-10 bg-claude-border/30" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-serif italic font-bold text-claude-text text-base leading-tight truncate group-hover:text-claude-accent transition-colors">{cls.name}</h4>
+                                                            {cls.room && (
+                                                                <div className="flex items-center gap-1.5 mt-1.5 font-mono text-[9px] uppercase tracking-widest font-bold opacity-60" style={{ color: cls.color || 'var(--accent-color)' }}>
+                                                                    <MapPin className="w-3 h-3" /> <span className="truncate">{cls.room}</span>
+                                                                </div>
+                                                            )}
+                                                            {cls.professor && (
+                                                                <div className="flex items-center gap-1.5 mt-1 font-mono text-[9px] uppercase tracking-widest text-claude-secondary truncate">
+                                                                    <User className="w-3 h-3 opacity-50" /> <span className="truncate">{cls.professor}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* ===== DESKTOP: Weekly Grid View ===== */}
+                            <div className="hidden md:block">
+                                <div className="glass-panel rounded-2xl overflow-hidden mt-4 shadow-sm relative">
                                     {/* Grid Header */}
                                     <div className="grid border-b border-claude-border sticky top-0 bg-claude-bg z-20" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
                                         <div className="py-3 px-2 text-center border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
@@ -504,7 +614,7 @@ export default function Classes() {
                                     </div>
 
                                     {/* Grid Body */}
-                                    <div className="relative" style={{ height: `${TOTAL_HOURS * 60}px` }}> {/* 60px per hour */}
+                                    <div className="relative" style={{ height: `${TOTAL_HOURS * 60}px` }}>
                                         {/* Background lines & Hour Labels */}
                                         <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `60px 1fr` }}>
                                             <div className="border-r border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
@@ -540,10 +650,8 @@ export default function Classes() {
                                                             const startHour = parseTimeToHours(slot.start_time);
                                                             const endHour = parseTimeToHours(slot.end_time);
 
-                                                            // Only render if within the calendar bounds
                                                             if (endHour <= START_HOUR || startHour >= END_HOUR) return null;
 
-                                                            // Calculate position and height
                                                             const constrainedStart = Math.max(startHour, START_HOUR);
                                                             const constrainedEnd = Math.min(endHour, END_HOUR);
 
@@ -587,10 +695,10 @@ export default function Classes() {
                                         </div>
                                     </div>
                                 </div>
-                            );
-                        })()}
-                    </div>
-                )}
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             <ConfirmModal
