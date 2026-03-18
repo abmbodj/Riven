@@ -156,10 +156,20 @@ export default function YouTubeImport() {
         api.getAILimits().then(setAiLimits).catch(() => {});
     }, []);
 
+    const [videoTitle, setVideoTitle] = useState('');
+
     const handleUrlChange = useCallback((e) => {
         const val = e.target.value;
         setYoutubeUrl(val);
-        setVideoId(extractVideoId(val));
+        const id = extractVideoId(val);
+        setVideoId(id);
+        setVideoTitle('');
+        if (id) {
+            fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => { if (data?.title) setVideoTitle(data.title); })
+                .catch(() => {});
+        }
     }, []);
 
     const toggleType = useCallback((typeId) => {
@@ -193,10 +203,11 @@ export default function YouTubeImport() {
             ));
 
             try {
+                const effectiveTitle = customTitle.trim() || videoTitle || undefined;
                 const result = await api.generateFromYoutube(youtubeUrl, type, {
-                    title: customTitle.trim() || undefined,
+                    title: effectiveTitle,
                     classId: selectedClass || undefined,
-                    deckName: customTitle.trim() || undefined,
+                    deckName: effectiveTitle,
                 });
 
                 setProgress(prev => prev.map((item, idx) =>
@@ -220,6 +231,16 @@ export default function YouTubeImport() {
         }
 
         setResults(finalResults);
+
+        // Auto-redirect if exactly one item was generated successfully
+        if (finalResults.length === 1) {
+            const link = getResultLink(finalResults[0].type, finalResults[0].result);
+            if (link) {
+                navigate(link);
+                return;
+            }
+        }
+
         setPhase('done');
     };
 
