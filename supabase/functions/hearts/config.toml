@@ -1,0 +1,2 @@
+[functions.hearts]
+verify_jwt = false

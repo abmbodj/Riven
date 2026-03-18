@@ -95,7 +95,7 @@ serve(async (request) => {
   try {
     const url = new URL(request.url);
     const body = request.method === 'GET' ? {} : await request.json().catch(() => ({}));
-    const action = request.method === 'GET' ? url.searchParams.get('action') : body.action;
+    const action = body.action ?? url.searchParams.get('action');
 
     const authUser = await resolveSupabaseUser(request);
 
@@ -104,7 +104,7 @@ serve(async (request) => {
     }
 
     if (action === 'session') {
-      const deckId = url.searchParams.get('deckId');
+      const deckId = body.deckId ?? url.searchParams.get('deckId');
       if (!deckId) {
         return jsonResponse({ error: 'deckId is required' }, { status: 400 }, request);
       }

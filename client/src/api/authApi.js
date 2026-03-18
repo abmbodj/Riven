@@ -256,7 +256,62 @@ const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false 
     return null;
 };
 
-const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, skipForceReauth = false } = {}) => {
+const invokeEdgeFunction = async (functionName, { method = 'POST', body, skipForceReauth = false } = {}) => {
+    if (typeof supabase?.functions?.invoke !== 'function') {
+        return fetchEdgeFunctionWithQuery(functionName, {
+            method,
+            body,
+            skipForceReauth,
+        });
+    }
+
+    await resolveEdgeFunctionToken(getSupabaseUrl(), { skipForceReauth });
+
+    const { data, error } = await supabase.functions.invoke(functionName, {
+        body,
+        method,
+    });
+
+    if (error) {
+        let status = 500;
+        let errorBody = {};
+        let message = error.message || 'Edge function request failed';
+
+        if (error.context && typeof error.context.json === 'function') {
+            status = error.context.status || 500;
+            try {
+                errorBody = await error.context.json();
+                message = errorBody.error || errorBody.message || message;
+            } catch { /* response body already consumed or not JSON */ }
+        }
+
+        const err = new Error(message);
+        err.status = status;
+        err.code = errorBody.code;
+        err.body = errorBody;
+
+        if (!skipForceReauth && shouldForceReauthFromEdgeError(status, message)) {
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            if (bridgedSession?.access_token) {
+                return invokeEdgeFunction(functionName, {
+                    method,
+                    body,
+                    skipForceReauth: true,
+                });
+            }
+
+            await forceReauth();
+            err.code = AUTH_SESSION_EXPIRED_CODE;
+            err.message = 'Session expired. Please sign in again.';
+        }
+
+        throw err;
+    }
+
+    return data;
+};
+
+const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, query, skipForceReauth = false } = {}) => {
     const supabaseUrl = getSupabaseUrl();
     const anonKey = getSupabaseAnonKey();
     const accessToken = await resolveEdgeFunctionToken(supabaseUrl, { skipForceReauth });
@@ -307,6 +362,16 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, s
         err.body = responseBody;
 
         if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, message)) {
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            if (bridgedSession?.access_token) {
+                return fetchEdgeFunctionWithQuery(functionName, {
+                    method,
+                    body,
+                    query,
+                    skipForceReauth: true,
+                });
+            }
+
             await forceReauth();
             err.code = AUTH_SESSION_EXPIRED_CODE;
             err.message = 'Session expired. Please sign in again.';
@@ -316,6 +381,14 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, s
     }
 
     return responseBody;
+};
+
+const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, skipForceReauth = false } = {}) => {
+    if (query && method === 'GET') {
+        return fetchEdgeFunctionWithQuery(functionName, { method, body, query, skipForceReauth });
+    }
+
+    return invokeEdgeFunction(functionName, { method, body, skipForceReauth });
 };
 
 
@@ -1158,37 +1231,118 @@ export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName
 
 // --- AI Generation (Streaming) ---
 
-const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
-    const supabaseUrl = getSupabaseUrl();
-    const anonKey = getSupabaseAnonKey();
-    const accessToken = await resolveEdgeFunctionToken(supabaseUrl);
-    const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            apikey: anonKey,
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ ...(body || {}), stream: true }),
+const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = true } = {}) => {
+    if (typeof supabase?.functions?.invoke !== 'function') {
+        const supabaseUrl = getSupabaseUrl();
+        const anonKey = getSupabaseAnonKey();
+        const accessToken = await resolveEdgeFunctionToken(supabaseUrl);
+        const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                apikey: anonKey,
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ ...(body || {}), stream: true }),
+        });
+
+        if (!response.ok) {
+            const contentType = response.headers.get('content-type') || '';
+            let errorBody = {};
+            if (contentType.includes('application/json')) {
+                const text = await response.text().catch(() => '');
+                errorBody = text ? JSON.parse(text) : {};
+            } else {
+                const text = await response.text().catch(() => '');
+                errorBody = text ? { message: text } : {};
+            }
+            const message = errorBody.error || errorBody.message || 'Edge function request failed';
+            const err = new Error(message);
+            err.status = response.status;
+            err.code = errorBody.code;
+            err.body = errorBody;
+
+            if (shouldForceReauthFromEdgeError(response.status, message)) {
+                await forceReauth();
+                err.code = AUTH_SESSION_EXPIRED_CODE;
+                err.message = 'Session expired. Please sign in again.';
+            }
+
+            throw err;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        return {
+            async *chunks() {
+                let buffer = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop();
+
+                    for (const eventBlock of events) {
+                        if (!eventBlock.trim()) continue;
+                        const lines = eventBlock.split('\n');
+                        let eventType = 'chunk';
+                        let data = '';
+                        for (const line of lines) {
+                            if (line.startsWith('event: ')) eventType = line.slice(7);
+                            if (line.startsWith('data: ')) data = line.slice(6);
+                        }
+                        if (data) {
+                            try {
+                                yield { type: eventType, data: JSON.parse(data) };
+                            } catch {
+                                // Skip malformed events
+                            }
+                        }
+                    }
+                }
+            },
+            abort: () => {
+                reader.cancel();
+            },
+        };
+    }
+
+    await resolveEdgeFunctionToken(getSupabaseUrl());
+    const streamBody = { ...(body || {}), stream: true };
+
+    const { data: response, error } = await supabase.functions.invoke(functionName, {
+        body: streamBody,
     });
 
-    if (!response.ok) {
-        const contentType = response.headers.get('content-type') || '';
+    if (error) {
+        let status = 500;
         let errorBody = {};
-        if (contentType.includes('application/json')) {
-            const text = await response.text().catch(() => '');
-            errorBody = text ? JSON.parse(text) : {};
-        } else {
-            const text = await response.text().catch(() => '');
-            errorBody = text ? { message: text } : {};
+        let message = error.message || 'Edge function request failed';
+
+        if (error.context && typeof error.context.json === 'function') {
+            status = error.context.status || 500;
+            try {
+                errorBody = await error.context.json();
+                message = errorBody.error || errorBody.message || message;
+            } catch { /* already consumed */ }
         }
-        const message = errorBody.error || errorBody.message || 'Edge function request failed';
+
+        if (allowBridgeRetry && shouldForceReauthFromEdgeError(status, message)) {
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            if (bridgedSession?.access_token) {
+                return edgeFunctionStreamFetch(functionName, { body, allowBridgeRetry: false });
+            }
+        }
+
         const err = new Error(message);
-        err.status = response.status;
+        err.status = status;
         err.code = errorBody.code;
         err.body = errorBody;
 
-        if (shouldForceReauthFromEdgeError(response.status, message)) {
+        if (shouldForceReauthFromEdgeError(status, message)) {
             await forceReauth();
             err.code = AUTH_SESSION_EXPIRED_CODE;
             err.message = 'Session expired. Please sign in again.';
@@ -3334,10 +3488,10 @@ export const resetPassword = async (token, password) => {
 
 // ============ HEARTS API ============
 export const getHeartsStatus = () =>
-    edgeFunctionFetch('hearts', { method: 'GET', query: { action: 'status' } });
+    edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'status' } });
 
 export const getSessionHearts = (deckId) =>
-    edgeFunctionFetch('hearts', { method: 'GET', query: { action: 'session', deckId } });
+    edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'session', deckId } });
 
 export const decrementHeart = () =>
     edgeFunctionFetch('hearts', { method: 'POST', body: { action: 'decrement' } });

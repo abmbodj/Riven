@@ -77,12 +77,15 @@ describe('authApi hearts edge migration', () => {
 
     expect(status).toEqual({ hearts: 40, max: 40, isUnlimited: false });
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/hearts?action=status',
+      'https://supabase.test/functions/v1/hearts',
       expect.objectContaining({
-        method: 'GET',
+        method: 'POST',
         headers: expect.objectContaining({
           Authorization: `Bearer ${authApi.getToken()}`,
           apikey: 'supabase-anon-key',
+        }),
+        body: JSON.stringify({
+          action: 'status',
         }),
       }),
     );
@@ -129,9 +132,9 @@ describe('authApi hearts edge migration', () => {
     });
 
     expect(authApi.getToken()).toBeNull();
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/hearts?action=status',
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://supabase.test/functions/v1/hearts',
       expect.any(Object),
     );
   });
