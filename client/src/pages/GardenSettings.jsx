@@ -107,11 +107,7 @@ export default function GardenSettings() {
                 className="flex flex-col items-center mb-6"
             >
                 <div
-                    className="relative rounded-2xl p-6 w-full flex flex-col items-center"
-                    style={{
-                        background: 'linear-gradient(180deg, rgba(122,158,114,0.1) 0%, rgba(122,158,114,0.04) 60%, transparent 100%)',
-                        border: '1px solid rgba(122,158,114,0.08)',
-                    }}
+                    className="relative rounded-2xl p-6 w-full flex flex-col items-center glass-panel-premium"
                 >
                     {/* Corner marks */}
                     <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/15" />
@@ -119,15 +115,17 @@ export default function GardenSettings() {
                     <div className="absolute bottom-3 left-3 w-3 h-3 border-b border-l border-claude-accent/15" />
                     <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/15" />
 
-                    <Garden
-                        streak={effectiveStreak}
-                        status={streak.status}
-                        size="xl"
-                        showInfo={true}
-                        svgClassName="md:h-[420px] md:w-[420px] lg:h-[460px] lg:w-[460px] xl:h-[500px] xl:w-[500px]"
-                    />
+                    <div className="relative z-10">
+                        <Garden
+                            streak={effectiveStreak}
+                            status={streak.status}
+                            size="xl"
+                            showInfo={true}
+                            svgClassName="md:h-[420px] md:w-[420px] lg:h-[460px] lg:w-[460px] xl:h-[500px] xl:w-[500px]"
+                        />
+                    </div>
 
-                    <div className="mt-4 text-center">
+                    <div className="relative z-10 mt-4 text-center">
                         <div className="font-display text-lg font-semibold italic">{stage.name}</div>
                         <div className="text-sm text-claude-secondary">{stage.description}</div>
                     </div>
@@ -139,10 +137,10 @@ export default function GardenSettings() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
-                className="glass-panel p-4 mb-6"
+                className="glass-panel-premium rounded-2xl p-4 mb-6"
             >
-                <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mb-3">This Week</div>
-                <div className="flex items-center justify-between gap-1">
+                <div className="relative z-10 text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mb-3">This Week</div>
+                <div className="relative z-10 flex items-center justify-between gap-1">
                     {weekDays.map((day) => (
                         <div key={day.dateKey} className="flex flex-col items-center gap-1.5 flex-1">
                             <div
@@ -167,20 +165,20 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="glass-panel p-5 text-center"
+                    className="glass-panel-premium rounded-2xl p-5 text-center"
                 >
-                    <div className="text-3xl font-display font-bold text-claude-accent">{streak.currentStreak}</div>
-                    <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Current Streak</div>
+                    <div className="relative z-10 text-3xl font-display font-bold text-claude-accent">{streak.currentStreak}</div>
+                    <div className="relative z-10 text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Current Streak</div>
                 </motion.div>
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
-                    className="glass-panel p-5 pt-7 text-center"
+                    className="glass-panel-premium rounded-2xl p-5 pt-7 text-center"
                 >
-                    <div className="text-3xl font-display font-bold text-yellow-500">{streak.longestStreak}</div>
-                    <div className="text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Best Streak</div>
-                    <div className="text-[9px] font-mono text-claude-secondary/50 mt-2">Personal Record</div>
+                    <div className="relative z-10 text-3xl font-display font-bold text-yellow-500">{streak.longestStreak}</div>
+                    <div className="relative z-10 text-[10px] font-mono text-botanical-sepia uppercase tracking-[0.15em] mt-1">Best Streak</div>
+                    <div className="relative z-10 text-[9px] font-mono text-claude-secondary/50 mt-2">Personal Record</div>
                 </motion.div>
             </div>
 
@@ -190,9 +188,9 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="glass-panel p-4 mb-6"
+                    className="glass-panel-premium rounded-2xl p-4 mb-6"
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="relative z-10 flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${streak.status === 'at-risk' ? 'bg-yellow-500/12' : 'bg-claude-accent/12'
                             }`}>
                             <Clock className={`w-4 h-4 ${streak.status === 'at-risk' ? 'text-yellow-500' : 'text-claude-accent'
@@ -220,13 +218,13 @@ export default function GardenSettings() {
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25 }}
-                        className={`p-4 mb-6 rounded-2xl border-2 relative overflow-hidden ${hasOwnerStageOverride ? 'border-amber-500/30 bg-amber-500/5' : 'border-claude-accent/30 bg-claude-accent/5'
+                        className={`p-4 mb-6 rounded-2xl relative overflow-hidden glass-panel-premium ${hasOwnerStageOverride ? 'border-amber-500/30' : 'border-claude-accent/30'
                             }`}
                     >
                         {hasOwnerStageOverride && (
                             <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-bl-lg">OWNER</div>
                         )}
-                        <div className="flex items-center gap-3 mb-4">
+                        <div className="relative z-10 flex items-center gap-3 mb-4">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${hasOwnerStageOverride ? 'bg-amber-500/20' : 'bg-claude-accent/20'
                                 }`}>
                                 <Palette className={`w-4 h-4 ${hasOwnerStageOverride ? 'text-amber-500' : 'text-claude-accent'}`} />
@@ -241,7 +239,7 @@ export default function GardenSettings() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="relative z-10 flex flex-col gap-2">
                             <div className="flex justify-between text-xs text-claude-secondary font-mono px-1">
                                 <span>Stage 0 (Seed)</span>
                                 <span>{hasOwnerStageOverride ? 'Stage 15 (Infinity)' : `Stage ${getStageIndex(streak.currentStreak)} (Max)`}</span>
@@ -276,9 +274,9 @@ export default function GardenSettings() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
-                    className="p-4 mb-6 rounded-2xl border border-claude-border bg-white/3 relative overflow-hidden"
+                    className="p-4 mb-6 rounded-2xl relative overflow-hidden glass-panel-premium"
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="relative z-10 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                             <Lock className="w-4 h-4 text-indigo-400" />
                         </div>
@@ -298,12 +296,12 @@ export default function GardenSettings() {
                 <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => isPremium ? setShowGallery(true) : null}
-                    className={`w-full p-4 glass-panel flex items-center gap-4 ${!isPremium ? 'opacity-60' : ''}`}
+                    className={`w-full p-4 glass-panel-premium rounded-2xl flex items-center gap-4 ${!isPremium ? 'opacity-60' : ''}`}
                 >
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/12 flex items-center justify-center">
+                    <div className="relative z-10 w-10 h-10 rounded-lg bg-yellow-500/12 flex items-center justify-center">
                         {isPremium ? <Trophy className="w-5 h-5 text-yellow-500" /> : <Lock className="w-5 h-5 text-yellow-500/50" />}
                     </div>
-                    <div className="flex-1 text-left">
+                    <div className="relative z-10 flex-1 text-left">
                         <div className="font-display font-semibold text-sm flex items-center gap-2">
                             Garden Memories
                             {!isPremium && <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full uppercase">PRO</span>}
