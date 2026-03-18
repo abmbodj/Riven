@@ -3305,8 +3305,4 @@ export default {
     forgotPassword,
     resetPassword,
 
-    // Email Verification
-    sendVerificationEmail,
-    verifyEmail,
-
 };
