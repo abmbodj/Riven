@@ -204,6 +204,11 @@ const getActiveSupabaseSession = async () => {
     return session?.access_token ? session : null;
 };
 
+const hasValidSupabaseSession = async () => {
+    const session = await getActiveSupabaseSession().catch(() => null);
+    return session?.access_token && !isJwtExpired(session.access_token);
+};
+
 const buildAuthRedirectUrl = (path = '') => {
     const origin = globalThis?.location?.origin;
     if (!origin || origin === 'null') return undefined;
@@ -211,6 +216,51 @@ const buildAuthRedirectUrl = (path = '') => {
 };
 
 const isLegacyTokenHash = (token) => typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token);
+
+// Shared token resolution for edge function calls.
+// Returns a valid Supabase access token or throws AUTH_SESSION_EXPIRED if none available.
+const resolveEdgeFunctionToken = async (supabaseUrl, { skipForceReauth = false } = {}) => {
+    const isEligibleToken = (candidateToken) => {
+        if (!isTokenEligibleForEdge(candidateToken)) return false;
+        return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
+    };
+
+    // 1. Try cached session — if the access_token is still valid, use it immediately (no network call).
+    const session = await getActiveSupabaseSession().catch(() => null);
+    if (session?.access_token && isEligibleToken(session.access_token)) {
+        return session.access_token;
+    }
+
+    // 2. Access token expired or missing — try refreshing the session.
+    if (typeof supabase?.auth?.refreshSession === 'function') {
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: {} }));
+        if (data?.session?.access_token && isEligibleToken(data.session.access_token)) {
+            setToken(data.session.access_token);
+            return data.session.access_token;
+        }
+    }
+
+    // 3. Refresh failed — check the stored token as a last resort.
+    const storedToken = getToken();
+    if (storedToken && isEligibleToken(storedToken)) {
+        return storedToken;
+    }
+
+    // 4. All token sources exhausted. The Supabase session is dead —
+    //    trigger re-auth so the user is prompted to sign in again
+    //    instead of seeing a cryptic "Invalid JWT" error.
+    if (!skipForceReauth) {
+        console.warn('[edgeFunctionFetch] No valid Supabase token available — forcing re-auth');
+        setToken(null);
+        await forceReauth();
+        const error = new Error('Session expired. Please sign in again.');
+        error.code = AUTH_SESSION_EXPIRED_CODE;
+        error.status = 401;
+        throw error;
+    }
+
+    return null;
+};
 
 const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, skipForceReauth = false } = {}) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
@@ -231,50 +281,7 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, s
         });
     }
 
-    const getEdgeFunctionToken = async () => {
-        const validateWithSupabaseAuth = async (candidateToken) => {
-            if (!isTokenEligibleForEdge(candidateToken)) return false;
-
-            if (typeof supabase?.auth?.getUser !== 'function') {
-                return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
-            }
-
-            const { data: userData, error: userError } = await supabase.auth.getUser(candidateToken).catch(() => ({
-                data: { user: null },
-                error: new Error('Token validation failed'),
-            }));
-
-            return !userError && Boolean(userData?.user?.id);
-        };
-
-        // Try fresh session first, then force-refresh once, then use stored token only if it is a Supabase access token.
-        const session = await getActiveSupabaseSession().catch(() => null);
-        if (session?.access_token && await validateWithSupabaseAuth(session.access_token)) {
-            return session.access_token;
-        }
-
-        const { data } = typeof supabase?.auth?.refreshSession === 'function'
-            ? await supabase.auth.refreshSession().catch(() => ({ data: {} }))
-            : { data: {} };
-        if (data?.session?.access_token && await validateWithSupabaseAuth(data.session.access_token)) {
-            setToken(data.session.access_token);
-            return data.session.access_token;
-        }
-
-        const storedToken = getToken();
-        if (!storedToken) {
-            return null;
-        }
-
-        if (!await validateWithSupabaseAuth(storedToken)) {
-            setToken(null);
-            return null;
-        }
-
-        return storedToken;
-    };
-
-    const token = await getEdgeFunctionToken();
+    const token = await resolveEdgeFunctionToken(supabaseUrl, { skipForceReauth });
     const headers = {
         apikey: supabaseAnonKey,
         'Content-Type': 'application/json',
@@ -307,8 +314,8 @@ const edgeFunctionFetch = async (functionName, { method = 'POST', body, query, s
         if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, error.message)) {
             // Only destroy the session if it is genuinely invalid.
             // The Supabase gateway may reject valid tokens (e.g. --no-verify-jwt not set),
-            // so check whether the session is still alive before force-logging out.
-            const stillValid = await getActiveSupabaseSession().catch(() => null);
+            // so check whether the session has a non-expired token before force-logging out.
+            const stillValid = await hasValidSupabaseSession();
             if (!stillValid) {
                 await forceReauth();
                 error.code = AUTH_SESSION_EXPIRED_CODE;
@@ -1151,46 +1158,7 @@ const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
     const url = new URL(`${supabaseUrl}/functions/v1/${functionName}`);
     url.searchParams.set('stream', '1');
 
-    // Reuse the same token resolution as edgeFunctionFetch
-    const getEdgeFunctionToken = async () => {
-        const validateWithSupabaseAuth = async (candidateToken) => {
-            if (!isTokenEligibleForEdge(candidateToken)) return false;
-
-            if (typeof supabase?.auth?.getUser !== 'function') {
-                return tokenBelongsToSupabaseUrl(candidateToken, supabaseUrl);
-            }
-
-            const { data: userData, error: userError } = await supabase.auth.getUser(candidateToken).catch(() => ({
-                data: { user: null },
-                error: new Error('Token validation failed'),
-            }));
-
-            return !userError && Boolean(userData?.user?.id);
-        };
-
-        const session = await getActiveSupabaseSession().catch(() => null);
-        if (session?.access_token && await validateWithSupabaseAuth(session.access_token)) {
-            return session.access_token;
-        }
-
-        const { data } = typeof supabase?.auth?.refreshSession === 'function'
-            ? await supabase.auth.refreshSession().catch(() => ({ data: {} }))
-            : { data: {} };
-        if (data?.session?.access_token && await validateWithSupabaseAuth(data.session.access_token)) {
-            setToken(data.session.access_token);
-            return data.session.access_token;
-        }
-
-        const storedToken = getToken();
-        if (!storedToken) return null;
-        if (!await validateWithSupabaseAuth(storedToken)) {
-            setToken(null);
-            return null;
-        }
-        return storedToken;
-    };
-
-    const token = await getEdgeFunctionToken();
+    const token = await resolveEdgeFunctionToken(supabaseUrl);
     const headers = {
         apikey: supabaseAnonKey,
         'Content-Type': 'application/json',
@@ -1218,6 +1186,16 @@ const edgeFunctionStreamFetch = async (functionName, { body } = {}) => {
         error.status = response.status;
         error.code = data.code;
         error.body = data;
+
+        if (shouldForceReauthFromEdgeError(response.status, error.message)) {
+            const stillValid = await hasValidSupabaseSession();
+            if (!stillValid) {
+                await forceReauth();
+                error.code = AUTH_SESSION_EXPIRED_CODE;
+                error.message = 'Session expired. Please sign in again.';
+            }
+        }
+
         throw error;
     }
 
