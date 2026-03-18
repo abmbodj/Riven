@@ -158,6 +158,7 @@ const authFetch = async (endpoint, options = {}) => {
             ...options,
             headers,
             credentials: 'include',
+            signal: options.signal || AbortSignal.timeout(10000),
         });
 
         // Handle empty or non-JSON responses

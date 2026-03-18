@@ -19,7 +19,13 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const initAuth = async () => {
             try {
-                const userData = await authApi.restoreSessionUser();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Auth initialization timed out')), 10000)
+                );
+                const userData = await Promise.race([
+                    authApi.restoreSessionUser(),
+                    timeoutPromise,
+                ]);
                 if (userData?.require2FA) {
                     setPendingTwoFactor(userData);
                     setUser(null);
