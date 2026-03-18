@@ -20,6 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { useStreak } from '../hooks/useStreak';
 import HeartsDisplay from '../components/ui/HeartsDisplay';
+import AIGenDisplay from '../components/ui/AIGenDisplay';
 import PricingModal from '../components/ui/PricingModal';
 import { PageLoader } from '../components/ui/PageLoader.jsx';
 import GardenLanding from '../components/ui/GardenLanding';
@@ -740,6 +741,7 @@ function DashboardHome() {
                             </p>
                             <div className="flex items-center gap-2 lg:hidden">
                                 <StreakBadge streak={streak.currentStreak} status={streak.status} />
+                                <AIGenDisplay onClick={() => setPricingOpen(true)} />
                                 <HeartsDisplay onClick={() => setPricingOpen(true)} />
                             </div>
                         </div>
@@ -838,6 +840,7 @@ function DashboardHome() {
                     <div className="hidden lg:flex lg:flex-col lg:gap-4 lg:justify-between">
                         <div className="gsap-hero-row flex items-center justify-end gap-2">
                             <StreakBadge streak={streak.currentStreak} status={streak.status} />
+                            <AIGenDisplay onClick={() => setPricingOpen(true)} />
                             <HeartsDisplay onClick={() => setPricingOpen(true)} />
                         </div>
 
