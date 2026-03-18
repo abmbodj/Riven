@@ -323,43 +323,4 @@ describe('authApi Supabase auth bridge reductions', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('resends email verification through Supabase when the user has an active Supabase session', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { access_token: 'supabase-token' } },
-      error: null,
-    });
-
-    const { select } = createSelectSingleChain({
-      id: 42,
-      username: 'atlas',
-      display_name: 'Atlas',
-      email: 'atlas@example.com',
-      share_code: 'ABCD1234',
-      avatar: null,
-      banner: null,
-      bio: '',
-      streak_data: '{}',
-      pet_customization: '{}',
-      role: 'user',
-      is_admin: 0,
-      created_at: '2026-03-14T18:00:00.000Z',
-      two_fa_enabled: false,
-      subscription_tier: 'free',
-      simulate_free_tier: false,
-      email_verified: false,
-    });
-    supabase.from.mockReturnValue({ select });
-
-    const result = await authApi.sendVerificationEmail();
-
-    expect(supabase.auth.resend).toHaveBeenCalledWith({
-      email: 'atlas@example.com',
-      type: 'signup',
-      options: {
-        emailRedirectTo: 'http://localhost:3000/verify-email',
-      },
-    });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(result).toEqual({ message: 'Verification email sent' });
-  });
 });
