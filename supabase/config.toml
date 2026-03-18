@@ -377,6 +377,39 @@ backend = "postgres"
 [functions.ai-limits]
 verify_jwt = false
 
+[functions.accept-shared-deck]
+verify_jwt = false
+
+[functions.account-actions]
+verify_jwt = false
+
+[functions.admin-actions]
+verify_jwt = false
+
+[functions.canvas-lms]
+verify_jwt = false
+
+[functions.complete-registration]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.create-portal]
+verify_jwt = false
+
+[functions.forgot-password]
+verify_jwt = false
+
+[functions.grade-answer]
+verify_jwt = false
+
+[functions.group-actions]
+verify_jwt = false
+
+[functions.group-sessions]
+verify_jwt = false
+
 [functions.hearts]
 verify_jwt = false
 
@@ -396,6 +429,15 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.enhance-notes]
+verify_jwt = false
+
+[functions.referrals]
+verify_jwt = false
+
+[functions.reset-password]
+verify_jwt = false
+
+[functions.simulate-free]
 verify_jwt = false
 
 # Experimental features may be deprecated any time

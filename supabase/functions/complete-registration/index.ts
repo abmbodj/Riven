@@ -59,12 +59,15 @@ serve(async (request) => {
   }
 
   try {
-    // Extract bearer token
-    const authorization = request.headers.get('Authorization');
-    if (!authorization?.startsWith('Bearer ')) {
+    const token =
+      request.headers.get('x-supabase-auth')?.trim() ||
+      (request.headers.get('Authorization')?.startsWith('Bearer ')
+        ? request.headers.get('Authorization')?.slice('Bearer '.length)
+        : '');
+
+    if (!token) {
       return jsonResponse({ error: 'No token provided' }, { status: 401 }, request);
     }
-    const token = authorization.slice('Bearer '.length);
 
     // Verify token with project admin client. This avoids anon-key mismatch issues
     // while still validating that the bearer token belongs to this Supabase project.

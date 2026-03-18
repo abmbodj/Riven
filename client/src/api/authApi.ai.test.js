@@ -153,6 +153,48 @@ describe('authApi AI edge migration', () => {
     );
   });
 
+  it('uses the grade-answer edge function with the custom auth header', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      score: 92,
+      feedback: 'Strong answer.',
+      keyPointsHit: ['Explained feedback loop'],
+      keyPointsMissed: [],
+    }));
+
+    const result = await authApi.gradeShortAnswer(
+      'What is churn reduction?',
+      'It is lowering user drop-off.',
+      'Reducing the rate users stop using the product.',
+      'Mention retention and user drop-off.'
+    );
+
+    expect(result).toEqual({
+      score: 92,
+      feedback: 'Strong answer.',
+      keyPointsHit: ['Explained feedback loop'],
+      keyPointsMissed: [],
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/grade-answer',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'x-supabase-auth': authApi.getToken(),
+          apikey: 'supabase-anon-key',
+        }),
+        body: JSON.stringify({
+          question: 'What is churn reduction?',
+          studentAnswer: 'It is lowering user drop-off.',
+          correctAnswer: 'Reducing the rate users stop using the product.',
+          gradingRubric: 'Mention retention and user drop-off.',
+        }),
+      }),
+    );
+  });
+
   it('surfaces edge errors when the generate-class function is unavailable', async () => {
     const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
     authApi.setToken(token);
