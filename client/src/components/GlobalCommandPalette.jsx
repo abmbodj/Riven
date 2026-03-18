@@ -47,8 +47,8 @@ const getBaseActions = (isLoggedIn) => [
         keywords: 'new deck create add'
     },
     {
-        id: 'plan',
-        label: 'Plan',
+        id: 'classes',
+        label: 'Classes',
         description: 'Manage classes and assignments',
         to: '/classes',
         icon: Calendar,

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Users, Plus, RefreshCw, X, Link as LinkIcon, Calendar, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Users, Plus, RefreshCw, X, Link as LinkIcon, Calendar, ArrowRight, ChevronDown, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../api';
@@ -29,10 +29,23 @@ export default function StudyGroups() {
     const [createData, setCreateData] = useState({ name: '', class_id: '' });
     const [joinCode, setJoinCode] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [classDropdownOpen, setClassDropdownOpen] = useState(false);
+    const classDropdownRef = useRef(null);
 
     // Auth & Monetization
     const { user } = useAuth();
     const [pricingOpen, setPricingOpen] = useState(false);
+
+    useEffect(() => {
+        if (!classDropdownOpen) return;
+        const handler = (e) => {
+            if (classDropdownRef.current && !classDropdownRef.current.contains(e.target)) {
+                setClassDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [classDropdownOpen]);
 
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -358,19 +371,42 @@ export default function StudyGroups() {
                                         autoFocus
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-claude-accent font-bold mb-2 ml-1">Class (Optional)</label>
+                                <div ref={classDropdownRef}>
+                                    <label className="block text-[10px] font-mono uppercase tracking-widest text-claude-accent font-bold mb-2 ml-1">Class</label>
                                     <div className="relative">
-                                        <select
-                                            value={createData.class_id}
-                                            onChange={e => setCreateData({ ...createData, class_id: e.target.value })}
-                                            className="w-full glass-panel border-claude-border/80 rounded-2xl px-5 py-4 font-mono text-sm text-claude-text focus:border-claude-accent/50 outline-none appearance-none transition-colors"
+                                        <button
+                                            type="button"
+                                            onClick={() => setClassDropdownOpen(o => !o)}
+                                            className="w-full glass-panel border-claude-border/80 rounded-2xl px-5 py-4 font-mono text-sm text-left text-claude-text focus:border-claude-accent/50 outline-none transition-colors flex items-center justify-between gap-3"
                                         >
-                                            <option value="">Independent Study</option>
-                                            {classes.map(cls => (
-                                                <option key={cls.id} value={cls.id}>{cls.name}</option>
-                                            ))}
-                                        </select>
+                                            <span className={createData.class_id ? 'text-claude-text' : 'text-claude-secondary/60'}>
+                                                {createData.class_id ? classes.find(c => c.id === createData.class_id)?.name : 'No class'}
+                                            </span>
+                                            <ChevronDown className={`w-4 h-4 text-claude-secondary shrink-0 transition-transform duration-200 ${classDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        <AnimatePresence>
+                                            {classDropdownOpen && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="absolute z-50 mt-2 w-full glass-panel border-claude-border/80 rounded-2xl overflow-hidden shadow-xl"
+                                                >
+                                                    {[{ id: '', name: 'No class' }, ...classes].map(cls => (
+                                                        <button
+                                                            key={cls.id}
+                                                            type="button"
+                                                            onClick={() => { setCreateData({ ...createData, class_id: cls.id }); setClassDropdownOpen(false); }}
+                                                            className="w-full px-5 py-3.5 flex items-center justify-between font-mono text-sm text-left hover:bg-claude-accent/10 transition-colors"
+                                                        >
+                                                            <span className={createData.class_id === cls.id ? 'text-claude-accent' : 'text-claude-text'}>{cls.name}</span>
+                                                            {createData.class_id === cls.id && <Check className="w-4 h-4 text-claude-accent shrink-0" />}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                             </div>

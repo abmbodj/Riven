@@ -46,7 +46,7 @@ const getPrimaryNavItems = (isLoggedIn) => [
     {
         to: '/classes',
         icon: Calendar,
-        label: 'Plan',
+        label: 'Classes',
         matchers: ['/classes', '/class']
     },
     {

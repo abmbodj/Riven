@@ -38,7 +38,7 @@ describe('Layout primary navigation', () => {
 
     expect(screen.getAllByText('Today').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Study').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Plan').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Classes').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Groups').length).toBeGreaterThan(0);
   });
 

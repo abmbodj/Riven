@@ -314,7 +314,7 @@ function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
                         <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-claude-accent opacity-50" />
                         <p className="font-display italic text-botanical-parchment">All caught up!</p>
                         <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-claude-secondary">
-                            No upcoming tasks this week.
+                            No upcoming assignments this week.
                         </p>
                     </div>
                 )}
@@ -675,7 +675,7 @@ function DashboardHome() {
         return (
             <div className="min-h-screen space-y-8 px-4 pb-32 pt-4 sm:px-6">
                 {/* Hero skeleton */}
-                <div className="rounded-[34px] border border-claude-border bg-claude-surface p-5 sm:p-6 lg:p-7">
+                <div className="glass-panel-premium rounded-[34px] p-5 sm:p-6 lg:p-7">
                     <div className="mb-3 flex items-center justify-between">
                         <div className="h-3 w-40 animate-pulse rounded bg-claude-surface" />
                         <div className="flex gap-2">
@@ -723,9 +723,10 @@ function DashboardHome() {
     return (
         <div ref={pageRef} className="min-h-screen overflow-x-hidden p-4 pb-32 pt-4 sm:p-6">
             {/* ZONE A — Command Surface */}
-            <div className="gsap-hero relative mb-6 overflow-hidden rounded-[34px] border border-claude-border bg-claude-surface p-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:mb-8 sm:p-6 lg:p-7">
-                <div className="pointer-events-none absolute inset-0 opacity-[0.06] bg-[url('/textures/paper-fibers.png')]" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-claude-accent/10 to-transparent" />
+            <div className="gsap-hero glass-panel-premium relative mb-6 overflow-hidden rounded-[34px] p-5 sm:mb-8 sm:p-6 lg:p-7">
+                <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[url('/textures/paper-fibers.png')]" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-claude-accent/8 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/[0.02] to-transparent" />
 
                 {/* Hero inner: 2-col on lg+ */}
                 <div className="relative z-10 lg:grid lg:grid-cols-[1fr_280px] lg:gap-6 xl:grid-cols-[1fr_320px]">

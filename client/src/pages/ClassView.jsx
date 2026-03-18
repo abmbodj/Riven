@@ -365,7 +365,7 @@ export default function ClassView() {
                                     </h2>
                                     <p className="text-sm text-claude-secondary overflow-hidden">
                                         {nextAssignment
-                                            ? `${nextAssignment.title}${nextAssignment.due_date ? ` is due ${new Date(nextAssignment.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ' is your next active task.'}`
+                                            ? `${nextAssignment.title}${nextAssignment.due_date ? ` is due ${new Date(nextAssignment.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ' is your next active assignment.'}`
                                             : 'Create the next assignment, add a class time, or jump into one of the linked decks.'}
                                     </p>
                                 </div>
@@ -374,7 +374,7 @@ export default function ClassView() {
                                         onClick={openCreateAssign}
                                         className="rounded-full border border-claude-accent/35 bg-claude-accent/10 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent transition hover:bg-claude-accent hover:text-claude-bg"
                                     >
-                                        Add task
+                                        Add assignment
                                     </button>
                                     <button
                                         onClick={() => setShowScheduleModal(true)}
@@ -449,7 +449,7 @@ export default function ClassView() {
                             {assignments.length === 0 && (
                                 <div className="text-center py-16 opacity-50">
                                     <Clock className="w-12 h-12 text-claude-secondary mx-auto mb-4 opacity-50" />
-                                    <p className="font-serif italic text-claude-text text-lg mb-2">No upcoming tasks</p>
+                                    <p className="font-serif italic text-claude-text text-lg mb-2">No upcoming assignments</p>
                                     <p className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary">Add an assignment to track your progress.</p>
                                 </div>
                             )}
@@ -661,7 +661,7 @@ export default function ClassView() {
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Description</label>
-                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none resize-none mb-3" placeholder="Add a description for this task..." />
+                                    <textarea rows="4" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-claude-text focus:border-claude-accent outline-none resize-none mb-3" placeholder="Add a description for this assignment..." />
 
                                     {aiFilePreview ? (
                                         <div className="flex items-center justify-between glass-panel rounded-xl p-3 mb-3">
@@ -776,7 +776,7 @@ export default function ClassView() {
                 )}
             </AnimatePresence>
 
-            <ConfirmModal isOpen={deleteAssignConfirm.show} title="Delete Task?" message="Are you sure you want to delete this task forever?" onConfirm={handleDeleteAssignment} onCancel={() => setDeleteAssignConfirm({ show: false, item: null })} />
+            <ConfirmModal isOpen={deleteAssignConfirm.show} title="Delete Assignment?" message="Are you sure you want to delete this assignment forever?" onConfirm={handleDeleteAssignment} onCancel={() => setDeleteAssignConfirm({ show: false, item: null })} />
 
 
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
