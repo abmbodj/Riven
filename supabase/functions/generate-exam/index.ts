@@ -11,6 +11,8 @@ import {
   ensureApiKey,
   parseAiJsonResponse,
   createHttpError,
+  buildAdaptiveExamPrompt,
+  buildFocusedExamPrompt,
 } from '../_shared/aiCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
@@ -109,7 +111,28 @@ serve(async (request) => {
         );
       }
 
-      const contents = buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
+      // Fetch topic mastery for adaptive generation
+      let masteryData = null;
+      const examMode = body.examMode || 'standard';
+      if ((examMode === 'adaptive' || examMode === 'focused') && body.classId) {
+        const { data: mastery } = await admin
+          .from('topic_mastery')
+          .select('topic, mastery_score, total_seen')
+          .eq('user_id', authUser.id)
+          .eq('class_id', body.classId);
+        masteryData = mastery;
+      }
+
+      const contents = buildExamContents({
+        processedNotes,
+        hasProcessedNotes,
+        keepFile,
+        file: body.file,
+        className: body.className,
+        masteryData,
+        weakTopics: body.weakTopics,
+        examMode,
+      });
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
@@ -148,9 +171,20 @@ serve(async (request) => {
           }
 
           const validQuestions = questions.filter(
-            (q: { question: string; options: string[]; correct_answer: string }) =>
-              q.question && Array.isArray(q.options) && q.options.length === 4
-              && q.correct_answer && q.options.includes(q.correct_answer),
+            (q: { type?: string; question: string; options?: string[]; correct_answer: string; topic?: string; difficulty?: string; grading_rubric?: string }) => {
+              if (!q.question || !q.correct_answer) return false;
+
+              // Normalize: default to mcq if no type
+              if (!q.type) q.type = 'mcq';
+
+              if (q.type === 'short_answer') {
+                return Boolean(q.grading_rubric);
+              }
+
+              // MCQ validation
+              return Array.isArray(q.options) && q.options.length === 4
+                && q.options.includes(q.correct_answer);
+            },
           );
 
           if (validQuestions.length === 0) {
@@ -167,6 +201,7 @@ serve(async (request) => {
               source_id: body.sourceId || null,
               class_id: body.classId || null,
               questions: validQuestions,
+              exam_mode: examMode,
             })
             .select('id')
             .single();

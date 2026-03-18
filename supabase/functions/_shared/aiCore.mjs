@@ -516,7 +516,7 @@ export const generateStudyGuideFromAi = async ({
 
 const buildExamPrompt = (className) => `
 You are an expert tutor creating a challenging but fair practice exam that mirrors real university exams.
-Given the following notes, document, or image, produce a set of multiple-choice questions to test the student's understanding.
+Given the following notes, document, or image, produce a mix of multiple-choice AND short-answer questions to test the student's understanding.
 
 ${buildSubjectContext(className)}
 
@@ -529,31 +529,116 @@ Adapt question style to the subject:
 
 Rules:
 1. Output ONLY a valid JSON array of question objects, with absolutely no markdown formatting, backticks, or conversational text outside the array.
-2. Each question must have exactly these keys:
+2. Generate 12-18 multiple-choice questions AND 2-4 short-answer questions.
+3. Every question MUST include these keys:
+   - "type": Either "mcq" or "short_answer"
    - "question": A clear, well-formed question string.
+   - "topic": The specific concept/topic being tested (e.g. "Mitosis", "Supply and Demand", "Binary Search Trees"). Be specific, not generic.
+   - "difficulty": One of "easy", "medium", or "hard"
+   - "correct_answer": The correct answer string.
+   - "explanation": A brief explanation of why the correct answer is right.
+4. For MCQ questions, also include:
    - "options": An array of exactly 4 answer choices (strings). One must be correct.
-   - "correct_answer": The exact string from options that is the correct answer.
-   - "explanation": A brief explanation of why the correct answer is right and why each wrong answer fails.
-3. Generate between 10 and 20 questions depending on the length and density of the source material.
-4. Cover a wide range of topics from the material.
-5. Include a mix of difficulty levels (easy, medium, hard).
-6. Make distractors (wrong answers) plausible but clearly incorrect.
-7. Avoid trick questions or ambiguous wording.
-8. Vary question types: recall, comprehension, application, and analysis.
+   - "correct_answer" must exactly match one of the options.
+5. For short_answer questions, also include:
+   - "grading_rubric": A string listing the key points a good answer must cover (e.g. "Key points: 1) ..., 2) ..., 3) ..."). This is used for AI grading.
+   - "correct_answer": A model answer (2-4 sentences).
+6. Cover a wide range of topics from the material. Each question should have a specific topic tag.
+7. Include a balanced mix of difficulty levels (roughly 30% easy, 50% medium, 20% hard).
+8. Make MCQ distractors plausible but clearly incorrect.
+9. Avoid trick questions or ambiguous wording.
+10. Vary question types: recall, comprehension, application, and analysis.
+11. Short answer questions should test deeper understanding — explanation, comparison, or application.
 
 Example JSON format:
 [
   {
+    "type": "mcq",
     "question": "What is the primary function of mitochondria?",
+    "topic": "Cellular Organelles",
+    "difficulty": "easy",
     "options": ["Protein synthesis", "Energy production", "DNA replication", "Cell division"],
     "correct_answer": "Energy production",
-    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration. Protein synthesis occurs in ribosomes, DNA replication in the nucleus, and cell division involves the whole cell cycle."
+    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration."
+  },
+  {
+    "type": "short_answer",
+    "question": "Explain how the electron transport chain produces ATP in mitochondria.",
+    "topic": "Cellular Respiration",
+    "difficulty": "hard",
+    "correct_answer": "The electron transport chain uses electrons from NADH and FADH2 to pump hydrogen ions across the inner mitochondrial membrane, creating a concentration gradient. ATP synthase then uses this gradient to produce ATP through chemiosmosis.",
+    "grading_rubric": "Key points: 1) Electrons from NADH/FADH2, 2) Proton gradient across inner membrane, 3) ATP synthase uses gradient, 4) Chemiosmosis process",
+    "explanation": "The ETC is the final stage of aerobic respiration and produces the majority of ATP (about 34 molecules per glucose)."
   }
 ]
 `;
 
-export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
-  const contents = [{ text: buildExamPrompt(className) }];
+const buildAdaptiveExamPrompt = (className, masteryData) => {
+  const basePrompt = buildExamPrompt(className);
+
+  if (!masteryData || !Array.isArray(masteryData) || masteryData.length === 0) {
+    return basePrompt;
+  }
+
+  const weakTopics = masteryData
+    .filter(t => t.mastery_score < 0.5)
+    .map(t => `${t.topic} (mastery: ${Math.round(t.mastery_score * 100)}%)`)
+    .slice(0, 8);
+
+  const strongTopics = masteryData
+    .filter(t => t.mastery_score > 0.8)
+    .map(t => t.topic)
+    .slice(0, 5);
+
+  let adaptiveInstructions = '\n\nADAPTIVE INSTRUCTIONS (adjust question distribution based on student performance):\n';
+
+  if (weakTopics.length > 0) {
+    adaptiveInstructions += `- WEAK AREAS (focus ~60% of questions here): ${weakTopics.join(', ')}\n`;
+    adaptiveInstructions += '- For weak areas, include more medium/hard questions to build understanding.\n';
+  }
+
+  if (strongTopics.length > 0) {
+    adaptiveInstructions += `- MASTERED AREAS (include only 1-2 review questions): ${strongTopics.join(', ')}\n`;
+  }
+
+  adaptiveInstructions += '- Target overall difficulty so the student achieves approximately 70% accuracy.\n';
+
+  return basePrompt + adaptiveInstructions;
+};
+
+const buildFocusedExamPrompt = (className, weakTopics) => {
+  const basePrompt = buildExamPrompt(className);
+
+  if (!weakTopics || !Array.isArray(weakTopics) || weakTopics.length === 0) {
+    return basePrompt;
+  }
+
+  const focusInstructions = `
+
+FOCUSED EXAM INSTRUCTIONS:
+This is a targeted practice exam focusing ONLY on the student's weak areas.
+- Generate questions EXCLUSIVELY about these topics: ${weakTopics.join(', ')}
+- Generate 8-12 MCQ questions and 2-3 short-answer questions.
+- Difficulty mix: 20% easy, 50% medium, 30% hard (slightly harder to push understanding).
+- Ensure deep coverage of each topic with varied question angles.
+`;
+
+  return basePrompt + focusInstructions;
+};
+
+export { buildAdaptiveExamPrompt, buildFocusedExamPrompt };
+
+export const buildExamContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, masteryData, weakTopics, examMode }) => {
+  let prompt;
+  if (examMode === 'focused' && weakTopics) {
+    prompt = buildFocusedExamPrompt(className, weakTopics);
+  } else if (examMode === 'adaptive' && masteryData) {
+    prompt = buildAdaptiveExamPrompt(className, masteryData);
+  } else {
+    prompt = buildExamPrompt(className);
+  }
+
+  const contents = [{ text: prompt }];
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
@@ -623,11 +708,14 @@ export const generateExamFromAi = async ({
     throw createHttpError('AI failed to generate any exam questions.', 500);
   }
 
-  // Validate question structure
-  const validQuestions = questions.filter(q =>
-    q.question && Array.isArray(q.options) && q.options.length === 4
-    && q.correct_answer && q.options.includes(q.correct_answer)
-  );
+  // Validate question structure (MCQ + short_answer)
+  const validQuestions = questions.filter(q => {
+    if (!q.question || !q.correct_answer) return false;
+    if (!q.type) q.type = 'mcq';
+    if (q.type === 'short_answer') return Boolean(q.grading_rubric);
+    return Array.isArray(q.options) && q.options.length === 4
+      && q.options.includes(q.correct_answer);
+  });
 
   if (validQuestions.length === 0) {
     throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);

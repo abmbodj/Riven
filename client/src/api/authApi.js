@@ -1127,8 +1127,11 @@ export const generateAiClass = (notes, file) =>
 export const generateAiGuide = (notes, file, title, noteId, classId, className) =>
     edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className } });
 
-export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className) =>
-    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className } });
+export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
+    edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });
+
+export const gradeShortAnswer = (question, studentAnswer, correctAnswer, gradingRubric) =>
+    edgeFunctionFetch('grade-answer', { body: { question, studentAnswer, correctAnswer, gradingRubric } });
 
 export const generateFromYoutube = (youtubeUrl, type, { title, classId, deckName, className } = {}) =>
     edgeFunctionFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className } });
@@ -1265,8 +1268,8 @@ export const generateAiDeckStream = (notes, file, deckName, classId, className) 
 export const generateAiGuideStream = (notes, file, title, noteId, classId, className) =>
     edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className } });
 
-export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className) =>
-    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className } });
+export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
+    edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });
 
 export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, deckName, className } = {}) =>
     edgeFunctionStreamFetch('generate-from-youtube', { body: { youtubeUrl, type, title, classId, deckName, className } });
@@ -1416,17 +1419,20 @@ export const deleteMockExam = async (id) => {
 
 // --- Exam Attempts (PostgREST) ---
 
-export const createExamAttempt = async (examId, score, total, answers) => {
+export const createExamAttempt = async (examId, score, total, answers, { durationSeconds, topicBreakdown } = {}) => {
     const userId = await getAppUserId();
+    const insertData = {
+        user_id: userId,
+        exam_id: examId,
+        score,
+        total,
+        answers: answers || [],
+    };
+    if (durationSeconds != null) insertData.duration_seconds = durationSeconds;
+    if (topicBreakdown) insertData.topic_breakdown = topicBreakdown;
     const { data, error } = await supabase
         .from('exam_attempts')
-        .insert({
-            user_id: userId,
-            exam_id: examId,
-            score,
-            total,
-            answers: answers || [],
-        })
+        .insert(insertData)
         .select()
         .single();
     if (error) _sbThrow(error);
@@ -1439,6 +1445,84 @@ export const getExamAttempts = async (examId) => {
         .select('*')
         .eq('exam_id', examId)
         .order('completed_at', { ascending: false });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+// --- Topic Mastery (PostgREST) ---
+
+export const getTopicMastery = async (classId) => {
+    let query = supabase.from('topic_mastery').select('*').order('mastery_score', { ascending: true });
+    if (classId) query = query.eq('class_id', classId);
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const upsertTopicMastery = async (classId, topicBreakdown) => {
+    // topicBreakdown: { "Topic Name": { correct: 2, total: 3 }, ... }
+    const userId = await getAppUserId();
+    const results = [];
+
+    for (const [topic, stats] of Object.entries(topicBreakdown)) {
+        // Fetch existing mastery to compute EMA
+        let query = supabase
+            .from('topic_mastery')
+            .select('id, mastery_score, total_seen, total_correct')
+            .eq('user_id', userId)
+            .eq('topic', topic);
+
+        if (classId) {
+            query = query.eq('class_id', classId);
+        } else {
+            query = query.is('class_id', null);
+        }
+
+        const { data: existing } = await query.maybeSingle();
+
+        const oldMastery = existing?.mastery_score ?? 0.5;
+        const sessionAccuracy = stats.total > 0 ? stats.correct / stats.total : 0;
+        const newMastery = 0.7 * oldMastery + 0.3 * sessionAccuracy;
+
+        const record = {
+            total_seen: (existing?.total_seen || 0) + stats.total,
+            total_correct: (existing?.total_correct || 0) + stats.correct,
+            mastery_score: Math.round(newMastery * 1000) / 1000,
+            last_tested: new Date().toISOString(),
+        };
+
+        if (existing?.id) {
+            // Update existing
+            const { data, error } = await supabase
+                .from('topic_mastery')
+                .update(record)
+                .eq('id', existing.id)
+                .select()
+                .single();
+            if (error) _sbThrow(error);
+            if (data) results.push(data);
+        } else {
+            // Insert new
+            const { data, error } = await supabase
+                .from('topic_mastery')
+                .insert({ ...record, user_id: userId, class_id: classId || null, topic })
+                .select()
+                .single();
+            if (error) _sbThrow(error);
+            if (data) results.push(data);
+        }
+    }
+
+    return results;
+};
+
+export const getAllExamAttempts = async (classId) => {
+    let query = supabase
+        .from('exam_attempts')
+        .select('*, mock_exams!inner(class_id, title)')
+        .order('completed_at', { ascending: false });
+    if (classId) query = query.eq('mock_exams.class_id', classId);
+    const { data, error } = await query;
     if (error) _sbThrow(error);
     return data || [];
 };

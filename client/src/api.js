@@ -118,9 +118,12 @@ export const api = {
     generateAiGuide: (notes, file, title, noteId, classId, className) => isLoggedIn()
         ? serverApi.generateAiGuide(notes, file, title, noteId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI study guide')),
-    generateAiExam: (notes, file, title, sourceType, sourceId, classId, className) => isLoggedIn()
-        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className)
+    generateAiExam: (notes, file, title, sourceType, sourceId, classId, className, opts) => isLoggedIn()
+        ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className, opts)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
+    gradeShortAnswer: (question, studentAnswer, correctAnswer, gradingRubric) => isLoggedIn()
+        ? serverApi.gradeShortAnswer(question, studentAnswer, correctAnswer, gradingRubric)
+        : Promise.reject(new Error('Must be logged in to grade answers')),
     generateFromYoutube: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutube(youtubeUrl, type, options)
         : Promise.reject(new Error('Must be logged in to generate from YouTube')),
@@ -132,8 +135,8 @@ export const api = {
     generateAiGuideStream: (notes, file, title, noteId, classId, className) => isLoggedIn()
         ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI study guide')),
-    generateAiExamStream: (notes, file, title, sourceType, sourceId, classId, className) => isLoggedIn()
-        ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId, className)
+    generateAiExamStream: (notes, file, title, sourceType, sourceId, classId, className, opts) => isLoggedIn()
+        ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId, className, opts)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
     generateFromYoutubeStream: (youtubeUrl, type, options) => isLoggedIn()
         ? serverApi.generateFromYoutubeStream(youtubeUrl, type, options)
@@ -191,12 +194,23 @@ export const api = {
         : Promise.reject(new Error('Must be logged in to delete mock exams')),
 
     // ============ EXAM ATTEMPTS ============
-    createExamAttempt: (examId, score, total, answers) => isLoggedIn()
-        ? serverApi.createExamAttempt(examId, score, total, answers)
+    createExamAttempt: (examId, score, total, answers, opts) => isLoggedIn()
+        ? serverApi.createExamAttempt(examId, score, total, answers, opts)
         : Promise.reject(new Error('Must be logged in to save exam attempts')),
     getExamAttempts: (examId) => isLoggedIn()
         ? serverApi.getExamAttempts(examId)
         : Promise.resolve([]),
+    getAllExamAttempts: (classId) => isLoggedIn()
+        ? serverApi.getAllExamAttempts(classId)
+        : Promise.resolve([]),
+
+    // ============ TOPIC MASTERY ============
+    getTopicMastery: (classId) => isLoggedIn()
+        ? serverApi.getTopicMastery(classId)
+        : Promise.resolve([]),
+    upsertTopicMastery: (classId, topicBreakdown) => isLoggedIn()
+        ? serverApi.upsertTopicMastery(classId, topicBreakdown)
+        : Promise.reject(new Error('Must be logged in to update topic mastery')),
 
     // ============ SCHEDULE ============
     getSchedule: () => isLoggedIn() ? serverApi.getSchedule() : Promise.resolve([]),

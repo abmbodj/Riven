@@ -2,19 +2,23 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    ClipboardCheck, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, FileText, BookOpen
+    ClipboardCheck, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, FileText, BookOpen,
+    BarChart3, Trash2
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import ExamAnalytics from '../components/ExamAnalytics';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const ExamCard = memo(({ exam, classes, index }) => {
+const ExamCard = memo(({ exam, classes, index, onDelete }) => {
     const cls = exam.class_id ? classes.find(c => c.id === exam.class_id) : null;
     const questionCount = Array.isArray(exam.questions) ? exam.questions.length : 0;
+    const mcqCount = Array.isArray(exam.questions) ? exam.questions.filter(q => q.type !== 'short_answer').length : 0;
+    const saCount = questionCount - mcqCount;
 
     return (
         <motion.div
@@ -23,7 +27,7 @@ const ExamCard = memo(({ exam, classes, index }) => {
             viewport={{ once: true }}
             whileHover={{ y: -8, scale: 1.01, transition: { duration: 0.3, ease: [0.33, 1, 0.68, 0.9] } }}
             transition={{ delay: (index % 10) * 0.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative tap-action"
+            className="relative tap-action group/card"
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
 
@@ -40,6 +44,11 @@ const ExamCard = memo(({ exam, classes, index }) => {
                             {new Date(exam.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
                         <div className="h-px flex-1 bg-claude-border/40" />
+                        {exam.exam_mode && exam.exam_mode !== 'standard' && (
+                            <span className="px-1.5 py-0.5 rounded text-[7px] font-mono font-bold uppercase bg-claude-accent/10 text-claude-accent border border-claude-accent/20">
+                                {exam.exam_mode}
+                            </span>
+                        )}
                         <ClipboardCheck className="w-3 h-3 text-claude-secondary/50" />
                     </div>
 
@@ -49,7 +58,9 @@ const ExamCard = memo(({ exam, classes, index }) => {
 
                     <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-claude-bg rounded-sm border border-claude-border shadow-sm">
-                            <span className="font-mono text-[8px] sm:text-[9px] font-bold text-claude-secondary uppercase tracking-wider">{questionCount} Questions</span>
+                            <span className="font-mono text-[8px] sm:text-[9px] font-bold text-claude-secondary uppercase tracking-wider">
+                                {mcqCount} MCQ{saCount > 0 ? ` + ${saCount} SA` : ''}
+                            </span>
                         </div>
 
                         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-claude-bg rounded-sm border border-claude-border shadow-sm">
@@ -75,6 +86,14 @@ const ExamCard = memo(({ exam, classes, index }) => {
                     <ClipboardCheck className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
             </Link>
+
+            {/* Delete button */}
+            <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(exam); }}
+                className="absolute top-2 right-2 z-20 p-2 rounded-lg bg-claude-bg/80 border border-claude-border text-claude-secondary hover:text-red-400 hover:border-red-500/30 transition-colors sm:opacity-0 sm:group-hover/card:opacity-100 tap-action"
+            >
+                <Trash2 className="w-3.5 h-3.5" />
+            </button>
         </motion.div>
     );
 });
@@ -93,6 +112,7 @@ export default function ExamsLibrary() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
+    const [activeTab, setActiveTab] = useState('exams'); // 'exams' | 'analytics'
 
     // Generate form
     const [genSource, setGenSource] = useState('note');
@@ -252,7 +272,7 @@ export default function ExamsLibrary() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Title</label>
-                                    <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="AI Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" />
+                                    <input type="text" value={genTitle} onChange={e => setGenTitle(e.target.value)} placeholder="AI Mock Exam" className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none" style={{ fontSize: '16px' }} />
                                 </div>
 
                                 <div>
@@ -343,20 +363,48 @@ export default function ExamsLibrary() {
                 </button>
             </div>
 
-            {/* Exams Grid */}
+            {/* Tab switcher */}
+            <div className="flex items-center gap-2 px-1 mb-6">
+                <button
+                    onClick={() => setActiveTab('exams')}
+                    className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'exams' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                >
+                    <ClipboardCheck className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                    Exams ({exams.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('analytics')}
+                    className={`px-4 py-2 rounded-xl font-mono text-[10px] uppercase tracking-widest font-bold border transition-all tap-action ${activeTab === 'analytics' ? 'bg-claude-accent/15 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}
+                >
+                    <BarChart3 className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                    Analytics
+                </button>
+            </div>
+
+            {/* Content */}
             <div className="px-1">
-                {exams.length === 0 ? (
-                    <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
-                        <ClipboardCheck className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Mock Exams</h3>
-                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first exam from notes or a study guide.</p>
-                    </div>
+                {activeTab === 'exams' ? (
+                    exams.length === 0 ? (
+                        <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
+                            <ClipboardCheck className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
+                            <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Mock Exams</h3>
+                            <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first exam from notes or a study guide.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">
+                            {exams.map((exam, i) => (
+                                <ExamCard
+                                    key={exam.id}
+                                    exam={exam}
+                                    classes={classes}
+                                    index={i}
+                                    onDelete={(item) => setDeleteConfirm({ show: true, item })}
+                                />
+                            ))}
+                        </div>
+                    )
                 ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">
-                        {exams.map((exam, i) => (
-                            <ExamCard key={exam.id} exam={exam} classes={classes} index={i} />
-                        ))}
-                    </div>
+                    <ExamAnalytics classId={null} />
                 )}
             </div>
         </div>
