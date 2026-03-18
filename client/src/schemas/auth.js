@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /** Aligned with server/schemas/auth.js */
 export const registerSchema = z.object({

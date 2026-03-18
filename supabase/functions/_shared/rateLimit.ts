@@ -17,6 +17,11 @@ const PRESETS: Record<RateLimitPreset, { limit: number; window: string }> = {
 };
 
 function getIdentifier(request: Request): string {
+  const customAuth = request.headers.get('x-supabase-auth');
+  if (customAuth) {
+    return `auth:${customAuth.slice(0, 43)}`;
+  }
+
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) {
     return `auth:${auth.slice(7, 50)}`;

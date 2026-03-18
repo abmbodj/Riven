@@ -33,6 +33,7 @@ export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
 const tokenStore = useLocalStorage ? localStorage : sessionStorage;
 const csrfTokenCache = new Map();
+const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
 
 export const getToken = () => tokenStore.getItem(TOKEN_KEY);
 let cachedAppUserId = null;
@@ -375,7 +376,7 @@ const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, 
     };
 
     if (accessToken) {
-        headers.Authorization = `Bearer ${accessToken}`;
+        headers[EDGE_FUNCTION_AUTH_HEADER] = accessToken;
     }
 
     if (method !== 'GET' && method !== 'HEAD' && body !== undefined) {
@@ -1283,7 +1284,7 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
         headers: {
             'Content-Type': 'application/json',
             apikey: anonKey,
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            ...(accessToken ? { [EDGE_FUNCTION_AUTH_HEADER]: accessToken } : {}),
         },
         body: JSON.stringify({ ...(body || {}), stream: true }),
     });

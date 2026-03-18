@@ -3,9 +3,14 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { getSupabaseAdmin } from './supabaseAdmin.ts';
 
 const getBearerToken = (request: Request) => {
+  const customToken = request.headers.get('x-supabase-auth')?.trim();
+  if (customToken) {
+    return customToken;
+  }
+
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) {
-    const error = new Error('Missing bearer token');
+    const error = new Error('Missing auth token');
     (error as Error & { status?: number }).status = 401;
     throw error;
   }

@@ -81,7 +81,7 @@ describe('authApi hearts edge migration', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          'x-supabase-auth': authApi.getToken(),
           apikey: 'supabase-anon-key',
         }),
         body: JSON.stringify({

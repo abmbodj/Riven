@@ -115,7 +115,7 @@ describe('authApi AI edge migration', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
+          'x-supabase-auth': authApi.getToken(),
           apikey: 'supabase-anon-key',
         }),
       }),
