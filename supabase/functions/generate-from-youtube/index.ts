@@ -42,11 +42,10 @@ serve(async (request) => {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
-  const reqUrl = new URL(request.url);
-  const useStreaming = reqUrl.searchParams.get('stream') === '1';
-
   try {
     const body = await request.json().catch(() => ({}));
+    const reqUrl = new URL(request.url);
+    const useStreaming = reqUrl.searchParams.get('stream') === '1' || body.stream === true;
     const { youtubeUrl, type, title, classId, deckName, className } = body;
 
     if (!VALID_TYPES.includes(type as GenerationType)) {

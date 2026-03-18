@@ -51,10 +51,10 @@ serve(async (request) => {
   }
 
   const url = new URL(request.url);
-  const useStreaming = url.searchParams.get('stream') === '1';
 
   try {
     const body = await request.json().catch(() => ({}));
+    const useStreaming = url.searchParams.get('stream') === '1' || body.stream === true;
     const authUser = await resolveSupabaseUser(request);
     const admin = getSupabaseAdmin();
     const { data: user, error } = await admin
