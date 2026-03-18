@@ -40,16 +40,14 @@ export default function AIGenDisplay({ onClick }) {
         <div className="w-16 h-8 bg-black/5 rounded-full animate-pulse" />
     );
 
-    const isUnlimited = status.max >= 50;
-
     return (
         <button
             onClick={onClick}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-claude-bg/80 md:backdrop-blur-md border border-violet-500/20 rounded-full shadow-sm hover:bg-violet-500/5 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action relative z-10"
         >
-            <Sparkles className={`w-4 h-4 ${isUnlimited ? 'text-indigo-500 fill-indigo-500' : 'text-violet-500 fill-violet-500'}`} />
-            <span className={`font-mono font-bold text-sm ${isUnlimited ? 'text-indigo-500' : 'text-violet-500'}`}>
-                {isUnlimited ? '∞' : status.remaining}
+            <Sparkles className={`w-4 h-4 ${status.isPremium ? 'text-indigo-500 fill-indigo-500' : 'text-violet-500 fill-violet-500'}`} />
+            <span className={`font-mono font-bold text-sm ${status.isPremium ? 'text-indigo-500' : 'text-violet-500'}`}>
+                {status.remaining}
             </span>
         </button>
     );

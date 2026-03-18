@@ -31,7 +31,7 @@ serve(async (request) => {
       return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
     }
 
-    const { remaining, max, characterLimit, flashcardRange, canWatchAd } = getAiLimitStatus({ user });
+    const { remaining, max, characterLimit, flashcardRange, canWatchAd, isPremium } = getAiLimitStatus({ user });
 
     return jsonResponse({
       remaining,
@@ -39,6 +39,7 @@ serve(async (request) => {
       characterLimit,
       flashcardRange,
       canWatchAd,
+      isPremium,
     }, {}, request);
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
