@@ -827,94 +827,155 @@
   }
 
   /*
-   * Mobile blur — balance GPU cost vs legibility. Stronger blur on premium/inner
-   * glass so text reads over busy backgrounds; gradients above keep fallback if blur is skipped.
+   * Mobile — no glassmorphism: solid theme tokens + elevation only (clear hierarchy, readable type).
+   * Blur/backdrop-filter disabled; desktop (≥768px) keeps glass rules defined above.
    */
   @media (max-width: 767px) {
-    /* Less transparency + stronger edges + real frost so cards read on near-black themes. */
     .glass-panel-premium {
-      background: linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--surface-color) 74%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 68%, transparent) 100%
-      );
-      border-color: rgba(255, 255, 255, 0.18);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
       box-shadow:
-        0 14px 40px -12px rgba(0, 0, 0, 0.55),
-        0 2px 0 rgba(255, 255, 255, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(20px) saturate(175%);
-      -webkit-backdrop-filter: blur(20px) saturate(175%);
+        0 8px 28px rgba(0, 0, 0, 0.38),
+        0 1px 0 color-mix(in srgb, var(--text-color) 10%, transparent);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .glass-panel-premium::before {
+      background: linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--accent-color) 12%, transparent) 0%,
+        transparent 48%
+      );
+    }
+
+    .glass-panel-premium.glass-danger::before {
+      background: linear-gradient(
+        165deg,
+        color-mix(in srgb, #f87171 16%, transparent) 0%,
+        transparent 50%
+      );
     }
 
     .glass-item {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(14px) saturate(170%);
-      -webkit-backdrop-filter: blur(14px) saturate(170%);
+      background: color-mix(in srgb, var(--bg-color) 58%, var(--surface-color));
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
 
     .glass-panel {
-      background: rgba(30, 56, 64, 0.82);
-      backdrop-filter: blur(16px) saturate(175%);
-      -webkit-backdrop-filter: blur(16px) saturate(175%);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
 
     .profile-mobile-glass-shell {
-      backdrop-filter: blur(10px) saturate(165%);
-      -webkit-backdrop-filter: blur(10px) saturate(165%);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .profile-mobile-glass-shell::before {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 10%, transparent), transparent 38%);
     }
 
     .profile-mobile-glass-card {
-      backdrop-filter: blur(10px) saturate(165%);
-      -webkit-backdrop-filter: blur(10px) saturate(165%);
+      background: color-mix(in srgb, var(--bg-color) 52%, var(--surface-color));
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .profile-mobile-glass-card::before {
+      background: none;
     }
 
     .profile-mobile-glass-menu {
-      backdrop-filter: blur(10px) saturate(165%);
-      -webkit-backdrop-filter: blur(10px) saturate(165%);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .profile-mobile-glass-menu::before {
+      background: none;
     }
 
     .profile-mobile-glass-row {
-      backdrop-filter: blur(8px) saturate(150%);
-      -webkit-backdrop-filter: blur(8px) saturate(150%);
+      background: color-mix(in srgb, var(--bg-color) 68%, var(--surface-color));
+      border: 1px solid var(--border-color);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .profile-mobile-glass-row::before {
+      background: none;
     }
 
     .mobile-top-nav-glass {
-      backdrop-filter: blur(20px) saturate(170%);
-      -webkit-backdrop-filter: blur(20px) saturate(170%);
+      background: var(--surface-color);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .mobile-top-nav-glass::before {
+      content: none;
     }
 
     .mobile-bottom-nav-shell {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
-        linear-gradient(160deg,
-          color-mix(in srgb, var(--surface-color) 58%, transparent) 0%,
-          color-mix(in srgb, var(--bg-color) 52%, transparent) 100%);
-      backdrop-filter: blur(12px) saturate(170%);
-      -webkit-backdrop-filter: blur(12px) saturate(170%);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow:
+        0 -8px 32px rgba(0, 0, 0, 0.35),
+        0 -1px 0 color-mix(in srgb, var(--text-color) 8%, transparent);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .mobile-bottom-nav-shell::before {
+      content: none;
+    }
+
+    .messages-composer-dock.mobile-bottom-nav-shell {
+      background: var(--surface-color);
+      border-color: var(--border-color);
+    }
+
+    .messages-composer-dock.mobile-bottom-nav-shell::before {
+      content: none;
     }
 
     .mobile-fab-menu {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 100%),
-        linear-gradient(160deg,
-          color-mix(in srgb, var(--surface-color) 52%, transparent) 0%,
-          color-mix(in srgb, var(--bg-color) 48%, transparent) 100%);
-      backdrop-filter: blur(12px) saturate(170%);
-      -webkit-backdrop-filter: blur(12px) saturate(170%);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .mobile-fab-menu::before {
+      content: none;
     }
 
     .mobile-fab-button::after {
       background:
-        radial-gradient(circle at 32% 22%, color-mix(in srgb, var(--accent-color) 18%, transparent), transparent 52%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 100%),
-        linear-gradient(160deg,
-          color-mix(in srgb, var(--surface-color) 62%, transparent) 0%,
-          color-mix(in srgb, var(--bg-color) 56%, transparent) 100%);
-      backdrop-filter: blur(12px) saturate(170%);
-      -webkit-backdrop-filter: blur(12px) saturate(170%);
+        radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--accent-color) 24%, transparent), transparent 58%),
+        var(--surface-color);
+      border: 1px solid var(--border-color);
+      box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.35),
+        0 0 0 2px color-mix(in srgb, var(--accent-color) 32%, transparent);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
   }
 

@@ -291,7 +291,7 @@ export default function ClassView() {
     return (
         <div className="relative min-h-screen">
             {/* Header */}
-            <div className="sticky top-0 z-40 mobile-top-nav-glass border-b border-white/[0.12] px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-40 mobile-top-nav-glass border-b border-claude-border px-4 sm:px-6 py-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate('/classes')}
                     className="w-10 h-10 bg-white/[0.05] border border-white/[0.08] rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
@@ -423,7 +423,7 @@ export default function ClassView() {
                                                             {a.title}
                                                         </h4>
                                                         {a.description && (
-                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 max-w-full break-words [overflow-wrap:anywhere]">{a.description}</p>
+                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 max-w-full break-all">{a.description}</p>
                                                         )}
                                                         {a.due_date && (
                                                             <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
