@@ -269,6 +269,36 @@ export const fetchTranscriptViaCaptionExtractor = async (
   return transcript;
 };
 
+// Strategy using youtubei.js — uses YouTube's own get_transcript endpoint
+export const fetchTranscriptViaYoutubeiJs = async (
+  videoId: string,
+): Promise<string> => {
+  const { Innertube } = await import('npm:youtubei.js');
+  const yt = await Innertube.create({ generate_session_locally: true });
+  const info = await yt.getInfo(videoId);
+  const transcriptInfo = await info.getTranscript();
+
+  const segments = transcriptInfo?.transcript?.content?.body?.initial_segments;
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    throw new Error('No transcript segments found');
+  }
+
+  const parts: string[] = [];
+  for (const segment of segments) {
+    const snippet = segment?.snippet;
+    if (!snippet) continue;
+    const text = snippet?.text?.toString?.() ?? snippet?.text ?? '';
+    const trimmed = normalizeText(String(text).replace(/\n/g, ' '));
+    if (trimmed) parts.push(trimmed);
+  }
+
+  if (parts.length === 0) {
+    throw new Error('Transcript segments were empty');
+  }
+
+  return joinTranscriptParts(parts);
+};
+
 export const fetchYoutubeTranscriptWithDeps = async (
   youtubeUrl: string,
   lang = 'en',
@@ -285,6 +315,15 @@ export const fetchYoutubeTranscriptWithDeps = async (
 
   const strategyErrors: string[] = [];
 
+  // Strategy 1: youtubei.js — uses YouTube's own get_transcript endpoint
+  try {
+    return await fetchTranscriptViaYoutubeiJs(videoId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    strategyErrors.push(`youtubei.js:${message}`);
+  }
+
+  // Strategy 2: Custom innertube /player caption tracks
   try {
     return await fetchTranscriptViaCustomStrategy(videoId, lang, fetchImpl);
   } catch (error) {
@@ -292,6 +331,7 @@ export const fetchYoutubeTranscriptWithDeps = async (
     strategyErrors.push(`custom:${message}`);
   }
 
+  // Strategy 3: youtube-caption-extractor
   try {
     return await fetchTranscriptViaCaptionExtractor(videoId, lang, getSubtitlesImpl);
   } catch (error) {
@@ -299,7 +339,7 @@ export const fetchYoutubeTranscriptWithDeps = async (
     strategyErrors.push(`caption-extractor:${message}`);
   }
 
-  logger.warn('[youtubeTranscript] transcript strategies failed', {
+  logger.warn('[youtubeTranscript] all transcript strategies failed', {
     videoId,
     strategyErrors,
   });

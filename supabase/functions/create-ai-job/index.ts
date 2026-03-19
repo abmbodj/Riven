@@ -44,7 +44,6 @@ const triggerRunAiJob = (jobId: string) => {
 
 const shouldConsumeQuotaForKind = (kind: string) => (
   kind === 'note_enhancement'
-  || (kind.startsWith('youtube_') && kind !== 'youtube_source')
 );
 
 serve(async (request) => {

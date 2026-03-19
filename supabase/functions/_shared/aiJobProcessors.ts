@@ -3,6 +3,7 @@ import {
   buildExamContents,
   buildGuideContents,
   buildSubjectContext,
+  consumeAiQuota,
   createHttpError,
   parseAiJsonResponse,
 } from './aiCore.mjs';
@@ -644,6 +645,30 @@ const processYoutubeDerivedJob = async ({
     admin,
     jobId: sourceJobId,
     userId: job.user_id,
+  });
+
+  // Consume AI quota only after confirming source job succeeded
+  const { data: quotaUser, error: quotaUserError } = await admin
+    .from('users')
+    .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+    .eq('id', job.user_id)
+    .maybeSingle();
+
+  if (quotaUserError) throw quotaUserError;
+  if (!quotaUser) throw createHttpError('User not found', 401);
+
+  await consumeAiQuota({
+    user: quotaUser,
+    persistUsage: async ({ count, lastReset }: { count: number; lastReset: Date }) => {
+      const { error: updateError } = await admin
+        .from('users')
+        .update({
+          ai_generations_count: count,
+          last_ai_generation_reset: lastReset.toISOString(),
+        })
+        .eq('id', job.user_id);
+      if (updateError) throw updateError;
+    },
   });
 
   await waitForYoutubeSlot({
