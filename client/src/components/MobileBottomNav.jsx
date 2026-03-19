@@ -138,7 +138,7 @@ export default function MobileBottomNav({
                                                 transition={{ type: 'spring', damping: 20, stiffness: 300 }}
                                                 className="mobile-fab-button w-[52px] h-[52px] -mt-3 rounded-full flex items-center justify-center overflow-visible"
                                             >
-                                                <Plus className="w-6 h-6 text-white relative z-10" strokeWidth={2.5} />
+                                                <Plus className="w-6 h-6 text-claude-accent relative z-10" strokeWidth={2.5} />
                                             </motion.div>
                                         </button>
                                     );
