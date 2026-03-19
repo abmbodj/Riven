@@ -386,7 +386,7 @@ export default function EditProfile() {
 
                             <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-claude-bg/95" />
 
-                            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2.5 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
+                            <div className="absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-2.5 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
                                 <button
                                     onClick={() => navigate('/account')}
                                     aria-label="Back to account"
@@ -425,7 +425,7 @@ export default function EditProfile() {
                                                 setShowAvatarPicker(true);
                                             }}
                                             aria-label="Change avatar"
-                                            className="group relative self-start"
+                                            className="group relative ml-14 self-start sm:ml-0"
                                         >
                                             <div className="absolute inset-0 scale-105 rounded-full bg-claude-accent/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100 sm:scale-110" />
                                             <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1 shadow-md md:shadow-2xl sm:p-1.5">
