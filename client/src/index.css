@@ -419,6 +419,12 @@
     overflow: hidden;
   }
 
+  /* Allow a screen's own background to extend into the iOS top safe area */
+  .safe-area-top-owned {
+    margin-top: calc(env(safe-area-inset-top, 0px) * -1);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   /* Modal overlay with proper backdrop */
   .modal-overlay {
     position: fixed;

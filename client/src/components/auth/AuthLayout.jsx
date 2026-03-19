@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkText = "RETURN", backLinkTo = "/" }) => {
     return (
-        <div className="min-h-dvh h-dvh w-full bg-[#0d141e] flex flex-col lg:flex-row font-serif selection:bg-[#deb96a] selection:text-[#0d141e] text-[#fcfaf2] overflow-hidden relative">
+        <div className="safe-area-top-owned min-h-dvh h-dvh w-full bg-[#0d141e] flex flex-col lg:flex-row font-serif selection:bg-[#deb96a] selection:text-[#0d141e] text-[#fcfaf2] overflow-hidden relative">
 
             {/* ===== Left Side: Form (mobile: full screen, desktop: left half) ===== */}
             <div className="relative flex-1 flex flex-col items-center justify-center z-10">

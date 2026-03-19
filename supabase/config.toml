@@ -306,6 +306,12 @@ max_frequency = "5s"
 # enabled = true
 # client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 # secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+# Hosted Supabase projects use:
+#   https://<project-ref>.supabase.co/auth/v1/callback
+# as the Google Cloud OAuth redirect URI. If the project ref changes, update
+# the Google Cloud OAuth client before testing sign-in again.
+# App return URLs such as https://riven.rocks/account belong in the Supabase
+# Auth redirect allowlist / Site URL configuration, not in Google Cloud.
 # redirect_uri = ""
 # url = ""
 # skip_nonce_check = false

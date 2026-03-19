@@ -110,6 +110,8 @@ describe('Messages desktop workspace', () => {
       expect(screen.getByText('Conversations')).toBeInTheDocument();
     });
 
+    expect(screen.getByText('Replying to Bianca').closest('.safe-area-top-owned')).not.toBeNull();
+
     expect(authApi.subscribeToTypingPresence).toHaveBeenCalledWith(
       99,
       '21',

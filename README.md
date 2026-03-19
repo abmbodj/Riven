@@ -128,10 +128,22 @@ cp client/.env.example client/.env
 | `VITE_STRIPE_PRICE_MONTHLY` | No | Stripe Price ID for Supporter tier | — |
 | `VITE_STRIPE_PRICE_LIFETIME` | No | Stripe Price ID for Lifetime tier | — |
 
-Google Sign-In for web/PWA is configured in **Supabase Auth**, not in `client/.env`. Set the Google provider in the Supabase dashboard (or self-hosted auth config), then allow these redirect URLs:
+Google Sign-In for web/PWA is configured in **Supabase Auth**, not in `client/.env`.
 
-- `http://localhost:5173/account`
-- Your production app URL with `/account`
+Configure it in two places:
+
+1. **Google Cloud Console → OAuth client → Authorized redirect URIs**
+   - `https://ghmnsmjjpdbpnrohjyrg.supabase.co/auth/v1/callback`
+   - This must match the active Supabase project ref exactly. If the project ref changes, update this callback URI in Google Cloud before testing sign-in.
+   - Do **not** add app routes like `/account` to Google Cloud redirect URIs.
+
+2. **Supabase Auth → URL Configuration / Redirect allowlist**
+   - Canonical Site URL: `https://riven.rocks`
+   - Allowed redirect URLs:
+     - `https://riven.rocks/account`
+     - `http://localhost:5173/account`
+     - `http://localhost:3000/account`
+   - App return URLs such as `/account` belong in Supabase Auth, not in Google Cloud.
 
 For local/self-hosted Supabase, mirror the commented Google provider block in [`supabase/config.toml`](/Users/ab/Desktop/Riven/Riven/supabase/config.toml) and provide `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` as environment variables.
 
@@ -430,7 +442,7 @@ npx supabase functions deploy
 | `VITE_STRIPE_PRICE_MONTHLY` | Stripe Price ID for Supporter | — |
 | `VITE_STRIPE_PRICE_LIFETIME` | Stripe Price ID for Lifetime | — |
 
-Web/PWA Google Sign-In uses the Supabase-hosted redirect flow, so there is no `VITE_GOOGLE_CLIENT_ID` client variable in this setup.
+Web/PWA Google Sign-In uses the Supabase-hosted redirect flow, so there is no `VITE_GOOGLE_CLIENT_ID` client variable in this setup. Configure the Supabase callback URI in Google Cloud and the `/account` return URLs in Supabase Auth as documented in the setup section above.
 
 ### Edge Functions
 
