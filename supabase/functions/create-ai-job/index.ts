@@ -7,6 +7,7 @@ import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
+// Bump deployment artifact so hosted config/runtime definitely rotates.
 const getFunctionBaseUrl = () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   if (!supabaseUrl) {
