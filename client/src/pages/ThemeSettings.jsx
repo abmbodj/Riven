@@ -42,16 +42,8 @@ function seededRandom(seed) {
 // ─── Theme Archetypes ─────────────────────────────────────────────────────────
 // Maps theme name → visual archetype for card rendering
 const THEME_ARCHETYPES = {
-    'Midnight Galaxy': 'cosmos',
-    'Ocean Depths': 'depths',
     'Tech Innovation': 'cyber',
-    'Rose': 'bloom',
-    'Golden Hour': 'warmlight',
-    'Sunset Blvd': 'ember',
     'Arctic Frost': 'crystal',
-    'Botanical Garden': 'verdant',
-    'Forest Canopy': 'verdant',
-    'Desert Rose': 'dusk',
     'Modern Minimal': 'void',
     'Riven': 'default',
     'Riven Light': 'default',
