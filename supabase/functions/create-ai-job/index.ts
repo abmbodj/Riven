@@ -128,6 +128,10 @@ serve(async (request) => {
         .maybeSingle();
 
       if (existingSourceJob) {
+        // Re-trigger queued jobs that may have missed their initial trigger
+        if (existingSourceJob.status === 'queued') {
+          triggerRunAiJob(existingSourceJob.id);
+        }
         return jsonResponse({
           jobId: existingSourceJob.id,
           status: existingSourceJob.status,
