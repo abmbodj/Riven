@@ -38,6 +38,7 @@ const GuideView = lazy(() => import('../pages/GuideView.jsx'));
 const ExamsLibrary = lazy(() => import('../pages/ExamsLibrary.jsx'));
 const ExamView = lazy(() => import('../pages/ExamView.jsx'));
 const YouTubeImport = lazy(() => import('../pages/YouTubeImport.jsx'));
+const Onboarding = lazy(() => import('../pages/Onboarding.jsx'));
 
 export const routesConfig = [
   // Public Routes
@@ -52,6 +53,7 @@ export const routesConfig = [
   {
     element: <ProtectedRoute />,
     children: [
+      { path: '/onboarding', element: <Onboarding /> },
       { path: '/dashboard', element: <Home mode="dashboard" /> },
       { path: '/decks/library', element: <DeckLibrary /> },
       { path: '/notes', element: <NotesLibrary /> },

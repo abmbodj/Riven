@@ -209,6 +209,12 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    const saveOnboardingProgress = useCallback(async (payload) => {
+        const updatedUser = await authApi.updateOnboardingProgress(payload);
+        setUser(updatedUser);
+        return updatedUser;
+    }, []);
+
     const findUserByShareCode = useCallback((code) => authApi.searchUsers(code).then(users => users.find(u => u.shareCode === code)), []);
 
     // Admin Functions (all stable — no deps)
@@ -278,6 +284,7 @@ export function AuthProvider({ children }) {
         changePassword,
         deleteAccount,
         refreshUser,
+        saveOnboardingProgress,
         findUserByShareCode,
         getAllUsers,
         adminUpdateUser,
@@ -299,7 +306,7 @@ export function AuthProvider({ children }) {
         toggleSimulateFree
     }), [
         signIn, signUp, startGoogleOAuth, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
-        deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser,
+        deleteAccount, refreshUser, saveOnboardingProgress, findUserByShareCode, getAllUsers, adminUpdateUser,
         adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
         adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,
         adminDeleteMessage, adminGetReports, adminResolveReport, adminCloseReport,

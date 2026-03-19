@@ -77,6 +77,17 @@ module.exports = function registerAuthRoutes({
         return `${baseUrl.replace(/\/$/, '')}${path}`;
     };
 
+    /** Onboarding columns may be absent before migration — omit keys so the client skips the gate. */
+    const onboardingSessionFields = (user) => {
+        if (!user || (user.onboarding_completed_at === undefined && user.onboarding_step === undefined)) {
+            return {};
+        }
+        return {
+            onboardingCompletedAt: user.onboarding_completed_at || null,
+            onboardingStep: user.onboarding_step != null ? Number(user.onboarding_step) : 0,
+        };
+    };
+
     const supabaseFetch = async (path, { method = 'POST', apiKey, accessToken, body, query } = {}) => {
         const { authUrl } = getSupabaseConfig();
         if (!authUrl || !apiKey) {
@@ -290,7 +301,11 @@ module.exports = function registerAuthRoutes({
 
             res.status(201).json({
                 token,
-                user: { id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, banner: null, bio: '', streakData: {}, role: 'user', isAdmin: false, twoFAEnabled: false, email_verified: true }
+                user: {
+                    id: userId, username, displayName, email: email.toLowerCase(), shareCode, avatar: null, banner: null, bio: '', streakData: {}, role: 'user', isAdmin: false, isOwner: false, twoFAEnabled: false, email_verified: true,
+                    onboardingCompletedAt: null,
+                    onboardingStep: 0,
+                }
             });
 
             // Send welcome email (fire-and-forget, don't block registration)
@@ -364,7 +379,8 @@ module.exports = function registerAuthRoutes({
                     twoFAEnabled: !!user.two_fa_enabled,
                     subscription_tier: effectiveTier,
                     simulate_free_tier: !!user.simulate_free_tier,
-                    email_verified: !!user.email_verified
+                    email_verified: !!user.email_verified,
+                    ...onboardingSessionFields(user),
                 }
             });
         } catch (error) {
@@ -469,7 +485,8 @@ module.exports = function registerAuthRoutes({
                 twoFAEnabled: !!user.two_fa_enabled,
                 subscription_tier: effectiveTier,
                 simulate_free_tier: !!user.simulate_free_tier,
-                email_verified: !!user.email_verified
+                email_verified: !!user.email_verified,
+                ...onboardingSessionFields(user),
             }
         });
     };
@@ -623,7 +640,7 @@ module.exports = function registerAuthRoutes({
                 res.json({
                     token: newToken,
                     user: {
-                        id: user.id, username: user.username, email: user.email, shareCode: user.share_code,
+                        id: user.id, username: user.username, displayName: user.display_name || user.username, email: user.email, shareCode: user.share_code,
                         avatar: user.avatar, banner: user.banner, bio: user.bio || '', role: userRole,
                         isAdmin: userRole === 'admin' || userRole === 'owner',
                         isOwner: userRole === 'owner',
@@ -631,7 +648,8 @@ module.exports = function registerAuthRoutes({
                         twoFAEnabled: !!user.two_fa_enabled,
                         subscription_tier: effectiveTier2FA,
                         simulate_free_tier: !!user.simulate_free_tier,
-                        email_verified: !!user.email_verified
+                        email_verified: !!user.email_verified,
+                        ...onboardingSessionFields(user),
                     }
                 });
             } else {
@@ -685,7 +703,8 @@ module.exports = function registerAuthRoutes({
                 twoFAEnabled: !!user.two_fa_enabled,
                 subscription_tier: effectiveTierMe,
                 simulate_free_tier: !!user.simulate_free_tier,
-                email_verified: !!user.email_verified
+                email_verified: !!user.email_verified,
+                ...onboardingSessionFields(user),
             });
         } catch (error) {
             console.error('GET /api/auth/me error:', error);
@@ -1068,7 +1087,8 @@ module.exports = function registerAuthRoutes({
                         twoFAEnabled: !!existingLinked.two_fa_enabled,
                         subscription_tier: effectiveTier,
                         simulate_free_tier: !!existingLinked.simulate_free_tier,
-                        email_verified: true
+                        email_verified: true,
+                        ...onboardingSessionFields(existingLinked),
                     }
                 });
             }
@@ -1100,7 +1120,8 @@ module.exports = function registerAuthRoutes({
                         twoFAEnabled: !!user.two_fa_enabled,
                         subscription_tier: effectiveTier,
                         simulate_free_tier: !!user.simulate_free_tier,
-                        email_verified: true
+                        email_verified: true,
+                        ...onboardingSessionFields(user),
                     }
                 });
             }
@@ -1145,7 +1166,9 @@ module.exports = function registerAuthRoutes({
                     id: userId, username: finalUsername, displayName, email: email.toLowerCase(),
                     shareCode, avatar: null, banner: null, bio: '', role: 'user',
                     isAdmin: false, isOwner: false, streakData: {}, twoFAEnabled: false,
-                    subscription_tier: 'free', simulate_free_tier: false, email_verified: true
+                    subscription_tier: 'free', simulate_free_tier: false, email_verified: true,
+                    onboardingCompletedAt: null,
+                    onboardingStep: 0,
                 }
             });
         } catch (error) {

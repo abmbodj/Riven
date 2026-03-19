@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     X, Sparkles, Folder, Calendar, Hash, ChevronDown, Check,
@@ -87,6 +87,7 @@ function PickerSheet({ open, title, icon: Icon, items, selectedId, noneLabel, on
 
 export default function CreateDeck() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [mode, setMode] = useState('manual');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -112,6 +113,12 @@ export default function CreateDeck() {
     const [streamPhase, setStreamPhase] = useState('idle'); // 'idle' | 'streaming' | 'saving' | 'done'
     const streamAbortRef = useRef(null);
     const toast = useToast();
+
+    useEffect(() => {
+        if (searchParams.get('focus') === 'syllabus') {
+            setMode('ai');
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         Promise.all([api.getFolders(), api.getClasses(), api.getTags(), api.getAILimits()])

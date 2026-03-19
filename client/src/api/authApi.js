@@ -1155,6 +1155,8 @@ const SELF_PROFILE_SELECT = [
     'subscription_tier',
     'simulate_free_tier',
     'email_verified',
+    'onboarding_completed_at',
+    'onboarding_step',
 ].join(', ');
 
 const isValidProfileUsername = (username) => (
@@ -2771,7 +2773,7 @@ const mapOwnUserRow = (row) => {
         ? 'lifetime'
         : (row.subscription_tier || 'free');
 
-    return {
+    const base = {
         id: row.id,
         username: row.username,
         displayName: row.display_name || row.username,
@@ -2791,6 +2793,16 @@ const mapOwnUserRow = (row) => {
         simulate_free_tier: Boolean(row.simulate_free_tier),
         email_verified: Boolean(row.email_verified),
     };
+
+    if (row.onboarding_completed_at !== undefined || row.onboarding_step !== undefined) {
+        return {
+            ...base,
+            onboardingCompletedAt: row.onboarding_completed_at || null,
+            onboardingStep: Number(row.onboarding_step) || 0,
+        };
+    }
+
+    return base;
 };
 
 const getSupabaseSelfUserRow = async () => {
@@ -2829,6 +2841,25 @@ const mapBlockedUserRow = (row) => ({
 });
 
 // ============ PROFILE / STREAK / PET DATA ============
+
+export const updateOnboardingProgress = async ({ nextStep, markComplete } = {}) => {
+    const userId = await getAppUserId();
+    const patch = {};
+    if (typeof nextStep === 'number') patch.onboarding_step = nextStep;
+    if (markComplete) patch.onboarding_completed_at = new Date().toISOString();
+    if (!Object.keys(patch).length) {
+        return mapOwnUserRow(await loadCurrentUserRow());
+    }
+
+    const { data, error } = await supabase
+        .from('users')
+        .update(patch)
+        .eq('id', userId)
+        .select(SELF_PROFILE_SELECT)
+        .single();
+    if (error) _sbThrow(error);
+    return mapOwnUserRow(data);
+};
 
 export const updateProfile = async (updates = {}) => {
     const nextUpdates = {};
@@ -3886,6 +3917,7 @@ export default {
     getMe,
     restoreSessionUser,
     updateProfile,
+    updateOnboardingProgress,
     changePassword,
     deleteAccount,
     getStreak,

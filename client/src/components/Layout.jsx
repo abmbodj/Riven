@@ -119,12 +119,13 @@ export default function Layout({ children }) {
     }, []);
 
     const isAccountPage = location.pathname === '/account';
+    const isOnboardingPage = location.pathname === '/onboarding';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
-    const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
+    const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || isOnboardingPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
     // Fullscreen pages that need edge-to-edge backgrounds (no padding from Layout)
-    const isFullscreenPage = isStudyOrTest || (!isLoggedIn && (isAccountPage || isLandingPage));
+    const isFullscreenPage = isStudyOrTest || isOnboardingPage || (!isLoggedIn && (isAccountPage || isLandingPage));
     // Show sidebar on desktop only when logged in and not on a fullscreen page
     const showDesktopSidebar = isLoggedIn && !isStudyOrTest && !isFullscreenPage;
 
