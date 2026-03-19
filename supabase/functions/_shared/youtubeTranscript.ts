@@ -1,4 +1,6 @@
-const USER_AGENT =
+const ANDROID_UA =
+  'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US) gzip';
+const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 interface CaptionTrack {
@@ -41,6 +43,103 @@ const selectCaptionTrack = (tracks: CaptionTrack[], lang: string): CaptionTrack 
   return tracks[0];
 };
 
+const fetchCaptionTracks = async (videoId: string): Promise<CaptionTrack[]> => {
+  // Strategy 1: ANDROID client (what youtube-transcript-api uses)
+  const androidRes = await fetch(
+    'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': ANDROID_UA,
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '20.10.38',
+            androidSdkVersion: 34,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        videoId,
+      }),
+    },
+  );
+
+  if (androidRes.ok) {
+    const data = await androidRes.json();
+    const tracks: CaptionTrack[] =
+      data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    if (tracks.length > 0) return tracks;
+  }
+
+  // Strategy 2: WEB_EMBEDDED_PLAYER (no poToken policies)
+  const embeddedRes = await fetch(
+    'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': BROWSER_UA,
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_EMBEDDED_PLAYER',
+            clientVersion: '2.20250312.01.00',
+          },
+        },
+        videoId,
+      }),
+    },
+  );
+
+  if (embeddedRes.ok) {
+    const data = await embeddedRes.json();
+    const tracks: CaptionTrack[] =
+      data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    if (tracks.length > 0) return tracks;
+  }
+
+  // Strategy 3: Scrape watch page for ytInitialPlayerResponse
+  const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: { 'User-Agent': BROWSER_UA },
+  });
+
+  if (watchRes.ok) {
+    const html = await watchRes.text();
+    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    if (match?.[1]) {
+      try {
+        const playerData = JSON.parse(match[1]);
+        const tracks: CaptionTrack[] =
+          playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+        if (tracks.length > 0) return tracks;
+      } catch {
+        // JSON parse failed, fall through
+      }
+    }
+  }
+
+  return [];
+};
+
+const parseJson3Transcript = (data: Record<string, unknown>): string[] => {
+  const lines: string[] = [];
+  const events = (data as { events?: Array<{ segs?: Array<{ utf8?: string }> }> }).events ?? [];
+
+  for (const event of events) {
+    if (!event.segs) continue;
+    const text = event.segs.map((s) => s.utf8 ?? '').join('');
+    const trimmed = text.replace(/\n/g, ' ').trim();
+    if (trimmed) lines.push(trimmed);
+  }
+
+  return lines;
+};
+
 export const fetchYoutubeTranscript = async (youtubeUrl: string, lang = 'en'): Promise<string> => {
   const videoId = extractVideoId(youtubeUrl);
   if (!videoId) {
@@ -50,34 +149,7 @@ export const fetchYoutubeTranscript = async (youtubeUrl: string, lang = 'en'): P
   }
 
   try {
-    // Step 1: Get caption tracks from YouTube Innertube player API
-    const playerRes = await fetch(
-      'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': USER_AGENT,
-        },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB',
-              clientVersion: '2.20240101.00.00',
-            },
-          },
-          videoId,
-        }),
-      },
-    );
-
-    if (!playerRes.ok) {
-      throw new Error(`YouTube player API returned ${playerRes.status}`);
-    }
-
-    const playerData = await playerRes.json();
-    const captionTracks: CaptionTrack[] =
-      playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    const captionTracks = await fetchCaptionTracks(videoId);
 
     if (captionTracks.length === 0) {
       throw new Error('No captions available for this video');
@@ -88,10 +160,10 @@ export const fetchYoutubeTranscript = async (youtubeUrl: string, lang = 'en'): P
       throw new Error('No suitable caption track found');
     }
 
-    // Step 2: Fetch the actual transcript content in json3 format
+    // Fetch transcript content in json3 format
     const separator = track.baseUrl.includes('?') ? '&' : '?';
     const transcriptRes = await fetch(`${track.baseUrl}${separator}fmt=json3`, {
-      headers: { 'User-Agent': USER_AGENT },
+      headers: { 'User-Agent': BROWSER_UA },
     });
 
     if (!transcriptRes.ok) {
@@ -99,16 +171,7 @@ export const fetchYoutubeTranscript = async (youtubeUrl: string, lang = 'en'): P
     }
 
     const transcriptData = await transcriptRes.json();
-    const lines: string[] = [];
-
-    for (const event of transcriptData.events ?? []) {
-      if (!event.segs) continue;
-      const text = event.segs
-        .map((s: { utf8?: string }) => s.utf8 ?? '')
-        .join('');
-      const trimmed = text.replace(/\n/g, ' ').trim();
-      if (trimmed) lines.push(trimmed);
-    }
+    const lines = parseJson3Transcript(transcriptData);
 
     if (lines.length === 0) {
       throw new Error('Transcript was empty');
