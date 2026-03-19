@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -8,7 +8,6 @@ import {
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
-import { createArrayStreamParser } from '../utils/streamingJsonParser';
 
 const CONTENT_TYPES = [
     {
@@ -17,6 +16,7 @@ const CONTENT_TYPES = [
         description: 'Structured notes from video',
         icon: FileText,
         color: '#22c55e',
+        jobKind: 'youtube_notes',
     },
     {
         id: 'deck',
@@ -24,6 +24,7 @@ const CONTENT_TYPES = [
         description: 'Spaced-repetition deck',
         icon: Layers,
         color: '#6366f1',
+        jobKind: 'youtube_deck',
     },
     {
         id: 'guide',
@@ -31,6 +32,7 @@ const CONTENT_TYPES = [
         description: 'Comprehensive guide',
         icon: BookOpen,
         color: '#f59e0b',
+        jobKind: 'youtube_guide',
     },
     {
         id: 'exam',
@@ -38,8 +40,26 @@ const CONTENT_TYPES = [
         description: 'Multiple-choice quiz',
         icon: ClipboardCheck,
         color: '#ec4899',
+        jobKind: 'youtube_exam',
     },
 ];
+
+const SOURCE_PHASE_LABELS = {
+    accepted: 'Accepted video analysis job',
+    processing_media: 'Analyzing YouTube video',
+    drafting: 'Building reusable video notes',
+    saving: 'Saving reusable source',
+    done: 'Reusable source ready',
+    error: 'Source analysis failed',
+};
+
+const DERIVED_PHASE_LABELS = {
+    accepted: 'Queued behind source analysis',
+    drafting: 'Generating study artifact',
+    saving: 'Saving generated result',
+    done: 'Ready to open',
+    error: 'Generation failed',
+};
 
 const YoutubeIcon = ({ className }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -132,11 +152,58 @@ function PickerSheet({ open, items, selectedId, onClose, onSelect }) {
     );
 }
 
+const getProgressStatus = (job) => {
+    if (!job) return 'pending';
+    if (job.status === 'completed') return 'done';
+    if (job.status === 'failed' || job.status === 'cancelled') return 'error';
+    if (job.status === 'queued') return 'pending';
+    return 'generating';
+};
+
+const extractNodeText = (node) => {
+    if (!node || typeof node !== 'object') return '';
+    const texts = [];
+    const walk = (currentNode) => {
+        if (!currentNode || typeof currentNode !== 'object') return;
+        if (typeof currentNode.text === 'string') texts.push(currentNode.text);
+        if (Array.isArray(currentNode.content)) currentNode.content.forEach(walk);
+    };
+    walk(node);
+    return texts.join(' ').trim();
+};
+
+const buildDerivedPreviewSummary = (item) => {
+    const resultPayload = item.resultPayload || {};
+
+    if (Array.isArray(resultPayload.preview_items) && resultPayload.preview_items.length > 0) {
+        const latestItem = resultPayload.preview_items[resultPayload.preview_items.length - 1];
+        return latestItem.front || latestItem.question || '';
+    }
+
+    if (Array.isArray(resultPayload.preview_sections) && resultPayload.preview_sections.length > 0) {
+        const latestSection = resultPayload.preview_sections[resultPayload.preview_sections.length - 1];
+        return extractNodeText(latestSection);
+    }
+
+    return '';
+};
+
+const getDerivedStatusText = (item, sourceJob) => {
+    if (item.status === 'done') return 'Complete';
+    if (item.status === 'error') return item.error || 'Failed';
+
+    if (item.progressMessage) return item.progressMessage;
+    if (item.status === 'pending' && sourceJob && sourceJob.status !== 'completed') {
+        return SOURCE_PHASE_LABELS[sourceJob.phase] || sourceJob.progress_message || 'Waiting for source analysis';
+    }
+
+    return DERIVED_PHASE_LABELS[item.phase] || 'Waiting...';
+};
+
 export default function YouTubeImport() {
     const navigate = useNavigate();
     const toast = useToast();
 
-    // Input state
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [videoId, setVideoId] = useState(null);
     const [selectedTypes, setSelectedTypes] = useState([]);
@@ -146,180 +213,229 @@ export default function YouTubeImport() {
     const [showClassPicker, setShowClassPicker] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [aiLimits, setAiLimits] = useState(null);
-
-    // Phase: 'input' | 'generating' | 'done'
     const [phase, setPhase] = useState('input');
     const [progress, setProgress] = useState([]);
-    const [results, setResults] = useState([]);
+    const [sourceJob, setSourceJob] = useState(null);
+    const [videoTitle, setVideoTitle] = useState('');
+
+    const subscriptionsRef = useRef(new Map());
+
+    const clearSubscriptions = useCallback(() => {
+        subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
+        subscriptionsRef.current.clear();
+    }, []);
+
+    const subscribeToJob = useCallback((jobId, onUpdate) => {
+        if (!jobId || subscriptionsRef.current.has(jobId)) return;
+        const unsubscribe = api.subscribeToAiJob(jobId, {
+            onUpdate,
+            onComplete: onUpdate,
+            onError: onUpdate,
+        });
+        subscriptionsRef.current.set(jobId, unsubscribe);
+    }, []);
 
     useEffect(() => {
         api.getClasses().then(setClasses).catch(() => {});
         api.getAILimits().then(setAiLimits).catch(() => {});
+        api.warmupAiFunctions('create-ai-job', 'run-ai-job');
+        api.primeEdgeFunctionAuth().catch(() => {});
+
+        return () => clearSubscriptions();
+    }, [clearSubscriptions]);
+
+    useEffect(() => {
+        if (phase !== 'generating') return;
+
+        const allSettled = progress.length > 0 && progress.every((item) => item.status === 'done' || item.status === 'error');
+        if (allSettled) {
+            setPhase('done');
+            api.getAILimits().then(setAiLimits).catch(() => {});
+        }
+    }, [phase, progress]);
+
+    const completedResults = useMemo(
+        () => progress.filter((item) => item.status === 'done' && item.result),
+        [progress],
+    );
+
+    const handleSourceJobUpdate = useCallback((job) => {
+        setSourceJob(job);
     }, []);
 
-    const [videoTitle, setVideoTitle] = useState('');
+    const handleDerivedJobUpdate = useCallback((type, job) => {
+        const status = getProgressStatus(job);
+        const resultPayload = job?.result_payload || {};
+        const errorPayload = job?.error_payload || {};
+        const result = job?.status === 'completed' ? resultPayload : null;
+
+        setProgress((prev) => prev.map((item) => (
+            item.type !== type
+                ? item
+                : {
+                    ...item,
+                    jobId: job?.id || item.jobId,
+                    status,
+                    phase: job?.phase || item.phase,
+                    progressPercent: job?.status === 'completed'
+                        ? 100
+                        : (job?.progress_percent ?? item.progressPercent ?? 0),
+                    progressMessage: job?.progress_message || item.progressMessage,
+                    resultPayload,
+                    previewSummary: buildDerivedPreviewSummary({ resultPayload }),
+                    result: result || item.result,
+                    error: status === 'error'
+                        ? (errorPayload.message || job?.progress_message || item.error || 'Failed')
+                        : null,
+                }
+        )));
+
+        if (job?.status === 'completed' && selectedTypes.length === 1) {
+            const link = getResultLink(type, resultPayload);
+            if (link) {
+                navigate(link);
+            }
+        }
+    }, [navigate, selectedTypes.length]);
 
     const handleUrlChange = useCallback((e) => {
         const val = e.target.value;
         setYoutubeUrl(val);
-        const id = extractVideoId(val);
-        setVideoId(id);
+        const nextVideoId = extractVideoId(val);
+        setVideoId(nextVideoId);
         setVideoTitle('');
-        if (id) {
-            fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`)
-                .then(r => r.ok ? r.json() : null)
-                .then(data => { if (data?.title) setVideoTitle(data.title); })
+        if (nextVideoId) {
+            fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${nextVideoId}&format=json`)
+                .then((response) => (response.ok ? response.json() : null))
+                .then((data) => { if (data?.title) setVideoTitle(data.title); })
                 .catch(() => {});
         }
     }, []);
 
     const toggleType = useCallback((typeId) => {
-        setSelectedTypes(prev =>
+        setSelectedTypes((prev) => (
             prev.includes(typeId)
-                ? prev.filter(t => t !== typeId)
+                ? prev.filter((value) => value !== typeId)
                 : [...prev, typeId]
-        );
+        ));
     }, []);
-
-    const [streamingPreview, setStreamingPreview] = useState([]); // streamed items for current type
-    const streamAbortRef = useRef(null);
-
-    // Progress bar state
-    const [generatingProgress, setGeneratingProgress] = useState(0);
-    const genStartTimeRef = useRef(null);
-
-    useEffect(() => {
-        if (phase !== 'generating') {
-            genStartTimeRef.current = null;
-            setGeneratingProgress(0);
-            return;
-        }
-
-        const activeItem = progress.find(p => p.status === 'generating');
-        if (!activeItem) return;
-
-        // Reset start time when a new item begins generating
-        if (!genStartTimeRef.current) genStartTimeRef.current = Date.now();
-
-        let raf;
-        const tick = () => {
-            const elapsed = Date.now() - genStartTimeRef.current;
-            const pct = 90 * (1 - Math.exp(-elapsed / 30000));
-            setGeneratingProgress(Math.round(pct));
-            raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [phase, progress.map(p => p.status).join()]);
 
     const handleGenerate = async () => {
         if (!youtubeUrl.trim() || selectedTypes.length === 0) return;
 
-        const progressItems = selectedTypes.map(type => ({
+        clearSubscriptions();
+
+        const selectedClassData = classes.find((item) => item.id === selectedClass);
+        const effectiveTitle = customTitle.trim() || videoTitle || undefined;
+        const sourceTitle = effectiveTitle || 'YouTube Source';
+        const initialProgress = selectedTypes.map((type) => ({
             type,
-            label: CONTENT_TYPES.find(c => c.id === type)?.label,
+            label: CONTENT_TYPES.find((contentType) => contentType.id === type)?.label,
             status: 'pending',
+            phase: 'accepted',
+            progressPercent: 0,
+            progressMessage: 'Waiting to start',
             result: null,
+            resultPayload: {},
+            previewSummary: '',
             error: null,
+            jobId: null,
         }));
-        setProgress(progressItems);
+
         setPhase('generating');
+        setProgress(initialProgress);
+        setSourceJob({
+            id: 'pending-source-job',
+            status: 'queued',
+            phase: 'accepted',
+            progress_percent: 0,
+            progress_message: SOURCE_PHASE_LABELS.accepted,
+        });
 
-        const finalResults = [];
+        try {
+            const sourceResponse = await api.createAiJob('youtube_source', {
+                youtubeUrl,
+                titleSnapshot: sourceTitle,
+                className: selectedClassData?.name || null,
+            });
 
-        for (let i = 0; i < selectedTypes.length; i++) {
-            const type = selectedTypes[i];
-            setStreamingPreview([]);
+            const sourceSnapshot = await api.getAiJob(sourceResponse.jobId).catch(() => ({
+                id: sourceResponse.jobId,
+                status: sourceResponse.status,
+                phase: sourceResponse.phase,
+                progress_message: SOURCE_PHASE_LABELS[sourceResponse.phase] || 'Preparing video analysis',
+                result_payload: {},
+            }));
+            setSourceJob(sourceSnapshot);
+            subscribeToJob(sourceResponse.jobId, handleSourceJobUpdate);
 
-            genStartTimeRef.current = Date.now();
-            setGeneratingProgress(0);
-            setProgress(prev => prev.map((item, idx) =>
-                idx === i ? { ...item, status: 'generating' } : item
-            ));
-
-            try {
-                const effectiveTitle = customTitle.trim() || videoTitle || undefined;
-                const selectedClassData = classes.find(c => c.id === selectedClass);
-                const stream = await api.generateFromYoutubeStream(youtubeUrl, type, {
-                    title: effectiveTitle,
-                    classId: selectedClass || undefined,
-                    deckName: effectiveTitle,
-                    className: selectedClassData?.name || undefined,
-                });
-                streamAbortRef.current = stream.abort;
-
-                // For array types (deck, exam), parse items progressively
-                const isArrayType = type === 'deck' || type === 'exam';
-                const parser = isArrayType ? createArrayStreamParser((item) => {
-                    setStreamingPreview(prev => [...prev, item]);
-                }) : null;
-
-                let streamText = '';
-                let result = null;
-
-                for await (const event of stream.chunks()) {
-                    if (event.type === 'chunk') {
-                        if (parser) {
-                            parser.feed(event.data.text);
-                        } else {
-                            streamText += event.data.text;
-                        }
-                    } else if (event.type === 'error') {
-                        const err = new Error(event.data.message);
-                        err.status = event.data.status;
-                        err.body = event.data;
-                        throw err;
-                    } else if (event.type === 'done') {
-                        result = event.data;
-                    }
+            let quotaStopped = false;
+            for (const type of selectedTypes) {
+                if (quotaStopped) {
+                    setProgress((prev) => prev.map((item) => (
+                        item.type === type
+                            ? { ...item, status: 'error', error: 'Quota exceeded' }
+                            : item
+                    )));
+                    continue;
                 }
 
-                if (result) {
-                    setProgress(prev => prev.map((item, idx) =>
-                        idx === i ? { ...item, status: 'done', result } : item
-                    ));
-                    finalResults.push({ type, result });
-                }
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    err.message = 'Generation timed out. Try a shorter video or fewer content types.';
-                }
-                if (err.status === 429) {
-                    setProgress(prev => prev.map((item, idx) => {
-                        if (idx === i) return { ...item, status: 'error', error: err.message };
-                        if (idx > i) return { ...item, status: 'error', error: 'Quota exceeded' };
-                        return item;
+                const contentType = CONTENT_TYPES.find((entry) => entry.id === type);
+                if (!contentType) continue;
+
+                try {
+                    const jobResponse = await api.createAiJob(contentType.jobKind, {
+                        sourceJobId: sourceResponse.jobId,
+                        sourceKey: sourceResponse.sourceKey,
+                        titleSnapshot: effectiveTitle || undefined,
+                        classId: selectedClass || undefined,
+                        className: selectedClassData?.name || null,
+                    });
+
+                    const jobSnapshot = await api.getAiJob(jobResponse.jobId).catch(() => ({
+                        id: jobResponse.jobId,
+                        status: jobResponse.status,
+                        phase: jobResponse.phase,
+                        progress_percent: 0,
+                        progress_message: DERIVED_PHASE_LABELS[jobResponse.phase] || 'Queued',
+                        result_payload: {},
                     }));
-                    setShowPricingModal(true);
-                    break;
+
+                    handleDerivedJobUpdate(type, jobSnapshot);
+                    subscribeToJob(jobResponse.jobId, (job) => handleDerivedJobUpdate(type, job));
+                } catch (error) {
+                    if (error.status === 429) {
+                        quotaStopped = true;
+                        setShowPricingModal(true);
+                    }
+
+                    setProgress((prev) => prev.map((item) => (
+                        item.type === type
+                            ? {
+                                ...item,
+                                status: 'error',
+                                error: error.message || 'Generation failed',
+                            }
+                            : item
+                    )));
                 }
-                setProgress(prev => prev.map((item, idx) =>
-                    idx === i ? { ...item, status: 'error', error: err.message || 'Generation failed' } : item
-                ));
-            } finally {
-                streamAbortRef.current = null;
+            }
+        } catch (error) {
+            setPhase('input');
+            setSourceJob(null);
+            if (error.status === 429) {
+                setShowPricingModal(true);
+            } else {
+                toast.error(error.message || 'Failed to start YouTube import');
             }
         }
-
-        setResults(finalResults);
-        setStreamingPreview([]);
-
-        // Auto-redirect if exactly one item was generated successfully
-        if (finalResults.length === 1) {
-            const link = getResultLink(finalResults[0].type, finalResults[0].result);
-            if (link) {
-                navigate(link);
-                return;
-            }
-        }
-
-        setPhase('done');
     };
 
     const handleReset = () => {
+        clearSubscriptions();
         setPhase('input');
         setProgress([]);
-        setResults([]);
+        setSourceJob(null);
         setYoutubeUrl('');
         setVideoId(null);
         setSelectedTypes([]);
@@ -327,13 +443,10 @@ export default function YouTubeImport() {
         api.getAILimits().then(setAiLimits).catch(() => {});
     };
 
-    const selectedClassData = classes.find(c => c.id === selectedClass);
-
-    // ─── RENDER ───────────────────────────────────────
+    const selectedClassData = classes.find((cls) => cls.id === selectedClass);
 
     return (
         <div className="min-h-full flex flex-col safe-area-top">
-            {/* Header */}
             <div className="sticky top-0 z-10 bg-claude-bg/95 backdrop-blur-md border-b border-claude-border/50">
                 <div className="flex items-center justify-between px-4 py-3">
                     <Link to="/decks" className="touch-target flex items-center justify-center text-claude-secondary -ml-2 w-10 h-10" aria-label="Close">
@@ -348,8 +461,6 @@ export default function YouTubeImport() {
             </div>
 
             <div className="flex-1 flex flex-col px-4 py-5 space-y-4 max-w-2xl w-full mx-auto">
-
-                {/* AI Limits Badge */}
                 {aiLimits && phase === 'input' && (
                     <motion.div
                         initial={{ opacity: 0, y: -8 }}
@@ -363,14 +474,12 @@ export default function YouTubeImport() {
                     </motion.div>
                 )}
 
-                {/* ═══ INPUT PHASE ═══ */}
                 {phase === 'input' && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="flex flex-col space-y-4 flex-1"
                     >
-                        {/* URL Input Card */}
                         <div className="glass-panel-premium rounded-[1.75rem] p-5">
                             <label htmlFor="youtube-url" className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary block mb-2">
                                 YouTube URL
@@ -386,7 +495,6 @@ export default function YouTubeImport() {
                             />
                         </div>
 
-                        {/* Video Thumbnail Preview */}
                         <AnimatePresence>
                             {videoId && (
                                 <motion.div
@@ -407,26 +515,24 @@ export default function YouTubeImport() {
                                                 <Play className="w-6 h-6 text-white fill-white ml-0.5" />
                                             </div>
                                         </div>
-                                        {/* Vignette overlay */}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
                                     </div>
                                     <div className="px-5 py-3 flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
-                                            Video detected — ready to analyze
+                                            Video detected - ready to analyze
                                         </p>
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
-                        {/* Content Type Multi-Select */}
                         <div>
                             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-secondary mb-3 px-1">
                                 What to generate
                             </p>
                             <div className="grid grid-cols-2 gap-3">
-                                {CONTENT_TYPES.map(ct => {
+                                {CONTENT_TYPES.map((ct) => {
                                     const Icon = ct.icon;
                                     const isSelected = selectedTypes.includes(ct.id);
                                     return (
@@ -475,16 +581,14 @@ export default function YouTubeImport() {
                             </div>
                         </div>
 
-                        {/* Optional Title */}
                         <input
                             type="text"
                             value={customTitle}
-                            onChange={e => setCustomTitle(e.target.value)}
+                            onChange={(e) => setCustomTitle(e.target.value)}
                             placeholder="Custom title (optional)"
                             className="w-full px-4 py-4 glass-item rounded-2xl border border-claude-border/50 focus:border-claude-accent/50 outline-none transition-colors font-display font-bold text-base text-botanical-parchment placeholder:text-claude-secondary/40 bg-transparent"
                         />
 
-                        {/* Class Picker */}
                         <button
                             type="button"
                             onClick={() => setShowClassPicker(true)}
@@ -506,7 +610,6 @@ export default function YouTubeImport() {
                             </div>
                         </button>
 
-                        {/* Quota Cost Hint */}
                         {selectedTypes.length > 0 && (
                             <motion.p
                                 initial={{ opacity: 0 }}
@@ -517,7 +620,6 @@ export default function YouTubeImport() {
                             </motion.p>
                         )}
 
-                        {/* Generate Button */}
                         <div className="sticky bottom-0 pt-3 pb-4 mt-auto bg-gradient-to-t from-claude-bg via-claude-bg/95 to-transparent">
                             <button
                                 type="button"
@@ -534,7 +636,6 @@ export default function YouTubeImport() {
                     </motion.div>
                 )}
 
-                {/* ═══ GENERATING PHASE ═══ */}
                 {phase === 'generating' && (
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
@@ -542,7 +643,6 @@ export default function YouTubeImport() {
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
                         className="flex flex-col space-y-4 flex-1"
                     >
-                        {/* Thumbnail stays visible */}
                         {videoId && (
                             <div className="glass-panel-premium rounded-[1.75rem] overflow-hidden">
                                 <div className="relative aspect-video bg-claude-surface overflow-hidden">
@@ -554,21 +654,48 @@ export default function YouTubeImport() {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                                     <div className="absolute bottom-4 left-5 right-5">
                                         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/70">
-                                            Analyzing video content...
+                                            {sourceJob?.progress_message || SOURCE_PHASE_LABELS[sourceJob?.phase] || 'Analyzing video content...'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Progress List */}
+                        {sourceJob && (
+                            <div className="glass-panel-premium rounded-[1.75rem] p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
+                                            Source Analysis
+                                        </p>
+                                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-botanical-parchment mt-1">
+                                            {sourceJob.progress_message || SOURCE_PHASE_LABELS[sourceJob.phase] || 'Preparing'}
+                                        </p>
+                                    </div>
+                                    <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-claude-secondary">
+                                        {sourceJob.status === 'completed'
+                                            ? 'Ready'
+                                            : `${sourceJob.progress_percent ?? 0}%`}
+                                    </span>
+                                </div>
+                                <div className="mt-3 h-1.5 w-full bg-claude-border/30 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full rounded-full bg-red-500"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: sourceJob.status === 'completed' ? '100%' : `${sourceJob.progress_percent ?? 0}%` }}
+                                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="glass-panel-premium rounded-[1.75rem] p-5 space-y-3">
                             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
                                 Generating study materials
                             </p>
 
                             {progress.map((item, idx) => {
-                                const ct = CONTENT_TYPES.find(c => c.id === item.type);
+                                const ct = CONTENT_TYPES.find((contentType) => contentType.id === item.type);
                                 const Icon = ct?.icon || Sparkles;
                                 return (
                                     <motion.div
@@ -576,83 +703,68 @@ export default function YouTubeImport() {
                                         initial={{ opacity: 0, x: -8 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: idx * 0.06 }}
-                                        className="glass-item rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                                        className="glass-item rounded-2xl px-4 py-3.5"
                                     >
-                                        <div
-                                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                                            style={{ background: `${ct?.color}15`, color: ct?.color }}
-                                        >
-                                            {item.status === 'generating' ? (
-                                                <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                                            ) : item.status === 'done' ? (
-                                                <Check className="w-4.5 h-4.5" />
-                                            ) : item.status === 'error' ? (
-                                                <X className="w-4.5 h-4.5 text-red-400" />
-                                            ) : (
-                                                <Icon className="w-4.5 h-4.5 opacity-30" />
-                                            )}
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                                style={{ background: `${ct?.color}15`, color: ct?.color }}
+                                            >
+                                                {item.status === 'generating' ? (
+                                                    <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                                                ) : item.status === 'done' ? (
+                                                    <Check className="w-4.5 h-4.5" />
+                                                ) : item.status === 'error' ? (
+                                                    <X className="w-4.5 h-4.5 text-red-400" />
+                                                ) : (
+                                                    <Icon className="w-4.5 h-4.5 opacity-30" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-botanical-parchment">
+                                                    {item.label}
+                                                </p>
+                                                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-claude-secondary mt-0.5">
+                                                    {getDerivedStatusText(item, sourceJob)}
+                                                </p>
+                                                {(item.status === 'generating' || item.status === 'done') && (
+                                                    <div className="mt-2 h-1.5 w-full bg-claude-border/30 rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            className="h-full rounded-full"
+                                                            style={{ backgroundColor: ct?.color }}
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: item.status === 'done' ? '100%' : `${item.progressPercent || 0}%` }}
+                                                            transition={{ duration: 0.4, ease: 'easeOut' }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-botanical-parchment">
-                                                {item.label}
-                                            </p>
-                                            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-claude-secondary mt-0.5">
-                                                {item.status === 'generating'
-                                                    ? (streamingPreview.length > 0
-                                                        ? `${streamingPreview.length} item${streamingPreview.length !== 1 ? 's' : ''} so far...`
-                                                        : 'Analyzing video...')
-                                                    : item.status === 'done' ? 'Complete'
-                                                    : item.status === 'error' ? (item.error || 'Failed')
-                                                    : 'Waiting...'}
-                                            </p>
-                                            {(item.status === 'generating' || item.status === 'done') && (
-                                                <div className="mt-2 h-1.5 w-full bg-claude-border/30 rounded-full overflow-hidden">
-                                                    <motion.div
-                                                        className="h-full rounded-full"
-                                                        style={{ backgroundColor: ct?.color }}
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: item.status === 'done' ? '100%' : `${generatingProgress}%` }}
-                                                        transition={{ duration: 0.5, ease: 'easeOut' }}
-                                                    />
-                                                </div>
+
+                                        <AnimatePresence>
+                                            {item.previewSummary && item.status === 'generating' && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 8 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 8 }}
+                                                    className="mt-3 rounded-xl border border-claude-border/40 bg-claude-surface/60 px-3 py-2"
+                                                >
+                                                    <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-claude-secondary mb-1">
+                                                        Live preview
+                                                    </p>
+                                                    <p className="text-xs text-botanical-parchment line-clamp-3">
+                                                        {item.previewSummary}
+                                                    </p>
+                                                </motion.div>
                                             )}
-                                        </div>
+                                        </AnimatePresence>
                                     </motion.div>
                                 );
                             })}
                         </div>
-
-                        {/* Streaming Preview */}
-                        {streamingPreview.length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="space-y-2 max-h-[30vh] overflow-auto"
-                            >
-                                <AnimatePresence>
-                                    {streamingPreview.map((item, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.25 }}
-                                            className="rounded-2xl border border-claude-border bg-claude-surface p-3.5"
-                                        >
-                                            <p className="text-sm font-semibold text-botanical-parchment">
-                                                {item.front || item.question || ''}
-                                            </p>
-                                            {item.back && (
-                                                <p className="mt-1 text-xs text-claude-secondary">{item.back}</p>
-                                            )}
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </motion.div>
-                        )}
                     </motion.div>
                 )}
 
-                {/* ═══ DONE PHASE ═══ */}
                 {phase === 'done' && (
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
@@ -660,7 +772,6 @@ export default function YouTubeImport() {
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
                         className="flex flex-col space-y-4 flex-1"
                     >
-                        {/* Success Header */}
                         <div className="glass-panel-premium rounded-[1.75rem] p-6 text-center">
                             <motion.div
                                 initial={{ scale: 0 }}
@@ -671,17 +782,16 @@ export default function YouTubeImport() {
                                 <Check className="w-7 h-7 text-claude-accent" />
                             </motion.div>
                             <h2 className="font-display text-2xl font-bold text-botanical-parchment mb-1">
-                                {results.length > 0 ? 'Done!' : 'Generation Complete'}
+                                {completedResults.length > 0 ? 'Done!' : 'Generation Complete'}
                             </h2>
                             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
-                                {results.length} item{results.length !== 1 ? 's' : ''} generated from video
+                                {completedResults.length} item{completedResults.length !== 1 ? 's' : ''} generated from video
                             </p>
                         </div>
 
-                        {/* Result Links */}
                         <div className="space-y-3">
                             {progress.map((item, idx) => {
-                                const ct = CONTENT_TYPES.find(c => c.id === item.type);
+                                const ct = CONTENT_TYPES.find((contentType) => contentType.id === item.type);
                                 const link = item.result ? getResultLink(item.type, item.result) : null;
                                 const Icon = ct?.icon || Sparkles;
 
@@ -745,7 +855,6 @@ export default function YouTubeImport() {
                             })}
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="space-y-3 mt-auto pt-4">
                             <button
                                 type="button"
@@ -766,7 +875,6 @@ export default function YouTubeImport() {
                 )}
             </div>
 
-            {/* Class Picker Sheet */}
             <PickerSheet
                 open={showClassPicker}
                 items={classes}
@@ -775,7 +883,6 @@ export default function YouTubeImport() {
                 onSelect={setSelectedClass}
             />
 
-            {/* Pricing Modal */}
             {showPricingModal && (
                 <PricingModal onClose={() => setShowPricingModal(false)} />
             )}

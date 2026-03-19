@@ -1,0 +1,3 @@
+[functions.create-ai-job]
+verify_jwt = false
+

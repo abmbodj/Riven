@@ -144,6 +144,24 @@ export const api = {
     enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
         ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title, className)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
+    createAiJob: (kind, payload) => isLoggedIn()
+        ? serverApi.createAiJob(kind, payload)
+        : Promise.reject(new Error('Must be logged in to create AI jobs')),
+    getAiJob: (jobId) => isLoggedIn()
+        ? serverApi.getAiJob(jobId)
+        : Promise.reject(new Error('Must be logged in to view AI jobs')),
+    listAiJobs: (filters) => isLoggedIn()
+        ? serverApi.listAiJobs(filters)
+        : Promise.reject(new Error('Must be logged in to view AI jobs')),
+    subscribeToAiJob: (jobId, handlers) => isLoggedIn()
+        ? serverApi.subscribeToAiJob(jobId, handlers)
+        : () => {},
+    subscribeToAiJobsForUser: (handlers) => isLoggedIn()
+        ? serverApi.subscribeToAiJobsForUser(handlers)
+        : () => {},
+    primeEdgeFunctionAuth: () => isLoggedIn()
+        ? serverApi.primeEdgeFunctionAuth()
+        : Promise.resolve(null),
     warmupAiFunctions: (...fns) => isLoggedIn() ? serverApi.warmupAiFunctions(...fns) : undefined,
 
     // ============ NOTES ============

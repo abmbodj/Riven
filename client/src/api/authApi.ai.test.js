@@ -11,6 +11,8 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    channel: vi.fn(),
+    removeChannel: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
@@ -37,6 +39,19 @@ const buildErrorResponse = (status, body) => ({
   },
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
+
+const createChannelMock = () => {
+  const handlers = [];
+  const channel = {
+    on: vi.fn().mockImplementation((event, config, callback) => {
+      handlers.push({ event, config, callback });
+      return channel;
+    }),
+    subscribe: vi.fn(),
+  };
+
+  return { channel, handlers };
+};
 
 const encodeSegment = (value) => btoa(JSON.stringify(value))
   .replace(/\+/g, '-')
@@ -193,6 +208,93 @@ describe('authApi AI edge migration', () => {
         }),
       }),
     );
+  });
+
+  it('uses the create-ai-job edge function for Supabase sessions', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      jobId: 'job-1',
+      status: 'queued',
+      phase: 'accepted',
+    }));
+
+    const result = await authApi.createAiJob('note_enhancement', {
+      noteId: 'note-1',
+      audioPath: '7/note-1.webm',
+    });
+
+    expect(result).toEqual({
+      jobId: 'job-1',
+      status: 'queued',
+      phase: 'accepted',
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/create-ai-job',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'note_enhancement',
+          payload: {
+            noteId: 'note-1',
+            audioPath: '7/note-1.webm',
+          },
+        }),
+      }),
+    );
+  });
+
+  it('queries ai_jobs directly for job state', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { id: 'job-1', status: 'running', phase: 'drafting' },
+      error: null,
+    });
+    const eqId = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq: eqId });
+    supabase.from.mockReturnValue({ select });
+
+    const result = await authApi.getAiJob('job-1');
+
+    expect(result).toEqual({ id: 'job-1', status: 'running', phase: 'drafting' });
+    expect(supabase.from).toHaveBeenCalledWith('ai_jobs');
+    expect(select).toHaveBeenCalledWith('*');
+    expect(eqId).toHaveBeenCalledWith('id', 'job-1');
+  });
+
+  it('subscribes to ai job updates through Supabase realtime', () => {
+    const { channel, handlers } = createChannelMock();
+    const onUpdate = vi.fn();
+    const onComplete = vi.fn();
+
+    supabase.channel.mockReturnValue(channel);
+
+    const unsubscribe = authApi.subscribeToAiJob('job-1', {
+      onUpdate,
+      onComplete,
+    });
+
+    expect(supabase.channel).toHaveBeenCalledWith('ai_job_job-1');
+    expect(channel.subscribe).toHaveBeenCalledTimes(1);
+    expect(handlers).toHaveLength(1);
+
+    handlers[0].callback({
+      eventType: 'UPDATE',
+      new: { id: 'job-1', status: 'completed', phase: 'done' },
+      old: { id: 'job-1', status: 'saving', phase: 'saving' },
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      { id: 'job-1', status: 'completed', phase: 'done' },
+      expect.objectContaining({ eventType: 'UPDATE' }),
+    );
+    expect(onComplete).toHaveBeenCalledWith(
+      { id: 'job-1', status: 'completed', phase: 'done' },
+      expect.objectContaining({ eventType: 'UPDATE' }),
+    );
+
+    unsubscribe();
+    expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
   });
 
   it('surfaces edge errors when the generate-class function is unavailable', async () => {

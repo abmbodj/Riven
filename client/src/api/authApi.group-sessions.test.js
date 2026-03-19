@@ -61,7 +61,9 @@ describe('authApi group session edge migration', () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     localStorage.clear();
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
   });
 
   afterEach(() => {

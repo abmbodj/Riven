@@ -364,6 +364,11 @@ const resolveEdgeFunctionToken = async (_supabaseUrl, { skipForceReauth = false 
     return null;
 };
 
+export const primeEdgeFunctionAuth = async () => {
+    const supabaseUrl = getSupabaseUrl();
+    return resolveEdgeFunctionToken(supabaseUrl);
+};
+
 const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, query, skipForceReauth = false } = {}) => {
     const supabaseUrl = getSupabaseUrl();
     const anonKey = getSupabaseAnonKey();
@@ -1379,6 +1384,104 @@ export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, de
 
 export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title, className) =>
     edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });
+
+export const createAiJob = (kind, payload = {}) =>
+    edgeFunctionFetch('create-ai-job', { body: { kind, payload } });
+
+export const getAiJob = async (jobId) => {
+    const { data, error } = await supabase
+        .from('ai_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .maybeSingle();
+
+    if (error) _sbThrow(error);
+    return data || null;
+};
+
+export const listAiJobs = async ({
+    kind,
+    status,
+    statuses,
+    targetType,
+    targetId,
+    sourceKey,
+    limit,
+} = {}) => {
+    let query = supabase
+        .from('ai_jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (kind) query = query.eq('kind', kind);
+    if (Array.isArray(statuses) && statuses.length > 0) query = query.in('status', statuses);
+    else if (status) query = query.eq('status', status);
+    if (targetType) query = query.eq('target_type', targetType);
+    if (targetId !== undefined && targetId !== null && targetId !== '') query = query.eq('target_id', String(targetId));
+    if (sourceKey) query = query.eq('source_key', sourceKey);
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const subscribeToAiJob = (jobId, handlers = {}) => {
+    const channel = supabase
+        .channel(`ai_job_${jobId}`)
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'ai_jobs',
+            filter: `id=eq.${jobId}`,
+        }, (payload) => {
+            if (payload.eventType === 'DELETE') {
+                handlers.onDelete?.(payload.old, payload);
+                return;
+            }
+
+            handlers.onUpdate?.(payload.new, payload);
+
+            if (payload?.new?.status === 'completed') {
+                handlers.onComplete?.(payload.new, payload);
+            }
+
+            if (payload?.new?.status === 'failed' || payload?.new?.status === 'cancelled') {
+                handlers.onError?.(payload.new, payload);
+            }
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
+
+export const subscribeToAiJobsForUser = (handlers = {}) => {
+    const channel = supabase
+        .channel('ai_jobs_user')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'ai_jobs',
+        }, (payload) => {
+            if (payload.eventType === 'DELETE') {
+                handlers.onDelete?.(payload.old, payload);
+                return;
+            }
+
+            handlers.onUpdate?.(payload.new, payload);
+
+            if (payload?.new?.status === 'completed') {
+                handlers.onComplete?.(payload.new, payload);
+            }
+
+            if (payload?.new?.status === 'failed' || payload?.new?.status === 'cancelled') {
+                handlers.onError?.(payload.new, payload);
+            }
+        });
+
+    channel.subscribe();
+    return () => supabase.removeChannel(channel);
+};
 
 // --- AI Warmup ---
 export const warmupAiFunctions = (...functionNames) => {
@@ -3664,6 +3767,12 @@ export default {
     subscribeToMessages,
     subscribeToTypingPresence,
     generateAiClass,
+    createAiJob,
+    getAiJob,
+    listAiJobs,
+    subscribeToAiJob,
+    subscribeToAiJobsForUser,
+    primeEdgeFunctionAuth,
     adminGetAllUsers,
     adminUpdateUser,
     adminDeleteUser,
