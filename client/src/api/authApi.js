@@ -37,11 +37,58 @@ const GOOGLE_OAUTH_BRIDGE_TOKEN_KEY = 'riven_google_oauth_bridge_token';
 export const AUTH_SESSION_EXPIRED_CODE = 'AUTH_SESSION_EXPIRED';
 export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
-const tokenStore = useLocalStorage ? localStorage : sessionStorage;
 const csrfTokenCache = new Map();
 const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
+const memoryTokenStore = (() => {
+    const store = new Map();
+    return {
+        getItem(key) {
+            return store.has(key) ? store.get(key) : null;
+        },
+        setItem(key, value) {
+            store.set(key, String(value));
+        },
+        removeItem(key) {
+            store.delete(key);
+        },
+    };
+})();
 
-export const getToken = () => tokenStore.getItem(TOKEN_KEY);
+const getSafeStorage = (kind) => {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const storage = window[kind];
+        const probeKey = '__riven_storage_probe__';
+        storage.getItem(probeKey);
+        return storage;
+    } catch {
+        return null;
+    }
+};
+
+const getTokenStore = () => {
+    const preferred = useLocalStorage ? 'localStorage' : 'sessionStorage';
+    return getSafeStorage(preferred) || memoryTokenStore;
+};
+
+const forEachTokenStorage = (callback) => {
+    const storages = [
+        getTokenStore(),
+        getSafeStorage('localStorage'),
+        getSafeStorage('sessionStorage'),
+        memoryTokenStore,
+    ].filter(Boolean);
+
+    const seen = new Set();
+    storages.forEach((storage) => {
+        if (seen.has(storage)) return;
+        seen.add(storage);
+        callback(storage);
+    });
+};
+
+export const getToken = () => getTokenStore().getItem(TOKEN_KEY);
 let cachedAppUserId = null;
 let cachedAuthToken = null;
 
@@ -49,12 +96,12 @@ export const setToken = (token) => {
     const normalizedToken = token || null;
 
     if (normalizedToken) {
-        tokenStore.setItem(TOKEN_KEY, normalizedToken);
+        getTokenStore().setItem(TOKEN_KEY, normalizedToken);
     } else {
-        tokenStore.removeItem(TOKEN_KEY);
-        localStorage.removeItem(TOKEN_KEY);
-        tokenStore.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
-        localStorage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+        forEachTokenStorage((storage) => {
+            storage.removeItem(TOKEN_KEY);
+            storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+        });
     }
 
     if (normalizedToken !== cachedAuthToken) {
@@ -66,19 +113,25 @@ export const setToken = (token) => {
 const cacheGoogleOAuthBridgeToken = (token) => {
     const normalizedToken = typeof token === 'string' ? token.trim() : '';
     if (!normalizedToken) return null;
-    tokenStore.setItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY, normalizedToken);
+    getTokenStore().setItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY, normalizedToken);
     return normalizedToken;
 };
 
-const getCachedGoogleOAuthBridgeToken = () => (
-    tokenStore.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY)
-    || localStorage.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY)
-    || null
-);
+const getCachedGoogleOAuthBridgeToken = () => {
+    let cachedToken = null;
+
+    forEachTokenStorage((storage) => {
+        if (cachedToken != null) return;
+        cachedToken = storage.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+    });
+
+    return cachedToken;
+};
 
 const clearGoogleOAuthBridgeToken = () => {
-    tokenStore.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
-    localStorage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+    forEachTokenStorage((storage) => {
+        storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+    });
 };
 
 const decodeJwtPayload = (token) => {

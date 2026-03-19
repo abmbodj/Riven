@@ -17,6 +17,13 @@ import { AnimatePresence, motion as Motion } from 'motion/react';
 import { api } from '../api';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
+const getPlatformShortcutLabel = () => {
+    if (typeof navigator === 'undefined' || typeof navigator.platform !== 'string') {
+        return 'Ctrl K';
+    }
+
+    return navigator.platform.toLowerCase().includes('mac') ? 'Cmd K' : 'Ctrl K';
+};
 
 const getBaseActions = (isLoggedIn) => [
     {
@@ -134,6 +141,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
         friends: [],
         groups: []
     });
+    const shortcutLabel = useMemo(() => getPlatformShortcutLabel(), []);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -403,7 +411,7 @@ export default function GlobalCommandPalette({ isOpen, isLoggedIn, onClose }) {
                                 Use arrows to move and Enter to jump.
                             </span>
                             <span className="rounded-full border border-white/10 px-2 py-1 font-mono uppercase tracking-[0.18em]">
-                                {navigator.platform?.toLowerCase().includes('mac') ? 'Cmd K' : 'Ctrl K'}
+                                {shortcutLabel}
                             </span>
                         </div>
                     </Motion.div>

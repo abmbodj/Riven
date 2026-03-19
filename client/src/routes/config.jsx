@@ -1,9 +1,9 @@
 import { lazy } from 'react';
-import Home from '../pages/Home.jsx';
-import StudyDashboard from '../pages/StudyDashboard.jsx';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute.jsx';
 
 // Lazy load pages
+const Home = lazy(() => import('../pages/Home.jsx'));
+const StudyDashboard = lazy(() => import('../pages/StudyDashboard.jsx'));
 const DeckLibrary = lazy(() => import('../pages/DeckLibrary.jsx'));
 const Classes = lazy(() => import('../pages/Classes.jsx'));
 const ClassView = lazy(() => import('../pages/ClassView.jsx'));
@@ -46,7 +46,7 @@ export const routesConfig = [
   { path: '/decks', element: <StudyDashboard /> },
   { path: '/account', element: <Account /> },
   { path: '/reset-password', element: <ResetPassword /> },
-{ path: '/privacy', element: <PrivacyPolicy /> },
+  { path: '/privacy', element: <PrivacyPolicy /> },
   { path: '/terms', element: <TermsOfService /> },
 
   // Protected Routes

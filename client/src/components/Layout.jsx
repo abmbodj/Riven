@@ -60,6 +60,11 @@ const utilityLinks = [
     { to: '/settings', icon: Settings, label: 'Settings', color: 'text-claude-secondary' },
 ];
 
+const getInitialOfflineState = () => {
+    if (typeof navigator === 'undefined') return false;
+    return navigator.onLine === false;
+};
+
 export default function Layout({ children }) {
     const location = useLocation();
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
@@ -69,7 +74,7 @@ export default function Layout({ children }) {
     const isCreatePage = location.pathname === '/create';
     const isEditProfilePage = location.pathname === '/edit-profile';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [isOffline, setIsOffline] = useState(getInitialOfflineState);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const pageContentRef = useRef(null);
 

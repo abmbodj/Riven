@@ -13,6 +13,14 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
+        if (typeof window !== 'undefined') {
+            window.__RIVEN_LAST_APP_ERROR = {
+                message: error?.message || 'Unknown error',
+                stack: error?.stack || '',
+                componentStack: errorInfo?.componentStack || '',
+                timestamp: new Date().toISOString(),
+            };
+        }
         console.error('App error:', error, errorInfo);
     }
 

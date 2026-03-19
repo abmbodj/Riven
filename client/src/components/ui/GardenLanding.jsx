@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import gsap from 'gsap';
@@ -24,9 +24,7 @@ const generateFireflies = () => {
 const initialFireflies = generateFireflies();
 
 export default function GardenLanding() {
-    const containerRef = useRef(null);
-
-    useGSAP(() => {
+    const { container } = useGSAP(({ container: scope }) => {
         // 1. Ambient Tree Swaying
         // Target groups of trees and apply different, out-of-phase organic sways
         gsap.to('.tree-oak', {
@@ -105,7 +103,7 @@ export default function GardenLanding() {
         // Move the distinct layers at different speeds to create depth as user scrolls down
         const scrollTl = gsap.timeline({
             scrollTrigger: {
-                trigger: containerRef.current,
+                trigger: scope,
                 start: 'top top',
                 end: 'bottom top',
                 scrub: 1, // Smooth scrubbing
@@ -127,10 +125,10 @@ export default function GardenLanding() {
         // (No y shift so they stay anchored, or slight negative y to parallax over mid)
         scrollTl.to('.hills-front', { y: -20, duration: 1 }, 0);
 
-    }, { scope: containerRef });
+    }, []);
 
     return (
-        <div ref={containerRef} className="relative w-full min-h-screen bg-[#0d141e] text-[#fcfaf2] font-serif overflow-x-hidden selection:bg-[#deb96a]/30 selection:text-[#fcfaf2]">
+        <div ref={container} className="relative w-full min-h-screen bg-[#0d141e] text-[#fcfaf2] font-serif overflow-x-hidden selection:bg-[#deb96a]/30 selection:text-[#fcfaf2]">
             {/* Hero Section */}
             <section className="relative w-full h-[100svh] flex flex-col items-center justify-center overflow-hidden">
                 {/* Procedural Garden Background */}

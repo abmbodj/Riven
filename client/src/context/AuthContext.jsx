@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
         if (user?.id && user.onboardingCompletedAt) {
             markOnboardingDoneClient(user.id);
         }
-    }, [user?.id, user.onboardingCompletedAt]);
+    }, [user?.id, user?.onboardingCompletedAt]);
 
     // Initial Session Check
     useEffect(() => {
