@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import { UIContext } from '../context/UIContext';
 import { userNeedsOnboarding } from '../utils/onboardingGate';
 import { trackOnboarding } from '../utils/onboardingAnalytics';
+import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
 import OnboardingArt from '../components/OnboardingArt';
 
 const STEP_COUNT = 5;
@@ -73,8 +74,7 @@ export default function Onboarding() {
         const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
         setReducedMotion(mq.matches);
         const fn = () => setReducedMotion(mq.matches);
-        mq.addEventListener('change', fn);
-        return () => mq.removeEventListener('change', fn);
+        return subscribeMediaQueryList(mq, fn);
     }, []);
 
     useEffect(() => {

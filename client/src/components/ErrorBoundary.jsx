@@ -31,7 +31,10 @@ class ErrorBoundary extends React.Component {
                         </div>
                         <h1 className="text-xl font-display font-bold mb-2">Something went wrong</h1>
                         <p className="text-claude-secondary mb-2">
-                            Don't worry, your data is safe. Try refreshing the page.
+                            Don&apos;t worry, your data is safe. Try refreshing the page.
+                        </p>
+                        <p className="text-claude-secondary/70 text-xs mb-6">
+                            If this keeps happening, open the browser console (F12 → Console) and look for messages starting with &quot;App error:&quot;—that helps us fix the issue.
                         </p>
                         {import.meta.env.DEV && (
                             <div className="text-left bg-black/10 p-4 rounded text-xs text-red-500 overflow-auto max-h-48 mb-6">

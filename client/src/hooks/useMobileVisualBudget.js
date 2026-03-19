@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
 
 const MOBILE_MQ = '(max-width: 767px)';
 const COARSE_MQ = '(pointer: coarse)';
@@ -7,11 +8,11 @@ function subscribeMobile(cb) {
     const m1 = window.matchMedia(MOBILE_MQ);
     const m2 = window.matchMedia(COARSE_MQ);
     const handler = () => cb();
-    m1.addEventListener('change', handler);
-    m2.addEventListener('change', handler);
+    const u1 = subscribeMediaQueryList(m1, handler);
+    const u2 = subscribeMediaQueryList(m2, handler);
     return () => {
-        m1.removeEventListener('change', handler);
-        m2.removeEventListener('change', handler);
+        u1();
+        u2();
     };
 }
 
