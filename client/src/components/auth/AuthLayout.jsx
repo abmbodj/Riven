@@ -18,31 +18,32 @@ const AuthLayout = ({ title, subtitle, children, showBackLink = false, backLinkT
                 <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#deb96a]/10 rounded-full blur-[100px] pointer-events-none z-0 lg:hidden" />
 
                 {/* Form Container */}
-                <div className="relative z-10 w-full max-w-md px-6 flex flex-col justify-center h-full">
+                <div className="relative z-10 w-full max-w-md px-6 flex flex-col justify-center h-full min-h-0">
+                    <div className="auth-account-glass-shell w-full rounded-[1.75rem] p-6 sm:p-8 max-h-[min(100%,calc(100dvh-2rem))] overflow-y-auto overscroll-contain">
+                        {/* Back Link */}
+                        {showBackLink && (
+                            <Link to={backLinkTo} className="inline-flex items-center gap-2 text-[10px] font-mono text-[#8fa6a8] hover:text-[#deb96a] mb-6 transition-colors uppercase tracking-widest group">
+                                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
+                                {backLinkText}
+                            </Link>
+                        )}
 
-                    {/* Back Link */}
-                    {showBackLink && (
-                        <Link to={backLinkTo} className="inline-flex items-center gap-2 text-[10px] font-mono text-[#8fa6a8] hover:text-[#deb96a] mb-6 transition-colors uppercase tracking-widest group">
-                            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
-                            {backLinkText}
-                        </Link>
-                    )}
-
-                    {/* Headers */}
-                    <div className="mb-6">
-                        <div className="inline-flex items-center gap-2 mb-4">
-                            <div className="w-6 h-6 border border-[#deb96a]/30 rounded-full flex items-center justify-center bg-white/5 md:backdrop-blur-md">
-                                <div className="w-1 h-1 bg-[#deb96a] rounded-full" />
+                        {/* Headers */}
+                        <div className="mb-6">
+                            <div className="inline-flex items-center gap-2 mb-4">
+                                <div className="w-6 h-6 border border-[#deb96a]/30 rounded-full flex items-center justify-center bg-white/5 backdrop-blur-sm">
+                                    <div className="w-1 h-1 bg-[#deb96a] rounded-full" />
+                                </div>
+                                <span className="text-[#e4ddd0] font-mono text-[10px] tracking-[0.2em] uppercase">Riven</span>
                             </div>
-                            <span className="text-[#e4ddd0] font-mono text-[10px] tracking-[0.2em] uppercase">Riven</span>
+                            <h2 className="text-3xl font-serif text-[#e4ddd0] mb-1.5">{title}</h2>
+                            <p className="text-[#8fa6a8] font-sans text-sm font-light">{subtitle}</p>
                         </div>
-                        <h2 className="text-3xl font-serif text-[#e4ddd0] mb-1.5">{title}</h2>
-                        <p className="text-[#8fa6a8] font-sans text-sm font-light">{subtitle}</p>
-                    </div>
 
-                    {/* Content / Forms */}
-                    <div className="w-full">
-                        {children}
+                        {/* Content / Forms */}
+                        <div className="w-full">
+                            {children}
+                        </div>
                     </div>
                 </div>
             </div>
