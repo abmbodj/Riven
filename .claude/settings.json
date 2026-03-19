@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(//Users/ab/Library/Caches/deno/npm/registry.npmjs.org/@danielxceron/youtube-transcript/1.2.6/**)",
+      "WebFetch(domain:docs.supadata.ai)"
+    ]
+  },
   "enabledPlugins": {
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "interface-design@interface-design": true,

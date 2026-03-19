@@ -269,34 +269,36 @@ export const fetchTranscriptViaCaptionExtractor = async (
   return transcript;
 };
 
-// Strategy using youtubei.js — uses YouTube's own get_transcript endpoint
-export const fetchTranscriptViaYoutubeiJs = async (
+// Strategy using Supadata API — reliable third-party transcript service
+export const fetchTranscriptViaSupadata = async (
   videoId: string,
+  lang = 'en',
+  fetchImpl: TranscriptFetcher = fetch,
 ): Promise<string> => {
-  const { Innertube } = await import('npm:youtubei.js');
-  const yt = await Innertube.create({ generate_session_locally: true });
-  const info = await yt.getInfo(videoId);
-  const transcriptInfo = await info.getTranscript();
-
-  const segments = transcriptInfo?.transcript?.content?.body?.initial_segments;
-  if (!segments || !Array.isArray(segments) || segments.length === 0) {
-    throw new Error('No transcript segments found');
+  const apiKey = Deno.env.get('SUPADATA_API_KEY');
+  if (!apiKey) {
+    throw new Error('SUPADATA_API_KEY is not configured');
   }
 
-  const parts: string[] = [];
-  for (const segment of segments) {
-    const snippet = segment?.snippet;
-    if (!snippet) continue;
-    const text = snippet?.text?.toString?.() ?? snippet?.text ?? '';
-    const trimmed = normalizeText(String(text).replace(/\n/g, ' '));
-    if (trimmed) parts.push(trimmed);
+  const params = new URLSearchParams({ videoId, text: 'true', lang });
+  const res = await fetchImpl(`https://api.supadata.ai/v1/youtube/transcript?${params}`, {
+    headers: { 'x-api-key': apiKey },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Supadata API returned ${res.status}: ${body.substring(0, 200)}`);
   }
 
-  if (parts.length === 0) {
-    throw new Error('Transcript segments were empty');
+  const data = await res.json();
+  const content = typeof data?.content === 'string' ? data.content : '';
+  const transcript = normalizeText(content);
+
+  if (!transcript) {
+    throw new Error('Supadata returned empty transcript');
   }
 
-  return joinTranscriptParts(parts);
+  return transcript;
 };
 
 export const fetchYoutubeTranscriptWithDeps = async (
@@ -315,15 +317,15 @@ export const fetchYoutubeTranscriptWithDeps = async (
 
   const strategyErrors: string[] = [];
 
-  // Strategy 1: youtubei.js — uses YouTube's own get_transcript endpoint
+  // Strategy 1: Supadata API (reliable third-party service)
   try {
-    return await fetchTranscriptViaYoutubeiJs(videoId);
+    return await fetchTranscriptViaSupadata(videoId, lang, fetchImpl);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    strategyErrors.push(`youtubei.js:${message}`);
+    strategyErrors.push(`supadata:${message}`);
   }
 
-  // Strategy 2: Custom innertube /player caption tracks
+  // Strategy 2: Custom innertube /player caption tracks (fallback)
   try {
     return await fetchTranscriptViaCustomStrategy(videoId, lang, fetchImpl);
   } catch (error) {
@@ -331,7 +333,7 @@ export const fetchYoutubeTranscriptWithDeps = async (
     strategyErrors.push(`custom:${message}`);
   }
 
-  // Strategy 3: youtube-caption-extractor
+  // Strategy 3: youtube-caption-extractor (final fallback)
   try {
     return await fetchTranscriptViaCaptionExtractor(videoId, lang, getSubtitlesImpl);
   } catch (error) {
