@@ -676,7 +676,7 @@ export const normalizeYoutubeUrl = (url) => {
 };
 
 const buildYoutubeVideoSource = (transcript) => ({
-  text: `Video Transcript:\n${transcript}`,
+  text: `Video Source Material:\n${transcript}`,
 });
 
 export const buildYoutubeDeckContents = (youtubeUrl, className) => [

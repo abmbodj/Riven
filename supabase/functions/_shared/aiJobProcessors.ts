@@ -9,6 +9,7 @@ import {
 } from './aiCore.mjs';
 import { createAiClient, contentsToMessages, type AiClient, type AiMessage } from './aiClient.ts';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
+import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
   createArrayStreamTracker,
   createDocFromSections,
@@ -115,18 +116,20 @@ const generateWithFallback = async ({
   fallbackModel,
   messages,
   jsonMode = false,
+  maxTokens,
 }: {
   ai: AiClient;
   primaryModel: string;
   fallbackModel: string;
   messages: AiMessage[];
   jsonMode?: boolean;
+  maxTokens?: number;
 }) => {
   try {
-    return await ai.generateContent({ model: primaryModel, messages, jsonMode });
+    return await ai.generateContent({ model: primaryModel, messages, jsonMode, maxTokens });
   } catch (error) {
     if (primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
-      return ai.generateContent({ model: fallbackModel, messages, jsonMode });
+      return ai.generateContent({ model: fallbackModel, messages, jsonMode, maxTokens });
     }
     throw error;
   }
@@ -575,16 +578,44 @@ const processYoutubeSourceJob = async ({
   });
 
   const transcript = await fetchYoutubeTranscript(youtubeUrl);
+  const modelMap = getAiModelMap();
+  const preparedSource = await prepareYoutubeTranscriptSource({
+    transcript,
+    className,
+    generateText: (prompt, maxTokens) =>
+      generateWithFallback({
+        ai,
+        primaryModel: modelMap.draft,
+        fallbackModel: modelMap.final,
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens,
+      }),
+    onProgress: async ({ chunkCount, chunkIndex, message, step }) => {
+      const percentByStep = (
+        step === 'summarizing'
+          ? 18 + Math.round((((chunkIndex ?? 1) / Math.max(chunkCount, 1)) * 5))
+          : step === 'merging'
+            ? 24
+            : 25
+      );
+
+      await reporter.update('processing_media', percentByStep, message, {
+        source_key: sourceKey,
+        transcript_chunk_count: chunkCount,
+        transcript_compacted: true,
+      });
+    },
+  });
 
   const messages: AiMessage[] = [{
     role: 'user',
-    content: `${buildYoutubeSourcePrompt(className)}\n\nVideo Transcript:\n${transcript}`,
+    content: `${buildYoutubeSourcePrompt(className)}\n\nVideo Source Material:\n${preparedSource.sourceText}`,
   }];
 
   const streamResult = await streamDocPreview({
     ai,
-    model: getAiModelMap().final,
-    fallbackModel: getAiModelMap().final,
+    model: modelMap.final,
+    fallbackModel: modelMap.final,
     messages,
     reporter,
     phase: 'drafting',
@@ -617,8 +648,10 @@ const processYoutubeSourceJob = async ({
         server_total_ms: Date.now() - jobStartedAt,
         first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
         ai_model_stage: {
-          source: getAiModelMap().final,
+          source: modelMap.final,
         },
+        transcript_chunk_count: preparedSource.chunkCount,
+        transcript_compacted: preparedSource.wasCompacted,
       },
     },
   });

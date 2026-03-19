@@ -13,6 +13,7 @@ import {
 } from '../_shared/aiCore.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { fetchYoutubeTranscript } from '../_shared/youtubeTranscript.ts';
+import { prepareYoutubeTranscriptSource } from '../_shared/youtubeTranscriptPrep.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -100,6 +101,17 @@ serve(async (request) => {
 
     // Fetch transcript (replaces Gemini's native video processing)
     const transcript = await fetchYoutubeTranscript(normalizedUrl);
+    const ai = createAiClient(apiKey);
+    const preparedSource = await prepareYoutubeTranscriptSource({
+      transcript,
+      className,
+      generateText: (prompt, maxTokens) =>
+        ai.generateContent({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          maxTokens,
+        }),
+    });
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
@@ -110,13 +122,12 @@ serve(async (request) => {
         notes: buildYoutubeNotesContents,
       };
 
-      const contents = contentBuilders[type](transcript, className);
+      const contents = contentBuilders[type](preparedSource.sourceText, className);
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
         try {
-          const ai = createAiClient(apiKey);
           const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 6144, notes: 6144 };
           const streamResponse = ai.streamContent({
             model: 'llama-3.3-70b-versatile',
@@ -276,8 +287,6 @@ serve(async (request) => {
     }
 
     // ── BATCH PATH ──────────────────────────────────────
-    const ai = createAiClient(apiKey);
-
     const generateContent = async (contents: Array<Record<string, unknown>>) => {
       return ai.generateContent({
         model: 'llama-3.3-70b-versatile',
@@ -290,7 +299,7 @@ serve(async (request) => {
 
     // ── DECK ──────────────────────────────────────────
     if (type === 'deck') {
-      const rawResponse = await generateContent(buildYoutubeDeckContents(transcript, className));
+      const rawResponse = await generateContent(buildYoutubeDeckContents(preparedSource.sourceText, className));
       const flashcards = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid flashcard format. Please try again.',
@@ -334,7 +343,7 @@ serve(async (request) => {
 
     // ── GUIDE ─────────────────────────────────────────
     else if (type === 'guide') {
-      const rawResponse = await generateContent(buildYoutubeGuideContents(transcript, className));
+      const rawResponse = await generateContent(buildYoutubeGuideContents(preparedSource.sourceText, className));
       const guideContent = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid study guide format. Please try again.',
@@ -366,7 +375,7 @@ serve(async (request) => {
 
     // ── EXAM ──────────────────────────────────────────
     else if (type === 'exam') {
-      const rawResponse = await generateContent(buildYoutubeExamContents(transcript, className));
+      const rawResponse = await generateContent(buildYoutubeExamContents(preparedSource.sourceText, className));
       const questions = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid exam format. Please try again.',
@@ -406,7 +415,7 @@ serve(async (request) => {
 
     // ── NOTES ─────────────────────────────────────────
     else {
-      const rawResponse = await generateContent(buildYoutubeNotesContents(transcript, className));
+      const rawResponse = await generateContent(buildYoutubeNotesContents(preparedSource.sourceText, className));
       const noteContent = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid notes format. Please try again.',
