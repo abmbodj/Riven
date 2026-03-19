@@ -100,6 +100,19 @@ const shouldForceReauthFromEdgeError = (status, message) => {
         || normalized.includes('missing bearer');
 };
 
+const shouldPreserveSessionOnBridgeFailure = (error) => {
+    const status = Number(error?.status);
+    if (status && status !== 401 && status !== 403) {
+        return true;
+    }
+
+    const normalized = String(error?.message || '').toLowerCase();
+    return normalized.includes('invalid response')
+        || normalized.includes('failed to fetch')
+        || normalized.includes('load failed')
+        || normalized.includes('networkerror');
+};
+
 const emitAuthSessionExpired = () => {
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
@@ -421,7 +434,15 @@ const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, 
         err.body = responseBody;
 
         if (!skipForceReauth && shouldForceReauthFromEdgeError(response.status, message)) {
-            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            let bridgeAttemptFailed = false;
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch((bridgeError) => {
+                if (shouldPreserveSessionOnBridgeFailure(bridgeError)) {
+                    console.warn('[authApi] Supabase auth bridge unavailable; preserving current session state.', bridgeError);
+                    return null;
+                }
+                bridgeAttemptFailed = true;
+                return null;
+            });
             if (bridgedSession?.access_token) {
                 return fetchEdgeFunctionWithQuery(functionName, {
                     method,
@@ -429,6 +450,10 @@ const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, 
                     query,
                     skipForceReauth: true,
                 });
+            }
+
+            if (canAttemptSupabaseSessionBridge() && !bridgeAttemptFailed) {
+                throw err;
             }
 
             await forceReauth();
@@ -1318,9 +1343,21 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
         err.body = errorBody;
 
         if (allowBridgeRetry && shouldForceReauthFromEdgeError(response.status, message)) {
-            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
+            let bridgeAttemptFailed = false;
+            const bridgedSession = await hydrateSupabaseSessionFromBridge().catch((bridgeError) => {
+                if (shouldPreserveSessionOnBridgeFailure(bridgeError)) {
+                    console.warn('[authApi] Supabase auth bridge unavailable during stream request; preserving current session state.', bridgeError);
+                    return null;
+                }
+                bridgeAttemptFailed = true;
+                return null;
+            });
             if (bridgedSession?.access_token) {
                 return edgeFunctionStreamFetch(functionName, { body, allowBridgeRetry: false });
+            }
+
+            if (canAttemptSupabaseSessionBridge() && !bridgeAttemptFailed) {
+                throw err;
             }
         }
 
