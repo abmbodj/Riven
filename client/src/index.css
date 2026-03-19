@@ -831,12 +831,26 @@
    * Cap blur radii and lean on opaque gradients (see backgrounds above).
    */
   @media (max-width: 767px) {
+    /* Less transparency + stronger edges so cards read on near-black themes (blur is capped for GPU). */
     .glass-panel-premium {
+      background: linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--surface-color) 74%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 68%, transparent) 100%
+      );
+      border-color: rgba(255, 255, 255, 0.18);
+      box-shadow:
+        0 14px 40px -12px rgba(0, 0, 0, 0.55),
+        0 2px 0 rgba(255, 255, 255, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px) saturate(160%);
       -webkit-backdrop-filter: blur(10px) saturate(160%);
     }
 
     .glass-item {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
     }

@@ -11,7 +11,6 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import GlobalMessages from '../components/GlobalMessages';
-import OnboardingArt from '../components/OnboardingArt';
 import { folderNameSchema, tagNameSchema } from '../schemas/forms';
 
 
@@ -180,7 +179,6 @@ export default function DeckLibrary() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
-    const [showOnboarding, setShowOnboarding] = useState(false);
 
     // View state
     const [activeFolder, setActiveFolder] = useState(null);
@@ -218,10 +216,6 @@ export default function DeckLibrary() {
             setTags(tagsData);
             setClasses(classesData);
             setError(null);
-
-            if (decksData.length === 0 && foldersData.length === 0 && !localStorage.getItem('riven_onboarded')) {
-                setShowOnboarding(true);
-            }
         } catch (err) {
             const errorMessage = err?.message || 'Failed to load data';
             setError(errorMessage);
@@ -246,11 +240,6 @@ export default function DeckLibrary() {
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isSearchOpen]);
-
-    const dismissOnboarding = () => {
-        localStorage.setItem('riven_onboarded', 'true');
-        setShowOnboarding(false);
-    };
 
     // Filter and sort decks
     const filteredDecks = useMemo(() => decks
@@ -702,30 +691,6 @@ export default function DeckLibrary() {
                 )}
                 </div>
             </div>
-
-
-            {/* Onboarding modal — Kept but positioned normally */}
-            {showOnboarding && (
-                <div className="fixed inset-0 bg-claude-bg/80 md:backdrop-blur-xl z-[200] flex items-center justify-center p-6">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-claude-bg border border-claude-border w-full max-w-sm rounded-[2rem] p-8 text-center shadow-md md:shadow-2xl">
-                        <div className="w-full max-w-[240px] mx-auto mb-8">
-                            <OnboardingArt />
-                        </div>
-                        <h2 className="text-3xl font-serif italic font-bold text-claude-text mb-4 leading-tight">Welcome to Riven</h2>
-                        <p className="text-claude-secondary mb-8 font-serif italic text-lg leading-relaxed">
-                            A quiet place for your thoughts to grow. Create your first deck to get started.
-                        </p>
-                        <div className="space-y-4">
-                            <Link to="/create" onClick={dismissOnboarding} className="claude-button-primary w-full py-4 block text-lg">
-                                Create My First Deck
-                            </Link>
-                            <button onClick={dismissOnboarding} className="text-claude-secondary font-mono text-[10px] uppercase tracking-widest font-bold">
-                                Dismiss for now
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
 
             {/* Modals for Folders/Tags — These remain as they are triggered from the Drawer */}
             <AnimatePresence>

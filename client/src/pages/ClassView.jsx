@@ -289,7 +289,7 @@ export default function ClassView() {
     ];
 
     return (
-        <div className="relative min-h-screen pb-24">
+        <div className="relative min-h-screen">
             {/* Header */}
             <div className="sticky top-0 z-40 mobile-top-nav-glass border-b border-white/[0.12] px-4 sm:px-6 py-4 flex items-center justify-between">
                 <button
@@ -401,7 +401,7 @@ export default function ClassView() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.95 }}
                                                 onClick={() => openEditAssign(a)}
-                                                className={`group relative min-w-0 w-full glass-item rounded-2xl p-4 cursor-pointer hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-hidden ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                                                className={`group relative min-w-0 w-full glass-item rounded-2xl p-4 cursor-pointer hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-x-clip ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
                                             >
                                                 {/* Doing status: left accent strip using class color */}
                                                 {a.status === 'Doing' && (
@@ -418,12 +418,12 @@ export default function ClassView() {
                                                         {a.status === 'Done' ? <CheckCircle2 className="w-5 h-5" /> : a.status === 'Doing' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                                                     </button>
 
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className={`font-serif text-lg font-bold truncate transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-claude-text/60 line-through' : 'text-claude-text group-hover:text-claude-text'}`}>
+                                                    <div className="flex-1 min-w-0 max-w-full">
+                                                        <h4 className={`font-serif text-lg font-bold line-clamp-2 break-words transition-[transform,opacity,color,background-color,border-color,box-shadow] ${a.status === 'Done' ? 'text-claude-text/60 line-through' : 'text-claude-text group-hover:text-claude-text'}`}>
                                                             {a.title}
                                                         </h4>
                                                         {a.description && (
-                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 break-words break-all">{a.description}</p>
+                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 max-w-full break-words [overflow-wrap:anywhere]">{a.description}</p>
                                                         )}
                                                         {a.due_date && (
                                                             <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
