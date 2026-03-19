@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import EditProfile from './EditProfile.jsx';
@@ -103,6 +103,15 @@ describe('EditProfile', () => {
         expect(screen.getByRole('heading', { name: 'Core profile details' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Bio' })).toBeInTheDocument();
         expect(screen.getByText('Profile Studio')).toBeInTheDocument();
+    });
+
+    it('renders a dedicated mobile save bar', () => {
+        renderEditProfile();
+
+        const mobileSaveBar = screen.getByTestId('edit-profile-mobile-save-bar');
+
+        expect(within(mobileSaveBar).getByText('Publish State')).toBeInTheDocument();
+        expect(within(mobileSaveBar).getByRole('button', { name: /^save$/i })).toBeInTheDocument();
     });
 
     it('saves normalized profile data and allows an empty bio', async () => {

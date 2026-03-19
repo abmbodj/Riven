@@ -132,8 +132,10 @@ export default function EditProfile() {
     const [showBannerPicker, setShowBannerPicker] = useState(false);
     const [fieldErrors, setFieldErrors] = useState(EMPTY_FIELD_ERRORS);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    const [mobileSaveBarHeight, setMobileSaveBarHeight] = useState(104);
 
     const containerRef = useRef(null);
+    const mobileSaveBarRef = useRef(null);
     const usernameLimit = 30;
     const displayNameLimit = 100;
     const bioLimit = 160;
@@ -164,6 +166,46 @@ export default function EditProfile() {
 
         mediaQuery.addListener(syncPreference);
         return () => mediaQuery.removeListener(syncPreference);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const node = mobileSaveBarRef.current;
+        if (!node) return undefined;
+
+        const syncHeight = (nextHeight) => {
+            if (nextHeight > 0) {
+                setMobileSaveBarHeight((currentHeight) => (
+                    currentHeight === nextHeight ? currentHeight : nextHeight
+                ));
+            }
+        };
+
+        const measureHeight = () => {
+            syncHeight(Math.ceil(node.getBoundingClientRect().height));
+        };
+
+        measureHeight();
+        window.addEventListener('resize', measureHeight);
+
+        if (typeof ResizeObserver === 'function') {
+            const resizeObserver = new ResizeObserver((entries) => {
+                const nextHeight = Math.ceil(
+                    entries[0]?.contentRect?.height || node.getBoundingClientRect().height
+                );
+                syncHeight(nextHeight);
+            });
+
+            resizeObserver.observe(node);
+
+            return () => {
+                resizeObserver.disconnect();
+                window.removeEventListener('resize', measureHeight);
+            };
+        }
+
+        return () => window.removeEventListener('resize', measureHeight);
     }, []);
 
     useGSAP(() => {
@@ -212,6 +254,8 @@ export default function EditProfile() {
     ].filter(Boolean);
 
     const statusTone = saving ? 'saving' : hasChanges ? 'pending' : 'saved';
+    const mobileBottomClearance = `calc(env(safe-area-inset-bottom, 0px) + ${mobileSaveBarHeight + 16}px)`;
+    const mobileSaveBarInset = 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)';
     const statusMeta = statusTone === 'saving'
         ? {
             badgeTone: 'info',
@@ -297,11 +341,14 @@ export default function EditProfile() {
     };
 
     return (
-        <div className="min-h-screen bg-claude-bg pb-36 font-sans text-claude-text lg:pb-24">
-            <div className="mx-auto max-w-6xl px-4 pt-4 lg:px-8 lg:pt-8">
+        <div
+            className="min-h-screen bg-claude-bg pb-[var(--edit-profile-mobile-bottom-space)] font-sans text-claude-text lg:pb-24"
+            style={{ '--edit-profile-mobile-bottom-space': mobileBottomClearance }}
+        >
+            <div className="mx-auto max-w-6xl px-3 pt-3 sm:px-4 sm:pt-4 lg:px-8 lg:pt-8">
                 <section className="relative mx-auto max-w-6xl">
-                    <div className="rounded-[3rem] bg-white/[0.02] p-1.5 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.82)] lg:bg-transparent lg:p-2 glass-shell">
-                        <div className="relative h-[21rem] overflow-hidden rounded-[2.65rem] border border-white/15 shadow-sm md:shadow-lg lg:h-[24rem]">
+                    <div className="rounded-[2.4rem] bg-white/[0.02] p-1 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.82)] sm:rounded-[3rem] sm:p-1.5 lg:bg-transparent lg:p-2 glass-shell">
+                        <div className="relative h-[18.5rem] overflow-hidden rounded-[2.15rem] border border-white/15 shadow-sm sm:h-[21rem] sm:rounded-[2.65rem] md:shadow-lg lg:h-[24rem]">
                             {banner ? (
                                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
                                     <div className="absolute inset-0 bg-claude-bg/55" />
@@ -339,16 +386,16 @@ export default function EditProfile() {
 
                             <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-claude-bg/95" />
 
-                            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 safe-area-top lg:p-5">
+                            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2.5 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
                                 <button
                                     onClick={() => navigate('/account')}
                                     aria-label="Back to account"
-                                    className="rounded-full border border-white/10 bg-black/20 p-3 text-white/90 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 md:backdrop-blur-md"
+                                    className="rounded-full border border-white/10 bg-black/20 p-2.5 text-white/90 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:p-3 md:backdrop-blur-md"
                                 >
                                     <ArrowLeft className="h-5 w-5" />
                                 </button>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 sm:gap-2">
                                     <div className="hidden sm:block">
                                         <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                                     </div>
@@ -359,7 +406,7 @@ export default function EditProfile() {
                                             setShowBannerPicker(true);
                                         }}
                                         aria-label="Change banner"
-                                        className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 md:backdrop-blur-md"
+                                        className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-2 text-[11px] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:px-3 sm:py-2 md:backdrop-blur-md"
                                     >
                                         <Camera className="h-4 w-4" />
                                         <span className="hidden text-[10px] font-mono uppercase tracking-[0.18em] sm:inline">
@@ -369,9 +416,9 @@ export default function EditProfile() {
                                 </div>
                             </div>
 
-                            <div className="absolute inset-x-0 bottom-0 z-20 p-5 lg:p-8">
-                                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5">
+                            <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
+                                <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-5">
                                         <button
                                             onClick={() => {
                                                 haptics.light();
@@ -380,29 +427,29 @@ export default function EditProfile() {
                                             aria-label="Change avatar"
                                             className="group relative self-start"
                                         >
-                                            <div className="absolute inset-0 scale-110 rounded-full bg-claude-accent/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100" />
-                                            <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1.5 shadow-md md:shadow-2xl">
-                                                <Avatar src={avatar} size="4xl" className="border-[6px] border-claude-bg" />
+                                            <div className="absolute inset-0 scale-105 rounded-full bg-claude-accent/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100 sm:scale-110" />
+                                            <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1 shadow-md md:shadow-2xl sm:p-1.5">
+                                                <Avatar src={avatar} size="4xl" className="h-28 w-28 border-[5px] border-claude-bg sm:h-40 sm:w-40 sm:border-[6px]" />
                                             </div>
-                                            <div className="absolute bottom-2 right-2 rounded-full border-2 border-claude-bg bg-claude-accent p-3 text-claude-bg shadow-sm transition-transform duration-300 group-hover:scale-110 active:scale-95">
-                                                <Camera className="h-5 w-5" />
+                                            <div className="absolute bottom-1 right-1 rounded-full border-2 border-claude-bg bg-claude-accent p-2.5 text-claude-bg shadow-sm transition-transform duration-300 group-hover:scale-110 active:scale-95 sm:bottom-2 sm:right-2 sm:p-3">
+                                                <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
                                             </div>
                                         </button>
 
-                                        <div className="pb-1">
-                                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-white/70 md:backdrop-blur-sm">
+                                        <div className="pb-0.5 sm:pb-1">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/70 sm:px-3 sm:text-[10px] md:backdrop-blur-sm">
                                                 <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
                                                 Profile Studio
                                             </div>
 
-                                            <h1 className="mt-3 font-display text-[2.5rem] font-bold italic leading-[0.9] tracking-tight text-white sm:text-5xl">
+                                            <h1 className="mt-2.5 font-display text-[2.05rem] font-bold italic leading-[0.9] tracking-tight text-white sm:mt-3 sm:text-5xl">
                                                 Edit Profile
                                             </h1>
-                                            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75 sm:text-[15px]">
+                                            <p className="mt-1.5 max-w-[18rem] text-[13px] leading-relaxed text-white/75 sm:mt-2 sm:max-w-xl sm:text-[15px]">
                                                 Tune the name, art, and line people remember when they land on your journal.
                                             </p>
 
-                                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                            <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2">
                                                 <StatusBadge tone="accent">@{usernameValue}</StatusBadge>
                                                 <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                                                 <StatusBadge tone="default">
@@ -452,24 +499,24 @@ export default function EditProfile() {
 
                 <div
                     ref={containerRef}
-                    className="mt-8 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"
+                    className="mt-6 grid gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"
                 >
-                    <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-                        <section className="gsap-edit-item rounded-[2rem] border border-white/[0.08] p-5 shadow-sm glass-panel glass-shell">
+                    <aside className="space-y-4 sm:space-y-6 lg:sticky lg:top-28 lg:self-start">
+                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] p-4 shadow-sm glass-panel glass-shell sm:rounded-[2rem] sm:p-5">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary/70">
                                         Live Card
                                     </p>
-                                    <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-claude-text">
+                                    <h2 className="mt-1 font-display text-[1.6rem] font-semibold tracking-tight text-claude-text sm:text-2xl">
                                         What people see
                                     </h2>
                                 </div>
                                 <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                             </div>
 
-                            <div className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-claude-bg/60">
-                                <div className="relative h-24 border-b border-white/10">
+                            <div className="mt-4 overflow-hidden rounded-[1.35rem] border border-white/10 bg-claude-bg/60 sm:mt-5 sm:rounded-[1.75rem]">
+                                <div className="relative h-20 border-b border-white/10 sm:h-24">
                                     {banner ? (
                                         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
                                             <div className="absolute inset-0 bg-claude-bg/55" />
@@ -481,26 +528,26 @@ export default function EditProfile() {
                                         </>
                                     )}
                                     <div className="absolute left-4 bottom-0 translate-y-1/2">
-                                        <Avatar src={avatar} size="xl" className="border-[4px] border-claude-bg shadow-lg" />
+                                        <Avatar src={avatar} size="xl" className="h-16 w-16 border-[3px] border-claude-bg shadow-lg sm:h-20 sm:w-20 sm:border-[4px]" />
                                     </div>
                                 </div>
 
-                                <div className="px-4 pb-4 pt-12">
-                                    <h3 className="font-display text-2xl font-semibold tracking-tight text-claude-text">
+                                <div className="px-4 pb-4 pt-11 sm:pt-12">
+                                    <h3 className="font-display text-xl font-semibold tracking-tight text-claude-text sm:text-2xl">
                                         {displayValue}
                                     </h3>
                                     <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent/80">
                                         <AtSign className="h-3.5 w-3.5" />
                                         {usernameValue}
                                     </p>
-                                    <p className="mt-3 text-sm italic leading-relaxed text-claude-secondary">
+                                    <p className="mt-3 text-[15px] italic leading-relaxed text-claude-secondary sm:text-sm">
                                         {trimmedBio || 'Add one line so the card feels unmistakably yours.'}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="mt-4 grid grid-cols-2 gap-3">
-                                <div className="rounded-[1.25rem] border border-white/[0.08] bg-claude-bg/45 px-4 py-3">
+                            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-3">
+                                <div className="rounded-[1.15rem] border border-white/[0.08] bg-claude-bg/45 px-3.5 py-3 sm:rounded-[1.25rem] sm:px-4">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/60">
                                         Avatar
                                     </p>
@@ -508,7 +555,7 @@ export default function EditProfile() {
                                         {avatar ? 'Custom' : 'Default'}
                                     </p>
                                 </div>
-                                <div className="rounded-[1.25rem] border border-white/[0.08] bg-claude-bg/45 px-4 py-3">
+                                <div className="rounded-[1.15rem] border border-white/[0.08] bg-claude-bg/45 px-3.5 py-3 sm:rounded-[1.25rem] sm:px-4">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/60">
                                         Banner
                                     </p>
@@ -519,7 +566,7 @@ export default function EditProfile() {
                             </div>
                         </section>
 
-                        <section className="gsap-edit-item rounded-[2rem] border border-white/[0.08] bg-claude-surface/55 p-5 shadow-sm">
+                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] bg-claude-surface/55 p-4 shadow-sm sm:rounded-[2rem] sm:p-5">
                             <div className="flex items-start gap-3">
                                 <div className="rounded-[1rem] border border-white/[0.08] bg-white/[0.04] p-3 text-claude-secondary/80">
                                     {statusTone === 'pending' ? (
@@ -533,17 +580,17 @@ export default function EditProfile() {
                                     <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/65">
                                         Publishing Notes
                                     </p>
-                                    <h3 className="mt-1 font-display text-xl font-semibold tracking-tight text-claude-text">
+                                    <h3 className="mt-1 font-display text-lg font-semibold tracking-tight text-claude-text sm:text-xl">
                                         {statusMeta.title}
                                     </h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-claude-secondary">
+                                    <p className="mt-2 text-[13px] leading-relaxed text-claude-secondary sm:text-sm">
                                         {statusMeta.detail} Email stays private while your name, username, bio, avatar, and banner remain public.
                                     </p>
                                 </div>
                             </div>
 
                             {draftBadges.length > 0 ? (
-                                <div className="mt-4 flex flex-wrap gap-2">
+                                <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
                                     {draftBadges.map((badge) => (
                                         <StatusBadge key={badge} tone="warning">
                                             {badge}
@@ -554,14 +601,14 @@ export default function EditProfile() {
                         </section>
                     </aside>
 
-                    <div className="space-y-6">
-                        <section className="gsap-edit-item rounded-[2rem] border border-white/[0.08] p-5 shadow-sm glass-panel glass-shell lg:p-6">
+                    <div className="space-y-4 sm:space-y-6">
+                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] p-4 shadow-sm glass-panel glass-shell sm:rounded-[2rem] sm:p-5 lg:p-6">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary/70">
                                         Identity
                                     </p>
-                                    <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-claude-text">
+                                    <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-claude-text sm:text-2xl">
                                         Core profile details
                                     </h2>
                                     <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
@@ -571,7 +618,7 @@ export default function EditProfile() {
                                 <StatusBadge tone="default">Public</StatusBadge>
                             </div>
 
-                            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                            <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 lg:grid-cols-2">
                                 <FieldSurface
                                     icon={User}
                                     label="Display Name"
@@ -655,7 +702,7 @@ export default function EditProfile() {
                             </div>
                         </section>
 
-                        <section className="gsap-edit-item relative overflow-hidden rounded-[2rem] p-5 shadow-sm glass-panel-premium lg:p-6">
+                        <section className="gsap-edit-item relative overflow-hidden rounded-[1.75rem] p-4 shadow-sm glass-panel-premium sm:rounded-[2rem] sm:p-5 lg:p-6">
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/5 to-transparent" />
 
                             <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -663,7 +710,7 @@ export default function EditProfile() {
                                     <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent/80">
                                         Journal Note
                                     </p>
-                                    <h2 className="mt-1 font-display text-2xl font-semibold italic tracking-tight text-claude-text">
+                                    <h2 className="mt-1 font-display text-xl font-semibold italic tracking-tight text-claude-text sm:text-2xl">
                                         Bio
                                     </h2>
                                     <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
@@ -673,7 +720,7 @@ export default function EditProfile() {
                                 <StatusBadge tone="default">Optional</StatusBadge>
                             </div>
 
-                            <div className="relative mt-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-claude-bg/55 px-4 py-4 backdrop-blur-sm">
+                            <div className="relative mt-4 overflow-hidden rounded-[1.35rem] border border-white/10 bg-claude-bg/55 px-3.5 py-3.5 backdrop-blur-sm sm:mt-5 sm:rounded-[1.75rem] sm:px-4 sm:py-4">
                                 <div
                                     className="pointer-events-none absolute inset-0 opacity-40 md:mix-blend-multiply"
                                     style={{
@@ -690,13 +737,13 @@ export default function EditProfile() {
                                     rows={5}
                                     onChange={(event) => setBio(event.target.value)}
                                     placeholder="A line about what you are studying, building, or chasing."
-                                    className="relative z-10 min-h-[180px] w-full resize-none bg-transparent font-serif text-[18px] leading-[40px] text-claude-text outline-none placeholder:text-claude-secondary/35"
+                                    className="relative z-10 min-h-[160px] w-full resize-none bg-transparent font-serif text-[17px] leading-[40px] text-claude-text outline-none placeholder:text-claude-secondary/35 sm:min-h-[180px] sm:text-[18px]"
                                     style={{ lineHeight: '40px' }}
                                 />
                             </div>
 
-                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-[11px] font-mono leading-relaxed text-claude-secondary/75">
+                            <div className="mt-3 flex flex-col gap-2.5 sm:mt-4 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-[10px] font-mono leading-relaxed text-claude-secondary/75 sm:text-[11px]">
                                     Think of this like the first sentence in a journal entry. It should sound like you.
                                 </p>
 
@@ -715,16 +762,18 @@ export default function EditProfile() {
             </div>
 
             <div
-                className="fixed inset-x-0 bottom-0 z-50 px-4 lg:hidden"
-                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+                ref={mobileSaveBarRef}
+                data-testid="edit-profile-mobile-save-bar"
+                className="fixed inset-x-0 bottom-0 z-50 px-3 sm:px-4 lg:hidden"
+                style={{ paddingBottom: mobileSaveBarInset }}
             >
-                <div className="rounded-[1.75rem] p-1.5 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.85)] glass-panel glass-shell">
-                    <div className="flex items-center gap-3 rounded-[1.45rem] border border-white/[0.08] bg-claude-bg/75 px-4 py-3 backdrop-blur-xl">
+                <div className="mx-auto max-w-3xl rounded-[1.45rem] p-1 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.85)] glass-panel glass-shell sm:rounded-[1.75rem] sm:p-1.5">
+                    <div className="flex items-center gap-3 rounded-[1.2rem] border border-white/[0.08] bg-claude-bg/78 px-3.5 py-3 backdrop-blur-xl sm:rounded-[1.45rem] sm:px-4">
                         <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/70">
+                            <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/70 sm:text-[10px]">
                                 Publish State
                             </p>
-                            <p className="mt-1 truncate font-display text-base tracking-wide text-claude-text">
+                            <p className="mt-1 truncate font-display text-[0.95rem] tracking-wide text-claude-text sm:text-base">
                                 {statusMeta.title}
                             </p>
                         </div>
@@ -732,7 +781,7 @@ export default function EditProfile() {
                         <button
                             onClick={handleSave}
                             disabled={!canSave}
-                            className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 rounded-full px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
+                            className={`inline-flex min-h-[48px] shrink-0 items-center gap-2 rounded-full px-3.5 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] sm:px-4 sm:text-[11px] ${
                                 canSave
                                     ? 'bg-claude-accent text-claude-bg shadow-[0_14px_34px_rgba(222,185,106,0.2)] active:scale-95'
                                     : 'cursor-not-allowed border border-white/10 bg-white/[0.05] text-white/40'

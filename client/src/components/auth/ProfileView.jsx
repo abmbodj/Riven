@@ -73,7 +73,7 @@ const ProfileView = () => {
             {/* Desktop: two-column layout for profile. Mobile: stacked single column */}
             <div className="relative mb-20 lg:mb-16 z-10 w-full max-w-xl lg:max-w-3xl mx-auto lg:pt-8 bg-transparent">
                 {/* Atmospheric Deep Header */}
-                <div className="mx-4 mt-4 rounded-[3rem] lg:mx-0 lg:mt-0 lg:p-2 glass-shell">
+                <div className="mx-4 mt-4 rounded-[3rem] p-1.5 profile-mobile-glass-shell lg:mx-0 lg:mt-0 lg:p-2 glass-shell">
                     <div className="h-44 lg:h-52 overflow-hidden relative rounded-[2.65rem] shadow-sm md:shadow-lg border border-white/15">
                         {user?.banner ? (
                             <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${user.banner})` }}>
@@ -181,7 +181,7 @@ const ProfileView = () => {
                             <Link
                                 to="/friends"
                                 onClick={() => haptics.light()}
-                                className="group relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95"
+                                className="group relative overflow-hidden rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95 profile-mobile-glass-card glass-panel glass-shell hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)]"
                             >
                                 {/* Glow effect */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-claude-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -202,7 +202,7 @@ const ProfileView = () => {
                             <Link
                                 to="/messages"
                                 onClick={() => haptics.light()}
-                                className="group relative overflow-hidden glass-panel glass-shell rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95"
+                                className="group relative overflow-hidden rounded-[2rem] border border-white/10 p-5 flex flex-col justify-center items-center gap-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-95 profile-mobile-glass-card glass-panel glass-shell hover:shadow-[0_24px_56px_-28px_rgba(0,0,0,0.78)]"
                             >
                                 {/* Glow effect */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#0ea5e9]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -233,12 +233,12 @@ const ProfileView = () => {
                     {/* Right Column: Menu */}
                     <div className="lg:w-[55%] flex flex-col">
                         {/* Menu List - Premium List */}
-                        <motion.div variants={itemVariants} className="glass-panel glass-shell rounded-[2rem] overflow-hidden shadow-sm mb-6 lg:mb-0 lg:p-3 lg:space-y-2 lg:shadow-[0_28px_80px_-36px_rgba(0,0,0,0.8)]">
+                        <motion.div variants={itemVariants} className="rounded-[2rem] overflow-hidden shadow-sm mb-6 profile-mobile-glass-menu glass-panel glass-shell lg:mb-0 lg:p-3 lg:space-y-2 lg:shadow-[0_28px_80px_-36px_rgba(0,0,0,0.8)]">
                             {(isAdmin || isOwner) && (
                                 <Link
                                     to="/admin"
                                     onClick={() => haptics.light()}
-                                    className="flex items-center gap-4 p-4 border-b border-white/8 lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-amber-500/[0.04] lg:hover:border-amber-500/20 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.1)]"
+                                    className="flex items-center gap-4 p-4 border-b border-white/8 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative profile-mobile-glass-row lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-amber-500/[0.04] lg:hover:border-amber-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.1)]"
                                 >
                                     <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                     <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-amber-500/20 transition-all duration-300 shrink-0 border border-amber-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -255,7 +255,7 @@ const ProfileView = () => {
                             <Link
                                 to="/edit-profile"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b border-white/8 lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-white/[0.05] transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+                                    className="flex items-center gap-4 p-4 border-b border-white/8 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative profile-mobile-glass-row lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-white/[0.05] lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
                             >
                                 <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-claude-accent/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                 <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/[0.06] shadow-sm border border-claude-secondary/10 lg:border-white/[0.08] flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-claude-accent/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -271,7 +271,7 @@ const ProfileView = () => {
                             <Link
                                 to="/settings"
                                 onClick={() => haptics.light()}
-                                className="flex items-center gap-4 p-4 border-b border-white/8 lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-white/[0.05] transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+                                    className="flex items-center gap-4 p-4 border-b border-white/8 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative profile-mobile-glass-row lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-white/[0.05] lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
                             >
                                 <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-claude-accent/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                 <div className="w-10 h-10 rounded-xl bg-claude-bg lg:bg-white/[0.06] shadow-sm border border-claude-secondary/10 lg:border-white/[0.08] flex items-center justify-center lg:group-hover:scale-110 transition-all duration-300 shrink-0 relative z-10 lg:group-hover:border-claude-accent/30 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -293,7 +293,7 @@ const ProfileView = () => {
                                             else toast.error('Failed to open management portal');
                                         });
                                     }}
-                                    className="w-full flex items-center gap-4 p-4 border-b border-white/8 lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-indigo-500/[0.04] lg:hover:border-indigo-500/20 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(99,102,241,0.1)]"
+                                    className="w-full flex items-center gap-4 p-4 border-b border-white/8 transition-all hover:bg-claude-secondary/5 active:bg-claude-secondary/10 group relative profile-mobile-glass-row lg:border lg:border-b-0 lg:border-white/[0.06] lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-indigo-500/[0.04] lg:hover:border-indigo-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(99,102,241,0.1)]"
                                 >
                                     <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                     <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-indigo-500/20 transition-all duration-300 shrink-0 border border-indigo-500/20 relative z-10 lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
@@ -309,7 +309,7 @@ const ProfileView = () => {
 
                             <button
                                 onClick={handleSignOut}
-                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.1)] lg:border lg:border-white/[0.06]`}
+                                className={`w-full flex items-center gap-4 p-4 hover:bg-red-500/5 active:bg-red-500/10 transition-all group relative profile-mobile-glass-row lg:rounded-[1.5rem] lg:bg-white/[0.03] lg:hover:bg-red-500/[0.04] lg:hover:border-red-500/20 lg:hover:translate-x-1 lg:hover:shadow-[0_8px_32px_rgba(239,68,68,0.1)] lg:border lg:border-white/[0.06]`}
                             >
                                 <div className="absolute inset-0 transition-opacity duration-300 opacity-0 lg:group-hover:opacity-100 bg-gradient-to-r from-red-500/10 lg:from-red-500/5 to-transparent pointer-events-none lg:rounded-[1.5rem]"></div>
                                 <div className="w-10 h-10 rounded-xl bg-red-500/5 flex items-center justify-center lg:group-hover:scale-110 lg:group-hover:bg-red-500/10 transition-all duration-300 shrink-0 border border-red-500/10 relative z-10 shadow-sm lg:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">

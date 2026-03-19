@@ -31,14 +31,16 @@ const SURFACE_TEXTURE = {
     backgroundSize: '10px 10px'
 };
 
+const SECTION_ANCHOR_CLASS = 'scroll-mt-32 md:scroll-mt-36';
+
 const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null }) => (
     <button
         onClick={onClick}
         aria-pressed={toggle !== null ? toggleValue : undefined}
-        className={`tap-action group relative flex min-h-[76px] w-full items-center gap-4 overflow-hidden px-5 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
+        className={`tap-action group relative flex min-h-[72px] w-full items-center gap-3 overflow-hidden px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] sm:min-h-[76px] sm:gap-4 sm:px-5 ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
     >
         {!noBorder && (
-            <div className="pointer-events-none absolute inset-x-5 bottom-0 h-px bg-claude-border/60" />
+            <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-claude-border/60 sm:inset-x-5" />
         )}
         <div className={`relative z-10 rounded-[1.1rem] border p-2.5 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 group-hover:-translate-y-0.5 ${destructive ? 'border-red-500/20 bg-red-500/10 text-red-400' : 'border-claude-border/70 bg-claude-bg/75 text-claude-text/70'}`}>
             {IconComponent && <IconComponent className="w-5 h-5" />}
@@ -46,8 +48,8 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
         <div className="relative z-10 min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className={`font-display text-[16px] font-medium tracking-[0.01em] ${destructive ? 'text-red-400' : 'text-claude-text transition-colors group-hover:text-claude-accent'}`}>{title}</p>
-                    {description && <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary/85">{description}</p>}
+                    <p className={`font-display text-[15px] font-medium tracking-[0.01em] sm:text-[16px] ${destructive ? 'text-red-400' : 'text-claude-text transition-colors group-hover:text-claude-accent'}`}>{title}</p>
+                    {description && <p className="mt-1 text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary/85 sm:text-[10px]">{description}</p>}
                 </div>
                 {badge && (
                     <span className={`mt-0.5 shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] ${destructive ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-claude-border/70 bg-claude-bg/70 text-claude-secondary'}`}>
@@ -115,19 +117,19 @@ const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
                             : 'text-claude-secondary';
 
     return (
-        <div className="mb-4 px-1">
-            <div className="flex items-center gap-3">
-                <p className={`text-[10px] font-mono uppercase tracking-[0.24em] ${eyebrowTone}`}>
+        <div className="mb-3 px-0.5 sm:mb-4 sm:px-1">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+                <p className={`text-[9px] font-mono uppercase tracking-[0.22em] sm:text-[10px] sm:tracking-[0.24em] ${eyebrowTone}`}>
                     {eyebrow}
                 </p>
                 <div className="h-px flex-1 bg-claude-border/60" />
             </div>
-            <div className="mt-3">
-                <h2 className="font-serif text-[1.9rem] font-semibold italic leading-none tracking-[-0.03em] text-claude-text">
+            <div className="mt-2.5 sm:mt-3">
+                <h2 className="font-serif text-[1.55rem] font-semibold italic leading-none tracking-[-0.03em] text-claude-text sm:text-[1.9rem]">
                     {title}
                 </h2>
                 {description && (
-                    <p className="mt-2 max-w-2xl text-[11px] font-mono uppercase leading-relaxed tracking-[0.12em] text-claude-secondary/78">
+                    <p className="mt-2 max-w-xl text-[10px] font-mono uppercase leading-relaxed tracking-[0.11em] text-claude-secondary/78 sm:max-w-2xl sm:text-[11px] sm:tracking-[0.12em]">
                         {description}
                     </p>
                 )}
@@ -150,7 +152,7 @@ const SectionCard = ({ children, tone = 'default', className = '' }) => {
                         : 'border-claude-border/70 bg-claude-surface/95';
 
     return (
-        <div className={`relative isolate overflow-hidden rounded-[1.9rem] border shadow-[0_18px_42px_rgba(0,0,0,0.16)] backdrop-blur ${toneClasses} ${className}`}>
+        <div className={`relative isolate overflow-hidden rounded-[1.5rem] border shadow-[0_18px_42px_rgba(0,0,0,0.16)] backdrop-blur sm:rounded-[1.9rem] ${toneClasses} ${className}`}>
             <div className="pointer-events-none absolute inset-0 opacity-[0.09]" style={SURFACE_TEXTURE} />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
             <div className="relative z-10">
@@ -174,20 +176,20 @@ const QuickJumpButton = ({ icon: IconComponent, label, meta, onClick, tone = 'de
     return (
         <button
             onClick={onClick}
-            className={`tap-action group flex min-h-[72px] w-full items-center gap-3 rounded-[1.2rem] border px-4 py-3 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 active:scale-[0.99] ${toneClasses}`}
+            className={`tap-action group flex min-h-[104px] w-full flex-col items-start gap-4 rounded-[1.15rem] border px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 active:scale-[0.99] sm:min-h-[72px] sm:flex-row sm:items-center sm:gap-3 sm:rounded-[1.2rem] sm:py-3 ${toneClasses}`}
         >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-claude-border/70 bg-claude-bg/70 text-claude-text/75 transition-colors group-hover:text-claude-accent">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-claude-border/70 bg-claude-bg/70 text-claude-text/75 transition-colors group-hover:text-claude-accent sm:h-11 sm:w-11">
                 <IconComponent className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0 flex-1">
-                <p className="font-display text-base leading-none text-claude-text transition-colors group-hover:text-claude-accent">
+                <p className="font-display text-[15px] leading-none text-claude-text transition-colors group-hover:text-claude-accent sm:text-base">
                     {label}
                 </p>
-                <p className="mt-2 truncate text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary/80">
+                <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary/80 sm:truncate sm:text-[10px] sm:tracking-[0.16em]">
                     {meta}
                 </p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-claude-secondary/45 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 group-hover:translate-x-1 group-hover:text-claude-accent" />
+            <ChevronRight className="hidden h-4 w-4 shrink-0 text-claude-secondary/45 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 group-hover:translate-x-1 group-hover:text-claude-accent sm:block" />
         </button>
     );
 };
@@ -399,7 +401,7 @@ export default function Settings() {
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text pb-24 font-sans">
             <div className="sticky top-0 z-50 border-b border-claude-border/60 bg-claude-bg/88 safe-area-top md:backdrop-blur-xl">
-                <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 lg:px-8">
+                <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-3.5 sm:items-center sm:gap-4 sm:py-4 lg:px-8">
                     <button
                         onClick={() => navigate(-1)}
                         className="tap-action touch-target rounded-full border border-claude-border/70 bg-claude-surface/80 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-accent active:scale-95"
@@ -412,13 +414,21 @@ export default function Settings() {
                             <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.26em] text-claude-secondary">
                                 Settings atlas
                             </span>
-                            <span className="rounded-full border border-claude-border/70 bg-claude-bg/60 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/85">
+                            <span className="max-w-[12rem] truncate rounded-full border border-claude-border/70 bg-claude-bg/60 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/85 sm:max-w-none">
                                 {activeTheme?.name || 'Current theme'}
                             </span>
                         </div>
-                        <h1 className="mt-3 font-serif text-[2.35rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2.8rem]">
+                        <h1 className="mt-3 font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2.8rem]">
                             Settings
                         </h1>
+                        <div className="mt-3 flex flex-wrap items-center gap-2 lg:hidden">
+                            <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                {membershipSummary}
+                            </span>
+                            <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                {securitySummary}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="hidden lg:flex items-center gap-2">
@@ -439,25 +449,25 @@ export default function Settings() {
                 className="mx-auto max-w-7xl px-4 py-6 lg:px-8"
             >
                 <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[360px,minmax(0,1fr)] xl:items-start xl:gap-8">
-                    <div className="space-y-6 xl:sticky xl:top-32">
-                        <motion.div id="overview-panel" variants={itemVariants}>
+                    <div className="contents xl:sticky xl:top-32 xl:block xl:self-start xl:space-y-6">
+                        <motion.div id="overview-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-1`}>
                             <SectionHeader
                                 eyebrow="Overview"
                                 title="Workspace snapshot"
                                 description="See account status, study automation, and visual setup before you change anything."
                             />
-                            <SectionCard className="overflow-hidden p-6">
+                            <SectionCard className="overflow-hidden p-5 sm:p-6">
                                 <div className="pointer-events-none absolute -top-3 left-12 h-5 w-16 rotate-[-4deg] rounded-sm bg-claude-border/60 shadow-sm" />
                                 <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-claude-accent/10 blur-3xl" />
                                 <div className="pointer-events-none absolute bottom-0 left-0 h-28 w-28 rounded-full bg-botanical-forest/10 blur-3xl" />
 
                                 <div className="space-y-5">
-                                    <div className="flex items-start justify-between gap-4">
+                                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
                                         <div>
                                             <p className="text-[9px] font-mono uppercase tracking-[0.28em] text-claude-secondary/75">
                                                 Field guide
                                             </p>
-                                            <h2 className="mt-3 font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text">
+                                            <h2 className="mt-3 font-serif text-[1.7rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2rem]">
                                                 Control center
                                             </h2>
                                             <p className="mt-3 max-w-sm text-[11px] font-mono uppercase leading-relaxed tracking-[0.12em] text-claude-secondary/80">
@@ -525,14 +535,14 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div variants={itemVariants}>
+                        <motion.div variants={itemVariants} className="order-2">
                             <SectionHeader
                                 eyebrow="Map"
                                 title="Jump to"
                                 description="Scan the settings surface and jump straight to the section you need."
                             />
-                            <SectionCard className="p-2">
-                                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                            <SectionCard className="p-2.5 sm:p-2">
+                                <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
                                     {quickLinks.map(link => (
                                         <QuickJumpButton
                                             key={link.id}
@@ -547,7 +557,7 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div id="theme-panel" variants={itemVariants}>
+                        <motion.div id="theme-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-7`}>
                             <SectionHeader
                                 eyebrow="Appearance"
                                 title="Theme & atmosphere"
@@ -556,7 +566,7 @@ export default function Settings() {
                             <SectionCard className="overflow-hidden">
                                 <button
                                     onClick={() => { haptics.light(); navigate('/themes'); }}
-                                    className="tap-action relative w-full overflow-hidden p-6 text-left group transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98]"
+                                    className="tap-action group relative w-full overflow-hidden p-5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98] sm:p-6"
                                     style={{
                                         backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
                                     }}
@@ -573,22 +583,22 @@ export default function Settings() {
                                             Current atmosphere
                                         </div>
 
-                                        <div className="mt-5 flex items-center justify-between gap-5">
-                                            <div className="flex items-center gap-5">
-                                                <div className={`rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 shadow-inner group-hover:scale-110 ${isLightMode ? 'bg-claude-surface text-amber-500 border border-amber-900/5' : 'bg-claude-bg text-indigo-400 border border-indigo-100/5'}`}>
+                                        <div className="mt-5 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+                                            <div className="flex w-full items-start gap-4 sm:w-auto sm:items-center sm:gap-5">
+                                                <div className={`rounded-2xl border p-3 shadow-inner transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 sm:p-4 ${isLightMode ? 'bg-claude-surface text-amber-500 border-amber-900/5' : 'bg-claude-bg text-indigo-400 border-indigo-100/5'}`}>
                                                     {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
                                                 </div>
                                                 <div>
-                                                    <p className={`font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] transition-colors duration-500 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                    <p className={`font-serif text-[1.6rem] font-semibold italic leading-none tracking-[-0.04em] transition-colors duration-500 sm:text-[2rem] ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
                                                         {activeTheme?.name || 'Theme'}
                                                     </p>
-                                                    <p className={`mt-3 text-[10px] font-mono uppercase tracking-[0.18em] opacity-65 ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
+                                                    <p className={`mt-3 text-[9px] font-mono uppercase tracking-[0.16em] opacity-65 sm:text-[10px] sm:tracking-[0.18em] ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
                                                         Tap to change the workspace feel
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <div className={`flex h-11 w-11 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'} shadow-sm`}>
+                                            <div className={`flex h-11 w-11 self-end items-center justify-center rounded-full border shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 sm:self-auto ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'}`}>
                                                 <ChevronRight className="w-5 h-5" />
                                             </div>
                                         </div>
@@ -597,7 +607,7 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div id="support-panel" variants={itemVariants}>
+                        <motion.div id="support-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-8`}>
                             <SectionHeader
                                 eyebrow="Support"
                                 title="Help & policies"
@@ -630,9 +640,9 @@ export default function Settings() {
                         </motion.div>
                     </div>
 
-                    <div className="min-w-0 space-y-6">
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div id="security-panel" variants={itemVariants}>
+                    <div className="contents xl:block xl:min-w-0 xl:space-y-6">
+                        <div className="order-3 grid gap-6 lg:grid-cols-2">
+                            <motion.div id="security-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Account"
                                     title="Security"
@@ -644,20 +654,20 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div id="membership-panel" variants={itemVariants}>
+                            <motion.div id="membership-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Membership"
                                     title="Plan & access"
                                     description="Manage your subscription, restore purchases, and check premium status."
                                     tone="accent"
                                 />
-                                <SectionCard tone="accent" className="space-y-4 p-6">
-                                    <div className="flex items-center gap-4">
+                                <SectionCard tone="accent" className="space-y-4 p-5 sm:p-6">
+                                    <div className="flex items-start gap-4 sm:items-center">
                                         <div className="p-3 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 shadow-inner">
                                             <Sparkles className="w-6 h-6 text-claude-accent" />
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
+                                            <h3 className="flex flex-col items-start gap-2 font-display text-lg font-semibold tracking-wide text-claude-text sm:flex-row sm:items-center sm:justify-between">
                                                 Current Plan
                                                 <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border uppercase ${user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-claude-secondary/10 text-claude-secondary/80 border-claude-secondary/20'}`}>
                                                     {user?.subscription_tier || 'Free'}
@@ -669,7 +679,7 @@ export default function Settings() {
                                         </div>
                                     </div>
 
-                                    <div className="pt-2 flex gap-3">
+                                    <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                                         <button
                                             onClick={() => openModal('pricing')}
                                             className="tap-action flex-1 rounded-[1.1rem] bg-claude-text px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 active:scale-[0.98]"
@@ -677,21 +687,23 @@ export default function Settings() {
                                             Upgrade Riven
                                         </button>
                                         <button
+                                            aria-label="Restore purchases"
                                             onClick={async () => { haptics.light(); try { const u = await refreshUser(); toast(u?.subscription_tier !== 'free' ? 'Subscription restored!' : 'No active subscription found'); } catch { toast('Sync failed, try again'); } }}
-                                            className="tap-action rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text active:scale-[0.98]"
+                                            className="tap-action flex items-center justify-center gap-2 rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text active:scale-[0.98] sm:flex-none"
                                         >
                                             <RefreshCw className="w-4 h-4" />
+                                            <span>Restore purchases</span>
                                         </button>
                                     </div>
                                     {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') && (
-                                        <div className={`rounded-[1.25rem] border px-4 py-4 flex items-center gap-4 ${user?.subscription_tier === 'lifetime' ? 'border-amber-500/20 bg-amber-500/5' : 'border-indigo-500/20 bg-indigo-500/5'}`}>
+                                        <div className={`flex flex-col items-start gap-4 rounded-[1.25rem] border px-4 py-4 sm:flex-row sm:items-center ${user?.subscription_tier === 'lifetime' ? 'border-amber-500/20 bg-amber-500/5' : 'border-indigo-500/20 bg-indigo-500/5'}`}>
                                             <div className={`p-3 rounded-2xl ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shadow-inner`}>
                                                 {user?.subscription_tier === 'lifetime'
                                                     ? <Crown className="w-6 h-6 text-amber-400" />
                                                     : <Award className="w-6 h-6 text-indigo-400" />}
                                             </div>
-                                            <div>
-                                                <h3 className="font-display text-base font-bold text-claude-text flex items-center gap-2">
+                                            <div className="min-w-0">
+                                                <h3 className="flex flex-col items-start gap-2 font-display text-base font-bold text-claude-text sm:flex-row sm:items-center">
                                                     {user?.subscription_tier === 'lifetime' ? 'Lifetime Member' : 'Supporter'}
                                                     <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
                                                         {user?.subscription_tier === 'lifetime' ? '∞ LIFETIME' : '⭐ PRO'}
@@ -706,23 +718,25 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
                         </div>
-                        <ReferralCard />
+                        <div className="order-4">
+                            <ReferralCard />
+                        </div>
 
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div id="integrations-panel" variants={itemVariants}>
+                        <div className="order-5 grid gap-6 lg:grid-cols-2">
+                            <motion.div id="integrations-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Workspace"
                                     title="Integrations"
                                     description="Connect external systems that keep your classes and assignments in sync."
                                     tone="info"
                                 />
-                                <SectionCard tone="info" className="flex flex-col p-6 space-y-5">
-                        <div className="flex items-center gap-4">
+                                <SectionCard tone="info" className="flex flex-col space-y-5 p-5 sm:p-6">
+                        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                             <div className="p-3 rounded-2xl bg-blue-400/10 border border-blue-400/20 shadow-inner">
                                 <Network className="w-6 h-6 text-blue-400" />
                             </div>
                             <div className="flex-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold">Canvas Sync</h3>
                                     <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest font-bold border ${
                                         canvasCardState === 'locked'
@@ -878,20 +892,20 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div id="limits-panel" variants={itemVariants}>
+                            <motion.div id="limits-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Workspace"
                                     title="AI limits"
                                     description="See your current generation allowance and request boundaries."
                                     tone="warning"
                                 />
-                                <SectionCard tone="warning" className="flex flex-col p-6 space-y-4">
-                                    <div className="flex items-center gap-4">
+                                <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6">
+                                    <div className="flex items-start gap-4 sm:items-center">
                                         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
                                             <Sun className="w-6 h-6 text-amber-500" />
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="font-display text-lg tracking-wide text-claude-text font-semibold flex items-center justify-between">
+                                            <h3 className="flex flex-col items-start gap-2 font-display text-lg font-semibold tracking-wide text-claude-text sm:flex-row sm:items-center sm:justify-between">
                                                 AI Generations
                                                 {!aiLimits.loading && (
                                                     <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
@@ -905,7 +919,7 @@ export default function Settings() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-3 sm:grid-cols-2">
                                         <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
                                             <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Max Input</p>
                                             <p className="text-sm font-medium text-claude-text">~3,000 words</p>
@@ -932,8 +946,8 @@ export default function Settings() {
                             </motion.div>
                         </div>
 
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <motion.div id="notifications-panel" variants={itemVariants}>
+                        <div className="order-6 grid gap-6 lg:grid-cols-2">
+                            <motion.div id="notifications-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Preferences"
                                     title="Notifications"
@@ -956,12 +970,12 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
 
-                            <motion.div id="privacy-panel" variants={itemVariants}>
+                            <motion.div id="privacy-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <BlockedUsersCard />
                             </motion.div>
                         </div>
 
-                        <motion.div id="danger-panel" variants={itemVariants} className="pt-1">
+                        <motion.div id="danger-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-9 pt-1`}>
                             <SectionHeader
                                 eyebrow="Danger"
                                 title="Danger zone"
@@ -974,7 +988,7 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div variants={itemVariants} className="text-center pt-2 pb-4 opacity-40">
+                        <motion.div variants={itemVariants} className="order-10 pb-4 pt-2 text-center opacity-40">
                             <Leaf className="w-6 h-6 text-claude-accent mx-auto mb-3" />
                             <p className="text-[10px] text-claude-secondary font-mono tracking-widest uppercase">
                                 Riven OS v1.0.0
@@ -1072,8 +1086,8 @@ function ReferralCard() {
                 description="Track referral progress and share or apply referral codes."
                 tone="pink"
             />
-            <SectionCard tone="pink" className="p-6 space-y-5">
-                <div className="flex items-center gap-4">
+            <SectionCard tone="pink" className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-start gap-4 sm:items-center">
                     <div className="p-3 rounded-2xl bg-pink-500/10 border border-pink-500/20 shadow-inner">
                         <Gift className="w-6 h-6 text-pink-400" />
                     </div>
@@ -1096,7 +1110,7 @@ function ReferralCard() {
 
                 {/* Your Code */}
                 <div className="rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Your Referral Code</p>
                             <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">Share this with friends who are joining Riven.</p>
@@ -1106,7 +1120,7 @@ function ReferralCard() {
                         </span>
                     </div>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="flex-1 bg-claude-bg border border-claude-border rounded-xl px-4 py-3 text-lg font-mono font-bold text-claude-text tracking-[0.3em] text-center">
+                        <div className="flex-1 rounded-xl border border-claude-border bg-claude-bg px-4 py-3 text-center font-mono text-base font-bold tracking-[0.22em] text-claude-text sm:text-lg sm:tracking-[0.3em]">
                             {referralInfo.referralCode}
                         </div>
                         <button
@@ -1121,7 +1135,7 @@ function ReferralCard() {
 
                 {/* Progress */}
                 <div className="rounded-[1.5rem] border border-claude-border bg-claude-bg/70 p-4">
-                    <div className="flex items-center justify-between mb-2 gap-3">
+                    <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-[10px] font-mono uppercase text-claude-secondary tracking-wider">Progress</p>
                             <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
@@ -1271,8 +1285,8 @@ function BlockedUsersCard() {
                                     </div>
                                 ) : (
                                     blockedUsers.map(u => (
-                                        <div key={u.id} className="flex items-center justify-between p-3 rounded-xl bg-claude-bg border border-claude-border/50">
-                                            <div>
+                                        <div key={u.id} className="flex flex-col items-start gap-3 rounded-xl border border-claude-border/50 bg-claude-bg p-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0">
                                                 <p className="text-sm font-semibold text-claude-text">{u.username}</p>
                                                 <p className="text-[10px] text-claude-secondary font-mono tracking-wider mt-0.5">
                                                     Blocked {new Date(u.blocked_at).toLocaleDateString()}
@@ -1281,7 +1295,7 @@ function BlockedUsersCard() {
                                             <button
                                                 onClick={() => handleUnblock(u.id)}
                                                 disabled={unblockingId === u.id}
-                                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-claude-text bg-claude-surface hover:bg-claude-surface/80 border border-claude-border transition-colors disabled:opacity-50 touch-target tap-action native-press"
+                                                className="w-full rounded-lg border border-claude-border bg-claude-surface px-3 py-2 text-xs font-bold text-claude-text transition-colors hover:bg-claude-surface/80 disabled:opacity-50 sm:w-auto sm:px-3 sm:py-1.5 touch-target tap-action native-press"
                                             >
                                                 {unblockingId === u.id ? 'Unblocking...' : 'Unblock'}
                                             </button>

@@ -59,7 +59,6 @@ const LoginForm = ({ onSwitchToSignup, onLoginSuccess, onForgotPassword }) => {
         >
             <div className="w-full">
                 <OAuthButtons
-                    onSuccess={onLoginSuccess}
                     onError={(err) => setAlert({ show: true, title: 'OAuth Failed', message: err.message || 'Third-party sign-in failed.', type: 'error' })}
                 />
             </div>

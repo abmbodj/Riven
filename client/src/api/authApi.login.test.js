@@ -14,6 +14,7 @@ vi.mock('../lib/supabaseClient', () => ({
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user' } }, error: null }),
+      signInWithOAuth: vi.fn(),
       signInWithPassword: vi.fn(),
       signInWithIdToken: vi.fn(),
       signUp: vi.fn(),
@@ -52,7 +53,9 @@ const createSelectSingleChain = (data, error = null) => {
 describe('authApi login migration bridge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     localStorage.clear();
+    document.cookie = 'riven_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     authApi.setToken(null);
     supabase.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
       data: { currentLevel: 'aal1', nextLevel: 'aal1' },
@@ -68,10 +71,30 @@ describe('authApi login migration bridge', () => {
     });
   });
 
+  it('starts Google OAuth with an account redirect target', async () => {
+    supabase.auth.signInWithOAuth.mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' },
+      error: null,
+    });
+
+    await authApi.startGoogleOAuth();
+
+    expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'http://localhost:3000/account',
+      },
+    });
+  });
+
   it('bootstraps a Supabase session after a successful legacy login fallback', async () => {
     supabase.auth.signInWithPassword.mockResolvedValue({
       data: { session: null },
       error: { message: 'Invalid login credentials' },
+    });
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
     });
     supabase.auth.signUp.mockResolvedValue({
       data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
@@ -80,6 +103,9 @@ describe('authApi login migration bridge', () => {
 
     globalThis.fetch = vi
       .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        csrfToken: 'csrf-token',
+      }))
       .mockResolvedValueOnce(jsonResponse({
         token: 'legacy-token',
         user: { id: 7, email: 'test@example.com' },
@@ -167,6 +193,7 @@ describe('authApi login migration bridge', () => {
   });
 
   it('falls back to the legacy 2FA challenge for existing linked users without a Supabase factor', async () => {
+    document.cookie = 'riven_csrf=test-csrf-token; path=/';
     supabase.auth.getSession.mockResolvedValue({
       data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
     });
@@ -193,5 +220,82 @@ describe('authApi login migration bridge', () => {
       tempToken: 'legacy-temp-token',
       provider: 'legacy',
     });
+  });
+
+  it('bridges Google OAuth sessions into the legacy 2FA challenge when needed on restore', async () => {
+    document.cookie = 'riven_csrf=test-csrf-token; path=/';
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: SUPABASE_ACCESS_TOKEN,
+          provider_token: 'google-provider-token',
+          user: {
+            app_metadata: { provider: 'google' },
+          },
+        },
+      },
+    });
+
+    const { select } = createSelectSingleChain(null, {
+      code: 'PGRST116',
+      message: 'JSON object requested, multiple (or no) rows returned',
+    });
+    supabase.from.mockReturnValue({ select });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: true },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        require2FA: true,
+        tempToken: 'legacy-temp-token',
+      }));
+
+    const result = await authApi.restoreSessionUser();
+
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/auth/oauth/google'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ credential: 'google-provider-token' }),
+      }),
+    );
+    expect(result).toEqual({
+      require2FA: true,
+      tempToken: 'legacy-temp-token',
+      provider: 'legacy',
+    });
+  });
+
+  it('clears the Google OAuth bridge state when legacy 2FA cannot be bridged', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: SUPABASE_ACCESS_TOKEN,
+          user: {
+            app_metadata: { provider: 'google' },
+          },
+        },
+      },
+    });
+
+    const { select } = createSelectSingleChain(null, {
+      code: 'PGRST116',
+      message: 'JSON object requested, multiple (or no) rows returned',
+    });
+    supabase.from.mockReturnValue({ select });
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({
+      user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: true },
+    }));
+
+    const result = await authApi.restoreSessionUser();
+
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    expect(result).toBeNull();
+    expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
   });
 });

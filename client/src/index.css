@@ -533,6 +533,104 @@
     -webkit-backdrop-filter: blur(16px) saturate(180%);
   }
 
+  /* Local mobile glass treatment for the account profile */
+  .profile-mobile-glass-shell,
+  .profile-mobile-glass-card,
+  .profile-mobile-glass-menu,
+  .profile-mobile-glass-row {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .profile-mobile-glass-shell {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 44%, rgba(255, 255, 255, 0.02) 100%),
+      linear-gradient(160deg,
+        color-mix(in srgb, var(--surface-color) 68%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 58%, transparent) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 30px 72px -30px rgba(0, 0, 0, 0.78),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+  }
+
+  .profile-mobile-glass-shell::before,
+  .profile-mobile-glass-card::before,
+  .profile-mobile-glass-menu::before,
+  .profile-mobile-glass-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .profile-mobile-glass-shell::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 30%),
+      radial-gradient(circle at top left, rgba(222, 185, 106, 0.18), transparent 34%),
+      radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.14), transparent 48%);
+  }
+
+  .profile-mobile-glass-card {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%),
+      linear-gradient(160deg,
+        color-mix(in srgb, var(--surface-color) 60%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 48%, transparent) 100%);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 20px 48px -26px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px) saturate(185%);
+    -webkit-backdrop-filter: blur(24px) saturate(185%);
+  }
+
+  .profile-mobile-glass-card::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 28%),
+      radial-gradient(circle at top left, rgba(222, 185, 106, 0.14), transparent 36%),
+      radial-gradient(circle at bottom center, rgba(122, 158, 114, 0.12), transparent 50%);
+  }
+
+  .profile-mobile-glass-menu {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 100%),
+      linear-gradient(160deg,
+        color-mix(in srgb, var(--surface-color) 64%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 52%, transparent) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 28px 64px -34px rgba(0, 0, 0, 0.82),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(26px) saturate(190%);
+    -webkit-backdrop-filter: blur(26px) saturate(190%);
+  }
+
+  .profile-mobile-glass-menu::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 24%),
+      radial-gradient(circle at top left, rgba(222, 185, 106, 0.12), transparent 36%),
+      radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.1), transparent 48%);
+  }
+
+  .profile-mobile-glass-row {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  .profile-mobile-glass-row::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 32%),
+      radial-gradient(circle at left center, rgba(222, 185, 106, 0.08), transparent 34%);
+  }
+
   @media (min-width: 768px) {
     .glass-panel {
       background: rgba(30, 56, 64, 0.65);
@@ -568,6 +666,26 @@
         radial-gradient(circle at top left, rgba(222, 185, 106, 0.12), transparent 36%),
         radial-gradient(circle at bottom left, rgba(122, 158, 114, 0.12), transparent 42%);
       pointer-events: none;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .profile-mobile-glass-shell,
+    .profile-mobile-glass-card,
+    .profile-mobile-glass-menu,
+    .profile-mobile-glass-row {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .profile-mobile-glass-shell::before,
+    .profile-mobile-glass-card::before,
+    .profile-mobile-glass-menu::before,
+    .profile-mobile-glass-row::before {
+      content: none;
     }
   }
 

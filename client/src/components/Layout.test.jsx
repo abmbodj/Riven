@@ -42,6 +42,12 @@ describe('Layout primary navigation', () => {
     expect(screen.getAllByText('Groups').length).toBeGreaterThan(0);
   });
 
+  it('hides the mobile bottom nav on the edit profile route', () => {
+    renderLayout('/edit-profile');
+
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
+  });
+
   it('opens the command palette from the keyboard shortcut', async () => {
     renderLayout();
 

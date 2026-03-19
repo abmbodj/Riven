@@ -110,7 +110,7 @@ cp server/.env.example server/.env
 | `STRIPE_SECRET_KEY` | No | Stripe server key | Stripe dashboard |
 | `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret | Stripe CLI / dashboard |
 | `RESEND_API_KEY` | No | Resend email API key | [Resend](https://resend.com) |
-| `GOOGLE_CLIENT_ID` | No | Google OAuth client ID | GCP Console |
+| `GOOGLE_CLIENT_ID` | No | Legacy Google ID-token verification for the compatibility bridge | GCP Console |
 | `APPLE_CLIENT_ID` | No | Apple Sign-In service ID | Apple Developer |
 | `APPLE_TEAM_ID` | No | Apple team identifier | Apple Developer |
 | `APPLE_KEY_ID` | No | Apple private key ID | Apple Developer |
@@ -127,6 +127,13 @@ cp client/.env.example client/.env
 | `VITE_API_URL` | No | Backend API URL. Leave blank for local dev (Vite proxies `/api`). | — |
 | `VITE_STRIPE_PRICE_MONTHLY` | No | Stripe Price ID for Supporter tier | — |
 | `VITE_STRIPE_PRICE_LIFETIME` | No | Stripe Price ID for Lifetime tier | — |
+
+Google Sign-In for web/PWA is configured in **Supabase Auth**, not in `client/.env`. Set the Google provider in the Supabase dashboard (or self-hosted auth config), then allow these redirect URLs:
+
+- `http://localhost:5173/account`
+- Your production app URL with `/account`
+
+For local/self-hosted Supabase, mirror the commented Google provider block in [`supabase/config.toml`](/Users/ab/Desktop/Riven/Riven/supabase/config.toml) and provide `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` as environment variables.
 
 ### 3. Database Setup
 
@@ -405,7 +412,7 @@ npx supabase functions deploy
 | `STRIPE_SECRET_KEY` | Stripe server key | — |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | — |
 | `RESEND_API_KEY` | Resend email API key | — |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
+| `GOOGLE_CLIENT_ID` | Legacy Google ID-token verification for the compatibility bridge | — |
 | `APPLE_CLIENT_ID` | Apple Sign-In service ID | — |
 | `APPLE_TEAM_ID` | Apple team identifier | — |
 | `APPLE_KEY_ID` | Apple private key ID | — |
@@ -422,6 +429,8 @@ npx supabase functions deploy
 | `VITE_API_URL` | Backend API URL (blank for local dev) | — |
 | `VITE_STRIPE_PRICE_MONTHLY` | Stripe Price ID for Supporter | — |
 | `VITE_STRIPE_PRICE_LIFETIME` | Stripe Price ID for Lifetime | — |
+
+Web/PWA Google Sign-In uses the Supabase-hosted redirect flow, so there is no `VITE_GOOGLE_CLIENT_ID` client variable in this setup.
 
 ### Edge Functions
 

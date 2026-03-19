@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { useAuth } from '../../hooks/useAuth';
 
 // Google SVG
 const GoogleIcon = () => (
@@ -17,19 +19,49 @@ const AppleIcon = () => (
     </svg>
 );
 
-export default function OAuthButtons() {
+export default function OAuthButtons({ onError }) {
+    const { startGoogleOAuth } = useAuth();
+    const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+    const isNativeClient = Capacitor.isNativePlatform();
+
+    const handleGoogleClick = async () => {
+        if (isNativeClient || isLoadingGoogle) {
+            return;
+        }
+
+        setIsLoadingGoogle(true);
+        try {
+            await startGoogleOAuth();
+        } catch (error) {
+            setIsLoadingGoogle(false);
+            onError?.(error);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-2.5 w-full mb-4">
             <button
                 type="button"
-                disabled={true}
-                className="w-full flex items-center justify-center bg-claude-surface/50 text-claude-text/40 font-semibold py-2.5 rounded-lg shadow-sm border border-claude-border/50 cursor-not-allowed"
+                onClick={handleGoogleClick}
+                disabled={isNativeClient || isLoadingGoogle}
+                className={`w-full flex items-center justify-center font-semibold py-2.5 rounded-lg shadow-sm border transition-colors ${
+                    isNativeClient || isLoadingGoogle
+                        ? 'bg-claude-surface/50 text-claude-text/40 border-claude-border/50 cursor-not-allowed'
+                        : 'bg-claude-surface/80 text-claude-text hover:bg-claude-surface border-claude-border'
+                }`}
             >
-                <div className="opacity-50">
+                <div className={isNativeClient || isLoadingGoogle ? 'opacity-50' : ''}>
                     <GoogleIcon />
                 </div>
-                <span className="text-sm font-sans tracking-wide">Continue with Google <span className="text-xs ml-1 opacity-70">(Coming Soon)</span></span>
+                <span className="text-sm font-sans tracking-wide">
+                    {isLoadingGoogle ? 'Redirecting to Google...' : 'Continue with Google'}
+                </span>
             </button>
+            {isNativeClient && (
+                <p className="px-1 text-xs font-sans text-claude-secondary/80">
+                    Google sign-in is currently available on web and PWA. Native support is staged for a follow-up.
+                </p>
+            )}
             <button
                 type="button"
                 disabled={true}

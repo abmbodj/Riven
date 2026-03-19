@@ -23,7 +23,7 @@ describe('client auth bridge guard', () => {
       'oauth/apple',
       'oauth/google',
       'register',
-      'simulate-free',
+      'supabase-token',
     ]);
   });
 });

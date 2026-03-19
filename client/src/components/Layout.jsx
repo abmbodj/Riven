@@ -63,10 +63,11 @@ const utilityLinks = [
 export default function Layout({ children }) {
     const location = useLocation();
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
-    const { isLoggedIn, user } = useContext(AuthContext) || {};
+    const { isLoggedIn } = useContext(AuthContext) || {};
     const primaryNavItems = getPrimaryNavItems(isLoggedIn);
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test') || /^\/exam\/[^/]+$/.test(location.pathname);
     const isCreatePage = location.pathname === '/create';
+    const isEditProfilePage = location.pathname === '/edit-profile';
     const isMessagesChat = location.pathname.startsWith('/messages/') && location.pathname !== '/messages';
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -120,7 +121,7 @@ export default function Layout({ children }) {
     const isAccountPage = location.pathname === '/account';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
-    const hideBottomNav = isStudyOrTest || isCreatePage || isMessagesChat || isLegalPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
+    const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
     // Fullscreen pages that need edge-to-edge backgrounds (no padding from Layout)
     const isFullscreenPage = isStudyOrTest || (!isLoggedIn && (isAccountPage || isLandingPage));

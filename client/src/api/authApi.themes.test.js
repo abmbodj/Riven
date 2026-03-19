@@ -96,8 +96,14 @@ describe('authApi themes PostgREST', () => {
       name: 'Riven Light',
       is_default: 1,
     }));
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 42,
+      name: 'Lavender Dusk',
+      is_default: 1,
+    }));
     expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
     expect(themes.some((theme) => theme.name === 'Tech Innovation')).toBe(true);
+    expect(themes.some((theme) => theme.name === 'Lavender Dusk')).toBe(true);
   });
 
   it('removes deprecated default themes and reactivates Riven when cleanup leaves no active theme', async () => {

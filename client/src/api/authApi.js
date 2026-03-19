@@ -33,6 +33,7 @@ export const getApiBase = () => resolveApiBase();
 // cookie jars so we fall back to in-memory + sessionStorage. localStorage is
 // only used on native platforms where XSS surface is minimal.
 const TOKEN_KEY = 'riven_auth_token';
+const GOOGLE_OAUTH_BRIDGE_TOKEN_KEY = 'riven_google_oauth_bridge_token';
 export const AUTH_SESSION_EXPIRED_CODE = 'AUTH_SESSION_EXPIRED';
 export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
@@ -52,12 +53,32 @@ export const setToken = (token) => {
     } else {
         tokenStore.removeItem(TOKEN_KEY);
         localStorage.removeItem(TOKEN_KEY);
+        tokenStore.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+        localStorage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
     }
 
     if (normalizedToken !== cachedAuthToken) {
         cachedAppUserId = null;
         cachedAuthToken = normalizedToken;
     }
+};
+
+const cacheGoogleOAuthBridgeToken = (token) => {
+    const normalizedToken = typeof token === 'string' ? token.trim() : '';
+    if (!normalizedToken) return null;
+    tokenStore.setItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY, normalizedToken);
+    return normalizedToken;
+};
+
+const getCachedGoogleOAuthBridgeToken = () => (
+    tokenStore.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY)
+    || localStorage.getItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY)
+    || null
+);
+
+const clearGoogleOAuthBridgeToken = () => {
+    tokenStore.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
 };
 
 const decodeJwtPayload = (token) => {
@@ -353,6 +374,22 @@ const getActiveSupabaseSession = async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) throw error;
     return session?.access_token ? session : null;
+};
+
+const getSessionProvider = (session) => (
+    session?.user?.app_metadata?.provider
+    || session?.user?.identities?.[0]?.provider
+    || null
+);
+
+const isGoogleOAuthSession = (session) => getSessionProvider(session) === 'google';
+
+const cacheGoogleOAuthBridgeTokenFromSession = (session) => {
+    if (!isGoogleOAuthSession(session)) {
+        return null;
+    }
+
+    return cacheGoogleOAuthBridgeToken(session?.provider_token);
 };
 
 const buildAuthRedirectUrl = (path = '') => {
@@ -772,6 +809,23 @@ export const loginWithGoogle = async (credential) => {
     return { user: mergeUserWithMfaState(result.user, mfaState) };
 };
 
+export const startGoogleOAuth = async () => {
+    if (Capacitor.isNativePlatform()) {
+        throw new Error('Google sign-in is currently available only on web and PWA clients.');
+    }
+
+    clearGoogleOAuthBridgeToken();
+    const redirectTo = buildAuthRedirectUrl('/account');
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: redirectTo ? { redirectTo } : undefined,
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+};
+
 export const loginWithApple = async (identityToken, _user) => {
     const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
@@ -839,6 +893,7 @@ export const restoreSessionUser = async () => {
     const refreshedSupabaseToken = await refreshSupabaseToken().catch(() => null);
     const token = getToken();
     if (!token) {
+        clearGoogleOAuthBridgeToken();
         return null;
     }
 
@@ -855,9 +910,42 @@ export const restoreSessionUser = async () => {
         ]);
 
         if (mfaState.hasSession && user?.twoFAEnabled && !mfaState.enabled) {
+            const session = await getActiveSupabaseSession().catch(() => null);
+            const googleBridgeToken = getCachedGoogleOAuthBridgeToken()
+                || cacheGoogleOAuthBridgeTokenFromSession(session);
+
             await supabase.auth.signOut().catch(() => {});
             setToken(null);
-            return null;
+            clearGoogleOAuthBridgeToken();
+
+            if (!isGoogleOAuthSession(session) || !googleBridgeToken) {
+                return null;
+            }
+
+            try {
+                const legacyData = await authFetch('/auth/oauth/google', {
+                    method: 'POST',
+                    body: JSON.stringify({ credential: googleBridgeToken }),
+                });
+
+                if (legacyData.require2FA) {
+                    return {
+                        ...legacyData,
+                        provider: 'legacy',
+                    };
+                }
+
+                if (legacyData.token) {
+                    setToken(legacyData.token);
+                } else if (legacyData.user) {
+                    setToken('logged_in');
+                }
+
+                return legacyData.user || null;
+            } catch (bridgeError) {
+                console.warn('[authApi] Google OAuth legacy 2FA bridge failed:', bridgeError);
+                return null;
+            }
         }
 
         if (requiresSupabaseMfaChallenge(mfaState)) {
@@ -880,6 +968,45 @@ export const restoreSessionUser = async () => {
                 nextLevel: null,
             }));
 
+            if (mfaState.hasSession && result.user?.twoFAEnabled && !mfaState.enabled) {
+                const session = await getActiveSupabaseSession().catch(() => null);
+                const googleBridgeToken = getCachedGoogleOAuthBridgeToken()
+                    || cacheGoogleOAuthBridgeTokenFromSession(session);
+
+                await supabase.auth.signOut().catch(() => {});
+                setToken(null);
+                clearGoogleOAuthBridgeToken();
+
+                if (!isGoogleOAuthSession(session) || !googleBridgeToken) {
+                    return null;
+                }
+
+                try {
+                    const legacyData = await authFetch('/auth/oauth/google', {
+                        method: 'POST',
+                        body: JSON.stringify({ credential: googleBridgeToken }),
+                    });
+
+                    if (legacyData.require2FA) {
+                        return {
+                            ...legacyData,
+                            provider: 'legacy',
+                        };
+                    }
+
+                    if (legacyData.token) {
+                        setToken(legacyData.token);
+                    } else if (legacyData.user) {
+                        setToken('logged_in');
+                    }
+
+                    return legacyData.user || null;
+                } catch (bridgeError) {
+                    console.warn('[authApi] Google OAuth legacy 2FA bridge failed:', bridgeError);
+                    return null;
+                }
+            }
+
             if (requiresSupabaseMfaChallenge(mfaState)) {
                 return {
                     require2FA: true,
@@ -891,6 +1018,8 @@ export const restoreSessionUser = async () => {
             return mergeUserWithMfaState(result.user, mfaState);
         }
         throw err;
+    } finally {
+        clearGoogleOAuthBridgeToken();
     }
 };
 
@@ -907,9 +1036,12 @@ export const refreshSupabaseToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     let accessToken = session?.access_token;
     if (!accessToken) {
+        clearGoogleOAuthBridgeToken();
         const bridgedSession = await hydrateSupabaseSessionFromBridge().catch(() => null);
         return bridgedSession?.access_token || null;
     }
+
+    cacheGoogleOAuthBridgeTokenFromSession(session);
 
     // If the cached access_token is expired or malformed, try refreshing
     // using the refresh_token instead of destroying the entire session.
@@ -920,6 +1052,7 @@ export const refreshSupabaseToken = async () => {
         if (refreshed?.session?.access_token
             && isSupabaseAccessToken(refreshed.session.access_token)
             && !isJwtExpired(refreshed.session.access_token)) {
+            cacheGoogleOAuthBridgeTokenFromSession(refreshed.session);
             setToken(refreshed.session.access_token);
             return refreshed.session.access_token;
         }
@@ -3746,6 +3879,7 @@ export default {
     register,
     login,
     loginWithGoogle,
+    startGoogleOAuth,
     loginWithApple,
     login2FA,
     logout,

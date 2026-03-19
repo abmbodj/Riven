@@ -133,6 +133,10 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    const startGoogleOAuth = useCallback(async () => {
+        await authApi.startGoogleOAuth();
+    }, []);
+
     const signInWithApple = useCallback(async (identityToken, appleUser) => {
         try {
             const data = await authApi.loginWithApple(identityToken, appleUser);
@@ -264,6 +268,7 @@ export function AuthProvider({ children }) {
     const actionsValue = useMemo(() => ({
         signIn,
         signUp,
+        startGoogleOAuth,
         signInWithGoogle,
         signInWithApple,
         signInWith2FA,
@@ -293,7 +298,7 @@ export function AuthProvider({ children }) {
         dismissMessage,
         toggleSimulateFree
     }), [
-        signIn, signUp, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
+        signIn, signUp, startGoogleOAuth, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
         deleteAccount, refreshUser, findUserByShareCode, getAllUsers, adminUpdateUser,
         adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
         adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,
