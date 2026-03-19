@@ -100,6 +100,58 @@ describe('authApi themes PostgREST', () => {
     expect(themes.some((theme) => theme.name === 'Tech Innovation')).toBe(true);
   });
 
+  it('removes deprecated default themes and reactivates Riven when cleanup leaves no active theme', async () => {
+    authApi.setToken('supabase-token');
+    const defaultThemes = getDefaultThemes();
+    const rivenTheme = defaultThemes.find((theme) => theme.name === 'Riven');
+
+    const select = vi.fn()
+      .mockResolvedValueOnce({
+        data: [
+          { id: 1, name: 'Rose', is_default: 1, is_active: 1 },
+          { id: 2, ...rivenTheme, is_default: 1, is_active: 0 },
+          { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          { id: 2, ...rivenTheme, is_default: 1, is_active: 0 },
+          { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          ...defaultThemes.map((theme, index) => ({
+            id: index + 10,
+            ...theme,
+            is_active: theme.name === 'Riven' ? 1 : theme.is_active,
+          })),
+          { id: 3, name: 'Custom Drift', is_default: 0, is_active: 0 },
+        ],
+        error: null,
+      });
+
+    const deleteIn = vi.fn().mockResolvedValue({ data: null, error: null });
+    const deleteTheme = vi.fn().mockReturnValue({ in: deleteIn });
+    const insert = vi.fn().mockResolvedValue({ data: null, error: null });
+    const updateEq = vi.fn().mockResolvedValue({ data: null, error: null });
+    const update = vi.fn().mockReturnValue({ eq: updateEq });
+
+    supabase.from.mockImplementation(() => ({ select, delete: deleteTheme, insert, update }));
+
+    const themes = await authApi.getThemes();
+
+    expect(deleteTheme).toHaveBeenCalledTimes(1);
+    expect(deleteIn).toHaveBeenCalledWith('id', [1]);
+    expect(insert).toHaveBeenCalledTimes(defaultThemes.length - 1);
+    expect(update).toHaveBeenCalledWith({ is_active: 1 });
+    expect(updateEq).toHaveBeenCalledWith('id', 2);
+    expect(themes.filter((theme) => theme.is_default)).toHaveLength(defaultThemes.length);
+    expect(themes.find((theme) => theme.is_active)?.name).toBe('Riven');
+  });
+
   it('creates custom themes in Supabase with the current app user id', async () => {
     const { select } = createSelectSingleChain({ id: 7, name: 'Night Current' });
     const insert = vi.fn().mockReturnValue({ select });

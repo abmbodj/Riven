@@ -131,15 +131,15 @@ describe('ThemeSettings premium theme creation gate', () => {
       },
       {
         id: 2,
-        name: 'Rose',
-        bg_color: '#1a0020',
-        surface_color: '#280030',
-        text_color: '#ffe0f5',
-        secondary_text_color: '#ff80c8',
-        border_color: '#3d0050',
-        accent_color: '#ff4da6',
-        font_family_display: 'Inter',
-        font_family_body: 'Inter',
+        name: 'Lavender Dusk',
+        bg_color: '#171226',
+        surface_color: '#221a34',
+        text_color: '#efe7ff',
+        secondary_text_color: '#b6a4e6',
+        border_color: '#30244b',
+        accent_color: '#b89bf3',
+        font_family_display: 'Cormorant Garamond',
+        font_family_body: 'Lora',
         is_active: false,
         is_default: true,
       }
@@ -147,7 +147,7 @@ describe('ThemeSettings premium theme creation gate', () => {
 
     render(<ThemeSettings />);
 
-    fireEvent.click(screen.getByText('Rose'));
+    fireEvent.click(screen.getByText('Lavender Dusk'));
 
     expect(screen.getByText('Pricing modal open')).toBeInTheDocument();
     expect(switchThemeMock).not.toHaveBeenCalled();

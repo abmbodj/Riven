@@ -1,6 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
-import { getDefaultThemes, THEME_VISUAL_FIELDS } from '../themeCatalog.js';
+import {
+    DEPRECATED_DEFAULT_THEME_NAMES,
+    getDefaultThemes,
+    THEME_VISUAL_FIELDS,
+} from '../themeCatalog.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2084,6 +2088,25 @@ export const getThemes = async () => {
         return data || [];
     };
 
+    const pruneDeprecatedDefaultThemes = async (themes) => {
+        if (!getToken()) return false;
+
+        const deprecatedThemeIds = (themes || [])
+            .filter((theme) => theme.is_default && DEPRECATED_DEFAULT_THEME_NAMES.includes(theme.name))
+            .map((theme) => theme.id)
+            .filter(Boolean);
+
+        if (deprecatedThemeIds.length === 0) return false;
+
+        const { error } = await supabase
+            .from('themes')
+            .delete()
+            .in('id', deprecatedThemeIds);
+        if (error) _sbThrow(error);
+
+        return true;
+    };
+
     const syncDefaultThemes = async (themes) => {
         if (!getToken()) return false;
 
@@ -2095,6 +2118,7 @@ export const getThemes = async () => {
         const hasActiveTheme = (themes || []).some((theme) => theme.is_active);
         const userId = await getAppUserId();
         let didMutate = false;
+        let shouldAssignActiveDefault = !hasActiveTheme;
 
         for (const preset of getDefaultThemes()) {
             const existing = existingDefaults.get(preset.name);
@@ -2103,10 +2127,13 @@ export const getThemes = async () => {
                 const payload = {
                     user_id: userId,
                     ...preset,
-                    is_active: hasActiveTheme ? 0 : preset.is_active,
+                    is_active: shouldAssignActiveDefault && preset.is_active ? 1 : 0,
                 };
                 const { error } = await supabase.from('themes').insert(payload);
                 if (error) _sbThrow(error);
+                if (payload.is_active) {
+                    shouldAssignActiveDefault = false;
+                }
                 didMutate = true;
                 continue;
             }
@@ -2120,6 +2147,11 @@ export const getThemes = async () => {
 
             if (!existing.is_default) {
                 updates.is_default = 1;
+            }
+
+            if (shouldAssignActiveDefault && preset.is_active && !existing.is_active) {
+                updates.is_active = 1;
+                shouldAssignActiveDefault = false;
             }
 
             if (Object.keys(updates).length === 0) continue;
@@ -2136,6 +2168,9 @@ export const getThemes = async () => {
     };
 
     let themes = await selectThemes();
+    if (await pruneDeprecatedDefaultThemes(themes)) {
+        themes = await selectThemes();
+    }
     if (await syncDefaultThemes(themes)) {
         themes = await selectThemes();
     }

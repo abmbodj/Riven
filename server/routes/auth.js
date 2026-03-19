@@ -129,16 +129,8 @@ module.exports = function registerAuthRoutes({
         ['Riven', '#162a31', '#1e3840', '#e4ddd0', '#8fa6a8', '#233e46', '#deb96a', 'Cormorant Garamond', 'Lora', 1],
         ['Riven Light', '#f5f0e8', '#ffffff', '#1e3840', '#6b7d7f', '#ddd5c8', '#deb96a', 'Cormorant Garamond', 'Lora', 0],
         ['Arctic Frost', '#eaf2f6', '#f9fdff', '#163038', '#607983', '#cad8de', '#89c3d4', 'Instrument Serif', 'Space Grotesk', 0],
-        ['Botanical Garden', '#0d1f14', '#142a1c', '#d4e8c2', '#7ab885', '#1e3d28', '#5cdb7a', 'Cormorant Garamond', 'Lora', 0],
-        ['Desert Rose', '#1c0d12', '#28131a', '#f0d9c8', '#c4896e', '#3d1c26', '#e8856a', 'Lora', 'Lora', 0],
-        ['Forest Canopy', '#0a1a0d', '#102015', '#c8e8c0', '#6aaa6e', '#1a3020', '#7dde82', 'Cormorant Garamond', 'Lora', 0],
-        ['Golden Hour', '#1a0f00', '#261600', '#fce8c0', '#d4a055', '#3d2800', '#f5a623', 'Cormorant Garamond', 'Lora', 0],
-        ['Midnight Galaxy', '#06030f', '#0e0820', '#e8e0ff', '#9b7fd4', '#1a1040', '#b06aff', 'Inter', 'Inter', 0],
         ['Modern Minimal', '#efeae3', '#fbf8f3', '#181512', '#70665d', '#d7cec2', '#c88259', 'Space Grotesk', 'Space Grotesk', 0],
-        ['Ocean Depths', '#020d18', '#051828', '#c8f0f0', '#4db8c8', '#0a2840', '#00d4e8', 'Inter', 'Inter', 0],
-        ['Sunset Blvd', '#1a0800', '#280d00', '#ffeee0', '#e87040', '#3d1500', '#ff6030', 'Cormorant Garamond', 'Lora', 0],
         ['Tech Innovation', '#061317', '#0b1d22', '#e7faf8', '#88a7ab', '#1f3a40', '#71d6ca', 'JetBrains Mono', 'Space Grotesk', 0],
-        ['Rose', '#1a0020', '#280030', '#ffe0f5', '#ff80c8', '#3d0050', '#ff4da6', 'Inter', 'Inter', 0],
     ];
 
     const insertDefaultThemes = async (userId) => {

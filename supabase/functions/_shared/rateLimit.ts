@@ -10,7 +10,9 @@ import { getCorsHeaders } from './http.ts';
 
 export type RateLimitPreset = 'default' | 'webhook' | 'admin';
 
-const PRESETS: Record<RateLimitPreset, { limit: number; window: string }> = {
+type RateLimitWindow = Parameters<typeof Ratelimit.slidingWindow>[1];
+
+const PRESETS: Record<RateLimitPreset, { limit: number; window: RateLimitWindow }> = {
   default: { limit: 60, window: '1 m' },
   webhook: { limit: 300, window: '1 m' },
   admin: { limit: 30, window: '1 m' },

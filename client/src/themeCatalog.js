@@ -9,6 +9,17 @@ export const THEME_VISUAL_FIELDS = [
     'font_family_body',
 ];
 
+export const DEPRECATED_DEFAULT_THEME_NAMES = [
+    'Botanical Garden',
+    'Desert Rose',
+    'Forest Canopy',
+    'Golden Hour',
+    'Midnight Galaxy',
+    'Ocean Depths',
+    'Rose',
+    'Sunset Blvd',
+];
+
 const DEFAULT_THEME_CATALOG = [
     {
         collection: 'foundation',
