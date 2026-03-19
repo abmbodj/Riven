@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Eye, EyeOff } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useAuth } from '../../hooks/useAuth';
@@ -28,6 +29,8 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const [captchaToken, setCaptchaToken] = useState(null);
     const turnstileRef = useRef(null);
     const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    // Turnstile often fails in Capacitor WKWebView (origin / iframe). Web signups still use it when configured.
+    const turnstileRequired = Boolean(turnstileSiteKey) && !SKIP_TURNSTILE && !Capacitor.isNativePlatform();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -39,7 +42,7 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
             return;
         }
 
-        if (turnstileSiteKey && !captchaToken) {
+        if (turnstileRequired && !captchaToken) {
             setAlert({ show: true, title: 'Verification Required', message: 'Please complete the CAPTCHA verification.', type: 'warning' });
             return;
         }

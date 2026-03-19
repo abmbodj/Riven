@@ -715,6 +715,7 @@ export const register = async (username, email, password, captchaToken = null) =
     const legacyData = await authFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ username, email, password, captchaToken }),
+        headers: Capacitor.isNativePlatform() ? { 'X-Riven-Client': 'capacitor' } : {},
     });
 
     // Legacy register now creates a Supabase Auth user — sign in to get a

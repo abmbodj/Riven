@@ -187,23 +187,33 @@ module.exports = function registerAuthRoutes({
 
         // Verify Cloudflare Turnstile CAPTCHA
         const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+        const capSkipEnv = process.env.ALLOW_CAPACITOR_REGISTER_SKIP_TURNSTILE;
+        const allowCapacitorSkip =
+            capSkipEnv === '1'
+            || capSkipEnv === 'true'
+            || (process.env.NODE_ENV !== 'production'
+                && capSkipEnv !== '0'
+                && String(capSkipEnv || '').toLowerCase() !== 'false');
+        const isCapacitorClient = String(req.get('x-riven-client') || '').toLowerCase() === 'capacitor';
         if (turnstileSecret) {
-            if (!captchaToken) {
+            if (!captchaToken && !(allowCapacitorSkip && isCapacitorClient)) {
                 return res.status(400).json({ error: 'CAPTCHA verification is required' });
             }
-            try {
-                const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ secret: turnstileSecret, response: captchaToken }),
-                });
-                const verifyData = await verifyRes.json();
-                if (!verifyData.success) {
-                    return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+            if (captchaToken) {
+                try {
+                    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ secret: turnstileSecret, response: captchaToken }),
+                    });
+                    const verifyData = await verifyRes.json();
+                    if (!verifyData.success) {
+                        return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+                    }
+                } catch (err) {
+                    console.error('[register] CAPTCHA verification error:', err);
+                    return res.status(500).json({ error: 'CAPTCHA verification failed' });
                 }
-            } catch (err) {
-                console.error('[register] CAPTCHA verification error:', err);
-                return res.status(500).json({ error: 'CAPTCHA verification failed' });
             }
         }
 
