@@ -377,6 +377,9 @@ backend = "postgres"
 [functions.ai-limits]
 verify_jwt = false
 
+[functions.create-ai-job]
+verify_jwt = false
+
 [functions.accept-shared-deck]
 verify_jwt = false
 
