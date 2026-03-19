@@ -77,6 +77,11 @@ const mapUserRow = (row: Record<string, unknown>) => {
     subscription_tier: effectiveTier,
     simulate_free_tier: !!row.simulate_free_tier,
     email_verified: true,
+    onboardingCompletedAt:
+      row.onboarding_completed_at != null && row.onboarding_completed_at !== ''
+        ? String(row.onboarding_completed_at)
+        : null,
+    onboardingStep: Number(row.onboarding_step ?? 0) || 0,
   };
 };
 
@@ -245,6 +250,8 @@ serve(async (request) => {
         shareCode, avatar: null, banner: null, bio: '', role: 'user',
         isAdmin: false, isOwner: false, streakData: {}, twoFAEnabled: false,
         subscription_tier: 'free', simulate_free_tier: false, email_verified: true,
+        onboardingCompletedAt: null,
+        onboardingStep: 0,
       },
     }, { status: 201 }, request);
   } catch (error: unknown) {

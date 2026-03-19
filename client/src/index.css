@@ -827,38 +827,32 @@
   }
 
   /*
-   * Mobile — no glassmorphism: solid theme tokens + elevation only (clear hierarchy, readable type).
-   * Blur/backdrop-filter disabled; desktop (≥768px) keeps glass rules defined above.
+   * Mobile — opaque surfaces only: no blur, no translucent overlays (::before off).
+   * Nested rows use solid --bg-color inside solid --surface-color shells for clear separation.
    */
   @media (max-width: 767px) {
     .glass-panel-premium {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow:
         0 8px 28px rgba(0, 0, 0, 0.38),
-        0 1px 0 color-mix(in srgb, var(--text-color) 10%, transparent);
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
 
     .glass-panel-premium::before {
-      background: linear-gradient(
-        165deg,
-        color-mix(in srgb, var(--accent-color) 12%, transparent) 0%,
-        transparent 48%
-      );
+      content: none;
     }
 
     .glass-panel-premium.glass-danger::before {
-      background: linear-gradient(
-        165deg,
-        color-mix(in srgb, #f87171 16%, transparent) 0%,
-        transparent 50%
-      );
+      content: none;
     }
 
     .glass-item {
-      background: color-mix(in srgb, var(--bg-color) 58%, var(--surface-color));
+      background-color: var(--bg-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: none;
       backdrop-filter: none;
@@ -866,7 +860,8 @@
     }
 
     .glass-panel {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
       backdrop-filter: none;
@@ -874,7 +869,8 @@
     }
 
     .profile-mobile-glass-shell {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
       backdrop-filter: none;
@@ -882,11 +878,12 @@
     }
 
     .profile-mobile-glass-shell::before {
-      background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 10%, transparent), transparent 38%);
+      content: none;
     }
 
     .profile-mobile-glass-card {
-      background: color-mix(in srgb, var(--bg-color) 52%, var(--surface-color));
+      background-color: var(--bg-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: none;
       backdrop-filter: none;
@@ -898,7 +895,8 @@
     }
 
     .profile-mobile-glass-menu {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
       backdrop-filter: none;
@@ -910,7 +908,8 @@
     }
 
     .profile-mobile-glass-row {
-      background: color-mix(in srgb, var(--bg-color) 68%, var(--surface-color));
+      background-color: var(--bg-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
@@ -921,7 +920,8 @@
     }
 
     .mobile-top-nav-glass {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
@@ -932,11 +932,12 @@
     }
 
     .mobile-bottom-nav-shell {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow:
         0 -8px 32px rgba(0, 0, 0, 0.35),
-        0 -1px 0 color-mix(in srgb, var(--text-color) 8%, transparent);
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
@@ -946,7 +947,8 @@
     }
 
     .messages-composer-dock.mobile-bottom-nav-shell {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border-color: var(--border-color);
     }
 
@@ -955,7 +957,8 @@
     }
 
     .mobile-fab-menu {
-      background: var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: none;
       border: 1px solid var(--border-color);
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
       backdrop-filter: none;
@@ -967,13 +970,16 @@
     }
 
     .mobile-fab-button::after {
-      background:
-        radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--accent-color) 24%, transparent), transparent 58%),
-        var(--surface-color);
+      background-color: var(--surface-color);
+      background-image: radial-gradient(
+        circle at 35% 28%,
+        color-mix(in srgb, var(--accent-color) 35%, var(--surface-color)) 0%,
+        var(--surface-color) 52%
+      );
       border: 1px solid var(--border-color);
       box-shadow:
         0 6px 20px rgba(0, 0, 0, 0.35),
-        0 0 0 2px color-mix(in srgb, var(--accent-color) 32%, transparent);
+        0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }

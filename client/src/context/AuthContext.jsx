@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as authApi from '../api/authApi';
 import { supabase } from '../lib/supabaseClient';
+import { clearOnboardingDoneClient, markOnboardingDoneClient } from '../utils/onboardingGate';
 import { AuthContext, AuthActionsContext } from './authContextDef';
 
 // Re-export for convenience
@@ -14,6 +15,12 @@ export function AuthProvider({ children }) {
     // Ref to avoid stale closures in callbacks — lets us remove `user` from dependency arrays
     const userRef = useRef(user);
     useEffect(() => { userRef.current = user; }, [user]);
+
+    useEffect(() => {
+        if (user?.id && user.onboardingCompletedAt) {
+            markOnboardingDoneClient(user.id);
+        }
+    }, [user?.id, user.onboardingCompletedAt]);
 
     // Initial Session Check
     useEffect(() => {
@@ -31,7 +38,8 @@ export function AuthProvider({ children }) {
                     setUser(null);
                 } else if (userData && userData.id) {
                     setPendingTwoFactor(null);
-                    setUser(userData);
+                    const next = await authApi.hydrateUserIfOnboardingMissing(userData);
+                    setUser(next);
                 } else {
                     setPendingTwoFactor(null);
                     setUser(null);
@@ -96,8 +104,9 @@ export function AuthProvider({ children }) {
 
             if (data.user) {
                 setPendingTwoFactor(null);
-                setUser(data.user);
-                return data.user;
+                const u = await authApi.hydrateUserIfOnboardingMissing(data.user);
+                setUser(u);
+                return u;
             }
 
             throw new Error('Login passed but no user returned');
@@ -109,8 +118,9 @@ export function AuthProvider({ children }) {
 
     const signUp = useCallback(async (username, email, password, captchaToken = null) => {
         const userData = await authApi.register(username, email, password, captchaToken);
-        setUser(userData);
-        return userData;
+        const next = await authApi.hydrateUserIfOnboardingMissing(userData);
+        setUser(next);
+        return next;
     }, []);
 
     const signInWithGoogle = useCallback(async (credential) => {
@@ -123,8 +133,9 @@ export function AuthProvider({ children }) {
             }
             if (data.user) {
                 setPendingTwoFactor(null);
-                setUser(data.user);
-                return data.user;
+                const u = await authApi.hydrateUserIfOnboardingMissing(data.user);
+                setUser(u);
+                return u;
             }
             throw new Error('Google Login passed but no user returned');
         } catch (error) {
@@ -147,8 +158,9 @@ export function AuthProvider({ children }) {
             }
             if (data.user) {
                 setPendingTwoFactor(null);
-                setUser(data.user);
-                return data.user;
+                const u = await authApi.hydrateUserIfOnboardingMissing(data.user);
+                setUser(u);
+                return u;
             }
             throw new Error('Apple Login passed but no user returned');
         } catch (error) {
@@ -160,11 +172,13 @@ export function AuthProvider({ children }) {
     const signInWith2FA = useCallback(async (challenge, code) => {
         const userData = await authApi.login2FA(challenge, code);
         setPendingTwoFactor(null);
-        setUser(userData);
-        return userData;
+        const next = await authApi.hydrateUserIfOnboardingMissing(userData);
+        setUser(next);
+        return next;
     }, []);
 
     const signOut = useCallback(() => {
+        clearOnboardingDoneClient();
         authApi.logout().catch(console.warn);
         authApi.setToken(null);
         setPendingTwoFactor(null);
@@ -172,6 +186,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     const cancelPendingTwoFactor = useCallback(() => {
+        clearOnboardingDoneClient();
         authApi.logout().catch(console.warn);
         authApi.setToken(null);
         setPendingTwoFactor(null);
@@ -193,6 +208,7 @@ export function AuthProvider({ children }) {
     const deleteAccount = useCallback(async (password) => {
         if (!userRef.current) throw new Error('Not logged in');
         await authApi.deleteAccount(password);
+        clearOnboardingDoneClient();
         setUser(null);
     }, []);
 
@@ -211,6 +227,9 @@ export function AuthProvider({ children }) {
 
     const saveOnboardingProgress = useCallback(async (payload) => {
         const updatedUser = await authApi.updateOnboardingProgress(payload);
+        if (payload?.markComplete && updatedUser?.id) {
+            markOnboardingDoneClient(updatedUser.id);
+        }
         setUser(updatedUser);
         return updatedUser;
     }, []);

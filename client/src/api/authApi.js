@@ -889,6 +889,17 @@ export const getMe = async () => {
     return mergeUserWithMfaState(user, mfaState);
 };
 
+/** When auth payloads omit onboarding fields (e.g. older edge responses), refetch profile so the gate stays accurate. */
+export const hydrateUserIfOnboardingMissing = async (user) => {
+    if (!user?.id || user.onboardingCompletedAt !== undefined) return user;
+    try {
+        const fresh = await getMe();
+        return fresh?.id === user.id ? fresh : user;
+    } catch {
+        return user;
+    }
+};
+
 export const restoreSessionUser = async () => {
     const refreshedSupabaseToken = await refreshSupabaseToken().catch(() => null);
     const token = getToken();
@@ -2794,15 +2805,13 @@ const mapOwnUserRow = (row) => {
         email_verified: Boolean(row.email_verified),
     };
 
-    if (row.onboarding_completed_at !== undefined || row.onboarding_step !== undefined) {
-        return {
-            ...base,
-            onboardingCompletedAt: row.onboarding_completed_at || null,
-            onboardingStep: Number(row.onboarding_step) || 0,
-        };
-    }
-
-    return base;
+    return {
+        ...base,
+        onboardingCompletedAt: row.onboarding_completed_at != null && row.onboarding_completed_at !== ''
+            ? row.onboarding_completed_at
+            : null,
+        onboardingStep: Number(row.onboarding_step) || 0,
+    };
 };
 
 const getSupabaseSelfUserRow = async () => {
