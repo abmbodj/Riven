@@ -54,6 +54,8 @@ describe('authApi stripe edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', '');
     supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
@@ -116,7 +118,6 @@ describe('authApi stripe edge migration', () => {
     authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(buildJsonResponse({}))
       .mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
     await expect(
@@ -131,27 +132,7 @@ describe('authApi stripe edge migration', () => {
     });
 
     expect(authApi.getToken()).toBeNull();
-
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
-      'http://localhost:3000/api/csrf',
-      expect.objectContaining({
-        credentials: 'include',
-      }),
-    );
-
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      'http://localhost:3000/api/auth/supabase-token',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: expect.stringContaining('Bearer '),
-        }),
-      }),
-    );
-
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(0);
   });
 
   it('surfaces edge errors when the portal function is unavailable', async () => {

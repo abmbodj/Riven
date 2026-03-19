@@ -300,11 +300,18 @@ const authFetch = async (endpoint, options = {}) => {
 
 const getSupabaseUrl = () => (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
 const getSupabaseAnonKey = () => import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const isLegacyAuthBridgeEnabled = () => (
+    import.meta.env.VITE_ENABLE_LEGACY_AUTH_BRIDGE === 'true'
+    || Boolean(import.meta.env.VITE_API_URL)
+);
 const hasLegacyAuthCookie = () => (
     typeof document !== 'undefined'
     && /(?:^|;\s*)token=/.test(document.cookie || '')
 );
-const canAttemptSupabaseSessionBridge = () => Boolean(getToken()) || hasLegacyAuthCookie();
+const canAttemptSupabaseSessionBridge = () => (
+    isLegacyAuthBridgeEnabled()
+    && (Boolean(getToken()) || hasLegacyAuthCookie())
+);
 
 const hydrateSupabaseSessionFromBridge = async () => {
     if (!canAttemptSupabaseSessionBridge()) {

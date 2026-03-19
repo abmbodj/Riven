@@ -79,6 +79,8 @@ describe('authApi AI edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', '');
     supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
@@ -263,6 +265,7 @@ describe('authApi AI edge migration', () => {
   });
 
   it('preserves the current session when the legacy auth bridge route is unavailable after an edge 401', async () => {
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'true');
     const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
     authApi.setToken(token);
     supabase.auth.getSession.mockResolvedValue({ data: { session: { access_token: token } } });
@@ -284,14 +287,14 @@ describe('authApi AI edge migration', () => {
     expect(authApi.getToken()).toBe(token);
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:3000/api/csrf',
+      '/api/csrf',
       expect.objectContaining({
         credentials: 'include',
       }),
     );
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       3,
-      'http://localhost:3000/api/auth/supabase-token',
+      '/api/auth/supabase-token',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
@@ -390,18 +393,6 @@ describe('authApi AI edge migration', () => {
     });
 
     expect(authApi.getToken()).toBeNull();
-
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      'http://localhost:3000/api/auth/supabase-token',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: expect.stringContaining('Bearer '),
-        }),
-      }),
-    );
-
-    const requestOptions = globalThis.fetch.mock.calls[1][1];
-    expect(requestOptions.headers.Authorization).toMatch(/^Bearer /);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(0);
   });
 });

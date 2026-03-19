@@ -54,6 +54,8 @@ describe('authApi hearts edge migration', () => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', '');
     supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     localStorage.clear();
     authApi.setToken(null);
@@ -102,19 +104,7 @@ describe('authApi hearts edge migration', () => {
     });
 
     expect(authApi.getToken()).toBeNull();
-
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      'http://localhost:3000/api/auth/supabase-token',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: expect.stringContaining('Bearer '),
-        }),
-      }),
-    );
-
-    const requestOptions = globalThis.fetch.mock.calls[1][1];
-    expect(requestOptions.headers.Authorization).toMatch(/^Bearer /);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(0);
   });
 
   it('forces re-login when the hearts edge function returns invalid JWT', async () => {

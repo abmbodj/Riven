@@ -50,6 +50,7 @@ const createSelectSingleChain = (data, error = null) => {
 describe('authApi Supabase auth bridge reductions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv('VITE_ENABLE_LEGACY_AUTH_BRIDGE', 'true');
     localStorage.clear();
     authApi.setToken(null);
     globalThis.fetch = vi.fn(() => {
