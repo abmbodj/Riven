@@ -10,6 +10,12 @@ import AuthLayout from './AuthLayout';
 import OAuthButtons from './OAuthButtons';
 import { registerSchema } from '../../schemas/auth';
 
+const SKIP_TURNSTILE =
+    import.meta.env.VITE_SKIP_TURNSTILE === 'true' || import.meta.env.VITE_SKIP_TURNSTILE === '1';
+
+const TURNSTILE_LOAD_HELP =
+    'The verification widget could not load. In the Cloudflare dashboard, open your Turnstile site key and add these hostnames: localhost, 127.0.0.1, and your app’s web domain. For the iOS app, include localhost (Capacitor loads from there). Then rebuild the app. For local testing only, you can set VITE_SKIP_TURNSTILE=1 in .env and remove TURNSTILE_SECRET_KEY from the API so signup does not require a token.';
+
 const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
     const { signUp } = useAuth();
     const haptics = useHaptics();
@@ -125,22 +131,34 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                     </div>
                 </div>
 
-                {turnstileSiteKey && (
-                    <div className="flex justify-center mt-2">
+                {turnstileRequired && (
+                    <div className="flex flex-col items-center gap-2 mt-2">
                         <Turnstile
                             ref={turnstileRef}
                             siteKey={turnstileSiteKey}
                             onSuccess={setCaptchaToken}
                             onExpire={() => setCaptchaToken(null)}
-                            onError={() => setCaptchaToken(null)}
+                            onError={() => {
+                                setCaptchaToken(null);
+                                setAlert({
+                                    show: true,
+                                    title: 'Verification failed to load',
+                                    message: TURNSTILE_LOAD_HELP,
+                                    type: 'error',
+                                });
+                            }}
                             options={{ theme: 'dark', size: 'flexible' }}
                         />
+                        <p className="text-[10px] text-center text-[#8fa6a8]/80 max-w-sm leading-relaxed px-1">
+                            If this area stays empty, add <span className="text-[#deb96a]/90">localhost</span> to your
+                            Turnstile widget hostnames in Cloudflare, then rebuild the app.
+                        </p>
                     </div>
                 )}
 
                 <button
                     type="submit"
-                    disabled={loading || (turnstileSiteKey && !captchaToken)}
+                    disabled={loading || (turnstileRequired && !captchaToken)}
                     className="w-full bg-[#e4ddd0] text-[#0d141e] font-serif font-bold text-lg py-3 rounded-xl hover:bg-white active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 mt-4 shadow-[0_0_20px_rgba(228,221,208,0.1)] min-h-[48px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? (

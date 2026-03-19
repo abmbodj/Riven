@@ -6,7 +6,10 @@
     "cleartext": true,
     "allowNavigation": [
       "localhost",
-      "192.168.*.*"
+      "192.168.*.*",
+      "*.challenges.cloudflare.com",
+      "challenges.cloudflare.com",
+      "*.cloudflare.com"
     ]
   }
 }
