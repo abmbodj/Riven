@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { Buffer } from 'node:buffer';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 import mammoth from 'npm:mammoth@1.11.0';
 
 import {
@@ -14,6 +13,7 @@ import {
   buildAdaptiveExamPrompt,
   buildFocusedExamPrompt,
 } from '../_shared/aiCore.mjs';
+import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -23,11 +23,6 @@ import { createSSEStream } from '../_shared/streaming.ts';
 type PersistUsagePayload = {
   count: number;
   lastReset: Date;
-};
-
-type AiContentRequest = {
-  model: string;
-  contents: Array<Record<string, unknown>>;
 };
 
 type CreateExamPayload = {
@@ -65,7 +60,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
@@ -146,19 +141,16 @@ serve(async (request) => {
         weakTopics: body.weakTopics,
         examMode,
       });
+      const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
         try {
-          const aiClient = new GoogleGenAI({ apiKey });
-          const streamResponse = await aiClient.models.generateContentStream({
-            model: 'gemini-2.5-flash',
-            contents,
-            config: {
-              temperature: 0,
-              thinkingConfig: { thinkingBudget: 0 },
-              maxOutputTokens: 4096,
-            },
+          const ai = createAiClient(apiKey);
+          const streamResponse = ai.streamContent({
+            model: 'llama-3.3-70b-versatile',
+            messages,
+            maxTokens: 4096,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -265,8 +257,6 @@ serve(async (request) => {
       },
     });
 
-    let aiClient: GoogleGenAI | null = null;
-
     const result = await generateExamFromAi({
       userId: authUser.id,
       notes: body.notes,
@@ -282,18 +272,13 @@ serve(async (request) => {
         const parsed = await mammoth.extractRawText({ buffer });
         return parsed.value;
       },
-      generateContent: async ({ model, contents }: AiContentRequest) => {
-        aiClient ??= new GoogleGenAI({ apiKey });
-        const response = await aiClient.models.generateContent({
+      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+        const ai = createAiClient(apiKey);
+        return ai.generateContent({
           model,
-          contents,
-          config: {
-            temperature: 0,
-            thinkingConfig: { thinkingBudget: 0 },
-            responseMimeType: 'application/json',
-          },
+          messages: contentsToMessages(contents),
+          jsonMode: true,
         });
-        return response.text;
       },
       createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {
         const { data, error: createError } = await admin

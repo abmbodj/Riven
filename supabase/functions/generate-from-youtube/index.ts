@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 
 import {
   consumeAiQuota,
@@ -12,6 +11,8 @@ import {
   buildYoutubeNotesContents,
   parseAiJsonResponse,
 } from '../_shared/aiCore.mjs';
+import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
+import { fetchYoutubeTranscript } from '../_shared/youtubeTranscript.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -21,11 +22,6 @@ import { createSSEStream } from '../_shared/streaming.ts';
 type PersistUsagePayload = {
   count: number;
   lastReset: Date;
-};
-
-type AiContentRequest = {
-  model: string;
-  contents: Array<Record<string, unknown>>;
 };
 
 const VALID_TYPES = ['deck', 'guide', 'exam', 'notes'] as const;
@@ -97,35 +93,35 @@ serve(async (request) => {
       },
     });
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
     if (!apiKey) {
       throw createHttpError('AI integration is not configured on the server.', 500);
     }
 
+    // Fetch transcript (replaces Gemini's native video processing)
+    const transcript = await fetchYoutubeTranscript(normalizedUrl);
+
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
-      const contentBuilders: Record<string, (url: string, cn?: string) => Array<Record<string, unknown>>> = {
+      const contentBuilders: Record<string, (t: string, cn?: string) => Array<Record<string, unknown>>> = {
         deck: buildYoutubeDeckContents,
         guide: buildYoutubeGuideContents,
         exam: buildYoutubeExamContents,
         notes: buildYoutubeNotesContents,
       };
 
-      const contents = contentBuilders[type](normalizedUrl, className);
+      const contents = contentBuilders[type](transcript, className);
+      const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
         try {
-          const aiClient = new GoogleGenAI({ apiKey });
+          const ai = createAiClient(apiKey);
           const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 6144, notes: 6144 };
-          const streamResponse = await aiClient.models.generateContentStream({
-            model: 'gemini-2.5-flash',
-            contents,
-            config: {
-              temperature: 0,
-              thinkingConfig: { thinkingBudget: 0 },
-              maxOutputTokens: maxTokensByType[type] || 4096,
-            },
+          const streamResponse = ai.streamContent({
+            model: 'llama-3.3-70b-versatile',
+            messages,
+            maxTokens: maxTokensByType[type] || 4096,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -159,7 +155,7 @@ serve(async (request) => {
               .insert({
                 user_id: authUser.id,
                 title: finalName,
-                description: 'Generated from YouTube via Gemini AI',
+                description: 'Generated from YouTube via AI',
                 class_id: classId || null,
               })
               .select('id')
@@ -279,31 +275,22 @@ serve(async (request) => {
       return response;
     }
 
-    // ── BATCH PATH (unchanged) ──────────────────────────
-    let aiClient: GoogleGenAI | null = null;
+    // ── BATCH PATH ──────────────────────────────────────
+    const ai = createAiClient(apiKey);
 
-    const generateContent = async ({ model, contents }: AiContentRequest) => {
-      aiClient ??= new GoogleGenAI({ apiKey });
-      const response = await aiClient.models.generateContent({
-        model,
-        contents,
-        config: {
-          temperature: 0,
-          thinkingConfig: { thinkingBudget: 0 },
-          responseMimeType: 'application/json',
-        },
+    const generateContent = async (contents: Array<Record<string, unknown>>) => {
+      return ai.generateContent({
+        model: 'llama-3.3-70b-versatile',
+        messages: contentsToMessages(contents),
+        jsonMode: true,
       });
-      return response.text;
     };
 
     let result: Record<string, unknown>;
 
     // ── DECK ──────────────────────────────────────────
     if (type === 'deck') {
-      const rawResponse = await generateContent({
-        model: 'gemini-2.5-flash',
-        contents: buildYoutubeDeckContents(normalizedUrl, className),
-      });
+      const rawResponse = await generateContent(buildYoutubeDeckContents(transcript, className));
       const flashcards = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid flashcard format. Please try again.',
@@ -318,7 +305,7 @@ serve(async (request) => {
         .insert({
           user_id: authUser.id,
           title: finalName,
-          description: 'Generated from YouTube via Gemini AI',
+          description: 'Generated from YouTube via AI',
           class_id: classId || null,
         })
         .select('id')
@@ -347,10 +334,7 @@ serve(async (request) => {
 
     // ── GUIDE ─────────────────────────────────────────
     else if (type === 'guide') {
-      const rawResponse = await generateContent({
-        model: 'gemini-2.5-flash',
-        contents: buildYoutubeGuideContents(normalizedUrl, className),
-      });
+      const rawResponse = await generateContent(buildYoutubeGuideContents(transcript, className));
       const guideContent = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid study guide format. Please try again.',
@@ -382,10 +366,7 @@ serve(async (request) => {
 
     // ── EXAM ──────────────────────────────────────────
     else if (type === 'exam') {
-      const rawResponse = await generateContent({
-        model: 'gemini-2.5-flash',
-        contents: buildYoutubeExamContents(normalizedUrl, className),
-      });
+      const rawResponse = await generateContent(buildYoutubeExamContents(transcript, className));
       const questions = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid exam format. Please try again.',
@@ -425,10 +406,7 @@ serve(async (request) => {
 
     // ── NOTES ─────────────────────────────────────────
     else {
-      const rawResponse = await generateContent({
-        model: 'gemini-2.5-flash',
-        contents: buildYoutubeNotesContents(normalizedUrl, className),
-      });
+      const rawResponse = await generateContent(buildYoutubeNotesContents(transcript, className));
       const noteContent = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid notes format. Please try again.',

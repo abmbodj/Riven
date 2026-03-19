@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { Buffer } from 'node:buffer';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 import mammoth from 'npm:mammoth@1.11.0';
 
 import {
@@ -12,6 +11,7 @@ import {
   parseAiJsonResponse,
   createHttpError,
 } from '../_shared/aiCore.mjs';
+import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -21,11 +21,6 @@ import { createSSEStream } from '../_shared/streaming.ts';
 type PersistUsagePayload = {
   count: number;
   lastReset: Date;
-};
-
-type AiContentRequest = {
-  model: string;
-  contents: Array<Record<string, unknown>>;
 };
 
 type CreateDeckPayload = {
@@ -67,7 +62,7 @@ serve(async (request) => {
     if (rl) return rl;
 
     const admin = getSupabaseAdmin();
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
@@ -127,19 +122,16 @@ serve(async (request) => {
       }
 
       const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
+      const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
       (async () => {
         try {
-          const aiClient = new GoogleGenAI({ apiKey });
-          const streamResponse = await aiClient.models.generateContentStream({
-            model: 'gemini-2.5-flash',
-            contents,
-            config: {
-              temperature: 0,
-              thinkingConfig: { thinkingBudget: 0 },
-              maxOutputTokens: 2048,
-            },
+          const ai = createAiClient(apiKey);
+          const streamResponse = ai.streamContent({
+            model: 'llama-3.3-70b-versatile',
+            messages,
+            maxTokens: 2048,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -171,7 +163,7 @@ serve(async (request) => {
             .insert({
               user_id: authUser.id,
               title: finalDeckName,
-              description: 'Auto-generated via Gemini AI',
+              description: 'Auto-generated via AI',
               class_id: body.classId || null,
             })
             .select('id')
@@ -236,8 +228,6 @@ serve(async (request) => {
       },
     });
 
-    let aiClient: GoogleGenAI | null = null;
-
     const result = await generateDeckFromAi({
       userId: authUser.id,
       notes: body.notes,
@@ -251,18 +241,13 @@ serve(async (request) => {
         const parsed = await mammoth.extractRawText({ buffer });
         return parsed.value;
       },
-      generateContent: async ({ model, contents }: AiContentRequest) => {
-        aiClient ??= new GoogleGenAI({ apiKey });
-        const response = await aiClient.models.generateContent({
+      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+        const ai = createAiClient(apiKey);
+        return ai.generateContent({
           model,
-          contents,
-          config: {
-            temperature: 0,
-            thinkingConfig: { thinkingBudget: 0 },
-            responseMimeType: 'application/json',
-          },
+          messages: contentsToMessages(contents),
+          jsonMode: true,
         });
-        return response.text;
       },
       createDeck: async ({ userId, title, description, classId }: CreateDeckPayload) => {
         const { data, error: createError } = await admin

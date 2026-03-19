@@ -63,12 +63,8 @@ export const isAiJobKind = (value: unknown): value is typeof AI_JOB_KINDS[number
   AI_JOB_KINDS.includes(value as typeof AI_JOB_KINDS[number]);
 
 export const getAiModelMap = () => ({
-  draft: Deno.env.get('GEMINI_DRAFT_MODEL')
-    || Deno.env.get('AI_DRAFT_MODEL')
-    || 'gemini-2.5-flash-lite',
-  final: Deno.env.get('GEMINI_FINAL_MODEL')
-    || Deno.env.get('AI_FINAL_MODEL')
-    || 'gemini-2.5-flash',
+  draft: Deno.env.get('AI_DRAFT_MODEL') || 'llama-3.3-70b-versatile',
+  final: Deno.env.get('AI_FINAL_MODEL') || 'llama-3.3-70b-versatile',
 });
 
 export const getYoutubeSourceKey = (youtubeUrl: string) => {

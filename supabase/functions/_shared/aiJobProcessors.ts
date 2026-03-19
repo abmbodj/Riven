@@ -1,17 +1,13 @@
-import { Buffer } from 'node:buffer';
-
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
-import mammoth from 'npm:mammoth@1.11.0';
-
 import {
   buildDeckContents,
   buildExamContents,
   buildGuideContents,
   buildSubjectContext,
-  buildYoutubeNotesContents,
   createHttpError,
   parseAiJsonResponse,
 } from './aiCore.mjs';
+import { createAiClient, contentsToMessages, type AiClient, type AiMessage } from './aiClient.ts';
+import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import {
   createArrayStreamTracker,
   createDocFromSections,
@@ -93,28 +89,20 @@ const streamWithFallback = async ({
   ai,
   primaryModel,
   fallbackModel,
-  contents,
-  config,
+  messages,
+  maxTokens,
 }: {
-  ai: GoogleGenAI;
+  ai: AiClient;
   primaryModel: string;
   fallbackModel: string;
-  contents: Array<Record<string, unknown>>;
-  config: Record<string, unknown>;
+  messages: AiMessage[];
+  maxTokens: number;
 }) => {
   try {
-    return await ai.models.generateContentStream({
-      model: primaryModel,
-      contents,
-      config,
-    });
+    return ai.streamContent({ model: primaryModel, messages, maxTokens });
   } catch (error) {
     if (primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
-      return ai.models.generateContentStream({
-        model: fallbackModel,
-        contents,
-        config,
-      });
+      return ai.streamContent({ model: fallbackModel, messages, maxTokens });
     }
     throw error;
   }
@@ -124,28 +112,20 @@ const generateWithFallback = async ({
   ai,
   primaryModel,
   fallbackModel,
-  contents,
-  config,
+  messages,
+  jsonMode = false,
 }: {
-  ai: GoogleGenAI;
+  ai: AiClient;
   primaryModel: string;
   fallbackModel: string;
-  contents: Array<Record<string, unknown>>;
-  config: Record<string, unknown>;
+  messages: AiMessage[];
+  jsonMode?: boolean;
 }) => {
   try {
-    return await ai.models.generateContent({
-      model: primaryModel,
-      contents,
-      config,
-    });
+    return await ai.generateContent({ model: primaryModel, messages, jsonMode });
   } catch (error) {
     if (primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
-      return ai.models.generateContent({
-        model: fallbackModel,
-        contents,
-        config,
-      });
+      return ai.generateContent({ model: fallbackModel, messages, jsonMode });
     }
     throw error;
   }
@@ -163,106 +143,55 @@ const getAudioMimeType = (audioPath: string) => {
   return mimeMap[ext] || 'audio/webm';
 };
 
-const prepareAudioContent = async ({
+const transcribeAudio = async ({
   ai,
   audioPath,
-  noteId,
   admin,
   reporter,
 }: {
-  ai: GoogleGenAI;
+  ai: AiClient;
   audioPath: string;
-  noteId: string;
   admin: any;
   reporter: ReturnType<typeof createJobReporter>;
-}) => {
+}): Promise<string> => {
   await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
   const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
   if (storageError || !audioData) {
     throw createHttpError('Failed to retrieve audio file.', 500);
   }
 
-  const audioArrayBuffer = await audioData.arrayBuffer();
-  const audioUint8 = new Uint8Array(audioArrayBuffer);
+  await reporter.update('processing_media', 24, 'Transcribing audio');
   const audioMimeType = getAudioMimeType(audioPath);
+  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
+  const filename = audioPath.split('/').pop() || 'audio.webm';
 
-  const inlineDataLimit = 20 * 1024 * 1024;
-  if (audioUint8.byteLength < inlineDataLimit) {
-    await reporter.update('processing_media', 24, 'Preparing audio for AI');
-    const base64Audio = Buffer.from(audioUint8).toString('base64');
-    return {
-      audioContent: {
-        inlineData: {
-          data: base64Audio,
-          mimeType: audioMimeType,
-        },
-      },
-      cleanupFileName: null as string | null,
-    };
-  }
-
-  await reporter.update('processing_media', 24, 'Uploading lecture audio for AI processing');
-  const uploadedFile = await ai.files.upload({
-    file: new Blob([audioUint8], { type: audioMimeType }),
-    config: {
-      mimeType: audioMimeType,
-      displayName: `lecture-${noteId}`,
-    },
-  });
-
-  const maxWaitMs = 120_000;
-  const pollIntervalMs = 3_000;
-  const waitStart = Date.now();
-
-  let file = uploadedFile;
-  while (file.state === 'PROCESSING') {
-    if (Date.now() - waitStart > maxWaitMs) {
-      ai.files.delete({ name: file.name! }).catch(() => {});
-      throw createHttpError('Audio processing timed out. Try a shorter recording or retry.', 504);
-    }
-
-    await reporter.update('processing_media', 28, 'Waiting for audio preprocessing');
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    file = await ai.files.get({ name: file.name! });
-  }
-
-  if (file.state === 'FAILED') {
-    throw createHttpError('Audio processing failed. Please try again.', 500);
-  }
-
-  return {
-    audioContent: {
-      fileData: {
-        fileUri: file.uri!,
-        mimeType: audioMimeType,
-      },
-    },
-    cleanupFileName: file.name!,
-  };
+  return ai.transcribeAudio(audioBlob, filename);
 };
 
 const streamDocPreview = async ({
   ai,
   model,
   fallbackModel,
-  contents,
+  messages,
   reporter,
   phase,
   startPercent,
   endPercent,
   message,
   resultKey = 'preview_doc',
+  maxTokens = 6144,
 }: {
-  ai: GoogleGenAI;
+  ai: AiClient;
   model: string;
   fallbackModel: string;
-  contents: Array<Record<string, unknown>>;
+  messages: AiMessage[];
   reporter: ReturnType<typeof createJobReporter>;
   phase: string;
   startPercent: number;
   endPercent: number;
   message: string;
   resultKey?: string;
+  maxTokens?: number;
 }) => {
   let firstPreviewAt: number | null = null;
   const tracker = createDocStreamTracker(async (node, index) => {
@@ -285,12 +214,8 @@ const streamDocPreview = async ({
     ai,
     primaryModel: model,
     fallbackModel,
-    contents,
-    config: {
-      temperature: 0,
-      thinkingConfig: { thinkingBudget: 0 },
-      maxOutputTokens: 6144,
-    },
+    messages,
+    maxTokens,
   });
 
   let fullText = '';
@@ -312,22 +237,24 @@ const streamArrayPreview = async ({
   ai,
   model,
   fallbackModel,
-  contents,
+  messages,
   reporter,
   phase,
   startPercent,
   endPercent,
   message,
+  maxTokens = 4096,
 }: {
-  ai: GoogleGenAI;
+  ai: AiClient;
   model: string;
   fallbackModel: string;
-  contents: Array<Record<string, unknown>>;
+  messages: AiMessage[];
   reporter: ReturnType<typeof createJobReporter>;
   phase: string;
   startPercent: number;
   endPercent: number;
   message: string;
+  maxTokens?: number;
 }) => {
   let firstPreviewAt: number | null = null;
   const tracker = createArrayStreamTracker(async (_item, index) => {
@@ -346,12 +273,8 @@ const streamArrayPreview = async ({
     ai,
     primaryModel: model,
     fallbackModel,
-    contents,
-    config: {
-      temperature: 0,
-      thinkingConfig: { thinkingBudget: 0 },
-      maxOutputTokens: 4096,
-    },
+    messages,
+    maxTokens,
   });
 
   let fullText = '';
@@ -387,7 +310,7 @@ const createDeck = async ({
     .insert({
       user_id: userId,
       title,
-      description: 'Generated from YouTube via Gemini AI',
+      description: 'Generated from YouTube via AI',
       class_id: classId || null,
     })
     .select('id')
@@ -500,6 +423,14 @@ const createNote = async ({
   return data.id;
 };
 
+const getApiKeyAndClient = () => {
+  const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+  if (!apiKey) {
+    throw createHttpError('AI integration is not configured on the server.', 500);
+  }
+  return createAiClient(apiKey);
+};
+
 const processNoteEnhancementJob = async ({
   admin,
   job,
@@ -517,132 +448,106 @@ const processNoteEnhancementJob = async ({
   }
 
   const modelMap = getAiModelMap();
-  const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
-  if (!apiKey) {
-    throw createHttpError('AI integration is not configured on the server.', 500);
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = getApiKeyAndClient();
   const jobStartedAt = Date.now();
-  let cleanupFileName: string | null = null;
   let firstPreviewAt: number | null = null;
 
+  await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
+
+  const transcription = await transcribeAudio({ ai, audioPath, admin, reporter });
+
+  const draftMessages: AiMessage[] = [{
+    role: 'user',
+    content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
+  }];
+
+  const draftResult = await streamDocPreview({
+    ai,
+    model: modelMap.draft,
+    fallbackModel: modelMap.final,
+    messages: draftMessages,
+    reporter,
+    phase: 'drafting',
+    startPercent: 36,
+    endPercent: 68,
+    message: 'Drafting enhanced notes',
+  });
+
+  const draftDoc = draftResult.doc;
+  if (draftResult.firstPreviewAt != null) {
+    firstPreviewAt = draftResult.firstPreviewAt;
+  }
+
+  await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
+    preview_doc: draftDoc,
+    preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
+      ? (draftDoc as Record<string, unknown>).content
+      : [],
+    preview_text: extractTextFromTiptapDoc(draftDoc),
+  });
+
+  const enrichText = await generateWithFallback({
+    ai,
+    primaryModel: modelMap.final,
+    fallbackModel: modelMap.final,
+    messages: [{
+      role: 'user',
+      content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
+    }],
+    jsonMode: true,
+  });
+
+  let finalDoc: unknown;
   try {
-    await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
-    const { audioContent, cleanupFileName: uploadedFileName } = await prepareAudioContent({
-      ai,
-      audioPath,
-      noteId,
-      admin,
-      reporter,
-    });
-    cleanupFileName = uploadedFileName;
+    finalDoc = parseAiJsonResponse(
+      enrichText,
+      'AI generated invalid enhanced notes format. Please try again.',
+    );
+  } catch {
+    finalDoc = draftDoc;
+  }
 
-    const draftContents = [
-      { text: buildNoteDraftPrompt(userNotesSnapshot, className) },
-      audioContent,
-    ];
-
-    const draftResult = await streamDocPreview({
-      ai,
-      model: modelMap.draft,
-      fallbackModel: modelMap.final,
-      contents: draftContents,
-      reporter,
-      phase: 'drafting',
-      startPercent: 36,
-      endPercent: 68,
-      message: 'Drafting enhanced notes',
-    });
-
-    const draftDoc = draftResult.doc;
-    if (draftResult.firstPreviewAt != null) {
-      firstPreviewAt = draftResult.firstPreviewAt;
-    }
-
-    await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
-      preview_doc: draftDoc,
-      preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
-        ? (draftDoc as Record<string, unknown>).content
-        : [],
-      preview_text: extractTextFromTiptapDoc(draftDoc),
-    });
-
-    const enrichResponse = await generateWithFallback({
-      ai,
-      primaryModel: modelMap.final,
-      fallbackModel: modelMap.final,
-      contents: [
-        { text: buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc) },
-        audioContent,
-      ],
-      config: {
-        temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: 'application/json',
+  await reporter.markSaving('Saving enhanced notes', {
+    final_doc: finalDoc,
+    note_id: noteId,
+    metrics: {
+      server_total_ms: Date.now() - jobStartedAt,
+      first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+      ai_model_stage: {
+        draft: modelMap.draft,
+        final: modelMap.final,
       },
-    });
+    },
+  });
 
-    let finalDoc: unknown;
-    try {
-      finalDoc = parseAiJsonResponse(
-        enrichResponse.text,
-        'AI generated invalid enhanced notes format. Please try again.',
-      );
-    } catch {
-      finalDoc = draftDoc;
-    }
+  const { error: updateError } = await admin
+    .from('notes')
+    .update({
+      enhanced_content: finalDoc,
+      content: finalDoc,
+      audio_url: null,
+      source_type: 'audio',
+    })
+    .eq('id', noteId)
+    .eq('user_id', job.user_id);
 
-    await reporter.markSaving('Saving enhanced notes', {
+  if (updateError) throw updateError;
+
+  admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
+
+  await reporter.complete({
+    message: 'Notes enhanced successfully',
+    targetType: 'note',
+    targetId: noteId,
+    resultPatch: {
       final_doc: finalDoc,
       note_id: noteId,
-      metrics: {
-        server_total_ms: Date.now() - jobStartedAt,
-        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
-        ai_model_stage: {
-          draft: modelMap.draft,
-          final: modelMap.final,
-        },
-      },
-    });
-
-    const { error: updateError } = await admin
-      .from('notes')
-      .update({
-        enhanced_content: finalDoc,
-        content: finalDoc,
-        audio_url: null,
-        source_type: 'audio',
-      })
-      .eq('id', noteId)
-      .eq('user_id', job.user_id);
-
-    if (updateError) throw updateError;
-
-    if (cleanupFileName) {
-      ai.files.delete({ name: cleanupFileName }).catch(() => {});
-    }
-    admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
-
-    await reporter.complete({
-      message: 'Notes enhanced successfully',
-      targetType: 'note',
-      targetId: noteId,
-      resultPatch: {
-        final_doc: finalDoc,
-        note_id: noteId,
-        preview_doc: finalDoc,
-        preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
-          ? (finalDoc as Record<string, unknown>).content
-          : [],
-      },
-    });
-  } catch (error) {
-    if (cleanupFileName) {
-      ai.files.delete({ name: cleanupFileName }).catch(() => {});
-    }
-    throw error;
-  }
+      preview_doc: finalDoc,
+      preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
+        ? (finalDoc as Record<string, unknown>).content
+        : [],
+    },
+  });
 };
 
 const processYoutubeSourceJob = async ({
@@ -660,27 +565,26 @@ const processYoutubeSourceJob = async ({
     throw createHttpError('YouTube source job is missing video context.', 400);
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
-  if (!apiKey) {
-    throw createHttpError('AI integration is not configured on the server.', 500);
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = getApiKeyAndClient();
   const jobStartedAt = Date.now();
   let firstPreviewAt: number | null = null;
 
-  await reporter.markRunning('processing_media', 14, 'Analyzing YouTube video', {
+  await reporter.markRunning('processing_media', 14, 'Fetching YouTube transcript', {
     source_key: sourceKey,
   });
+
+  const transcript = await fetchYoutubeTranscript(youtubeUrl);
+
+  const messages: AiMessage[] = [{
+    role: 'user',
+    content: `${buildYoutubeSourcePrompt(className)}\n\nVideo Transcript:\n${transcript}`,
+  }];
 
   const streamResult = await streamDocPreview({
     ai,
     model: getAiModelMap().final,
     fallbackModel: getAiModelMap().final,
-    contents: [
-      { text: buildYoutubeSourcePrompt(className) },
-      buildYoutubeNotesContents(youtubeUrl, className)[1],
-    ],
+    messages,
     reporter,
     phase: 'drafting',
     startPercent: 26,
@@ -762,12 +666,7 @@ const processYoutubeDerivedJob = async ({
     throw createHttpError('Video source text is unavailable for this AI job.', 500);
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
-  if (!apiKey) {
-    throw createHttpError('AI integration is not configured on the server.', 500);
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = getApiKeyAndClient();
   const modelMap = getAiModelMap();
 
   await reporter.markRunning('drafting', 18, 'Generating study artifact', {
@@ -811,13 +710,13 @@ const processYoutubeDerivedJob = async ({
       ai,
       model: modelMap.final,
       fallbackModel: modelMap.final,
-      contents: buildDeckContents({
+      messages: contentsToMessages(buildDeckContents({
         processedNotes: sourceText,
         hasProcessedNotes: true,
         keepFile: false,
         file: null,
         className,
-      }),
+      })),
       reporter,
       phase: 'drafting',
       startPercent: 28,
@@ -868,7 +767,7 @@ const processYoutubeDerivedJob = async ({
       ai,
       model: modelMap.final,
       fallbackModel: modelMap.final,
-      contents: buildExamContents({
+      messages: contentsToMessages(buildExamContents({
         processedNotes: sourceText,
         hasProcessedNotes: true,
         keepFile: false,
@@ -877,7 +776,7 @@ const processYoutubeDerivedJob = async ({
         masteryData: null,
         weakTopics: null,
         examMode: null,
-      }),
+      })),
       reporter,
       phase: 'drafting',
       startPercent: 28,
@@ -939,13 +838,13 @@ const processYoutubeDerivedJob = async ({
     ai,
     model: modelMap.final,
     fallbackModel: modelMap.final,
-    contents: buildGuideContents({
+    messages: contentsToMessages(buildGuideContents({
       processedNotes: sourceText,
       hasProcessedNotes: true,
       keepFile: false,
       file: null,
       className,
-    }),
+    })),
     reporter,
     phase: 'drafting',
     startPercent: 28,

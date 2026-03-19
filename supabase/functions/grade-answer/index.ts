@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 
 import { ensureApiKey, createHttpError } from '../_shared/aiCore.mjs';
+import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -33,7 +33,7 @@ serve(async (request) => {
       throw createHttpError('Answer is too long. Please limit to ~1000 words.', 400);
     }
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
     ensureApiKey(apiKey);
 
     const prompt = `You are an expert exam grader. Grade the student's answer to the following question.
@@ -63,20 +63,14 @@ Example:
   "keyPointsMissed": ["Did not mention ATP synthase", "Omitted chemiosmosis"]
 }`;
 
-    // Parallel: rate limit already done, parallelize auth with nothing needed here
-    const aiClient = new GoogleGenAI({ apiKey });
-    const response = await aiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ text: prompt }],
-      config: {
-        temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: 'application/json',
-        maxOutputTokens: 512,
-      },
+    const ai = createAiClient(apiKey);
+    const rawText = await ai.generateContent({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      maxTokens: 512,
+      jsonMode: true,
     });
 
-    const rawText = response.text ?? '';
     let result;
     try {
       let cleaned = rawText.trim();

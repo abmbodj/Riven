@@ -1,9 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { Buffer } from 'node:buffer';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 import mammoth from 'npm:mammoth@1.11.0';
 
 import { consumeAiQuota, generateClassPreview } from '../_shared/aiCore.mjs';
+import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -12,11 +12,6 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 type PersistUsagePayload = {
   count: number;
   lastReset: Date;
-};
-
-type AiContentRequest = {
-  model: string;
-  contents: Array<Record<string, unknown>>;
 };
 
 serve(async (request) => {
@@ -60,8 +55,7 @@ serve(async (request) => {
       },
     });
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
-    let aiClient: GoogleGenAI | null = null;
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
 
     const result = await generateClassPreview({
       notes: body.notes,
@@ -71,18 +65,13 @@ serve(async (request) => {
         const parsed = await mammoth.extractRawText({ buffer });
         return parsed.value;
       },
-      generateContent: async ({ model, contents }: AiContentRequest) => {
-        aiClient ??= new GoogleGenAI({ apiKey });
-        const response = await aiClient.models.generateContent({
+      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+        const ai = createAiClient(apiKey);
+        return ai.generateContent({
           model,
-          contents,
-          config: {
-            temperature: 0,
-            thinkingConfig: { thinkingBudget: 0 },
-            responseMimeType: 'application/json',
-          },
+          messages: contentsToMessages(contents),
+          jsonMode: true,
         });
-        return response.text;
       },
       onParseError: (error: unknown) => {
         console.error('Failed to parse document text:', error);

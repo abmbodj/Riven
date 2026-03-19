@@ -285,7 +285,7 @@ export const generateDeckFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'llama-3.3-70b-versatile',
     contents: buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
@@ -305,7 +305,7 @@ export const generateDeckFromAi = async ({
     createdDeck = await createDeck({
       userId,
       title: finalDeckName,
-      description: 'Auto-generated via Gemini AI',
+      description: 'Auto-generated via AI',
       classId: classId || null,
     });
 
@@ -405,7 +405,7 @@ export const generateStudyGuideFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'llama-3.3-70b-versatile',
     contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
@@ -586,7 +586,7 @@ export const generateExamFromAi = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'llama-3.3-70b-versatile',
     contents: buildExamContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
@@ -675,8 +675,8 @@ export const normalizeYoutubeUrl = (url) => {
   }
 };
 
-const buildYoutubeVideoSource = (youtubeUrl) => ({
-  fileData: { fileUri: youtubeUrl },
+const buildYoutubeVideoSource = (transcript) => ({
+  text: `Video Transcript:\n${transcript}`,
 });
 
 export const buildYoutubeDeckContents = (youtubeUrl, className) => [
@@ -729,7 +729,7 @@ export const generateClassPreview = async ({
   }
 
   const rawResponse = await generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'llama-3.3-70b-versatile',
     contents: buildClassContents({ processedNotes, hasProcessedNotes, keepFile, file }),
   });
 

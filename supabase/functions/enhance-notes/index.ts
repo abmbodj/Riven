@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { GoogleGenAI } from 'npm:@google/genai@1.42.0';
 
 import { buildSubjectContext, consumeAiQuota, createHttpError, parseAiJsonResponse } from '../_shared/aiCore.mjs';
+import { createAiClient } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
@@ -17,7 +17,7 @@ const TIPTAP_FORMAT_INSTRUCTIONS = `Output ONLY valid JSON: { "type": "doc", "co
 Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
 Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
 
-const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant. Given the audio recording, produce clean, structured notes as a Tiptap JSON document.
+const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant. Given the lecture transcription, produce clean, structured notes as a Tiptap JSON document.
 
 ${buildSubjectContext(className)}
 
@@ -25,11 +25,11 @@ H1 major topics, H2 subtopics, H3 detail. Bullets for concepts, ordered lists fo
 
 ${TIPTAP_FORMAT_INSTRUCTIONS}`;
 
-const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. Expand the student's notes using the lecture audio as context.
+const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. Expand the student's notes using the lecture transcription as context.
 
 ${buildSubjectContext(className)}
 
-Preserve student's phrasing. Fill gaps from audio. Add missing terms, definitions, examples. H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions. Ordered lists for steps. End sections with takeaway. Add "Key Concepts" and "Potential Exam Questions" sections. Student notes take priority.
+Preserve student's phrasing. Fill gaps from transcription. Add missing terms, definitions, examples. H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions. Ordered lists for steps. End sections with takeaway. Add "Key Concepts" and "Potential Exam Questions" sections. Student notes take priority.
 
 ${TIPTAP_FORMAT_INSTRUCTIONS}
 
@@ -107,11 +107,14 @@ serve(async (request) => {
       throw createHttpError('Failed to retrieve audio file', 500);
     }
 
-    // Convert to array buffer for Gemini upload
-    const audioArrayBuffer = await audioData.arrayBuffer();
-    const audioUint8 = new Uint8Array(audioArrayBuffer);
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    if (!apiKey) {
+      throw createHttpError('AI integration is not configured on the server.', 500);
+    }
 
-    // Determine MIME type from path
+    const ai = createAiClient(apiKey);
+
+    // Transcribe audio with Whisper
     const ext = audioPath.split('.').pop()?.toLowerCase() ?? 'webm';
     const mimeMap: Record<string, string> = {
       webm: 'audio/webm',
@@ -121,13 +124,10 @@ serve(async (request) => {
       mp3: 'audio/mpeg',
     };
     const audioMimeType = mimeMap[ext] || 'audio/webm';
+    const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
+    const filename = audioPath.split('/').pop() || 'audio.webm';
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
-    if (!apiKey) {
-      throw createHttpError('AI integration is not configured on the server.', 500);
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    const transcription = await ai.transcribeAudio(audioBlob, filename);
 
     // Determine mode and build prompt
     const isEnhanceMode = userNotes && userNotes.trim().length > 0;
@@ -135,63 +135,8 @@ serve(async (request) => {
       ? buildEnhancePrompt(userNotes, className)
       : buildGeneratePrompt(className);
 
-    const INLINE_DATA_LIMIT = 20 * 1024 * 1024; // 20MB
-    const useInlineData = audioUint8.byteLength < INLINE_DATA_LIMIT;
-
-    let geminiFileName: string | null = null;
-    let audioContent: Record<string, unknown>;
-
-    if (useInlineData) {
-      // Small files: send directly as base64 inline data (no upload/polling overhead)
-      const base64Audio = btoa(
-        audioUint8.reduce((data, byte) => data + String.fromCharCode(byte), ''),
-      );
-      audioContent = {
-        inlineData: {
-          data: base64Audio,
-          mimeType: audioMimeType,
-        },
-      };
-    } else {
-      // Large files (>20MB): use Gemini File API with upload + polling
-      const uploadedFile = await ai.files.upload({
-        file: new Blob([audioUint8], { type: audioMimeType }),
-        config: {
-          mimeType: audioMimeType,
-          displayName: `lecture-${noteId}`,
-        },
-      });
-
-      const MAX_WAIT_MS = 120_000;
-      const POLL_INTERVAL_MS = 3_000;
-      const startWait = Date.now();
-
-      let file = uploadedFile;
-      while (file.state === 'PROCESSING') {
-        if (Date.now() - startWait > MAX_WAIT_MS) {
-          ai.files.delete({ name: file.name! }).catch(() => {});
-          throw createHttpError('Audio processing timed out. Try a shorter recording or retry.', 504);
-        }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-        file = await ai.files.get({ name: file.name! });
-      }
-
-      if (file.state === 'FAILED') {
-        throw createHttpError('Audio processing failed. Please try again.', 500);
-      }
-
-      geminiFileName = file.name!;
-      audioContent = {
-        fileData: {
-          fileUri: file.uri!,
-          mimeType: audioMimeType,
-        },
-      };
-    }
-
-    const aiContents = [
-      { text: systemPrompt },
-      audioContent,
+    const aiMessages = [
+      { role: 'user' as const, content: `${systemPrompt}\n\nLecture Audio Transcription:\n${transcription}` },
     ];
 
     // ── STREAMING PATH ──────────────────────────────────
@@ -200,14 +145,10 @@ serve(async (request) => {
 
       (async () => {
         try {
-          const streamResponse = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
-            contents: aiContents,
-            config: {
-              temperature: 0,
-              thinkingConfig: { thinkingBudget: 0 },
-              maxOutputTokens: 6144,
-            },
+          const streamResponse = ai.streamContent({
+            model: 'llama-3.3-70b-versatile',
+            messages: aiMessages,
+            maxTokens: 6144,
           });
 
           const STREAM_DEADLINE_MS = 90_000;
@@ -246,10 +187,7 @@ serve(async (request) => {
 
           if (updateError) throw updateError;
 
-          // Cleanup
-          if (geminiFileName) {
-            ai.files.delete({ name: geminiFileName }).catch(() => {});
-          }
+          // Cleanup audio file
           admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
           sendDone({
@@ -271,19 +209,15 @@ serve(async (request) => {
       return response;
     }
 
-    // ── BATCH PATH (unchanged) ──────────────────────────
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: aiContents,
-      config: {
-        temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: 'application/json',
-      },
+    // ── BATCH PATH ──────────────────────────────────────
+    const rawText = await ai.generateContent({
+      model: 'llama-3.3-70b-versatile',
+      messages: aiMessages,
+      jsonMode: true,
     });
 
     const enhancedContent = parseAiJsonResponse(
-      response.text,
+      rawText,
       'AI generated invalid notes format. Please try again.',
     );
 
@@ -296,7 +230,7 @@ serve(async (request) => {
       .from('notes')
       .update({
         enhanced_content: enhancedContent,
-        audio_url: null, // audio deleted after processing
+        audio_url: null,
         source_type: 'audio',
       })
       .eq('id', noteId)
@@ -304,10 +238,7 @@ serve(async (request) => {
 
     if (updateError) throw updateError;
 
-    // Cleanup: delete files from Gemini (if used) and Supabase Storage
-    if (geminiFileName) {
-      ai.files.delete({ name: geminiFileName }).catch(() => {});
-    }
+    // Cleanup audio file
     admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
     return jsonResponse(
