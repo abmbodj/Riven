@@ -14,6 +14,30 @@ class ErrorBoundary extends React.Component {
 
     componentDidCatch(error, errorInfo) {
         console.error('App error:', error, errorInfo);
+        // #region agent log
+        const payload = {
+            sessionId: '41ce24',
+            runId: 'pre-fix',
+            hypothesisId: 'H1',
+            location: 'ErrorBoundary.jsx:componentDidCatch',
+            message: 'error_boundary_caught',
+            data: {
+                name: error?.name,
+                errMessage: error?.message,
+                stackTail: typeof error?.stack === 'string' ? error.stack.slice(-2000) : null,
+                componentStackTail:
+                    typeof errorInfo?.componentStack === 'string'
+                        ? errorInfo.componentStack.slice(-2000)
+                        : null,
+            },
+            timestamp: Date.now(),
+        };
+        fetch('http://127.0.0.1:7311/ingest/53f62ef3-2a00-4279-bbe9-6c0ad7e975d5', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '41ce24' },
+            body: JSON.stringify(payload),
+        }).catch(() => {});
+        // #endregion
     }
 
     handleReset = () => {
