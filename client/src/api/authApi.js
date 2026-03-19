@@ -1376,6 +1376,17 @@ export const generateFromYoutubeStream = (youtubeUrl, type, { title, classId, de
 export const enhanceNoteWithAudioStream = (noteId, audioPath, userNotes, title, className) =>
     edgeFunctionStreamFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });
 
+// --- AI Warmup ---
+export const warmupAiFunctions = (...functionNames) => {
+    const supabaseUrl = getSupabaseUrl();
+    for (const fn of functionNames) {
+        fetch(`${supabaseUrl}/functions/v1/${fn}`, {
+            method: 'POST',
+            headers: { 'x-warmup': '1' },
+        }).catch(() => {}); // fire-and-forget
+    }
+};
+
 // --- Notes (PostgREST) ---
 
 export const getNotes = async (classId) => {

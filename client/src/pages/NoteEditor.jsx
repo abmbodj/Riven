@@ -11,7 +11,7 @@ import useAudioRecorder from '../hooks/useAudioRecorder';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
-import GeneratingOverlay from '../components/ui/GeneratingOverlay';
+import { createArrayStreamParser } from '../utils/streamingJsonParser';
 
 function formatDuration(seconds) {
     const m = Math.floor(seconds / 60);
@@ -50,6 +50,8 @@ export default function NoteEditor() {
 
     // AI generation states
     const [generating, setGenerating] = useState(null); // 'flashcards' | 'guide' | 'exam' | null
+    const [streamingCards, setStreamingCards] = useState([]);
+    const [generatingStatus, setGeneratingStatus] = useState('');
 
     // Audio & enhancement states
     const [showEnhanceBanner, setShowEnhanceBanner] = useState(false);
@@ -62,6 +64,11 @@ export default function NoteEditor() {
     const titleRef = useRef(title);
 
     const recorder = useAudioRecorder(noteId);
+
+    // Warmup AI edge functions on mount
+    useEffect(() => {
+        api.warmupAiFunctions('generate-deck', 'generate-guide', 'generate-exam', 'enhance-notes');
+    }, []);
 
     // Load note data
     useEffect(() => {
@@ -213,33 +220,36 @@ export default function NoteEditor() {
         recorder.setProcessingState('uploading');
 
         try {
-            // Upload audio to Supabase Storage
             const uploadResult = await api.uploadNoteAudio(noteId, blob);
             const storagePath = uploadResult.path;
             setAudioPath(storagePath);
 
             recorder.setProcessingState('processing');
 
-            // Extract user notes for mode detection
             const userNotes = extractText(contentRef.current).trim() || null;
-
-            // Call enhance edge function
             const selectedClassName = classes.find(c => c.id === classId)?.name || null;
-            const result = await api.enhanceNoteWithAudio(
-                noteId,
-                storagePath,
-                userNotes,
-                titleRef.current || 'Untitled',
-                selectedClassName
+            const stream = await api.enhanceNoteWithAudioStream(
+                noteId, storagePath, userNotes,
+                titleRef.current || 'Untitled', selectedClassName
             );
 
-            setContent(result.enhanced_content);
-            contentRef.current = result.enhanced_content;
-            await api.updateNote(noteId, { content: result.enhanced_content });
-            setShowEnhanceBanner(false);
-            setAudioPath(null); // audio deleted server-side after processing
-            recorder.setProcessingState('complete');
-            toast.success('Notes enhanced with AI');
+            for await (const event of stream.chunks()) {
+                if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    err.canWatchAd = event.data.canWatchAd;
+                    throw err;
+                } else if (event.type === 'done') {
+                    setContent(event.data.enhanced_content);
+                    contentRef.current = event.data.enhanced_content;
+                    await api.updateNote(noteId, { content: event.data.enhanced_content });
+                    setShowEnhanceBanner(false);
+                    setAudioPath(null);
+                    recorder.setProcessingState('complete');
+                    toast.success('Notes enhanced with AI');
+                    return;
+                }
+            }
         } catch (err) {
             recorder.setProcessingState('error');
             if (err.status === 429) {
@@ -252,62 +262,122 @@ export default function NoteEditor() {
         }
     };
 
-    // ─── AI generation handlers ───
+    // ─── AI generation handlers (all streaming) ───
 
     const handleGenerateFlashcards = async () => {
-        const source = contentRef.current;
-        const text = extractText(source);
+        const text = extractText(contentRef.current);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('flashcards');
+        setStreamingCards([]);
         try {
             const selectedClassName = classes.find(c => c.id === classId)?.name || null;
-            const result = await api.generateAiDeck(text, null, `${titleRef.current || 'Note'} - AI`, classId, selectedClassName);
-            toast.success(`Generated ${result.card_count} flashcards!`);
-            navigate(`/deck/${result.deck_id}`);
+            const stream = await api.generateAiDeckStream(
+                text, null, `${titleRef.current || 'Note'} - AI`, classId, selectedClassName
+            );
+
+            const parser = createArrayStreamParser((card) => {
+                setStreamingCards(prev => [...prev, card]);
+            });
+
+            for await (const event of stream.chunks()) {
+                if (event.type === 'chunk') parser.feed(event.data.text);
+                else if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    err.canWatchAd = event.data.canWatchAd;
+                    throw err;
+                } else if (event.type === 'done') {
+                    toast.success(`Generated ${event.data.card_count} flashcards!`);
+                    navigate(`/deck/${event.data.deck_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate flashcards');
         } finally {
             setGenerating(null);
+            setStreamingCards([]);
         }
     };
 
     const handleGenerateGuide = async () => {
-        const source = contentRef.current;
-        const text = extractText(source);
+        const text = extractText(contentRef.current);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('guide');
+        setGeneratingStatus('');
         try {
             const selectedClassName = classes.find(c => c.id === classId)?.name || null;
-            const result = await api.generateAiGuide(text, null, `${titleRef.current || 'Note'} Guide`, noteId, classId, selectedClassName);
-            toast.success('Study guide generated!');
-            navigate(`/guide/${result.guide_id}`);
+            const stream = await api.generateAiGuideStream(
+                text, null, `${titleRef.current || 'Note'} Guide`, noteId, classId, selectedClassName
+            );
+
+            let sectionCount = 0;
+            for await (const event of stream.chunks()) {
+                if (event.type === 'chunk') {
+                    // Count sections from headings in streamed text
+                    const headingMatches = event.data.text.match(/"level":\s*1/g);
+                    if (headingMatches) {
+                        sectionCount += headingMatches.length;
+                        setGeneratingStatus(`${sectionCount} section${sectionCount !== 1 ? 's' : ''}`);
+                    }
+                } else if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    err.canWatchAd = event.data.canWatchAd;
+                    throw err;
+                } else if (event.type === 'done') {
+                    toast.success('Study guide generated!');
+                    navigate(`/guide/${event.data.guide_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate guide');
         } finally {
             setGenerating(null);
+            setGeneratingStatus('');
         }
     };
 
     const handleGenerateExam = async () => {
-        const source = contentRef.current;
-        const text = extractText(source);
+        const text = extractText(contentRef.current);
         if (!text.trim()) { toast.error('Note is empty'); return; }
 
         setGenerating('exam');
+        setStreamingCards([]);
         try {
             const selectedClassName = classes.find(c => c.id === classId)?.name || null;
-            const result = await api.generateAiExam(text, null, `${titleRef.current || 'Note'} Exam`, 'notes', noteId, classId, selectedClassName);
-            toast.success(`Generated ${result.question_count} questions!`);
-            navigate(`/exam/${result.exam_id}`);
+            const stream = await api.generateAiExamStream(
+                text, null, `${titleRef.current || 'Note'} Exam`, 'notes', noteId, classId, selectedClassName
+            );
+
+            const parser = createArrayStreamParser((question) => {
+                setStreamingCards(prev => [...prev, question]);
+            });
+
+            for await (const event of stream.chunks()) {
+                if (event.type === 'chunk') parser.feed(event.data.text);
+                else if (event.type === 'error') {
+                    const err = new Error(event.data.message);
+                    err.status = event.data.status;
+                    err.canWatchAd = event.data.canWatchAd;
+                    throw err;
+                } else if (event.type === 'done') {
+                    toast.success(`Generated ${event.data.question_count} questions!`);
+                    navigate(`/exam/${event.data.exam_id}`);
+                    return;
+                }
+            }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
             else toast.error(err.message || 'Failed to generate exam');
         } finally {
             setGenerating(null);
+            setStreamingCards([]);
         }
     };
 
@@ -340,7 +410,6 @@ export default function NoteEditor() {
 
     return (
         <>
-        <GeneratingOverlay type={generating} />
         <div className="relative min-h-screen pb-8">
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
@@ -406,7 +475,7 @@ export default function NoteEditor() {
                         className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
                     >
                         {generating === 'flashcards' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
-                        <span>Flashcards</span>
+                        <span>{generating === 'flashcards' && streamingCards.length > 0 ? `${streamingCards.length} cards` : 'Flashcards'}</span>
                     </button>
 
                     <button
@@ -415,7 +484,7 @@ export default function NoteEditor() {
                         className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
                     >
                         {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
-                        <span>Study Guide</span>
+                        <span>{generating === 'guide' && generatingStatus ? generatingStatus : 'Study Guide'}</span>
                     </button>
 
                     <button
@@ -424,7 +493,7 @@ export default function NoteEditor() {
                         className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
                     >
                         {generating === 'exam' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-                        <span>Mock Exam</span>
+                        <span>{generating === 'exam' && streamingCards.length > 0 ? `${streamingCards.length} questions` : 'Mock Exam'}</span>
                     </button>
                 </div>
             </div>
@@ -598,6 +667,33 @@ export default function NoteEditor() {
             </div>
 
         </div>
+
+        {/* Streaming card preview during flashcard generation */}
+        <AnimatePresence>
+            {generating === 'flashcards' && streamingCards.length > 0 && (
+                <motion.div
+                    initial={{ y: 40, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 40, opacity: 0 }}
+                    className="fixed bottom-0 left-0 right-0 max-h-[40vh] overflow-auto bg-claude-bg/95 backdrop-blur-md border-t border-claude-border/20 p-4 space-y-2 z-40"
+                >
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-claude-secondary mb-2">
+                        {streamingCards.length} card{streamingCards.length !== 1 ? 's' : ''} generated
+                    </p>
+                    {streamingCards.slice(-3).map((card, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="glass-panel border border-claude-border rounded-xl p-3"
+                        >
+                            <p className="text-xs font-semibold text-claude-text">{card.front}</p>
+                            <p className="text-xs text-claude-secondary mt-1">{card.back}</p>
+                        </motion.div>
+                    ))}
+                </motion.div>
+            )}
+        </AnimatePresence>
         </>
     );
 }

@@ -35,8 +35,9 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
-  const rl = await checkRateLimit(request, 'default');
-  if (rl) return rl;
+  if (request.headers.get('x-warmup') === '1') {
+    return new Response('ok', { status: 200, headers: getCorsHeaders(request) });
+  }
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
@@ -60,7 +61,13 @@ serve(async (request) => {
     }
     const normalizedUrl = normalizeYoutubeUrl(youtubeUrl);
 
-    const authUser = await resolveSupabaseUser(request);
+    // Parallel: rate limit + auth resolution
+    const [rl, authUser] = await Promise.all([
+      checkRateLimit(request, 'default'),
+      resolveSupabaseUser(request),
+    ]);
+    if (rl) return rl;
+
     const admin = getSupabaseAdmin();
 
     const { data: user, error } = await admin
@@ -110,12 +117,14 @@ serve(async (request) => {
       (async () => {
         try {
           const aiClient = new GoogleGenAI({ apiKey });
+          const maxTokensByType: Record<string, number> = { deck: 2048, exam: 4096, guide: 6144, notes: 6144 };
           const streamResponse = await aiClient.models.generateContentStream({
             model: 'gemini-2.5-flash',
             contents,
             config: {
               temperature: 0,
               thinkingConfig: { thinkingBudget: 0 },
+              maxOutputTokens: maxTokensByType[type] || 4096,
             },
           });
 

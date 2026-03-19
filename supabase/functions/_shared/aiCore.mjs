@@ -37,30 +37,12 @@ const appendText = (currentText, nextText) => {
 
 const buildSubjectContext = (className) => {
   const classHint = className
-    ? `This material is from a class called "${className}". Use the class name to determine the subject area.`
-    : 'Infer the subject area from the content itself.';
+    ? `Material from "${className}". Use the class name to determine the subject area.`
+    : 'Infer the subject area from the content.';
 
-  return `
-${classHint}
-
-Adapt your formatting to the subject:
-- STEM/Math: Use ordered lists for proofs, derivations, and problem-solving steps. Bold all formulas and equations inline. Use blockquotes for theorems, axioms, and formal definitions. Group by concept → definition → example → application.
-- Science (Bio, Chem, Physics): Group by systems or processes. Bold all terminology on first use. Organize with cause→effect patterns. Include key reactions and formulas inline. Use ordered lists for sequential processes (e.g., steps of mitosis, reaction mechanisms).
-- History/Social Sciences: Use chronological organization when relevant. Bold dates, figures, and events. Build cause→effect chains. Use blockquotes for primary source quotes or key declarations. Organize by era/period → events → significance.
-- Literature/Humanities: Organize by themes or works. Use blockquotes for key passages and quotes. Bold literary terms and concepts. Italicize titles of works. Organize by theme → evidence → analysis.
-- Computer Science: Use code marks for technical terms, function names, and syntax. Organize by concept → implementation → complexity. Include pseudocode in code blocks where helpful.
-- Languages: Bold new vocabulary. Organize by grammar rules → examples → exceptions. Use blockquotes for example sentences.
-- General/Other: Use clear topical organization with bold key terms and logical grouping.
-
-Quality rules (apply to ALL subjects):
-- Scannability: A student must find any concept within 5 seconds of scanning.
-- Hierarchy: H1 for major topics, H2 for subtopics, H3 for fine detail. Never skip levels.
-- Density: Every line must carry useful information. Zero filler, zero repetition.
-- Connections: Explicitly state relationships between concepts (e.g., "X depends on Y because...").
-- Key terms: Bold every important term on first appearance, then use it normally after.
-- Definitions: Use blockquotes for formal definitions, theorems, or critical callouts.
-- Takeaways: End each major section with a 1-2 sentence synthesis of why it matters.
-`;
+  return `${classHint}
+Adapt format: STEM→formulas bold+blockquote, ordered lists for steps; Science→systems+cause-effect, bold terms; History→chronological, bold dates+events; CS→code marks for terms; Literature→blockquotes for passages; Languages→bold vocab.
+Rules: H1/H2/H3 hierarchy. Bold key terms first use. Blockquotes for definitions/theorems. Zero filler. End sections with 1-sentence takeaway.`;
 };
 
 export { buildSubjectContext };
@@ -79,37 +61,14 @@ const cleanAiResponseText = (rawResponse) => {
   return cleaned.trim();
 };
 
-const buildDeckPrompt = (className) => `
-You are an expert tutor creating highly effective spaced-repetition flashcards.
-Extract the most important facts, concepts, and definitions from the provided lecture notes, document, or image, and output them as a precise JSON array of flashcards.
+const buildDeckPrompt = (className) => `You are an expert tutor creating spaced-repetition flashcards.
+Extract the most important facts, concepts, and definitions from the provided material.
 
 ${buildSubjectContext(className)}
 
-Adapt card style to the subject:
-- Math/STEM: "front" = formula or theorem name, "back" = definition + when to use it. Include step-by-step solution cards for key problem types.
-- Science: "front" = term or process name, "back" = definition + mechanism. Include comparison cards (e.g., "How does X differ from Y?").
-- History: "front" = event or figure, "back" = significance + date + context. Include cause→effect cards.
-- CS: "front" = concept or term (in code marks if technical), "back" = definition + example usage.
-- Literature: "front" = literary term or theme, "back" = definition + example from text.
-
-Rules:
-1. Output ONLY a valid JSON array, with absolutely no markdown formatting, backticks, or conversational text outside the array.
-2. Each flashcard should have exactly two keys: "front" and "back".
-3. The "front" should be a clear, concise question or term.
-4. The "back" should be the direct answer or definition.
-5. Generate between 5 and 15 flashcards depending on the length and density of the source material.
-6. Make the cards atomic (one concept per card).
-7. Ensure definitions are accurate based on the provided material.
-8. Vary question types: define, compare, explain why, apply to scenario, calculate.
-
-Example JSON format:
-[
-  {
-    "front": "What is the powerhouse of the cell?",
-    "back": "Mitochondria"
-  }
-]
-`;
+Output ONLY a valid JSON array. No markdown, backticks, or text outside the array.
+Each card: { "front": "question/term", "back": "answer/definition" }.
+5-15 cards. Atomic (one concept per card). Accurate. Vary types: define, compare, explain why, apply, calculate.`;
 
 const buildClassPrompt = () => `
 You are an expert academic assistant designed to extract class information from a syllabus.
@@ -378,38 +337,16 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const buildGuidePrompt = (className) => `
-You are an expert tutor creating a comprehensive study guide that feels like premium study material.
-Given the following notes, document, or image, produce a well-structured study guide as a Tiptap-compatible JSON document.
+const TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
+Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
+Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
+
+const buildGuidePrompt = (className) => `You are an expert tutor creating a comprehensive study guide as a Tiptap JSON document.
 
 ${buildSubjectContext(className)}
 
-Adapt the guide structure to the subject:
-- Math/STEM: Definitions → Theorems (in blockquotes) → Worked Examples (ordered steps) → Practice Problem Setups → Key Formulas Summary
-- Science: Core Concepts → Mechanisms/Processes (ordered steps) → Applications → Key Experiments/Evidence → Terminology Review
-- History: Historical Context → Key Events (chronological, bolded dates) → Analysis & Cause-Effect → Significance → Key Figures
-- CS: Concepts → Implementation Details (with code marks) → Complexity/Trade-offs → Common Patterns → Gotchas
-- Literature: Themes → Key Passages (blockquoted) → Character/Argument Analysis → Critical Interpretations → Vocabulary
-- General: Overview → Key Concepts → Important Details → Connections & Relationships → Summary
-
-Rules:
-1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
-2. No markdown formatting, backticks, or conversational text outside the JSON object.
-3. Use these node types:
-   - { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-   - { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-   - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
-   - { "type": "horizontalRule" }
-4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
-5. Be thorough — cover all important material from the source.
-6. Bold every key term on first appearance.
-7. Use blockquotes for definitions, theorems, or critical callouts.
-8. End each major section with a 1-2 sentence takeaway explaining why it matters.
-`;
+${TIPTAP_FORMAT}
+Be thorough. Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway.`;
 
 export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
   const contents = [{ text: buildGuidePrompt(className) }];
@@ -514,64 +451,18 @@ export const generateStudyGuideFromAi = async ({
 // Mock Exam generation
 // ─────────────────────────────────────────────────────
 
-const buildExamPrompt = (className) => `
-You are an expert tutor creating a challenging but fair practice exam that mirrors real university exams.
-Given the following notes, document, or image, produce a mix of multiple-choice AND short-answer questions to test the student's understanding.
+const buildExamPrompt = (className) => `You are an expert tutor creating a practice exam that mirrors real university exams.
+Produce a mix of MCQ and short-answer questions from the provided material.
 
 ${buildSubjectContext(className)}
 
-Adapt question style to the subject:
-- Math/STEM: Include calculation-based questions ("Solve for X..."), conceptual questions ("Why does theorem Y require condition Z?"), and application questions ("Given this scenario, which formula applies?").
-- Science: Include process questions ("What happens during phase X?"), comparison questions ("How does A differ from B?"), and application questions ("If condition X changes, what is the effect on Y?").
-- History: Include cause-effect questions ("What led to X?"), significance questions ("Why was event X a turning point?"), and source analysis questions ("Based on the context, what does quote X suggest?").
-- CS: Include conceptual questions, output-prediction questions ("What does this code return?"), and trade-off questions ("When would you choose X over Y?").
-- Literature: Include theme analysis, passage interpretation, and literary device identification questions.
+Output ONLY a valid JSON array. No markdown, backticks, or text outside the array.
+Generate 12-18 MCQ + 2-4 short_answer questions. Mix: 30% easy, 50% medium, 20% hard.
 
-Rules:
-1. Output ONLY a valid JSON array of question objects, with absolutely no markdown formatting, backticks, or conversational text outside the array.
-2. Generate 12-18 multiple-choice questions AND 2-4 short-answer questions.
-3. Every question MUST include these keys:
-   - "type": Either "mcq" or "short_answer"
-   - "question": A clear, well-formed question string.
-   - "topic": The specific concept/topic being tested (e.g. "Mitosis", "Supply and Demand", "Binary Search Trees"). Be specific, not generic.
-   - "difficulty": One of "easy", "medium", or "hard"
-   - "correct_answer": The correct answer string.
-   - "explanation": A brief explanation of why the correct answer is right.
-4. For MCQ questions, also include:
-   - "options": An array of exactly 4 answer choices (strings). One must be correct.
-   - "correct_answer" must exactly match one of the options.
-5. For short_answer questions, also include:
-   - "grading_rubric": A string listing the key points a good answer must cover (e.g. "Key points: 1) ..., 2) ..., 3) ..."). This is used for AI grading.
-   - "correct_answer": A model answer (2-4 sentences).
-6. Cover a wide range of topics from the material. Each question should have a specific topic tag.
-7. Include a balanced mix of difficulty levels (roughly 30% easy, 50% medium, 20% hard).
-8. Make MCQ distractors plausible but clearly incorrect.
-9. Avoid trick questions or ambiguous wording.
-10. Vary question types: recall, comprehension, application, and analysis.
-11. Short answer questions should test deeper understanding — explanation, comparison, or application.
-
-Example JSON format:
-[
-  {
-    "type": "mcq",
-    "question": "What is the primary function of mitochondria?",
-    "topic": "Cellular Organelles",
-    "difficulty": "easy",
-    "options": ["Protein synthesis", "Energy production", "DNA replication", "Cell division"],
-    "correct_answer": "Energy production",
-    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration."
-  },
-  {
-    "type": "short_answer",
-    "question": "Explain how the electron transport chain produces ATP in mitochondria.",
-    "topic": "Cellular Respiration",
-    "difficulty": "hard",
-    "correct_answer": "The electron transport chain uses electrons from NADH and FADH2 to pump hydrogen ions across the inner mitochondrial membrane, creating a concentration gradient. ATP synthase then uses this gradient to produce ATP through chemiosmosis.",
-    "grading_rubric": "Key points: 1) Electrons from NADH/FADH2, 2) Proton gradient across inner membrane, 3) ATP synthase uses gradient, 4) Chemiosmosis process",
-    "explanation": "The ETC is the final stage of aerobic respiration and produces the majority of ATP (about 34 molecules per glucose)."
-  }
-]
-`;
+Every question MUST have: "type" ("mcq"/"short_answer"), "question", "topic" (specific concept), "difficulty" ("easy"/"medium"/"hard"), "correct_answer", "explanation".
+MCQ also needs: "options" (exactly 4 strings, one matching correct_answer). Distractors plausible but clearly wrong.
+short_answer also needs: "grading_rubric" (key points list), "correct_answer" (2-4 sentence model answer).
+Vary types: recall, compare, apply, analyze. Cover wide range of topics.`;
 
 const buildAdaptiveExamPrompt = (className, masteryData) => {
   const basePrompt = buildExamPrompt(className);
@@ -803,32 +694,13 @@ export const buildYoutubeExamContents = (youtubeUrl, className) => [
   buildYoutubeVideoSource(youtubeUrl),
 ];
 
-const buildNotesFromVideoPrompt = (className) => `
-You are an expert note-taker watching an educational YouTube video.
-Produce a concise but complete set of notes as a Tiptap-compatible JSON document that feels like premium study material.
+const buildNotesFromVideoPrompt = (className) => `You are an expert note-taker watching an educational YouTube video.
+Produce concise, complete notes as a Tiptap JSON document.
 
 ${buildSubjectContext(className)}
 
-Rules:
-1. Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
-2. No markdown formatting, backticks, or conversational text outside the JSON object.
-3. Use these node types:
-   - { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
-   - { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-   - { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-   - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
-   - { "type": "horizontalRule" }
-4. For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
-5. Prefer bullet lists for discrete facts.
-6. Bold every key term on first appearance.
-7. Use blockquotes for definitions, theorems, or critical callouts.
-8. End each major section with a 1-2 sentence takeaway.
-9. Include a "Key Concepts" section listing each concept as bold term + one-line explanation.
-10. Be concise but thorough — cover all important material from the video.
-`;
+${TIPTAP_FORMAT}
+Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway. Include "Key Concepts" summary section.`;
 
 export const buildYoutubeNotesContents = (youtubeUrl, className) => [
   { text: buildNotesFromVideoPrompt(className) },

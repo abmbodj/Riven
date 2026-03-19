@@ -10,17 +10,18 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
-  const rl = await checkRateLimit(request, 'default');
-  if (rl) return rl;
-
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
   }
 
   try {
     const body = await request.json().catch(() => ({}));
-    // Auth check (no quota consumed — grading is part of the exam experience)
-    await resolveSupabaseUser(request);
+    // Parallel: rate limit + auth (no quota consumed — grading is part of the exam experience)
+    const [rl] = await Promise.all([
+      checkRateLimit(request, 'default'),
+      resolveSupabaseUser(request),
+    ]);
+    if (rl) return rl;
 
     const { question, studentAnswer, correctAnswer, gradingRubric } = body;
 
@@ -62,6 +63,7 @@ Example:
   "keyPointsMissed": ["Did not mention ATP synthase", "Omitted chemiosmosis"]
 }`;
 
+    // Parallel: rate limit already done, parallelize auth with nothing needed here
     const aiClient = new GoogleGenAI({ apiKey });
     const response = await aiClient.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -70,6 +72,7 @@ Example:
         temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: 'application/json',
+        maxOutputTokens: 512,
       },
     });
 

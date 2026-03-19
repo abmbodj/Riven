@@ -121,6 +121,7 @@ export default function CreateDeck() {
                 setTags(tagsData);
                 setAiLimits(limitsData);
             });
+        api.warmupAiFunctions('generate-deck');
     }, []);
 
     const toggleTag = (tagId) => {

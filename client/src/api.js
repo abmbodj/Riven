@@ -144,6 +144,7 @@ export const api = {
     enhanceNoteWithAudioStream: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
         ? serverApi.enhanceNoteWithAudioStream(noteId, audioPath, userNotes, title, className)
         : Promise.reject(new Error('Must be logged in to enhance notes')),
+    warmupAiFunctions: (...fns) => isLoggedIn() ? serverApi.warmupAiFunctions(...fns) : undefined,
 
     // ============ NOTES ============
     getNotes: (classId) => isLoggedIn()

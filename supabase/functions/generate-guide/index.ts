@@ -40,8 +40,9 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
-  const rl = await checkRateLimit(request, 'default');
-  if (rl) return rl;
+  if (request.headers.get('x-warmup') === '1') {
+    return new Response('ok', { status: 200, headers: getCorsHeaders(request) });
+  }
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
@@ -52,49 +53,61 @@ serve(async (request) => {
   try {
     const body = await request.json().catch(() => ({}));
     const useStreaming = url.searchParams.get('stream') === '1' || body.stream === true;
-    const authUser = await resolveSupabaseUser(request);
+
+    // Parallel: rate limit + auth resolution
+    const [rl, authUser] = await Promise.all([
+      checkRateLimit(request, 'default'),
+      resolveSupabaseUser(request),
+    ]);
+    if (rl) return rl;
+
     const admin = getSupabaseAdmin();
-    const { data: user, error } = await admin
-      .from('users')
-      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
-      .eq('id', authUser.id)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!user) {
-      return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
-    }
-
-    const aiLimitsContext = await consumeAiQuota({
-      user,
-      persistUsage: async ({ count, lastReset }: PersistUsagePayload) => {
-        const { error: updateError } = await admin
-          .from('users')
-          .update({
-            ai_generations_count: count,
-            last_ai_generation_reset: lastReset.toISOString(),
-          })
-          .eq('id', authUser.id);
-
-        if (updateError) throw updateError;
-      },
-    });
-
     const apiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
 
     // ── STREAMING PATH ──────────────────────────────────
     if (useStreaming) {
       ensureApiKey(apiKey);
 
-      const { processedNotes, hasProcessedNotes, keepFile } = await prepareAiSource({
-        notes: body.notes,
-        file: body.file,
-        parseDocx: async (buffer: Buffer) => {
-          const parsed = await mammoth.extractRawText({ buffer });
-          return parsed.value;
+      // Parallel: user fetch + source prep
+      const [userResult, sourceResult] = await Promise.all([
+        admin
+          .from('users')
+          .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+          .eq('id', authUser.id)
+          .maybeSingle(),
+        prepareAiSource({
+          notes: body.notes,
+          file: body.file,
+          parseDocx: async (buffer: Buffer) => {
+            const parsed = await mammoth.extractRawText({ buffer });
+            return parsed.value;
+          },
+          onParseError: (err: unknown) => console.error('Failed to parse document text:', err),
+        }),
+      ]);
+
+      const { data: user, error } = userResult;
+      if (error) throw error;
+      if (!user) {
+        return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
+      }
+
+      const aiLimitsContext = await consumeAiQuota({
+        user,
+        persistUsage: async ({ count, lastReset }: PersistUsagePayload) => {
+          const { error: updateError } = await admin
+            .from('users')
+            .update({
+              ai_generations_count: count,
+              last_ai_generation_reset: lastReset.toISOString(),
+            })
+            .eq('id', authUser.id);
+
+          if (updateError) throw updateError;
         },
-        onParseError: (err: unknown) => console.error('Failed to parse document text:', err),
       });
+
+      const { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
 
       if (!hasProcessedNotes && !keepFile) {
         throw createHttpError('Notes or a file are required to generate a study guide.', 400);
@@ -120,6 +133,7 @@ serve(async (request) => {
             config: {
               temperature: 0,
               thinkingConfig: { thinkingBudget: 0 },
+              maxOutputTokens: 6144,
             },
           });
 
@@ -177,7 +191,33 @@ serve(async (request) => {
       return response;
     }
 
-    // ── BATCH PATH (unchanged) ──────────────────────────
+    // ── BATCH PATH ──────────────────────────────────────
+    const { data: user, error } = await admin
+      .from('users')
+      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!user) {
+      return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
+    }
+
+    const aiLimitsContext = await consumeAiQuota({
+      user,
+      persistUsage: async ({ count, lastReset }: PersistUsagePayload) => {
+        const { error: updateError } = await admin
+          .from('users')
+          .update({
+            ai_generations_count: count,
+            last_ai_generation_reset: lastReset.toISOString(),
+          })
+          .eq('id', authUser.id);
+
+        if (updateError) throw updateError;
+      },
+    });
+
     let aiClient: GoogleGenAI | null = null;
 
     const result = await generateStudyGuideFromAi({

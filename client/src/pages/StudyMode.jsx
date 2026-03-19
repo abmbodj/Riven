@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { api } from '../api';
@@ -51,12 +52,7 @@ export default function StudyMode() {
     const [elapsedMinutes, setElapsedMinutes] = useState(1);
     const [resumeAvailable, setResumeAvailable] = useState(false);
     const [didResumeSession, setDidResumeSession] = useState(false);
-    const cardShellRef = useRef(null);
-    const cardInnerRef = useRef(null);
-    const cardFrontRef = useRef(null);
-    const cardBackRef = useRef(null);
     const progressBarRef = useRef(null);
-    const flipTl = useRef(null);
     const navigationTimeoutRef = useRef(null);
     const currentCard = cards[currentIndex] ?? null;
 
@@ -64,110 +60,8 @@ export default function StudyMode() {
         if (typeof window === 'undefined') return 0;
         return window.matchMedia('(prefers-reduced-motion: reduce)').matches
             ? 0
-            : DURATION.slow * 1000;
+            : 500;
     }, []);
-
-    // Build GSAP card flip timeline before paint so the next card never flashes un-flipped.
-    useLayoutEffect(() => {
-        if (
-            typeof window === 'undefined'
-            || !cardShellRef.current
-            || !cardInnerRef.current
-            || !cardFrontRef.current
-            || !cardBackRef.current
-        ) {
-            return;
-        }
-
-        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        const cardShell = cardShellRef.current;
-        const cardInner = cardInnerRef.current;
-        const cardFront = cardFrontRef.current;
-        const cardBack = cardBackRef.current;
-
-        gsap.set(cardShell, {
-            scale: 1,
-            y: 0,
-            rotateX: 0,
-            force3D: true,
-            transformOrigin: '50% 50%',
-            transformStyle: 'preserve-3d',
-            willChange: 'transform',
-        });
-        gsap.set(cardInner, {
-            rotateY: 0,
-            force3D: true,
-            transformOrigin: '50% 50%',
-            transformStyle: 'preserve-3d',
-            transformPerspective: 1600,
-            willChange: 'transform',
-        });
-        gsap.set([cardFront, cardBack], {
-            force3D: true,
-            transformOrigin: '50% 50%',
-            transformStyle: 'preserve-3d',
-            backfaceVisibility: 'hidden',
-            willChange: 'transform, opacity',
-        });
-
-        flipTl.current?.kill();
-        flipTl.current = null;
-
-        if (motionQuery.matches) {
-            return undefined;
-        }
-
-        const tl = gsap.timeline({ paused: true });
-
-        tl.to(cardShell, {
-            scale: 0.985,
-            y: -6,
-            duration: DURATION.slow * 0.42,
-            ease: 'power1.out',
-        }, 0)
-            .to(cardInner, {
-                rotateY: 180,
-                duration: DURATION.slow,
-                ease: 'power2.inOut',
-            }, 0)
-            .to(cardShell, {
-                scale: 1,
-                y: 0,
-                duration: DURATION.slow * 0.58,
-                ease: 'power2.out',
-            }, DURATION.slow * 0.42);
-
-        flipTl.current = tl;
-
-        return () => {
-            tl.kill();
-            if (flipTl.current === tl) {
-                flipTl.current = null;
-            }
-        };
-    }, [currentCard?.id]);
-
-    // Play/reverse flip animation
-    useLayoutEffect(() => {
-        if (typeof window === 'undefined' || !cardShellRef.current || !cardInnerRef.current) return;
-
-        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        if (!flipTl.current) {
-            gsap.set(cardShellRef.current, { scale: 1, y: 0 });
-            gsap.set(cardInnerRef.current, { rotateY: isFlipped ? 180 : 0 });
-            return;
-        }
-        if (motionQuery.matches) {
-            gsap.set(cardShellRef.current, { scale: 1, y: 0 });
-            gsap.set(cardInnerRef.current, { rotateY: isFlipped ? 180 : 0 });
-            return;
-        }
-        if (isFlipped) {
-            flipTl.current.play();
-        } else {
-            flipTl.current.reverse();
-        }
-    }, [isFlipped]);
 
     useEffect(() => {
         return () => {
@@ -689,24 +583,22 @@ export default function StudyMode() {
                         <div className="flex w-full max-w-sm flex-col items-center justify-center gap-4 xl:gap-5">
                             <div className="w-full" {...swipeHandlers}>
                                 <div
-                                    ref={cardShellRef}
                                     className="w-full aspect-[3/4] max-h-[min(34rem,calc(var(--app-height)-21rem))] cursor-pointer touch-none"
                                     style={{
-                                        perspective: '1600px',
+                                        perspective: '1200px',
                                         transform: 'translateZ(0)',
-                                        transformStyle: 'preserve-3d',
                                         willChange: 'transform',
                                     }}
                                     onClick={handleFlip}
                                 >
-                                    <div
-                                        ref={cardInnerRef}
+                                    <motion.div
                                         className="relative w-full h-full"
-                                        style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
+                                        style={{ transformStyle: 'preserve-3d' }}
+                                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
                                     >
                                         {/* Front — warm surface with paper grain */}
                                         <div
-                                            ref={cardFrontRef}
                                             className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                             style={{
                                                 backfaceVisibility: 'hidden',
@@ -758,7 +650,6 @@ export default function StudyMode() {
 
                                         {/* Back — accent with dramatic shadow */}
                                         <div
-                                            ref={cardBackRef}
                                             className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-6 sm:p-8"
                                             style={{
                                                 backfaceVisibility: 'hidden',
@@ -798,7 +689,7 @@ export default function StudyMode() {
                                             <p className={`font-display font-semibold text-claude-text text-center leading-snug ${currentCard.back_image ? 'text-lg' : 'text-xl'}`}>{currentCard.back}</p>
                                             <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to flip back</span>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 </div>
                             </div>
                             {compactSessionControls}

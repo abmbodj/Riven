@@ -13,57 +13,23 @@ type PersistUsagePayload = {
   lastReset: Date;
 };
 
-const TIPTAP_FORMAT_INSTRUCTIONS = `
-Output ONLY a valid JSON object with this exact top-level structure: { "type": "doc", "content": [ ... ] }
-No markdown formatting, backticks, or conversational text outside the JSON object.
-Use these node types:
-  - { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "..." }] }
-  - { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "..." }] }
-  - { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "..." }] }
-  - { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
-  - { "type": "bulletList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-  - { "type": "orderedList", "content": [{ "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }] }
-  - { "type": "blockquote", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }] }
-  - { "type": "horizontalRule" }
-For text marks use: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code)
-`;
+const TIPTAP_FORMAT_INSTRUCTIONS = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
+Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
+Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
 
-const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant for university students. Given the audio recording of a lecture, produce clean, well-structured notes as a Tiptap JSON document that feel like premium study material.
+const buildGeneratePrompt = (className?: string) => `You are a lecture notes assistant. Given the audio recording, produce clean, structured notes as a Tiptap JSON document.
 
 ${buildSubjectContext(className)}
 
-Structure the output with:
-- A heading (H1) for each major topic discussed
-- H2 for subtopics, H3 for fine detail
-- Bullet points for key concepts and details
-- Ordered lists for sequential processes, proofs, or step-by-step explanations
-- Bold every key term on first appearance
-- Blockquotes for formal definitions, theorems, or critical callouts
-- End each major section with a 1-2 sentence takeaway
-- A "Key Concepts" summary section at the end — list each concept as bold term + one-line explanation
-- A "Potential Exam Questions" section with 3-5 questions varying in type: define, compare, explain why, apply to scenario
-
-Be concise. Omit filler, repetition, and off-topic tangents. Focus on what a student would need to study from.
+H1 major topics, H2 subtopics, H3 detail. Bullets for concepts, ordered lists for steps. Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway. Include "Key Concepts" and "Potential Exam Questions" (3-5 questions) sections. Be concise — omit filler.
 
 ${TIPTAP_FORMAT_INSTRUCTIONS}`;
 
-const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. The student took their own notes during a lecture. You also have the full audio recording.
+const buildEnhancePrompt = (userNotes: string, className?: string) => `You are a lecture notes assistant. Expand the student's notes using the lecture audio as context.
 
 ${buildSubjectContext(className)}
 
-Expand and improve the student's notes using the lecture audio as context:
-- Preserve the student's own phrasing and structure — it reflects their understanding
-- Fill in gaps where the student missed important points
-- Add missing key terms, definitions, and examples from the lecture
-- Improve organization with clear headings (H1 for major topics, H2 for subtopics, H3 for details) and bullet points
-- Bold every key term on first appearance
-- Use blockquotes for formal definitions, theorems, or critical callouts
-- Use ordered lists for sequential processes or step-by-step explanations
-- End each major section with a 1-2 sentence takeaway
-- Add a "Key Concepts" summary section at the end — list each concept as bold term + one-line explanation
-- Add a "Potential Exam Questions" section with 3-5 questions varying in type: define, compare, explain why, apply to scenario
-
-The student's notes take priority. The audio fills in what they missed.
+Preserve student's phrasing. Fill gaps from audio. Add missing terms, definitions, examples. H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions. Ordered lists for steps. End sections with takeaway. Add "Key Concepts" and "Potential Exam Questions" sections. Student notes take priority.
 
 ${TIPTAP_FORMAT_INSTRUCTIONS}
 
@@ -74,8 +40,9 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(request) });
   }
-  const rl = await checkRateLimit(request, 'default');
-  if (rl) return rl;
+  if (request.headers.get('x-warmup') === '1') {
+    return new Response('ok', { status: 200, headers: getCorsHeaders(request) });
+  }
 
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 }, request);
@@ -95,16 +62,26 @@ serve(async (request) => {
       );
     }
 
-    const authUser = await resolveSupabaseUser(request);
+    // Parallel: rate limit + auth resolution
+    const [rl, authUser] = await Promise.all([
+      checkRateLimit(request, 'default'),
+      resolveSupabaseUser(request),
+    ]);
+    if (rl) return rl;
+
     const admin = getSupabaseAdmin();
 
-    // Verify user quota
-    const { data: user, error: userError } = await admin
-      .from('users')
-      .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
-      .eq('id', authUser.id)
-      .maybeSingle();
+    // Parallel: user fetch + audio download
+    const [userResult, audioResult] = await Promise.all([
+      admin
+        .from('users')
+        .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
+        .eq('id', authUser.id)
+        .maybeSingle(),
+      admin.storage.from('note-audio').download(audioPath),
+    ]);
 
+    const { data: user, error: userError } = userResult;
     if (userError) throw userError;
     if (!user) {
       return jsonResponse({ error: 'User not found' }, { status: 401 }, request);
@@ -124,10 +101,7 @@ serve(async (request) => {
       },
     });
 
-    // Download audio from Supabase Storage
-    const { data: audioData, error: storageError } = await admin.storage
-      .from('note-audio')
-      .download(audioPath);
+    const { data: audioData, error: storageError } = audioResult;
 
     if (storageError || !audioData) {
       throw createHttpError('Failed to retrieve audio file', 500);
@@ -232,6 +206,7 @@ serve(async (request) => {
             config: {
               temperature: 0,
               thinkingConfig: { thinkingBudget: 0 },
+              maxOutputTokens: 6144,
             },
           });
 
