@@ -351,7 +351,7 @@ export default function ClassView() {
                 </div>
 
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
-                    <div className="space-y-8">
+                    <div className="min-w-0 space-y-8">
                         <div className="glass-panel-premium rounded-[28px] p-5 lg:p-7 relative overflow-hidden">
                             {/* Class-color accent glow for workbench */}
                             <div
@@ -359,12 +359,12 @@ export default function ClassView() {
                                 style={{ backgroundColor: cls.color || 'var(--accent-color)' }}
                             />
                             <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                                <div className="space-y-2">
+                                <div className="min-w-0 flex-1 space-y-2">
                                     <p className="text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">Class Workbench</p>
                                     <h2 className="font-serif text-2xl font-bold italic text-claude-text">
                                         {nextAssignment ? 'Next priority is already in view.' : 'Use this page to plan, study, and keep pace.'}
                                     </h2>
-                                    <p className="text-sm text-claude-secondary overflow-hidden">
+                                    <p className="text-sm text-claude-secondary overflow-hidden break-words">
                                         {nextAssignment
                                             ? `${nextAssignment.title}${nextAssignment.due_date ? ` is due ${new Date(nextAssignment.due_date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ' is your next active assignment.'}`
                                             : 'Create the next assignment, add a class time, or jump into one of the linked decks.'}
@@ -401,7 +401,7 @@ export default function ClassView() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.95 }}
                                                 onClick={() => openEditAssign(a)}
-                                                className={`group relative glass-item rounded-2xl p-4 cursor-pointer hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-hidden ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
+                                                className={`group relative min-w-0 w-full glass-item rounded-2xl p-4 cursor-pointer hover:border-white/15 transition-[transform,opacity,color,background-color,border-color,box-shadow] overflow-hidden ${a.status === 'Done' || a.status === 'Archived' ? 'opacity-60 saturate-50' : ''}`}
                                             >
                                                 {/* Doing status: left accent strip using class color */}
                                                 {a.status === 'Doing' && (
@@ -423,7 +423,7 @@ export default function ClassView() {
                                                             {a.title}
                                                         </h4>
                                                         {a.description && (
-                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 break-all">{a.description}</p>
+                                                            <p className="text-sm text-[color-mix(in_srgb,var(--secondary-text-color)_80%,transparent)] line-clamp-2 mt-1 break-words break-all">{a.description}</p>
                                                         )}
                                                         {a.due_date && (
                                                             <div className={`flex items-center gap-1.5 mt-3 font-mono text-[10px] uppercase tracking-widest font-bold ${new Date(a.due_date) < new Date() && a.status !== 'Todo' ? 'text-red-400' : 'text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)]'}`}>
@@ -457,7 +457,7 @@ export default function ClassView() {
                         </div>
                     </div>
 
-                    <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                    <aside className="min-w-0 space-y-6 xl:sticky xl:top-24 xl:self-start">
                         <div className="glass-panel-premium rounded-[28px] p-5">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-claude-secondary flex items-center gap-2">

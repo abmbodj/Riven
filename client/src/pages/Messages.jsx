@@ -938,12 +938,6 @@ export default function Messages() {
 
                     {/* Right: empty state */}
                     <div className="relative flex items-center justify-center lg:rounded-[32px] lg:border lg:border-claude-border lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:bg-claude-bg/70 lg:backdrop-blur-xl">
-                        {/* Corner accents */}
-                        <div className="absolute top-3 left-3 w-3 h-3 border-t border-l border-claude-accent/20" />
-                        <div className="absolute top-3 right-3 w-3 h-3 border-t border-r border-claude-accent/20" />
-                        <div className="absolute bottom-3 left-3 w-3 h-3 border-b border-l border-claude-accent/20" />
-                        <div className="absolute bottom-3 right-3 w-3 h-3 border-b border-r border-claude-accent/20" />
-
                         <div className="text-center px-8">
                             <div className="relative mx-auto mb-6 w-16 h-16">
                                 <div className="glass-panel absolute inset-0 rounded-full flex items-center justify-center">
