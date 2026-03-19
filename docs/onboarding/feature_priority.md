@@ -1,3 +1,5 @@
+> **Historical:** The numbered steps referred to the old 5-step web wizard. Product priorities below may still inform **copy** for the mobile-only flow. See **[README.md](./README.md)**.
+
 # Feature priority for onboarding narrative
 
 1. **Audio → notes** — primary hook; step 3 drives to [`/note/new`](../../client/src/pages/NoteEditor.jsx) (mic + enhancement path).

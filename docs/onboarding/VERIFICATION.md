@@ -1,22 +1,22 @@
 # Onboarding verification (timed walkthrough)
 
+> **Update:** Onboarding is **mobile-only**. Desktop sign-in should **not** open `/onboarding`. Use a narrow viewport, coarse-pointer emulation, or Capacitor. See **[README.md](./README.md)**.
+
 Run after applying migration [`20260319130000_user_onboarding.sql`](../../supabase/migrations/20260319130000_user_onboarding.sql) and deploying server + client.
 
 ## Preconditions
 
 - New test account (or user row with `onboarding_completed_at IS NULL`).
-- Mobile viewport (~390px) and desktop (~1280px).
+- **Mobile-eligible** client: ~390px width and/or `pointer: coarse`, or native app.
 
-## Script (target &lt; 2 minutes)
+## Script
 
-1. Sign up or log in → should land on `/onboarding` (or `/account` → auto-redirect to `/onboarding`).
-2. Step 1: tap **Continue** (&lt;15s).
-3. Step 2: pick one study style → **Continue** (&lt;20s).
-4. Step 3: optional **Skip this step** or **Open note + mic** → confirms navigation to `/note/new` when chosen (&lt;30s).
-5. Step 4: optional skip or **Bring my materials** → `/create?focus=syllabus` opens **Generate from Notes** (&lt;30s).
-6. Step 5: **Open my decks** → `/decks/library`; user row gets `onboarding_completed_at` set.
-7. Reload app → should **not** return to `/onboarding`.
-8. **Skip for now** from step 1 → `/dashboard` and completed flag set.
+1. Sign up or log in on **mobile-eligible** client → should land on `/onboarding` when `onboarding_completed_at` is null.
+2. Step 1 → **Continue** (persists step).
+3. Step 2 → **Next**.
+4. Step 3 → **Go to Today** (or **Skip** anytime) → `/dashboard`, `onboarding_completed_at` set.
+5. **Desktop (~1280px, fine pointer):** same account should **not** be redirected to `/onboarding`; visiting `/onboarding` should redirect to `/dashboard`.
+6. Reload app on mobile-eligible client → should **not** return to `/onboarding` once completed.
 
 ## Analytics (optional)
 

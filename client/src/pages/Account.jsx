@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { userNeedsOnboarding } from '../utils/onboardingGate';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LoginForm from '../components/auth/LoginForm';
 import SignupForm from '../components/auth/SignupForm';
@@ -11,7 +12,7 @@ import TwoFAChallenge from '../components/auth/TwoFAChallenge';
 // Simple orchestrator component
 // No complex logic, just state switching
 export default function Account() {
-    const { isLoggedIn, loading, pendingTwoFactor, cancelPendingTwoFactor } = useAuth();
+    const { isLoggedIn, loading, pendingTwoFactor, cancelPendingTwoFactor, user } = useAuth();
     const [searchParams] = useSearchParams();
     const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
@@ -37,8 +38,11 @@ export default function Account() {
         );
     }
 
-    // If logged in, show profile
+    // If logged in, send first-run mobile onboarding before ProfileView (avoids race / extra API work)
     if (isLoggedIn) {
+        if (userNeedsOnboarding(user)) {
+            return <Navigate to="/onboarding" replace />;
+        }
         return <ProfileView />;
     }
 

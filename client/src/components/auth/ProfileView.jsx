@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
     LogOut, Edit3, Settings, User, Mail,
     MessageCircle, Users, ChevronRight, Leaf, Shield, Crown, Sparkles, Award
@@ -12,7 +12,6 @@ import useHaptics from '../../hooks/useHaptics';
 import Avatar from '../Avatar';
 import LoadingSpinner from '../LoadingSpinner';
 import * as authApi from '../../api/authApi';
-import { userNeedsOnboarding } from '../../utils/onboardingGate';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -29,18 +28,11 @@ const itemVariants = {
 
 const ProfileView = () => {
     const { user, isOwner, isAdmin, signOut } = useAuth();
-    const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
 
     // Stats State
     const [stats, setStats] = useState({ friends: 0, unread: 0, loading: true });
-
-    useEffect(() => {
-        if (userNeedsOnboarding(user)) {
-            navigate('/onboarding', { replace: true });
-        }
-    }, [user, navigate]);
 
     // Load Stats
     useEffect(() => {

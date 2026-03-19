@@ -1,3 +1,5 @@
+> **Superseded for screen count and desktop scope.** Current shipping flow is **3 steps, mobile-only**. See **[README.md](./README.md)**.
+
 # Riven onboarding plan (5 screens, post-auth)
 
 Product goal: **fresh install → first study action in &lt;2 minutes**, feeling like “starting the product,” not a tour.

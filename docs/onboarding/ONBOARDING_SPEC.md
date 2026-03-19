@@ -1,21 +1,23 @@
+> **Current product behavior:** First-run onboarding is **mobile-only** (Capacitor or mobile-class browser). See **[README.md](./README.md)** for the authoritative gate rules and code map. Below: interaction and analytics details that still apply.
+
 # Onboarding interaction, resilience, and analytics
 
 ## Transitions
 
-- Step changes: horizontal slide + fade (Motion), ~220ms, `easeOut`; respect `prefers-reduced-motion` (instant swap).
-- Primary CTA: brief scale tap feedback (existing `tap-action` / haptics where available).
+- Step changes: vertical fade/slide (Motion), ~200ms; respect `prefers-reduced-motion` (instant swap).
+- Primary CTA: disabled while saving; loading state with spinner.
 
 ## Loading and errors
 
 - Saving step / completion: CTA shows inline spinner; disable double submit.
-- Supabase/update failure: toast error + single retry action on the same screen; never advance step on failed persist.
-- If `updateOnboardingProgress` fails on skip, still allow local navigate to `/dashboard` and show toast—user can retry from Settings later (optional future).
+- Supabase/update failure: toast error; do not advance step on failed persist.
+- Skip sets `onboarding_completed_at` and navigates to `/dashboard` after successful persist.
 
 ## Resume and drop-off
 
-- `onboarding_step` updated after each successful “Continue” (0-based index of **last completed** step, or **next** step—implementation: store **next** step index to resume).
-- **Decision:** persist `onboarding_step` as **the step the user should see next** (0–4). On load, read from `user.onboardingStep` clamped to 0–4.
-- Completing or skipping sets `onboarding_completed_at` and clears need for gate.
+- `onboarding_step` stores the **next** step index to show (0-based).
+- Clamp to **0–2** for the three-screen mobile flow in `client/src/pages/Onboarding.jsx`.
+- Completing or skipping sets `onboarding_completed_at` and clears the gate (plus client hint in `onboardingGate`).
 
 ## Analytics events (client)
 
@@ -25,14 +27,11 @@ Dispatched on `window` as `CustomEvent('riven:onboarding', { detail })` for opti
 |-----------------|------------------|
 | `onboarding_screen_view` | `{ step: number }` |
 | `onboarding_continue` | `{ fromStep: number }` |
-| `onboarding_skip_step` | `{ step: number }` |
 | `onboarding_skip_all` | `{ step: number }` |
-| `onboarding_complete` | `{ path: string }` |
+| `onboarding_complete` | `{ path: string }` (e.g. `/dashboard`) |
 | `onboarding_cta` | `{ step: number, cta: string }` |
 
-**First study action** (separate funnel): reuse existing product events when user hits `/note/new`, `/create`, `/decks/library` study—no duplicate schema here.
+## Layout
 
-## Mobile vs desktop
-
-- **Mobile:** single column, sticky bottom primary CTA, skip as text link above CTA, progress dots top.
-- **Desktop:** `lg:grid-cols-2` — left narrative/visual, right card with CTA; max width `max-w-5xl`.
+- **Mobile-eligible only:** single column, compact header with Skip, progress segments, hero art, single primary CTA per step.
+- **Non–mobile-eligible:** `/onboarding` redirects to `/dashboard`; no desktop two-column wizard.

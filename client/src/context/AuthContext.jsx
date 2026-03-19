@@ -85,6 +85,7 @@ export function AuthProvider({ children }) {
             if (event === 'SIGNED_OUT') {
                 authApi.setToken(null);
                 setPendingTwoFactor(null);
+                setUser(null);
             }
         });
         return () => subscription.unsubscribe();

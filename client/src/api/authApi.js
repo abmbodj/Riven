@@ -705,6 +705,7 @@ export const register = async (username, email, password, captchaToken = null) =
             // Clear the Supabase token and fall through to legacy register.
             console.warn('[register] complete-registration failed, falling back to legacy:', e.message);
             setToken(null);
+            await supabase.auth.signOut().catch(() => {});
         }
     }
 
