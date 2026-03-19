@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import GeneratingOverlay from '../components/ui/GeneratingOverlay';
 
 export default function GuideView() {
     const { id } = useParams();
@@ -166,6 +167,8 @@ export default function GuideView() {
     );
 
     return (
+        <>
+        <GeneratingOverlay type={generating} />
         <div className="relative min-h-screen pb-32">
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
@@ -245,5 +248,6 @@ export default function GuideView() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

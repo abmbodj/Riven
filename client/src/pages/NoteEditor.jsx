@@ -11,6 +11,7 @@ import useAudioRecorder from '../hooks/useAudioRecorder';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import GeneratingOverlay from '../components/ui/GeneratingOverlay';
 
 function formatDuration(seconds) {
     const m = Math.floor(seconds / 60);
@@ -338,6 +339,8 @@ export default function NoteEditor() {
         : 'Record lecture';
 
     return (
+        <>
+        <GeneratingOverlay type={generating} />
         <div className="relative min-h-screen pb-8">
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
@@ -595,5 +598,6 @@ export default function NoteEditor() {
             </div>
 
         </div>
+        </>
     );
 }
