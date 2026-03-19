@@ -291,17 +291,17 @@ export default function ClassView() {
     return (
         <div className="relative min-h-screen pb-24">
             {/* Header */}
-            <div className="sticky top-0 z-40 glass-panel md:backdrop-blur-xl border-b border-claude-border px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-40 mobile-top-nav-glass border-b border-white/[0.12] px-4 sm:px-6 py-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate('/classes')}
-                    className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                    className="w-10 h-10 bg-white/[0.05] border border-white/[0.08] rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowEditClassModal(true)}
-                        className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                        className="w-10 h-10 bg-white/[0.05] border border-white/[0.08] rounded-xl flex items-center justify-center text-claude-secondary hover:text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
                     >
                         <Settings className="w-5 h-5" />
                     </button>
