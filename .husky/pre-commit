@@ -2,12 +2,26 @@ echo "🔎 Scanning for secrets with TruffleHog..."
 
 # We run trufflehog on git, scanning uncommitted changes and avoiding full history scans on every commit.
 if command -v trufflehog >/dev/null 2>&1; then
-  # Scan staged changes for secrets
-  trufflehog git file://. --results=verified --fail --since-commit HEAD
-  
-  if [ $? -ne 0 ]; then
-    echo "❌ Secrets detected! Commit blocked by TruffleHog. Please remove sensitive data before committing."
-    exit 1
+  staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+  if [ -n "$staged_files" ]; then
+    include_paths_file="$(mktemp)"
+
+    while IFS= read -r path; do
+      escaped_path="$(printf '%s\n' "$path" | sed 's/[][(){}.^$+*?|\\]/\\&/g')"
+      printf '^%s$\n' "$escaped_path" >> "$include_paths_file"
+    done <<EOF
+$staged_files
+EOF
+
+    trufflehog filesystem . --no-update --results=verified --fail --include-paths "$include_paths_file"
+    scan_status=$?
+    rm -f "$include_paths_file"
+
+    if [ $scan_status -ne 0 ]; then
+      echo "❌ Secrets detected! Commit blocked by TruffleHog. Please remove sensitive data before committing."
+      exit 1
+    fi
   fi
 else
   # Offer to install or bypass if not installed globally (or locally depending on setup)

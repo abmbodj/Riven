@@ -827,8 +827,8 @@
   }
 
   /*
-   * Mobile — opaque surfaces only: no blur, no translucent overlays (::before off).
-   * Nested rows use solid --bg-color inside solid --surface-color shells for clear separation.
+   * Mobile — keep the glass language, but use denser fills and cheaper blur.
+   * Fully opaque surfaces are now reserved for browsers without backdrop-filter support.
    */
   @media (max-width: 767px) {
     .glass-panel-premium {
@@ -869,119 +869,256 @@
     }
 
     .profile-mobile-glass-shell {
-      background-color: var(--surface-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 46%, rgba(255, 255, 255, 0.02) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 82%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 74%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow:
+        0 20px 46px -20px rgba(0, 0, 0, 0.68),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
     }
 
     .profile-mobile-glass-shell::before {
-      content: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 30%),
+        radial-gradient(circle at top left, rgba(222, 185, 106, 0.12), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.1), transparent 48%);
     }
 
     .profile-mobile-glass-card {
-      background-color: var(--bg-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
-      box-shadow: none;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 74%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 66%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow:
+        0 16px 34px -24px rgba(0, 0, 0, 0.58),
+        inset 0 1px 0 rgba(255, 255, 255, 0.11);
+      backdrop-filter: blur(16px) saturate(165%);
+      -webkit-backdrop-filter: blur(16px) saturate(165%);
     }
 
     .profile-mobile-glass-card::before {
-      background: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
+        radial-gradient(circle at top left, rgba(222, 185, 106, 0.1), transparent 36%),
+        radial-gradient(circle at bottom center, rgba(122, 158, 114, 0.08), transparent 50%);
     }
 
     .profile-mobile-glass-menu {
-      background-color: var(--surface-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 80%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 70%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow:
+        0 22px 52px -28px rgba(0, 0, 0, 0.72),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
     }
 
     .profile-mobile-glass-menu::before {
-      background: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 24%),
+        radial-gradient(circle at top left, rgba(222, 185, 106, 0.1), transparent 36%),
+        radial-gradient(circle at bottom right, rgba(122, 158, 114, 0.08), transparent 48%);
     }
 
     .profile-mobile-glass-row {
-      background-color: var(--bg-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 72%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 64%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px) saturate(155%);
+      -webkit-backdrop-filter: blur(12px) saturate(155%);
     }
 
     .profile-mobile-glass-row::before {
-      background: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 32%),
+        radial-gradient(circle at left center, rgba(222, 185, 106, 0.06), transparent 34%);
     }
 
     .mobile-top-nav-glass {
-      background-color: var(--surface-color);
-      background-image: none;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 72%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 64%, transparent) 100%);
+      box-shadow:
+        0 12px 28px -18px rgba(0, 0, 0, 0.56),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
     }
 
     .mobile-top-nav-glass::before {
-      content: none;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(222, 185, 106, 0.08), transparent 52%),
+        radial-gradient(ellipse at 20% 100%, rgba(122, 158, 114, 0.06), transparent 42%);
     }
 
     .mobile-bottom-nav-shell {
-      background-color: var(--surface-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 76%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 68%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       box-shadow:
-        0 -8px 32px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+        0 -10px 30px -18px rgba(0, 0, 0, 0.6),
+        0 18px 44px -24px rgba(0, 0, 0, 0.46),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(18px) saturate(175%);
+      -webkit-backdrop-filter: blur(18px) saturate(175%);
     }
 
     .mobile-bottom-nav-shell::before {
-      content: none;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(222, 185, 106, 0.08), transparent 52%),
+        radial-gradient(ellipse at 20% 100%, rgba(122, 158, 114, 0.08), transparent 40%);
     }
 
     .messages-composer-dock.mobile-bottom-nav-shell {
-      background-color: var(--surface-color);
-      background-image: none;
-      border-color: var(--border-color);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(168deg,
+          color-mix(in srgb, var(--surface-color) 80%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 72%, transparent) 100%);
+      border-color: rgba(255, 255, 255, 0.12);
     }
 
     .messages-composer-dock.mobile-bottom-nav-shell::before {
-      content: none;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(122, 158, 114, 0.08), transparent 52%),
+        radial-gradient(ellipse at 85% 100%, rgba(30, 56, 64, 0.18), transparent 42%);
     }
 
     .mobile-fab-menu {
-      background-color: var(--surface-color);
-      background-image: none;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 74%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 66%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow:
+        0 26px 56px -24px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(18px) saturate(175%);
+      -webkit-backdrop-filter: blur(18px) saturate(175%);
     }
 
     .mobile-fab-menu::before {
-      content: none;
+      background:
+        radial-gradient(circle at top right, rgba(222, 185, 106, 0.08), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(122, 158, 114, 0.06), transparent 40%);
     }
 
     .mobile-fab-button::after {
-      background-color: var(--surface-color);
-      background-image: radial-gradient(
-        circle at 35% 28%,
-        color-mix(in srgb, var(--accent-color) 35%, var(--surface-color)) 0%,
-        var(--surface-color) 52%
-      );
-      border: 1px solid var(--border-color);
+      background:
+        radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--accent-color) 28%, transparent) 0%, transparent 52%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%),
+        linear-gradient(160deg,
+          color-mix(in srgb, var(--surface-color) 76%, transparent) 0%,
+          color-mix(in srgb, var(--bg-color) 68%, transparent) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       box-shadow:
-        0 6px 20px rgba(0, 0, 0, 0.35),
-        0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
+        0 10px 28px -10px rgba(0, 0, 0, 0.42),
+        0 0 0 1px color-mix(in srgb, var(--accent-color) 28%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+    }
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    @media (max-width: 767px) {
+      .profile-mobile-glass-shell::before,
+      .mobile-top-nav-glass::before,
+      .mobile-bottom-nav-shell::before,
+      .messages-composer-dock.mobile-bottom-nav-shell::before,
+      .mobile-fab-menu::before {
+        content: none;
+      }
+
+      .profile-mobile-glass-shell,
+      .profile-mobile-glass-menu,
+      .mobile-top-nav-glass,
+      .mobile-bottom-nav-shell,
+      .mobile-fab-menu {
+        background-color: var(--surface-color);
+        background-image: none;
+        border: 1px solid var(--border-color);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      .profile-mobile-glass-shell {
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+      }
+
+      .profile-mobile-glass-card,
+      .profile-mobile-glass-row {
+        background-color: var(--bg-color);
+        background-image: none;
+        border: 1px solid var(--border-color);
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      .profile-mobile-glass-card::before,
+      .profile-mobile-glass-menu::before,
+      .profile-mobile-glass-row::before {
+        background: none;
+      }
+
+      .profile-mobile-glass-menu {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      }
+
+      .mobile-top-nav-glass {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+      }
+
+      .mobile-bottom-nav-shell {
+        box-shadow:
+          0 -8px 32px rgba(0, 0, 0, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+
+      .messages-composer-dock.mobile-bottom-nav-shell {
+        border-color: var(--border-color);
+      }
+
+      .mobile-fab-menu {
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      }
+
+      .mobile-fab-button::after {
+        background-color: var(--surface-color);
+        background-image: radial-gradient(
+          circle at 35% 28%,
+          color-mix(in srgb, var(--accent-color) 35%, var(--surface-color)) 0%,
+          var(--surface-color) 52%
+        );
+        border: 1px solid var(--border-color);
+        box-shadow:
+          0 6px 20px rgba(0, 0, 0, 0.35),
+          0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
   }
 
