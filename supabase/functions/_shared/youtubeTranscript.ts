@@ -1,7 +1,9 @@
 const ANDROID_UA =
   'com.google.android.youtube/20.10.38 (Linux; U; Android 14; en_US) gzip';
+const IOS_UA =
+  'com.google.ios.youtube/20.10.38 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)';
 const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 export interface CaptionTrack {
   baseUrl: string;
@@ -78,9 +80,10 @@ const extractCaptionTracks = (data: unknown): CaptionTrack[] => {
   })?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
 };
 
-const buildPlayerRequest = (videoId: string, client: Record<string, unknown>) => ({
+const buildPlayerRequest = (videoId: string, client: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   context: { client },
   videoId,
+  ...extra,
 });
 
 const parseWatchPageCaptionTracks = (html: string): CaptionTrack[] => {
@@ -98,7 +101,7 @@ export const fetchCaptionTracks = async (
   videoId: string,
   fetchImpl: TranscriptFetcher = fetch,
 ): Promise<CaptionTrack[]> => {
-  // Strategy 1: ANDROID client (what youtube-transcript-api uses)
+  // Strategy 1: ANDROID client with params bypass for integrity checks
   const androidRes = await fetchImpl(
     'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
     {
@@ -113,7 +116,7 @@ export const fetchCaptionTracks = async (
         androidSdkVersion: 34,
         hl: 'en',
         gl: 'US',
-      })),
+      }, { params: 'CgIQBg%3D%3D' })),
     },
   );
 
@@ -123,8 +126,8 @@ export const fetchCaptionTracks = async (
     if (tracks.length > 0) return tracks;
   }
 
-  // Strategy 2: WEB_EMBEDDED_PLAYER (no poToken policies)
-  const embeddedRes = await fetchImpl(
+  // Strategy 2: WEB client (standard browser innertube request)
+  const webRes = await fetchImpl(
     'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
     {
       method: 'POST',
@@ -133,19 +136,47 @@ export const fetchCaptionTracks = async (
         'User-Agent': BROWSER_UA,
       },
       body: JSON.stringify(buildPlayerRequest(videoId, {
-        clientName: 'WEB_EMBEDDED_PLAYER',
-        clientVersion: '2.20250312.01.00',
+        clientName: 'WEB',
+        clientVersion: '2.20240101.00.00',
       })),
     },
   );
 
-  if (embeddedRes.ok) {
-    const data = await embeddedRes.json();
+  if (webRes.ok) {
+    const data = await webRes.json();
     const tracks = extractCaptionTracks(data);
     if (tracks.length > 0) return tracks;
   }
 
-  // Strategy 3: Scrape watch page for ytInitialPlayerResponse
+  // Strategy 3: IOS client (different rate-limiting behavior)
+  const iosRes = await fetchImpl(
+    'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': IOS_UA,
+      },
+      body: JSON.stringify(buildPlayerRequest(videoId, {
+        clientName: 'IOS',
+        clientVersion: '20.10.38',
+        deviceMake: 'Apple',
+        deviceModel: 'iPhone16,2',
+        osName: 'iOS',
+        osVersion: '17.5.1',
+        hl: 'en',
+        gl: 'US',
+      })),
+    },
+  );
+
+  if (iosRes.ok) {
+    const data = await iosRes.json();
+    const tracks = extractCaptionTracks(data);
+    if (tracks.length > 0) return tracks;
+  }
+
+  // Strategy 4: Scrape watch page for ytInitialPlayerResponse
   const watchRes = await fetchImpl(`https://www.youtube.com/watch?v=${videoId}`, {
     headers: { 'User-Agent': BROWSER_UA },
   });
