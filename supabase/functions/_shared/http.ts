@@ -1,23 +1,59 @@
 const ALLOWED_ORIGINS = [
   Deno.env.get('FRONTEND_URL'),
   Deno.env.get('CLIENT_URL'),
+  ...(Deno.env.get('ALLOWED_ORIGINS') || '').split(','),
   'https://riven.rocks',
   'https://www.riven.rocks',
   'https://riven-virid.vercel.app',
   'capacitor://localhost',
+  'ionic://localhost',
   'http://localhost:5173',
   'http://localhost:3000',
-].filter(Boolean).map((o) => (o as string).replace(/\/+$/, '')) as string[];
+].filter(Boolean).map((o) => (o as string).trim().replace(/\/+$/, '')) as string[];
+
+const DEFAULT_ALLOWED_HEADERS = [
+  'authorization',
+  'x-client-info',
+  'x-supabase-auth',
+  'apikey',
+  'content-type',
+  'x-warmup',
+];
+
+const isLocalOrigin = (origin: string) => (
+  /^https?:\/\/localhost(?::\d+)?$/i.test(origin)
+  || /^https?:\/\/127\.0\.0\.1(?::\d+)?$/i.test(origin)
+);
+
+const buildAllowedHeaders = (req?: Request) => {
+  const requestedHeaders = (req?.headers?.get('access-control-request-headers') ?? '')
+    .split(',')
+    .map((header) => header.trim().toLowerCase())
+    .filter(Boolean);
+
+  return Array.from(new Set([
+    ...DEFAULT_ALLOWED_HEADERS,
+    ...requestedHeaders,
+  ])).join(', ');
+};
 
 export function getCorsHeaders(req?: Request): Record<string, string> {
   const origin = (req?.headers?.get('origin') ?? '').replace(/\/+$/, '');
   const isAllowed =
     ALLOWED_ORIGINS.some((o) => origin === o) ||
-    origin.endsWith('.vercel.app');
+    origin.endsWith('.vercel.app') ||
+    origin.endsWith('.riven.rocks') ||
+    isLocalOrigin(origin) ||
+    origin === 'capacitor://localhost' ||
+    origin === 'ionic://localhost';
+
+  const allowOrigin = !origin || origin === 'null'
+    ? '*'
+    : (isAllowed ? origin : '*');
 
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, x-supabase-auth, apikey, content-type',
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': buildAllowedHeaders(req),
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Expose-Headers': 'Content-Type',
     'Vary': 'Origin',
