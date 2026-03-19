@@ -1962,7 +1962,7 @@ export const deleteCard = async (id) => {
     return { message: 'Card deleted' };
 };
 
-export const reviewCard = async (id, correct) => {
+export const reviewCard = async (id, rating) => {
     const cardId = Number(id);
     const { data: card, error: cardError } = await supabase
         .from('cards')
@@ -1971,24 +1971,12 @@ export const reviewCard = async (id, correct) => {
         .single();
     if (cardError) _sbThrow(cardError);
 
-    const currentDifficulty = card.difficulty || 0;
-    const nextDifficulty = correct
-        ? Math.min(5, currentDifficulty + 1)
-        : Math.max(0, currentDifficulty - 1);
-    const intervals = [1, 3, 7, 14, 30, 60];
-    const now = new Date();
-    const nextReview = new Date(now);
-    nextReview.setDate(nextReview.getDate() + intervals[nextDifficulty]);
+    const { scheduleCard } = await import('../utils/fsrs.js');
+    const fsrsUpdates = scheduleCard(card, rating);
 
     const { data, error } = await supabase
         .from('cards')
-        .update({
-            difficulty: nextDifficulty,
-            times_reviewed: (card.times_reviewed || 0) + 1,
-            times_correct: correct ? (card.times_correct || 0) + 1 : (card.times_correct || 0),
-            last_reviewed: now.toISOString(),
-            next_review: nextReview.toISOString(),
-        })
+        .update(fsrsUpdates)
         .eq('id', cardId)
         .select()
         .single();
@@ -2062,10 +2050,10 @@ export const getDeckStats = async (deckId) => {
     const totalTime = sessionRows.reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
 
     const cardsByDifficulty = {
-        new: cardRows.filter((card) => (card.times_correct || 0) === 0 && (card.times_reviewed || 0) === 0).length,
-        learning: cardRows.filter((card) => (card.times_reviewed || 0) > 0 && (card.times_correct || 0) < 2).length,
-        familiar: cardRows.filter((card) => (card.times_correct || 0) >= 2 && (card.times_correct || 0) < 5).length,
-        mastered: cardRows.filter((card) => (card.times_correct || 0) >= 5).length,
+        new: cardRows.filter((card) => !card.card_state || card.card_state === 'new').length,
+        learning: cardRows.filter((card) => card.card_state === 'learning' || card.card_state === 'relearning').length,
+        familiar: cardRows.filter((card) => card.card_state === 'review' && (card.stability || 0) < 21).length,
+        mastered: cardRows.filter((card) => card.card_state === 'review' && (card.stability || 0) >= 21).length,
     };
 
     return {

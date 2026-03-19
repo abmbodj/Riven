@@ -1,8 +1,9 @@
 import { openDB } from 'idb';
 import { getDefaultThemes } from '../themeCatalog.js';
+import { scheduleCard } from '../utils/fsrs.js';
 
 const DB_NAME = 'riven-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 let initialized = false;
@@ -10,7 +11,33 @@ let initialized = false;
 async function getDB() {
     if (!dbPromise) {
         dbPromise = openDB(DB_NAME, DB_VERSION, {
-            upgrade(db) {
+            upgrade(db, oldVersion, _newVersion, transaction) {
+                if (oldVersion < 2) {
+                    // Backfill FSRS fields on existing cards
+                    if (db.objectStoreNames.contains('cards')) {
+                        const cardStore = transaction.objectStore('cards');
+                        cardStore.openCursor().then(function backfill(cursor) {
+                            if (!cursor) return;
+                            const card = cursor.value;
+                            if (!card.card_state) {
+                                const d = card.difficulty || 0;
+                                const stabilityMap = [0, 1, 3, 7, 14, 30];
+                                const difficultyMap = [5.0, 6.0, 5.0, 4.0, 3.0, 2.0];
+                                cursor.update({
+                                    ...card,
+                                    card_state: (card.times_reviewed || 0) === 0 ? 'new' : d >= 3 ? 'review' : 'learning',
+                                    stability: stabilityMap[d] || 0,
+                                    fsrs_difficulty: difficultyMap[d] || 5.0,
+                                    reps: card.times_reviewed || 0,
+                                    lapses: Math.max(0, (card.times_reviewed || 0) - (card.times_correct || 0)),
+                                    scheduled_days: 0,
+                                    learning_steps: 0,
+                                });
+                            }
+                            return cursor.continue().then(backfill);
+                        });
+                    }
+                }
                 // Folders store
                 if (!db.objectStoreNames.contains('folders')) {
                     const folderStore = db.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
@@ -386,30 +413,13 @@ export async function deleteCard(id) {
     await db.delete('cards', Number(id));
 }
 
-export async function reviewCard(id, correct) {
+export async function reviewCard(id, rating) {
     const db = await getDB();
     const card = await db.get('cards', Number(id));
     if (!card) throw new Error('Card not found');
 
-    let newDifficulty = card.difficulty || 0;
-    if (correct) {
-        newDifficulty = Math.min(5, newDifficulty + 1);
-    } else {
-        newDifficulty = Math.max(0, newDifficulty - 1);
-    }
-
-    const intervals = [1, 3, 7, 14, 30, 60];
-    const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + intervals[newDifficulty]);
-
-    const updated = {
-        ...card,
-        difficulty: newDifficulty,
-        times_reviewed: (card.times_reviewed || 0) + 1,
-        times_correct: correct ? (card.times_correct || 0) + 1 : card.times_correct || 0,
-        last_reviewed: new Date().toISOString(),
-        next_review: nextReview.toISOString()
-    };
+    const fsrsUpdates = scheduleCard(card, rating);
+    const updated = { ...card, ...fsrsUpdates };
     await db.put('cards', updated);
     return updated;
 }

@@ -240,7 +240,7 @@ describe('authApi decks and study PostgREST', () => {
     expect(result).toEqual({ id: 12, title: 'Neuro (Copy)', description: 'Signals', folder_id: 12, class_id: 'class-2' });
   });
 
-  it('reviews cards by updating spaced repetition counters and next review date', async () => {
+  it('reviews cards by updating FSRS fields and next review date', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-13T12:00:00.000Z'));
 
@@ -249,8 +249,14 @@ describe('authApi decks and study PostgREST', () => {
         data: {
           id: 88,
           difficulty: 2,
+          card_state: 'new',
+          stability: 0,
+          fsrs_difficulty: 5.0,
+          reps: 0,
+          lapses: 0,
           times_reviewed: 4,
           times_correct: 3,
+          created_at: '2026-03-01T00:00:00.000Z',
         },
         error: null,
       }),
@@ -258,12 +264,7 @@ describe('authApi decks and study PostgREST', () => {
     const select = vi.fn().mockReturnValue({ eq: selectEq });
 
     const updateSingle = vi.fn().mockResolvedValue({
-      data: {
-        id: 88,
-        difficulty: 3,
-        times_reviewed: 5,
-        times_correct: 4,
-      },
+      data: { id: 88 },
       error: null,
     });
     const updateSelect = vi.fn().mockReturnValue({ single: updateSingle });
@@ -274,22 +275,21 @@ describe('authApi decks and study PostgREST', () => {
       .mockReturnValueOnce({ select })
       .mockReturnValueOnce({ update });
 
-    const result = await authApi.reviewCard(88, true);
+    const result = await authApi.reviewCard(88, 4); // Rating.Easy
 
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      difficulty: 3,
       times_reviewed: 5,
       times_correct: 4,
       last_reviewed: '2026-03-13T12:00:00.000Z',
-      next_review: '2026-03-27T12:00:00.000Z',
     }));
+    // FSRS fields should be present
+    const updateArg = update.mock.calls[0][0];
+    expect(updateArg).toHaveProperty('stability');
+    expect(updateArg).toHaveProperty('fsrs_difficulty');
+    expect(updateArg).toHaveProperty('card_state');
+    expect(updateArg).toHaveProperty('next_review');
+    expect(updateArg.stability).toBeGreaterThan(0);
     expect(updateEq).toHaveBeenCalledWith('id', 88);
-    expect(result).toEqual({
-      id: 88,
-      difficulty: 3,
-      times_reviewed: 5,
-      times_correct: 4,
-    });
 
     vi.useRealTimers();
   });
@@ -325,10 +325,10 @@ describe('authApi decks and study PostgREST', () => {
 
     const statsCardsEq = vi.fn().mockResolvedValue({
       data: [
-        { id: 10, difficulty: 0, times_reviewed: 0, times_correct: 0 },
-        { id: 11, difficulty: 2, times_reviewed: 3, times_correct: 1 },
-        { id: 12, difficulty: 4, times_reviewed: 6, times_correct: 4 },
-        { id: 13, difficulty: 5, times_reviewed: 9, times_correct: 6 },
+        { id: 10, card_state: 'new', stability: 0, times_reviewed: 0, times_correct: 0 },
+        { id: 11, card_state: 'learning', stability: 3, times_reviewed: 3, times_correct: 1 },
+        { id: 12, card_state: 'review', stability: 14, times_reviewed: 6, times_correct: 4 },
+        { id: 13, card_state: 'review', stability: 30, times_reviewed: 9, times_correct: 6 },
       ],
       error: null,
     });

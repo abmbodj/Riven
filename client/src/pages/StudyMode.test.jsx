@@ -130,14 +130,14 @@ describe('StudyMode', () => {
     fireEvent.click(screen.getByRole('button', { name: /spaced repetition off/i }));
 
     fireEvent.click(screen.getByText('Front 1'));
-    expect(screen.getByRole('button', { name: /knew it/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /easy/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /knew it/i }));
+    fireEvent.click(screen.getByRole('button', { name: /easy/i }));
 
     await act(async () => {
       await Promise.resolve();
     });
-    expect(api.reviewCard).toHaveBeenCalledWith(1, true);
+    expect(api.reviewCard).toHaveBeenCalledWith(1, 4);
 
     await act(async () => {
       vi.advanceTimersByTime(700);
@@ -148,15 +148,15 @@ describe('StudyMode', () => {
 
     fireEvent.click(screen.getByText('Front 2'));
 
-    expect(screen.getByRole('button', { name: /knew it/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /easy/i })).toBeInTheDocument();
     expect(screen.queryByText('Session complete')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /didn't know/i }));
+    fireEvent.click(screen.getByRole('button', { name: /forgot/i }));
 
     await act(async () => {
       await Promise.resolve();
     });
-    expect(api.reviewCard).toHaveBeenCalledWith(2, false);
+    expect(api.reviewCard).toHaveBeenCalledWith(2, 1);
 
     await act(async () => {
       vi.advanceTimersByTime(700);
@@ -196,7 +196,7 @@ describe('StudyMode', () => {
     expect(screen.getByText('Session Phase')).toBeInTheDocument();
     expect(screen.getAllByText('Biology Midterm').length).toBeGreaterThan(0);
     expect(screen.getByText('Front 1')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getAllByText('3').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /spaced repetition on/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /start fresh/i }).length).toBeGreaterThan(0);
   });

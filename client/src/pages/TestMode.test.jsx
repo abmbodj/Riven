@@ -9,6 +9,8 @@ vi.mock('../api', () => ({
     getHeartsStatus: vi.fn(),
     decrementHeart: vi.fn(),
     practiceRefill: vi.fn(),
+    reviewCard: vi.fn(),
+    saveStudySession: vi.fn(),
   },
 }));
 
@@ -65,6 +67,8 @@ describe('TestMode', () => {
       max: 'Unlimited',
       isUnlimited: true,
     });
+    api.reviewCard.mockResolvedValue({});
+    api.saveStudySession.mockResolvedValue({});
   });
 
   it('shows the assessment workbench before a test starts', async () => {

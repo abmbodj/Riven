@@ -280,9 +280,9 @@ export const api = {
         : db.deleteCard(id),
 
     // ============ SPACED REPETITION ============
-    reviewCard: (id, correct) => isLoggedIn()
-        ? serverApi.reviewCard(id, correct)
-        : db.reviewCard(id, correct),
+    reviewCard: (id, rating) => isLoggedIn()
+        ? serverApi.reviewCard(id, rating)
+        : db.reviewCard(id, rating),
     reorderCards: (deckId, cardIds) => isLoggedIn()
         ? serverApi.reorderCards(deckId, cardIds)
         : db.reorderCards(deckId, cardIds),

@@ -301,6 +301,15 @@ if (global.__TEST_DB_MOCK__) {
                 ALTER TABLE decks ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES classes(id) ON DELETE SET NULL
             `).catch(() => { });
 
+            // FSRS columns for spaced repetition
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS stability REAL DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS fsrs_difficulty REAL DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS card_state TEXT DEFAULT 'new'`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS reps INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS lapses INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS scheduled_days INTEGER DEFAULT 0`).catch(() => { });
+            await client.query(`ALTER TABLE cards ADD COLUMN IF NOT EXISTS learning_steps INTEGER DEFAULT 0`).catch(() => { });
+
             // Study sessions table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS study_sessions (

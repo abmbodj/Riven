@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, X, Trophy, Target, CheckCircle2, XCircle, List, Keyboard, Send } from 'lucide-react';
 import { api } from '../api';
+import { UserRating } from '../utils/fsrs';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import OutOfHeartsModal from '../components/ui/OutOfHeartsModal';
@@ -121,7 +122,8 @@ export default function TestMode() {
         setSelectedAnswer(selectedOption);
         setShowFeedback(true);
 
-        const isCorrect = selectedOption === questions[currentQIndex].correctAnswer;
+        const currentQ = questions[currentQIndex];
+        const isCorrect = selectedOption === currentQ.correctAnswer;
         if (isCorrect) {
             haptics.success();
             setScore(s => s + 1);
@@ -140,6 +142,9 @@ export default function TestMode() {
                 }
             }
         }
+
+        // Update SRS scheduling
+        api.reviewCard(currentQ.card.id, isCorrect ? UserRating.Easy : UserRating.Forgot).catch(() => {});
 
         safeTimeout(() => {
             setSelectedAnswer(null);
@@ -168,7 +173,8 @@ export default function TestMode() {
 
         setShowFeedback(true);
 
-        const correctAnswer = questions[currentQIndex].correctAnswer;
+        const currentQ = questions[currentQIndex];
+        const correctAnswer = currentQ.correctAnswer;
         const isCorrect = normalizeAnswer(typedAnswer) === normalizeAnswer(correctAnswer);
 
         if (isCorrect) {
@@ -189,6 +195,9 @@ export default function TestMode() {
                 }
             }
         }
+
+        // Update SRS scheduling
+        api.reviewCard(currentQ.card.id, isCorrect ? UserRating.Easy : UserRating.Forgot).catch(() => {});
 
         safeTimeout(() => {
             setShowFeedback(false);

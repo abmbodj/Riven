@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, X, Shuffle, Brain, SkipForward } from 'lucide-react';
 import { api } from '../api';
+import { UserRating, isDue, sortForStudy } from '../utils/fsrs';
 import { useStreakContext } from '../hooks/useStreakContext';
 import useHaptics from '../hooks/useHaptics';
 import useSwipeGesture from '../hooks/useSwipeGesture';
@@ -48,6 +49,8 @@ export default function StudyMode() {
     const [showOutOfHearts, setShowOutOfHearts] = useState(false);
     const [isSessionComplete, setIsSessionComplete] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [requeuedCards, setRequeuedCards] = useState([]);
+    const [requeueCount, setRequeueCount] = useState(0);
     const [sessionStartedAt, setSessionStartedAt] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(1);
     const [resumeAvailable, setResumeAvailable] = useState(false);
@@ -117,12 +120,7 @@ export default function StudyMode() {
 
         // Deck is the critical path — show cards as soon as it arrives
         api.getDeck(id).then((data) => {
-            const sortedCards = [...data.cards].sort((a, b) => {
-                if (!a.next_review && !b.next_review) return 0;
-                if (!a.next_review) return -1;
-                if (!b.next_review) return 1;
-                return new Date(a.next_review) - new Date(b.next_review);
-            });
+            const sortedCards = sortForStudy(data.cards);
             let nextCards = sortedCards;
             let nextIndex = 0;
             let nextShuffled = false;
@@ -246,30 +244,19 @@ export default function StudyMode() {
         navigationTimeoutRef.current = setTimeout(completeTransition, delay);
     }, [clearPersistedSession, getFlipResetDelay, isFlipped]);
 
-    const handleKnew = async () => {
-        if (!isFlipped || isTransitioning) return;
-        const card = cards[currentIndex];
-        setCardsStudied(c => c + 1);
-        setCardsCorrect(c => c + 1);
-
-        if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, true).catch(() => { });
-        }
-
-        if (currentIndex < cards.length - 1) {
-            queueCardTransition(currentIndex + 1);
-        } else {
-            queueCardTransition();
-        }
-    };
-
-    const handleDidntKnow = async () => {
+    const handleRate = async (rating) => {
         if (!isFlipped || isTransitioning) return;
         const card = cards[currentIndex];
         setCardsStudied(c => c + 1);
 
-        // Deduct a heart on wrong answer
-        if (heartsStatus && !heartsStatus.isUnlimited) {
+        const isForgot = rating === UserRating.Forgot;
+
+        if (!isForgot) {
+            setCardsCorrect(c => c + 1);
+        }
+
+        // Deduct a heart on forgot
+        if (isForgot && heartsStatus && !heartsStatus.isUnlimited) {
             try {
                 const newStatus = await api.decrementHeart();
                 setHeartsStatus(newStatus);
@@ -278,17 +265,29 @@ export default function StudyMode() {
                     return;
                 }
             } catch {
-                // Out of hearts
                 setShowOutOfHearts(true);
                 return;
             }
         }
 
         if (spacedRepetitionMode) {
-            await api.reviewCard(card.id, false).catch(() => { });
+            await api.reviewCard(card.id, rating).catch(() => { });
+
+            // Requeue forgotten cards for later in this session
+            if (isForgot) {
+                setRequeuedCards(prev => [...prev, card]);
+                setRequeueCount(c => c + 1);
+            }
         }
 
         if (currentIndex < cards.length - 1) {
+            queueCardTransition(currentIndex + 1);
+        } else if (spacedRepetitionMode && requeuedCards.length > 0) {
+            // Cycle through requeued cards
+            const requeued = [...requeuedCards];
+            if (isForgot) requeued.push(card); // include current forgot card
+            setCards(prev => [...prev, ...requeued]);
+            setRequeuedCards([]);
             queueCardTransition(currentIndex + 1);
         } else {
             queueCardTransition();
@@ -331,10 +330,14 @@ export default function StudyMode() {
         setIsShuffled(true);
     };
 
-    // Swipe gestures for card navigation
+    // Swipe gestures: in SRS mode, swipe to grade; otherwise navigate
     const swipeHandlers = useSwipeGesture({
-        onSwipeLeft: handleNext,
-        onSwipeRight: handlePrev,
+        onSwipeLeft: spacedRepetitionMode && isFlipped
+            ? () => handleRate(UserRating.Forgot)
+            : handleNext,
+        onSwipeRight: spacedRepetitionMode && isFlipped
+            ? () => handleRate(UserRating.Easy)
+            : handlePrev,
         threshold: 50
     });
 
@@ -342,6 +345,15 @@ export default function StudyMode() {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // SRS grading shortcuts (1/2/3) when card is flipped
+            if (spacedRepetitionMode && isFlipped) {
+                switch (e.key) {
+                    case '1': handleRate(UserRating.Forgot); return;
+                    case '2': handleRate(UserRating.Hard); return;
+                    case '3': handleRate(UserRating.Easy); return;
+                }
+            }
 
             switch (e.key) {
                 case 'ArrowRight':
@@ -359,7 +371,7 @@ export default function StudyMode() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleNext, handlePrev, handleFlip]);
+    }, [handleNext, handlePrev, handleFlip, spacedRepetitionMode, isFlipped]);
 
     if (loading) return (
         <div className="fullscreen-page items-center justify-center">
@@ -400,12 +412,7 @@ export default function StudyMode() {
     const handleFreshStart = () => {
         const now = Date.now();
         clearPersistedSession();
-        const sortedCards = [...cards].sort((a, b) => {
-            if (!a.next_review && !b.next_review) return 0;
-            if (!a.next_review) return -1;
-            if (!b.next_review) return 1;
-            return new Date(a.next_review) - new Date(b.next_review);
-        });
+        const sortedCards = sortForStudy(cards);
 
         setCards(sortedCards);
         setCurrentIndex(0);
@@ -467,11 +474,23 @@ export default function StudyMode() {
     );
     const mobileGestureHint = !showSessionComplete ? (
         <div className="flex w-full items-center justify-center gap-2 rounded-full border border-claude-border/40 bg-claude-bg/40 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] text-claude-secondary/50 md:hidden">
-            <span>Swipe</span>
-            <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
-            <span>Tap</span>
-            <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
-            <span>Thumb controls</span>
+            {spacedRepetitionMode && isFlipped ? (
+                <>
+                    <span className="text-red-400/60">← Forgot</span>
+                    <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
+                    <span>Tap to grade</span>
+                    <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
+                    <span className="text-green-400/60">Easy →</span>
+                </>
+            ) : (
+                <>
+                    <span>Swipe</span>
+                    <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
+                    <span>Tap</span>
+                    <span className="h-1 w-1 rounded-full bg-claude-surface/80" />
+                    <span>Thumb controls</span>
+                </>
+            )}
         </div>
     ) : null;
     const actionPanel = showSessionComplete ? (
@@ -484,6 +503,7 @@ export default function StudyMode() {
                 {cardsStudied > 0 && (
                     <p className="text-xs font-mono text-claude-secondary mt-1">
                         {cardsCorrect}/{cardsStudied} correct · {Math.round((cardsCorrect / cardsStudied) * 100)}%
+                        {requeueCount > 0 && ` · ${requeueCount} requeued`}
                     </p>
                 )}
             </div>
@@ -502,20 +522,27 @@ export default function StudyMode() {
             </Link>
         </div>
     ) : spacedRepetitionMode && isFlipped ? (
-        <div className="grid w-full grid-cols-2 gap-3">
+        <div className="grid w-full grid-cols-3 gap-2">
             <button
-                onClick={handleDidntKnow}
-                className="flex h-14 items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/15 font-display font-semibold text-red-400 active:scale-[0.93] transition-transform"
+                onClick={() => handleRate(UserRating.Forgot)}
+                className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border border-red-500/25 bg-red-500/15 font-display font-semibold text-red-400 active:scale-[0.93] transition-transform"
             >
-                <ThumbsDown className="w-5 h-5" />
-                Didn't Know
+                <span className="text-sm">Forgot</span>
+                <span className="text-[9px] font-mono opacity-60 hidden md:block">1</span>
             </button>
             <button
-                onClick={handleKnew}
-                className="flex h-14 items-center justify-center gap-2 rounded-xl border border-green-500/25 bg-green-500/15 font-display font-semibold text-green-400 active:scale-[0.93] transition-transform"
+                onClick={() => handleRate(UserRating.Hard)}
+                className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border border-orange-500/25 bg-orange-500/15 font-display font-semibold text-orange-400 active:scale-[0.93] transition-transform"
             >
-                <ThumbsUp className="w-5 h-5" />
-                Knew It
+                <span className="text-sm">Hard</span>
+                <span className="text-[9px] font-mono opacity-60 hidden md:block">2</span>
+            </button>
+            <button
+                onClick={() => handleRate(UserRating.Easy)}
+                className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border border-green-500/25 bg-green-500/15 font-display font-semibold text-green-400 active:scale-[0.93] transition-transform"
+            >
+                <span className="text-sm">Easy</span>
+                <span className="text-[9px] font-mono opacity-60 hidden md:block">3</span>
             </button>
         </div>
     ) : (
@@ -637,12 +664,12 @@ export default function StudyMode() {
                                                 />
                                             )}
                                             <p className={`font-display font-semibold text-center leading-snug ${currentCard.front_image ? 'text-lg' : 'text-xl'}`}>{currentCard.front}</p>
-                                            {currentCard.difficulty > 0 && (
-                                                <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.difficulty >= 4 ? 'bg-red-500/15 text-red-400' :
-                                                    currentCard.difficulty >= 2 ? 'bg-yellow-500/15 text-yellow-400' :
+                                            {currentCard.card_state && currentCard.card_state !== 'new' && (
+                                                <span className={`absolute top-4 right-4 text-[9px] font-mono px-2 py-0.5 rounded-full ${currentCard.card_state === 'relearning' ? 'bg-red-500/15 text-red-400' :
+                                                    currentCard.card_state === 'learning' ? 'bg-yellow-500/15 text-yellow-400' :
                                                         'bg-green-500/15 text-green-400'
                                                     }`}>
-                                                    {currentCard.difficulty >= 4 ? 'Hard' : currentCard.difficulty >= 2 ? 'Medium' : 'Easy'}
+                                                    {currentCard.card_state === 'relearning' ? 'Relearning' : currentCard.card_state === 'learning' ? 'Learning' : 'Review'}
                                                 </span>
                                             )}
                                             <span className="absolute bottom-5 text-[10px] font-mono text-claude-secondary/50 tracking-wide">tap or press space to reveal</span>
@@ -699,7 +726,7 @@ export default function StudyMode() {
                     </div>
 
                     <aside className="hidden xl:block">
-                        <div className="sticky top-6 space-y-4">
+                        <div className="sticky top-6 space-y-4 overflow-y-auto max-h-[calc(100vh-5.5rem)]">
                             <div className="rounded-[24px] border border-claude-border bg-[linear-gradient(155deg,rgba(18,38,44,0.96),rgba(27,49,56,0.92))] px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
                                 <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-claude-secondary">
                                     <span>{sessionStatusLabel}</span>
@@ -793,6 +820,22 @@ export default function StudyMode() {
                                             <span>Next card</span>
                                             <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">→</kbd>
                                         </div>
+                                        {spacedRepetitionMode && (
+                                            <>
+                                                <div className="border-t border-claude-border pt-2 mt-2 flex items-center justify-between gap-3">
+                                                    <span className="text-red-400">Forgot</span>
+                                                    <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">1</kbd>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="text-orange-400">Hard</span>
+                                                    <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">2</kbd>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="text-green-400">Easy</span>
+                                                    <kbd className="rounded border border-claude-border bg-claude-bg/40 px-2 py-1 text-[10px] text-claude-text/80">3</kbd>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
