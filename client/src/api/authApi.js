@@ -386,6 +386,7 @@ const fetchEdgeFunctionWithQuery = async (functionName, { method = 'GET', body, 
     };
 
     if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
         headers[EDGE_FUNCTION_AUTH_HEADER] = accessToken;
     }
 
@@ -1294,6 +1295,7 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
         headers: {
             'Content-Type': 'application/json',
             apikey: anonKey,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             ...(accessToken ? { [EDGE_FUNCTION_AUTH_HEADER]: accessToken } : {}),
         },
         body: JSON.stringify({ ...(body || {}), stream: true }),

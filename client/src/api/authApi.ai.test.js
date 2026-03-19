@@ -130,6 +130,7 @@ describe('authApi AI edge migration', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
+          Authorization: `Bearer ${authApi.getToken()}`,
           'x-supabase-auth': authApi.getToken(),
           apikey: 'supabase-anon-key',
         }),
@@ -197,6 +198,7 @@ describe('authApi AI edge migration', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
+          Authorization: `Bearer ${authApi.getToken()}`,
           'x-supabase-auth': authApi.getToken(),
           apikey: 'supabase-anon-key',
         }),
@@ -234,6 +236,11 @@ describe('authApi AI edge migration', () => {
       'https://supabase.test/functions/v1/create-ai-job',
       expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${authApi.getToken()}`,
+          'x-supabase-auth': authApi.getToken(),
+          apikey: 'supabase-anon-key',
+        }),
         body: JSON.stringify({
           kind: 'note_enhancement',
           payload: {

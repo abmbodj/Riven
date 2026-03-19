@@ -169,6 +169,7 @@ describe('authApi Supabase auth bridge reductions', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
           'x-supabase-auth': SUPABASE_ACCESS_TOKEN,
         }),
       }),
@@ -223,6 +224,7 @@ describe('authApi Supabase auth bridge reductions', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
           'x-supabase-auth': SUPABASE_ACCESS_TOKEN,
           apikey: 'supabase-anon-key',
         }),
@@ -292,6 +294,7 @@ describe('authApi Supabase auth bridge reductions', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
           'x-supabase-auth': SUPABASE_ACCESS_TOKEN,
           apikey: 'supabase-anon-key',
         }),

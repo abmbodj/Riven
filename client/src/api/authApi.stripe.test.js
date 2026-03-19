@@ -114,7 +114,10 @@ describe('authApi stripe edge migration', () => {
 
   it('forces re-login for non-Supabase checkout tokens', async () => {
     authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(buildJsonResponse({}))
+      .mockResolvedValueOnce(buildErrorResponse(401, { error: 'Missing bearer token' }));
 
     await expect(
       authApi.createStripeCheckoutSession({
@@ -129,18 +132,26 @@ describe('authApi stripe edge migration', () => {
 
     expect(authApi.getToken()).toBeNull();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://supabase.test/functions/v1/create-checkout',
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:3000/api/csrf',
+      expect.objectContaining({
+        credentials: 'include',
+      }),
+    );
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/api/auth/supabase-token',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          apikey: 'supabase-anon-key',
+          Authorization: expect.stringContaining('Bearer '),
         }),
       }),
     );
 
-    const requestOptions = globalThis.fetch.mock.calls[0][1];
-    expect(requestOptions.headers.Authorization).toBeUndefined();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces edge errors when the portal function is unavailable', async () => {
