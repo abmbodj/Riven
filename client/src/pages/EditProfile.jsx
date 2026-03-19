@@ -403,38 +403,42 @@ export default function EditProfile() {
                                     <button
                                         onClick={() => {
                                             haptics.light();
-                                            setShowBannerPicker(true);
+                                            setShowAvatarPicker(true);
                                         }}
-                                        aria-label="Change banner"
+                                        aria-label="Change avatar"
                                         className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-2 text-[11px] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:px-3 sm:py-2 md:backdrop-blur-md"
                                     >
                                         <Camera className="h-4 w-4" />
                                         <span className="hidden text-[10px] font-mono uppercase tracking-[0.18em] sm:inline">
-                                            Banner
+                                            Avatar
                                         </span>
                                     </button>
                                 </div>
                             </div>
 
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    haptics.light();
+                                    setShowBannerPicker(true);
+                                }}
+                                aria-label="Change banner"
+                                className="absolute right-3 top-20 z-30 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-2 text-[11px] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:right-4 sm:top-24 sm:px-3 sm:py-2 md:backdrop-blur-md"
+                            >
+                                <Camera className="h-4 w-4" />
+                                <span className="hidden text-[10px] font-mono uppercase tracking-[0.18em] sm:inline">
+                                    Banner
+                                </span>
+                            </button>
+
                             <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
                                 <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-5">
-                                        <button
-                                            onClick={() => {
-                                                haptics.light();
-                                                setShowAvatarPicker(true);
-                                            }}
-                                            aria-label="Change avatar"
-                                            className="group relative ml-14 self-start sm:ml-0"
-                                        >
-                                            <div className="absolute inset-0 scale-105 rounded-full bg-claude-accent/20 opacity-0 blur-xl transition-transform duration-500 group-hover:scale-125 group-hover:opacity-100 sm:scale-110" />
+                                        <div className="relative self-start">
                                             <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1 shadow-md md:shadow-2xl sm:p-1.5">
                                                 <Avatar src={avatar} size="4xl" className="h-28 w-28 border-[5px] border-claude-bg sm:h-40 sm:w-40 sm:border-[6px]" />
                                             </div>
-                                            <div className="absolute bottom-1 right-1 rounded-full border-2 border-claude-bg bg-claude-accent p-2.5 text-claude-bg shadow-sm transition-transform duration-300 group-hover:scale-110 active:scale-95 sm:bottom-2 sm:right-2 sm:p-3">
-                                                <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
-                                            </div>
-                                        </button>
+                                        </div>
 
                                         <div className="pb-0.5 sm:pb-1">
                                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/70 sm:px-3 sm:text-[10px] md:backdrop-blur-sm">
