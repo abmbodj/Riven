@@ -976,24 +976,21 @@ export default function Messages() {
 	                ref={chatViewRef}
 	                className="safe-area-top-owned relative flex flex-col bg-claude-bg h-[calc(100dvh-4rem)] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
 	            >
-            {/* Botanical Chat Header with decorative elements */}
-            <div className="header-blur flex items-center gap-3 p-4 border-b border-white/[0.06] shrink-0 relative z-20">
-                {/* Decorative corner marks */}
-                <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-claude-accent/20 rounded-tl" />
-                <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-claude-accent/20 rounded-br" />
-
+            {/* Chat header */}
+            <div className="header-blur flex items-center gap-2 sm:gap-3 px-3 py-3 sm:p-4 border-b border-white/[0.06] shrink-0 relative z-20">
                 <button
+                    type="button"
                     onClick={() => navigate('/messages')}
-                    className="touch-target -ml-2 rounded-lg hover:bg-claude-border/20 transition-colors focus-ring lg:hidden"
+                    className="touch-target shrink-0 flex h-10 w-10 items-center justify-center -ml-1 rounded-xl hover:bg-claude-border/20 transition-colors focus-ring lg:hidden"
                     aria-label="Back to conversations"
                 >
-                    <ArrowLeft className="w-6 h-6" aria-hidden="true" />
+                    <ArrowLeft className="w-6 h-6 text-claude-text" aria-hidden="true" />
                 </button>
 
 	                {chatUser && (
 	                    <Link
 	                        to={`/profile/${chatUser.id}`}
-	                        className="flex items-center gap-3 flex-1 min-w-0 p-2 -my-2 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]"
+	                        className="flex min-h-10 items-center gap-3 flex-1 min-w-0 py-1 pr-1 rounded-xl hover:bg-claude-border/10 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     >
                         <div className="relative">
                             <Avatar src={chatUser.avatar} size="md" />
@@ -1002,7 +999,7 @@ export default function Messages() {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="font-display font-semibold truncate">{chatUser.username}</p>
-                            <p className="text-xs text-claude-secondary font-mono">
+                            <p className="text-xs text-claude-secondary/90 font-sans leading-tight">
                                 <span className="lg:hidden">Tap to view profile</span>
                                 <span className="hidden lg:inline">Click to view profile</span>
                             </p>
@@ -1056,7 +1053,7 @@ export default function Messages() {
                         </p>
                     </motion.div>
                 ) : (
-                    <div className="p-4" style={{ height: virtualizer.getTotalSize() + (isTyping ? 54 : 0), position: 'relative' }}>
+                    <div className="px-4 pt-3 pb-2 sm:px-5" style={{ height: virtualizer.getTotalSize() + (isTyping ? 54 : 0), position: 'relative' }}>
                         {/* Loading older messages indicator */}
                         {loadingMore && (
                             <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-10">
@@ -1089,8 +1086,8 @@ export default function Messages() {
                                         zIndex: activeMenuId === msg.id ? 20 : 'auto',
                                     }}
                                 >
-                                    <div className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`flex items-end gap-2 max-w-[85%] ${msg.isMine ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex ${msg.isMine ? 'justify-end pl-6' : 'justify-start pr-6'}`}>
+                                        <div className={`flex items-end gap-2 max-w-[min(85%,28rem)] ${msg.isMine ? 'flex-row-reverse' : ''}`}>
                                             {!msg.isMine && (
                                                 <div className="w-8 shrink-0 mb-1">
                                                     {showAvatar && (
@@ -1218,15 +1215,20 @@ export default function Messages() {
                                                     )}
 
                                                     {msg.content && (
-                                                        <p className={`break-words ${msg.isMine ? 'font-medium' : 'font-mono'}`}>
+                                                        <p className={`break-words font-sans text-[15px] leading-relaxed ${msg.isMine ? 'font-medium text-white' : 'text-claude-text'}`}>
                                                             {msg.content}
                                                         </p>
                                                     )}
 
                                                     {msg.isEdited && (
-                                                        <span className="text-[10px] opacity-70 ml-2 italic">(edited)</span>
+                                                        <span className={`text-[10px] ml-2 italic ${msg.isMine ? 'text-white/65' : 'text-claude-secondary/80'}`}>(edited)</span>
                                                     )}
-                                                    <p className={`text-[9px] font-mono mt-1.5 opacity-40 select-none ${msg.isMine ? 'text-right' : 'text-left'}`}>
+                                                    <p
+                                                        className={`text-[10px] tabular-nums mt-1.5 select-none ${msg.isMine
+                                                            ? 'text-right text-white/85'
+                                                            : 'text-left text-claude-secondary'
+                                                            }`}
+                                                    >
                                                         {formatTime(msg.createdAt)}
                                                     </p>
                                                 </div>
@@ -1311,7 +1313,7 @@ export default function Messages() {
 	                animate={{ y: 0, opacity: 1 }}
 	                transition={{ delay: 0.2 }}
 	                onSubmit={handleSendMessage}
-	                className="sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:border-0"
+	                className="messages-composer-dock sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:border-0"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
                     paddingTop: '8px',
@@ -1389,18 +1391,18 @@ export default function Messages() {
                                 }}
 	                                placeholder={editingMessageId ? "Refine your message..." : "Write a message..."}
 	                                disabled={sending}
-	                                className="flex-1 w-full bg-transparent border-none outline-none text-claude-text placeholder:text-claude-secondary/50 font-sans text-[15px]"
+	                                className="flex-1 w-full bg-transparent border-none outline-none text-claude-text placeholder:text-claude-secondary/60 font-sans text-[15px]"
 	                            />
 
                             <motion.button
                                 type="submit"
                                 disabled={(!newMessage.trim() && !imagePreview) || sending}
                                 whileTap={{ scale: 0.9 }}
-                                className="w-8 h-8 ml-2 rounded-full flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed transition-[transform,opacity,color,background-color,border-color,box-shadow] relative overflow-hidden group focus-ring shrink-0"
+                                className="h-9 w-9 ml-2 rounded-full flex items-center justify-center text-white shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-[transform,opacity,color,background-color,border-color,box-shadow] relative overflow-hidden group focus-ring shrink-0 ring-2 ring-white/15"
                                 aria-label={sending ? 'Sending message' : 'Send message'}
                                 style={{
-                                    background: 'linear-gradient(135deg, #7a9e72 0%, #6b8e63 100%)',
-                                    boxShadow: '0 2px 8px rgba(122, 158, 114, 0.3)'
+                                    background: 'linear-gradient(145deg, #8fb585 0%, #5f8a56 55%, #4a7344 100%)',
+                                    boxShadow: '0 3px 14px rgba(95, 138, 86, 0.45), 0 1px 0 rgba(255,255,255,0.2) inset'
                                 }}
                             >
                                 <AnimatePresence mode="wait">

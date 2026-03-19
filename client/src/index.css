@@ -753,6 +753,20 @@
     pointer-events: none;
   }
 
+  /* Messages thread composer — align with header teal, less muddy / warm than default shell */
+  .messages-composer-dock.mobile-bottom-nav-shell {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%),
+      linear-gradient(168deg, rgba(30, 56, 64, 0.94) 0%, rgba(22, 42, 49, 0.98) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .messages-composer-dock.mobile-bottom-nav-shell::before {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(122, 158, 114, 0.09), transparent 52%),
+      radial-gradient(ellipse at 85% 100%, rgba(30, 56, 64, 0.2), transparent 42%);
+  }
+
   .mobile-fab-button {
     position: relative;
     isolation: isolate;
