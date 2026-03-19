@@ -160,6 +160,14 @@ const getProgressStatus = (job) => {
     return 'generating';
 };
 
+const isSourceJobFailure = (job) => job?.status === 'failed' || job?.status === 'cancelled';
+
+const getJobErrorMessage = (job, fallback = 'Failed') => (
+    job?.error_payload?.message
+    || job?.progress_message
+    || fallback
+);
+
 const extractNodeText = (node) => {
     if (!node || typeof node !== 'object') return '';
     const texts = [];
@@ -259,8 +267,27 @@ export default function YouTubeImport() {
         [progress],
     );
 
+    const failedResults = useMemo(
+        () => progress.filter((item) => item.status === 'error'),
+        [progress],
+    );
+
     const handleSourceJobUpdate = useCallback((job) => {
         setSourceJob(job);
+        if (!isSourceJobFailure(job)) return;
+
+        const sourceError = getJobErrorMessage(job, 'Source analysis failed');
+        setProgress((prev) => prev.map((item) => (
+            item.status === 'pending'
+                ? {
+                    ...item,
+                    status: 'error',
+                    phase: job?.phase || 'error',
+                    progressMessage: sourceError,
+                    error: sourceError,
+                }
+                : item
+        )));
     }, []);
 
     const handleDerivedJobUpdate = useCallback((type, job) => {
@@ -444,6 +471,12 @@ export default function YouTubeImport() {
     };
 
     const selectedClassData = classes.find((cls) => cls.id === selectedClass);
+    const allFailed = completedResults.length === 0 && failedResults.length > 0;
+    const finalSummary = allFailed
+        ? (isSourceJobFailure(sourceJob)
+            ? getJobErrorMessage(sourceJob, 'No items were generated from this video.')
+            : 'No items were generated from this video.')
+        : `${completedResults.length} item${completedResults.length !== 1 ? 's' : ''} generated from video`;
 
     return (
         <div className="min-h-full flex flex-col safe-area-top">
@@ -777,15 +810,23 @@ export default function YouTubeImport() {
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
-                                className="w-14 h-14 rounded-full bg-claude-accent/15 border border-claude-accent/30 flex items-center justify-center mx-auto mb-4"
+                                className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                                    allFailed
+                                        ? 'bg-red-500/10 border border-red-500/30'
+                                        : 'bg-claude-accent/15 border border-claude-accent/30'
+                                }`}
                             >
-                                <Check className="w-7 h-7 text-claude-accent" />
+                                {allFailed ? (
+                                    <X className="w-7 h-7 text-red-400" />
+                                ) : (
+                                    <Check className="w-7 h-7 text-claude-accent" />
+                                )}
                             </motion.div>
                             <h2 className="font-display text-2xl font-bold text-botanical-parchment mb-1">
-                                {completedResults.length > 0 ? 'Done!' : 'Generation Complete'}
+                                {allFailed ? 'Generation Failed' : completedResults.length > 0 ? 'Done!' : 'Generation Complete'}
                             </h2>
                             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-claude-secondary">
-                                {completedResults.length} item{completedResults.length !== 1 ? 's' : ''} generated from video
+                                {finalSummary}
                             </p>
                         </div>
 

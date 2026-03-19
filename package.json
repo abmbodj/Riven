@@ -7,6 +7,9 @@
     "client": "cd client && npm run dev",
     "prepare": "husky"
   },
+  "dependencies": {
+    "youtube-caption-extractor": "1.9.0"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "husky": "^9.1.7"
