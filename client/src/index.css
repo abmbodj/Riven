@@ -827,11 +827,11 @@
   }
 
   /*
-   * Mobile blur budget — stacked backdrop-filter is expensive on WebViews.
-   * Cap blur radii and lean on opaque gradients (see backgrounds above).
+   * Mobile blur — balance GPU cost vs legibility. Stronger blur on premium/inner
+   * glass so text reads over busy backgrounds; gradients above keep fallback if blur is skipped.
    */
   @media (max-width: 767px) {
-    /* Less transparency + stronger edges so cards read on near-black themes (blur is capped for GPU). */
+    /* Less transparency + stronger edges + real frost so cards read on near-black themes. */
     .glass-panel-premium {
       background: linear-gradient(
         160deg,
@@ -844,21 +844,21 @@
         0 2px 0 rgba(255, 255, 255, 0.06),
         inset 0 1px 0 rgba(255, 255, 255, 0.2),
         inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px) saturate(160%);
-      -webkit-backdrop-filter: blur(10px) saturate(160%);
+      backdrop-filter: blur(20px) saturate(175%);
+      -webkit-backdrop-filter: blur(20px) saturate(175%);
     }
 
     .glass-item {
       background: rgba(255, 255, 255, 0.08);
       border-color: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(14px) saturate(170%);
+      -webkit-backdrop-filter: blur(14px) saturate(170%);
     }
 
     .glass-panel {
       background: rgba(30, 56, 64, 0.82);
-      backdrop-filter: blur(10px) saturate(165%);
-      -webkit-backdrop-filter: blur(10px) saturate(165%);
+      backdrop-filter: blur(16px) saturate(175%);
+      -webkit-backdrop-filter: blur(16px) saturate(175%);
     }
 
     .profile-mobile-glass-shell {
