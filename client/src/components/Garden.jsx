@@ -2,6 +2,7 @@ import { useEffect, useId } from 'react';
 import gsap from 'gsap';
 import { gardenStages, getStageIndex } from '../utils/gardenCustomization';
 import { useGSAP } from '../hooks/useGSAP';
+import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 const sizeMap = {
     sm: { width: 80, height: 80 },
@@ -580,6 +581,8 @@ export default function Garden({
         };
     });
 
+    const lightVisualBudget = useMobileVisualBudget();
+
     const { container } = useGSAP(({ selector }) => {
         const q = selector;
 
@@ -622,56 +625,58 @@ export default function Garden({
             });
         });
 
-        q('.garden-breath').forEach((element, index) => {
-            const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 1);
-            gsap.to(element, {
-                scale: 1.02 + ((index % 3) * 0.012),
-                opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.06 : 0.03)),
-                duration: 4.8 + ((index % 4) * 0.55),
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                transformOrigin: element.dataset.origin ?? 'center center'
+        if (!lightVisualBudget) {
+            q('.garden-breath').forEach((element, index) => {
+                const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 1);
+                gsap.to(element, {
+                    scale: 1.02 + ((index % 3) * 0.012),
+                    opacity: Math.min(1, baseOpacity + (baseOpacity < 0.3 ? 0.06 : 0.03)),
+                    duration: 4.8 + ((index % 4) * 0.55),
+                    ease: 'sine.inOut',
+                    yoyo: true,
+                    repeat: -1,
+                    transformOrigin: element.dataset.origin ?? 'center center'
+                });
             });
-        });
 
-        q('.garden-twinkle').forEach((element, index) => {
-            gsap.to(element, {
-                opacity: 0.3 + ((index % 5) * 0.08),
-                scale: 0.88 + ((index % 4) * 0.06),
-                duration: 3.4 + ((index % 6) * 0.45),
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                delay: index * 0.1,
-                transformOrigin: element.dataset.origin ?? 'center center'
+            q('.garden-twinkle').forEach((element, index) => {
+                gsap.to(element, {
+                    opacity: 0.3 + ((index % 5) * 0.08),
+                    scale: 0.88 + ((index % 4) * 0.06),
+                    duration: 3.4 + ((index % 6) * 0.45),
+                    ease: 'sine.inOut',
+                    yoyo: true,
+                    repeat: -1,
+                    delay: index * 0.1,
+                    transformOrigin: element.dataset.origin ?? 'center center'
+                });
             });
-        });
 
-        q('.garden-ripple').forEach((element, index) => {
-            const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 0.24);
-            gsap.to(element, {
-                scaleX: 1.035 + ((index % 2) * 0.02),
-                scaleY: 0.972,
-                opacity: baseOpacity + 0.08,
-                duration: 5.8 + (index * 0.7),
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                transformOrigin: 'center center'
+            q('.garden-ripple').forEach((element, index) => {
+                const baseOpacity = Number(element.dataset.opacity ?? element.getAttribute('opacity') ?? 0.24);
+                gsap.to(element, {
+                    scaleX: 1.035 + ((index % 2) * 0.02),
+                    scaleY: 0.972,
+                    opacity: baseOpacity + 0.08,
+                    duration: 5.8 + (index * 0.7),
+                    ease: 'sine.inOut',
+                    yoyo: true,
+                    repeat: -1,
+                    transformOrigin: 'center center'
+                });
             });
-        });
 
-        q('.garden-orbit').forEach((element, index) => {
-            gsap.to(element, {
-                rotation: index % 2 === 0 ? 360 : -360,
-                duration: Number(element.dataset.duration ?? 48) + (index * 8),
-                ease: 'none',
-                repeat: -1,
-                transformOrigin: element.dataset.origin ?? `${moonX}px ${moonY}px`
+            q('.garden-orbit').forEach((element, index) => {
+                gsap.to(element, {
+                    rotation: index % 2 === 0 ? 360 : -360,
+                    duration: Number(element.dataset.duration ?? 48) + (index * 8),
+                    ease: 'none',
+                    repeat: -1,
+                    transformOrigin: element.dataset.origin ?? `${moonX}px ${moonY}px`
+                });
             });
-        });
-    }, [stageIndex, size, moonX, moonY]);
+        }
+    }, [stageIndex, size, moonX, moonY, lightVisualBudget]);
 
     useEffect(() => {
         const node = container.current;

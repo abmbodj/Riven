@@ -27,6 +27,7 @@ import GardenLanding from '../components/ui/GardenLanding';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../hooks/useGSAP';
+import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { EASE, DURATION, STAGGER, animateCounter, breathe } from '../utils/animations';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -356,6 +357,7 @@ function DashboardHome() {
     const [guides, setGuides] = useState([]);
     const [exams, setExams] = useState([]);
     const [pricingOpen, setPricingOpen] = useState(false);
+    const lightVisualBudget = useMobileVisualBudget();
 
     useGSAP(() => {
         if (loading || !pageRef.current) return;
@@ -395,20 +397,31 @@ function DashboardHome() {
                 delay: 0.25
             });
 
-            // Scroll-triggered sections
-            gsap.utils.toArray('.gsap-section').forEach((section) => {
-                gsap.from(section, {
-                    y: 30,
+            // Scroll-triggered sections (skip ScrollTrigger on mobile — lighter main thread during scroll)
+            if (lightVisualBudget) {
+                gsap.from('.gsap-section', {
+                    y: 20,
                     opacity: 0,
-                    duration: DURATION.slow,
+                    duration: DURATION.normal,
+                    stagger: STAGGER.tight,
                     ease: EASE.reveal,
-                    scrollTrigger: {
-                        trigger: section,
-                        start: 'top 88%',
-                        toggleActions: 'play none none none'
-                    }
+                    delay: 0.2,
                 });
-            });
+            } else {
+                gsap.utils.toArray('.gsap-section').forEach((section) => {
+                    gsap.from(section, {
+                        y: 30,
+                        opacity: 0,
+                        duration: DURATION.slow,
+                        ease: EASE.reveal,
+                        scrollTrigger: {
+                            trigger: section,
+                            start: 'top 88%',
+                            toggleActions: 'play none none none',
+                        },
+                    });
+                });
+            }
 
             // Deck cards scale in
             gsap.from('.gsap-deck-card', {
@@ -422,7 +435,7 @@ function DashboardHome() {
         }, pageRef.current);
 
         return () => ctx.revert();
-    }, [loading]);
+    }, [loading, lightVisualBudget]);
 
     useEffect(() => {
         const loadDashboard = async () => {

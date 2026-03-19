@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
     Layers, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Folder,
     X, Plus, Search, SlidersHorizontal, ArrowDownAZ, Calendar, Hash as HashIcon,
@@ -117,7 +118,58 @@ const DeckCard = memo(({ deck, folders, classes, index }) => {
 });
 DeckCard.displayName = 'DeckCard';
 
+/** Virtualized search hits — scroll parent is the spotlight overlay body. */
+function DeckSearchVirtualList({ decks, scrollParentRef, onPick }) {
+    // TanStack Virtual — same pattern as Messages.jsx; React Compiler skips memo here.
+    // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer is intentional
+    const virtualizer = useVirtualizer({
+        count: decks.length,
+        getScrollElement: () => scrollParentRef.current,
+        estimateSize: () => 102,
+        overscan: 10,
+    });
 
+    return (
+        <div
+            style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+            }}
+        >
+            {virtualizer.getVirtualItems().map((vi) => {
+                const deck = decks[vi.index];
+                return (
+                    <div
+                        key={deck.id}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${vi.start}px)`,
+                        }}
+                    >
+                        <Link
+                            to={`/deck/${deck.id}`}
+                            onClick={onPick}
+                            className="block p-4 glass-panel rounded-xl mb-3"
+                        >
+                            <h4 className="font-serif text-lg font-bold text-claude-text mb-1">{deck.title}</h4>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono text-claude-accent uppercase">{deck.cardCount} Cards</span>
+                                <span className="text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)]">•</span>
+                                <span className="text-[10px] font-mono text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] truncate">{deck.description || 'No description'}</span>
+                            </div>
+                        </Link>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+const DECK_SEARCH_VIRTUAL_THRESHOLD = 14;
 
 export default function DeckLibrary() {
     const toast = useToast();
@@ -138,6 +190,7 @@ export default function DeckLibrary() {
     const [showSortMenu, setShowSortMenu] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const searchScrollParentRef = useRef(null);
 
     // Modals
     const [showFolderModal, setShowFolderModal] = useState(false);
@@ -457,12 +510,22 @@ export default function DeckLibrary() {
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto">
+                        <div
+                            ref={searchScrollParentRef}
+                            className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain"
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
                             {searchQuery && (
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] px-2">Results for "{searchQuery}"</h3>
                                     {filteredDecks.length === 0 ? (
                                         <div className="py-12 text-center text-[color-mix(in_srgb,var(--secondary-text-color)_40%,transparent)] italic font-serif">No matching decks found</div>
+                                    ) : filteredDecks.length > DECK_SEARCH_VIRTUAL_THRESHOLD ? (
+                                        <DeckSearchVirtualList
+                                            decks={filteredDecks}
+                                            scrollParentRef={searchScrollParentRef}
+                                            onPick={() => setIsSearchOpen(false)}
+                                        />
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4">
                                             {filteredDecks.map((deck) => (

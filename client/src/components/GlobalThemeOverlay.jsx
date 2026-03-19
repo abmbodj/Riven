@@ -1,6 +1,21 @@
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import { useTheme } from '../hooks/useTheme';
+import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
+
+/** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
+function LightThemeAtmosphere({ accent, containerRef }) {
+    return (
+        <div ref={containerRef}>
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: `radial-gradient(ellipse 92% 56% at 50% 24%, ${accent}18 0%, transparent 58%), radial-gradient(ellipse 72% 50% at 80% 76%, ${accent}0c 0%, transparent 54%)`,
+                }}
+            />
+        </div>
+    );
+}
 
 // ─── Deterministic seeded random ─────────────────────────────────────────────
 function seededRandom(seed) {
@@ -63,35 +78,37 @@ const THEME_MAP = {
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function GlobalThemeOverlay() {
     const { activeTheme } = useTheme();
+    const lightAtmosphere = useMobileVisualBudget();
     if (!activeTheme) return null;
     const archetype = THEME_MAP[activeTheme.name];
     if (!archetype) return null;
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
-            <GlobalOverlayContent archetype={archetype} accent={activeTheme.accent_color} />
+            <GlobalOverlayContent archetype={archetype} accent={activeTheme.accent_color} lightAtmosphere={lightAtmosphere} />
         </div>
     );
 }
 
-function GlobalOverlayContent({ archetype, accent }) {
+function GlobalOverlayContent({ archetype, accent, lightAtmosphere }) {
     switch (archetype) {
-        case 'forest':   return <ForestOverlay accent={accent} />;
-        case 'ember':    return <EmberOverlay accent={accent} />;
-        case 'mist':     return <MistOverlay accent={accent} />;
-        case 'lantern':  return <LanternOverlay accent={accent} />;
-        case 'moon':     return <MoonOverlay accent={accent} />;
-        case 'rain':     return <RainOverlay accent={accent} />;
-        case 'sakura':   return <SakuraOverlay accent={accent} />;
-        case 'lavender': return <LavenderOverlay accent={accent} />;
+        case 'forest':   return <ForestOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'ember':    return <EmberOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'mist':     return <MistOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'lantern':  return <LanternOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'moon':     return <MoonOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'rain':     return <RainOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'sakura':   return <SakuraOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
+        case 'lavender': return <LavenderOverlay accent={accent} lightAtmosphere={lightAtmosphere} />;
         default: return null;
     }
 }
 
 // ─── Forest — Sage Temple ─────────────────────────────────────────────────────
 // Dust motes drifting upward through dappled canopy light, bamboo silhouette
-function ForestOverlay({ accent }) {
+function ForestOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-mote').forEach((el, i) => {
             const p = P_MOTES[i % P_MOTES.length];
             gsap.timeline({ repeat: -1, delay: p.delay })
@@ -107,7 +124,11 @@ function ForestOverlay({ accent }) {
                     ease: 'power1.out',
                 });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -165,8 +186,9 @@ function ForestOverlay({ accent }) {
 
 // ─── Ember — Dawn Ember ───────────────────────────────────────────────────────
 // Warm glowing sparks rising from random positions across the full screen
-function EmberOverlay({ accent }) {
+function EmberOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-ember').forEach((el, i) => {
             const p = P_EMBERS[i % P_EMBERS.length];
             gsap.timeline({ repeat: -1, delay: p.delay })
@@ -183,7 +205,11 @@ function EmberOverlay({ accent }) {
                     ease: 'power2.out',
                 });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -220,8 +246,9 @@ function EmberOverlay({ accent }) {
 
 // ─── Mist — Misty Shore ───────────────────────────────────────────────────────
 // Soft fog orbs drifting horizontally, tiny motes scattered across the view
-function MistOverlay({ accent }) {
+function MistOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         // Large fog orbs drift slowly
         selector('.p-fog').forEach((el, i) => {
             const p = P_MIST[i % P_MIST.length];
@@ -257,7 +284,11 @@ function MistOverlay({ accent }) {
                     ease: 'none',
                 });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -305,8 +336,9 @@ function MistOverlay({ accent }) {
 
 // ─── Lantern — Amber Lantern ──────────────────────────────────────────────────
 // Firefly-like glowing dots floating gently across the full screen
-function LanternOverlay({ accent }) {
+function LanternOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-fly').forEach((el, i) => {
             const p = P_FIREFLY[i % P_FIREFLY.length];
             // Gentle bobbing movement
@@ -329,7 +361,11 @@ function LanternOverlay({ accent }) {
                 delay: p.delay * 0.4,
             });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -365,8 +401,9 @@ function LanternOverlay({ accent }) {
 
 // ─── Moon — Moonlit Cove ──────────────────────────────────────────────────────
 // Silver stars twinkling across the full sky, crescent moon SVG accent
-function MoonOverlay({ accent }) {
+function MoonOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-star').forEach((el, i) => {
             const p = P_STARS[i % P_STARS.length];
             gsap.to(el, {
@@ -379,7 +416,11 @@ function MoonOverlay({ accent }) {
                 delay: p.delay * 0.5,
             });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -420,8 +461,9 @@ function MoonOverlay({ accent }) {
 
 // ─── Rain — Rain Garden ───────────────────────────────────────────────────────
 // Soft rain streaks distributed across the full screen, zen stone ripples
-function RainOverlay({ accent }) {
+function RainOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-rain').forEach((el, i) => {
             const p = P_RAIN[i % P_RAIN.length];
             gsap.fromTo(el,
@@ -436,7 +478,11 @@ function RainOverlay({ accent }) {
                 }
             );
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -479,8 +525,9 @@ function RainOverlay({ accent }) {
 
 // ─── Sakura — Cherry Blossom ──────────────────────────────────────────────────
 // Petals drifting and rotating across the full screen, ornate branch SVG
-function SakuraOverlay({ accent }) {
+function SakuraOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-petal').forEach((el, i) => {
             const p = P_PETALS[i % P_PETALS.length];
             gsap.timeline({ repeat: -1, delay: p.delay })
@@ -497,7 +544,11 @@ function SakuraOverlay({ accent }) {
                     ease: 'sine.out',
                 });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
@@ -577,8 +628,9 @@ function SakuraOverlay({ accent }) {
 
 // ─── Lavender — Lavender Dusk ─────────────────────────────────────────────────
 // Tiny pollen/spore particles floating upward, deep purple atmospheric blooms
-function LavenderOverlay({ accent }) {
+function LavenderOverlay({ accent, lightAtmosphere }) {
     const { container } = useGSAP(({ selector }) => {
+        if (lightAtmosphere) return;
         selector('.p-pollen').forEach((el, i) => {
             const p = P_POLLEN[i % P_POLLEN.length];
             gsap.timeline({ repeat: -1, delay: p.delay })
@@ -594,7 +646,11 @@ function LavenderOverlay({ accent }) {
                     ease: 'power1.out',
                 });
         });
-    }, []);
+    }, [lightAtmosphere]);
+
+    if (lightAtmosphere) {
+        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+    }
 
     return (
         <div ref={container}>
