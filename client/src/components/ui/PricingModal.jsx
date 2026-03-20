@@ -222,7 +222,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', damping: 24, stiffness: 220 }}
-                        className="relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full flex-col overflow-hidden rounded-t-[2rem] border border-claude-border bg-claude-bg/98 shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem]"
+                        className="relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full flex-col overflow-hidden rounded-t-[2rem] border border-claude-border bg-claude-bg shadow-[0_30px_90px_rgba(0,0,0,0.32)] md:max-h-[94vh] md:max-w-5xl md:rounded-[2rem] md:bg-claude-bg/98"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.12),transparent_30%)]" />

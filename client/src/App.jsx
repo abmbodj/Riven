@@ -6,6 +6,7 @@ import { AppProviders } from './AppProviders.jsx';
 import { RootLayout } from './components/layout/RootLayout.jsx';
 import { routesConfig } from './routes/config.jsx';
 import { PageLoader } from './components/ui/PageLoader.jsx';
+import { PosthogPageviewTracker } from './analytics/PosthogPageviewTracker.jsx';
 
 const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
 
@@ -13,6 +14,7 @@ function App() {
   return (
     <AppProviders>
       <AppRouter>
+        <PosthogPageviewTracker />
         <RootLayout>
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>

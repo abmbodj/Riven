@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
+
+const sentrySourceMapsEnabled = Boolean(
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+)
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -86,9 +91,22 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    ...(sentrySourceMapsEnabled
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            release:
+              process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+            telemetry: false,
+          }),
+        ]
+      : []),
   ],
   build: {
+    sourcemap: sentrySourceMapsEnabled,
     // Optimize chunk splitting for faster initial load
     cssCodeSplit: true,
     minify: 'terser',

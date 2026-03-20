@@ -1,6 +1,7 @@
 if (process.env.NODE_ENV !== 'test') {
     require('dotenv').config({ override: true });
 }
+const Sentry = require('@sentry/node');
 const crypto = require('crypto');
 const express = require('express');
 const http = require('http');
@@ -34,6 +35,22 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+
+let sentryEnabled = false;
+if (process.env.NODE_ENV !== 'test' && process.env.SENTRY_DSN) {
+    sentryEnabled = true;
+    const tracesSampleRate = parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1');
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+        release: process.env.SENTRY_RELEASE,
+        tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
+        integrations: [
+            Sentry.expressIntegration(),
+            Sentry.captureConsoleIntegration({ levels: ['error'] }),
+        ],
+    });
+}
 
 // Trust the first proxy (Render/Vercel load balancer)
 // Required for successful rate limiting behind a proxy
@@ -111,7 +128,13 @@ app.use(cors({
 }));
 
 // Security headers via Helmet
-const helmetConnectSrc = ["'self'", ...allowedOrigins, "https://*.vercel.app"];
+const helmetConnectSrc = [
+    "'self'",
+    ...allowedOrigins,
+    'https://*.vercel.app',
+    'https://*.ingest.sentry.io',
+    'https://*.ingest.us.sentry.io',
+];
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -499,6 +522,10 @@ registerAdminRoutes({ app, db, authMiddleware });
 // ============ HEALTH CHECK ============
 
 registerHealthRoutes({ app, db });
+
+if (sentryEnabled) {
+    Sentry.setupExpressErrorHandler(app);
+}
 
 if (process.env.NODE_ENV !== 'test') {
     server.on('error', (error) => {

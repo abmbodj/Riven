@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { getStripeClient } from '../_shared/stripe.ts';
@@ -185,6 +186,7 @@ serve(async (request) => {
     const requestError = normalizeRequestError(error);
 
     console.error('[stripe-webhook edge function] error', requestError);
+    await reportEdgeException(requestError, { request, functionName: 'stripe-webhook' });
     const status = typeof requestError.status === 'number'
       ? requestError.status
       : typeof requestError.statusCode === 'number'

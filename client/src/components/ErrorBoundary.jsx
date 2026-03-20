@@ -1,6 +1,7 @@
 import React from 'react';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import { captureException } from '../sentry.js';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -21,6 +22,7 @@ class ErrorBoundary extends React.Component {
                 timestamp: new Date().toISOString(),
             };
         }
+        captureException(error, { extra: { componentStack: errorInfo?.componentStack } });
         console.error('App error:', error, errorInfo);
     }
 

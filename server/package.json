@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^1.42.0",
+    "@sentry/node": "^10.45.0",
     "apple-signin-auth": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
