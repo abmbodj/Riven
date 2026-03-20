@@ -37,10 +37,14 @@ export function useRevenueCat(userId) {
     const [customerInfo, setCustomerInfo] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [initStatus, setInitStatus] = useState('pending');
 
     // ── configure + fetch offerings ────────────────────────────────────────
     useEffect(() => {
-        if (!isNative || !userId || !RC_IOS_API_KEY) return;
+        console.log('[RevenueCat] guard check — isNative:', isNative, 'userId:', userId, 'apiKey present:', !!RC_IOS_API_KEY, 'apiKey value:', RC_IOS_API_KEY?.substring(0, 15));
+        if (!isNative) { setInitStatus('skipped: not native'); return; }
+        if (!userId) { setInitStatus('skipped: no userId'); return; }
+        if (!RC_IOS_API_KEY) { setInitStatus('skipped: no API key'); return; }
 
         let cancelled = false;
 
@@ -74,12 +78,14 @@ export function useRevenueCat(userId) {
                     setOfferings(offeringsResult);
                     setCustomerInfo(info);
                     setError(null);
+                    setInitStatus('success');
                 }
             } catch (err) {
                 if (!cancelled) {
                     console.error('[RevenueCat] init error:', err);
                     console.error('[RevenueCat] init error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
                     setError(err?.message ?? 'RevenueCat initialisation failed');
+                    setInitStatus('error: ' + (err?.message ?? 'unknown'));
                 }
             }
         }
@@ -168,6 +174,8 @@ export function useRevenueCat(userId) {
         loading,
         /** Error string or null */
         error,
+        /** Debug: tracks whether init ran and why */
+        initStatus,
         purchasePackage,
         restorePurchases,
         hasEntitlement,

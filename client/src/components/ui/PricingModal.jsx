@@ -168,7 +168,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             try {
                 const offering = rc.offerings?.current;
                 if (!offering) {
-                    const debugInfo = `rc.error: ${rc.error || 'none'} | offerings: ${JSON.stringify(rc.offerings, null, 2)?.substring(0, 300)}`;
+                    const debugInfo = `initStatus: ${rc.initStatus} | rc.error: ${rc.error || 'none'} | isNative: ${rc.isNative} | offerings: ${JSON.stringify(rc.offerings)?.substring(0, 200)}`;
                     throw new Error(`No offerings available. Debug: ${debugInfo}`);
                 }
 
