@@ -1,11 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { openDB } from 'idb';
+import { Capacitor } from '@capacitor/core';
+import { VoiceRecorder } from 'capacitor-voice-recorder';
+import { LiveActivity } from 'capacitor-live-activity';
 
 const AUDIO_DB_NAME = 'riven-audio';
 const AUDIO_DB_VERSION = 1;
 const CHUNKS_STORE = 'audioChunks';
-const FLUSH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const CHUNK_INTERVAL_MS = 10_000; // 10 seconds
+const FLUSH_INTERVAL_MS = 5 * 60 * 1000;
+const CHUNK_INTERVAL_MS = 10_000;
 const MIME_TYPE = 'audio/webm;codecs=opus';
 const FALLBACK_MIME = 'audio/webm';
 
@@ -19,10 +22,24 @@ function getAudioDB() {
     });
 }
 
+function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
+    const byteCharacters = atob(b64Data);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+    return new Blob(byteArrays, { type: contentType });
+}
+
 async function storeChunks(noteId, chunks) {
     const db = await getAudioDB();
     const tx = db.transaction(CHUNKS_STORE, 'readwrite');
-    // Clear previous chunks for this note before storing new batch
     const all = await tx.store.getAll();
     for (const entry of all) {
         if (entry.noteId === noteId) await tx.store.delete(entry.id);
@@ -49,9 +66,6 @@ async function clearStoredChunks(noteId) {
     await tx.done;
 }
 
-/**
- * States: idle | requesting_permission | recording | stopped | uploading | processing | complete | error
- */
 export default function useAudioRecorder(noteId) {
     const [state, setState] = useState('idle');
     const [duration, setDuration] = useState(0);
@@ -64,8 +78,11 @@ export default function useAudioRecorder(noteId) {
     const durationTimerRef = useRef(null);
     const flushTimerRef = useRef(null);
     const audioBlobRef = useRef(null);
+    const liveActivityIdRef = useRef(null);
+    const durationRef = useRef(0);
 
-    // Check for orphaned chunks on mount
+    const isNative = Capacitor.isNativePlatform();
+
     useEffect(() => {
         if (!noteId) return;
         getStoredChunks(noteId).then(stored => {
@@ -89,91 +106,182 @@ export default function useAudioRecorder(noteId) {
         mediaRecorderRef.current = null;
     }, []);
 
+    const updateLiveActivity = useCallback(async (seconds) => {
+        if (isNative && liveActivityIdRef.current) {
+            try {
+                await LiveActivity.update({
+                    activityId: liveActivityIdRef.current,
+                    contentState: { duration: seconds }
+                });
+            } catch (err) {
+                console.log('Failed to update live activity', err);
+            }
+        }
+    }, [isNative]);
+
+    const startLiveActivity = useCallback(async () => {
+        if (!isNative) return null;
+        try {
+            const { activityId } = await LiveActivity.start({
+                attributes: { type: 'audioRecording', title: 'Recording Note' },
+                contentState: { duration: 0 }
+            });
+            return activityId;
+        } catch (err) {
+            console.log('Failed to start live activity', err);
+            return null;
+        }
+    }, [isNative]);
+
+    const stopLiveActivity = useCallback(async () => {
+        if (!isNative || !liveActivityIdRef.current) return;
+        try {
+            await LiveActivity.stop({
+                activityId: liveActivityIdRef.current,
+                finalContentState: { duration: durationRef.current }
+            });
+            liveActivityIdRef.current = null;
+        } catch (err) {
+            console.log('Failed to stop live activity', err);
+        }
+    }, [isNative]);
+
+    const startWeb = async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setState('error');
+            setError('not_supported');
+            return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+
+        const mimeType = MediaRecorder.isTypeSupported(MIME_TYPE) ? MIME_TYPE : FALLBACK_MIME;
+        const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 });
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+
+        recorder.onstop = () => {
+            const blob = new Blob(chunksRef.current, { type: mimeType });
+            audioBlobRef.current = blob;
+            cleanup();
+
+            if (blob.size < 1000) {
+                setState('idle');
+                setError('no_audio');
+                return;
+            }
+
+            setState('stopped');
+            clearStoredChunks(noteId).catch(() => {});
+            setHasRecoveryData(false);
+        };
+
+        recorder.onerror = () => {
+            cleanup();
+            setState('error');
+            setError('recording_failed');
+        };
+
+        recorder.start(CHUNK_INTERVAL_MS);
+    };
+
+    const startNative = async () => {
+        const canRecord = await VoiceRecorder.hasAudioRecordingPermission();
+        if (!canRecord.value) {
+            const request = await VoiceRecorder.requestAudioRecordingPermission();
+            if (!request.value) {
+                throw new Error('PermissionDeniedError');
+            }
+        }
+        await VoiceRecorder.startRecording();
+    };
+
     const start = useCallback(async () => {
         if (state === 'recording') return;
 
         setState('requesting_permission');
         setError(null);
         setDuration(0);
+        durationRef.current = 0;
         chunksRef.current = [];
         audioBlobRef.current = null;
 
-        if (!navigator.mediaDevices?.getUserMedia) {
-            setState('error');
-            setError('not_supported');
-            return;
-        }
-
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            streamRef.current = stream;
+            if (isNative) {
+                await startNative();
+            } else {
+                await startWeb();
+            }
 
-            const mimeType = MediaRecorder.isTypeSupported(MIME_TYPE) ? MIME_TYPE : FALLBACK_MIME;
-            const recorder = new MediaRecorder(stream, {
-                mimeType,
-                audioBitsPerSecond: 32000,
-            });
-            mediaRecorderRef.current = recorder;
-
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) chunksRef.current.push(e.data);
-            };
-
-            recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: mimeType });
-                audioBlobRef.current = blob;
-                cleanup();
-
-                if (blob.size < 1000) {
-                    // Essentially empty recording
-                    setState('idle');
-                    setError('no_audio');
-                    return;
-                }
-
-                setState('stopped');
-                // Clear recovery data since we have a complete recording
-                clearStoredChunks(noteId).catch(() => {});
-                setHasRecoveryData(false);
-            };
-
-            recorder.onerror = () => {
-                cleanup();
-                setState('error');
-                setError('recording_failed');
-            };
-
-            recorder.start(CHUNK_INTERVAL_MS);
             setState('recording');
+            liveActivityIdRef.current = await startLiveActivity();
 
-            // Duration counter
             const startTime = Date.now();
             durationTimerRef.current = setInterval(() => {
-                setDuration(Math.floor((Date.now() - startTime) / 1000));
+                const secs = Math.floor((Date.now() - startTime) / 1000);
+                setDuration(secs);
+                durationRef.current = secs;
+                updateLiveActivity(secs);
             }, 1000);
 
-            // Periodic flush to IndexedDB for crash recovery
-            flushTimerRef.current = setInterval(() => {
-                if (chunksRef.current.length > 0) {
-                    storeChunks(noteId, chunksRef.current).catch(() => {});
-                }
-            }, FLUSH_INTERVAL_MS);
+            if (!isNative) {
+                flushTimerRef.current = setInterval(() => {
+                    if (chunksRef.current.length > 0) {
+                        storeChunks(noteId, chunksRef.current).catch(() => {});
+                    }
+                }, FLUSH_INTERVAL_MS);
+            }
         } catch (err) {
             cleanup();
+            stopLiveActivity();
             setState('error');
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message === 'PermissionDeniedError') {
                 setError('permission_denied');
             } else {
                 setError('recording_failed');
             }
         }
-    }, [state, noteId, cleanup]);
+    }, [state, noteId, cleanup, isNative, startLiveActivity, updateLiveActivity, stopLiveActivity]);
 
-    const stop = useCallback(() => {
+    const stopWeb = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
         }
-    }, []);
+    };
+
+    const stopNative = async () => {
+        try {
+            const result = await VoiceRecorder.stopRecording();
+            cleanup();
+            stopLiveActivity();
+            
+            if (result.value && result.value.recordDataBase64) {
+                const blob = b64toBlob(result.value.recordDataBase64, result.value.mimeType);
+                audioBlobRef.current = blob;
+                setState('stopped');
+                setHasRecoveryData(false);
+            } else {
+                setState('idle');
+                setError('no_audio');
+            }
+        } catch (err) {
+            cleanup();
+            stopLiveActivity();
+            setState('error');
+            setError('recording_failed');
+        }
+    };
+
+    const stop = useCallback(() => {
+        if (isNative) {
+            stopNative();
+        } else {
+            stopWeb();
+        }
+    }, [isNative, stopWeb, stopLiveActivity, cleanup]);
 
     const getBlob = useCallback(() => audioBlobRef.current, []);
 
@@ -185,12 +293,13 @@ export default function useAudioRecorder(noteId) {
 
     const reset = useCallback(() => {
         cleanup();
+        stopLiveActivity();
         setState('idle');
         setDuration(0);
         setError(null);
         chunksRef.current = [];
         audioBlobRef.current = null;
-    }, [cleanup]);
+    }, [cleanup, stopLiveActivity]);
 
     const discardRecovery = useCallback(async () => {
         await clearStoredChunks(noteId).catch(() => {});
@@ -210,16 +319,17 @@ export default function useAudioRecorder(noteId) {
         return blob;
     }, [noteId]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
-            // Flush chunks to IndexedDB if recording is in progress
-            if (mediaRecorderRef.current?.state === 'recording' && chunksRef.current.length > 0) {
+            if (!isNative && mediaRecorderRef.current?.state === 'recording' && chunksRef.current.length > 0) {
                 storeChunks(noteId, chunksRef.current).catch(() => {});
+            }
+            if (isNative && state === 'recording') {
+                stopNative();
             }
             cleanup();
         };
-    }, [noteId, cleanup]);
+    }, [noteId, cleanup, isNative, state]);
 
     return {
         state,

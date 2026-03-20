@@ -7,15 +7,18 @@ import { toPng } from "html-to-image";
 // Polyfill for html-to-image Safari/Firefox font bug where getPropertyValue('font') returns empty/undefined
 if (typeof window !== "undefined" && window.CSSStyleDeclaration) {
   const originalGetPropertyValue = window.CSSStyleDeclaration.prototype.getPropertyValue;
+  let fontGetCounter = 0;
   window.CSSStyleDeclaration.prototype.getPropertyValue = function(prop: string) {
     if (prop === "font") {
       const font = originalGetPropertyValue.call(this, prop);
+      if (fontGetCounter < 8) fontGetCounter += 1;
       if (!font) {
         const style = originalGetPropertyValue.call(this, "font-style");
         const variant = originalGetPropertyValue.call(this, "font-variant");
         const weight = originalGetPropertyValue.call(this, "font-weight");
         const size = originalGetPropertyValue.call(this, "font-size");
         const family = originalGetPropertyValue.call(this, "font-family");
+        if (fontGetCounter < 12) fontGetCounter += 1;
         return `${style} ${variant} ${weight} ${size} ${family}`.trim();
       }
       return font;
@@ -723,10 +726,19 @@ export default function StudioPage() {
       const node = exportNodeRef.current;
       if (!node) throw new Error("Export node not found");
 
-      const opts = { width: W, height: H, pixelRatio: 1, cacheBust: true };
+      const opts = { width: W, height: H, pixelRatio: 1, cacheBust: true, fontEmbedCSS: "" };
 
-      await toPng(node, opts);
-      const dataUrl = await toPng(node, opts);
+      try {
+        await toPng(node, opts);
+      } catch (err: any) {
+        throw err;
+      }
+      let dataUrl = "";
+      try {
+        dataUrl = await toPng(node, opts);
+      } catch (err: any) {
+        throw err;
+      }
 
       const paddedSlide = String(slideIndex + 1).padStart(2, "0");
       const filename = `${paddedSlide}-riven-${locale}-${themeId}-iphone-${size.w}x${size.h}.png`;
