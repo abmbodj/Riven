@@ -46,7 +46,9 @@ export function useRevenueCat(userId) {
 
         async function init() {
             try {
+                console.log('[RevenueCat] init starting — userId:', userId, 'apiKey:', RC_IOS_API_KEY?.substring(0, 12) + '…');
                 const Purchases = await getPurchases();
+                console.log('[RevenueCat] native module loaded OK');
 
                 if (!configuredRef.current) {
                     await Purchases.configure({
@@ -54,10 +56,19 @@ export function useRevenueCat(userId) {
                         appUserID: userId,
                     });
                     configuredRef.current = true;
+                    console.log('[RevenueCat] configure() succeeded');
                 }
 
-                const { offerings: offeringsResult } = await Purchases.getOfferings();
+                console.log('[RevenueCat] calling getOfferings()…');
+                const offeringsResponse = await Purchases.getOfferings();
+                console.log('[RevenueCat] getOfferings() raw response:', JSON.stringify(offeringsResponse, null, 2));
+
+                const offeringsResult = offeringsResponse?.offerings;
+                console.log('[RevenueCat] offerings.current:', offeringsResult?.current);
+                console.log('[RevenueCat] offerings.all keys:', offeringsResult?.all ? Object.keys(offeringsResult.all) : 'N/A');
+
                 const { customerInfo: info } = await Purchases.getCustomerInfo();
+                console.log('[RevenueCat] customerInfo OK, entitlements:', JSON.stringify(info?.entitlements?.active));
 
                 if (!cancelled) {
                     setOfferings(offeringsResult);
@@ -67,6 +78,7 @@ export function useRevenueCat(userId) {
             } catch (err) {
                 if (!cancelled) {
                     console.error('[RevenueCat] init error:', err);
+                    console.error('[RevenueCat] init error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
                     setError(err?.message ?? 'RevenueCat initialisation failed');
                 }
             }

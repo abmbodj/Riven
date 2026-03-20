@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@capacitor/app": "^8.0.1",
-    "@capacitor/core": "^8.2.0",
+    "@capacitor/core": "^8.1.0",
     "@capacitor/local-notifications": "^8.0.2",
     "@capawesome/capacitor-google-sign-in": "^0.1.1",
     "@marsidev/react-turnstile": "^1.4.2",

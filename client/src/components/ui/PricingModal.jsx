@@ -167,7 +167,10 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         if (rc.isNative) {
             try {
                 const offering = rc.offerings?.current;
-                if (!offering) throw new Error('No offerings available. Check RevenueCat dashboard.');
+                if (!offering) {
+                    const debugInfo = `rc.error: ${rc.error || 'none'} | offerings: ${JSON.stringify(rc.offerings, null, 2)?.substring(0, 300)}`;
+                    throw new Error(`No offerings available. Debug: ${debugInfo}`);
+                }
 
                 // Find the matching package: annual → ANNUAL, monthly → MONTHLY
                 const targetType = pkgType === 'annual' ? 'ANNUAL' : 'MONTHLY';
