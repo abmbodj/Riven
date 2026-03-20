@@ -22,13 +22,13 @@ const ONBOARDING_STEPS = [
             highlight: 'important',
             tail: 'right now?',
         },
-        description: 'We kept this first setup short. Pick the kind of win you want Riven to help create first.',
+        description: 'Pick the outcome you want Riven to help with first.',
         primary: 'Continue',
         options: [
             {
                 id: 'cards',
                 eyebrow: 'Outcome',
-                label: 'Turn class material into flashcards',
+                label: 'Make flashcards from class material',
                 detail: 'Move from lecture, reading, or notes into something reviewable fast.',
                 shortLabel: 'Flashcards',
             },
@@ -63,7 +63,7 @@ const ONBOARDING_STEPS = [
             highlight: 'bring into',
             tail: 'Riven?',
         },
-        description: 'The app feels best when it meets your real study inputs instead of asking you to start from scratch.',
+        description: 'Choose the study material you reach for most often.',
         primary: 'Continue',
         options: [
             {
@@ -104,7 +104,7 @@ const ONBOARDING_STEPS = [
             highlight: 'throws off',
             tail: 'your study rhythm?',
         },
-        description: 'Today is where Riven starts paying off. Tell us what tends to make your studying feel noisy.',
+        description: 'Choose the friction you want Riven to help clear first.',
         primary: 'Go to Today',
         options: [
             {
@@ -169,6 +169,7 @@ export default function Onboarding() {
     const [answers, setAnswers] = useState(() => createDefaultAnswers());
     const [busy, setBusy] = useState(false);
     const [reducedMotion, setReducedMotion] = useState(false);
+    const [compactHeight, setCompactHeight] = useState(false);
 
     useEffect(() => {
         setStep(initialStep);
@@ -179,6 +180,13 @@ export default function Onboarding() {
         setReducedMotion(mq.matches);
         const updateMotionPreference = () => setReducedMotion(mq.matches);
         return subscribeMediaQueryList(mq, updateMotionPreference);
+    }, []);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-height: 760px)');
+        setCompactHeight(mq.matches);
+        const updateCompactHeight = () => setCompactHeight(mq.matches);
+        return subscribeMediaQueryList(mq, updateCompactHeight);
     }, []);
 
     useEffect(() => {
@@ -285,6 +293,9 @@ export default function Onboarding() {
     const focusChoice = getStepOption('focus', answers.focus);
     const materialChoice = getStepOption('material', answers.material);
     const progress = ((step + 1) / STEP_COUNT) * 100;
+    const summaryLine = step === STEP_COUNT - 1 && focusChoice && materialChoice
+        ? `Focus: ${focusChoice.shortLabel} • Material: ${materialChoice.shortLabel}`
+        : null;
 
     const motionProps = reducedMotion
         ? { initial: false, animate: { opacity: 1 }, exit: { opacity: 1 } }
@@ -322,14 +333,14 @@ export default function Onboarding() {
             </div>
 
             <div className="relative z-10 flex min-h-dvh flex-col">
-                <header className="shrink-0 px-5 safe-area-top pt-3 pb-4">
+                <header className={`shrink-0 px-5 safe-area-top ${compactHeight ? 'pt-2 pb-3' : 'pt-3 pb-4'}`}>
                     <div className="flex items-center gap-3">
                         <button
                             type="button"
                             onClick={() => !busy && goBack()}
                             disabled={busy || step === 0}
                             aria-label="Go back"
-                            className="touch-target h-11 w-11 rounded-full border border-white/10 bg-white/[0.05] text-botanical-parchment transition-all duration-200 hover:border-white/15 hover:bg-white/[0.08] disabled:opacity-30"
+                            className={`touch-target rounded-full border border-white/10 bg-white/[0.05] text-botanical-parchment transition-all duration-200 hover:border-white/15 hover:bg-white/[0.08] disabled:opacity-30 ${compactHeight ? 'h-10 w-10' : 'h-11 w-11'}`}
                         >
                             <ArrowLeft className="h-5 w-5" strokeWidth={2.2} />
                         </button>
@@ -366,131 +377,114 @@ export default function Onboarding() {
                     </div>
                 </header>
 
-                <div className="flex min-h-0 flex-1 flex-col px-5">
-                    <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-                        <AnimatePresence mode="wait">
-                            <motion.section key={screen.id} className="flex min-h-full flex-col pb-2" {...motionProps}>
-                                <div className="pt-2">
-                                    <div className="mx-auto mb-8 inline-flex max-w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 shadow-[0_12px_32px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.12)]">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06]">
-                                            <OnboardingArt className="w-7 h-7 scale-[1.15]" />
-                                        </div>
-                                        <div className="min-w-0 text-left">
-                                            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-claude-accent">
-                                                {screen.eyebrow}
-                                            </p>
-                                            <p className="truncate text-xs text-claude-secondary">Riven mobile setup</p>
-                                        </div>
+                <div className={`flex min-h-0 flex-1 flex-col px-5 ${compactHeight ? 'pb-2' : 'pb-3'}`}>
+                    <AnimatePresence mode="wait">
+                        <motion.section
+                            key={screen.id}
+                            data-testid="onboarding-main-layout"
+                            className={`flex flex-1 flex-col justify-between ${compactHeight ? 'gap-4' : 'gap-5'}`}
+                            {...motionProps}
+                        >
+                            <div className={`flex flex-col ${compactHeight ? 'gap-3 pt-1' : 'gap-4 pt-2'}`}>
+                                <div className="mx-auto flex max-w-full items-center gap-2 text-claude-secondary">
+                                    <div className={`flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] ${compactHeight ? 'h-7 w-7' : 'h-8 w-8'}`}>
+                                        <OnboardingArt className={`${compactHeight ? 'w-4 h-4' : 'w-5 h-5'} scale-[1.1]`} />
                                     </div>
+                                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-claude-accent">
+                                        Riven mobile setup
+                                    </p>
+                                </div>
 
-                                    <div className="mx-auto max-w-[22rem] text-center">
-                                        <p className="mb-4 font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-claude-secondary">
-                                            Step {step + 1} of {STEP_COUNT}
+                                <div className={`mx-auto text-center ${compactHeight ? 'max-w-[19rem]' : 'max-w-[20.5rem]'}`}>
+                                    <p className={`font-mono font-semibold uppercase tracking-[0.22em] text-claude-secondary ${compactHeight ? 'mb-2 text-[9px]' : 'mb-3 text-[10px]'}`}>
+                                        {screen.eyebrow} · Step {step + 1} of {STEP_COUNT}
+                                    </p>
+                                    <h1 className={`font-display font-semibold tracking-[-0.05em] text-botanical-parchment ${compactHeight ? 'text-[clamp(2.1rem,8.5vw,3rem)] leading-[0.93]' : 'text-[clamp(2.35rem,9.3vw,3.35rem)] leading-[0.92]'}`}>
+                                        <span className="block">{screen.title.lead}</span>
+                                        <span className="block">
+                                            <span className="text-claude-accent">{screen.title.highlight}</span>
+                                            {screen.title.tail ? ` ${screen.title.tail}` : ''}
+                                        </span>
+                                    </h1>
+                                    <p className={`mx-auto text-claude-secondary ${compactHeight ? 'mt-2 max-w-[17.5rem] text-[12px] leading-4' : 'mt-3 max-w-[19rem] text-[13px] leading-5'}`}>
+                                        {screen.description}
+                                    </p>
+                                    {summaryLine ? (
+                                        <p className={`mx-auto font-mono uppercase tracking-[0.16em] text-botanical-parchment/80 ${compactHeight ? 'mt-2 text-[9px]' : 'mt-3 text-[10px]'}`}>
+                                            {summaryLine}
                                         </p>
-                                        <h1 className="text-[clamp(2.75rem,11vw,4.35rem)] font-display font-semibold leading-[0.9] tracking-[-0.055em] text-botanical-parchment">
-                                            <span className="block">{screen.title.lead}</span>
-                                            <span className="block">
-                                                <span className="text-claude-accent">{screen.title.highlight}</span>
-                                                {screen.title.tail ? ` ${screen.title.tail}` : ''}
-                                            </span>
-                                        </h1>
-                                        <p className="mt-5 text-[15px] leading-6 text-claude-secondary">
-                                            {screen.description}
-                                        </p>
-                                    </div>
-
-                                    {step === STEP_COUNT - 1 && focusChoice && materialChoice ? (
-                                        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-botanical-parchment">
-                                                Focus: {focusChoice.shortLabel}
-                                            </span>
-                                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-botanical-parchment">
-                                                Material: {materialChoice.shortLabel}
-                                            </span>
-                                        </div>
                                     ) : null}
                                 </div>
+                            </div>
 
-                                <div className="mt-9 space-y-3.5">
-                                    {screen.options.map((option) => {
-                                        const isSelected = selectedAnswerId === option.id;
+                            <div className={`grid ${compactHeight ? 'gap-2.5' : 'gap-3'}`}>
+                                {screen.options.map((option) => {
+                                    const isSelected = selectedAnswerId === option.id;
 
-                                        return (
-                                            <button
-                                                key={option.id}
-                                                type="button"
-                                                onClick={() => setAnswer(screen.id, option.id)}
-                                                disabled={busy}
-                                                aria-pressed={isSelected}
-                                                className="group relative w-full overflow-hidden rounded-[1.75rem] border p-4 text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-70"
-                                                style={{
-                                                    borderColor: isSelected
-                                                        ? 'color-mix(in srgb, var(--accent-color) 52%, rgba(255,255,255,0.18))'
-                                                        : 'rgba(255,255,255,0.08)',
-                                                    background: isSelected
-                                                        ? 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 88%, transparent) 0%, color-mix(in srgb, var(--bg-color) 72%, transparent) 100%)'
-                                                        : 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 82%, transparent) 0%, color-mix(in srgb, var(--bg-color) 74%, transparent) 100%)',
-                                                    boxShadow: isSelected
-                                                        ? '0 26px 44px -36px color-mix(in srgb, var(--accent-color) 65%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)'
-                                                        : '0 18px 38px -34px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1)',
-                                                }}
-                                            >
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => setAnswer(screen.id, option.id)}
+                                            disabled={busy}
+                                            aria-pressed={isSelected}
+                                            className={`group relative w-full overflow-hidden border text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-70 ${compactHeight ? 'rounded-[1.2rem] px-3.5 py-3' : 'rounded-[1.35rem] px-4 py-3.5'}`}
+                                            style={{
+                                                borderColor: isSelected
+                                                    ? 'color-mix(in srgb, var(--accent-color) 48%, rgba(255,255,255,0.18))'
+                                                    : 'rgba(255,255,255,0.08)',
+                                                background: isSelected
+                                                    ? 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 86%, transparent) 0%, color-mix(in srgb, var(--bg-color) 72%, transparent) 100%)'
+                                                    : 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 80%, transparent) 0%, color-mix(in srgb, var(--bg-color) 74%, transparent) 100%)',
+                                                boxShadow: isSelected
+                                                    ? '0 18px 34px -32px color-mix(in srgb, var(--accent-color) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)'
+                                                    : '0 14px 28px -30px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
                                                 <div
-                                                    className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-full transition-opacity duration-200"
+                                                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200"
                                                     style={{
-                                                        background: 'linear-gradient(180deg, var(--accent-color) 0%, var(--botanical-forest) 100%)',
-                                                        opacity: isSelected ? 1 : 0,
+                                                        borderColor: isSelected
+                                                            ? 'color-mix(in srgb, var(--accent-color) 68%, transparent)'
+                                                            : 'rgba(255,255,255,0.18)',
+                                                        backgroundColor: isSelected
+                                                            ? 'color-mix(in srgb, var(--accent-color) 78%, transparent)'
+                                                            : 'transparent',
                                                     }}
-                                                />
-
-                                                <div className="flex items-start gap-3.5">
+                                                >
                                                     <div
-                                                        className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200"
+                                                        className="h-2 w-2 rounded-full transition-transform duration-200"
                                                         style={{
-                                                            borderColor: isSelected
-                                                                ? 'color-mix(in srgb, var(--accent-color) 70%, transparent)'
-                                                                : 'rgba(255,255,255,0.18)',
-                                                            backgroundColor: isSelected
-                                                                ? 'color-mix(in srgb, var(--accent-color) 82%, transparent)'
-                                                                : 'transparent',
+                                                            backgroundColor: isSelected ? 'var(--botanical-ink)' : 'rgba(255,255,255,0.18)',
+                                                            transform: isSelected ? 'scale(1)' : 'scale(0.8)',
                                                         }}
-                                                    >
-                                                        <div
-                                                            className="h-2 w-2 rounded-full transition-transform duration-200"
-                                                            style={{
-                                                                backgroundColor: isSelected ? 'var(--botanical-ink)' : 'rgba(255,255,255,0.18)',
-                                                                transform: isSelected ? 'scale(1)' : 'scale(0.8)',
-                                                            }}
-                                                        />
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-claude-secondary">
-                                                            {option.eyebrow}
-                                                        </p>
-                                                        <p className="mt-1 font-display text-[1.42rem] leading-[1.02] tracking-[-0.03em] text-botanical-parchment">
-                                                            {option.label}
-                                                        </p>
-                                                        <p className="mt-2 text-[13px] leading-5 text-claude-secondary">
-                                                            {option.detail}
-                                                        </p>
-                                                    </div>
+                                                    />
                                                 </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </motion.section>
-                        </AnimatePresence>
-                    </div>
 
-                    <div className="relative shrink-0 pt-3 pb-3 safe-area-bottom">
-                        <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-transparent to-claude-bg" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-claude-secondary">
+                                                        {option.eyebrow}
+                                                    </p>
+                                                    <p className={`mt-1 font-display tracking-[-0.028em] text-botanical-parchment ${compactHeight ? 'text-[1.02rem] leading-[1.02]' : 'text-[1.12rem] leading-[1.04]'}`}>
+                                                        {option.label}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </motion.section>
+                    </AnimatePresence>
+
+                    <div className={`relative shrink-0 safe-area-bottom ${compactHeight ? 'pt-2 pb-2' : 'pt-3 pb-3'}`}>
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-transparent to-claude-bg" />
                         <button
                             type="button"
                             disabled={busy}
                             onClick={() => !busy && onPrimary()}
-                            className="relative w-full overflow-hidden rounded-[1.9rem] px-6 py-5 transition-all duration-200 active:scale-[0.99] disabled:opacity-60"
+                            className={`relative w-full overflow-hidden transition-all duration-200 active:scale-[0.99] disabled:opacity-60 ${compactHeight ? 'rounded-[1.35rem] px-5 py-3.5' : 'rounded-[1.6rem] px-5 py-4'}`}
                             style={{
                                 background:
                                     'linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 88%, white 8%) 0%, color-mix(in srgb, var(--botanical-forest) 58%, var(--accent-color)) 100%)',
@@ -498,21 +492,17 @@ export default function Onboarding() {
                                     '0 26px 46px -28px color-mix(in srgb, var(--accent-color) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)',
                             }}
                         >
-                            <span className="font-mono text-[13px] font-bold uppercase tracking-[0.26em] text-botanical-ink">
+                            <span className={`font-mono font-bold uppercase tracking-[0.24em] text-botanical-ink ${compactHeight ? 'text-[11px]' : 'text-[12px]'}`}>
                                 {busy ? 'Saving' : screen.primary}
                             </span>
-                            <span className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]">
+                            <span className={`absolute right-4 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full bg-black/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] ${compactHeight ? 'h-9 w-9' : 'h-10 w-10'}`}>
                                 {busy ? (
-                                    <Loader2 className="h-5 w-5 animate-spin text-botanical-ink" />
+                                    <Loader2 className={`${compactHeight ? 'h-4 w-4' : 'h-5 w-5'} animate-spin text-botanical-ink`} />
                                 ) : (
-                                    <ArrowRight className="h-5 w-5 text-botanical-ink" strokeWidth={2.6} />
+                                    <ArrowRight className={`${compactHeight ? 'h-4 w-4' : 'h-5 w-5'} text-botanical-ink`} strokeWidth={2.6} />
                                 )}
                             </span>
                         </button>
-
-                        <p className="mt-3 text-center text-[11px] leading-5 text-claude-secondary">
-                            You can revisit your study flow later. Skip will drop you straight into Today.
-                        </p>
                     </div>
                 </div>
             </div>
