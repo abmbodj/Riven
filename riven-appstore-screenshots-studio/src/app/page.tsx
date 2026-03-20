@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 
 const LOCALES = ["en"] as const;
@@ -28,16 +28,24 @@ const THEMES = {
 
 const SLIDES = [
   { headline: "Flashcards that stick.", subhead: "Spaced repetition, tracked." },
-  { headline: "Turn notes into decks.", subhead: "AI generates cards from text + docs." },
-  { headline: "Study + quiz, tracked.", subhead: "Standard mode + Test mode." },
+  { headline: "AI syllabus. Canvas LMS synced.", subhead: "Turn class content into ready-to-study decks." },
+  { headline: "Never missing an assignment again.", subhead: "Deadlines tracked automatically so you stay on top." },
   { headline: "Your semester, organized.", subhead: "Classes + assignments with Canvas/iCal sync." },
   { headline: "Cram together--live.", subhead: "Shared decks. Synchronized group sessions." },
   { headline: "Streaks. Garden. Momentum.", subhead: "Daily streaks + your virtual garden/pet." },
-  {
-    headline: "Upgrade Riven.",
-    subhead:
-      "Annual or monthly premium: themes, unlimited AI, ad-free study, advanced groups.",
-  },
+  { headline: "AI decks. Quizzes. Progress.", subhead: "Standard + Test modes with instant feedback." },
+  { headline: "Keep your momentum.", subhead: "Streaks, reminders, and study plans that stick." },
+] as const;
+
+const PHONE_SCREEN_BY_SLIDE = [
+  "/phone-screens/IMG_0757.PNG",
+  "/phone-screens/IMG_0758.PNG",
+  "/phone-screens/IMG_0759.PNG",
+  "/phone-screens/IMG_0760.PNG",
+  "/phone-screens/IMG_0761.PNG",
+  "/phone-screens/IMG_0762.PNG",
+  "/phone-screens/IMG_0763.PNG",
+  "/phone-screens/IMG_0764.PNG",
 ] as const;
 
 const MOCKUP = { mkW: 1022, mkH: 2082 };
@@ -446,6 +454,7 @@ function PhoneFrame({
 }) {
   const phoneW = clamp(W * 0.86, 720, W * 0.92);
   const ratioH = phoneW * (MOCKUP.mkH / MOCKUP.mkW);
+  const phoneSrc = PHONE_SCREEN_BY_SLIDE[slideIndex];
 
   return (
     <div style={{ position: "absolute", ...style, width: phoneW, height: ratioH }}>
@@ -463,7 +472,23 @@ function PhoneFrame({
           boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
         }}
       >
-        <RivenMockScreen slideIndex={slideIndex} W={W} theme={theme} />
+        {phoneSrc ? (
+          <img
+            src={phoneSrc}
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center",
+            }}
+          />
+        ) : (
+          <RivenMockScreen slideIndex={slideIndex} W={W} theme={theme} />
+        )}
       </div>
     </div>
   );
@@ -610,6 +635,7 @@ export default function StudioPage() {
 
   const exportNodeRef = useRef<HTMLDivElement | null>(null);
   const [captureVisible, setCaptureVisible] = useState(false);
+  const phoneScreensReadyRef = useRef(false);
 
   const [exportState, setExportState] = useState<{ running: boolean; done: number; total: number; last?: string }>({
     running: false,
@@ -619,6 +645,32 @@ export default function StudioPage() {
 
   const [exportJob, setExportJob] = useState<{ slideIndex: number; sizeIndex: number } | null>(null);
   const exportCanvas = exportJob ? IPHONE_SIZES[exportJob.sizeIndex]! : IPHONE_SIZES[0]!;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function preload() {
+      await Promise.all(
+        PHONE_SCREEN_BY_SLIDE.map(
+          (src) =>
+            new Promise<void>((resolve) => {
+              const img = new Image();
+              img.onload = () => resolve();
+              img.onerror = () => resolve(); // don't block export if an image fails
+              img.src = src;
+            })
+        )
+      );
+
+      if (cancelled) return;
+      phoneScreensReadyRef.current = true;
+    }
+
+    preload();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function savePng({ filename, dataUrl }: { filename: string; dataUrl: string }) {
     const res = await fetch("/api/export", {
@@ -636,6 +688,12 @@ export default function StudioPage() {
     const size = IPHONE_SIZES[sizeIndex]!;
     const W = size.w;
     const H = size.h;
+
+    // html-to-image can capture before <img> resources finish loading, so we preload and wait.
+    const start = Date.now();
+    while (!phoneScreensReadyRef.current && Date.now() - start < 10_000) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
 
     setCaptureVisible(true);
     try {
