@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
+    ArrowLeft,
     ArrowRight,
     Check,
     Crown,
+    Loader2,
     Shield,
     Sparkles,
     X,
@@ -12,6 +14,23 @@ import {
 import { createCheckoutSessionUrl } from '../../api/stripe';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
+
+function subscribeMaxWidth767(cb) {
+    if (typeof window === 'undefined') return () => {};
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = () => cb();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+}
+
+function getMaxWidth767Snapshot() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function useIsNarrowViewport() {
+    return useSyncExternalStore(subscribeMaxWidth767, getMaxWidth767Snapshot, () => false);
+}
 
 const PRICE_IDS = {
     monthly: import.meta.env.VITE_STRIPE_PRICE_MONTHLY,
@@ -85,12 +104,14 @@ function getDefaultPlan(currentTier) {
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
     const { refreshUser } = useAuth();
+    const isNarrow = useIsNarrowViewport();
 
     const [loading, setLoading] = useState(false);
     const [restoring, setRestoring] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState(getDefaultPlan(currentTier));
+    const [mobilePaywallView, setMobilePaywallView] = useState('pick');
     const closeTimerRef = useRef(null);
 
     useEffect(() => {
@@ -104,22 +125,35 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setSelectedPlan(getDefaultPlan(currentTier));
         setError(null);
         setSuccess(null);
+        setMobilePaywallView('pick');
     }, [isOpen, currentTier]);
 
     useEffect(() => {
         if (!isOpen) return;
         const handleEscape = (event) => {
-            if (event.key === 'Escape') onClose();
+            if (event.key !== 'Escape') return;
+            const isNarrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+            if (isNarrow && mobilePaywallView === 'features') {
+                setMobilePaywallView('pick');
+                return;
+            }
+            onClose();
         };
 
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, mobilePaywallView]);
 
     const selectedPlanData = useMemo(
         () => PLANS.find((plan) => plan.id === selectedPlan) ?? PLANS[0],
         [selectedPlan]
     );
+
+    const dialogLabelledBy = useMemo(() => {
+        if (isNarrow && mobilePaywallView === 'features') return 'pricing-modal-features-title';
+        if (isNarrow) return 'pricing-modal-title-mobile';
+        return 'pricing-modal-title-desktop';
+    }, [isNarrow, mobilePaywallView]);
 
     const handlePurchase = async (pkgType) => {
         setLoading(true);
@@ -183,7 +217,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                     <Motion.div
                         role="dialog"
                         aria-modal="true"
-                        aria-labelledby="pricing-modal-title"
+                        aria-labelledby={dialogLabelledBy}
                         initial={{ opacity: 0, y: 32, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -197,81 +231,197 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             <div className="h-1.5 w-12 rounded-full bg-claude-surface/80" />
                         </div>
 
-                        <div className="relative flex items-start justify-between gap-3 border-b border-claude-border px-4 pb-4 pt-3 md:gap-4 md:px-8 md:pb-6 md:pt-7">
-                            <div className="min-w-0">
-                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5">
-                                    <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
-                                        Premium access
-                                    </span>
+                        <div className="relative flex items-start justify-between gap-3 border-b border-claude-border px-4 pb-3 pt-2 md:gap-4 md:px-8 md:pb-6 md:pt-7">
+                            <div className="min-w-0 flex-1 md:flex-none">
+                                <div className="md:hidden">
+                                    {mobilePaywallView === 'pick' ? (
+                                        <>
+                                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                <div className="inline-flex items-center gap-1.5 rounded-full border border-claude-border bg-claude-bg/15 px-2.5 py-1">
+                                                    <Sparkles className="h-3 w-3 text-claude-accent" />
+                                                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-claude-secondary">
+                                                        Premium
+                                                    </span>
+                                                </div>
+                                                <div className="inline-flex items-center gap-1.5 rounded-full border border-claude-border bg-claude-bg/50 px-2.5 py-1">
+                                                    <Shield className="h-3 w-3 text-claude-secondary" />
+                                                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                                        {currentTier === 'free' ? 'Basic' : currentTier}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <h2
+                                                id="pricing-modal-title-mobile"
+                                                className="font-display text-[1.35rem] font-bold italic leading-tight tracking-tight text-claude-text"
+                                            >
+                                                Upgrade Riven
+                                            </h2>
+                                            <p className="mt-1 line-clamp-2 text-xs leading-snug text-claude-secondary">
+                                                Premium themes, unlimited AI, ad-free study, and advanced groups.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <div className="flex min-w-0 items-center gap-2 pr-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMobilePaywallView('pick')}
+                                                className="tap-action inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                                aria-label="Back to plan selection"
+                                            >
+                                                <ArrowLeft className="h-5 w-5" />
+                                            </button>
+                                            <div className="min-w-0">
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                    What&apos;s included
+                                                </p>
+                                                <h2
+                                                    id="pricing-modal-features-title"
+                                                    className="font-display text-lg font-bold italic leading-tight tracking-tight text-claude-text"
+                                                >
+                                                    {selectedPlanData.name}
+                                                </h2>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                                    <h2
-                                        id="pricing-modal-title"
-                                        className="font-display text-[1.75rem] font-bold italic tracking-tight text-claude-text sm:text-[2rem] md:text-[3.2rem]"
-                                    >
-                                        Upgrade Riven
-                                    </h2>
-                                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-claude-border bg-claude-bg/50 px-3 py-1.5">
-                                        <Shield className="h-3.5 w-3.5 text-claude-secondary" />
-                                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                            Current {currentTier === 'free' ? 'Basic' : currentTier}
+                                <div className="hidden md:block">
+                                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5">
+                                        <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                            Premium access
                                         </span>
                                     </div>
-                                </div>
 
-                                <p className="mt-2 max-w-2xl pr-2 text-sm leading-relaxed text-claude-secondary md:mt-3 md:pr-0 md:text-base">
-                                    Bring the full Riven atmosphere into every study session: premium themes,
-                                    unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
-                                    experience.
-                                </p>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                                        <h2
+                                            id="pricing-modal-title-desktop"
+                                            className="font-display text-[1.75rem] font-bold italic tracking-tight text-claude-text sm:text-[2rem] md:text-[3.2rem]"
+                                        >
+                                            Upgrade Riven
+                                        </h2>
+                                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-claude-border bg-claude-bg/50 px-3 py-1.5">
+                                            <Shield className="h-3.5 w-3.5 text-claude-secondary" />
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                                Current {currentTier === 'free' ? 'Basic' : currentTier}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <p className="mt-2 max-w-2xl pr-2 text-sm leading-relaxed text-claude-secondary md:mt-3 md:pr-0 md:text-base">
+                                        Bring the full Riven atmosphere into every study session: premium themes,
+                                        unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
+                                        experience.
+                                    </p>
+                                </div>
                             </div>
 
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="tap-action inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-border hover:text-claude-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 md:h-11 md:w-11"
+                                className="tap-action inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-claude-border bg-claude-bg/15 text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-border hover:text-claude-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 md:h-11 md:w-11"
                                 aria-label="Close pricing modal"
                             >
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
 
-                        <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-                            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-44 custom-scrollbar md:px-8 md:py-8 md:pb-8">
-                                <div className="mb-4 grid grid-cols-2 gap-2 md:hidden">
-                                    {PLANS.map((plan) => {
-                                        const styles = PLAN_STYLES[plan.id];
-                                        const isSelected = selectedPlan === plan.id;
-                                        const isDisabled =
-                                            currentTier === plan.id ||
-                                            (currentTier === 'lifetime' && plan.id === 'supporter') ||
-                                            (currentTier === 'lifetime' && plan.id === 'annual');
+                        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+                            {/* Mobile: strict no-scroll pick step; features uses overflow fallback */}
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:hidden">
+                                {mobilePaywallView === 'pick' ? (
+                                    <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 overflow-hidden">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {PLANS.map((plan) => {
+                                                const styles = PLAN_STYLES[plan.id];
+                                                const isSelected = selectedPlan === plan.id;
+                                                const isDisabled =
+                                                    currentTier === plan.id ||
+                                                    (currentTier === 'lifetime' && plan.id === 'supporter') ||
+                                                    (currentTier === 'lifetime' && plan.id === 'annual');
 
-                                        return (
-                                            <button
-                                                key={`${plan.id}-pill`}
-                                                type="button"
-                                                onClick={() => {
-                                                    if (!isDisabled) {
-                                                        setSelectedPlan(plan.id);
-                                                        setError(null);
-                                                        setSuccess(null);
-                                                    }
-                                                }}
-                                                className={`tap-action rounded-full border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
-                                                    isSelected
-                                                        ? `${styles.badgeClass} shadow-[0_8px_20px_rgba(0,0,0,0.16)]`
-                                                        : 'border-claude-border bg-claude-bg/15 text-claude-secondary'
-                                                } ${isDisabled ? 'opacity-50' : ''}`}
-                                            >
-                                                {plan.name}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                return (
+                                                    <button
+                                                        key={`${plan.id}-pill`}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!isDisabled) {
+                                                                setSelectedPlan(plan.id);
+                                                                setError(null);
+                                                                setSuccess(null);
+                                                            }
+                                                        }}
+                                                        className={`tap-action flex min-h-11 items-center justify-center rounded-full border px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] ${
+                                                            isSelected
+                                                                ? `${styles.badgeClass} shadow-[0_8px_20px_rgba(0,0,0,0.16)]`
+                                                                : 'border-claude-border bg-claude-bg/15 text-claude-secondary'
+                                                        } ${isDisabled ? 'opacity-50' : ''}`}
+                                                    >
+                                                        {plan.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
 
+                                        <div
+                                            className={`rounded-2xl border p-3 ${PLAN_STYLES[selectedPlan].activeCard}`}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
+                                                        {selectedPlanData.kicker}
+                                                    </p>
+                                                    <div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-0.5">
+                                                        <span className="text-2xl font-bold tracking-tight text-claude-text">
+                                                            {selectedPlanData.price}
+                                                        </span>
+                                                        <span className="pb-0.5 text-sm text-claude-secondary/80">
+                                                            {selectedPlanData.period}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-1 line-clamp-2 text-xs leading-snug text-claude-secondary">
+                                                        {selectedPlanData.summary}
+                                                    </p>
+                                                </div>
+                                                <span
+                                                    className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-bold uppercase tracking-[0.18em] ${PLAN_STYLES[selectedPlan].badgeClass}`}
+                                                >
+                                                    {PLAN_STYLES[selectedPlan].badge}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setMobilePaywallView('features')}
+                                            className="tap-action min-h-11 w-full rounded-2xl border border-claude-border bg-claude-bg/15 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                        >
+                                            See all features
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                        <ul
+                                            className="custom-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-0.5"
+                                            aria-label={`${selectedPlanData.name} plan features`}
+                                        >
+                                            {selectedPlanData.features.map((feature) => (
+                                                <li
+                                                    key={feature}
+                                                    className="flex items-start gap-2.5 text-sm leading-snug text-claude-text/90"
+                                                >
+                                                    <Check
+                                                        className={`mt-0.5 h-4 w-4 shrink-0 ${PLAN_STYLES[selectedPlan].check}`}
+                                                    />
+                                                    <span>{feature}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="hidden flex-1 overflow-y-auto overscroll-contain px-4 py-4 custom-scrollbar md:block md:px-8 md:py-8">
                                 <div className="mb-5 hidden gap-3 sm:grid-cols-3 md:grid">
                                     {[
                                         ['Themes', 'Unlock all premium atmospheres'],
@@ -286,24 +436,6 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 {label}
                                             </p>
                                             <p className="mt-2 text-sm leading-relaxed text-claude-secondary">{text}</p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
-                                    {[
-                                        ['Themes', 'All premium looks'],
-                                        ['AI', 'Unlimited help'],
-                                        ['Focus', 'No ad interruptions'],
-                                    ].map(([label, text]) => (
-                                        <div
-                                            key={label}
-                                            className="min-w-0 rounded-2xl border border-claude-border bg-claude-bg/15 px-3 py-3"
-                                        >
-                                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
-                                                {label}
-                                            </p>
-                                            <p className="mt-1 text-xs leading-relaxed text-claude-secondary">{text}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -474,7 +606,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         className={`tap-action mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
                                     >
                                         {loading ? (
-                                            <span className="animate-spin text-lg leading-none">↻</span>
+                                            <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
                                         ) : currentTier === selectedPlan ? (
                                             'Current plan'
                                         ) : currentTier === 'lifetime' &&
@@ -494,7 +626,11 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         disabled={restoring}
                                         className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-border hover:text-claude-text disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
+                                        {restoring ? (
+                                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                                        ) : (
+                                            <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                        )}
                                         {restoring ? 'Checking Stripe' : 'Restore purchase'}
                                     </button>
 
@@ -505,36 +641,15 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                             </aside>
                         </div>
 
-                        <div className="relative border-t border-claude-border bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:hidden">
-                            <div className="mb-3 flex items-end justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
-                                        Selected plan
-                                    </p>
-                                    <div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
-                                        <span className="font-display text-xl font-bold italic text-claude-text">
-                                            {selectedPlanData.name}
-                                        </span>
-                                        <span className="pb-0.5 text-sm text-claude-secondary/80">
-                                            {selectedPlanData.price}
-                                            {selectedPlanData.period}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="shrink-0 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                    {selectedPlan === 'annual' ? 'Yearly' : 'Monthly'}
-                                </div>
-                            </div>
-
+                        <div className="relative border-t border-claude-border bg-[linear-gradient(180deg,rgba(12,19,24,0.88),rgba(12,19,24,0.98))] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-3 md:hidden">
                             {error ? (
-                                <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-200">
+                                <div className="mb-2 line-clamp-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs leading-snug text-red-200">
                                     {error}
                                 </div>
                             ) : null}
 
                             {success ? (
-                                <div className="mb-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/10 px-4 py-3 text-sm leading-relaxed text-claude-accent">
+                                <div className="mb-2 rounded-xl border border-claude-accent/20 bg-claude-accent/10 px-3 py-2 text-xs leading-snug text-claude-accent">
                                     {success}
                                 </div>
                             ) : null}
@@ -549,10 +664,10 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     (selectedPlan === 'supporter' && currentTier === 'lifetime') ||
                                     (selectedPlan === 'annual' && currentTier === 'lifetime')
                                 }
-                                className={`tap-action flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
+                                className={`tap-action flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-3.5 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
                             >
                                 {loading ? (
-                                    <span className="animate-spin text-lg leading-none">↻</span>
+                                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
                                 ) : currentTier === selectedPlan ? (
                                     'Current plan'
                                 ) : currentTier === 'lifetime' &&
@@ -570,11 +685,19 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 type="button"
                                 onClick={handleRestore}
                                 disabled={restoring}
-                                className="tap-action mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-border hover:text-claude-text disabled:cursor-not-allowed disabled:opacity-50"
+                                className="tap-action mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-bg/15 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-border hover:text-claude-text disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <Zap className={`h-3.5 w-3.5 ${restoring ? 'animate-spin' : ''}`} />
+                                {restoring ? (
+                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                                ) : (
+                                    <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                )}
                                 {restoring ? 'Checking Stripe' : 'Restore purchase'}
                             </button>
+
+                            <p className="mt-2 text-center text-[10px] leading-snug text-claude-secondary/50">
+                                Secure checkout via Stripe.
+                            </p>
                         </div>
                     </Motion.div>
                 </div>
