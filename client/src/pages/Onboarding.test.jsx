@@ -99,8 +99,9 @@ describe('Onboarding', () => {
         renderOnboarding();
         const layout = screen.getByTestId('onboarding-main-layout');
 
-        expect(layout.className).toContain('justify-between');
+        expect(layout.className).not.toContain('justify-between');
         expect(layout.className).not.toContain('overflow-y-auto');
+        expect(screen.queryByText(/riven mobile setup/i)).not.toBeInTheDocument();
 
         const examOption = screen.getByRole('button', { name: /practice for exams faster/i });
         fireEvent.click(examOption);

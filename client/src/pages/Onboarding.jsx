@@ -11,7 +11,6 @@ import {
 } from '../utils/onboardingGate';
 import { trackOnboarding } from '../utils/onboardingAnalytics';
 import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
-import OnboardingArt from '../components/OnboardingArt';
 
 const ONBOARDING_STEPS = [
     {
@@ -382,19 +381,10 @@ export default function Onboarding() {
                         <motion.section
                             key={screen.id}
                             data-testid="onboarding-main-layout"
-                            className={`flex flex-1 flex-col justify-between ${compactHeight ? 'gap-4' : 'gap-5'}`}
+                            className={`flex flex-1 flex-col ${compactHeight ? 'pt-1' : 'pt-2'}`}
                             {...motionProps}
                         >
-                            <div className={`flex flex-col ${compactHeight ? 'gap-3 pt-1' : 'gap-4 pt-2'}`}>
-                                <div className="mx-auto flex max-w-full items-center gap-2 text-claude-secondary">
-                                    <div className={`flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] ${compactHeight ? 'h-7 w-7' : 'h-8 w-8'}`}>
-                                        <OnboardingArt className={`${compactHeight ? 'w-4 h-4' : 'w-5 h-5'} scale-[1.1]`} />
-                                    </div>
-                                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-claude-accent">
-                                        Riven mobile setup
-                                    </p>
-                                </div>
-
+                            <div className={`flex flex-col ${compactHeight ? 'gap-3' : 'gap-4'}`}>
                                 <div className={`mx-auto text-center ${compactHeight ? 'max-w-[19rem]' : 'max-w-[20.5rem]'}`}>
                                     <p className={`font-mono font-semibold uppercase tracking-[0.22em] text-claude-secondary ${compactHeight ? 'mb-2 text-[9px]' : 'mb-3 text-[10px]'}`}>
                                         {screen.eyebrow} · Step {step + 1} of {STEP_COUNT}
@@ -415,65 +405,65 @@ export default function Onboarding() {
                                         </p>
                                     ) : null}
                                 </div>
-                            </div>
 
-                            <div className={`grid ${compactHeight ? 'gap-2.5' : 'gap-3'}`}>
-                                {screen.options.map((option) => {
-                                    const isSelected = selectedAnswerId === option.id;
+                                <div className={`grid ${compactHeight ? 'gap-2.5' : 'gap-3'}`}>
+                                    {screen.options.map((option) => {
+                                        const isSelected = selectedAnswerId === option.id;
 
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            onClick={() => setAnswer(screen.id, option.id)}
-                                            disabled={busy}
-                                            aria-pressed={isSelected}
-                                            className={`group relative w-full overflow-hidden border text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-70 ${compactHeight ? 'rounded-[1.2rem] px-3.5 py-3' : 'rounded-[1.35rem] px-4 py-3.5'}`}
-                                            style={{
-                                                borderColor: isSelected
-                                                    ? 'color-mix(in srgb, var(--accent-color) 48%, rgba(255,255,255,0.18))'
-                                                    : 'rgba(255,255,255,0.08)',
-                                                background: isSelected
-                                                    ? 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 86%, transparent) 0%, color-mix(in srgb, var(--bg-color) 72%, transparent) 100%)'
-                                                    : 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 80%, transparent) 0%, color-mix(in srgb, var(--bg-color) 74%, transparent) 100%)',
-                                                boxShadow: isSelected
-                                                    ? '0 18px 34px -32px color-mix(in srgb, var(--accent-color) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)'
-                                                    : '0 14px 28px -30px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.08)',
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200"
-                                                    style={{
-                                                        borderColor: isSelected
-                                                            ? 'color-mix(in srgb, var(--accent-color) 68%, transparent)'
-                                                            : 'rgba(255,255,255,0.18)',
-                                                        backgroundColor: isSelected
-                                                            ? 'color-mix(in srgb, var(--accent-color) 78%, transparent)'
-                                                            : 'transparent',
-                                                    }}
-                                                >
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => setAnswer(screen.id, option.id)}
+                                                disabled={busy}
+                                                aria-pressed={isSelected}
+                                                className={`group relative w-full overflow-hidden border text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-70 ${compactHeight ? 'rounded-[1.2rem] px-3.5 py-3' : 'rounded-[1.35rem] px-4 py-3.5'}`}
+                                                style={{
+                                                    borderColor: isSelected
+                                                        ? 'color-mix(in srgb, var(--accent-color) 48%, rgba(255,255,255,0.18))'
+                                                        : 'rgba(255,255,255,0.08)',
+                                                    background: isSelected
+                                                        ? 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 86%, transparent) 0%, color-mix(in srgb, var(--bg-color) 72%, transparent) 100%)'
+                                                        : 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 80%, transparent) 0%, color-mix(in srgb, var(--bg-color) 74%, transparent) 100%)',
+                                                    boxShadow: isSelected
+                                                        ? '0 18px 34px -32px color-mix(in srgb, var(--accent-color) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)'
+                                                        : '0 14px 28px -30px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-3">
                                                     <div
-                                                        className="h-2 w-2 rounded-full transition-transform duration-200"
+                                                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200"
                                                         style={{
-                                                            backgroundColor: isSelected ? 'var(--botanical-ink)' : 'rgba(255,255,255,0.18)',
-                                                            transform: isSelected ? 'scale(1)' : 'scale(0.8)',
+                                                            borderColor: isSelected
+                                                                ? 'color-mix(in srgb, var(--accent-color) 68%, transparent)'
+                                                                : 'rgba(255,255,255,0.18)',
+                                                            backgroundColor: isSelected
+                                                                ? 'color-mix(in srgb, var(--accent-color) 78%, transparent)'
+                                                                : 'transparent',
                                                         }}
-                                                    />
-                                                </div>
+                                                    >
+                                                        <div
+                                                            className="h-2 w-2 rounded-full transition-transform duration-200"
+                                                            style={{
+                                                                backgroundColor: isSelected ? 'var(--botanical-ink)' : 'rgba(255,255,255,0.18)',
+                                                                transform: isSelected ? 'scale(1)' : 'scale(0.8)',
+                                                            }}
+                                                        />
+                                                    </div>
 
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-claude-secondary">
-                                                        {option.eyebrow}
-                                                    </p>
-                                                    <p className={`mt-1 font-display tracking-[-0.028em] text-botanical-parchment ${compactHeight ? 'text-[1.02rem] leading-[1.02]' : 'text-[1.12rem] leading-[1.04]'}`}>
-                                                        {option.label}
-                                                    </p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-claude-secondary">
+                                                            {option.eyebrow}
+                                                        </p>
+                                                        <p className={`mt-1 font-display tracking-[-0.028em] text-botanical-parchment ${compactHeight ? 'text-[1.02rem] leading-[1.02]' : 'text-[1.12rem] leading-[1.04]'}`}>
+                                                            {option.label}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </motion.section>
                     </AnimatePresence>
