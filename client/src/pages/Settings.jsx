@@ -12,6 +12,8 @@ import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import PricingModal from '../components/ui/PricingModal';
 import { canvasIcalUrlSchema, referralCodeSchema } from '../schemas/forms';
+import { checkNotificationPermissions, requestNotificationPermissions, scheduleAssignmentNotifications } from '../utils/notifications';
+
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -215,7 +217,13 @@ export default function Settings() {
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
     const [canvasNotice, setCanvasNotice] = useState(null);
 
+
     const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
+    const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+        const saved = localStorage.getItem('notifications_enabled');
+        return saved === null ? true : saved === 'true';
+    });
+
 
     const hasCanvasUrl = canvasForm.url.trim().length > 0;
     const canvasCardState = !isPremium
@@ -255,7 +263,17 @@ export default function Settings() {
             } catch {
                 setAiLimits(prev => ({ ...prev, loading: false }));
             }
+
+            // Sync with OS permissions
+            if (notificationsEnabled) {
+                const hasPermission = await checkNotificationPermissions();
+                if (!hasPermission) {
+                    setNotificationsEnabled(false);
+                    localStorage.setItem('notifications_enabled', 'false');
+                }
+            }
         };
+
         loadSettings();
     }, []);
 
@@ -958,15 +976,39 @@ export default function Settings() {
                                         icon={Bell}
                                         title="Notifications"
                                         description="Reminders & system updates"
-                                        badge="On"
+                                        badge={notificationsEnabled ? "On" : "Off"}
                                         toggle={true}
-                                        toggleValue={true}
-                                        onClick={() => {
+                                        toggleValue={notificationsEnabled}
+                                        onClick={async () => {
                                             haptics.light();
-                                            toast('Notification settings saved');
+                                            const nextValue = !notificationsEnabled;
+                                            
+                                            if (nextValue) {
+                                                const granted = await requestNotificationPermissions();
+                                                if (granted) {
+                                                    setNotificationsEnabled(true);
+                                                    localStorage.setItem('notifications_enabled', 'true');
+                                                    toast('Notifications enabled');
+                                                    // Trigger initial schedule if assignments were already loaded
+                                                    try {
+                                                        const assignments = await api.getAssignments();
+                                                        await scheduleAssignmentNotifications(assignments, true);
+                                                    } catch (e) {
+                                                        console.error('Failed to reschedule on toggle', e);
+                                                    }
+                                                } else {
+                                                    toast.error('Notification permissions denied');
+                                                }
+                                            } else {
+                                                setNotificationsEnabled(false);
+                                                localStorage.setItem('notifications_enabled', 'false');
+                                                await scheduleAssignmentNotifications([], false); // Cancels all
+                                                toast('Notifications disabled');
+                                            }
                                         }}
                                         noBorder={true}
                                     />
+
                                 </SectionCard>
                             </motion.div>
 

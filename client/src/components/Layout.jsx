@@ -20,6 +20,8 @@ import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
 import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
 import MobileBottomNav from './MobileBottomNav.jsx';
+import { useNotificationSync } from '../hooks/useNotificationSync';
+
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
     pathname === matcher || pathname.startsWith(`${matcher}/`)
@@ -69,7 +71,9 @@ export default function Layout({ children }) {
     const location = useLocation();
     const { hideBottomNav: hideNavFromContext } = useContext(UIContext) || {};
     const { isLoggedIn } = useContext(AuthContext) || {};
+    useNotificationSync();
     const primaryNavItems = getPrimaryNavItems(isLoggedIn);
+
     const isStudyOrTest = location.pathname.includes('/study') || location.pathname.includes('/test') || /^\/exam\/[^/]+$/.test(location.pathname);
     const isCreatePage = location.pathname === '/create';
     const isEditProfilePage = location.pathname === '/edit-profile';

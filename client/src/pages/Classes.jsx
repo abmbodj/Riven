@@ -12,6 +12,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import useHaptics from '../hooks/useHaptics';
 import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
+import { scheduleAssignmentNotifications } from '../utils/notifications';
+
 
 const CLASS_COLORS = [
     '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -309,6 +311,17 @@ export default function Classes() {
             toast.success(`Synced ${res.classesAdded} classes and ${res.assignmentsAdded} assignments!`);
             handleCloseModal();
             loadData(true);
+            
+            // Trigger a global assignment fetch to reschedule everything
+            try {
+                const allAssignments = await api.getAssignments();
+                const saved = localStorage.getItem('notifications_enabled');
+                const notificationsEnabled = saved === null ? true : saved === 'true';
+                scheduleAssignmentNotifications(allAssignments, notificationsEnabled);
+            } catch (e) {
+                console.error("Failed to reschedule after Canvas sync", e);
+            }
+
         } catch (err) {
             toast.error(err.message || 'Canvas sync failed.');
         } finally {

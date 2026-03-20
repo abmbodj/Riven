@@ -9,6 +9,8 @@ import { assignmentTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
+import { scheduleAssignmentNotifications } from '../utils/notifications';
+
 
 const STATUSES = ['Todo', 'Doing', 'Done', 'Archived'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -71,6 +73,14 @@ export default function ClassView() {
 
             const assignData = await api.getAssignments(id);
             setAssignments(assignData);
+
+            // Schedule local notifications
+            if (assignData) {
+                const saved = localStorage.getItem('notifications_enabled');
+                const notificationsEnabled = saved === null ? true : saved === 'true';
+                scheduleAssignmentNotifications(assignData, notificationsEnabled);
+            }
+
 
             const allDecks = await api.getDecks();
             setDecks(allDecks.filter(d => d.class_id === id));

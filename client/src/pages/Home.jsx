@@ -29,6 +29,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../hooks/useGSAP';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { EASE, DURATION, STAGGER, animateCounter, breathe } from '../utils/animations';
+import { scheduleAssignmentNotifications } from '../utils/notifications';
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -454,6 +456,14 @@ function DashboardHome() {
                 setNotes(notesData || []);
                 setGuides(guidesData || []);
                 setExams(examsData || []);
+
+                // Schedule local notifications for assignments
+                if (assignData) {
+                    const saved = localStorage.getItem('notifications_enabled');
+                    const notificationsEnabled = saved === null ? true : saved === 'true';
+                    scheduleAssignmentNotifications(assignData, notificationsEnabled);
+                }
+
             } catch (err) {
                 console.error('Dashboard load error', err);
                 toast.error('Failed to load dashboard data');
@@ -474,11 +484,19 @@ function DashboardHome() {
 
         try {
             await api.updateAssignment(assignment.id, { status: nextStatus });
-            setAssignments((current) =>
-                current.map((item) => (
+            setAssignments((current) => {
+                const updated = current.map((item) => (
                     item.id === assignment.id ? { ...item, status: nextStatus } : item
-                ))
-            );
+                ));
+                
+                // Reschedule notifications based on updated statuses
+                const saved = localStorage.getItem('notifications_enabled');
+                const notificationsEnabled = saved === null ? true : saved === 'true';
+                scheduleAssignmentNotifications(updated, notificationsEnabled);
+                
+                return updated;
+            });
+
         } catch {
             toast.error('Failed to update status');
         }
