@@ -468,7 +468,14 @@ export default function Onboarding() {
                         </motion.section>
                     </AnimatePresence>
 
-                    <div className={`relative shrink-0 safe-area-bottom ${compactHeight ? 'pt-2 pb-2' : 'pt-3 pb-3'}`}>
+                    <div
+                        className={`relative shrink-0 ${compactHeight ? 'pt-2' : 'pt-3'}`}
+                        style={{
+                            paddingBottom: compactHeight
+                                ? 'calc(env(safe-area-inset-bottom, 0px) + 0.9rem)'
+                                : 'calc(env(safe-area-inset-bottom, 0px) + 1.1rem)',
+                        }}
+                    >
                         <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-transparent to-claude-bg" />
                         <button
                             type="button"

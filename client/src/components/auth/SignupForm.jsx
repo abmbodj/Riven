@@ -152,10 +152,6 @@ const SignupForm = ({ onSwitchToLogin, onSignupSuccess }) => {
                             }}
                             options={{ theme: 'dark', size: 'flexible' }}
                         />
-                        <p className="text-[10px] text-center text-[#8fa6a8]/80 max-w-sm leading-relaxed px-1">
-                            If this area stays empty, add <span className="text-[#deb96a]/90">localhost</span> to your
-                            Turnstile widget hostnames in Cloudflare, then rebuild the app.
-                        </p>
                     </div>
                 )}
 
