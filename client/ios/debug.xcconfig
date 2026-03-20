@@ -5,3 +5,10 @@ CAPACITOR_DEBUG = true
 // GOOGLE_IOS_URL_SCHEME = reversed client ID (e.g. com.googleusercontent.apps.123456789-abc).
 GOOGLE_IOS_CLIENT_ID = YOUR_IOS_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_IOS_URL_SCHEME = com.googleusercontent.apps.YOUR_REVERSED_CLIENT_ID
+
+// RevenueCat (native IAP — in-app purchases for iOS)
+// Get from RevenueCat dashboard → Project → Apps → iOS → Public API Key.
+// The value is baked into the JS bundle via VITE_RC_IOS_API_KEY in client/.env.
+// No native Swift reference needed; the Capacitor plugin reads it from JS.
+// RC_IOS_API_KEY = appl_YOUR_REVENUECAT_IOS_KEY
+

@@ -429,6 +429,9 @@ npx supabase functions deploy
 | `APPLE_TEAM_ID` | Apple team identifier | — |
 | `APPLE_KEY_ID` | Apple private key ID | — |
 | `APPLE_PRIVATE_KEY` | Apple private key (PEM) | — |
+| `RC_WEBHOOK_SECRET` | RevenueCat webhook Bearer token — set via `npx supabase secrets set RC_WEBHOOK_SECRET=…` (used by the `revenuecat-webhook` Edge Function) | — |
+
+
 | `FRONTEND_URL` | Frontend URL for redirects | `http://localhost:5173` |
 | `PORT` | API server port | `3000` |
 | `ALLOWED_ORIGINS` | CORS origins (comma-separated) | — |
@@ -441,6 +444,7 @@ npx supabase functions deploy
 | `VITE_API_URL` | Backend API URL (blank for local dev) | — |
 | `VITE_STRIPE_PRICE_MONTHLY` | Stripe Price ID for monthly Supporter | — |
 | `VITE_STRIPE_PRICE_ANNUAL` | Stripe Price ID for yearly Supporter | — |
+| `VITE_RC_IOS_API_KEY` | RevenueCat iOS Public API Key (`appl_xxxxx`) — native IAP only | — |
 
 Web/PWA Google Sign-In uses the Supabase-hosted redirect flow, so there is no `VITE_GOOGLE_CLIENT_ID` client variable in this setup. Configure the Supabase callback URI in Google Cloud and the `/account` return URLs in Supabase Auth as documented in the setup section above.
 

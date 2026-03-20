@@ -19,6 +19,7 @@
     "@marsidev/react-turnstile": "^1.4.2",
     "@posthog/react": "^1.8.2",
     "@react-oauth/google": "^0.13.4",
+    "@revenuecat/purchases-capacitor": "^12.3.0",
     "@revenuecat/purchases-js": "^1.26.3",
     "@sentry/react": "^10.45.0",
     "@supabase/supabase-js": "^2.99.1",

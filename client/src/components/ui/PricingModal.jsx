@@ -14,6 +14,7 @@ import {
 import { createCheckoutSessionUrl } from '../../api/stripe';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
+import useRevenueCat from '../../hooks/useRevenueCat';
 
 function subscribeMaxWidth767(cb) {
     if (typeof window === 'undefined') return () => {};
@@ -103,8 +104,11 @@ function getDefaultPlan(currentTier) {
 
 export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) {
     useBodyScrollLock(isOpen);
-    const { refreshUser } = useAuth();
+    const { user, refreshUser } = useAuth();
     const isNarrow = useIsNarrowViewport();
+
+    // RevenueCat for native iOS; no-ops on web
+    const rc = useRevenueCat(user?.id ?? null);
 
     const [loading, setLoading] = useState(false);
     const [restoring, setRestoring] = useState(false);
@@ -159,6 +163,38 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setLoading(true);
         setError(null);
 
+        // ── Native iOS: use RevenueCat / StoreKit IAP ──────────────────────
+        if (rc.isNative) {
+            try {
+                const offering = rc.offerings?.current;
+                if (!offering) throw new Error('No offerings available. Check RevenueCat dashboard.');
+
+                // Find the matching package: annual → ANNUAL, monthly → MONTHLY
+                const targetType = pkgType === 'annual' ? 'ANNUAL' : 'MONTHLY';
+                const pkg =
+                    offering.availablePackages.find((p) => p.packageType === targetType) ??
+                    offering.availablePackages[0];
+
+                if (!pkg) throw new Error('No matching package found in RevenueCat offering.');
+
+                const result = await rc.purchasePackage(pkg);
+                if (result) {
+                    await refreshUser();
+                    setSuccess('Purchase complete! Your premium access is now active.');
+                    closeTimerRef.current = setTimeout(onClose, 1800);
+                } else if (rc.error) {
+                    setError(rc.error);
+                }
+            } catch (err) {
+                console.error('[PricingModal] RC purchase error:', err);
+                setError(err.message || 'Purchase failed. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
+        // ── Web / PWA: use Stripe checkout ─────────────────────────────────
         try {
             const priceId = pkgType === 'annual' ? PRICE_IDS.annual : PRICE_IDS.monthly;
             if (!priceId) {
@@ -185,6 +221,33 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setError(null);
         setSuccess(null);
 
+        // ── Native iOS: restore via RevenueCat ────────────────────────────
+        if (rc.isNative) {
+            try {
+                const result = await rc.restorePurchases();
+                if (result?.customerInfo) {
+                    const updatedUser = await refreshUser();
+                    if (updatedUser.subscription_tier !== 'free') {
+                        setSuccess(`Welcome back, ${updatedUser.subscription_tier}. Your access has been restored.`);
+                        closeTimerRef.current = setTimeout(onClose, 1800);
+                    } else {
+                        setError('No active subscription found. If you just purchased, wait a moment and try again.');
+                    }
+                } else if (rc.error) {
+                    setError(rc.error);
+                } else {
+                    setError('No purchases found for this Apple ID.');
+                }
+            } catch (err) {
+                console.error('[PricingModal] RC restore error:', err);
+                setError(err.message || 'Restore failed. Please try again.');
+            } finally {
+                setRestoring(false);
+            }
+            return;
+        }
+
+        // ── Web / PWA: sync against server ───────────────────────────────
         try {
             const updatedUser = await refreshUser();
             if (updatedUser.subscription_tier !== 'free') {
@@ -631,7 +694,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         ) : (
                                             <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                         )}
-                                        {restoring ? 'Checking Stripe' : 'Restore purchase'}
+                                        {restoring ? 'Checking…' : 'Restore purchase'}
                                     </button>
 
                                     <p className="mt-4 text-center text-xs leading-relaxed text-claude-secondary/50">
@@ -692,7 +755,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 ) : (
                                     <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                 )}
-                                {restoring ? 'Checking Stripe' : 'Restore purchase'}
+                                {restoring ? 'Checking…' : 'Restore purchase'}
                             </button>
 
                             <p className="mt-2 text-center text-[10px] leading-snug text-claude-secondary/50">

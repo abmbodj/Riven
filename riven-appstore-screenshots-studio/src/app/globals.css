@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  /* Riven botanical theme tokens (match client/src/index.css) */
+  --bg-color: #162a31;
+  --surface-color: #1e3840;
+  --text-color: #e4ddd0;
+  --secondary-text-color: #8fa6a8;
+  --border-color: #233e46;
+  --accent-color: #deb96a;
+
+  --botanical-forest: #7a9e72;
+  --botanical-sepia: #8fa6a8;
+  --botanical-parchment: #e4ddd0;
+  --botanical-ink: #162a31;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-body, serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Screenshot-studio background depth */
+.riven-studio-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--accent-color) 15%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--text-color) 7%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 90%, color-mix(in srgb, var(--secondary-text-color) 11%, transparent) 0%, transparent 45%);
+}
+
