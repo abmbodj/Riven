@@ -1,15 +1,18 @@
 import { Suspense } from 'react';
-import { BrowserRouter, useRoutes } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { BrowserRouter, HashRouter, useRoutes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppProviders } from './AppProviders.jsx';
 import { RootLayout } from './components/layout/RootLayout.jsx';
 import { routesConfig } from './routes/config.jsx';
 import { PageLoader } from './components/ui/PageLoader.jsx';
 
+const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
+
 function App() {
   return (
     <AppProviders>
-      <BrowserRouter>
+      <AppRouter>
         <RootLayout>
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
@@ -17,7 +20,7 @@ function App() {
             </Suspense>
           </ErrorBoundary>
         </RootLayout>
-      </BrowserRouter>
+      </AppRouter>
     </AppProviders>
   );
 }

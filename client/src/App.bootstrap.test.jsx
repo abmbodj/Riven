@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 
+vi.mock('@capacitor/core', () => ({
+    Capacitor: {
+        isNativePlatform: () => false,
+    },
+}));
+
 const {
     restoreSessionUserMock,
     getThemesMock,

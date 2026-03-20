@@ -24,7 +24,7 @@ serve(async (request) => {
       );
     }
     const priceId = parsed.data.priceId;
-    const allowedPrice = ALLOWED_PRICES[priceId as keyof typeof ALLOWED_PRICES];
+    const allowedPrice = ALLOWED_PRICES[priceId];
     if (!allowedPrice) {
       console.warn(`[Stripe] Rejected unknown priceId: ${priceId}`);
       return jsonResponse({ error: 'Invalid price selected.' }, { status: 400 }, request);

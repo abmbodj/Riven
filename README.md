@@ -125,8 +125,8 @@ cp client/.env.example client/.env
 | Variable | Required | Description | Default (Dev) |
 |----------|:--------:|-------------|:-------------:|
 | `VITE_API_URL` | No | Backend API URL. Leave blank for local dev (Vite proxies `/api`). | — |
-| `VITE_STRIPE_PRICE_MONTHLY` | No | Stripe Price ID for Supporter tier | — |
-| `VITE_STRIPE_PRICE_LIFETIME` | No | Stripe Price ID for Lifetime tier | — |
+| `VITE_STRIPE_PRICE_MONTHLY` | No | Stripe Price ID for monthly Supporter | — |
+| `VITE_STRIPE_PRICE_ANNUAL` | No | Stripe Price ID for yearly Supporter (falls back to `VITE_STRIPE_PRICE_LIFETIME` if unset) | — |
 
 Google Sign-In for web/PWA is configured in **Supabase Auth**, not in `client/.env`.
 
@@ -439,8 +439,8 @@ npx supabase functions deploy
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API URL (blank for local dev) | — |
-| `VITE_STRIPE_PRICE_MONTHLY` | Stripe Price ID for Supporter | — |
-| `VITE_STRIPE_PRICE_LIFETIME` | Stripe Price ID for Lifetime | — |
+| `VITE_STRIPE_PRICE_MONTHLY` | Stripe Price ID for monthly Supporter | — |
+| `VITE_STRIPE_PRICE_ANNUAL` | Stripe Price ID for yearly Supporter | — |
 
 Web/PWA Google Sign-In uses the Supabase-hosted redirect flow, so there is no `VITE_GOOGLE_CLIENT_ID` client variable in this setup. Configure the Supabase callback URI in Google Cloud and the `/account` return URLs in Supabase Auth as documented in the setup section above.
 
@@ -452,6 +452,10 @@ Edge function secrets are set via the Supabase dashboard or CLI:
 npx supabase secrets set STRIPE_SECRET_KEY=sk_...
 npx supabase secrets set RESEND_API_KEY=re_...
 npx supabase secrets set GEMINI_API_KEY=...
+# Stripe recurring price IDs (must match client VITE_* values). Optional STRIPE_PRICE_MONTHLY overrides default test/live id in code.
+npx supabase secrets set STRIPE_PRICE_ANNUAL=price_...
+# Canonical https origin for Stripe success/cancel URLs when the client Origin is Capacitor (required for iOS checkout)
+npx supabase secrets set CLIENT_URL=https://your-production-domain
 ```
 
 ---
@@ -480,6 +484,9 @@ npx supabase secrets set GEMINI_API_KEY=...
 |---------|-------------|
 | `npm run dev` | Start Vite dev server |
 | `npm run build` | Production build |
+| `npm run build:ios` | `vite build` + `cap sync ios` |
+| `npm run ios:sync` | Sync web assets to the Xcode project |
+| `npm run ios:open` | Open the iOS project in Xcode |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint |
 | `npm test` | Run frontend tests (`vitest`) |
@@ -542,13 +549,39 @@ npx supabase db push
 
 ### iOS (Capacitor)
 
-The client includes a Capacitor config for native iOS builds:
+The client ships with Capacitor 8 and an Xcode project under `client/ios/`. Native Google Sign-In, auth storage, and signup (without Turnstile in the WebView) are already wired in the React app.
+
+**Prerequisites:** macOS, Xcode, CocoaPods (if prompted by Capacitor), Node 20+.
+
+**Build and open in Xcode**
 
 ```bash
 cd client
-npx cap sync ios
-npx cap open ios   # Opens in Xcode
+cp .env.example .env   # then set VITE_* (see below)
+npm run build:ios      # vite build + cap sync ios
+npm run ios:open       # optional: open App.xcworkspace / project in Xcode
 ```
+
+Or step-by-step: `npm run build`, `npm run ios:sync`, then open `client/ios/App/App.xcodeproj` from Xcode.
+
+**Environment (baked in at `vite build` time)**
+
+| Variable | Notes |
+|----------|--------|
+| `VITE_API_URL` | **Simulator:** default `http://localhost:3000/api` can reach the API on your Mac. **Physical device:** must be your Mac’s LAN IP or a deployed HTTPS API (e.g. `https://api.example.com/api`). |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Required. |
+| `VITE_GOOGLE_WEB_CLIENT_ID` | Web client ID (same as Supabase Auth → Google). Required for native Google Sign-In. |
+| `VITE_STRIPE_PRICE_*` | If you test checkout from the app. |
+
+**Google Sign-In (iOS)** — Create an iOS OAuth client in Google Cloud for bundle ID `com.riven.app`. Copy values into `client/ios/debug.xcconfig` as `GOOGLE_IOS_CLIENT_ID` and `GOOGLE_IOS_URL_SCHEME` (reversed client ID). Use a non-committed Release xcconfig or Xcode build settings for production signing.
+
+**Production API CORS** — Ensure `ALLOWED_ORIGINS` on the Express server includes `capacitor://localhost` (defaults already do). Add `ionic://localhost` if you see that `Origin` in logs.
+
+**Stripe checkout from the app** — Edge Functions use the `CLIENT_URL` secret when the request `Origin` is not a usable HTTPS URL (e.g. Capacitor). Set Supabase secret `CLIENT_URL` to your canonical web app origin (e.g. `https://riven.rocks`) so post-payment redirects land in the browser; users return to the native app separately.
+
+**Routing** — The native shell uses `HashRouter` so deep links and reloads work with bundled static files. Web/PWA builds keep `BrowserRouter`.
+
+**App Store preparation** — See [docs/ios-app-store.md](docs/ios-app-store.md) (Sign in with Apple, IAP vs Stripe, ATS, ads).
 
 ---
 

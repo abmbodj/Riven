@@ -119,9 +119,12 @@ module.exports = function ({ app, db }) {
 
                     console.info(`[Stripe Webhook] ✅ Fulfillment starting for user ${userId} -> ${tier}`);
 
-                    // Save Stripe Customer ID and Subscription ID for bulletproof matching later
-                    const stripeCustomerId = session.customer;
-                    const stripeSubscriptionId = session.subscription;
+                    const stripeCustomerId = typeof session.customer === 'string'
+                        ? session.customer
+                        : session.customer?.id;
+                    const stripeSubscriptionId = typeof session.subscription === 'string'
+                        ? session.subscription
+                        : session.subscription?.id;
 
                     const result = await db.execute(
                         `UPDATE users 
@@ -137,10 +140,8 @@ module.exports = function ({ app, db }) {
                     } else {
                         console.info(`[Stripe Webhook] ✨ Subscription updated successfully for user ${userId}`);
 
-                        // --- DUMMY PROOFING: Auto-cancel existing subscriptions on Lifetime upgrade ---
                         if (tier === 'lifetime' && stripeCustomerId) {
                             try {
-                                // Find any active or trialing subscriptions for this customer
                                 const subscriptions = await stripe.subscriptions.list({
                                     customer: stripeCustomerId,
                                     status: 'active',
@@ -148,13 +149,29 @@ module.exports = function ({ app, db }) {
                                 });
 
                                 for (const sub of subscriptions.data) {
-                                    // Don't try to cancel the lifetime one if it somehow shows up as a subscription (it shouldn't, it's a payment)
-                                    // But definitely cancel standard monthly ones.
                                     console.info(`[Stripe Webhook] 🔄 Lifetime upgrade detected! Canceling old subscription ${sub.id}...`);
                                     await stripe.subscriptions.cancel(sub.id);
                                 }
                             } catch (cancelErr) {
                                 console.error(`[Stripe Webhook] ⚠️ Failed to auto-cancel old subscriptions for ${userId}:`, cancelErr.message);
+                            }
+                        } else if (tier === 'supporter' && stripeCustomerId && stripeSubscriptionId) {
+                            try {
+                                for (const status of ['active', 'trialing']) {
+                                    const { data } = await stripe.subscriptions.list({
+                                        customer: stripeCustomerId,
+                                        status,
+                                        limit: 20,
+                                    });
+                                    for (const sub of data) {
+                                        if (sub.id !== stripeSubscriptionId) {
+                                            console.info(`[Stripe Webhook] 🔄 New subscription ${stripeSubscriptionId} — canceling other ${status} sub ${sub.id}...`);
+                                            await stripe.subscriptions.cancel(sub.id);
+                                        }
+                                    }
+                                }
+                            } catch (cancelErr) {
+                                console.error(`[Stripe Webhook] ⚠️ Failed to cancel other subscriptions for ${userId}:`, cancelErr.message);
                             }
                         }
                     }
@@ -167,14 +184,24 @@ module.exports = function ({ app, db }) {
 
                     console.info(`[Stripe Webhook] 🗑️ Subscription deleted for customer ${stripeCustomerId}. Checking before reverting to free.`);
 
-                    // Guard: Don't downgrade lifetime users when their old monthly sub gets canceled
                     const currentUser = await db.execute('SELECT subscription_tier FROM users WHERE stripe_customer_id = $1', [stripeCustomerId]);
                     if (currentUser.rows.length > 0 && currentUser.rows[0].subscription_tier === 'lifetime') {
                         console.info(`[Stripe Webhook] ⏭️ Skipping downgrade — user is on lifetime plan.`);
                         break;
                     }
 
-                    // Try matching by Stripe Customer ID first (most reliable)
+                    try {
+                        const active = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'active', limit: 20 });
+                        const trialing = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'trialing', limit: 20 });
+                        if (active.data.length > 0 || trialing.data.length > 0) {
+                            console.info(`[Stripe Webhook] ⏭️ Skipping downgrade — customer still has an active or trialing subscription.`);
+                            break;
+                        }
+                    } catch (listErr) {
+                        console.error(`[Stripe Webhook] ⚠️ Failed to list subscriptions before downgrade:`, listErr.message);
+                        break;
+                    }
+
                     let result = await db.execute('UPDATE users SET subscription_tier = $1 WHERE stripe_customer_id = $2', ['free', stripeCustomerId]);
 
                     // Fallback to email if we haven't saved the Stripe ID yet

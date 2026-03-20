@@ -14,9 +14,12 @@ module.exports = function ({ db }) {
     // ── Server-side Price ID Allowlist ─────────────────────────────
     // SECURITY: Only these exact Stripe Price IDs are accepted.
     // Prevents clients from substituting arbitrary price IDs.
+    const DEFAULT_MONTHLY_PRICE_ID = 'price_1T6LPsLYlsIF3kiqi3vNu8q5';
+    const monthlyId = (process.env.STRIPE_PRICE_MONTHLY || '').trim() || DEFAULT_MONTHLY_PRICE_ID;
+    const annualId = (process.env.STRIPE_PRICE_ANNUAL || '').trim();
     const ALLOWED_PRICES = {
-        'price_1T6LPsLYlsIF3kiqi3vNu8q5': { tier: 'supporter', mode: 'subscription' },
-        'price_1T6LQZLYlsIF3kiqrWxurMC7': { tier: 'lifetime',  mode: 'payment' },
+        [monthlyId]: { tier: 'supporter', mode: 'subscription' },
+        ...(annualId ? { [annualId]: { tier: 'supporter', mode: 'subscription' } } : {}),
     };
 
     // ── Create Checkout Session ──────────────────────────────────

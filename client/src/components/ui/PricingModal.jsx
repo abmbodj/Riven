@@ -15,7 +15,7 @@ import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 const PRICE_IDS = {
     monthly: import.meta.env.VITE_STRIPE_PRICE_MONTHLY,
-    lifetime: import.meta.env.VITE_STRIPE_PRICE_LIFETIME,
+    annual: import.meta.env.VITE_STRIPE_PRICE_ANNUAL ?? import.meta.env.VITE_STRIPE_PRICE_LIFETIME,
 };
 
 const PLAN_STYLES = {
@@ -30,7 +30,7 @@ const PLAN_STYLES = {
         accentBar: 'bg-claude-accent',
         cta: 'from-[#a8c07f] to-[#d8b66a]',
     },
-    lifetime: {
+    annual: {
         icon: Crown,
         badge: 'Best Value',
         card: 'border-amber-400/30 bg-[linear-gradient(180deg,rgba(217,168,71,0.14),rgba(255,255,255,0.04))]',
@@ -60,16 +60,16 @@ const PLANS = [
         ],
     },
     {
-        id: 'lifetime',
-        name: 'Lifetime',
+        id: 'annual',
+        name: 'Annual',
         price: '$29.99',
-        period: 'once',
-        kicker: 'One payment, permanent unlock',
-        summary: 'Best for heavy users who want premium access locked in for good.',
+        period: '/year',
+        kicker: 'Best yearly rate',
+        summary: 'Full premium access with one yearly renewal—ideal for committed learners.',
         features: [
             'Everything in Supporter',
-            'No recurring payments',
-            'Exclusive lifetime badge',
+            'Lower cost than paying monthly',
+            'Renews once per year (cancel anytime)',
             'All future premium features',
             'Exclusive custom themes',
         ],
@@ -77,8 +77,8 @@ const PLANS = [
 ];
 
 function getDefaultPlan(currentTier) {
-    if (currentTier === 'supporter') return 'lifetime';
-    if (currentTier === 'lifetime') return 'lifetime';
+    if (currentTier === 'supporter') return 'annual';
+    if (currentTier === 'lifetime') return 'supporter';
     return 'supporter';
 }
 
@@ -126,10 +126,12 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         setError(null);
 
         try {
-            const priceId = pkgType === 'lifetime' ? PRICE_IDS.lifetime : PRICE_IDS.monthly;
-            const isSubscription = pkgType !== 'lifetime';
+            const priceId = pkgType === 'annual' ? PRICE_IDS.annual : PRICE_IDS.monthly;
+            if (!priceId) {
+                throw new Error('Stripe price is not configured for this plan.');
+            }
 
-            const url = await createCheckoutSessionUrl({ priceId, isSubscription });
+            const url = await createCheckoutSessionUrl({ priceId, isSubscription: true });
             if (url) {
                 window.location.href = url;
                 return;
@@ -244,7 +246,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         const isSelected = selectedPlan === plan.id;
                                         const isDisabled =
                                             currentTier === plan.id ||
-                                            (currentTier === 'lifetime' && plan.id === 'supporter');
+                                            (currentTier === 'lifetime' && plan.id === 'supporter') ||
+                                            (currentTier === 'lifetime' && plan.id === 'annual');
 
                                         return (
                                             <button
@@ -311,7 +314,9 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         const Icon = styles.icon;
                                         const isSelected = selectedPlan === plan.id;
                                         const isCurrentPlan = currentTier === plan.id;
-                                        const isDowngradeBlocked = currentTier === 'lifetime' && plan.id === 'supporter';
+                                        const isDowngradeBlocked =
+                                            (currentTier === 'lifetime' && plan.id === 'supporter') ||
+                                            (currentTier === 'lifetime' && plan.id === 'annual');
                                         const isDisabled = isCurrentPlan || isDowngradeBlocked;
 
                                         return (
@@ -398,7 +403,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                                                 {isDowngradeBlocked ? (
                                                     <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.22em] text-claude-secondary">
-                                                        Lifetime already includes this
+                                                        Your membership already includes this
                                                     </p>
                                                 ) : null}
                                             </Motion.button>
@@ -439,7 +444,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 Billing
                                             </span>
                                             <span className="text-sm text-claude-text">
-                                                {selectedPlan === 'lifetime' ? 'Single payment' : 'Monthly renewal'}
+                                                {selectedPlan === 'annual' ? 'Yearly renewal' : 'Monthly renewal'}
                                             </span>
                                         </div>
                                     </div>
@@ -463,7 +468,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                         disabled={
                                             loading ||
                                             currentTier === selectedPlan ||
-                                            (selectedPlan === 'supporter' && currentTier === 'lifetime')
+                                            (selectedPlan === 'supporter' && currentTier === 'lifetime') ||
+                                            (selectedPlan === 'annual' && currentTier === 'lifetime')
                                         }
                                         className={`tap-action mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
                                     >
@@ -471,7 +477,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                             <span className="animate-spin text-lg leading-none">↻</span>
                                         ) : currentTier === selectedPlan ? (
                                             'Current plan'
-                                        ) : currentTier === 'lifetime' && selectedPlan === 'supporter' ? (
+                                        ) : currentTier === 'lifetime' &&
+                                          (selectedPlan === 'supporter' || selectedPlan === 'annual') ? (
                                             'Already included'
                                         ) : (
                                             <>
@@ -516,7 +523,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 </div>
 
                                 <div className="shrink-0 rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                    {selectedPlan === 'lifetime' ? 'One-time' : 'Monthly'}
+                                    {selectedPlan === 'annual' ? 'Yearly' : 'Monthly'}
                                 </div>
                             </div>
 
@@ -539,7 +546,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 disabled={
                                     loading ||
                                     currentTier === selectedPlan ||
-                                    (selectedPlan === 'supporter' && currentTier === 'lifetime')
+                                    (selectedPlan === 'supporter' && currentTier === 'lifetime') ||
+                                    (selectedPlan === 'annual' && currentTier === 'lifetime')
                                 }
                                 className={`tap-action flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-5 py-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#102228] transition-[transform,opacity,color,background-color,border-color,box-shadow] shadow-[0_16px_40px_rgba(0,0,0,0.18)] disabled:cursor-not-allowed disabled:opacity-40 ${PLAN_STYLES[selectedPlan].cta}`}
                             >
@@ -547,7 +555,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                     <span className="animate-spin text-lg leading-none">↻</span>
                                 ) : currentTier === selectedPlan ? (
                                     'Current plan'
-                                ) : currentTier === 'lifetime' && selectedPlan === 'supporter' ? (
+                                ) : currentTier === 'lifetime' &&
+                                  (selectedPlan === 'supporter' || selectedPlan === 'annual') ? (
                                     'Already included'
                                 ) : (
                                     <>

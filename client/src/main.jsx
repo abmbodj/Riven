@@ -6,6 +6,9 @@ import App from './App.jsx'
 import { ToastProvider } from './components/Toast.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { initDevFpsMeter } from './utils/devFpsMeter.js'
+import { loadAdsForWeb } from './utils/loadAdsForWeb.js'
+
+loadAdsForWeb()
 
 const disposeFps = initDevFpsMeter()
 if (import.meta.hot) {

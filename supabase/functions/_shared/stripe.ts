@@ -4,10 +4,20 @@ import { getSupabaseAdmin } from './supabaseAdmin.ts';
 
 const STRIPE_API_VERSION = '2023-10-16';
 
-export const ALLOWED_PRICES = {
-  price_1T6LPsLYlsIF3kiqi3vNu8q5: { tier: 'supporter', mode: 'subscription' },
-  price_1T6LQZLYlsIF3kiqrWxurMC7: { tier: 'lifetime', mode: 'payment' },
-} as const;
+const DEFAULT_MONTHLY_PRICE_ID = 'price_1T6LPsLYlsIF3kiqi3vNu8q5';
+
+/** Built at cold start from env. Set STRIPE_PRICE_ANNUAL in Supabase to your yearly recurring price id. */
+export const ALLOWED_PRICES: Record<string, { tier: 'supporter'; mode: 'subscription' }> = (() => {
+  const monthlyId = (Deno.env.get('STRIPE_PRICE_MONTHLY') || '').trim() || DEFAULT_MONTHLY_PRICE_ID;
+  const annualId = (Deno.env.get('STRIPE_PRICE_ANNUAL') || '').trim();
+  const map: Record<string, { tier: 'supporter'; mode: 'subscription' }> = {
+    [monthlyId]: { tier: 'supporter', mode: 'subscription' },
+  };
+  if (annualId) {
+    map[annualId] = { tier: 'supporter', mode: 'subscription' };
+  }
+  return map;
+})();
 
 const statusError = (status: number, message: string) => {
   const error = new Error(message) as Error & { status?: number };
@@ -28,11 +38,44 @@ export const getStripeClient = () => {
   });
 };
 
-export const resolveBaseUrl = (request: Request) => {
-  const fallbackBaseUrl = Deno.env.get('CLIENT_URL') || 'http://localhost:5173';
-  const origin = request.headers.get('origin') || fallbackBaseUrl;
+const trimTrailingSlash = (url: string) => (url.endsWith('/') ? url.slice(0, -1) : url);
 
-  return origin.endsWith('/') ? origin.slice(0, -1) : origin;
+/** True for http://localhost or http://127.0.0.1 (Stripe test / local dev). */
+const isLocalHttpOrigin = (origin: string) => {
+  try {
+    const u = new URL(origin);
+    return u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Stripe success/cancel/return URLs must be valid https origins in production.
+ * Capacitor and Ionic WebViews send origins like capacitor://localhost, which Stripe rejects.
+ * Prefer CLIENT_URL for those and for non-local http origins.
+ */
+export const resolveBaseUrl = (request: Request) => {
+  const fallbackBaseUrl = trimTrailingSlash(Deno.env.get('CLIENT_URL') || 'http://localhost:5173');
+  const rawOrigin = request.headers.get('origin');
+
+  if (!rawOrigin) return fallbackBaseUrl;
+
+  const origin = trimTrailingSlash(rawOrigin);
+
+  if (
+    origin.startsWith('capacitor://') ||
+    origin.startsWith('ionic://') ||
+    origin.startsWith('file://')
+  ) {
+    return fallbackBaseUrl;
+  }
+
+  if (origin.startsWith('https://')) return origin;
+
+  if (isLocalHttpOrigin(origin)) return origin;
+
+  return fallbackBaseUrl;
 };
 
 export const getStripeUser = async (userId: number) => {

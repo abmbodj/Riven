@@ -89,8 +89,8 @@ export default function TermsOfService() {
                     </p>
                     <ul className="text-[13px] text-claude-secondary space-y-2 list-disc list-inside leading-relaxed">
                         <li>You authorize charges through Stripe or Apple App Store</li>
-                        <li>Monthly subscriptions renew automatically unless cancelled</li>
-                        <li>Lifetime subscriptions provide permanent access with a one-time payment</li>
+                        <li>Monthly and annual subscriptions renew automatically unless cancelled</li>
+                        <li>Some users may receive complimentary or promotional lifetime access outside of standard paid plans</li>
                         <li>Refunds follow the applicable platform's refund policy</li>
                     </ul>
                     <p className="text-[13px] text-claude-secondary leading-relaxed mt-3">

@@ -5,6 +5,46 @@ const resolveEntityId = (value) => {
   return null;
 };
 
+/**
+ * True if the customer still has any subscription that grants access (active or trialing).
+ */
+const customerHasRetainedSubscription = async (stripe, stripeCustomerId) => {
+  const active = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    status: 'active',
+    limit: 20,
+  });
+  if (active.data.length > 0) return true;
+
+  const trialing = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    status: 'trialing',
+    limit: 20,
+  });
+  return trialing.data.length > 0;
+};
+
+/**
+ * After a new subscription checkout, cancel any other active/trialing subscriptions for this customer.
+ */
+const cancelOtherSubscriptions = async (stripe, stripeCustomerId, keepSubscriptionId, logger) => {
+  for (const status of ['active', 'trialing']) {
+    const { data } = await stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status,
+      limit: 20,
+    });
+    for (const subscription of data) {
+      if (subscription.id !== keepSubscriptionId) {
+        logger.info(
+          `[Stripe Webhook] New subscription ${keepSubscriptionId} — canceling other ${status} sub ${subscription.id}...`,
+        );
+        await stripe.subscriptions.cancel(subscription.id);
+      }
+    }
+  }
+};
+
 export const processStripeWebhookEvent = async ({
   event,
   stripe,
@@ -71,6 +111,12 @@ export const processStripeWebhookEvent = async ({
         } catch (cancelError) {
           logger.error(`[Stripe Webhook] Failed to auto-cancel old subscriptions for ${userId}:`, cancelError?.message || cancelError);
         }
+      } else if (tier === 'supporter' && stripeCustomerId && stripeSubscriptionId) {
+        try {
+          await cancelOtherSubscriptions(stripe, stripeCustomerId, stripeSubscriptionId, logger);
+        } catch (cancelError) {
+          logger.error(`[Stripe Webhook] Failed to cancel other subscriptions for ${userId}:`, cancelError?.message || cancelError);
+        }
       }
 
       return { outcome: 'checkout-updated', tier };
@@ -91,6 +137,17 @@ export const processStripeWebhookEvent = async ({
       if (currentTier === 'lifetime') {
         logger.info('[Stripe Webhook] Skipping downgrade — user is on lifetime plan.');
         return { outcome: 'subscription-delete-skipped-lifetime' };
+      }
+
+      try {
+        const stillSubscribed = await customerHasRetainedSubscription(stripe, stripeCustomerId);
+        if (stillSubscribed) {
+          logger.info('[Stripe Webhook] Skipping downgrade — customer still has an active or trialing subscription.');
+          return { outcome: 'subscription-delete-skipped-still-subscribed' };
+        }
+      } catch (listError) {
+        logger.error('[Stripe Webhook] Failed to list subscriptions before downgrade:', listError?.message || listError);
+        return { outcome: 'subscription-delete-list-error' };
       }
 
       const downgradedByCustomerId = await persistence.downgradeUserByCustomerId(stripeCustomerId);

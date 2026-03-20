@@ -43,6 +43,9 @@ describe('Stripe webhook core processor', () => {
             mode: 'subscription',
         });
         persistence.updateUserFromCheckout.mockResolvedValue(true);
+        stripe.subscriptions.list.mockImplementation(({ status }) =>
+            Promise.resolve({ data: status === 'active' ? [{ id: 'sub_123' }] : [] }),
+        );
 
         const result = await processStripeWebhookEvent({
             event: {
@@ -69,7 +72,7 @@ describe('Stripe webhook core processor', () => {
             stripeCustomerId: 'cus_123',
             stripeSubscriptionId: 'sub_123',
         });
-        expect(stripe.subscriptions.list).not.toHaveBeenCalled();
+        expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
     });
 
     it('cancels active subscriptions after a lifetime checkout upgrade', async () => {
@@ -109,6 +112,42 @@ describe('Stripe webhook core processor', () => {
         expect(stripe.subscriptions.cancel).toHaveBeenCalledTimes(2);
     });
 
+    it('cancels other subscriptions after a new supporter checkout', async () => {
+        stripe.checkout.sessions.retrieve.mockResolvedValue({
+            payment_status: 'paid',
+            mode: 'subscription',
+        });
+        persistence.updateUserFromCheckout.mockResolvedValue(true);
+        stripe.subscriptions.list.mockImplementation(({ status }) => {
+            if (status === 'active') {
+                return Promise.resolve({ data: [{ id: 'sub_old' }, { id: 'sub_new' }] });
+            }
+            return Promise.resolve({ data: [] });
+        });
+
+        const result = await processStripeWebhookEvent({
+            event: {
+                type: 'checkout.session.completed',
+                data: {
+                    object: {
+                        id: 'cs_annual',
+                        client_reference_id: '9',
+                        customer: 'cus_annual',
+                        subscription: 'sub_new',
+                        metadata: { tier: 'supporter' },
+                    },
+                },
+            },
+            stripe,
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({ outcome: 'checkout-updated', tier: 'supporter' });
+        expect(stripe.subscriptions.cancel).toHaveBeenCalledTimes(1);
+        expect(stripe.subscriptions.cancel).toHaveBeenCalledWith('sub_old');
+    });
+
     it('skips unpaid checkout sessions without updating the user', async () => {
         stripe.checkout.sessions.retrieve.mockResolvedValue({
             payment_status: 'unpaid',
@@ -136,6 +175,30 @@ describe('Stripe webhook core processor', () => {
         expect(persistence.updateUserFromCheckout).not.toHaveBeenCalled();
     });
 
+    it('skips subscription deletion downgrades when another subscription remains', async () => {
+        persistence.getSubscriptionTierByCustomerId.mockResolvedValue('supporter');
+        stripe.subscriptions.list.mockImplementation(({ status }) =>
+            Promise.resolve({ data: status === 'active' ? [{ id: 'sub_still_here' }] : [] }),
+        );
+
+        const result = await processStripeWebhookEvent({
+            event: {
+                type: 'customer.subscription.deleted',
+                data: {
+                    object: {
+                        customer: 'cus_multi',
+                    },
+                },
+            },
+            stripe,
+            persistence,
+            logger,
+        });
+
+        expect(result).toEqual({ outcome: 'subscription-delete-skipped-still-subscribed' });
+        expect(persistence.downgradeUserByCustomerId).not.toHaveBeenCalled();
+    });
+
     it('skips subscription deletion downgrades for lifetime users', async () => {
         persistence.getSubscriptionTierByCustomerId.mockResolvedValue('lifetime');
 
@@ -159,6 +222,7 @@ describe('Stripe webhook core processor', () => {
 
     it('falls back to customer email when customer-id downgrade misses', async () => {
         persistence.getSubscriptionTierByCustomerId.mockResolvedValue('free');
+        stripe.subscriptions.list.mockResolvedValue({ data: [] });
         persistence.downgradeUserByCustomerId.mockResolvedValue(false);
         stripe.customers.retrieve.mockResolvedValue({ email: 'test@example.com' });
 

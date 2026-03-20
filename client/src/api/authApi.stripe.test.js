@@ -122,8 +122,8 @@ describe('authApi stripe edge migration', () => {
 
     await expect(
       authApi.createStripeCheckoutSession({
-        priceId: 'price_1T6LQZLYlsIF3kiqrWxurMC7',
-        isSubscription: false,
+        priceId: 'price_test_annual_placeholder',
+        isSubscription: true,
       })
     ).rejects.toMatchObject({
       status: 401,
