@@ -296,33 +296,64 @@ export default function Onboarding() {
         ? `Focus: ${focusChoice.shortLabel} • Material: ${materialChoice.shortLabel}`
         : null;
 
-    const motionProps = reducedMotion
-        ? { initial: false, animate: { opacity: 1 }, exit: { opacity: 1 } }
+    const containerVariants = reducedMotion
+        ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } }
         : {
-              initial: { opacity: 0, y: 14 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: -10 },
-              transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+              initial: { opacity: 0 },
+              animate: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+              },
+              exit: { opacity: 0, transition: { duration: 0.2 } },
+          };
+
+    const itemVariants = reducedMotion
+        ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
+        : {
+              initial: { opacity: 0, y: 12 },
+              animate: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+              },
           };
 
     return (
         <div className="relative min-h-dvh w-full max-w-lg mx-auto overflow-hidden bg-claude-bg text-claude-text">
-            <div className="pointer-events-none absolute inset-0">
-                <div
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <motion.div
+                    animate={reducedMotion ? {} : {
+                        y: [0, -20, 0],
+                        scale: [1, 1.05, 1],
+                        opacity: [0.8, 0.6, 0.8],
+                    }}
+                    transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
                     className="absolute left-1/2 top-[-8rem] h-[22rem] w-[22rem] -translate-x-1/2 rounded-full blur-3xl opacity-80"
                     style={{
                         background:
                             'radial-gradient(circle, color-mix(in srgb, var(--accent-color) 18%, transparent) 0%, transparent 62%)',
                     }}
                 />
-                <div
+                <motion.div
+                    animate={reducedMotion ? {} : {
+                        y: [0, 20, 0],
+                        x: [0, -15, 0],
+                        opacity: [0.6, 0.4, 0.6],
+                    }}
+                    transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
                     className="absolute right-[-5rem] top-[20%] h-[18rem] w-[18rem] rounded-full blur-3xl opacity-60"
                     style={{
                         background:
                             'radial-gradient(circle, color-mix(in srgb, var(--botanical-forest) 18%, transparent) 0%, transparent 64%)',
                     }}
                 />
-                <div
+                <motion.div
+                    animate={reducedMotion ? {} : {
+                        y: [0, -15, 0],
+                        x: [0, 15, 0],
+                        opacity: [0.5, 0.3, 0.5],
+                    }}
+                    transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
                     className="absolute bottom-[-9rem] left-[-4rem] h-[18rem] w-[18rem] rounded-full blur-3xl opacity-50"
                     style={{
                         background:
@@ -382,27 +413,30 @@ export default function Onboarding() {
                             key={screen.id}
                             data-testid="onboarding-main-layout"
                             className={`flex flex-1 flex-col ${compactHeight ? 'pt-1' : 'pt-2'}`}
-                            {...motionProps}
+                            variants={containerVariants}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
                         >
                             <div className={`flex flex-col ${compactHeight ? 'gap-3' : 'gap-4'}`}>
                                 <div className={`mx-auto text-center ${compactHeight ? 'max-w-[19rem]' : 'max-w-[20.5rem]'}`}>
-                                    <p className={`font-mono font-semibold uppercase tracking-[0.22em] text-claude-secondary ${compactHeight ? 'mb-2 text-[9px]' : 'mb-3 text-[10px]'}`}>
+                                    <motion.p variants={itemVariants} className={`font-mono font-semibold uppercase tracking-[0.22em] text-claude-secondary ${compactHeight ? 'mb-2 text-[9px]' : 'mb-3 text-[10px]'}`}>
                                         {screen.eyebrow} · Step {step + 1} of {STEP_COUNT}
-                                    </p>
-                                    <h1 className={`font-display font-semibold tracking-[-0.05em] text-botanical-parchment ${compactHeight ? 'text-[clamp(2.1rem,8.5vw,3rem)] leading-[0.93]' : 'text-[clamp(2.35rem,9.3vw,3.35rem)] leading-[0.92]'}`}>
+                                    </motion.p>
+                                    <motion.h1 variants={itemVariants} className={`font-display font-semibold tracking-[-0.05em] text-botanical-parchment ${compactHeight ? 'text-[clamp(2.1rem,8.5vw,3rem)] leading-[0.93]' : 'text-[clamp(2.35rem,9.3vw,3.35rem)] leading-[0.92]'}`}>
                                         <span className="block">{screen.title.lead}</span>
                                         <span className="block">
                                             <span className="text-claude-accent">{screen.title.highlight}</span>
                                             {screen.title.tail ? ` ${screen.title.tail}` : ''}
                                         </span>
-                                    </h1>
-                                    <p className={`mx-auto text-claude-secondary ${compactHeight ? 'mt-2 max-w-[17.5rem] text-[12px] leading-4' : 'mt-3 max-w-[19rem] text-[13px] leading-5'}`}>
+                                    </motion.h1>
+                                    <motion.p variants={itemVariants} className={`mx-auto text-claude-secondary ${compactHeight ? 'mt-2 max-w-[17.5rem] text-[12px] leading-4' : 'mt-3 max-w-[19rem] text-[13px] leading-5'}`}>
                                         {screen.description}
-                                    </p>
+                                    </motion.p>
                                     {summaryLine ? (
-                                        <p className={`mx-auto font-mono uppercase tracking-[0.16em] text-botanical-parchment/80 ${compactHeight ? 'mt-2 text-[9px]' : 'mt-3 text-[10px]'}`}>
+                                        <motion.p variants={itemVariants} className={`mx-auto font-mono uppercase tracking-[0.16em] text-botanical-parchment/80 ${compactHeight ? 'mt-2 text-[9px]' : 'mt-3 text-[10px]'}`}>
                                             {summaryLine}
-                                        </p>
+                                        </motion.p>
                                     ) : null}
                                 </div>
 
@@ -411,42 +445,46 @@ export default function Onboarding() {
                                         const isSelected = selectedAnswerId === option.id;
 
                                         return (
-                                            <button
+                                            <motion.button
+                                                variants={itemVariants}
                                                 key={option.id}
                                                 type="button"
                                                 onClick={() => setAnswer(screen.id, option.id)}
                                                 disabled={busy}
                                                 aria-pressed={isSelected}
-                                                className={`group relative w-full overflow-hidden border text-left transition-all duration-200 active:scale-[0.99] disabled:opacity-70 ${compactHeight ? 'rounded-[1.2rem] px-3.5 py-3' : 'rounded-[1.35rem] px-4 py-3.5'}`}
+                                                className={`group relative w-full overflow-hidden border text-left transition-all duration-300 active:scale-[0.98] disabled:opacity-70 ${compactHeight ? 'rounded-[1.2rem] px-3.5 py-3' : 'rounded-[1.35rem] px-4 py-3.5'}`}
                                                 style={{
                                                     borderColor: isSelected
-                                                        ? 'color-mix(in srgb, var(--accent-color) 48%, rgba(255,255,255,0.18))'
-                                                        : 'rgba(255,255,255,0.08)',
+                                                        ? 'color-mix(in srgb, var(--accent-color) 58%, rgba(255,255,255,0.25))'
+                                                        : 'rgba(255,255,255,0.06)',
                                                     background: isSelected
-                                                        ? 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 86%, transparent) 0%, color-mix(in srgb, var(--bg-color) 72%, transparent) 100%)'
-                                                        : 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 80%, transparent) 0%, color-mix(in srgb, var(--bg-color) 74%, transparent) 100%)',
+                                                        ? 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 90%, transparent) 0%, color-mix(in srgb, var(--bg-color) 78%, transparent) 100%)'
+                                                        : 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%), linear-gradient(155deg, color-mix(in srgb, var(--surface-color) 70%, transparent) 0%, color-mix(in srgb, var(--bg-color) 64%, transparent) 100%)',
                                                     boxShadow: isSelected
-                                                        ? '0 18px 34px -32px color-mix(in srgb, var(--accent-color) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.14)'
-                                                        : '0 14px 28px -30px rgba(0,0,0,0.78), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                                        ? '0 20px 40px -24px color-mix(in srgb, var(--accent-color) 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.2)'
+                                                        : '0 12px 24px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
                                                 }}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div
-                                                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200"
+                                                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-300"
                                                         style={{
                                                             borderColor: isSelected
-                                                                ? 'color-mix(in srgb, var(--accent-color) 68%, transparent)'
-                                                                : 'rgba(255,255,255,0.18)',
+                                                                ? 'color-mix(in srgb, var(--accent-color) 80%, transparent)'
+                                                                : 'rgba(255,255,255,0.15)',
                                                             backgroundColor: isSelected
-                                                                ? 'color-mix(in srgb, var(--accent-color) 78%, transparent)'
-                                                                : 'transparent',
+                                                                ? 'color-mix(in srgb, var(--accent-color) 85%, transparent)'
+                                                                : 'rgba(0,0,0,0.2)',
+                                                            boxShadow: isSelected
+                                                                ? '0 0 12px color-mix(in srgb, var(--accent-color) 40%, transparent)'
+                                                                : 'none',
                                                         }}
                                                     >
                                                         <div
-                                                            className="h-2 w-2 rounded-full transition-transform duration-200"
+                                                            className="h-2 w-2 rounded-full transition-transform duration-300 ease-out"
                                                             style={{
-                                                                backgroundColor: isSelected ? 'var(--botanical-ink)' : 'rgba(255,255,255,0.18)',
-                                                                transform: isSelected ? 'scale(1)' : 'scale(0.8)',
+                                                                backgroundColor: isSelected ? 'var(--botanical-ink)' : 'transparent',
+                                                                transform: isSelected ? 'scale(1)' : 'scale(0)',
                                                             }}
                                                         />
                                                     </div>
@@ -460,7 +498,7 @@ export default function Onboarding() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                            </button>
+                                            </motion.button>
                                         );
                                     })}
                                 </div>
@@ -468,7 +506,8 @@ export default function Onboarding() {
                         </motion.section>
                     </AnimatePresence>
 
-                    <div
+                    <motion.div
+                        variants={itemVariants}
                         className={`relative shrink-0 ${compactHeight ? 'pt-2' : 'pt-3'}`}
                         style={{
                             paddingBottom: compactHeight
@@ -481,12 +520,12 @@ export default function Onboarding() {
                             type="button"
                             disabled={busy}
                             onClick={() => !busy && onPrimary()}
-                            className={`relative w-full overflow-hidden transition-all duration-200 active:scale-[0.99] disabled:opacity-60 ${compactHeight ? 'rounded-[1.35rem] px-5 py-3.5' : 'rounded-[1.6rem] px-5 py-4'}`}
+                            className={`relative w-full overflow-hidden transition-all duration-300 active:scale-[0.97] disabled:opacity-60 ${compactHeight ? 'rounded-[1.35rem] px-5 py-3.5' : 'rounded-[1.6rem] px-5 py-4'}`}
                             style={{
                                 background:
                                     'linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 88%, white 8%) 0%, color-mix(in srgb, var(--botanical-forest) 58%, var(--accent-color)) 100%)',
                                 boxShadow:
-                                    '0 26px 46px -28px color-mix(in srgb, var(--accent-color) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)',
+                                    '0 28px 50px -24px color-mix(in srgb, var(--accent-color) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)',
                             }}
                         >
                             <span className={`font-mono font-bold uppercase tracking-[0.24em] text-botanical-ink ${compactHeight ? 'text-[11px]' : 'text-[12px]'}`}>
@@ -500,7 +539,7 @@ export default function Onboarding() {
                                 )}
                             </span>
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>
