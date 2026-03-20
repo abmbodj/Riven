@@ -144,6 +144,8 @@ describe('authApi Supabase auth bridge reductions', () => {
       subscription_tier: 'lifetime',
       simulate_free_tier: false,
       email_verified: true,
+      onboardingCompletedAt: null,
+      onboardingStep: 0,
     });
   });
 

@@ -8,6 +8,24 @@ import {
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
+const normalizeApiBase = (apiBase) => {
+    const normalized = String(apiBase || '').trim();
+    if (!normalized) return normalized;
+
+    if (/^https?:\/\//i.test(normalized)) {
+        try {
+            const url = new URL(normalized);
+            const pathname = url.pathname.replace(/\/+$/, '');
+            url.pathname = pathname || '/api';
+            return `${url.origin}${url.pathname}${url.search}${url.hash}`;
+        } catch {
+            return normalized.replace(/\/+$/, '');
+        }
+    }
+
+    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+};
+
 const resolveApiBase = () => {
     let apiBase = import.meta.env.VITE_API_URL;
 
@@ -21,7 +39,7 @@ const resolveApiBase = () => {
         }
     }
 
-    return apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+    return normalizeApiBase(apiBase);
 };
 
 export const getApiBase = () => resolveApiBase();
@@ -691,7 +709,10 @@ export const register = async (username, email, password, captchaToken = null) =
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { username } },
+        options: {
+            data: { username },
+            ...(captchaToken ? { captchaToken } : {}),
+        },
     });
 
     if (!error && data.session) {

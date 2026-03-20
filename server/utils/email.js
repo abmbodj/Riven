@@ -102,37 +102,58 @@ function secondaryButton(text, url) {
     </table>`;
 }
 
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ============================================================
 // Welcome Email
 // ============================================================
 
-async function sendWelcomeEmail(email, username, baseUrl) {
-    const appUrl = baseUrl || 'https://riven.rocks';
+const WELCOME_EMAIL_SUBJECT = 'Welcome to Riven';
 
-    const html = emailShell(`
-        <h2 style="font-size: 24px; font-weight: 400; color: #e4ddd0; margin: 0 0 8px; line-height: 1.3;">
-          Welcome, ${username}
+function buildWelcomeEmailHtml(username, baseUrl) {
+    const appUrl = baseUrl || 'https://riven.rocks';
+    const safeUsername = escapeHtml(username);
+
+    return emailShell(`
+        <p style="color: #deb96a; font-size: 11px; letter-spacing: 2px; margin: 0 0 14px; font-weight: bold;">WELCOME TO RIVEN</p>
+        <h2 style="font-size: 28px; font-weight: 400; color: #e4ddd0; margin: 0 0 12px; line-height: 1.2;">
+          Your account is ready, ${safeUsername}
         </h2>
-        <p style="color: #8fa6a8; font-size: 15px; line-height: 1.7; margin: 0 0 4px;">
-          Your garden has been planted. Riven is where knowledge takes root — create decks, study with spaced repetition, and watch your mastery grow.
+        <p style="color: #8fa6a8; font-size: 15px; line-height: 1.7; margin: 0 0 6px;">
+          Riven helps you turn class material into focused study sessions with flashcards, AI tools, and spaced repetition.
+        </p>
+        <p style="color: #8fa6a8; font-size: 15px; line-height: 1.7; margin: 0;">
+          The fastest way to get started is to add your material, generate what you need, and study your first set today.
         </p>
 
-        ${primaryButton('BEGIN STUDYING', `${appUrl}/decks`)}
+        ${primaryButton('OPEN RIVEN', `${appUrl}/onboarding`)}
+        ${secondaryButton('CREATE A DECK', `${appUrl}/create`)}
 
-        <!-- Quick tips -->
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 8px;">
-          <tr><td style="padding: 16px; background: rgba(122,158,114,0.08); border-radius: 10px; border: 1px solid rgba(122,158,114,0.12);">
-            <p style="color: #7a9e72; font-size: 11px; letter-spacing: 2px; margin: 0 0 10px; font-weight: bold;">GETTING STARTED</p>
-            <p style="color: #8fa6a8; font-size: 13px; line-height: 1.65; margin: 0;">
-              <span style="color: #deb96a;">①</span>&ensp;Create your first deck<br>
-              <span style="color: #deb96a;">②</span>&ensp;Add cards — or let AI generate them<br>
-              <span style="color: #deb96a;">③</span>&ensp;Study daily to grow your streak
+          <tr><td style="padding: 18px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <p style="color: #e4ddd0; font-size: 13px; line-height: 1.5; margin: 0 0 12px; font-weight: bold;">
+              A simple first session
+            </p>
+            <p style="color: #8fa6a8; font-size: 13px; line-height: 1.8; margin: 0;">
+              Add notes, slides, or a topic you want to learn.<br>
+              Generate flashcards or build a deck yourself.<br>
+              Review a few cards and start your streak.
             </p>
           </td></tr>
         </table>
     `);
+}
 
-    return sendEmail({ to: email, subject: 'Welcome to Riven 🌿', html });
+async function sendWelcomeEmail(email, username, baseUrl) {
+    const html = buildWelcomeEmailHtml(username, baseUrl);
+    return sendEmail({ to: email, subject: WELCOME_EMAIL_SUBJECT, html });
 }
 
 // ============================================================
@@ -189,4 +210,11 @@ async function sendEmailVerification(email, verifyToken, baseUrl) {
     return sendEmail({ to: email, subject: 'Verify your Riven email', html });
 }
 
-module.exports = { sendEmail, sendPasswordResetEmail, sendEmailVerification, sendWelcomeEmail };
+module.exports = {
+    WELCOME_EMAIL_SUBJECT,
+    buildWelcomeEmailHtml,
+    sendEmail,
+    sendPasswordResetEmail,
+    sendEmailVerification,
+    sendWelcomeEmail,
+};
