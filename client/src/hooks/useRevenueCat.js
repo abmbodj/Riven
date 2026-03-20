@@ -16,14 +16,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Purchases } from '@revenuecat/purchases-capacitor';
 
 const RC_IOS_API_KEY = import.meta.env.VITE_RC_IOS_API_KEY ?? '';
-
-/** Lazy-import so the native module is never bundled into the web build. */
-async function getPurchases() {
-    const mod = await import('@revenuecat/purchases-capacitor');
-    return mod.Purchases;
-}
 
 /**
  * @param {string|null} userId — the logged-in user's app user ID (e.g. Supabase auth UUID).
@@ -51,9 +46,8 @@ export function useRevenueCat(userId) {
         async function init() {
             try {
                 console.log('[RevenueCat] init starting — userId:', userId, 'apiKey:', RC_IOS_API_KEY?.substring(0, 12) + '…');
-                const Purchases = await getPurchases();
-                console.log('[RevenueCat] native module loaded OK');
-
+                setInitStatus('configuring');
+                
                 if (!configuredRef.current) {
                     await Purchases.configure({
                         apiKey: RC_IOS_API_KEY,
@@ -63,6 +57,7 @@ export function useRevenueCat(userId) {
                     console.log('[RevenueCat] configure() succeeded');
                 }
 
+                setInitStatus('fetching offerings');
                 console.log('[RevenueCat] calling getOfferings()…');
                 const offeringsResponse = await Purchases.getOfferings();
                 console.log('[RevenueCat] getOfferings() raw response:', JSON.stringify(offeringsResponse, null, 2));
@@ -71,7 +66,7 @@ export function useRevenueCat(userId) {
                 console.log('[RevenueCat] offerings.current:', offeringsResult?.current);
                 console.log('[RevenueCat] offerings.all keys:', offeringsResult?.all ? Object.keys(offeringsResult.all) : 'N/A');
 
-                const { customerInfo: info } = await Purchases.getCustomerInfo();
+                setInitStatus('fetching customer info');
                 console.log('[RevenueCat] customerInfo OK, entitlements:', JSON.stringify(info?.entitlements?.active));
 
                 if (!cancelled) {
@@ -109,7 +104,6 @@ export function useRevenueCat(userId) {
             setLoading(true);
             setError(null);
             try {
-                const Purchases = await getPurchases();
                 const result = await Purchases.purchasePackage({ aPackage: pkg });
                 setCustomerInfo(result.customerInfo);
                 return result;
@@ -137,7 +131,6 @@ export function useRevenueCat(userId) {
         setLoading(true);
         setError(null);
         try {
-            const Purchases = await getPurchases();
             const result = await Purchases.restorePurchases();
             setCustomerInfo(result.customerInfo);
             return result;
