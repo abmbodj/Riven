@@ -1,80 +1,99 @@
-//
-//  RivenWidgetLiveActivity.swift
-//  RivenWidget
-//
-//  Created by ab on 3/20/26.
-//
-
 import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// This maps to the JSON attributes we send from Capacitor
 struct RivenWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var emoji: String
+        // Dynamic stateful properties (updates every second)
+        var duration: Int
     }
 
-    // Fixed non-changing properties about your activity go here!
-    var name: String
+    // Fixed properties set at the start of recording
+    var type: String
+    var title: String
 }
 
+extension Int {
+    func timeString() -> String {
+        let m = self / 60
+        let s = self % 60
+        return String(format: "%02d:%02d", m, s)
+    }
+}
+
+@available(iOS 16.1, *)
 struct RivenWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RivenWidgetAttributes.self) { context in
-            // Lock screen/banner UI goes here
-            VStack {
-                Text("Hello \(context.state.emoji)")
+            // Lock screen / Banner UI
+            HStack {
+                Image(systemName: "mic.fill")
+                    .foregroundColor(.red)
+                    .font(.title2)
+                Text(context.attributes.title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Text(context.state.duration.timeString())
+                    .font(.title2.monospacedDigit())
+                    .foregroundColor(.white)
             }
-            .activityBackgroundTint(Color.cyan)
-            .activitySystemActionForegroundColor(Color.black)
+            .padding()
+            .activityBackgroundTint(Color.black.opacity(0.85))
+            .activitySystemActionForegroundColor(Color.white)
 
         } dynamicIsland: { context in
+             // Dynamic Island UI
             DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
+                // Expanded Form
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    Image(systemName: "mic.fill")
+                        .foregroundColor(.red)
+                        .font(.title2)
+                        .padding(.leading, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
+                    Text(context.state.duration.timeString())
+                        .font(.title2.monospacedDigit())
+                        .foregroundColor(.white)
+                        .padding(.trailing, 8)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
-                    // more content
+                    Text(context.attributes.title)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
                 }
             } compactLeading: {
-                Text("L")
+                // Compact Left
+                Image(systemName: "mic.fill").foregroundColor(.red)
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
+                // Compact Right
+                Text(context.state.duration.timeString())
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.red)
             } minimal: {
-                Text(context.state.emoji)
+                // Minimal (e.g. multiple live activities active)
+                Image(systemName: "mic.fill").foregroundColor(.red)
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
         }
     }
 }
 
 extension RivenWidgetAttributes {
     fileprivate static var preview: RivenWidgetAttributes {
-        RivenWidgetAttributes(name: "World")
+        RivenWidgetAttributes(type: "audioRecording", title: "Recording Note")
     }
 }
 
 extension RivenWidgetAttributes.ContentState {
-    fileprivate static var smiley: RivenWidgetAttributes.ContentState {
-        RivenWidgetAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: RivenWidgetAttributes.ContentState {
-         RivenWidgetAttributes.ContentState(emoji: "🤩")
+    fileprivate static var recording: RivenWidgetAttributes.ContentState {
+        RivenWidgetAttributes.ContentState(duration: 125)
      }
 }
 
 #Preview("Notification", as: .content, using: RivenWidgetAttributes.preview) {
    RivenWidgetLiveActivity()
 } contentStates: {
-    RivenWidgetAttributes.ContentState.smiley
-    RivenWidgetAttributes.ContentState.starEyes
+    RivenWidgetAttributes.ContentState.recording
 }
