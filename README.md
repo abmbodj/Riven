@@ -27,7 +27,7 @@ A full-stack flashcard and study platform built for students. Riven combines spa
 - **Social** — Friend system, direct messaging (text, images, deck sharing), blocking, and reporting.
 - **Study Groups** — Shared decks, file folders, and live collaborative cram sessions.
 - **Gamification** — Daily streaks, virtual garden/pet system with accessories.
-- **Monetization** — Free / Supporter ($5.99/mo) / Lifetime ($29.99) tiers via Stripe. Hearts system for free-tier gating.
+- **Monetization** — Free; Supporter monthly ($5.99/mo) and annual ($74.99/yr) via Stripe. Promotional or complimentary **lifetime** access also exists (referrals, admin). Hearts system for free-tier gating.
 - **Referral Program** — Invite friends via referral codes, track qualified signups.
 - **Full Theming** — User-defined color palettes, font pairs, and multiple saved themes.
 - **Security** — 2FA (TOTP), email verification, password reset, XSS sanitization.

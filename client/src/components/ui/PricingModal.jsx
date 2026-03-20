@@ -32,7 +32,7 @@ const PLAN_STYLES = {
     },
     annual: {
         icon: Crown,
-        badge: 'Best Value',
+        badge: 'Yearly billing',
         card: 'border-amber-400/30 bg-[linear-gradient(180deg,rgba(217,168,71,0.14),rgba(255,255,255,0.04))]',
         activeCard: 'border-amber-400 bg-claude-accent/15 shadow-[0_18px_45px_rgba(217,168,71,0.14)]',
         badgeClass: 'border-amber-400/25 bg-amber-400/15 text-amber-300',
@@ -62,13 +62,13 @@ const PLANS = [
     {
         id: 'annual',
         name: 'Annual',
-        price: '$29.99',
+        price: '$74.99',
         period: '/year',
-        kicker: 'Best yearly rate',
-        summary: 'Full premium access with one yearly renewal—ideal for committed learners.',
+        kicker: 'Pay once per year',
+        summary: 'Full premium access on a yearly renewal—ideal if you prefer one invoice and less monthly admin.',
         features: [
             'Everything in Supporter',
-            'Lower cost than paying monthly',
+            'Predictable yearly billing',
             'Renews once per year (cancel anytime)',
             'All future premium features',
             'Exclusive custom themes',

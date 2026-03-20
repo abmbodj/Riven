@@ -521,13 +521,13 @@ export default function GardenLanding() {
                             className="relative p-5 sm:p-8 lg:p-10 rounded-3xl bg-[#0d141e] border border-amber-500/20 flex flex-col hover:border-amber-500/40 transition-colors duration-500"
                         >
                             <h3 className="text-lg uppercase tracking-widest font-sans text-amber-500/80 mb-2">Annual</h3>
-                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$29.99<span className="text-lg text-[#8fa6a8] font-sans">/yr</span></div>
+                            <div className="text-4xl lg:text-5xl font-serif text-[#fcfaf2] mb-4 lg:mb-6">$74.99<span className="text-lg text-[#8fa6a8] font-sans">/yr</span></div>
                             <ul className="space-y-3 lg:space-y-4 mb-6 lg:mb-10 flex-1 font-sans text-[#b8d0d2] text-sm tracking-wide">
                                 <li className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> All Supporter Benefits
                                 </li>
                                 <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Best value vs monthly
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Predictable yearly billing
                                 </li>
                                 <li className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div> Renews yearly—cancel anytime
