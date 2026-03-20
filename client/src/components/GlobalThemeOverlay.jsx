@@ -4,15 +4,16 @@ import { useTheme } from '../hooks/useTheme';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 /** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
-function LightThemeAtmosphere({ accent, containerRef }) {
+function LightThemeAtmosphere({ accent, containerRef, children }) {
     return (
-        <div ref={containerRef}>
+        <div ref={containerRef} className="absolute inset-0">
             <div
                 className="absolute inset-0"
                 style={{
                     background: `radial-gradient(ellipse 92% 56% at 50% 24%, ${accent}18 0%, transparent 58%), radial-gradient(ellipse 72% 50% at 80% 76%, ${accent}0c 0%, transparent 54%)`,
                 }}
             />
+            {children}
         </div>
     );
 }
@@ -127,7 +128,25 @@ function ForestOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_MOTES.slice(0, 8).map(p => (
+                    <div key={p.id} className="mobile-particle" style={{
+                        left: p.x + '%', top: p.y + '%',
+                        width: (p.size * 1.5) + 'px', height: (p.size * 1.5) + 'px',
+                        background: accent,
+                        boxShadow: `0 0 ${p.size * 2}px ${accent}`,
+                        '--max-opacity': p.opacity * 0.8,
+                        '--drift-y': `-${30 + p.drift * 20}vh`,
+                        animation: `mobileParticleFloatUp ${p.duration * 1.5}s infinite ${p.delay}s ease-in`,
+                    }} />
+                ))}
+                <svg className="absolute right-0 top-0 h-full opacity-[0.055]" width="56" viewBox="0 0 56 800" fill="none">
+                    <line x1="36" y1="0" x2="36" y2="800" stroke={accent} strokeWidth="1.5" />
+                    <line x1="20" y1="0" x2="20" y2="800" stroke={accent} strokeWidth="1" />
+                </svg>
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -208,7 +227,21 @@ function EmberOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_EMBERS.slice(0, 8).map(p => (
+                    <div key={p.id} className="mobile-particle" style={{
+                        left: p.x + '%', top: p.y + '%',
+                        width: (1.8 + p.size) + 'px', height: (1.8 + p.size) + 'px',
+                        background: accent,
+                        boxShadow: `0 0 ${p.size * 2 + 2}px ${accent}`,
+                        '--max-opacity': p.opacity,
+                        '--drift-y': `-${40 + p.drift * 30}vh`,
+                        animation: `mobileParticleFloatUp ${p.duration * 1.5}s infinite ${p.delay}s ease-in`,
+                    }} />
+                ))}
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -287,7 +320,21 @@ function MistOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_MIST.slice(0, 6).map(p => (
+                    <div key={`m${p.id}`} className="mobile-particle rounded-full" style={{
+                        left: (p.x + 2) % 96 + '%', top: (p.y + 3) % 96 + '%',
+                        width: (p.size * 1.2) + 'px', height: (p.size * 1.2) + 'px',
+                        background: accent,
+                        boxShadow: `0 0 ${p.size * 2}px ${accent}`,
+                        '--max-opacity': p.opacity * 0.8,
+                        '--drift-x': `${(p.drift - 0.5) * 40}vw`,
+                        animation: `mobileParticleDrift ${p.duration * 2}s infinite ${p.delay}s alternate ease-in-out`,
+                    }} />
+                ))}
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -364,7 +411,20 @@ function LanternOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_FIREFLY.slice(0, 8).map(p => (
+                    <div key={p.id} className="mobile-particle rounded-full" style={{
+                        left: p.x + '%', top: p.y + '%',
+                        width: (2.4 + p.size) + 'px', height: (2.4 + p.size) + 'px',
+                        background: '#ffffff',
+                        boxShadow: `0 0 ${p.size * 2 + 2}px ${accent}`,
+                        '--max-opacity': p.opacity,
+                        animation: `mobileParticleBlink ${1.4 + p.spin * 1.8}s infinite ${p.delay}s alternate ease-in-out`,
+                    }} />
+                ))}
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -419,7 +479,23 @@ function MoonOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_STARS.slice(0, 12).map(p => (
+                    <div key={p.id} className="mobile-particle rounded-full" style={{
+                        left: p.x + '%', top: p.y + '%',
+                        width: (p.size * 0.8 + 0.6) + 'px', height: (p.size * 0.8 + 0.6) + 'px',
+                        background: '#ffffff',
+                        boxShadow: `0 0 ${p.size * 1.5}px rgba(255,255,255,0.8), 0 0 ${p.size * 3}px ${accent}`,
+                        '--max-opacity': p.opacity * 0.6,
+                        animation: `mobileParticleBlink ${1.4 + p.spin * 2.8}s infinite ${p.delay}s alternate ease-in-out`,
+                    }} />
+                ))}
+                <svg className="absolute top-6 right-8 opacity-[0.1]" width="32" height="32" viewBox="0 0 44 44" fill="none">
+                    <path d="M33 22C33 28.075 28.075 33 22 33C15.925 33 11 28.075 11 22C11 16.97 14.3 12.72 18.8 11.24C17.2 13.02 16.3 15.35 16.3 17.88C16.3 23.53 20.86 28.09 26.51 28.09C29.41 28.09 32.04 26.88 33.92 24.88C33.31 23.96 33 22.97 33 22Z" fill={accent} />
+                </svg>
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -481,7 +557,24 @@ function RainOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_RAIN.slice(0, 6).map(p => (
+                    <div key={p.id} className="mobile-particle" style={{
+                        left: p.x + '%', top: '-10vh',
+                        width: '1px', height: (12 + p.drift * 12) + 'px',
+                        background: `linear-gradient(180deg, transparent, rgba(255,255,255,0.7) 60%, ${accent})`,
+                        '--max-opacity': p.opacity * 0.6,
+                        '--drift-y': '110vh',
+                        animation: `mobileParticleFloatDown ${3 + p.drift * 2}s infinite ${p.delay}s linear`,
+                    }} />
+                ))}
+                <svg className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-[0.055]" width="220" height="90" viewBox="0 0 220 90" fill="none">
+                    <ellipse cx="110" cy="45" rx="22" ry="9" stroke={accent} strokeWidth="0.9" />
+                    <ellipse cx="110" cy="45" rx="44" ry="17" stroke={accent} strokeWidth="0.7" />
+                </svg>
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -547,7 +640,28 @@ function SakuraOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_PETALS.slice(0, 8).map(p => (
+                    <div key={p.id} className="mobile-particle" style={{
+                        left: p.x + '%', top: '-10vh',
+                        width: (5 + p.size) + 'px', height: (3 + p.size) + 'px',
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, ${accent} 80%)`,
+                        borderRadius: '50% 50% 50% 0',
+                        boxShadow: `0 0 2px ${accent}`,
+                        '--max-opacity': p.opacity * 0.8,
+                        '--drift-y': `80vh`,
+                        animation: `mobileParticleFloatDown ${5 + p.drift * 3}s infinite ${p.delay}s linear`,
+                    }} />
+                ))}
+                <svg className="absolute top-0 right-0 opacity-[0.15]" width="180" viewBox="0 0 255 195" fill="none">
+                    <path d="M255 0 C236 21 221 43 205 63 C188 82 171 98 154 122" stroke={accent} strokeWidth="2" strokeLinecap="round" />
+                    <path d="M205 63 C191 53 176 44 163 38" stroke={accent} strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="161" cy="37" r="5" fill={accent} opacity="0.4" />
+                    <circle cx="155" cy="32" r="4" fill={accent} opacity="0.3" />
+                </svg>
+            </LightThemeAtmosphere>
+        );
     }
 
     return (
@@ -649,7 +763,21 @@ function LavenderOverlay({ accent, lightAtmosphere }) {
     }, [lightAtmosphere]);
 
     if (lightAtmosphere) {
-        return <LightThemeAtmosphere accent={accent} containerRef={container} />;
+        return (
+            <LightThemeAtmosphere accent={accent}>
+                {P_POLLEN.slice(0, 8).map(p => (
+                    <div key={p.id} className="mobile-particle rounded-full" style={{
+                        left: p.x + '%', top: p.y + '%',
+                        width: (p.size * 1.2) + 'px', height: (p.size * 1.2) + 'px',
+                        background: accent,
+                        boxShadow: `0 0 ${p.size * 2 + 1}px ${accent}`,
+                        '--max-opacity': p.opacity * 0.8,
+                        '--drift-y': `-${25 + p.drift * 15}vh`,
+                        animation: `mobileParticleFloatUp ${p.duration * 1.5}s infinite ${p.delay}s ease-in`,
+                    }} />
+                ))}
+            </LightThemeAtmosphere>
+        );
     }
 
     return (

@@ -4,6 +4,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 
+// Polyfill for html-to-image Safari/Firefox font bug where getPropertyValue('font') returns empty/undefined
+if (typeof window !== "undefined" && window.CSSStyleDeclaration) {
+  const originalGetPropertyValue = window.CSSStyleDeclaration.prototype.getPropertyValue;
+  window.CSSStyleDeclaration.prototype.getPropertyValue = function(prop: string) {
+    if (prop === "font") {
+      const font = originalGetPropertyValue.call(this, prop);
+      if (!font) {
+        const style = originalGetPropertyValue.call(this, "font-style");
+        const variant = originalGetPropertyValue.call(this, "font-variant");
+        const weight = originalGetPropertyValue.call(this, "font-weight");
+        const size = originalGetPropertyValue.call(this, "font-size");
+        const family = originalGetPropertyValue.call(this, "font-family");
+        return `${style} ${variant} ${weight} ${size} ${family}`.trim();
+      }
+      return font;
+    }
+    return originalGetPropertyValue.call(this, prop);
+  };
+}
+
 const LOCALES = ["en"] as const;
 type Locale = (typeof LOCALES)[number];
 
@@ -34,18 +54,18 @@ const SLIDES = [
   { headline: "Cram together--live.", subhead: "Shared decks. Synchronized group sessions." },
   { headline: "Streaks. Garden. Momentum.", subhead: "Daily streaks + your virtual garden/pet." },
   { headline: "AI decks. Quizzes. Progress.", subhead: "Standard + Test modes with instant feedback." },
-  { headline: "Keep your momentum.", subhead: "Streaks, reminders, and study plans that stick." },
+  { headline: "Import from YouTube.", subhead: "Generate flashcards, notes, and quizzes from any video." },
 ] as const;
 
 const PHONE_SCREEN_BY_SLIDE = [
   "/phone-screens/IMG_0757.PNG",
   "/phone-screens/IMG_0758.PNG",
-  "/phone-screens/IMG_0759.PNG",
-  "/phone-screens/IMG_0760.PNG",
-  "/phone-screens/IMG_0761.PNG",
-  "/phone-screens/IMG_0762.PNG",
-  "/phone-screens/IMG_0763.PNG",
   "/phone-screens/IMG_0764.PNG",
+  "/phone-screens/IMG_0762.PNG",
+  "/phone-screens/IMG_0759.PNG",
+  "/phone-screens/IMG_0763.PNG",
+  "/phone-screens/IMG_CUSTOM_STUDY_DASHBOARD.png",
+  "/phone-screens/IMG_0760.PNG",
 ] as const;
 
 const MOCKUP = { mkW: 1022, mkH: 2082 };
