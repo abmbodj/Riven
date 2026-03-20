@@ -57,7 +57,7 @@ describe('authApi register flow', () => {
     vi.unstubAllEnvs();
   });
 
-  it('forwards the captcha token to Supabase signup and complete-registration', async () => {
+  it('forwards the captcha token to Supabase signup and calls complete-registration without re-sending it', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
 
@@ -99,11 +99,61 @@ describe('authApi register flow', () => {
         }),
         body: JSON.stringify({
           username: 'atlas',
-          captchaToken: 'captcha-token-123',
         }),
       }),
     );
     expect(user).toEqual({ id: 7, username: 'atlas', email: 'atlas@example.com' });
+    expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
+  });
+
+  it('surfaces complete-registration failures without falling back to legacy register after Supabase signup succeeds', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
+    vi.stubEnv('VITE_API_URL', 'https://legacy.riven.test');
+
+    supabase.auth.signUp.mockResolvedValue({
+      data: {
+        session: { access_token: SUPABASE_ACCESS_TOKEN },
+      },
+      error: null,
+    });
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: { access_token: SUPABASE_ACCESS_TOKEN },
+      },
+      error: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: {
+        get: () => 'application/json',
+      },
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        error: 'Username must be 2-30 characters, alphanumeric and underscores only',
+      })),
+    });
+
+    await expect(
+      authApi.register('atlas', 'atlas@example.com', 'password123', 'captcha-token-123'),
+    ).rejects.toMatchObject({
+      message: 'Username must be 2-30 characters, alphanumeric and underscores only',
+      status: 400,
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/complete-registration',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          username: 'atlas',
+        }),
+      }),
+    );
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('riven_auth_token')).toBe(SUPABASE_ACCESS_TOKEN);
   });
 

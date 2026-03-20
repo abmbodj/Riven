@@ -4,6 +4,7 @@ import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { sendWelcomeEmail } from '../_shared/email.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 
 const isValidUsername = (u: string) =>
   u.length >= 2 && u.length <= 30 && /^[a-zA-Z0-9_]+$/.test(u);
@@ -121,22 +122,8 @@ serve(async (request) => {
       return jsonResponse({ error: 'No email on Supabase Auth account' }, { status: 400 }, request);
     }
 
-    // Parse username and captcha token from body
-    const body = await request.json().catch(() => ({})) as { username?: string; captchaToken?: string };
-
-    // Verify Cloudflare Turnstile CAPTCHA for new registrations
-    const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
-    if (turnstileSecret && body.captchaToken) {
-      const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: turnstileSecret, response: body.captchaToken }),
-      });
-      const verifyData = await verifyRes.json();
-      if (!verifyData.success) {
-        return jsonResponse({ error: 'CAPTCHA verification failed. Please try again.' }, { status: 400 }, request);
-      }
-    }
+    // Parse username from body. CAPTCHA is verified during the initial signup request.
+    const body = await request.json().catch(() => ({})) as { username?: string };
 
     const meta = authData.user.user_metadata || {};
     let username =
@@ -257,6 +244,7 @@ serve(async (request) => {
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
+    await reportEdgeException(requestError, { request, functionName: 'complete-registration' });
     console.error('[complete-registration] error', requestError);
     return jsonResponse(
       { error: requestError.message || 'Registration failed' },
