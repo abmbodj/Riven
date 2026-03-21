@@ -67,6 +67,7 @@ export function useRevenueCat(userId) {
                 console.log('[RevenueCat] offerings.all keys:', offeringsResult?.all ? Object.keys(offeringsResult.all) : 'N/A');
 
                 setInitStatus('fetching customer info');
+                const { customerInfo: info } = await Purchases.getCustomerInfo();
                 console.log('[RevenueCat] customerInfo OK, entitlements:', JSON.stringify(info?.entitlements?.active));
 
                 if (!cancelled) {
