@@ -105,8 +105,8 @@ describe('EditProfile', () => {
         expect(screen.queryByText('Live Card')).not.toBeInTheDocument();
         expect(screen.queryByText('Publishing Notes')).not.toBeInTheDocument();
 
-        const avatarButton = screen.getByRole('button', { name: 'Change avatar' });
-        const bannerButton = screen.getByRole('button', { name: 'Change banner' });
+        const avatarButton = screen.getAllByRole('button', { name: 'Change avatar' })[0];
+        const bannerButton = screen.getAllByRole('button', { name: 'Change banner' })[0];
 
         expect(within(avatarButton).getByText('Avatar')).toBeInTheDocument();
         expect(within(bannerButton).getByText('Banner')).toBeInTheDocument();

@@ -104,6 +104,20 @@ function FieldSurface({ icon: Icon, label, htmlFor, hint, error, counter, childr
     );
 }
 
+function MediaActionButton({ icon: Icon, label, ariaLabel, onClick }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={ariaLabel}
+            className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
+        >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span>{label}</span>
+        </button>
+    );
+}
+
 const getUsernameError = (value) => {
     const result = usernameSchema.safeParse(value.trim());
     return result.success ? '' : result.error.issues[0]?.message || 'Enter a valid username';
@@ -385,41 +399,59 @@ export default function EditProfile() {
                                     <ArrowLeft className="h-5 w-5" />
                                 </button>
 
-                                <div className="flex flex-col items-end gap-2">
-                                    <div className="hidden sm:block">
+                                <div className="hidden sm:flex sm:flex-col sm:items-end sm:gap-2">
+                                    <div>
                                         <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                                     </div>
 
-                                    <button
-                                        type="button"
+                                    <MediaActionButton
+                                        icon={User}
+                                        label="Avatar"
+                                        ariaLabel="Change avatar"
                                         onClick={() => {
                                             haptics.light();
                                             setShowAvatarPicker(true);
                                         }}
-                                        aria-label="Change avatar"
-                                        className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
-                                    >
-                                        <User className="h-4 w-4 shrink-0" />
-                                        <span>Avatar</span>
-                                    </button>
+                                    />
 
-                                    <button
-                                        type="button"
+                                    <MediaActionButton
+                                        icon={ImageIcon}
+                                        label="Banner"
+                                        ariaLabel="Change banner"
                                         onClick={() => {
                                             haptics.light();
                                             setShowBannerPicker(true);
                                         }}
-                                        aria-label="Change banner"
-                                        className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
-                                    >
-                                        <ImageIcon className="h-4 w-4 shrink-0" />
-                                        <span>Banner</span>
-                                    </button>
+                                    />
                                 </div>
                             </div>
 
                             <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
                                 <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
+                                    <div className="flex self-end sm:hidden">
+                                        <div className="flex flex-col items-end gap-2">
+                                            <MediaActionButton
+                                                icon={User}
+                                                label="Avatar"
+                                                ariaLabel="Change avatar"
+                                                onClick={() => {
+                                                    haptics.light();
+                                                    setShowAvatarPicker(true);
+                                                }}
+                                            />
+
+                                            <MediaActionButton
+                                                icon={ImageIcon}
+                                                label="Banner"
+                                                ariaLabel="Change banner"
+                                                onClick={() => {
+                                                    haptics.light();
+                                                    setShowBannerPicker(true);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
                                     <div className="flex items-end gap-3 sm:gap-5">
                                         <div className="relative shrink-0">
                                             <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1 shadow-md md:shadow-2xl sm:p-1.5">
