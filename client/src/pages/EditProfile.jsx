@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
     Save,
-    Camera,
     User,
+    Image as ImageIcon,
     Mail,
     Leaf,
-    PenTool,
     AtSign,
-    CheckCircle2,
     Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -242,16 +240,8 @@ export default function EditProfile() {
 
     const hasChanges = usernameChanged || displayNameChanged || bioChanged || avatarChanged || bannerChanged;
 
-    const displayValue = normalizedDisplayName || user.username || 'Your name';
     const usernameValue = normalizedUsername || user.username || 'username';
     const changeCount = [usernameChanged, displayNameChanged, bioChanged, avatarChanged, bannerChanged].filter(Boolean).length;
-    const draftBadges = [
-        usernameChanged ? 'Username' : null,
-        displayNameChanged ? 'Display' : null,
-        bioChanged ? 'Bio' : null,
-        avatarChanged ? 'Avatar' : null,
-        bannerChanged ? 'Banner' : null,
-    ].filter(Boolean);
 
     const statusTone = saving ? 'saving' : hasChanges ? 'pending' : 'saved';
     const mobileBottomClearance = `calc(env(safe-area-inset-bottom, 0px) + ${mobileSaveBarHeight + 16}px)`;
@@ -348,7 +338,7 @@ export default function EditProfile() {
             <div className="mx-auto max-w-6xl px-3 pt-3 sm:px-4 sm:pt-4 lg:px-8 lg:pt-8">
                 <section className="relative mx-auto max-w-6xl">
                     <div className="rounded-[2.4rem] bg-white/[0.02] p-1 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.82)] sm:rounded-[3rem] sm:p-1.5 lg:bg-transparent lg:p-2 glass-shell">
-                        <div className="relative h-[18.5rem] overflow-hidden rounded-[2.15rem] border border-white/15 shadow-sm sm:h-[21rem] sm:rounded-[2.65rem] md:shadow-lg lg:h-[24rem]">
+                        <div className="relative h-[21rem] overflow-hidden rounded-[2.15rem] border border-white/15 shadow-sm sm:h-[21rem] sm:rounded-[2.65rem] md:shadow-lg lg:h-[24rem]">
                             {banner ? (
                                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
                                     <div className="absolute inset-0 bg-claude-bg/55" />
@@ -386,7 +376,7 @@ export default function EditProfile() {
 
                             <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-claude-bg/95" />
 
-                            <div className="absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-2.5 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
+                            <div className="absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
                                 <button
                                     onClick={() => navigate('/account')}
                                     aria-label="Back to account"
@@ -395,52 +385,49 @@ export default function EditProfile() {
                                     <ArrowLeft className="h-5 w-5" />
                                 </button>
 
-                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                <div className="flex flex-col items-end gap-2">
                                     <div className="hidden sm:block">
                                         <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                                     </div>
 
                                     <button
+                                        type="button"
                                         onClick={() => {
                                             haptics.light();
                                             setShowAvatarPicker(true);
                                         }}
                                         aria-label="Change avatar"
-                                        className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-2 text-[11px] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:px-3 sm:py-2 md:backdrop-blur-md"
+                                        className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
                                     >
-                                        <Camera className="h-4 w-4" />
-                                        <span className="hidden text-[10px] font-mono uppercase tracking-[0.18em] sm:inline">
-                                            Avatar
-                                        </span>
+                                        <User className="h-4 w-4 shrink-0" />
+                                        <span>Avatar</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            haptics.light();
+                                            setShowBannerPicker(true);
+                                        }}
+                                        aria-label="Change banner"
+                                        className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
+                                    >
+                                        <ImageIcon className="h-4 w-4 shrink-0" />
+                                        <span>Banner</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    haptics.light();
-                                    setShowBannerPicker(true);
-                                }}
-                                aria-label="Change banner"
-                                className="absolute right-3 top-20 z-30 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-2 text-[11px] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:right-4 sm:top-24 sm:px-3 sm:py-2 md:backdrop-blur-md"
-                            >
-                                <Camera className="h-4 w-4" />
-                                <span className="hidden text-[10px] font-mono uppercase tracking-[0.18em] sm:inline">
-                                    Banner
-                                </span>
-                            </button>
-
                             <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
                                 <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-5">
-                                        <div className="relative self-start">
+                                    <div className="flex items-end gap-3 sm:gap-5">
+                                        <div className="relative shrink-0">
                                             <div className="relative rounded-full border border-dashed border-white/15 bg-claude-bg/80 p-1 shadow-md md:shadow-2xl sm:p-1.5">
-                                                <Avatar src={avatar} size="4xl" className="h-28 w-28 border-[5px] border-claude-bg sm:h-40 sm:w-40 sm:border-[6px]" />
+                                                <Avatar src={avatar} size="4xl" className="h-24 w-24 border-[4px] border-claude-bg sm:h-40 sm:w-40 sm:border-[6px]" />
                                             </div>
                                         </div>
 
-                                        <div className="pb-0.5 sm:pb-1">
+                                        <div className="min-w-0 flex-1 pb-0.5 sm:pb-1">
                                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/70 sm:px-3 sm:text-[10px] md:backdrop-blur-sm">
                                                 <Sparkles className="h-3.5 w-3.5 text-claude-accent" />
                                                 Profile Studio
@@ -503,265 +490,163 @@ export default function EditProfile() {
 
                 <div
                     ref={containerRef}
-                    className="mt-6 grid gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"
+                    className="mt-6 space-y-4 sm:mt-8 sm:space-y-6"
                 >
-                    <aside className="space-y-4 sm:space-y-6 lg:sticky lg:top-28 lg:self-start">
-                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] p-4 shadow-sm glass-panel glass-shell sm:rounded-[2rem] sm:p-5">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary/70">
-                                        Live Card
-                                    </p>
-                                    <h2 className="mt-1 font-display text-[1.6rem] font-semibold tracking-tight text-claude-text sm:text-2xl">
-                                        What people see
-                                    </h2>
-                                </div>
-                                <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
-                            </div>
-
-                            <div className="mt-4 overflow-hidden rounded-[1.35rem] border border-white/10 bg-claude-bg/60 sm:mt-5 sm:rounded-[1.75rem]">
-                                <div className="relative h-20 border-b border-white/10 sm:h-24">
-                                    {banner ? (
-                                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
-                                            <div className="absolute inset-0 bg-claude-bg/55" />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="absolute inset-0 bg-[#13262c]" />
-                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(222,185,106,0.12),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(122,158,114,0.12),transparent_42%)]" />
-                                        </>
-                                    )}
-                                    <div className="absolute left-4 bottom-0 translate-y-1/2">
-                                        <Avatar src={avatar} size="xl" className="h-16 w-16 border-[3px] border-claude-bg shadow-lg sm:h-20 sm:w-20 sm:border-[4px]" />
-                                    </div>
-                                </div>
-
-                                <div className="px-4 pb-4 pt-11 sm:pt-12">
-                                    <h3 className="font-display text-xl font-semibold tracking-tight text-claude-text sm:text-2xl">
-                                        {displayValue}
-                                    </h3>
-                                    <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent/80">
-                                        <AtSign className="h-3.5 w-3.5" />
-                                        {usernameValue}
-                                    </p>
-                                    <p className="mt-3 text-[15px] italic leading-relaxed text-claude-secondary sm:text-sm">
-                                        {trimmedBio || 'Add one line so the card feels unmistakably yours.'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-3">
-                                <div className="rounded-[1.15rem] border border-white/[0.08] bg-claude-bg/45 px-3.5 py-3 sm:rounded-[1.25rem] sm:px-4">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/60">
-                                        Avatar
-                                    </p>
-                                    <p className="mt-1 font-display text-lg text-claude-text">
-                                        {avatar ? 'Custom' : 'Default'}
-                                    </p>
-                                </div>
-                                <div className="rounded-[1.15rem] border border-white/[0.08] bg-claude-bg/45 px-3.5 py-3 sm:rounded-[1.25rem] sm:px-4">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/60">
-                                        Banner
-                                    </p>
-                                    <p className="mt-1 font-display text-lg text-claude-text">
-                                        {banner ? 'Custom' : 'Botanical'}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] bg-claude-surface/55 p-4 shadow-sm sm:rounded-[2rem] sm:p-5">
-                            <div className="flex items-start gap-3">
-                                <div className="rounded-[1rem] border border-white/[0.08] bg-white/[0.04] p-3 text-claude-secondary/80">
-                                    {statusTone === 'pending' ? (
-                                        <PenTool className="h-5 w-5 text-claude-accent" />
-                                    ) : (
-                                        <CheckCircle2 className="h-5 w-5 text-claude-accent" />
-                                    )}
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/65">
-                                        Publishing Notes
-                                    </p>
-                                    <h3 className="mt-1 font-display text-lg font-semibold tracking-tight text-claude-text sm:text-xl">
-                                        {statusMeta.title}
-                                    </h3>
-                                    <p className="mt-2 text-[13px] leading-relaxed text-claude-secondary sm:text-sm">
-                                        {statusMeta.detail} Email stays private while your name, username, bio, avatar, and banner remain public.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {draftBadges.length > 0 ? (
-                                <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
-                                    {draftBadges.map((badge) => (
-                                        <StatusBadge key={badge} tone="warning">
-                                            {badge}
-                                        </StatusBadge>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </section>
-                    </aside>
-
-                    <div className="space-y-4 sm:space-y-6">
-                        <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] p-4 shadow-sm glass-panel glass-shell sm:rounded-[2rem] sm:p-5 lg:p-6">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary/70">
-                                        Identity
-                                    </p>
-                                    <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-claude-text sm:text-2xl">
-                                        Core profile details
-                                    </h2>
-                                    <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
-                                        These appear across profile headers, messages, search, and shared content.
-                                    </p>
-                                </div>
-                                <StatusBadge tone="default">Public</StatusBadge>
-                            </div>
-
-                            <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 lg:grid-cols-2">
-                                <FieldSurface
-                                    icon={User}
-                                    label="Display Name"
-                                    htmlFor="display-name"
-                                    hint="Use the name you want people to recognize immediately."
-                                    error={fieldErrors.displayName}
-                                    counter={`${displayName.length}/${displayNameLimit}`}
-                                >
-                                    <input
-                                        id="display-name"
-                                        type="text"
-                                        value={displayName}
-                                        maxLength={displayNameLimit}
-                                        autoComplete="name"
-                                        aria-invalid={Boolean(fieldErrors.displayName)}
-                                        aria-describedby={fieldErrors.displayName ? 'display-name-error' : undefined}
-                                        onChange={(event) => {
-                                            setDisplayName(event.target.value);
-                                            clearFieldError('displayName');
-                                        }}
-                                        onBlur={() => {
-                                            const nextError = getDisplayNameError(displayName);
-                                            setFieldErrors((prev) => ({ ...prev, displayName: nextError }));
-                                        }}
-                                        className="w-full bg-transparent font-display text-[1.15rem] leading-tight tracking-[0.01em] text-claude-text outline-none placeholder:text-claude-secondary/35"
-                                        placeholder="Your chosen name"
-                                    />
-                                    {fieldErrors.displayName ? (
-                                        <span id="display-name-error" className="sr-only">
-                                            {fieldErrors.displayName}
-                                        </span>
-                                    ) : null}
-                                </FieldSurface>
-
-                                <FieldSurface
-                                    icon={AtSign}
-                                    label="Username"
-                                    htmlFor="username"
-                                    hint="Lowercase letters, numbers, and underscores only."
-                                    error={fieldErrors.username}
-                                    counter={`${username.length}/${usernameLimit}`}
-                                >
-                                    <input
-                                        id="username"
-                                        type="text"
-                                        value={username}
-                                        maxLength={usernameLimit}
-                                        autoCapitalize="none"
-                                        autoCorrect="off"
-                                        spellCheck={false}
-                                        aria-invalid={Boolean(fieldErrors.username)}
-                                        aria-describedby={fieldErrors.username ? 'username-error' : undefined}
-                                        onChange={(event) => {
-                                            setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
-                                            clearFieldError('username');
-                                        }}
-                                        onBlur={() => {
-                                            const nextError = getUsernameError(username);
-                                            setFieldErrors((prev) => ({ ...prev, username: nextError }));
-                                        }}
-                                        className="w-full bg-transparent font-mono text-[0.95rem] uppercase tracking-[0.16em] text-claude-text outline-none placeholder:text-claude-secondary/35"
-                                        placeholder="forest_keeper"
-                                    />
-                                    {fieldErrors.username ? (
-                                        <span id="username-error" className="sr-only">
-                                            {fieldErrors.username}
-                                        </span>
-                                    ) : null}
-                                </FieldSurface>
-
-                                <FieldSurface
-                                    icon={Mail}
-                                    label="Email"
-                                    hint="Your account email stays private and is read-only here."
-                                    className="lg:col-span-2"
-                                >
-                                    <div className="font-display text-[1rem] leading-relaxed tracking-[0.01em] text-claude-text break-all">
-                                        {user.email}
-                                    </div>
-                                </FieldSurface>
-                            </div>
-                        </section>
-
-                        <section className="gsap-edit-item relative overflow-hidden rounded-[1.75rem] p-4 shadow-sm glass-panel-premium sm:rounded-[2rem] sm:p-5 lg:p-6">
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/5 to-transparent" />
-
-                            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent/80">
-                                        Journal Note
-                                    </p>
-                                    <h2 className="mt-1 font-display text-xl font-semibold italic tracking-tight text-claude-text sm:text-2xl">
-                                        Bio
-                                    </h2>
-                                    <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
-                                        One short line is enough. Specific beats generic.
-                                    </p>
-                                </div>
-                                <StatusBadge tone="default">Optional</StatusBadge>
-                            </div>
-
-                            <div className="relative mt-4 overflow-hidden rounded-[1.35rem] border border-white/10 bg-claude-bg/55 px-3.5 py-3.5 backdrop-blur-sm sm:mt-5 sm:rounded-[1.75rem] sm:px-4 sm:py-4">
-                                <div
-                                    className="pointer-events-none absolute inset-0 opacity-40 md:mix-blend-multiply"
-                                    style={{
-                                        backgroundImage: 'linear-gradient(transparent 39px, rgba(143, 166, 168, 0.28) 40px)',
-                                        backgroundSize: '100% 40px',
-                                        marginTop: '4px',
-                                    }}
-                                />
-
-                                <textarea
-                                    id="bio"
-                                    value={bio}
-                                    maxLength={bioLimit}
-                                    rows={5}
-                                    onChange={(event) => setBio(event.target.value)}
-                                    placeholder="A line about what you are studying, building, or chasing."
-                                    className="relative z-10 min-h-[160px] w-full resize-none bg-transparent font-serif text-[17px] leading-[40px] text-claude-text outline-none placeholder:text-claude-secondary/35 sm:min-h-[180px] sm:text-[18px]"
-                                    style={{ lineHeight: '40px' }}
-                                />
-                            </div>
-
-                            <div className="mt-3 flex flex-col gap-2.5 sm:mt-4 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-[10px] font-mono leading-relaxed text-claude-secondary/75 sm:text-[11px]">
-                                    Think of this like the first sentence in a journal entry. It should sound like you.
+                    <section className="gsap-edit-item rounded-[1.75rem] border border-white/[0.08] p-4 shadow-sm glass-panel glass-shell sm:rounded-[2rem] sm:p-5 lg:p-6">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-secondary/70">
+                                    Identity
                                 </p>
-
-                                <div className="flex items-center gap-2">
-                                    <StatusBadge tone={trimmedBio ? 'success' : 'default'}>
-                                        {trimmedBio ? 'Preview ready' : 'Optional'}
-                                    </StatusBadge>
-                                    <span className={`text-[11px] font-mono ${bio.length >= bioLimit - 20 ? 'text-amber-300' : 'text-claude-secondary/70'}`}>
-                                        {bio.length}/{bioLimit}
-                                    </span>
-                                </div>
+                                <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-claude-text sm:text-2xl">
+                                    Core profile details
+                                </h2>
+                                <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
+                                    These appear across profile headers, messages, search, and shared content.
+                                </p>
                             </div>
-                        </section>
-                    </div>
+                            <StatusBadge tone="default">Public</StatusBadge>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 lg:grid-cols-2">
+                            <FieldSurface
+                                icon={User}
+                                label="Display Name"
+                                htmlFor="display-name"
+                                hint="Use the name you want people to recognize immediately."
+                                error={fieldErrors.displayName}
+                                counter={`${displayName.length}/${displayNameLimit}`}
+                            >
+                                <input
+                                    id="display-name"
+                                    type="text"
+                                    value={displayName}
+                                    maxLength={displayNameLimit}
+                                    autoComplete="name"
+                                    aria-invalid={Boolean(fieldErrors.displayName)}
+                                    aria-describedby={fieldErrors.displayName ? 'display-name-error' : undefined}
+                                    onChange={(event) => {
+                                        setDisplayName(event.target.value);
+                                        clearFieldError('displayName');
+                                    }}
+                                    onBlur={() => {
+                                        const nextError = getDisplayNameError(displayName);
+                                        setFieldErrors((prev) => ({ ...prev, displayName: nextError }));
+                                    }}
+                                    className="w-full bg-transparent font-display text-[1.15rem] leading-tight tracking-[0.01em] text-claude-text outline-none placeholder:text-claude-secondary/35"
+                                    placeholder="Your chosen name"
+                                />
+                                {fieldErrors.displayName ? (
+                                    <span id="display-name-error" className="sr-only">
+                                        {fieldErrors.displayName}
+                                    </span>
+                                ) : null}
+                            </FieldSurface>
+
+                            <FieldSurface
+                                icon={AtSign}
+                                label="Username"
+                                htmlFor="username"
+                                hint="Lowercase letters, numbers, and underscores only."
+                                error={fieldErrors.username}
+                                counter={`${username.length}/${usernameLimit}`}
+                            >
+                                <input
+                                    id="username"
+                                    type="text"
+                                    value={username}
+                                    maxLength={usernameLimit}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    aria-invalid={Boolean(fieldErrors.username)}
+                                    aria-describedby={fieldErrors.username ? 'username-error' : undefined}
+                                    onChange={(event) => {
+                                        setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+                                        clearFieldError('username');
+                                    }}
+                                    onBlur={() => {
+                                        const nextError = getUsernameError(username);
+                                        setFieldErrors((prev) => ({ ...prev, username: nextError }));
+                                    }}
+                                    className="w-full bg-transparent font-mono text-[0.95rem] uppercase tracking-[0.16em] text-claude-text outline-none placeholder:text-claude-secondary/35"
+                                    placeholder="forest_keeper"
+                                />
+                                {fieldErrors.username ? (
+                                    <span id="username-error" className="sr-only">
+                                        {fieldErrors.username}
+                                    </span>
+                                ) : null}
+                            </FieldSurface>
+
+                            <FieldSurface
+                                icon={Mail}
+                                label="Email"
+                                hint="Your account email stays private and is read-only here."
+                                className="lg:col-span-2"
+                            >
+                                <div className="font-display text-[1rem] leading-relaxed tracking-[0.01em] text-claude-text break-all">
+                                    {user.email}
+                                </div>
+                            </FieldSurface>
+                        </div>
+                    </section>
+
+                    <section className="gsap-edit-item relative overflow-hidden rounded-[1.75rem] p-4 shadow-sm glass-panel-premium sm:rounded-[2rem] sm:p-5 lg:p-6">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/5 to-transparent" />
+
+                        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent/80">
+                                    Journal Note
+                                </p>
+                                <h2 className="mt-1 font-display text-xl font-semibold italic tracking-tight text-claude-text sm:text-2xl">
+                                    Bio
+                                </h2>
+                                <p className="mt-1 text-[11px] font-mono text-claude-secondary/70">
+                                    One short line is enough. Specific beats generic.
+                                </p>
+                            </div>
+                            <StatusBadge tone="default">Optional</StatusBadge>
+                        </div>
+
+                        <div className="relative mt-4 overflow-hidden rounded-[1.35rem] border border-white/10 bg-claude-bg/55 px-3.5 py-3.5 backdrop-blur-sm sm:mt-5 sm:rounded-[1.75rem] sm:px-4 sm:py-4">
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-40 md:mix-blend-multiply"
+                                style={{
+                                    backgroundImage: 'linear-gradient(transparent 39px, rgba(143, 166, 168, 0.28) 40px)',
+                                    backgroundSize: '100% 40px',
+                                    marginTop: '4px',
+                                }}
+                            />
+
+                            <textarea
+                                id="bio"
+                                value={bio}
+                                maxLength={bioLimit}
+                                rows={5}
+                                onChange={(event) => setBio(event.target.value)}
+                                placeholder="A line about what you are studying, building, or chasing."
+                                className="relative z-10 min-h-[160px] w-full resize-none bg-transparent font-serif text-[17px] leading-[40px] text-claude-text outline-none placeholder:text-claude-secondary/35 sm:min-h-[180px] sm:text-[18px]"
+                                style={{ lineHeight: '40px' }}
+                            />
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-2.5 sm:mt-4 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-[10px] font-mono leading-relaxed text-claude-secondary/75 sm:text-[11px]">
+                                Think of this like the first sentence in a journal entry. It should sound like you.
+                            </p>
+
+                            <div className="flex items-center gap-2">
+                                <StatusBadge tone={trimmedBio ? 'success' : 'default'}>
+                                    {trimmedBio ? 'Preview ready' : 'Optional'}
+                                </StatusBadge>
+                                <span className={`text-[11px] font-mono ${bio.length >= bioLimit - 20 ? 'text-amber-300' : 'text-claude-secondary/70'}`}>
+                                    {bio.length}/{bioLimit}
+                                </span>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
 

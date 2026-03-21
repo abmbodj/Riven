@@ -99,10 +99,17 @@ describe('EditProfile', () => {
         renderEditProfile();
 
         expect(screen.getByRole('heading', { name: 'Edit Profile' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: 'What people see' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Core profile details' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Bio' })).toBeInTheDocument();
         expect(screen.getByText('Profile Studio')).toBeInTheDocument();
+        expect(screen.queryByText('Live Card')).not.toBeInTheDocument();
+        expect(screen.queryByText('Publishing Notes')).not.toBeInTheDocument();
+
+        const avatarButton = screen.getByRole('button', { name: 'Change avatar' });
+        const bannerButton = screen.getByRole('button', { name: 'Change banner' });
+
+        expect(within(avatarButton).getByText('Avatar')).toBeInTheDocument();
+        expect(within(bannerButton).getByText('Banner')).toBeInTheDocument();
     });
 
     it('renders a dedicated mobile save bar', () => {
