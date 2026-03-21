@@ -1,0 +1,320 @@
+{
+  "object" : {
+    "artifacts" : [
+      {
+        "kind" : {
+          "xcframework" : {
+
+          }
+        },
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "path" : "/Users/ab/Desktop/Riven/Riven/.xcodebuild-deriveddata/SourcePackages/artifacts/capacitor-swift-pm/Cordova/Cordova.xcframework",
+        "source" : {
+          "checksum" : "30f5469c851b7b94a222a9a86e3a35867d6bfd6b2589842ff8a1eea7cf018167",
+          "type" : "remote",
+          "url" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/7.6.0/Cordova.xcframework.zip"
+        },
+        "targetName" : "Cordova"
+      },
+      {
+        "kind" : {
+          "xcframework" : {
+
+          }
+        },
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "path" : "/Users/ab/Desktop/Riven/Riven/.xcodebuild-deriveddata/SourcePackages/artifacts/capacitor-swift-pm/Capacitor/Capacitor.xcframework",
+        "source" : {
+          "checksum" : "275153ed447b4133784decaf91e096d02904c116839d93525254e6a7497b3144",
+          "type" : "remote",
+          "url" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/7.6.0/Capacitor.xcframework.zip"
+        },
+        "targetName" : "Capacitor"
+      }
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "app",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capacitor/app",
+          "name" : "app"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capacitor/app"
+        },
+        "subpath" : "app"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "app-check",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/app-check.git",
+          "name" : "app-check"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "61b85103a1aeed8218f17c794687781505fbbef5",
+            "version" : "11.2.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "app-check"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "appauth-ios",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/openid/AppAuth-iOS.git",
+          "name" : "AppAuth-iOS"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "2781038865a80e2c425a1da12cc1327bcd56501f",
+            "version" : "1.7.6"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "AppAuth-iOS"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capacitor-google-sign-in",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capawesome/capacitor-google-sign-in",
+          "name" : "capacitor-google-sign-in"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capawesome/capacitor-google-sign-in"
+        },
+        "subpath" : "capacitor-google-sign-in"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capacitor-live-activity",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/capacitor-live-activity",
+          "name" : "capacitor-live-activity"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/capacitor-live-activity"
+        },
+        "subpath" : "capacitor-live-activity"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "state" : {
+          "checkoutState" : {
+            "branch" : "main",
+            "revision" : "de1d86e8b7a9b3ddfd19d6304aa3850023536505"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "capacitor-swift-pm"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capacitor-voice-recorder",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/capacitor-voice-recorder",
+          "name" : "capacitor-voice-recorder"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/capacitor-voice-recorder"
+        },
+        "subpath" : "capacitor-voice-recorder"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capapp-spm",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/ios/App/CapApp-SPM",
+          "name" : "CapApp-SPM"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/ios/App/CapApp-SPM"
+        },
+        "subpath" : "capapp-spm"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "googlesignin-ios",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/GoogleSignIn-iOS",
+          "name" : "GoogleSignIn-iOS"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "65fb3f1aa6ffbfdc79c4e22178a55cd91561f5e9",
+            "version" : "8.0.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "GoogleSignIn-iOS"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "googleutilities",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/GoogleUtilities.git",
+          "name" : "GoogleUtilities"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "60da361632d0de02786f709bdc0c4df340f7613e",
+            "version" : "8.1.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "GoogleUtilities"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "gtm-session-fetcher",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/gtm-session-fetcher.git",
+          "name" : "gtm-session-fetcher"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "a2ab612cb980066ee56d90d60d8462992c07f24b",
+            "version" : "3.5.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "gtm-session-fetcher"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "gtmappauth",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/GTMAppAuth.git",
+          "name" : "GTMAppAuth"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "5d7d66f647400952b1758b230e019b07c0b4b22a",
+            "version" : "4.1.1"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "GTMAppAuth"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "local-notifications",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capacitor/local-notifications",
+          "name" : "local-notifications"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@capacitor/local-notifications"
+        },
+        "subpath" : "local-notifications"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "promises",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/google/promises.git",
+          "name" : "promises"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "540318ecedd63d883069ae7f1ed811a2df00b6ac",
+            "version" : "2.4.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "promises"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "purchases-capacitor",
+          "kind" : "fileSystem",
+          "location" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@revenuecat/purchases-capacitor",
+          "name" : "purchases-capacitor"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ab/Desktop/Riven/Riven/client/node_modules/@revenuecat/purchases-capacitor"
+        },
+        "subpath" : "purchases-capacitor"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "purchases-hybrid-common",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/RevenueCat/purchases-hybrid-common.git",
+          "name" : "purchases-hybrid-common"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "95a919f1d2d64b7495a5b2fa967d14d1e87a7e0d",
+            "version" : "17.52.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "purchases-hybrid-common"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "purchases-ios-spm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/RevenueCat/purchases-ios-spm",
+          "name" : "purchases-ios-spm"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "2913a336eb37dc06795cdbaa5b5de330b6707669",
+            "version" : "5.65.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "purchases-ios-spm"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

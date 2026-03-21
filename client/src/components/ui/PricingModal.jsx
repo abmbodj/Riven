@@ -274,10 +274,10 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         } else {
                             const localId = result?.customerInfo?.appUserId;
                             const origId = result?.customerInfo?.originalAppUserId;
-                            alert(`DEBUG - Sync Failed!\nLocal IDs: [current: ${localId}, orig: ${origId}]\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
+                            console.error(`DEBUG - Sync Failed!\\nLocal IDs: [current: ${localId}, orig: ${origId}]\\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
                         }
                     } catch (syncErr) {
-                         alert('DEBUG - Edge function failed entirely! ' + syncErr.message + '\nFull error: ' + JSON.stringify(syncErr, null, 2));
+                         console.error('DEBUG - Edge function failed entirely! ' + syncErr.message + '\\nFull error: ' + JSON.stringify(syncErr, null, 2));
                          console.warn('[PricingModal] Manual sync failed, falling back to polling webhook', syncErr);
                     }
                     

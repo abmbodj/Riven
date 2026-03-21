@@ -733,10 +733,10 @@ export default function Settings() {
                                                                 } else {
                                                                     const localId = result?.customerInfo?.appUserId;
                                                                     const origId = result?.customerInfo?.originalAppUserId;
-                                                                    alert(`DEBUG - Sync Failed!\nLocal IDs: [current: ${localId}, orig: ${origId}]\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
+                                                                    console.error(`DEBUG - Sync Failed!\\nLocal IDs: [current: ${localId}, orig: ${origId}]\\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
                                                                 }
                                                             } catch (syncErr) {
-                                                                alert('DEBUG (Settings) Edge function failed! ' + syncErr.message + '\nFull: ' + JSON.stringify(syncErr, null, 2));
+                                                                console.error('DEBUG (Settings) Edge function failed! ' + syncErr.message + '\\nFull: ' + JSON.stringify(syncErr, null, 2));
                                                                 console.warn('[Settings] Manual sync failed, falling back to polling webhook', syncErr);
                                                             }
                                                             

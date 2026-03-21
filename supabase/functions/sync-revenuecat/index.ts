@@ -47,12 +47,26 @@ serve(async (request: Request) => {
         console.warn('[sync-revenuecat] WARNING: Using a Public API Key (appl_) for REST API. RevenueCat will likely return empty entitlements. A Secret API Key (sk_) is required.');
     }
 
-    const body = await request.json().catch(() => ({}));
-    const rcAppUserIdOverride = body.rcAppUserIdOverride;
+    const rawBody = await request.text().catch(() => '');
+    console.log('[sync-revenuecat] Raw request body:', rawBody);
     
-    // 3. Request user's entitlements from RevenueCat REST API
-    // Try the override first (if the client provides originalAppUserId), then fallback to Supabase UUID
+    let body: any = {};
+    try {
+        body = JSON.parse(rawBody);
+        // If it was double-stringified, parse it again
+        if (typeof body === 'string') {
+            body = JSON.parse(body);
+        }
+    } catch (e: any) {
+        console.warn('[sync-revenuecat] Failed to parse body as JSON:', e.message);
+    }
+
+    const rcAppUserIdOverride = body.rcAppUserIdOverride;
+
+    // 3. Determine the RevenueCat ID to check
+    // Preference: 1. Request body override, 2. Supabase User UUID
     const rcAppUserId = rcAppUserIdOverride || user.id;
+    console.log(`[sync-revenuecat] Final check target ID: ${rcAppUserId} (Override provided: ${!!rcAppUserIdOverride})`);
 
     console.log(`[sync-revenuecat] Fetching entitlements for: ${rcAppUserId}`);
     const response = await fetch(`https://api.revenuecat.com/v1/subscribers/${rcAppUserId}`, {
