@@ -720,13 +720,23 @@ export default function Settings() {
                                                         
                                                         if (hasActiveEntitlement) {
                                                             try {
-                                                                const syncResult = await api.syncRevenueCat();
+                                                                const syncResult = await api.syncRevenueCat({
+                                                                    rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
+                                                                });
                                                                 if (syncResult && syncResult.subscription_tier !== 'free') {
-                                                                    const u = await refreshUser();
-                                                                    toast.success(startToastId, `Welcome back, ${syncResult.subscription_tier}!`);
+                                                                    setSuccess(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
+                                                                    closeTimerRef.current = setTimeout(() => {
+                                                                        setSuccess(null);
+                                                                        refreshUser();
+                                                                    }, 1800);
                                                                     return;
+                                                                } else {
+                                                                    const localId = result?.customerInfo?.appUserId;
+                                                                    const origId = result?.customerInfo?.originalAppUserId;
+                                                                    alert(`DEBUG - Sync Failed!\nLocal IDs: [current: ${localId}, orig: ${origId}]\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
                                                                 }
                                                             } catch (syncErr) {
+                                                                alert('DEBUG (Settings) Edge function failed! ' + syncErr.message + '\nFull: ' + JSON.stringify(syncErr, null, 2));
                                                                 console.warn('[Settings] Manual sync failed, falling back to polling webhook', syncErr);
                                                             }
                                                             

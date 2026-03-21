@@ -13,6 +13,7 @@ import {
     Zap,
 } from 'lucide-react';
 import { createCheckoutSessionUrl } from '../../api/stripe';
+import { api } from '../../api';
 import { useAuth } from '../../hooks/useAuth';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import useRevenueCat from '../../hooks/useRevenueCat';
@@ -184,6 +185,15 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                 if (result) {
                     setSuccess('Processing your purchase...');
                     
+                    try {
+                        const syncResult = await api.syncRevenueCat({
+                            rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
+                        });
+                        if (syncResult && syncResult.subscription_tier !== 'free') {
+                            await refreshUser();
+                        }
+                    } catch (e) {}
+
                     // Poll up to 6 times (12 seconds) for the RevenueCat webhook to sync to Supabase
                     let attempts = 0;
                     while (attempts < 6) {
@@ -253,14 +263,21 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                     setSuccess('Restoring... waiting for server sync...');
                     
                     try {
-                        const syncResult = await api.syncRevenueCat();
+                        const syncResult = await api.syncRevenueCat({
+                            rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
+                        });
                         if (syncResult && syncResult.subscription_tier !== 'free') {
                             setSuccess(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
                             closeTimerRef.current = setTimeout(onClose, 1800);
                             await refreshUser();
                             return;
+                        } else {
+                            const localId = result?.customerInfo?.appUserId;
+                            const origId = result?.customerInfo?.originalAppUserId;
+                            alert(`DEBUG - Sync Failed!\nLocal IDs: [current: ${localId}, orig: ${origId}]\nEdge Payload: ${JSON.stringify(syncResult, null, 2)}`);
                         }
                     } catch (syncErr) {
+                         alert('DEBUG - Edge function failed entirely! ' + syncErr.message + '\nFull error: ' + JSON.stringify(syncErr, null, 2));
                          console.warn('[PricingModal] Manual sync failed, falling back to polling webhook', syncErr);
                     }
                     

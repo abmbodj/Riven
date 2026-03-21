@@ -2945,7 +2945,7 @@ export const updateOnboardingProgress = async ({ nextStep, markComplete } = {}) 
     return mapOwnUserRow(data);
 };
 
-export const syncRevenueCat = () => edgeFunctionFetch('sync-revenuecat', { method: 'POST' });
+export const syncRevenueCat = (overrides = {}) => edgeFunctionFetch('sync-revenuecat', { method: 'POST', body: JSON.stringify(overrides) });
 
 export const updateProfile = async (updates = {}) => {
     const nextUpdates = {};

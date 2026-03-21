@@ -1,0 +1,1 @@
+import{b as r}from"./vendor-react-BVS8lU-k.js";import{v as t}from"./index-BbKjuckT.js";function e(){const e=r.useContext(t);if(!e)throw new Error("useStreakContext must be used within a StreakProvider");return e}export{e as u};

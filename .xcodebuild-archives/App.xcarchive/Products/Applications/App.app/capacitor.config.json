@@ -1,0 +1,23 @@
+{
+	"appId": "com.riven.app",
+	"appName": "Riven",
+	"webDir": "dist",
+	"server": {
+		"cleartext": true,
+		"allowNavigation": [
+			"localhost",
+			"192.168.*.*",
+			"*.challenges.cloudflare.com",
+			"challenges.cloudflare.com",
+			"*.cloudflare.com"
+		]
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"LocalNotificationsPlugin",
+		"GoogleSignInPlugin",
+		"PurchasesPlugin",
+		"LiveActivityPlugin",
+		"VoiceRecorder"
+	]
+}

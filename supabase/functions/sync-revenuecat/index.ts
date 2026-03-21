@@ -34,16 +34,25 @@ serve(async (request: Request) => {
       return jsonResponse({ error: 'Unauthorized' }, { status: 401 }, request);
     }
 
-    // 2. Fetch the RC iOS API Key from env
-    const rcApiKey = Deno.env.get('VITE_RC_IOS_API_KEY') || Deno.env.get('RC_IOS_API_KEY');
+    // 2. Fetch the RC Secret API Key from env (Fallback to Public key but it won't work for REST API)
+    const rcSecretKey = Deno.env.get('RC_SECRET_KEY');
+    const rcApiKey = rcSecretKey || Deno.env.get('VITE_RC_IOS_API_KEY') || Deno.env.get('RC_IOS_API_KEY');
+    
     if (!rcApiKey) {
       console.error('[sync-revenuecat] API key missing in environment secrets');
       return jsonResponse({ error: 'RevenueCat is not configured on the server' }, { status: 503 }, request);
     }
+    
+    if (rcApiKey.startsWith('appl_')) {
+        console.warn('[sync-revenuecat] WARNING: Using a Public API Key (appl_) for REST API. RevenueCat will likely return empty entitlements. A Secret API Key (sk_) is required.');
+    }
 
+    const body = await request.json().catch(() => ({}));
+    const rcAppUserIdOverride = body.rcAppUserIdOverride;
+    
     // 3. Request user's entitlements from RevenueCat REST API
-    // App User ID is the Supabase Auth UUID
-    const rcAppUserId = user.id;
+    // Try the override first (if the client provides originalAppUserId), then fallback to Supabase UUID
+    const rcAppUserId = rcAppUserIdOverride || user.id;
 
     console.log(`[sync-revenuecat] Fetching entitlements for: ${rcAppUserId}`);
     const response = await fetch(`https://api.revenuecat.com/v1/subscribers/${rcAppUserId}`, {
@@ -51,16 +60,21 @@ serve(async (request: Request) => {
       headers: {
         'Authorization': `Bearer ${rcApiKey}`,
         'Accept': 'application/json',
-        'X-Platform': 'ios'
-      } // Deno fetch
+        'X-Is-Sandbox': 'true'
+      }
     });
 
+    const data = await response.json().catch(() => ({}));
+    console.log(`[sync-revenuecat] RevenueCat REST response (${response.status}):`, JSON.stringify(data));
+    
     if (!response.ok) {
-      console.error(`[sync-revenuecat] RevenueCat API error: ${response.status}`);
-      return jsonResponse({ error: 'Failed to verify subscription with RevenueCat' }, { status: 502 }, request);
+      console.error(`[sync-revenuecat] RevenueCat API error: ${response.status}`, data);
+      return jsonResponse({ 
+        error: `RevenueCat API rejected request with status ${response.status}.`,
+        details: data,
+        rcAppUserId
+      }, { status: 502 }, request);
     }
-
-    const data = await response.json();
     const entitlements = data?.subscriber?.entitlements || {};
 
     let newTier = 'free';
@@ -77,7 +91,7 @@ serve(async (request: Request) => {
       }
     }
 
-    // 4. Update the user in the database using admin privileges (since RLS blocks them)
+    // 4. Update the user in the database using admin privileges
     const admin = getSupabaseAdmin();
     const { error: updateError } = await admin
       .from('users')
@@ -85,11 +99,16 @@ serve(async (request: Request) => {
       .eq('supabase_auth_id', user.id);
 
     if (updateError) {
-      throw updateError;
+        return jsonResponse({ error: 'Failed to update database', details: updateError }, { status: 500 }, request);
     }
 
+    // 5. Success! Return the detailed diagnostic information
     console.log(`[sync-revenuecat] Successfully synced ${user.id} to ${newTier}`);
-    return jsonResponse({ message: 'Subscription synchronized', subscription_tier: newTier }, {}, request);
+    return jsonResponse({ 
+        subscription_tier: newTier,
+        debug_entitlements: entitlements,
+        debug_rcAppUserId: rcAppUserId
+    }, { status: 200 }, request);
 
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
