@@ -1,3 +1,9 @@
+import {
+  STUDY_GUIDE_FORMAT_VERSION,
+  createDefaultStudyGuideState,
+  normalizeStudyGuideData,
+} from './studyGuideCore.mjs';
+
 const SHARED_RESOURCE_TYPES = new Set(['deck', 'note', 'guide']);
 
 const createHttpError = (message, status) => {
@@ -182,9 +188,15 @@ const acceptGuideResource = async ({
     throw createHttpError('Original guide no longer exists', 404);
   }
 
+  const normalizedGuideData = normalizeStudyGuideData(originalGuide.guide_data);
+  const formatVersion = normalizedGuideData ? STUDY_GUIDE_FORMAT_VERSION : 1;
+
   const newGuide = await createGuide(receiverId, {
     title: originalGuide.title,
     content: originalGuide.content ?? {},
+    format_version: formatVersion,
+    guide_data: normalizedGuideData,
+    study_state: normalizedGuideData ? createDefaultStudyGuideState(normalizedGuideData) : {},
     note_id: null,
     class_id: null,
   });

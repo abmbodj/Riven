@@ -473,6 +473,46 @@ if (global.__TEST_DB_MOCK__) {
                 )
             `);
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS feedback_submissions (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    content TEXT NOT NULL,
+                    is_favorited BOOLEAN DEFAULT FALSE,
+                    considering_notified_at TIMESTAMP,
+                    considering_notified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_notifications (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    metadata JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dismissed_at TIMESTAMP
+                )
+            `);
+
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_feedback_submissions_created_at
+                ON feedback_submissions (created_at DESC)
+            `).catch(() => { });
+
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_feedback_submissions_favorited_created_at
+                ON feedback_submissions (is_favorited, created_at DESC)
+            `).catch(() => { });
+
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created_at
+                ON user_notifications (user_id, created_at DESC)
+            `).catch(() => { });
+
             // Friendships table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS friendships (

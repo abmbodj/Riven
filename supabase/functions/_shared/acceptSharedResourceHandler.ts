@@ -28,6 +28,9 @@ type SharedNoteRecord = {
 type SharedGuideRecord = {
   id: string;
   title: string;
+  format_version: number | null;
+  guide_data: Record<string, unknown> | null;
+  study_state: Record<string, unknown> | null;
   content: Record<string, unknown> | null;
 };
 
@@ -43,6 +46,9 @@ type NewNotePayload = {
 
 type NewGuidePayload = {
   title: string;
+  format_version: number;
+  guide_data: Record<string, unknown> | null;
+  study_state: Record<string, unknown>;
   content: Record<string, unknown> | null;
   note_id: null;
   class_id: null;
@@ -190,7 +196,7 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
       loadGuide: async (guideId: string) => {
         const { data, error } = await admin
           .from('study_guides')
-          .select('id, title, content')
+          .select('id, title, format_version, guide_data, study_state, content')
           .eq('id', guideId)
           .maybeSingle();
 
@@ -203,6 +209,9 @@ export const handleAcceptSharedResourceRequest = async (request: Request) => {
           .insert({
             user_id: userId,
             title: guide.title,
+            format_version: guide.format_version,
+            guide_data: guide.guide_data,
+            study_state: guide.study_state,
             content: guide.content || {},
             note_id: null,
             class_id: null,

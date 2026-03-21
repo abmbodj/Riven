@@ -1,4 +1,10 @@
 import { Buffer } from 'node:buffer';
+import {
+  STUDY_GUIDE_FORMAT_VERSION,
+  buildStudyGuideSummaryDoc,
+  createDefaultStudyGuideState,
+  normalizeStudyGuideData,
+} from './studyGuideCore.mjs';
 
 const FREE_LIMIT = 10;
 const PREMIUM_LIMIT = 50;
@@ -337,16 +343,30 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const TIPTAP_FORMAT = `Output ONLY valid JSON: { "type": "doc", "content": [...] }. No markdown/backticks outside JSON.
-Node types: heading (attrs.level 1-3), paragraph, bulletList→listItem→paragraph, orderedList→listItem→paragraph, blockquote→paragraph, horizontalRule.
-Text marks: { "type": "text", "marks": [{ "type": "bold" }], "text": "..." } (also: italic, code).`;
-
-const buildGuidePrompt = (className) => `You are an expert tutor creating a comprehensive study guide as a Tiptap JSON document.
+const buildGuidePrompt = (className) => `You are an expert tutor creating an active-recall study workbook.
 
 ${buildSubjectContext(className)}
 
-${TIPTAP_FORMAT}
-Be thorough. Bold key terms first use. Blockquotes for definitions/theorems. End sections with takeaway.`;
+Output ONLY a valid JSON object. No markdown, backticks, or text outside the object.
+Required structure:
+{
+  "overview": "1-3 sentence overview",
+  "sections": [
+    {
+      "id": "optional-short-slug",
+      "title": "Section title",
+      "recall_prompt": "Prompt that forces the student to answer before revealing the guide",
+      "answer_points": ["3-6 concise correct points"],
+      "key_terms": ["important terms or formulas"],
+      "mini_quiz": [
+        { "prompt": "short checkpoint question", "answer": "short answer" }
+      ],
+      "common_traps": ["common misconception or mistake"]
+    }
+  ]
+}
+Build an active-recall workbook, not passive notes.
+Create 4-8 sections when possible. Keep answer_points concrete and exam-useful.`;
 
 export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
   const contents = [{ text: buildGuidePrompt(className) }];
@@ -409,14 +429,18 @@ export const generateStudyGuideFromAi = async ({
     contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
   });
 
-  const guideContent = parseAiJsonResponse(
+  const guidePayload = parseAiJsonResponse(
     rawResponse,
     'AI generated invalid study guide format. Please try again.',
   );
 
-  if (!guideContent || typeof guideContent !== 'object' || guideContent.type !== 'doc') {
+  const guideData = normalizeStudyGuideData(guidePayload);
+  if (!guideData) {
     throw createHttpError('AI failed to generate a valid study guide.', 500);
   }
+
+  const guideContent = buildStudyGuideSummaryDoc(guideData);
+  const studyState = createDefaultStudyGuideState(guideData);
 
   const finalTitle = title || 'AI Study Guide';
   let createdGuide = null;
@@ -425,6 +449,9 @@ export const generateStudyGuideFromAi = async ({
     createdGuide = await createGuide({
       userId,
       title: finalTitle,
+      formatVersion: STUDY_GUIDE_FORMAT_VERSION,
+      guideData,
+      studyState,
       content: guideContent,
       noteId: noteId || null,
       classId: classId || null,

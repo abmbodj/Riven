@@ -913,7 +913,7 @@ function DashboardHome() {
                                 const associatedClass = classesById.get(item.class_id);
                                 const isFlashcard = item._type === 'flashcard';
                                 const TypeIcon = isFlashcard ? Layers : item._type === 'note' ? BookOpen : item._type === 'guide' ? Sparkles : CheckCircle2;
-                                const typeLabel = isFlashcard ? `${item.cardCount || 0} Cards` : item._type === 'note' ? 'Note' : item._type === 'guide' ? 'Study Guide' : 'Mock Exam';
+                                const typeLabel = isFlashcard ? `${item.cardCount || 0} Cards` : item._type === 'note' ? 'Note' : item._type === 'guide' ? 'Recall Guide' : 'Mock Exam';
                                 const HoverIcon = isFlashcard ? Play : ArrowRight;
 
                                 return (

@@ -20,6 +20,12 @@ import {
   waitForJobCompletion,
   waitForYoutubeSlot,
 } from './aiJobs.ts';
+import {
+  STUDY_GUIDE_FORMAT_VERSION,
+  buildStudyGuideSummaryDoc,
+  createDefaultStudyGuideState,
+  normalizeStudyGuideData,
+} from './studyGuideCore.mjs';
 
 type JobProcessorArgs = {
   admin: any;
@@ -346,12 +352,18 @@ const createGuide = async ({
   userId,
   title,
   classId,
+  formatVersion,
+  guideData,
+  studyState,
   content,
 }: {
   admin: any;
   userId: number;
   title: string;
   classId: string | null | undefined;
+  formatVersion: number;
+  guideData: Record<string, unknown>;
+  studyState: Record<string, unknown>;
   content: unknown;
 }) => {
   const { data, error } = await admin
@@ -359,6 +371,9 @@ const createGuide = async ({
     .insert({
       user_id: userId,
       title,
+      format_version: formatVersion,
+      guide_data: guideData,
+      study_state: studyState,
       content,
       note_id: null,
       class_id: classId || null,
@@ -894,34 +909,64 @@ const processYoutubeDerivedJob = async ({
     return;
   }
 
-  const guideResult = await streamDocPreview({
+  const guideMessages = contentsToMessages(buildGuideContents({
+    processedNotes: sourceText,
+    hasProcessedNotes: true,
+    keepFile: false,
+    file: null,
+    className,
+  }));
+
+  const streamResponse = await streamWithFallback({
     ai,
-    model: modelMap.final,
+    primaryModel: modelMap.final,
     fallbackModel: modelMap.final,
-    messages: contentsToMessages(buildGuideContents({
-      processedNotes: sourceText,
-      hasProcessedNotes: true,
-      keepFile: false,
-      file: null,
-      className,
-    })),
-    reporter,
-    phase: 'drafting',
-    startPercent: 28,
-    endPercent: 76,
-    message: 'Generating study guide',
+    messages: guideMessages,
+    maxTokens: 6144,
   });
 
-  if (guideResult.firstPreviewAt != null) {
-    firstPreviewAt = guideResult.firstPreviewAt;
+  let fullGuideText = '';
+  let guideChunkCount = 0;
+  for await (const chunk of streamResponse) {
+    const text = chunk.text ?? '';
+    if (!text) continue;
+
+    fullGuideText += text;
+    guideChunkCount += 1;
+
+    if (firstPreviewAt == null) {
+      firstPreviewAt = Date.now();
+    }
+
+    await reporter.markStreaming(
+      'drafting',
+      Math.min(76, 28 + Math.min(guideChunkCount, 6) * 8),
+      'Generating study guide',
+      { preview_text: fullGuideText.slice(-240) },
+    );
   }
+
+  const guidePayload = parseAiJsonResponse(
+    fullGuideText,
+    'AI generated invalid study guide format. Please try again.',
+  );
+  const guideData = normalizeStudyGuideData(guidePayload);
+  if (!guideData) {
+    throw createHttpError('AI failed to generate a valid study guide.', 500);
+  }
+
+  const guideContent = buildStudyGuideSummaryDoc(guideData);
+  const studyState = createDefaultStudyGuideState(guideData);
 
   const guideId = await createGuide({
     admin,
     userId: job.user_id,
     title: effectiveTitle || 'YouTube Study Guide',
     classId,
-    content: guideResult.doc,
+    formatVersion: STUDY_GUIDE_FORMAT_VERSION,
+    guideData,
+    studyState,
+    content: guideContent,
   });
 
   await reporter.complete({
@@ -930,10 +975,10 @@ const processYoutubeDerivedJob = async ({
     targetId: guideId,
     resultPatch: {
       guide_id: guideId,
-      final_doc: guideResult.doc,
-      preview_doc: guideResult.doc,
-      preview_sections: Array.isArray((guideResult.doc as Record<string, unknown>).content)
-        ? (guideResult.doc as Record<string, unknown>).content
+      final_doc: guideContent,
+      preview_doc: guideContent,
+      preview_sections: Array.isArray((guideContent as Record<string, unknown>).content)
+        ? (guideContent as Record<string, unknown>).content
         : [],
       metrics: {
         server_total_ms: Date.now() - reporterStart,

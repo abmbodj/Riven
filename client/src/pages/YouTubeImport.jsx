@@ -29,7 +29,7 @@ const CONTENT_TYPES = [
     {
         id: 'guide',
         label: 'Study Guide',
-        description: 'Comprehensive guide',
+        description: 'Active-recall workbook',
         icon: BookOpen,
         color: '#f59e0b',
         jobKind: 'youtube_guide',

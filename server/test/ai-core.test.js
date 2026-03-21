@@ -4,6 +4,7 @@ import {
   consumeAiQuota,
   generateClassPreview,
   generateDeckFromAi,
+  generateStudyGuideFromAi,
   getAiLimitStatus,
 } from '../../supabase/functions/_shared/aiCore.mjs';
 
@@ -13,7 +14,7 @@ describe('aiCore', () => {
       user: {
         subscription_tier: 'free',
         ai_generations_count: 9,
-        last_ai_generation_reset: '2026-03-14T08:00:00.000Z',
+        last_ai_generation_reset: '2026-02-14T08:00:00.000Z',
         role: 'user',
         simulate_free_tier: false,
       },
@@ -37,7 +38,7 @@ describe('aiCore', () => {
       user: {
         subscription_tier: 'free',
         ai_generations_count: 7,
-        last_ai_generation_reset: '2026-03-14T07:00:00.000Z',
+        last_ai_generation_reset: '2026-02-14T07:00:00.000Z',
         role: 'user',
         simulate_free_tier: false,
       },
@@ -74,7 +75,7 @@ describe('aiCore', () => {
       apiKey: 'gemini-key',
       parseDocx: async () => '',
       generateContent: async ({ model, contents }) => {
-        expect(model).toBe('gemini-2.5-flash');
+        expect(model).toBe('llama-3.3-70b-versatile');
         expect(contents).toEqual(expect.arrayContaining([
           expect.objectContaining({ text: expect.stringContaining('Lecture Notes/Text Content:') }),
         ]));
@@ -100,7 +101,7 @@ describe('aiCore', () => {
     expect(createdDecks).toEqual([{
       userId: 9,
       title: 'Biology',
-      description: 'Auto-generated via Gemini AI',
+      description: 'Auto-generated via AI',
       classId: 'class-1',
     }]);
     expect(insertedCards).toEqual([{
@@ -132,5 +133,83 @@ describe('aiCore', () => {
         assignments: [],
       },
     });
+  });
+
+  it('generates active-recall guides with structured guide data and default study state', async () => {
+    const createdGuides = [];
+
+    const result = await generateStudyGuideFromAi({
+      notes: 'Explain glycolysis and ATP yield.',
+      file: null,
+      title: 'Bio Recall Workbook',
+      noteId: 'note-1',
+      classId: 'class-1',
+      className: 'Biology 101',
+      aiLimitsContext: { characterLimit: 15000 },
+      apiKey: 'groq-key',
+      parseDocx: async () => '',
+      generateContent: async ({ model, contents }) => {
+        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(contents).toEqual(expect.arrayContaining([
+          expect.objectContaining({ text: expect.stringContaining('active-recall study workbook') }),
+        ]));
+
+        return JSON.stringify({
+          overview: 'Use each section as a recall drill.',
+          sections: [
+            {
+              title: 'Glycolysis',
+              recall_prompt: 'Walk through glycolysis from memory.',
+              answer_points: ['Occurs in the cytoplasm.', 'Produces a net gain of 2 ATP.'],
+              key_terms: ['glucose', 'pyruvate'],
+              mini_quiz: [{ prompt: 'Net ATP?', answer: '2 ATP' }],
+              common_traps: ['Do not confuse gross ATP with net ATP.'],
+            },
+          ],
+        });
+      },
+      createGuide: async (payload) => {
+        createdGuides.push(payload);
+        return { id: 'guide-55' };
+      },
+      deleteGuide: async () => {},
+      userId: 9,
+    });
+
+    expect(result).toEqual({
+      message: 'Study guide generated successfully',
+      guide_id: 'guide-55',
+      title: 'Bio Recall Workbook',
+    });
+    expect(createdGuides).toEqual([expect.objectContaining({
+      userId: 9,
+      title: 'Bio Recall Workbook',
+      formatVersion: 2,
+      noteId: 'note-1',
+      classId: 'class-1',
+      guideData: expect.objectContaining({
+        overview: 'Use each section as a recall drill.',
+        sections: [expect.objectContaining({
+          id: 'glycolysis',
+          title: 'Glycolysis',
+        })],
+      }),
+      studyState: {
+        current_section_id: 'glycolysis',
+        section_states: {
+          glycolysis: {
+            revealed: false,
+            confidence: null,
+            completed: false,
+            note: '',
+          },
+        },
+        last_reviewed_at: null,
+      },
+      content: expect.objectContaining({
+        type: 'doc',
+        content: expect.any(Array),
+      }),
+    })]);
   });
 });

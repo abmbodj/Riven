@@ -56,6 +56,11 @@ export const messageContentSchema = z
     .min(1, 'Content is required')
     .max(1000, 'Content must be under 1000 characters');
 
+export const feedbackContentSchema = z
+    .string()
+    .min(1, 'Feedback cannot be empty')
+    .max(1000, 'Feedback must be under 1000 characters');
+
 export const fileNameSchema = z
     .string()
     .min(1, 'File name is required')

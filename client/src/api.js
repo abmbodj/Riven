@@ -379,6 +379,9 @@ export const api = {
     // Referrals API
     getReferralInfo: () => isLoggedIn() ? serverApi.getReferralInfo() : Promise.resolve(null),
     applyReferralCode: (code) => isLoggedIn() ? serverApi.applyReferralCode(code) : Promise.reject(new Error('Must be logged in')),
+    submitFeedback: (content) => isLoggedIn()
+        ? serverApi.submitFeedback(content)
+        : Promise.reject(new Error('Must be logged in')),
 
     // RevenueCat API
     syncRevenueCat: (opts) => isLoggedIn() ? serverApi.syncRevenueCat(opts) : Promise.reject(new Error('Must be logged in')),

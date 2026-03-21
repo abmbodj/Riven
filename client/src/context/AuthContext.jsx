@@ -247,12 +247,18 @@ export function AuthProvider({ children }) {
     const adminCreateMessage = useCallback((t, c, type, exp) => authApi.adminCreateMessage(t, c, type, exp), []);
     const adminUpdateMessage = useCallback((id, u) => authApi.adminUpdateMessage(id, u), []);
     const adminDeleteMessage = useCallback((id) => authApi.adminDeleteMessage(id), []);
+    const adminGetFeedback = useCallback(() => authApi.adminGetFeedback(), []);
+    const adminToggleFeedbackFavorite = useCallback((id, isFavorited) => authApi.adminToggleFeedbackFavorite(id, isFavorited), []);
+    const adminDeleteFeedback = useCallback((id) => authApi.adminDeleteFeedback(id), []);
+    const adminThankFeedback = useCallback((id) => authApi.adminThankFeedback(id), []);
     const adminGetReports = useCallback(() => authApi.adminGetReports(), []);
     const adminResolveReport = useCallback((id) => authApi.adminResolveReport(id), []);
     const adminCloseReport = useCallback((id) => authApi.adminCloseReport(id), []);
     const adminBanUser = useCallback((id) => authApi.adminBanUser(id), []);
     const getActiveMessages = useCallback(() => authApi.getActiveMessages(), []);
     const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
+    const getUserNotifications = useCallback(() => authApi.getUserNotifications(), []);
+    const dismissUserNotification = useCallback((id) => authApi.dismissUserNotification(id), []);
     const adminGetUserStreakData = useCallback(() => { return null; }, []);
     const adminUpdateStreakData = useCallback(() => { return true; }, []);
 
@@ -317,20 +323,28 @@ export function AuthProvider({ children }) {
         adminCreateMessage,
         adminUpdateMessage,
         adminDeleteMessage,
+        adminGetFeedback,
+        adminToggleFeedbackFavorite,
+        adminDeleteFeedback,
+        adminThankFeedback,
         adminGetReports,
         adminResolveReport,
         adminCloseReport,
         adminBanUser,
         getActiveMessages,
         dismissMessage,
+        getUserNotifications,
+        dismissUserNotification,
         toggleSimulateFree
     }), [
         signIn, signUp, startGoogleOAuth, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
         deleteAccount, refreshUser, saveOnboardingProgress, findUserByShareCode, getAllUsers, adminUpdateUser,
         adminDeleteUser, adminGetStats, adminUpdateUserRole, adminGetUserStreakData,
         adminUpdateStreakData, adminGetMessages, adminCreateMessage, adminUpdateMessage,
-        adminDeleteMessage, adminGetReports, adminResolveReport, adminCloseReport,
-        adminBanUser, getActiveMessages, dismissMessage, toggleSimulateFree
+        adminDeleteMessage, adminGetFeedback, adminToggleFeedbackFavorite, adminDeleteFeedback,
+        adminThankFeedback, adminGetReports, adminResolveReport, adminCloseReport,
+        adminBanUser, getActiveMessages, dismissMessage, getUserNotifications,
+        dismissUserNotification, toggleSimulateFree
     ]);
 
     return (

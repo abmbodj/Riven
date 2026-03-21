@@ -17,6 +17,12 @@ import { prepareYoutubeTranscriptSource } from '../_shared/youtubeTranscriptPrep
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import {
+  STUDY_GUIDE_FORMAT_VERSION,
+  buildStudyGuideSummaryDoc,
+  createDefaultStudyGuideState,
+  normalizeStudyGuideData,
+} from '../_shared/studyGuideCore.mjs';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
@@ -188,13 +194,17 @@ serve(async (request) => {
 
             result = { deck_id: deck.id, card_count: flashcards.length };
           } else if (type === 'guide') {
-            const guideContent = parseAiJsonResponse(
+            const guidePayload = parseAiJsonResponse(
               fullText,
               'AI generated invalid study guide format. Please try again.',
             );
-            if (!guideContent || guideContent.type !== 'doc') {
+            const guideData = normalizeStudyGuideData(guidePayload);
+            if (!guideData) {
               throw createHttpError('AI failed to generate a valid study guide.', 500);
             }
+
+            const guideContent = buildStudyGuideSummaryDoc(guideData);
+            const studyState = createDefaultStudyGuideState(guideData);
 
             const finalTitle = title || 'YouTube Study Guide';
             const { data: guide, error: guideErr } = await admin
@@ -202,6 +212,9 @@ serve(async (request) => {
               .insert({
                 user_id: authUser.id,
                 title: finalTitle,
+                format_version: STUDY_GUIDE_FORMAT_VERSION,
+                guide_data: guideData,
+                study_state: studyState,
                 content: guideContent,
                 note_id: null,
                 class_id: classId || null,
@@ -344,13 +357,17 @@ serve(async (request) => {
     // ── GUIDE ─────────────────────────────────────────
     else if (type === 'guide') {
       const rawResponse = await generateContent(buildYoutubeGuideContents(preparedSource.sourceText, className));
-      const guideContent = parseAiJsonResponse(
+      const guidePayload = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid study guide format. Please try again.',
       );
-      if (!guideContent || guideContent.type !== 'doc') {
+      const guideData = normalizeStudyGuideData(guidePayload);
+      if (!guideData) {
         throw createHttpError('AI failed to generate a valid study guide.', 500);
       }
+
+      const guideContent = buildStudyGuideSummaryDoc(guideData);
+      const studyState = createDefaultStudyGuideState(guideData);
 
       const finalTitle = title || 'YouTube Study Guide';
       const { data: guide, error: guideErr } = await admin
@@ -358,6 +375,9 @@ serve(async (request) => {
         .insert({
           user_id: authUser.id,
           title: finalTitle,
+          format_version: STUDY_GUIDE_FORMAT_VERSION,
+          guide_data: guideData,
+          study_state: studyState,
           content: guideContent,
           note_id: null,
           class_id: classId || null,

@@ -1,15 +1,15 @@
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Shield, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Leaf, Flower, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, Award, UserMinus, Mail, BookOpen } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Bell, Trash2, LogOut, ChevronRight, Leaf, Network, RefreshCw, Sparkles, CreditCard, Gift, Copy, Check, Crown, UserMinus, Mail, BookOpen, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useHaptics from '../hooks/useHaptics';
-import { ThemeContext } from '../context/themeContext';
 import { api } from '../api';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
+import FeedbackModal from '../components/FeedbackModal';
 import PricingModal from '../components/ui/PricingModal';
 import { useRevenueCat } from '../hooks/useRevenueCat';
 import { canvasIcalUrlSchema, referralCodeSchema } from '../schemas/forms';
@@ -35,6 +35,14 @@ const SURFACE_TEXTURE = {
 };
 
 const SECTION_ANCHOR_CLASS = 'scroll-mt-32 md:scroll-mt-36';
+const AI_CAPABILITIES = [
+    'Flashcard decks',
+    'Class setup',
+    'Study guides',
+    'Mock exams',
+    'YouTube study imports',
+    'Audio note enhancement',
+];
 
 const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null }) => (
     <button
@@ -201,7 +209,6 @@ export default function Settings() {
     const { user, signOut, refreshUser } = useAuth();
     const rc = useRevenueCat();
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
-    const { activeTheme } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
@@ -210,6 +217,7 @@ export default function Settings() {
         password: false,
         twoFactor: false,
         delete: false,
+        feedback: false,
         pricing: false
     });
 
@@ -220,7 +228,14 @@ export default function Settings() {
     const [canvasNotice, setCanvasNotice] = useState(null);
 
 
-    const [aiLimits, setAiLimits] = useState({ remaining: 10, max: 10, loading: true });
+    const [aiLimits, setAiLimits] = useState({
+        remaining: 10,
+        max: 10,
+        characterLimit: 15000,
+        flashcardRange: [5, 15],
+        isPremium: false,
+        loading: true,
+    });
     const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
         const saved = localStorage.getItem('notifications_enabled');
         return saved === null ? true : saved === 'true';
@@ -377,8 +392,6 @@ export default function Settings() {
         }
     };
 
-    const isLightMode = activeTheme?.name === 'Riven Light';
-
     const handleSignOut = () => {
         haptics.medium();
         signOut();
@@ -398,13 +411,32 @@ export default function Settings() {
     const aiAllowanceSummary = aiLimits.loading
         ? 'Checking allowance'
         : `${aiLimits.remaining} / ${aiLimits.max} left`;
+    const aiCharacterLimit = Number(aiLimits.characterLimit ?? 15000);
+    const [minDeckSize = 5, maxDeckSize = 15] = Array.isArray(aiLimits.flashcardRange) ? aiLimits.flashcardRange : [5, 15];
+    const aiUsagePercent = Math.max(0, Math.min(100, (aiLimits.remaining / Math.max(aiLimits.max || 1, 1)) * 100));
+    const aiRefreshWindow = aiLimits.loading
+        ? 'Checking'
+        : aiLimits.isPremium
+            ? 'Every 12 hours'
+            : 'Monthly';
+    const aiInputSizeLabel = aiLimits.loading
+        ? 'Checking'
+        : `~${Math.round(aiCharacterLimit / 5).toLocaleString()} words`;
+    const aiInputSizeMeta = aiLimits.loading
+        ? 'Fetching request cap'
+        : `${aiCharacterLimit.toLocaleString()} chars max`;
+    const aiDeckSizeLabel = aiLimits.loading
+        ? 'Checking'
+        : `${minDeckSize}-${maxDeckSize} cards`;
+    const aiDeckSizeMeta = aiLimits.loading
+        ? 'Fetching deck range'
+        : 'Per flashcard request';
 
     const quickLinks = [
         { id: 'security-panel', label: 'Security', meta: securitySummary, icon: Shield },
         { id: 'membership-panel', label: 'Plan & access', meta: membershipSummary, icon: Sparkles, tone: 'accent' },
-        { id: 'theme-panel', label: 'Theme & atmosphere', meta: activeTheme?.name || 'Current theme', icon: isLightMode ? Sun : Moon },
         { id: 'integrations-panel', label: 'Integrations', meta: canvasSummary, icon: Network, tone: 'info' },
-        { id: 'limits-panel', label: 'AI limits', meta: aiAllowanceSummary, icon: Sun, tone: 'warning' },
+        { id: 'limits-panel', label: 'Riven AI', meta: aiAllowanceSummary, icon: Sparkles, tone: 'warning' },
         { id: 'notifications-panel', label: 'Notifications', meta: 'Reminders & alerts', icon: Bell },
         { id: 'privacy-panel', label: 'Safety controls', meta: 'Blocked accounts', icon: UserMinus },
         { id: 'support-panel', label: 'Help & policies', meta: 'Support + docs', icon: Mail },
@@ -430,15 +462,7 @@ export default function Settings() {
                     </button>
 
                     <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-claude-border/70 bg-claude-surface/70 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.26em] text-claude-secondary">
-                                Settings atlas
-                            </span>
-                            <span className="max-w-[12rem] truncate rounded-full border border-claude-border/70 bg-claude-bg/60 px-3 py-1 text-[9px] font-mono uppercase tracking-[0.18em] text-claude-secondary/85 sm:max-w-none">
-                                {activeTheme?.name || 'Current theme'}
-                            </span>
-                        </div>
-                        <h1 className="mt-3 font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2.8rem]">
+                        <h1 className="font-serif text-[2rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2.8rem]">
                             Settings
                         </h1>
                         <div className="mt-3 flex flex-wrap items-center gap-2 lg:hidden">
@@ -470,92 +494,7 @@ export default function Settings() {
             >
                 <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[360px,minmax(0,1fr)] xl:items-start xl:gap-8">
                     <div className="contents xl:sticky xl:top-32 xl:block xl:self-start xl:space-y-6">
-                        <motion.div id="overview-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-1`}>
-                            <SectionHeader
-                                eyebrow="Overview"
-                                title="Workspace snapshot"
-                                description="See account status, study automation, and visual setup before you change anything."
-                            />
-                            <SectionCard className="overflow-hidden p-5 sm:p-6">
-                                <div className="pointer-events-none absolute -top-3 left-12 h-5 w-16 rotate-[-4deg] rounded-sm bg-claude-border/60 shadow-sm" />
-                                <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-claude-accent/10 blur-3xl" />
-                                <div className="pointer-events-none absolute bottom-0 left-0 h-28 w-28 rounded-full bg-botanical-forest/10 blur-3xl" />
-
-                                <div className="space-y-5">
-                                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <p className="text-[9px] font-mono uppercase tracking-[0.28em] text-claude-secondary/75">
-                                                Field guide
-                                            </p>
-                                            <h2 className="mt-3 font-serif text-[1.7rem] font-semibold italic leading-none tracking-[-0.04em] text-claude-text sm:text-[2rem]">
-                                                Control center
-                                            </h2>
-                                            <p className="mt-3 max-w-sm text-[11px] font-mono uppercase leading-relaxed tracking-[0.12em] text-claude-secondary/80">
-                                                Account state, study automation, and atmosphere signals in one readable surface.
-                                            </p>
-                                        </div>
-                                        <div className="rounded-full border border-claude-border/70 bg-claude-bg/70 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary">
-                                            Atlas
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/10 p-2.5 text-claude-accent">
-                                                    <Sparkles className="h-4 w-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Plan</p>
-                                                    <p className="mt-1 font-display text-lg text-claude-text">{membershipSummary}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="rounded-2xl border border-claude-secondary/20 bg-claude-secondary/10 p-2.5 text-claude-secondary">
-                                                    <Shield className="h-4 w-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Security</p>
-                                                    <p className="mt-1 font-display text-lg text-claude-text">{securitySummary}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/55 p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-400">
-                                                    <Network className="h-4 w-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-claude-secondary/75">Sync</p>
-                                                    <p className="mt-1 font-display text-lg text-claude-text">{canvasSummary}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        <button
-                                            onClick={() => openModal('pricing')}
-                                            className="tap-action flex min-h-[52px] items-center justify-center rounded-[1.1rem] bg-claude-text px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 active:scale-[0.98]"
-                                        >
-                                            Manage plan
-                                        </button>
-                                        <button
-                                            onClick={() => { haptics.light(); navigate('/themes'); }}
-                                            className="tap-action flex min-h-[52px] items-center justify-center rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-text transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 active:scale-[0.98]"
-                                        >
-                                            Change atmosphere
-                                        </button>
-                                    </div>
-                                </div>
-                            </SectionCard>
-                        </motion.div>
-
-                        <motion.div variants={itemVariants} className="order-2">
+                        <motion.div variants={itemVariants} className="order-1">
                             <SectionHeader
                                 eyebrow="Map"
                                 title="Jump to"
@@ -577,56 +516,6 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div id="theme-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-7`}>
-                            <SectionHeader
-                                eyebrow="Appearance"
-                                title="Theme & atmosphere"
-                                description="Adjust the visual mood of the workspace."
-                            />
-                            <SectionCard className="overflow-hidden">
-                                <button
-                                    onClick={() => { haptics.light(); navigate('/themes'); }}
-                                    className="tap-action group relative w-full overflow-hidden p-5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 active:scale-[0.98] sm:p-6"
-                                    style={{
-                                        backgroundColor: isLightMode ? '#fdfbf7' : '#141716',
-                                    }}
-                                >
-                                    <div className="absolute inset-0 pointer-events-none opacity-[0.18] md:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
-                                    <motion.div
-                                        animate={{ opacity: [0.2, 0.45, 0.2], scale: [1, 1.08, 1] }}
-                                        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                                        className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none ${isLightMode ? 'bg-amber-100/40' : 'bg-indigo-500/10'}`}
-                                    />
-
-                                    <div className="relative z-10">
-                                        <div className={`inline-flex rounded-full border px-3 py-1 text-[9px] font-mono uppercase tracking-[0.2em] ${isLightMode ? 'border-[#d6cdc0] bg-white/60 text-[#6f665e]' : 'border-white/10 bg-claude-bg/40 text-[#c2beb6]'}`}>
-                                            Current atmosphere
-                                        </div>
-
-                                        <div className="mt-5 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-                                            <div className="flex w-full items-start gap-4 sm:w-auto sm:items-center sm:gap-5">
-                                                <div className={`rounded-2xl border p-3 shadow-inner transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 sm:p-4 ${isLightMode ? 'bg-claude-surface text-amber-500 border-amber-900/5' : 'bg-claude-bg text-indigo-400 border-indigo-100/5'}`}>
-                                                    {isLightMode ? <Sun className="w-7 h-7" /> : <Moon className="w-7 h-7" />}
-                                                </div>
-                                                <div>
-                                                    <p className={`font-serif text-[1.6rem] font-semibold italic leading-none tracking-[-0.04em] transition-colors duration-500 sm:text-[2rem] ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                        {activeTheme?.name || 'Theme'}
-                                                    </p>
-                                                    <p className={`mt-3 text-[9px] font-mono uppercase tracking-[0.16em] opacity-65 sm:text-[10px] sm:tracking-[0.18em] ${isLightMode ? 'text-[#2c2825]' : 'text-[#e8e4dc]'}`}>
-                                                        Tap to change the workspace feel
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className={`flex h-11 w-11 self-end items-center justify-center rounded-full border shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-500 group-hover:scale-110 sm:self-auto ${isLightMode ? 'border-claude-border/40 text-[#2c2825]/40 bg-white/50' : 'border-claude-border/40 text-[#e8e4dc]/40 bg-claude-bg/60'}`}>
-                                                <ChevronRight className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </button>
-                            </SectionCard>
-                        </motion.div>
-
                         <motion.div id="support-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-8`}>
                             <SectionHeader
                                 eyebrow="Support"
@@ -634,6 +523,13 @@ export default function Settings() {
                                 description="Reach support and review the documents that govern your account."
                             />
                             <SectionCard className="overflow-hidden">
+                                <SettingItem
+                                    icon={MessageSquare}
+                                    title="Send feedback"
+                                    description="Share a suggestion with the owner"
+                                    badge="Inbox"
+                                    onClick={() => openModal('feedback')}
+                                />
                                 <SettingItem
                                     icon={Mail}
                                     title="Contact Support"
@@ -710,7 +606,7 @@ export default function Settings() {
                                             aria-label="Restore purchases"
                                             onClick={async () => { 
                                                 haptics.light(); 
-                                                const startToastId = toast.loading('Restoring...');
+                                                toast.show('Restoring purchases...');
                                                 
                                                 try { 
                                                     if (rc?.isNative) {
@@ -724,9 +620,8 @@ export default function Settings() {
                                                                     rcAppUserIdOverride: result?.customerInfo?.originalAppUserId
                                                                 });
                                                                 if (syncResult && syncResult.subscription_tier !== 'free') {
-                                                                    setSuccess(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
-                                                                    closeTimerRef.current = setTimeout(() => {
-                                                                        setSuccess(null);
+                                                                    toast.success(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
+                                                                    setTimeout(() => {
                                                                         refreshUser();
                                                                     }, 1800);
                                                                     return;
@@ -756,23 +651,23 @@ export default function Settings() {
                                                             }
                                                             
                                                             if (finalUser && finalUser.subscription_tier !== 'free') {
-                                                                toast.success(startToastId, `Welcome back, ${finalUser.subscription_tier}!`);
+                                                                toast.success(`Welcome back, ${finalUser.subscription_tier}!`);
                                                             } else {
-                                                                toast.error(startToastId, 'Found subscription, but servers are taking too long to sync. Please restart the app.');
+                                                                toast.error('Found subscription, but servers are taking too long to sync. Please restart the app.');
                                                             }
                                                         } else {
-                                                            toast.error(startToastId, rc.error || 'No active purchases found for this Apple ID.');
+                                                            toast.error(rc.error || 'No active purchases found for this Apple ID.');
                                                         }
                                                     } else {
                                                         const u = await refreshUser(); 
                                                         if (u?.subscription_tier !== 'free') {
-                                                            toast.success(startToastId, 'Subscription restored!');
+                                                            toast.success('Subscription restored!');
                                                         } else {
-                                                            toast.error(startToastId, 'No active subscription found');
+                                                            toast.error('No active subscription found');
                                                         }
                                                     }
                                                 } catch (err) { 
-                                                    toast.error(startToastId, err.message || 'Restore failed, try again'); 
+                                                    toast.error(err.message || 'Restore failed, try again'); 
                                                 } 
                                             }}
                                             className="tap-action flex items-center justify-center gap-2 rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text active:scale-[0.98] sm:flex-none"
@@ -781,26 +676,6 @@ export default function Settings() {
                                             <span>Restore purchases</span>
                                         </button>
                                     </div>
-                                    {(user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime') && (
-                                        <div className={`flex flex-col items-start gap-4 rounded-[1.25rem] border px-4 py-4 sm:flex-row sm:items-center ${user?.subscription_tier === 'lifetime' ? 'border-amber-500/20 bg-amber-500/5' : 'border-indigo-500/20 bg-indigo-500/5'}`}>
-                                            <div className={`p-3 rounded-2xl ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-indigo-500/10 border border-indigo-500/20'} shadow-inner`}>
-                                                {user?.subscription_tier === 'lifetime'
-                                                    ? <Crown className="w-6 h-6 text-amber-400" />
-                                                    : <Award className="w-6 h-6 text-indigo-400" />}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h3 className="flex flex-col items-start gap-2 font-display text-base font-bold text-claude-text sm:flex-row sm:items-center">
-                                                    {user?.subscription_tier === 'lifetime' ? 'Lifetime Member' : 'Supporter'}
-                                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${user?.subscription_tier === 'lifetime' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
-                                                        {user?.subscription_tier === 'lifetime' ? '∞ LIFETIME' : '⭐ PRO'}
-                                                    </span>
-                                                </h3>
-                                                <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
-                                                    {user?.subscription_tier === 'lifetime' ? 'All features unlocked forever' : 'Thank you for supporting Riven.'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
                                 </SectionCard>
                             </motion.div>
                         </div>
@@ -981,18 +856,18 @@ export default function Settings() {
                             <motion.div id="limits-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Workspace"
-                                    title="AI limits"
-                                    description="See your current generation allowance and request boundaries."
+                                    title="Riven AI"
+                                    description="Track your allowance and the study tools it powers."
                                     tone="warning"
                                 />
                                 <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6">
                                     <div className="flex items-start gap-4 sm:items-center">
                                         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
-                                            <Sun className="w-6 h-6 text-amber-500" />
+                                            <Sparkles className="w-6 h-6 text-amber-500" />
                                         </div>
                                         <div className="flex-1">
                                             <h3 className="flex flex-col items-start gap-2 font-display text-lg font-semibold tracking-wide text-claude-text sm:flex-row sm:items-center sm:justify-between">
-                                                AI Generations
+                                                Current allowance
                                                 {!aiLimits.loading && (
                                                     <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${aiLimits.remaining > 0 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
                                                         {`${aiLimits.remaining} / ${aiLimits.max} Left`}
@@ -1000,21 +875,42 @@ export default function Settings() {
                                                 )}
                                             </h3>
                                             <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
-                                                Resets every 2 hours
+                                                Available across decks, guides, exams, classes, and notes.
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="grid gap-3 sm:grid-cols-3">
                                         <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Max Input</p>
-                                            <p className="text-sm font-medium text-claude-text">~3,000 words</p>
-                                            <p className="text-[9px] text-claude-secondary mt-0.5">15,000 chars</p>
+                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Refresh</p>
+                                            <p className="text-sm font-medium text-claude-text">{aiRefreshWindow}</p>
+                                            <p className="text-[9px] text-claude-secondary mt-0.5">Allowance reset window</p>
                                         </div>
                                         <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
-                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Output Size</p>
-                                            <p className="text-sm font-medium text-claude-text">Flashcards or Class</p>
-                                            <p className="text-[9px] text-claude-secondary mt-0.5">per request limit</p>
+                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Input Size</p>
+                                            <p className="text-sm font-medium text-claude-text">{aiInputSizeLabel}</p>
+                                            <p className="text-[9px] text-claude-secondary mt-0.5">{aiInputSizeMeta}</p>
+                                        </div>
+                                        <div className="bg-claude-bg/50 border border-claude-secondary/10 p-3 rounded-xl flex flex-col justify-center items-center text-center">
+                                            <p className="text-[10px] uppercase font-mono tracking-widest text-claude-secondary/70 mb-1">Deck Size</p>
+                                            <p className="text-sm font-medium text-claude-text">{aiDeckSizeLabel}</p>
+                                            <p className="text-[9px] text-claude-secondary mt-0.5">{aiDeckSizeMeta}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-[1.15rem] border border-claude-secondary/10 bg-claude-bg/45 p-3.5">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary/70">
+                                            Available for
+                                        </p>
+                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                            {AI_CAPABILITIES.map((capability) => (
+                                                <div
+                                                    key={capability}
+                                                    className="rounded-full border border-amber-500/15 bg-amber-500/5 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary"
+                                                >
+                                                    {capability}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
 
@@ -1022,7 +918,7 @@ export default function Settings() {
                                         <div className="w-full h-1.5 bg-claude-bg rounded-full overflow-hidden mt-2 border border-claude-secondary/5 shadow-inner">
                                             <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${(aiLimits.remaining / aiLimits.max) * 100}%` }}
+                                                animate={{ width: `${aiUsagePercent}%` }}
                                                 transition={{ duration: 1, ease: 'easeOut' }}
                                                 className={`h-full ${aiLimits.remaining > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-red-500'} rounded-full`}
                                             />
@@ -1056,7 +952,7 @@ export default function Settings() {
                                                 if (granted) {
                                                     setNotificationsEnabled(true);
                                                     localStorage.setItem('notifications_enabled', 'true');
-                                                    toast('Notifications enabled');
+                                                    toast.show('Notifications enabled');
                                                     // Trigger initial schedule if assignments were already loaded
                                                     try {
                                                         const assignments = await api.getAssignments();
@@ -1071,7 +967,7 @@ export default function Settings() {
                                                 setNotificationsEnabled(false);
                                                 localStorage.setItem('notifications_enabled', 'false');
                                                 await scheduleAssignmentNotifications([], false); // Cancels all
-                                                toast('Notifications disabled');
+                                                toast.show('Notifications disabled');
                                             }
                                         }}
                                         noBorder={true}
@@ -1112,6 +1008,7 @@ export default function Settings() {
             <ChangePasswordModal isOpen={modals.password} onClose={() => closeModal('password')} />
             <TwoFactorAuthModal isOpen={modals.twoFactor} onClose={() => closeModal('twoFactor')} />
             <DeleteAccountModal isOpen={modals.delete} onClose={() => closeModal('delete')} />
+            <FeedbackModal isOpen={modals.feedback} onClose={() => closeModal('feedback')} />
             <PricingModal isOpen={modals.pricing} onClose={() => closeModal('pricing')} currentTier={user?.subscription_tier || 'free'} />
         </div>
     );
@@ -1157,13 +1054,13 @@ function ReferralCard() {
     const handleApply = async () => {
         const result = referralCodeSchema.safeParse(applyCode.trim());
         if (!result.success) {
-            toast(result.error.errors[0]?.message || 'Invalid referral code');
+            toast.error(result.error.errors[0]?.message || 'Invalid referral code');
             return;
         }
         setApplying(true);
         try {
             await api.applyReferralCode(result.data);
-            toast('Referral code applied!');
+            toast.success('Referral code applied!');
             setApplyCode('');
             setReferralNotice({
                 tone: 'success',
@@ -1171,7 +1068,7 @@ function ReferralCard() {
                 detail: 'Your account will credit the referral after the eligibility requirements are met.'
             });
         } catch (err) {
-            toast(err.message || 'Failed to apply code');
+            toast.error(err.message || 'Failed to apply code');
             setReferralNotice({
                 tone: 'error',
                 title: 'Code could not be applied',

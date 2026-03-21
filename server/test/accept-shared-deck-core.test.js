@@ -177,6 +177,33 @@ describe('acceptSharedResourceCore', () => {
       loadGuide: async () => ({
         id: 'guide-7',
         title: 'World War I Guide',
+        format_version: 2,
+        guide_data: {
+          overview: 'Overview',
+          sections: [
+            {
+              id: 'treaty',
+              title: 'Treaty of Versailles',
+              recall_prompt: 'What did the treaty change after the war?',
+              answer_points: ['It imposed reparations on Germany.'],
+              key_terms: ['reparations'],
+              mini_quiz: [{ prompt: 'Who paid reparations?', answer: 'Germany' }],
+              common_traps: ['Do not confuse it with the armistice.'],
+            },
+          ],
+        },
+        study_state: {
+          current_section_id: 'treaty',
+          section_states: {
+            treaty: {
+              revealed: true,
+              confidence: 'know_it',
+              completed: true,
+              note: 'Already mastered',
+            },
+          },
+          last_reviewed_at: '2026-03-20T12:00:00.000Z',
+        },
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
       }),
       createGuide: async (userId, guide) => ({
@@ -193,6 +220,33 @@ describe('acceptSharedResourceCore', () => {
         id: 'guide-copy',
         user_id: 42,
         title: 'World War I Guide',
+        format_version: 2,
+        guide_data: {
+          overview: 'Overview',
+          sections: [
+            {
+              id: 'treaty',
+              title: 'Treaty of Versailles',
+              recall_prompt: 'What did the treaty change after the war?',
+              answer_points: ['It imposed reparations on Germany.'],
+              key_terms: ['reparations'],
+              mini_quiz: [{ prompt: 'Who paid reparations?', answer: 'Germany' }],
+              common_traps: ['Do not confuse it with the armistice.'],
+            },
+          ],
+        },
+        study_state: {
+          current_section_id: 'treaty',
+          section_states: {
+            treaty: {
+              revealed: false,
+              confidence: null,
+              completed: false,
+              note: '',
+            },
+          },
+          last_reviewed_at: null,
+        },
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
         note_id: null,
         class_id: null,
@@ -201,6 +255,33 @@ describe('acceptSharedResourceCore', () => {
         id: 'guide-copy',
         user_id: 42,
         title: 'World War I Guide',
+        format_version: 2,
+        guide_data: {
+          overview: 'Overview',
+          sections: [
+            {
+              id: 'treaty',
+              title: 'Treaty of Versailles',
+              recall_prompt: 'What did the treaty change after the war?',
+              answer_points: ['It imposed reparations on Germany.'],
+              key_terms: ['reparations'],
+              mini_quiz: [{ prompt: 'Who paid reparations?', answer: 'Germany' }],
+              common_traps: ['Do not confuse it with the armistice.'],
+            },
+          ],
+        },
+        study_state: {
+          current_section_id: 'treaty',
+          section_states: {
+            treaty: {
+              revealed: false,
+              confidence: null,
+              completed: false,
+              note: '',
+            },
+          },
+          last_reviewed_at: null,
+        },
         content: { type: 'doc', content: [{ type: 'paragraph' }] },
         note_id: null,
         class_id: null,

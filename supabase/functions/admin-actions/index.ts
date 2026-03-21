@@ -4,15 +4,19 @@ import { resolveSupabaseUser } from '../_shared/auth.ts';
 import {
   banAdminUser,
   createAdminMessage,
+  deleteAdminFeedback,
   deleteAdminMessage,
   deleteAdminUser,
   getAdminStats,
+  listAdminFeedback,
   listAdminMessages,
   listAdminReports,
   listAdminUsers,
   requireAdminActor,
   requireOwnerActor,
   setAdminReportStatus,
+  thankAdminFeedback,
+  toggleAdminFeedbackFavorite,
   updateAdminMessage,
   updateAdminUser,
   updateAdminUserRole,
@@ -69,6 +73,11 @@ serve(async (request) => {
       return jsonResponse(await listAdminReports(), {}, request);
     }
 
+    if (request.method === 'GET' && action === 'feedback') {
+      await requireOwnerActor(authUser.id);
+      return jsonResponse(await listAdminFeedback(), {}, request);
+    }
+
     if (request.method === 'PUT' && action === 'user-role') {
       const actor = await requireOwnerActor(authUser.id);
       return jsonResponse(await updateAdminUserRole(actor, parseId(body.userId, 'userId'), body.role), {}, request);
@@ -84,9 +93,26 @@ serve(async (request) => {
       return jsonResponse(await updateAdminMessage(parseId(body.messageId ?? body.id, 'messageId'), body), {}, request);
     }
 
+    if (request.method === 'PUT' && action === 'feedback-favorite') {
+      await requireOwnerActor(authUser.id);
+      return jsonResponse(
+        await toggleAdminFeedbackFavorite(
+          parseId(body.feedbackId ?? body.id, 'feedbackId'),
+          body.isFavorited == null ? undefined : Boolean(body.isFavorited),
+        ),
+        {},
+        request,
+      );
+    }
+
     if (request.method === 'POST' && action === 'message-create') {
       const actor = await requireAdminActor(authUser.id);
       return jsonResponse(await createAdminMessage(actor, body), { status: 201 }, request);
+    }
+
+    if (request.method === 'POST' && action === 'feedback-thank') {
+      const actor = await requireOwnerActor(authUser.id);
+      return jsonResponse(await thankAdminFeedback(actor, parseId(body.feedbackId ?? body.id, 'feedbackId')), {}, request);
     }
 
     if (request.method === 'POST' && action === 'report-resolve') {
@@ -112,6 +138,11 @@ serve(async (request) => {
     if (request.method === 'DELETE' && action === 'message-delete') {
       await requireAdminActor(authUser.id);
       return jsonResponse(await deleteAdminMessage(parseId(body.messageId ?? body.id, 'messageId')), {}, request);
+    }
+
+    if (request.method === 'DELETE' && action === 'feedback-delete') {
+      await requireOwnerActor(authUser.id);
+      return jsonResponse(await deleteAdminFeedback(parseId(body.feedbackId ?? body.id, 'feedbackId')), {}, request);
     }
 
     return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);

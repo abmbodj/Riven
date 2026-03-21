@@ -111,7 +111,15 @@ describe('Messages desktop workspace', () => {
       expect(screen.getByText('Conversations')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Replying to Bianca').closest('.safe-area-top-owned')).not.toBeNull();
+    const activeThreadShell = screen.getByText('Replying to Bianca').closest('.safe-area-top-owned');
+    expect(activeThreadShell).not.toBeNull();
+    expect(activeThreadShell.className).toContain('h-[calc(var(--app-height)-env(safe-area-inset-top,0px))]');
+    expect(activeThreadShell.className).not.toContain('h-[calc(100dvh-4rem)]');
+    expect(activeThreadShell.style.backgroundImage).toContain('radial-gradient');
+
+    const scrollContainer = activeThreadShell.querySelector('.scroll-container');
+    expect(scrollContainer).not.toBeNull();
+    expect(scrollContainer.style.backgroundImage).toBe('');
 
     expect(authApi.subscribeToTypingPresence).toHaveBeenCalledWith(
       99,

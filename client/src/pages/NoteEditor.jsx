@@ -609,25 +609,24 @@ export default function NoteEditor() {
         }
 
         setGenerating('guide');
-        setGeneratingStatus('');
+        setGeneratingStatus('Drafting workbook');
         try {
             const selectedClassName = classes.find((c) => c.id === classId)?.name || null;
             const stream = await api.generateAiGuideStream(
                 text,
                 null,
-                `${titleRef.current || 'Note'} Guide`,
+                `${titleRef.current || 'Note'} Recall Workbook`,
                 noteId,
                 classId,
                 selectedClassName,
             );
 
-            let sectionCount = 0;
             for await (const event of stream.chunks()) {
                 if (event.type === 'chunk') {
-                    const headingMatches = event.data.text.match(/"level":\s*1/g);
-                    if (headingMatches) {
-                        sectionCount += headingMatches.length;
-                        setGeneratingStatus(`${sectionCount} section${sectionCount !== 1 ? 's' : ''}`);
+                    if (event.data.text.includes('"mini_quiz"')) {
+                        setGeneratingStatus('Adding checkpoints');
+                    } else if (event.data.text.includes('"common_traps"')) {
+                        setGeneratingStatus('Polishing review cues');
                     }
                 } else if (event.type === 'error') {
                     const error = new Error(event.data.message);
@@ -635,7 +634,7 @@ export default function NoteEditor() {
                     error.canWatchAd = event.data.canWatchAd;
                     throw error;
                 } else if (event.type === 'done') {
-                    toast.success('Study guide generated!');
+                    toast.success('Recall workbook generated!');
                     navigate(`/guide/${event.data.guide_id}`);
                     return;
                 }
@@ -818,7 +817,7 @@ export default function NoteEditor() {
                             className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
                         >
                             {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
-                            <span>{generating === 'guide' && generatingStatus ? generatingStatus : 'Study Guide'}</span>
+                            <span>{generating === 'guide' && generatingStatus ? generatingStatus : 'Recall Guide'}</span>
                         </button>
 
                         <button

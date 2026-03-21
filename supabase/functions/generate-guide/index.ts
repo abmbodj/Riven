@@ -15,6 +15,12 @@ import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import {
+  STUDY_GUIDE_FORMAT_VERSION,
+  buildStudyGuideSummaryDoc,
+  createDefaultStudyGuideState,
+  normalizeStudyGuideData,
+} from '../_shared/studyGuideCore.mjs';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
@@ -26,6 +32,9 @@ type PersistUsagePayload = {
 type CreateGuidePayload = {
   userId: number;
   title: string;
+  formatVersion: number;
+  guideData: Record<string, unknown>;
+  studyState: Record<string, unknown>;
   content: Record<string, unknown>;
   noteId: string | null;
   classId: number | string | null;
@@ -143,14 +152,18 @@ serve(async (request) => {
             }
           }
 
-          const guideContent = parseAiJsonResponse(
+          const guidePayload = parseAiJsonResponse(
             fullText,
             'AI generated invalid study guide format. Please try again.',
           );
 
-          if (!guideContent || typeof guideContent !== 'object' || guideContent.type !== 'doc') {
+          const guideData = normalizeStudyGuideData(guidePayload);
+          if (!guideData) {
             throw createHttpError('AI failed to generate a valid study guide.', 500);
           }
+
+          const guideContent = buildStudyGuideSummaryDoc(guideData);
+          const studyState = createDefaultStudyGuideState(guideData);
 
           const finalTitle = body.title || 'AI Study Guide';
           const { data: guide, error: guideErr } = await admin
@@ -158,6 +171,9 @@ serve(async (request) => {
             .insert({
               user_id: authUser.id,
               title: finalTitle,
+              format_version: STUDY_GUIDE_FORMAT_VERSION,
+              guide_data: guideData,
+              study_state: studyState,
               content: guideContent,
               note_id: body.noteId || null,
               class_id: body.classId || null,
@@ -232,12 +248,15 @@ serve(async (request) => {
           jsonMode: true,
         });
       },
-      createGuide: async ({ userId, title, content, noteId, classId }: CreateGuidePayload) => {
+      createGuide: async ({ userId, title, formatVersion, guideData, studyState, content, noteId, classId }: CreateGuidePayload) => {
         const { data, error: createError } = await admin
           .from('study_guides')
           .insert({
             user_id: userId,
             title,
+            format_version: formatVersion,
+            guide_data: guideData,
+            study_state: studyState,
             content,
             note_id: noteId,
             class_id: classId,

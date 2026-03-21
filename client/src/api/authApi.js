@@ -1863,6 +1863,7 @@ export const updateStudyGuide = async (id, updates) => {
     const payload = {};
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.study_state !== undefined) payload.study_state = updates.study_state;
     if (updates.class_id !== undefined) payload.class_id = updates.class_id;
     const { data, error } = await supabase
         .from('study_guides')
@@ -3785,6 +3786,50 @@ export const adminDeleteMessage = (id) => callAdminEndpoint({
     body: { messageId: id },
 });
 
+export const adminGetFeedback = () => safeFetchArray(callAdminEndpoint({
+    method: 'GET',
+    action: 'feedback',
+}));
+export const adminToggleFeedbackFavorite = (feedbackId, isFavorited) => callAdminEndpoint({
+    method: 'PUT',
+    action: 'feedback-favorite',
+    body: { feedbackId, isFavorited },
+});
+export const adminDeleteFeedback = (feedbackId) => callAdminEndpoint({
+    method: 'DELETE',
+    action: 'feedback-delete',
+    body: { feedbackId },
+});
+export const adminThankFeedback = (feedbackId) => callAdminEndpoint({
+    method: 'POST',
+    action: 'feedback-thank',
+    body: { feedbackId },
+});
+
+export const submitFeedback = async (content) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('feedback_submissions')
+        .insert({
+            user_id: userId,
+            content,
+        })
+        .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at')
+        .single();
+
+    if (error) _sbThrow(error);
+
+    return {
+        id: Number(data.id),
+        userId: Number(data.user_id),
+        content: String(data.content ?? ''),
+        isFavorited: Boolean(data.is_favorited),
+        consideringNotifiedAt: data.considering_notified_at ?? null,
+        consideringNotifiedBy: data.considering_notified_by ?? null,
+        createdAt: data.created_at ?? null,
+    };
+};
+
 // User-facing message functions
 export const getActiveMessages = async () => safeFetchArray((async () => {
     const userId = await getAppUserId();
@@ -3833,6 +3878,44 @@ export const dismissMessage = async (id) => {
 
     if (error && error.code !== '23505') _sbThrow(error);
     return { message: 'Message dismissed' };
+};
+
+export const getUserNotifications = async () => safeFetchArray((async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('user_notifications')
+        .select('id, user_id, kind, title, content, metadata, created_at, dismissed_at')
+        .eq('user_id', userId)
+        .is('dismissed_at', null)
+        .order('created_at', { ascending: false });
+
+    if (error) _sbThrow(error);
+
+    return (data || []).map((notification) => ({
+        id: Number(notification.id),
+        userId: Number(notification.user_id),
+        kind: String(notification.kind ?? 'info'),
+        title: String(notification.title ?? ''),
+        content: String(notification.content ?? ''),
+        metadata: notification.metadata && typeof notification.metadata === 'object' ? notification.metadata : {},
+        createdAt: notification.created_at ?? null,
+        dismissedAt: notification.dismissed_at ?? null,
+    }));
+})());
+
+export const dismissUserNotification = async (id) => {
+    const userId = await getAppUserId();
+    const { error } = await supabase
+        .from('user_notifications')
+        .update({
+            dismissed_at: new Date().toISOString(),
+        })
+        .eq('id', Number(id))
+        .eq('user_id', userId)
+        .is('dismissed_at', null);
+
+    if (error) _sbThrow(error);
+    return { message: 'Notification dismissed' };
 };
 
 // ============ 2FA ENDPOINTS ============
@@ -4157,12 +4240,19 @@ export default {
     adminCreateMessage,
     adminUpdateMessage,
     adminDeleteMessage,
+    adminGetFeedback,
+    adminToggleFeedbackFavorite,
+    adminDeleteFeedback,
+    adminThankFeedback,
     adminGetReports,
     adminResolveReport,
     adminCloseReport,
     adminBanUser,
+    submitFeedback,
     getActiveMessages,
     dismissMessage,
+    getUserNotifications,
+    dismissUserNotification,
     getGroups,
     createGroup,
     getGroup,

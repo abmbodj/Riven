@@ -24,7 +24,7 @@ const MODULES = [
     },
     {
         title: 'Study Guides',
-        description: 'AI-generated guides from your notes',
+        description: 'Active-recall workbooks from your notes',
         icon: BookOpen,
         to: '/guides',
         color: '#f59e0b',

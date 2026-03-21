@@ -18,6 +18,10 @@ vi.mock('./OnboardingArt.jsx', () => ({
   default: () => <div data-testid="onboarding-art" />,
 }));
 
+vi.mock('./UserNotificationsRail.jsx', () => ({
+  default: () => null,
+}));
+
 function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   return render(
     <MemoryRouter initialEntries={[pathname]}>

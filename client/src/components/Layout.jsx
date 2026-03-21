@@ -20,6 +20,7 @@ import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
 import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
 import MobileBottomNav from './MobileBottomNav.jsx';
+import UserNotificationsRail from './UserNotificationsRail.jsx';
 import { useNotificationSync } from '../hooks/useNotificationSync';
 
 
@@ -265,6 +266,8 @@ export default function Layout({ children }) {
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    <UserNotificationsRail />
 
                     {/* Main content with page transitions */}
                     <main className={`[overflow-x:clip] ${isFullscreenPage ? '' : isStudyOrTest ? '' : isMessagesChat ? 'lg:px-8 lg:py-6' : 'px-4 py-4 lg:px-8 lg:py-6'

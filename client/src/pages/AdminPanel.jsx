@@ -8,7 +8,7 @@ import { useGSAP } from '../hooks/useGSAP';
 import { EASE, DURATION } from '../utils/animations';
 import {
     BarChart3, Users, ShieldAlert, Megaphone, User,
-    RefreshCw
+    RefreshCw, MessageSquare
 } from 'lucide-react';
 
 import { messageTitleSchema, messageContentSchema } from '../schemas/forms';
@@ -17,14 +17,26 @@ import UsersTab from '../components/admin/UsersTab';
 import ReportsTab from '../components/admin/ReportsTab';
 import BroadcastsTab from '../components/admin/BroadcastsTab';
 import AccountTab from '../components/admin/AccountTab';
+import FeedbackTab from '../components/admin/FeedbackTab';
 
-const TABS = [
+const BASE_TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'reports', label: 'Reports', icon: ShieldAlert },
     { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone },
-    { id: 'account', label: 'Account', icon: User }
+    { id: 'account', label: 'Account', icon: User },
 ];
+
+const sortFeedbackEntries = (entries = []) => [...entries].sort((left, right) => {
+    const leftRank = left.isFavorited ? 0 : 1;
+    const rightRank = right.isFavorited ? 0 : 1;
+
+    if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+    }
+
+    return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+});
 
 export default function AdminPanel() {
     const navigate = useNavigate();
@@ -34,6 +46,7 @@ export default function AdminPanel() {
         isAdmin, isOwner, user,
         adminGetStats, getAllUsers, adminDeleteUser, adminUpdateUserRole,
         adminGetMessages, adminCreateMessage, adminUpdateMessage, adminDeleteMessage,
+        adminGetFeedback, adminToggleFeedbackFavorite, adminDeleteFeedback, adminThankFeedback,
         adminGetReports, adminResolveReport, adminCloseReport, adminBanUser,
         toggleSimulateFree
     } = useAuth();
@@ -42,6 +55,7 @@ export default function AdminPanel() {
     const [stats, setStats] = useState(null);
     const [users, setUsers] = useState([]);
     const [messages, setMessages] = useState([]);
+    const [feedback, setFeedback] = useState([]);
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -78,19 +92,31 @@ export default function AdminPanel() {
         }
     }, [loading]);
 
+    const tabs = React.useMemo(() => (
+        isOwner
+            ? [
+                ...BASE_TABS.slice(0, 4),
+                { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+                BASE_TABS[4],
+            ]
+            : BASE_TABS
+    ), [isOwner]);
+
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         try {
-            const [statsData, usersData, messagesData, reportsData] = await Promise.all([
+            const [statsData, usersData, messagesData, feedbackData, reportsData] = await Promise.all([
                 adminGetStats(),
                 getAllUsers(),
                 adminGetMessages(),
+                isOwner ? adminGetFeedback() : Promise.resolve([]),
                 adminGetReports()
             ]);
             setStats(statsData);
             setUsers(usersData || []);
             setMessages(messagesData || []);
+            setFeedback(sortFeedbackEntries(feedbackData || []));
             setReports(reportsData || []);
         } catch (err) {
             console.error(err);
@@ -99,7 +125,7 @@ export default function AdminPanel() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [adminGetStats, getAllUsers, adminGetMessages, adminGetReports, toast]);
+    }, [adminGetStats, getAllUsers, adminGetMessages, adminGetFeedback, adminGetReports, isOwner, toast]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -175,6 +201,43 @@ export default function AdminPanel() {
             toast.success('Broadcast deleted');
         } catch {
             toast.error('Failed to delete message');
+        }
+    };
+
+    const handleToggleFeedbackFavorite = async (feedbackId, nextFavorite) => {
+        try {
+            const updatedFeedback = await adminToggleFeedbackFavorite(feedbackId, nextFavorite);
+            setFeedback(prev => sortFeedbackEntries(prev.map((entry) => (
+                entry.id === feedbackId ? updatedFeedback : entry
+            ))));
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to update favorite');
+        }
+    };
+
+    const handleDeleteFeedback = async (feedbackId) => {
+        if (!confirm('Delete this feedback submission?')) return;
+        try {
+            await adminDeleteFeedback(feedbackId);
+            setFeedback(prev => prev.filter((entry) => entry.id !== feedbackId));
+            toast.success('Feedback deleted');
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to delete feedback');
+        }
+    };
+
+    const handleThankFeedback = async (feedbackId) => {
+        try {
+            const updatedFeedback = await adminThankFeedback(feedbackId);
+            setFeedback(prev => sortFeedbackEntries(prev.map((entry) => (
+                entry.id === feedbackId ? updatedFeedback : entry
+            ))));
+            toast.success('User notified that their feedback is being considered');
+        } catch (error) {
+            console.error(error);
+            toast.error(error.message || 'Failed to thank user');
         }
     };
 
@@ -269,7 +332,7 @@ export default function AdminPanel() {
             {/* Tab Navigation */}
             <div className="gsap-tabs px-4 sm:px-6 mb-8">
                 <div className="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl border border-claude-border overflow-x-auto no-scrollbar scroll-smooth">
-                    {TABS.map(tab => {
+                    {tabs.map(tab => {
                         const isActive = activeTab === tab.id;
                         const Icon = tab.icon;
                         return (
@@ -349,6 +412,16 @@ export default function AdminPanel() {
                                 onToggle={handleToggleMessage}
                                 onDelete={handleDeleteMessage}
                                 loading={formLoading}
+                                haptics={haptics}
+                            />
+                        )}
+
+                        {activeTab === 'feedback' && isOwner && (
+                            <FeedbackTab
+                                feedback={feedback}
+                                onToggleFavorite={handleToggleFeedbackFavorite}
+                                onDelete={handleDeleteFeedback}
+                                onThank={handleThankFeedback}
                                 haptics={haptics}
                             />
                         )}

@@ -539,16 +539,19 @@ const handleAcceptSharedResource = async (req, res) => {
                     ]
                 ),
             loadGuide: (guideId) =>
-                db.queryOne('SELECT id, title, content FROM study_guides WHERE id = $1', [guideId]),
+                db.queryOne('SELECT id, title, format_version, guide_data, study_state, content FROM study_guides WHERE id = $1', [guideId]),
             createGuide: (userId, guide) =>
                 db.queryOne(
                     `INSERT INTO study_guides
-                        (user_id, title, content, note_id, class_id)
-                     VALUES ($1, $2, $3::jsonb, $4, $5)
+                        (user_id, title, format_version, guide_data, study_state, content, note_id, class_id)
+                     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8)
                      RETURNING *`,
                     [
                         userId,
                         guide.title,
+                        guide.format_version ?? 1,
+                        JSON.stringify(guide.guide_data || null),
+                        JSON.stringify(guide.study_state || {}),
                         JSON.stringify(guide.content || {}),
                         null,
                         null,

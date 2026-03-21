@@ -1,19 +1,29 @@
-import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, Check
+    BookOpen, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, Check, ArrowRight, Target, Play
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import { getGuideProgress, isActiveRecallGuide } from '../utils/studyGuides';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const GuideCard = memo(({ guide, classes, index }) => {
+    const navigate = useNavigate();
     const cls = guide.class_id ? classes.find(c => c.id === guide.class_id) : null;
+    const activeRecall = isActiveRecallGuide(guide);
+    const progress = getGuideProgress(guide.guide_data, guide.study_state);
+    const lastReviewed = guide.study_state?.last_reviewed_at
+        ? new Date(guide.study_state.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : 'Not started';
+    const updatedAt = guide.updated_at
+        ? new Date(guide.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Recently updated';
 
     return (
         <motion.div
@@ -26,9 +36,10 @@ const GuideCard = memo(({ guide, classes, index }) => {
         >
             <div className="absolute -top-1 left-1/4 w-10 h-3 bg-claude-border/60 rotate-[-2deg] rounded-sm z-10 shadow-sm opacity-80 pointer-events-none" />
 
-            <Link
-                to={`/guide/${guide.id}`}
-                className="group relative block bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target"
+            <button
+                type="button"
+                onClick={() => navigate(`/guide/${guide.id}`)}
+                className="group relative block w-full bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target text-left"
             >
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
@@ -36,10 +47,12 @@ const GuideCard = memo(({ guide, classes, index }) => {
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-4 opacity-70">
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">
-                            {new Date(guide.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {updatedAt}
                         </span>
                         <div className="h-px flex-1 bg-claude-border/40" />
-                        <BookOpen className="w-3 h-3 text-claude-secondary/50" />
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
+                            {activeRecall ? `${progress.totalSections} sections` : 'Legacy'}
+                        </span>
                     </div>
 
                     <h3 className="font-serif text-lg sm:text-xl font-bold text-claude-text leading-[1.15] group-hover:text-claude-accent transition-colors duration-300 italic mb-3 tracking-tight line-clamp-2">
@@ -56,12 +69,45 @@ const GuideCard = memo(({ guide, classes, index }) => {
                             <span className="font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">{cls.name}</span>
                         </div>
                     )}
+
+                    {activeRecall ? (
+                        <div className="mt-4 space-y-3">
+                            <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest text-claude-secondary">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Target className="w-3.5 h-3.5 text-claude-accent" />
+                                    {progress.completedCount}/{progress.totalSections} complete
+                                </span>
+                                <span>{progress.completionPercent}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-claude-border/30 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-claude-accent transition-all duration-300"
+                                    style={{ width: `${progress.completionPercent}%` }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
+                                <span>Last reviewed: {lastReviewed}</span>
+                                <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
+                                    <Play className="w-3.5 h-3.5" />
+                                    Resume
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
+                            <span>Open classic editable guide</span>
+                            <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
+                                <ArrowRight className="w-3.5 h-3.5" />
+                                Open
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="absolute -bottom-4 -right-4 opacity-[0.03] transition-opacity duration-700 pointer-events-none group-active:opacity-[0.08] scale-[1.2] sm:scale-150">
                     <BookOpen className="w-24 h-24 sm:w-32 sm:h-32" />
                 </div>
-            </Link>
+            </button>
         </motion.div>
     );
 });
@@ -169,11 +215,11 @@ export default function GuidesLibrary() {
             const result = await api.generateAiGuide(
                 noteText || null,
                 file,
-                genTitle || 'AI Study Guide',
+                genTitle || 'AI Recall Workbook',
                 noteId,
                 classId
             );
-            toast.success('Study guide generated!');
+            toast.success('Recall workbook generated!');
             setShowGenerateModal(false);
             navigate(`/guide/${result.guide_id}`);
         } catch (err) {
@@ -236,7 +282,7 @@ export default function GuidesLibrary() {
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[80dvh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Generate Study Guide</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Generate Recall Workbook</h3>
                                 <button onClick={() => setShowGenerateModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
 
@@ -247,7 +293,7 @@ export default function GuidesLibrary() {
                                         type="text"
                                         value={genTitle}
                                         onChange={e => setGenTitle(e.target.value)}
-                                        placeholder="AI Study Guide"
+                                        placeholder="AI Recall Workbook"
                                         className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                     />
                                 </div>
@@ -313,7 +359,7 @@ export default function GuidesLibrary() {
                                     className="claude-button-primary w-full py-5 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                    {generating ? 'Generating...' : 'Generate Guide'}
+                                    {generating ? 'Generating...' : 'Generate Workbook'}
                                 </button>
                             </div>
                         </motion.div>
@@ -332,6 +378,7 @@ export default function GuidesLibrary() {
                         <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">AI</span>
                     </div>
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Study Guides</h1>
+                    <p className="mt-2 text-sm text-claude-secondary">Active-recall workbooks built from your notes and readings.</p>
                 </div>
                 <button
                     onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNotes([]); setGenFile(null); setGenTitle(''); }}
@@ -347,7 +394,7 @@ export default function GuidesLibrary() {
                     <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
                         <BookOpen className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                         <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Study Guides</h3>
-                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first study guide from notes or a file.</p>
+                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first active-recall workbook from notes or a file.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">

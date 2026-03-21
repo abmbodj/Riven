@@ -1034,10 +1034,13 @@ export default function Messages() {
             <aside className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:h-[calc(100dvh-8rem)] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-claude-border lg:bg-claude-bg/70 lg:p-5 lg:backdrop-blur-xl">
                 {renderConversationsList({ embedded: true })}
             </aside>
-	            <div
-	                ref={chatViewRef}
-	                className="safe-area-top-owned relative flex flex-col bg-claude-bg h-[calc(100dvh-4rem)] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
-	            >
+            <div
+                ref={chatViewRef}
+                className="safe-area-top-owned relative flex flex-col bg-claude-bg h-[calc(var(--app-height)-env(safe-area-inset-top,0px))] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+                style={{
+                    backgroundImage: 'radial-gradient(ellipse at 15% 88%, rgba(222, 185, 106, 0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 18%, rgba(122, 158, 114, 0.05) 0%, transparent 40%)',
+                }}
+            >
             {/* Chat header */}
             <div className="header-blur flex items-center gap-2 sm:gap-3 px-3 py-3 sm:p-4 border-b border-white/[0.06] shrink-0 relative z-20">
                 <button
@@ -1081,10 +1084,9 @@ export default function Messages() {
             {/* Messages Container — virtualized for performance */}
             <div
                 ref={scrollParentRef}
-                className="flex-1 overflow-y-auto scroll-container relative"
+                className="flex-1 overflow-y-auto scroll-container relative bg-transparent"
                 style={{
                     paddingBottom: '96px',
-                    backgroundImage: `radial-gradient(ellipse at 15% 88%, rgba(222, 185, 106, 0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 18%, rgba(122, 158, 114, 0.05) 0%, transparent 40%)`
                 }}
             >
                 {loading ? (

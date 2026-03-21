@@ -59,6 +59,47 @@ const mapMessage = (message: Record<string, unknown>, createdBy = 'System') => (
   expiresAt: message.expires_at ?? null,
 });
 
+const mapFeedbackSubmission = (
+  submission: Record<string, unknown>,
+  usernameMap: Map<number, string>,
+) => {
+  const userId = Number(submission.user_id);
+  const thankedBy = submission.considering_notified_by == null
+    ? null
+    : Number(submission.considering_notified_by);
+
+  return {
+    id: Number(submission.id),
+    userId,
+    username: usernameMap.get(userId) || 'Unknown',
+    content: String(submission.content ?? ''),
+    isFavorited: isAdminFlag(submission.is_favorited),
+    consideringNotifiedAt: submission.considering_notified_at == null
+      ? null
+      : String(submission.considering_notified_at),
+    consideringNotifiedBy: thankedBy,
+    consideringByName: thankedBy ? (usernameMap.get(thankedBy) || 'Owner') : null,
+    createdAt: submission.created_at == null
+      ? null
+      : String(submission.created_at),
+  };
+};
+
+const sortFeedbackSubmissions = <T extends {
+  isFavorited?: boolean | null;
+  createdAt?: string | null;
+}>(submissions: T[]) => submissions.sort((left, right) => {
+  const leftRank = left.isFavorited ? 0 : 1;
+  const rightRank = right.isFavorited ? 0 : 1;
+
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+
+  return new Date(String(right.createdAt ?? '')).getTime()
+    - new Date(String(left.createdAt ?? '')).getTime();
+});
+
 const fetchUsernameMap = async (userIds: number[]) => {
   if (!userIds.length) {
     return new Map<number, string>();
@@ -533,6 +574,142 @@ export const deleteAdminMessage = async (messageId: number) => {
   if (deleteError) throw deleteError;
 
   return { message: 'Message deleted' };
+};
+
+export const listAdminFeedback = async () => {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from('feedback_submissions')
+    .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at');
+
+  if (error) throw error;
+
+  const feedbackRows = (data || []) as Array<Record<string, unknown>>;
+  const userIds = Array.from(new Set(
+    feedbackRows
+      .flatMap((submission) => [
+        Number(submission.user_id),
+        Number(submission.considering_notified_by),
+      ])
+      .filter((userId) => Boolean(userId)),
+  ));
+  const usernameMap = await fetchUsernameMap(userIds);
+
+  return sortFeedbackSubmissions(
+    feedbackRows.map((submission) => mapFeedbackSubmission(submission, usernameMap)),
+  );
+};
+
+export const toggleAdminFeedbackFavorite = async (
+  feedbackId: number,
+  desiredFavorite?: boolean,
+) => {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: existingError } = await admin
+    .from('feedback_submissions')
+    .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at')
+    .eq('id', feedbackId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (!existing) throw createHttpError('Feedback not found', 404);
+
+  const nextFavorite = desiredFavorite == null
+    ? !isAdminFlag(existing.is_favorited)
+    : Boolean(desiredFavorite);
+
+  const { data: updated, error: updateError } = await admin
+    .from('feedback_submissions')
+    .update({ is_favorited: nextFavorite })
+    .eq('id', feedbackId)
+    .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at')
+    .single();
+
+  if (updateError) throw updateError;
+
+  const usernameMap = await fetchUsernameMap(
+    [Number(updated.user_id), Number(updated.considering_notified_by)].filter((userId) => Boolean(userId)),
+  );
+
+  return mapFeedbackSubmission(updated as Record<string, unknown>, usernameMap);
+};
+
+export const deleteAdminFeedback = async (feedbackId: number) => {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: existingError } = await admin
+    .from('feedback_submissions')
+    .select('id')
+    .eq('id', feedbackId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (!existing) throw createHttpError('Feedback not found', 404);
+
+  const { error: deleteError } = await admin
+    .from('feedback_submissions')
+    .delete()
+    .eq('id', feedbackId);
+
+  if (deleteError) throw deleteError;
+
+  return { message: 'Feedback deleted' };
+};
+
+export const thankAdminFeedback = async (actor: AdminActor, feedbackId: number) => {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: existingError } = await admin
+    .from('feedback_submissions')
+    .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at')
+    .eq('id', feedbackId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (!existing) throw createHttpError('Feedback not found', 404);
+  if (existing.considering_notified_at) {
+    throw createHttpError('Feedback was already acknowledged', 400);
+  }
+
+  const notifiedAt = new Date().toISOString();
+  const { data: updated, error: updateError } = await admin
+    .from('feedback_submissions')
+    .update({
+      considering_notified_at: notifiedAt,
+      considering_notified_by: actor.id,
+    })
+    .eq('id', feedbackId)
+    .select('id, user_id, content, is_favorited, considering_notified_at, considering_notified_by, created_at')
+    .single();
+
+  if (updateError) throw updateError;
+
+  const { error: notificationError } = await admin
+    .from('user_notifications')
+    .insert({
+      user_id: Number(existing.user_id),
+      kind: 'feedback_considering',
+      title: 'Your feedback is being considered',
+      content: 'Thanks for helping shape Riven. The owner is reviewing your suggestion now.',
+      metadata: {
+        feedbackId,
+      },
+    });
+
+  if (notificationError) {
+    await admin
+      .from('feedback_submissions')
+      .update({
+        considering_notified_at: null,
+        considering_notified_by: null,
+      })
+      .eq('id', feedbackId);
+    throw notificationError;
+  }
+
+  const usernameMap = await fetchUsernameMap(
+    [Number(updated.user_id), Number(updated.considering_notified_by)].filter((userId) => Boolean(userId)),
+  );
+
+  return mapFeedbackSubmission(updated as Record<string, unknown>, usernameMap);
 };
 
 export const listAdminReports = async () => {

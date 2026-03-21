@@ -75,7 +75,7 @@ const PLANS = [
         summary: 'Unlocks the full Riven rhythm without committing long term.',
         features: [
             'Unlimited hearts',
-            'Unlimited AI generations',
+            'Riven AI for decks, classes, guides, exams, YouTube, and notes',
             'All PRO themes',
             'Ad-free studying',
             'Advanced study groups',
@@ -389,7 +389,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                                 Upgrade Riven
                                             </h2>
                                             <p className="mt-1 line-clamp-2 text-xs leading-snug text-claude-secondary">
-                                                Premium themes, unlimited AI, ad-free study, and advanced groups.
+                                                Premium themes plus Riven AI for decks, classes, guides, mock exams, YouTube tools, and note enhancement.
                                             </p>
                                         </>
                                     ) : (
@@ -442,8 +442,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                                     <p className="mt-2 max-w-2xl pr-2 text-sm leading-relaxed text-claude-secondary md:mt-3 md:pr-0 md:text-base">
                                         Bring the full Riven atmosphere into every study session: premium themes,
-                                        unlimited generations, uninterrupted flow, and a cleaner desktop-to-mobile
-                                        experience.
+                                        Riven AI across decks, classes, guides, mock exams, YouTube study tools,
+                                        and audio note enhancement, plus uninterrupted flow on every screen.
                                     </p>
                                 </div>
                             </div>
@@ -557,7 +557,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                                 <div className="mb-5 hidden gap-3 sm:grid-cols-3 md:grid">
                                     {[
                                         ['Themes', 'Unlock all premium atmospheres'],
-                                        ['AI', 'Unlimited generations and study support'],
+                                        ['AI', 'Decks, classes, guides, exams, YouTube, and note enhancement'],
                                         ['Focus', 'No ads, less friction, more continuity'],
                                     ].map(([label, text]) => (
                                         <div
