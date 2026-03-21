@@ -131,6 +131,7 @@ export default function Layout({ children }) {
     const isOnboardingPage = location.pathname === '/onboarding';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
+    const pageOwnsTopSafeArea = isOnboardingPage || isLandingPage;
     const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || isOnboardingPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
     // Fullscreen pages that need edge-to-edge backgrounds (no padding from Layout)
@@ -268,7 +269,7 @@ export default function Layout({ children }) {
                     {/* Main content with page transitions */}
                     <main className={`[overflow-x:clip] ${isFullscreenPage ? '' : isStudyOrTest ? '' : isMessagesChat ? 'lg:px-8 lg:py-6' : 'px-4 py-4 lg:px-8 lg:py-6'
                         } ${hideBottomNav ? ((isFullscreenPage || isMessagesChat) ? '' : 'pb-6') : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))] lg:pb-6'
-                        } ${!isOffline ? 'safe-area-top' : ''
+                        } ${!isOffline && !pageOwnsTopSafeArea ? 'safe-area-top' : ''
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
                         <div className={isFullscreenPage ? '' : 'lg:max-w-5xl lg:mx-auto'}>

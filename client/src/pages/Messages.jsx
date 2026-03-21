@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft, Send, Search, Image, Layers,
+    ArrowLeft, Send, Search, Image, Layers, BookOpen, FileText,
     Check, CheckCheck, MoreVertical, Trash2, Leaf, Edit2, X, ShieldAlert, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,6 +15,13 @@ import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
 import FileViewer from '../components/FileViewer';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+    getSharedResourceCta,
+    getSharedResourceLabel,
+    getSharedResourceOpenLabel,
+    getSharedResourceRoute,
+    isSharedMessageType,
+} from '../utils/sharedResources';
 
 // Persistent session-aware message cache — survives page reloads via sessionStorage
 const CACHE_KEY = 'riven_msg_cache';
@@ -57,6 +64,13 @@ const messageCache = {
     },
     /** Reset cache if user changed, or clear entirely */
     ensure(userId) {
+        if (this._loaded && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(CACHE_KEY)) {
+            this.messages = {};
+            this.users = {};
+            this.conversations = null;
+            this.times = {};
+            this._userId = null;
+        }
         this._hydrate(userId);
         if (this._userId !== userId) {
             this.messages = {};
@@ -95,6 +109,20 @@ const messageCache = {
     },
 };
 
+const getSharedResourceSummary = (kind) => `Shared a ${getSharedResourceLabel(kind)}`;
+
+const SharedResourceIcon = ({ kind, className = 'w-4 h-4 text-claude-accent' }) => {
+    if (kind === 'note') {
+        return <FileText className={className} />;
+    }
+
+    if (kind === 'guide') {
+        return <BookOpen className={className} />;
+    }
+
+    return <Layers className={className} />;
+};
+
 export default function Messages() {
     const { userId } = useParams();
     const navigate = useNavigate();
@@ -111,7 +139,7 @@ export default function Messages() {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(!userId || !messageCache.messages[userId]);
     const [sending, setSending] = useState(false);
-    const [acceptingDeck, setAcceptingDeck] = useState(null);
+    const [acceptingSharedResource, setAcceptingSharedResource] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
@@ -293,13 +321,49 @@ export default function Messages() {
         }
     }, [isLoggedIn, userId, loadConversations, loadMessages, navigate]);
 
+    useEffect(() => {
+        if (!userId || !conversations.length) {
+            return;
+        }
+
+        const conversationMatch = conversations.find((conversation) => String(conversation.userId) === String(userId));
+        if (!conversationMatch) {
+            return;
+        }
+
+        setChatUser((current) => {
+            if (current?.username && current.username !== 'Unknown') {
+                return current;
+            }
+
+            const nextUser = {
+                id: conversationMatch.userId,
+                username: conversationMatch.username,
+                avatar: conversationMatch.avatar ?? null,
+            };
+
+            messageCache.setUser(userId, nextUser);
+            return nextUser;
+        });
+    }, [conversations, userId]);
+
     // Virtualizer for message list
     const virtualizer = useVirtualizer({
         count: messages.length,
         getScrollElement: () => scrollParentRef.current,
+        initialRect: { width: 0, height: 720 },
         estimateSize: () => 72,
         overscan: 15,
     });
+    const virtualRows = virtualizer.getVirtualItems();
+    const fallbackRows = useMemo(
+        () => messages.map((_, index) => ({ index, start: index * 104 })),
+        [messages],
+    );
+    const renderedRows = virtualRows.length > 0 ? virtualRows : fallbackRows;
+    const renderedRowsTotalSize = virtualRows.length > 0
+        ? virtualizer.getTotalSize()
+        : messages.length * 104;
 
     // Track whether user is near the bottom of the scroll
     const checkNearBottom = useCallback(() => {
@@ -674,30 +738,34 @@ export default function Messages() {
         }
     };
 
-    const handleAcceptDeck = async (messageId) => {
-        setAcceptingDeck(messageId);
+    const handleAcceptSharedResource = async (messageId) => {
+        setAcceptingSharedResource(messageId);
         try {
-            const { newDeck } = await authApi.acceptSharedDeck(messageId);
-            toast.success(`Deck "${newDeck.title}" added to your collection!`);
+            const result = await authApi.acceptSharedResource(messageId);
+            const importedResource = result.resource || result.newDeck || result.newNote || result.newGuide;
+            const resourceLabel = getSharedResourceLabel(result.kind);
+
+            toast.success(`${resourceLabel.charAt(0).toUpperCase()}${resourceLabel.slice(1)} "${importedResource?.title || 'Untitled'}" added to your library!`);
             // Update local messages to show accepted
             setMessages(prev => prev.map(m => {
                 if (m.id === messageId) {
+                    const nextSharedResource = m.sharedResource
+                        ? { ...m.sharedResource, acceptedId: importedResource?.id || null }
+                        : m.sharedResource;
                     return {
                         ...m,
-                        deckData: {
-                            ...m.deckData,
-                            acceptedDeckId: newDeck.id
-                        }
+                        sharedResource: nextSharedResource,
+                        deckData: nextSharedResource,
                     };
                 }
                 return m;
             }));
             haptics.light();
         } catch (error) {
-            toast.error(error.message || 'Failed to accept deck');
+            toast.error(error.message || 'Failed to import shared item');
             haptics.error();
         } finally {
-            setAcceptingDeck(null);
+            setAcceptingSharedResource(null);
         }
     };
 
@@ -726,7 +794,7 @@ export default function Messages() {
             const haystack = [
                 conv.username,
                 conv.lastMessage,
-                conv.lastMessageType === 'deck' ? 'shared deck' : '',
+                isSharedMessageType(conv.lastMessageType) ? getSharedResourceSummary(conv.lastMessageType) : '',
             ]
                 .filter(Boolean)
                 .join(' ')
@@ -740,8 +808,8 @@ export default function Messages() {
         () => conversations.filter((conv) => conv.unreadCount > 0).length,
         [conversations]
     );
-    const sharedDeckCount = useMemo(
-        () => messages.filter((msg) => msg.messageType === 'deck' && msg.deckData).length,
+    const sharedItemCount = useMemo(
+        () => messages.filter((msg) => isSharedMessageType(msg.messageType) && msg.sharedResource).length,
         [messages]
     );
     const threadMessageCount = messages.length;
@@ -893,9 +961,9 @@ export default function Messages() {
                                             </div>
                                             <p className={`text-sm truncate font-mono ${conv.unreadCount > 0 ? 'text-claude-text font-medium' : 'text-claude-secondary'}`}>
                                                 {conv.isOwnMessage && <span className="text-claude-secondary/70">You: </span>}
-                                                {conv.lastMessageType === 'deck' ? (
+                                                {isSharedMessageType(conv.lastMessageType) ? (
                                                     <span className="inline-flex items-center gap-1">
-                                                        <Layers className="w-3 h-3 inline" /> Shared a deck
+                                                        <SharedResourceIcon kind={conv.lastMessageType} className="w-3 h-3 inline text-current" /> {getSharedResourceSummary(conv.lastMessageType)}
                                                     </span>
                                                 ) : conv.lastMessage}
                                             </p>
@@ -1005,7 +1073,7 @@ export default function Messages() {
                             {threadMessageCount} message{threadMessageCount === 1 ? '' : 's'}
                         </div>
                         <div className="rounded-full border border-claude-border bg-claude-bg/15 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
-                            {sharedDeckCount} shared deck{sharedDeckCount === 1 ? '' : 's'}
+                            {sharedItemCount} shared item{sharedItemCount === 1 ? '' : 's'}
                         </div>
                     </div>
 	            </div>
@@ -1047,7 +1115,7 @@ export default function Messages() {
                         </p>
                     </motion.div>
                 ) : (
-                    <div className="px-4 pt-3 pb-2 sm:px-5" style={{ height: virtualizer.getTotalSize() + (isTyping ? 54 : 0), position: 'relative' }}>
+                    <div className="px-4 pt-3 pb-2 sm:px-5" style={{ height: renderedRowsTotalSize + (isTyping ? 54 : 0), position: 'relative' }}>
                         {/* Loading older messages indicator */}
                         {loadingMore && (
                             <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-10">
@@ -1057,7 +1125,7 @@ export default function Messages() {
                             </div>
                         )}
 
-                        {virtualizer.getVirtualItems().map(virtualRow => {
+                        {renderedRows.map(virtualRow => {
                             const i = virtualRow.index;
                             const msg = messages[i];
                             const showAvatar = !msg.isMine && (i === 0 || messages[i - 1].isMine);
@@ -1068,7 +1136,7 @@ export default function Messages() {
                             return (
                                 <div
                                     key={msg.id}
-                                    ref={virtualizer.measureElement}
+                                    ref={virtualRows.length > 0 ? virtualizer.measureElement : undefined}
                                     data-index={i}
                                     className={`pb-4 ${isDeleting ? 'animate-msg-out' : isSentAnimating ? 'animate-msg-in-sent' : isNew ? (msg.isMine ? 'animate-msg-in-sent' : 'animate-msg-in-received') : ''}`}
                                     style={{
@@ -1090,47 +1158,60 @@ export default function Messages() {
                                                 </div>
                                             )}
 
-                                            {/* Deck Message */}
-                                            {msg.messageType === 'deck' && msg.deckData ? (
-                                                <div className={`glass-panel relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
-                                                    <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-claude-accent/30' : 'from-claude-accent/30 to-transparent'}`} />
-                                                    <div className="p-4">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-claude-accent/10 flex items-center justify-center shrink-0 mr-3">
-                                                                <Layers className="w-4 h-4 text-claude-accent" />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-xs text-claude-secondary font-mono mb-0.5" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>
-                                                                    {msg.isMine ? 'You shared a deck' : `${chatUser?.username || 'Friend'} shared a deck`}
+                                            {/* Shared Resource Message */}
+                                            {isSharedMessageType(msg.messageType) && msg.sharedResource ? (
+                                                (() => {
+                                                    const sharedResource = msg.sharedResource;
+                                                    const sourceRoute = getSharedResourceRoute(sharedResource.kind, sharedResource.sourceId);
+                                                    const acceptedRoute = getSharedResourceRoute(sharedResource.kind, sharedResource.acceptedId);
+                                                    const summaryText = sharedResource.kind === 'deck'
+                                                        ? `${sharedResource.cardCount || 0} cards`
+                                                        : (sharedResource.previewText || 'Ready to import into your library');
+
+                                                    return (
+                                                        <div className={`glass-panel relative overflow-hidden ${msg.isMine ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[240px]`}>
+                                                            <div className={`absolute top-0 ${msg.isMine ? 'right-0' : 'left-0'} w-full h-1 bg-gradient-to-r ${msg.isMine ? 'from-transparent to-claude-accent/30' : 'from-claude-accent/30 to-transparent'}`} />
+                                                            <div className="p-4">
+                                                                <div className="flex items-center justify-between mb-3">
+                                                                    <div className="w-8 h-8 rounded-lg bg-claude-accent/10 flex items-center justify-center shrink-0 mr-3">
+                                                                        <SharedResourceIcon kind={sharedResource.kind} className="w-4 h-4 text-claude-accent" />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs text-claude-secondary font-mono mb-0.5" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>
+                                                                            {msg.isMine
+                                                                                ? `You shared a ${getSharedResourceLabel(sharedResource.kind)}`
+                                                                                : `${chatUser?.username || 'Friend'} shared a ${getSharedResourceLabel(sharedResource.kind)}`}
+                                                                        </p>
+                                                                        <span className="font-display font-medium text-claude-text block truncate">
+                                                                            {sharedResource.title}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-sm text-claude-secondary font-mono mb-4 text-center whitespace-pre-wrap break-words">
+                                                                    {summaryText}
                                                                 </p>
-                                                                <span className="font-display font-medium text-claude-text block truncate">
-                                                                    {msg.deckData.title}
-                                                                </span>
+
+                                                                {msg.isMine ? (
+                                                                    <Link to={sourceRoute || '#'} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
+                                                                        {getSharedResourceOpenLabel(sharedResource.kind)}
+                                                                    </Link>
+                                                                ) : acceptedRoute ? (
+                                                                    <Link to={acceptedRoute} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
+                                                                        {getSharedResourceOpenLabel(sharedResource.kind, true)}
+                                                                    </Link>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => handleAcceptSharedResource(msg.id)}
+                                                                        disabled={acceptingSharedResource === msg.id}
+                                                                        className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent text-white hover:brightness-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
+                                                                    >
+                                                                        {acceptingSharedResource === msg.id ? 'Adding...' : getSharedResourceCta(sharedResource.kind)}
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <p className="text-sm text-claude-secondary font-mono mb-4 text-center">
-                                                            {msg.deckData.cardCount} cards
-                                                        </p>
-
-                                                        {msg.isMine ? (
-                                                            <Link to={`/deck/${msg.deckData.id}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
-                                                                View Deck
-                                                            </Link>
-                                                        ) : msg.deckData.acceptedDeckId ? (
-                                                            <Link to={`/deck/${msg.deckData.acceptedDeckId}`} className="block w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors">
-                                                                View in Collection
-                                                            </Link>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => handleAcceptDeck(msg.id)}
-                                                                disabled={acceptingDeck === msg.id}
-                                                                className="w-full py-2 text-center text-xs font-mono font-medium rounded-lg bg-claude-accent text-white hover:brightness-110 active:scale-95 transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
-                                                            >
-                                                                {acceptingDeck === msg.id ? 'Adding...' : 'Add to Collection'}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                    );
+                                                })()
                                             ) : (
                                                 /* Text/Image Message Bubble */
                                                 <div
@@ -1242,7 +1323,7 @@ export default function Messages() {
                                     top: 0,
                                     left: 0,
                                     width: '100%',
-                                    transform: `translateY(${virtualizer.getTotalSize()}px)`,
+                                    transform: `translateY(${renderedRowsTotalSize}px)`,
                                 }}
                                 className="pb-4"
                             >

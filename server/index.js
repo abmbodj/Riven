@@ -31,6 +31,15 @@ const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
 const registerStripeRoutes = require('./routes/stripe');
 
+let acceptSharedResourceCorePromise = null;
+const loadAcceptSharedResourceCore = async () => {
+    if (!acceptSharedResourceCorePromise) {
+        acceptSharedResourceCorePromise = import('../supabase/functions/_shared/acceptSharedDeckCore.mjs');
+    }
+
+    return acceptSharedResourceCorePromise;
+};
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
@@ -448,71 +457,120 @@ registerGroupsRoutes({ app, db, authMiddleware });
 
 // ============ SHARING ============
 
-// Accept a shared deck from a message
-app.post('/api/messages/:id/accept-deck', authMiddleware, async (req, res) => {
-    const messageId = req.params.id;
-    try {
-        const message = await db.queryOne('SELECT * FROM messages WHERE id = $1 AND receiver_id = $2', [messageId, req.user.id]);
-        if (!message) return res.status(404).json({ error: 'Message not found' });
-        if (message.message_type !== 'deck') return res.status(400).json({ error: 'Not a deck message' });
-
-        const deckData = message.deck_data ? JSON.parse(message.deck_data) : null;
-        if (!deckData || !deckData.id) return res.status(400).json({ error: 'Invalid deck data in message' });
-        if (deckData.acceptedDeckId) return res.status(400).json({ error: 'Deck already accepted' });
-
-        const originalDeckId = deckData.id;
-        const originalDeck = await db.queryOne('SELECT * FROM decks WHERE id = $1', [originalDeckId]);
-        if (!originalDeck) return res.status(404).json({ error: 'Original deck no longer exists' });
-
-        // Clone deck
-        const newDeck = await db.queryOne(
-            'INSERT INTO decks (user_id, title, description) VALUES ($1, $2, $3) RETURNING *',
-            [req.user.id, originalDeck.title, originalDeck.description]
-        );
-
-        // Clone cards (bulk insert)
-        const cards = await db.query('SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1', [originalDeckId]);
-        if (cards.length > 0) {
-            const values = [];
-            const placeholders = cards.map((card, i) => {
-                const offset = i * 6;
-                values.push(newDeck.id, card.front, card.back, card.front_image, card.back_image, card.position);
-                return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-            });
-            await db.execute(
-                `INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ${placeholders.join(', ')}`,
-                values
-            );
-        }
-
-        // Clone tags (bulk insert)
-        const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [originalDeckId]);
-        if (tags.length > 0) {
-            const values = [];
-            const placeholders = tags.map((tag, i) => {
-                const offset = i * 2;
-                values.push(newDeck.id, tag.tag_id);
-                return `($${offset + 1}, $${offset + 2})`;
-            });
-            await db.execute(
-                `INSERT INTO deck_tags (deck_id, tag_id) VALUES ${placeholders.join(', ')}`,
-                values
-            );
-        }
-
-        // Update message to mark as accepted
-        deckData.acceptedDeckId = newDeck.id;
-        await db.execute(
-            'UPDATE messages SET deck_data = $1 WHERE id = $2',
-            [JSON.stringify(deckData), messageId]
-        );
-
-        res.status(201).json({ newDeck, messageId });
-    } catch (error) {
-        console.error('Accept deck error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+const handleAcceptSharedResource = async (req, res) => {
+    const messageId = Number(req.params.id);
+    if (!Number.isInteger(messageId) || messageId <= 0) {
+        return res.status(400).json({ error: 'Message id must be a valid id' });
     }
-});
+
+    try {
+        const { acceptSharedResourceCore } = await loadAcceptSharedResourceCore();
+        const result = await acceptSharedResourceCore({
+            messageId,
+            receiverId: req.user.id,
+            loadMessageForReceiver: (targetMessageId, targetUserId) =>
+                db.queryOne(
+                    'SELECT id, receiver_id, message_type, deck_data FROM messages WHERE id = $1 AND receiver_id = $2',
+                    [targetMessageId, targetUserId]
+                ),
+            loadDeck: (deckId) =>
+                db.queryOne('SELECT id, title, description FROM decks WHERE id = $1', [deckId]),
+            loadDeckCards: (deckId) =>
+                db.query(
+                    'SELECT front, back, front_image, back_image, position FROM cards WHERE deck_id = $1 ORDER BY position ASC',
+                    [deckId]
+                ),
+            loadDeckTags: async (deckId) => {
+                const tags = await db.query('SELECT tag_id FROM deck_tags WHERE deck_id = $1', [deckId]);
+                return tags.map((tag) => tag.tag_id);
+            },
+            createDeck: (userId, originalDeck) =>
+                db.queryOne(
+                    'INSERT INTO decks (user_id, title, description) VALUES ($1, $2, $3) RETURNING *',
+                    [userId, originalDeck.title, originalDeck.description]
+                ),
+            insertDeckCards: async (newDeckId, cards) => {
+                if (!cards.length) return;
+
+                const values = [];
+                const placeholders = cards.map((card, index) => {
+                    const offset = index * 6;
+                    values.push(newDeckId, card.front, card.back, card.front_image, card.back_image, card.position);
+                    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+                });
+
+                await db.execute(
+                    `INSERT INTO cards (deck_id, front, back, front_image, back_image, position) VALUES ${placeholders.join(', ')}`,
+                    values
+                );
+            },
+            insertDeckTags: async (newDeckId, tagIds) => {
+                if (!tagIds.length) return;
+
+                const values = [];
+                const placeholders = tagIds.map((tagId, index) => {
+                    const offset = index * 2;
+                    values.push(newDeckId, tagId);
+                    return `($${offset + 1}, $${offset + 2})`;
+                });
+
+                await db.execute(
+                    `INSERT INTO deck_tags (deck_id, tag_id) VALUES ${placeholders.join(', ')}`,
+                    values
+                );
+            },
+            loadNote: (noteId) =>
+                db.queryOne('SELECT id, title, content, enhanced_content FROM notes WHERE id = $1', [noteId]),
+            createNote: (userId, note) =>
+                db.queryOne(
+                    `INSERT INTO notes
+                        (user_id, title, content, enhanced_content, class_id, audio_url, audio_duration_seconds, source_type)
+                     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8)
+                     RETURNING *`,
+                    [
+                        userId,
+                        note.title,
+                        JSON.stringify(note.content || {}),
+                        note.enhanced_content ? JSON.stringify(note.enhanced_content) : null,
+                        null,
+                        null,
+                        null,
+                        'import',
+                    ]
+                ),
+            loadGuide: (guideId) =>
+                db.queryOne('SELECT id, title, content FROM study_guides WHERE id = $1', [guideId]),
+            createGuide: (userId, guide) =>
+                db.queryOne(
+                    `INSERT INTO study_guides
+                        (user_id, title, content, note_id, class_id)
+                     VALUES ($1, $2, $3::jsonb, $4, $5)
+                     RETURNING *`,
+                    [
+                        userId,
+                        guide.title,
+                        JSON.stringify(guide.content || {}),
+                        null,
+                        null,
+                    ]
+                ),
+            updateMessageSharedData: (targetMessageId, sharedData) =>
+                db.execute('UPDATE messages SET deck_data = $1 WHERE id = $2', [
+                    JSON.stringify(sharedData),
+                    targetMessageId,
+                ]),
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Accept shared resource error:', error);
+        res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
+    }
+};
+
+// Accept a shared resource from a message
+app.post('/api/messages/:id/accept-share', authMiddleware, handleAcceptSharedResource);
+app.post('/api/messages/:id/accept-deck', authMiddleware, handleAcceptSharedResource);
 
 // ============ ADMIN ============
 // ============ ADMIN ============

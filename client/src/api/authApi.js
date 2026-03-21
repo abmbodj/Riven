@@ -5,6 +5,11 @@ import {
     getDefaultThemes,
     THEME_VISUAL_FIELDS,
 } from '../themeCatalog.js';
+import {
+    isSharedMessageType,
+    normalizeSharedPayload,
+    serializeSharedPayload,
+} from '../utils/sharedResources.js';
 
 // Authentication API - communicates with server for cross-device sync
 // Set VITE_API_URL for the legacy Express server (used only for login/register/2FA bridges)
@@ -2623,8 +2628,59 @@ export const deleteTheme = async (id) => {
 
 // ============ SHARING ENDPOINTS ============
 
-export const acceptSharedDeck = (messageId) =>
-    edgeFunctionFetch('accept-shared-deck', { method: 'POST', body: { messageId } });
+const acceptSharedResourceViaLegacyRoute = async (messageId) => {
+    const token = getToken();
+
+    if (!token || token === 'logged_in') {
+        return authFetch(`/messages/${messageId}/accept-share`, {
+            method: 'POST',
+        });
+    }
+
+    const response = await fetch(`${getApiBase()}/messages/${messageId}/accept-share`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        signal: AbortSignal.timeout(10000),
+    });
+
+    const contentType = response.headers.get('content-type');
+    let data = {};
+
+    if (contentType && contentType.includes('application/json')) {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+    }
+
+    if (!response.ok) {
+        const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+        error.status = response.status;
+        error.code = data.code;
+        error.body = data;
+        throw error;
+    }
+
+    return data;
+};
+
+export const acceptSharedResource = async (messageId) => {
+    try {
+        return await edgeFunctionFetch('accept-shared-resource', {
+            method: 'POST',
+            body: { messageId },
+        });
+    } catch (error) {
+        if (error?.status === 404) {
+            return acceptSharedResourceViaLegacyRoute(messageId);
+        }
+        throw error;
+    }
+};
+
+export const acceptSharedDeck = (messageId) => acceptSharedResource(messageId);
 
 // ============ GUEST DATA MIGRATION ============
 
@@ -3132,21 +3188,26 @@ export const reportContent = async (reportData) => {
 
 // ============ DIRECT MESSAGES ============
 
-const mapMessageRow = (row, currentUser) => ({
-    id: row.id,
-    senderId: row.sender_id,
-    receiverId: row.receiver_id,
-    senderUsername: row.sender_id === currentUser.id ? currentUser.username || null : null,
-    senderAvatar: row.sender_id === currentUser.id ? currentUser.avatar || null : null,
-    content: row.content,
-    messageType: row.message_type || 'text',
-    deckData: parseJsonish(row.deck_data),
-    imageUrl: row.image_url || null,
-    isEdited: Boolean(row.is_edited),
-    isRead: Boolean(row.is_read),
-    createdAt: row.created_at,
-    isMine: row.sender_id === currentUser.id,
-});
+const mapMessageRow = (row, currentUser) => {
+    const sharedResource = normalizeSharedPayload(parseJsonish(row.deck_data), row.message_type || 'text');
+
+    return {
+        id: row.id,
+        senderId: row.sender_id,
+        receiverId: row.receiver_id,
+        senderUsername: row.sender_id === currentUser.id ? currentUser.username || null : null,
+        senderAvatar: row.sender_id === currentUser.id ? currentUser.avatar || null : null,
+        content: row.content,
+        messageType: row.message_type || 'text',
+        sharedResource,
+        deckData: sharedResource,
+        imageUrl: row.image_url || null,
+        isEdited: Boolean(row.is_edited),
+        isRead: Boolean(row.is_read),
+        createdAt: row.created_at,
+        isMine: row.sender_id === currentUser.id,
+    };
+};
 
 export const getConversations = async (currentUserOverride = null) => {
     const currentUser = await resolveCurrentUser(currentUserOverride);
@@ -3231,7 +3292,7 @@ export const sendMessage = async (
     receiverId,
     content,
     messageType = 'text',
-    deckData = null,
+    sharedData = null,
     imageUrl = null,
     currentUserOverride = null
 ) => {
@@ -3240,18 +3301,32 @@ export const sendMessage = async (
         error.status = 400;
         throw error;
     }
-    if (!content && !imageUrl && !deckData) {
-        const error = new Error('Message content, image or deck is required');
+    if (!content && !imageUrl && !sharedData) {
+        const error = new Error('Message content, image or shared resource is required');
         error.status = 400;
         throw error;
     }
-    if (content && typeof content === 'string' && content.trim().length === 0 && !imageUrl && !deckData) {
+    if (content && typeof content === 'string' && content.trim().length === 0 && !imageUrl && !sharedData) {
         const error = new Error('Message content cannot be empty');
         error.status = 400;
         throw error;
     }
     if (content && content.length > 5000) {
         const error = new Error('Message content must be under 5000 characters');
+        error.status = 400;
+        throw error;
+    }
+
+    const normalizedSharedData = sharedData && isSharedMessageType(messageType)
+        ? serializeSharedPayload({
+            kind: messageType,
+            ...sharedData,
+            sourceId: sharedData.sourceId ?? sharedData.id,
+        })
+        : null;
+
+    if (isSharedMessageType(messageType) && !normalizedSharedData) {
+        const error = new Error('Shared resource data is required');
         error.status = 400;
         throw error;
     }
@@ -3264,7 +3339,7 @@ export const sendMessage = async (
             receiver_id: Number(receiverId),
             content: content || '',
             message_type: messageType || 'text',
-            deck_data: deckData ? JSON.stringify(deckData) : null,
+            deck_data: normalizedSharedData ? JSON.stringify(normalizedSharedData) : null,
             image_url: imageUrl || null,
         })
         .select()
@@ -4049,6 +4124,7 @@ export default {
     createTheme,
     updateTheme,
     activateTheme,
+    acceptSharedResource,
     acceptSharedDeck,
     migrateGuestData,
     searchUsers,

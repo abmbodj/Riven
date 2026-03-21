@@ -1,13 +1,21 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    ChevronLeft, Check, Loader2, Layers, ClipboardCheck, Trash2
+    ChevronLeft, Check, Loader2, Layers, ClipboardCheck, Trash2, Share2
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import ShareToFriendModal from '../components/ShareToFriendModal';
+import {
+    buildShareMessageContent,
+    buildSharedPreviewText,
+    cloneRichTextDoc,
+    extractTextFromDoc,
+    serializeSharedPayload,
+} from '../utils/sharedResources';
 
 export default function GuideView() {
     const { id } = useParams();
@@ -21,12 +29,22 @@ export default function GuideView() {
     const [saved, setSaved] = useState(true);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [friends, setFriends] = useState([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
+    const [sharingTo, setSharingTo] = useState(null);
     const [generating, setGenerating] = useState(null);
 
+    const toastRef = useRef(toast);
     const saveTimerRef = useRef(null);
     const contentRef = useRef(null);
     const titleRef = useRef('');
     const guideRef = useRef(null);
+    const activeSaveRef = useRef(Promise.resolve(null));
+
+    useEffect(() => {
+        toastRef.current = toast;
+    }, [toast]);
 
     useEffect(() => {
         const load = async () => {
@@ -38,35 +56,48 @@ export default function GuideView() {
                 contentRef.current = guide.content || {};
                 guideRef.current = guide;
             } catch {
-                toast.error('Failed to load guide');
+                toastRef.current.error('Failed to load guide');
                 navigate('/guides');
             } finally {
                 setLoading(false);
             }
         };
         load();
-    }, [id, navigate, toast]);
+    }, [id, navigate]);
 
     const saveGuide = useCallback(async () => {
         setSaving(true);
         try {
-            await api.updateStudyGuide(id, {
+            const contentSnapshot = cloneRichTextDoc(contentRef.current);
+            const updatedGuide = await api.updateStudyGuide(id, {
                 title: titleRef.current || 'Untitled Guide',
-                content: contentRef.current,
+                content: contentSnapshot,
             });
+            guideRef.current = updatedGuide;
             setSaved(true);
+            return updatedGuide;
         } catch {
             toast.error('Failed to save');
+            throw new Error('Failed to save');
         } finally {
             setSaving(false);
         }
     }, [id, toast]);
 
+    const commitSave = useCallback(() => {
+        saveTimerRef.current = null;
+        const pendingSave = saveGuide();
+        activeSaveRef.current = pendingSave;
+        return pendingSave;
+    }, [saveGuide]);
+
     const debounceSave = useCallback(() => {
         setSaved(false);
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(saveGuide, 800);
-    }, [saveGuide]);
+        saveTimerRef.current = setTimeout(() => {
+            commitSave().catch(() => {});
+        }, 800);
+    }, [commitSave]);
 
     const handleTitleChange = (e) => {
         setTitle(e.target.value);
@@ -75,26 +106,73 @@ export default function GuideView() {
     };
 
     const handleContentUpdate = useCallback((json) => {
+        setContent(json);
         contentRef.current = json;
         debounceSave();
     }, [debounceSave]);
 
-    const extractText = (doc) => {
-        if (!doc?.content) return '';
-        const texts = [];
-        const walk = (nodes) => {
-            for (const node of nodes) {
-                if (node.text) texts.push(node.text);
-                if (node.content) walk(node.content);
-            }
-        };
-        walk(doc.content);
-        return texts.join('\n');
+    const extractText = useCallback((doc) => extractTextFromDoc(doc).replace(/\s+/g, ' ').trim(), []);
+
+    const flushPendingSave = useCallback(async () => {
+        if (saveTimerRef.current) {
+            return commitSave();
+        }
+
+        if (saving) {
+            return activeSaveRef.current;
+        }
+
+        if (!saved) {
+            return commitSave();
+        }
+
+        return guideRef.current;
+    }, [commitSave, saved, saving]);
+
+    const handleShareGuide = async () => {
+        setShowShareModal(true);
+        setLoadingFriends(true);
+        try {
+            const friendsData = await api.getFriends();
+            setFriends(friendsData);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to load friends');
+        } finally {
+            setLoadingFriends(false);
+        }
+    };
+
+    const handleSendGuideToFriend = async (friendId) => {
+        if (sharingTo) return;
+        setSharingTo(friendId);
+        try {
+            await flushPendingSave();
+            const contentSnapshot = cloneRichTextDoc(contentRef.current);
+
+            await api.sendMessage(
+                friendId,
+                buildShareMessageContent('guide', titleRef.current || 'Untitled Guide'),
+                'guide',
+                serializeSharedPayload({
+                    kind: 'guide',
+                    sourceId: id,
+                    title: titleRef.current || 'Untitled Guide',
+                    previewText: buildSharedPreviewText(contentSnapshot),
+                })
+            );
+
+            toast.success('Guide shared successfully!');
+            setShowShareModal(false);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to share guide');
+        } finally {
+            setSharingTo(null);
+        }
     };
 
     const handleGenerateFlashcards = async () => {
-        const text = extractText(contentRef.current);
-        if (!text.trim()) { toast.error('Guide is empty'); return; }
+            const text = extractText(contentRef.current);
+            if (!text.trim()) { toast.error('Guide is empty'); return; }
 
         setGenerating('flashcards');
         try {
@@ -174,6 +252,16 @@ export default function GuideView() {
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteConfirm(false)}
             />
+            <ShareToFriendModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                friends={friends}
+                loading={loadingFriends}
+                sendingTo={sharingTo}
+                onSend={handleSendGuideToFriend}
+                resourceLabel="Guide"
+                resourceTitle={title || 'Untitled Guide'}
+            />
 
             {/* Header */}
             <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10 px-4 pt-3 pb-2">
@@ -194,6 +282,9 @@ export default function GuideView() {
                                 {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
                             </span>
                         </div>
+                        <button onClick={handleShareGuide} className="p-2 text-claude-secondary hover:text-claude-accent transition-colors tap-action" aria-label="Share guide">
+                            <Share2 className="w-4 h-4" />
+                        </button>
                         <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
                             <Trash2 className="w-4 h-4" />
                         </button>

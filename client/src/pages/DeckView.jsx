@@ -9,8 +9,10 @@ import { useAuth } from '../hooks/useAuth';
 import ConfirmModal from '../components/ConfirmModal';
 import AlertModal from '../components/AlertModal';
 import CardImageUpload from '../components/CardImageUpload';
+import ShareToFriendModal from '../components/ShareToFriendModal';
 import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
+import { buildShareMessageContent, serializeSharedPayload } from '../utils/sharedResources';
 
 export default function DeckView() {
     const { id } = useParams();
@@ -37,6 +39,7 @@ export default function DeckView() {
     const [reorderMode, setReorderMode] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [friends, setFriends] = useState([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
     const [sharingTo, setSharingTo] = useState(null);
     const [exporting, setExporting] = useState(false);
     const touchStartX = useRef(0);
@@ -120,11 +123,14 @@ export default function DeckView() {
             return;
         }
         setShowShareModal(true);
+        setLoadingFriends(true);
         try {
             const friendsData = await api.getFriends();
             setFriends(friendsData);
         } catch {
             toast.error('Failed to load friends');
+        } finally {
+            setLoadingFriends(false);
         }
     };
 
@@ -135,9 +141,14 @@ export default function DeckView() {
             const fullDeck = await api.getDeck(id);
             await api.sendMessage(
                 friendId,
-                `Shared a deck: ${fullDeck.title}`,
+                buildShareMessageContent('deck', fullDeck.title),
                 'deck',
-                { id: fullDeck.id, title: fullDeck.title, cardCount: fullDeck.cards?.length || 0 }
+                serializeSharedPayload({
+                    kind: 'deck',
+                    sourceId: fullDeck.id,
+                    title: fullDeck.title,
+                    cardCount: fullDeck.cards?.length || 0,
+                })
             );
             toast.success('Deck shared successfully!');
             setShowShareModal(false);
@@ -1074,68 +1085,16 @@ export default function DeckView() {
                 )
             }
 
-            {/* Share Modal */}
-            <AnimatePresence>
-                {showShareModal && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm"
-                            onClick={() => setShowShareModal(false)}
-                        />
-                        <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-claude-text w-full sm:max-w-md max-h-[85dvh] overflow-hidden flex flex-col rounded-t-[2.5rem] sm:rounded-3xl shadow-md md:shadow-2xl touch-pan-y"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="p-6 pb-2 shrink-0">
-                                <div className="sm:hidden w-12 h-1.5 bg-claude-accent/30 rounded-full mx-auto -mt-2 mb-4" />
-                                <div className="flex justify-between items-center mb-2">
-                                    <h3 className="text-2xl font-display font-bold">Share Deck</h3>
-                                    <button onClick={() => setShowShareModal(false)} className="p-2 -mr-2 active:bg-claude-accent/10 rounded-full">
-                                        <X className="w-6 h-6 text-claude-text/60" />
-                                    </button>
-                                </div>
-                                <p className="text-claude-secondary font-mono text-sm leading-relaxed mb-4">
-                                    Select a friend to send "{deck.title}" to directly.
-                                </p>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
-                                {friends.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <p className="text-claude-secondary font-mono text-sm">You have no friends yet.</p>
-                                        <Link to="/friends" className="text-claude-accent hover:underline font-mono text-xs mt-2 inline-block">Find Friends</Link>
-                                    </div>
-                                ) : (
-                                    friends.map(friend => (
-                                        <div key={friend.id} className="flex items-center justify-between p-3 bg-claude-accent/5 rounded-xl border border-claude-accent/10">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-claude-accent/20 flex items-center justify-center font-display font-bold text-claude-accent">
-                                                    {friend.username.charAt(0).toUpperCase()}
-                                                </div>
-                                                <span className="font-display font-semibold">{friend.username}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleSendDeckToFriend(friend.id)}
-                                                disabled={sharingTo === friend.id}
-                                                className="px-4 py-2 bg-claude-accent text-white rounded-lg font-mono text-xs font-medium disabled:opacity-50"
-                                            >
-                                                {sharingTo === friend.id ? 'Sending...' : 'Send'}
-                                            </button>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <ShareToFriendModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                friends={friends}
+                loading={loadingFriends}
+                sendingTo={sharingTo}
+                onSend={handleSendDeckToFriend}
+                resourceLabel="Deck"
+                resourceTitle={deck?.title || 'Untitled'}
+            />
         </div >
     );
 }

@@ -31,6 +31,11 @@ const buildJsonResponse = (body) => ({
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
 
+const emptySharedFields = {
+  sharedResource: null,
+  deckData: null,
+};
+
 describe('authApi direct messages via Supabase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,7 +141,7 @@ describe('authApi direct messages via Supabase', () => {
         senderAvatar: null,
         content: 'older',
         messageType: 'text',
-        deckData: null,
+        ...emptySharedFields,
         imageUrl: null,
         isEdited: false,
         isRead: true,
@@ -151,7 +156,7 @@ describe('authApi direct messages via Supabase', () => {
         senderAvatar: '/me.png',
         content: 'latest',
         messageType: 'text',
-        deckData: null,
+        ...emptySharedFields,
         imageUrl: null,
         isEdited: false,
         isRead: true,
@@ -195,6 +200,66 @@ describe('authApi direct messages via Supabase', () => {
     warnSpy.mockRestore();
   });
 
+  it('normalizes legacy deck payloads and new guide payloads into sharedResource data', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, username: 'avery', avatar: '/me.png' }));
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 20,
+          sender_id: 12,
+          receiver_id: 42,
+          content: 'Shared a deck: Biology',
+          message_type: 'deck',
+          deck_data: JSON.stringify({ id: 5, title: 'Biology', cardCount: 24, acceptedDeckId: 55 }),
+          image_url: null,
+          is_edited: 0,
+          is_read: 1,
+          created_at: '2026-03-13T12:05:00.000Z',
+        },
+        {
+          id: 21,
+          sender_id: 12,
+          receiver_id: 42,
+          content: 'Shared a guide: World War I',
+          message_type: 'guide',
+          deck_data: JSON.stringify({ kind: 'guide', sourceId: 'guide-7', title: 'World War I', previewText: 'Treaty summary' }),
+          image_url: null,
+          is_edited: 0,
+          is_read: 1,
+          created_at: '2026-03-13T12:06:00.000Z',
+        },
+      ],
+      error: null,
+    });
+    const order = vi.fn().mockReturnValue({ limit });
+    const or = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ or });
+
+    supabase.from.mockReturnValue({ select });
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    const messages = await authApi.getMessages(12, 50);
+
+    expect(messages[0].sharedResource).toEqual({
+      kind: 'deck',
+      sourceId: 5,
+      title: 'Biology',
+      previewText: null,
+      cardCount: 24,
+      acceptedId: 55,
+    });
+    expect(messages[0].deckData).toEqual(messages[0].sharedResource);
+    expect(messages[1].sharedResource).toEqual({
+      kind: 'guide',
+      sourceId: 'guide-7',
+      title: 'World War I',
+      previewText: 'Treaty summary',
+      cardCount: null,
+      acceptedId: null,
+    });
+  });
+
   it('creates messages in Supabase with sender_id and serialized deck payloads', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
       id: 42,
@@ -210,7 +275,7 @@ describe('authApi direct messages via Supabase', () => {
         receiver_id: 12,
         content: 'Shared a deck: Biology',
         message_type: 'deck',
-        deck_data: JSON.stringify({ id: 5, title: 'Biology', cardCount: 24 }),
+        deck_data: JSON.stringify({ kind: 'deck', sourceId: 5, id: 5, title: 'Biology', cardCount: 24 }),
         image_url: null,
         is_edited: 0,
         is_read: 0,
@@ -230,7 +295,7 @@ describe('authApi direct messages via Supabase', () => {
       receiver_id: 12,
       content: 'Shared a deck: Biology',
       message_type: 'deck',
-      deck_data: JSON.stringify({ id: 5, title: 'Biology', cardCount: 24 }),
+      deck_data: JSON.stringify({ kind: 'deck', sourceId: 5, id: 5, title: 'Biology', cardCount: 24 }),
       image_url: null,
     });
     expect(message).toEqual({
@@ -241,13 +306,106 @@ describe('authApi direct messages via Supabase', () => {
       senderAvatar: '/me.png',
       content: 'Shared a deck: Biology',
       messageType: 'deck',
-      deckData: { id: 5, title: 'Biology', cardCount: 24 },
+      sharedResource: {
+        kind: 'deck',
+        sourceId: 5,
+        title: 'Biology',
+        previewText: null,
+        cardCount: 24,
+        acceptedId: null,
+      },
+      deckData: {
+        kind: 'deck',
+        sourceId: 5,
+        title: 'Biology',
+        previewText: null,
+        cardCount: 24,
+        acceptedId: null,
+      },
       imageUrl: null,
       isEdited: false,
       isRead: false,
       createdAt: '2026-03-13T12:12:00.000Z',
       isMine: true,
     });
+  });
+
+  it('creates shared note messages with normalized payloads', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
+      id: 42,
+      username: 'avery',
+      avatar: '/me.png',
+      email: 'avery@example.com',
+    }));
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 78,
+        sender_id: 42,
+        receiver_id: 12,
+        content: 'Shared a note: Bio Notes',
+        message_type: 'note',
+        deck_data: JSON.stringify({ kind: 'note', sourceId: 'note-1', id: 'note-1', title: 'Bio Notes', previewText: 'ATP and glycolysis' }),
+        image_url: null,
+        is_edited: 0,
+        is_read: 0,
+        created_at: '2026-03-13T12:13:00.000Z',
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ insert });
+
+    await authApi.sendMessage(12, 'Shared a note: Bio Notes', 'note', {
+      sourceId: 'note-1',
+      title: 'Bio Notes',
+      previewText: 'ATP and glycolysis',
+    });
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      message_type: 'note',
+      deck_data: JSON.stringify({ kind: 'note', sourceId: 'note-1', id: 'note-1', title: 'Bio Notes', previewText: 'ATP and glycolysis' }),
+    }));
+  });
+
+  it('creates shared guide messages with normalized payloads', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
+      id: 42,
+      username: 'avery',
+      avatar: '/me.png',
+      email: 'avery@example.com',
+    }));
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 79,
+        sender_id: 42,
+        receiver_id: 12,
+        content: 'Shared a guide: WWI Guide',
+        message_type: 'guide',
+        deck_data: JSON.stringify({ kind: 'guide', sourceId: 'guide-1', id: 'guide-1', title: 'WWI Guide', previewText: 'Treaty of Versailles' }),
+        image_url: null,
+        is_edited: 0,
+        is_read: 0,
+        created_at: '2026-03-13T12:14:00.000Z',
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ insert });
+
+    await authApi.sendMessage(12, 'Shared a guide: WWI Guide', 'guide', {
+      sourceId: 'guide-1',
+      title: 'WWI Guide',
+      previewText: 'Treaty of Versailles',
+    });
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      message_type: 'guide',
+      deck_data: JSON.stringify({ kind: 'guide', sourceId: 'guide-1', id: 'guide-1', title: 'WWI Guide', previewText: 'Treaty of Versailles' }),
+    }));
   });
 
   it('creates messages without fetching auth/me when a current user override is provided', async () => {

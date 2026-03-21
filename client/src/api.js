@@ -362,8 +362,11 @@ export const api = {
 
     // ============ FRIENDS & MESSAGES ============
     getFriends: () => isLoggedIn() ? serverApi.getFriends() : Promise.resolve([]),
-    sendMessage: (toUserId, content, messageType, deckData) => isLoggedIn()
-        ? serverApi.sendMessage(toUserId, content, messageType, deckData)
+    acceptSharedResource: (messageId) => isLoggedIn()
+        ? serverApi.acceptSharedResource(messageId)
+        : Promise.reject(new Error('Must be logged in to accept shared items')),
+    sendMessage: (toUserId, content, messageType, sharedData, imageUrl) => isLoggedIn()
+        ? serverApi.sendMessage(toUserId, content, messageType, sharedData, imageUrl)
         : Promise.reject(new Error('Must be logged in to send messages')),
 
     // Hearts API

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown,
-    Mic, Sparkles, AlertCircle, Lock
+    Mic, Sparkles, AlertCircle, Lock, Share2
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -12,6 +12,14 @@ import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import { createArrayStreamParser } from '../utils/streamingJsonParser';
+import ShareToFriendModal from '../components/ShareToFriendModal';
+import {
+    buildShareMessageContent,
+    buildSharedPreviewText,
+    cloneRichTextDoc,
+    extractTextFromDoc,
+    serializeSharedPayload,
+} from '../utils/sharedResources';
 
 const ACTIVE_AI_JOB_STATUSES = ['queued', 'running', 'streaming', 'saving'];
 
@@ -90,6 +98,10 @@ export default function NoteEditor() {
     const [showClassPicker, setShowClassPicker] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [friends, setFriends] = useState([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
+    const [sharingTo, setSharingTo] = useState(null);
 
     const [generating, setGenerating] = useState(null);
     const [streamingCards, setStreamingCards] = useState([]);
@@ -102,9 +114,11 @@ export default function NoteEditor() {
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
     const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
 
+    const toastRef = useRef(toast);
     const saveTimerRef = useRef(null);
     const contentRef = useRef(content);
     const titleRef = useRef(title);
+    const activeSaveRef = useRef(Promise.resolve(null));
     const enhancementUnsubscribeRef = useRef(null);
     const handledJobStatesRef = useRef(new Set());
     const enhancementMetricsRef = useRef({
@@ -113,6 +127,10 @@ export default function NoteEditor() {
         firstPhaseMs: null,
         firstPreviewMs: null,
     });
+
+    useEffect(() => {
+        toastRef.current = toast;
+    }, [toast]);
 
     const recorder = useAudioRecorder(noteId);
 
@@ -124,16 +142,7 @@ export default function NoteEditor() {
     }, []);
 
     const extractText = useCallback((doc) => {
-        if (!doc || !doc.content) return '';
-        const texts = [];
-        const walk = (nodes) => {
-            for (const node of nodes) {
-                if (node.text) texts.push(node.text);
-                if (node.content) walk(node.content);
-            }
-        };
-        walk(doc.content);
-        return texts.join('\n');
+        return extractTextFromDoc(doc).replace(/\s+/g, ' ').trim();
     }, []);
 
     const logEnhancementMetrics = useCallback((job) => {
@@ -263,14 +272,14 @@ export default function NoteEditor() {
                     contentRef.current = initialContent;
                 }
             } catch {
-                toast.error('Failed to load note');
+                toastRef.current.error('Failed to load note');
                 navigate('/notes');
             } finally {
                 setLoading(false);
             }
         };
         load();
-    }, [id, isNew, navigate, toast]);
+    }, [id, isNew, navigate]);
 
     useEffect(() => {
         if (recorder.state === 'stopped' && !isEnhancementJobActive(activeEnhancementJob)) {
@@ -318,33 +327,48 @@ export default function NoteEditor() {
         setSaving(true);
         try {
             if (!noteId) {
+                const contentSnapshot = cloneRichTextDoc(contentRef.current || {});
                 const newNote = await api.createNote(
                     titleRef.current || 'Untitled',
-                    contentRef.current || {},
+                    contentSnapshot,
                     classId,
                 );
                 setNoteId(newNote.id);
                 window.history.replaceState(null, '', `/note/${newNote.id}`);
+                setSaved(true);
+                return newNote;
             } else {
-                await api.updateNote(noteId, {
+                const contentSnapshot = cloneRichTextDoc(contentRef.current);
+                const updatedNote = await api.updateNote(noteId, {
                     title: titleRef.current || 'Untitled',
-                    content: contentRef.current,
+                    content: contentSnapshot,
                     class_id: classId,
                 });
+                setSaved(true);
+                return updatedNote;
             }
-            setSaved(true);
         } catch {
             toast.error('Failed to save');
+            throw new Error('Failed to save');
         } finally {
             setSaving(false);
         }
     }, [classId, isNew, noteId, toast]);
 
+    const commitSave = useCallback(() => {
+        saveTimerRef.current = null;
+        const pendingSave = saveNote();
+        activeSaveRef.current = pendingSave;
+        return pendingSave;
+    }, [saveNote]);
+
     const debounceSave = useCallback(() => {
         setSaved(false);
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(saveNote, 800);
-    }, [saveNote]);
+        saveTimerRef.current = setTimeout(() => {
+            commitSave().catch(() => {});
+        }, 800);
+    }, [commitSave]);
 
     const handleTitleChange = (e) => {
         const val = e.target.value;
@@ -354,6 +378,7 @@ export default function NoteEditor() {
     };
 
     const handleContentUpdate = useCallback((json) => {
+        setContent(json);
         contentRef.current = json;
         debounceSave();
     }, [debounceSave]);
@@ -367,6 +392,65 @@ export default function NoteEditor() {
             } catch {
                 // Ignore class save failures here.
             }
+        }
+    };
+
+    const flushPendingSave = useCallback(async () => {
+        if (saveTimerRef.current) {
+            return commitSave();
+        }
+
+        if (saving) {
+            return activeSaveRef.current;
+        }
+
+        if (!saved || !noteId) {
+            return commitSave();
+        }
+
+        return { id: noteId };
+    }, [commitSave, noteId, saved, saving]);
+
+    const handleShareNote = async () => {
+        setShowShareModal(true);
+        setLoadingFriends(true);
+        try {
+            const friendsData = await api.getFriends();
+            setFriends(friendsData);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to load friends');
+        } finally {
+            setLoadingFriends(false);
+        }
+    };
+
+    const handleSendNoteToFriend = async (friendId) => {
+        if (sharingTo) return;
+        setSharingTo(friendId);
+
+        try {
+            const savedNote = await flushPendingSave();
+            const sharedNoteId = savedNote?.id || noteId;
+            const contentSnapshot = cloneRichTextDoc(contentRef.current);
+
+            await api.sendMessage(
+                friendId,
+                buildShareMessageContent('note', titleRef.current || 'Untitled'),
+                'note',
+                serializeSharedPayload({
+                    kind: 'note',
+                    sourceId: sharedNoteId,
+                    title: titleRef.current || 'Untitled',
+                    previewText: buildSharedPreviewText(contentSnapshot),
+                })
+            );
+
+            toast.success('Note shared successfully!');
+            setShowShareModal(false);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to share note');
+        } finally {
+            setSharingTo(null);
         }
     };
 
@@ -659,6 +743,16 @@ export default function NoteEditor() {
                     onConfirm={handleDelete}
                     onCancel={() => setDeleteConfirm(false)}
                 />
+                <ShareToFriendModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    friends={friends}
+                    loading={loadingFriends}
+                    sendingTo={sharingTo}
+                    onSend={handleSendNoteToFriend}
+                    resourceLabel="Note"
+                    resourceTitle={title || 'Untitled'}
+                />
 
                 <div className="sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10 px-4 pt-3 pb-2">
                     <div className="flex items-center justify-between max-w-3xl mx-auto mb-2">
@@ -678,6 +772,9 @@ export default function NoteEditor() {
                                     {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
                                 </span>
                             </div>
+                            <button onClick={handleShareNote} className="p-2 text-claude-secondary hover:text-claude-accent transition-colors tap-action" aria-label="Share note">
+                                <Share2 className="w-4 h-4" />
+                            </button>
                             <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
                                 <Trash2 className="w-4 h-4" />
                             </button>

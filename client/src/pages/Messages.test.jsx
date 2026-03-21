@@ -48,6 +48,7 @@ vi.mock('../api/authApi', () => ({
     stopTyping: vi.fn(),
     unsubscribe: vi.fn(),
   })),
+  acceptSharedResource: vi.fn(),
   acceptSharedDeck: vi.fn(),
   reportContent: vi.fn(),
 }));
@@ -89,7 +90,7 @@ describe('Messages desktop workspace', () => {
         isMine: false,
         senderAvatar: null,
         content: 'See you in lab',
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       },
     ]);
     authApi.getUserProfile.mockResolvedValue({
@@ -123,7 +124,7 @@ describe('Messages desktop workspace', () => {
     expect(screen.getByText('Marcus')).toBeInTheDocument();
     expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);
     expect(screen.getByText('1 message')).toBeInTheDocument();
-    expect(screen.getByText('0 shared decks')).toBeInTheDocument();
+    expect(screen.getByText('0 shared items')).toBeInTheDocument();
     expect(screen.getByText('Replying to Bianca')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /attach image/i })).toBeInTheDocument();
 
@@ -186,5 +187,78 @@ describe('Messages desktop workspace', () => {
 
     expect(screen.getAllByText('See you in lab').length).toBeGreaterThan(0);
     expect(toast.error).not.toHaveBeenCalledWith('Failed to load messages');
+  });
+
+  it('renders shared note cards and swaps to the imported open state after accept', async () => {
+    authApi.getConversations.mockResolvedValue([
+      {
+        userId: 21,
+        username: 'Bianca',
+        avatar: null,
+        unreadCount: 0,
+        lastMessage: 'Shared a note: Lab Notes',
+        lastMessageAt: new Date().toISOString(),
+        lastMessageType: 'note',
+        isOwnMessage: false,
+      },
+    ]);
+    authApi.getMessages.mockResolvedValue([
+      {
+        id: 7,
+        isMine: false,
+        senderAvatar: null,
+        senderUsername: 'Bianca',
+        content: 'Shared a note: Lab Notes',
+        messageType: 'note',
+        sharedResource: {
+          kind: 'note',
+          sourceId: 'note-7',
+          title: 'Lab Notes',
+          previewText: 'ATP synthesis overview',
+          cardCount: null,
+          acceptedId: null,
+        },
+        deckData: {
+          kind: 'note',
+          sourceId: 'note-7',
+          title: 'Lab Notes',
+          previewText: 'ATP synthesis overview',
+          cardCount: null,
+          acceptedId: null,
+        },
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    authApi.getUserProfile.mockResolvedValue({
+      id: 21,
+      username: 'Bianca',
+      avatar: null,
+    });
+    authApi.acceptSharedResource.mockResolvedValue({
+      kind: 'note',
+      resource: {
+        id: 'note-copy',
+        title: 'Lab Notes',
+      },
+      messageId: 7,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/messages/21']}>
+        <Routes>
+          <Route path="/messages/:userId" element={<Messages />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /add to notes/i })).toBeInTheDocument();
+    expect(screen.getByText('1 shared item')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /add to notes/i }));
+
+    await waitFor(() => {
+      expect(authApi.acceptSharedResource).toHaveBeenCalledWith(7);
+      expect(screen.getByRole('link', { name: /open imported note/i })).toHaveAttribute('href', '/note/note-copy');
+    });
   });
 });

@@ -18,10 +18,10 @@ vi.mock('./OnboardingArt.jsx', () => ({
   default: () => <div data-testid="onboarding-art" />,
 }));
 
-function renderLayout(pathname = '/dashboard') {
+function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   return render(
     <MemoryRouter initialEntries={[pathname]}>
-      <AuthContext.Provider value={{ isLoggedIn: true }}>
+      <AuthContext.Provider value={{ isLoggedIn }}>
         <UIContext.Provider value={{ hideBottomNav: false }}>
           <Layout>
             <div>Page Body</div>
@@ -54,5 +54,23 @@ describe('Layout primary navigation', () => {
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
 
     expect(await screen.findByPlaceholderText('Search current Riven...')).toBeInTheDocument();
+  });
+
+  it('keeps the dashboard main content padded below the native safe area', () => {
+    renderLayout('/dashboard');
+
+    expect(screen.getByRole('main')).toHaveClass('safe-area-top');
+  });
+
+  it('lets landing screens own their top safe area spacing', () => {
+    renderLayout('/', { isLoggedIn: false });
+
+    expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
+  });
+
+  it('lets onboarding screens own their top safe area spacing', () => {
+    renderLayout('/onboarding');
+
+    expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
   });
 });
