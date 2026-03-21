@@ -11,6 +11,7 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import TwoFactorAuthModal from '../components/TwoFactorAuthModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import PricingModal from '../components/ui/PricingModal';
+import { useRevenueCat } from '../hooks/useRevenueCat';
 import { canvasIcalUrlSchema, referralCodeSchema } from '../schemas/forms';
 import { checkNotificationPermissions, requestNotificationPermissions, scheduleAssignmentNotifications } from '../utils/notifications';
 
@@ -197,7 +198,8 @@ const QuickJumpButton = ({ icon: IconComponent, label, meta, onClick, tone = 'de
 };
 
 export default function Settings() {
-    const { signOut, user, refreshUser } = useAuth();
+    const { user, signOut, refreshUser } = useAuth();
+    const rc = useRevenueCat();
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
     const { activeTheme } = useContext(ThemeContext) || {};
     const navigate = useNavigate();
@@ -706,7 +708,63 @@ export default function Settings() {
                                         </button>
                                         <button
                                             aria-label="Restore purchases"
-                                            onClick={async () => { haptics.light(); try { const u = await refreshUser(); toast(u?.subscription_tier !== 'free' ? 'Subscription restored!' : 'No active subscription found'); } catch { toast('Sync failed, try again'); } }}
+                                            onClick={async () => { 
+                                                haptics.light(); 
+                                                const startToastId = toast.loading('Restoring...');
+                                                
+                                                try { 
+                                                    if (rc?.isNative) {
+                                                        const result = await rc.restorePurchases();
+                                                        const hasActiveEntitlement = result?.customerInfo?.entitlements?.active && 
+                                                                                   Object.keys(result.customerInfo.entitlements.active).length > 0;
+                                                        
+                                                        if (hasActiveEntitlement) {
+                                                            try {
+                                                                const syncResult = await api.syncRevenueCat();
+                                                                if (syncResult && syncResult.subscription_tier !== 'free') {
+                                                                    const u = await refreshUser();
+                                                                    toast.success(startToastId, `Welcome back, ${syncResult.subscription_tier}!`);
+                                                                    return;
+                                                                }
+                                                            } catch (syncErr) {
+                                                                console.warn('[Settings] Manual sync failed, falling back to polling webhook', syncErr);
+                                                            }
+                                                            
+                                                            // Poll webhook
+                                                            let attempts = 0;
+                                                            let finalUser = null;
+                                                            while (attempts < 6) {
+                                                                try {
+                                                                    const updatedUser = await refreshUser();
+                                                                    if (updatedUser?.subscription_tier && updatedUser.subscription_tier !== 'free') {
+                                                                        finalUser = updatedUser;
+                                                                        break;
+                                                                    }
+                                                                } catch (e) {}
+                                                                await new Promise(r => setTimeout(r, 2000));
+                                                                attempts++;
+                                                            }
+                                                            
+                                                            if (finalUser && finalUser.subscription_tier !== 'free') {
+                                                                toast.success(startToastId, `Welcome back, ${finalUser.subscription_tier}!`);
+                                                            } else {
+                                                                toast.error(startToastId, 'Found subscription, but servers are taking too long to sync. Please restart the app.');
+                                                            }
+                                                        } else {
+                                                            toast.error(startToastId, rc.error || 'No active purchases found for this Apple ID.');
+                                                        }
+                                                    } else {
+                                                        const u = await refreshUser(); 
+                                                        if (u?.subscription_tier !== 'free') {
+                                                            toast.success(startToastId, 'Subscription restored!');
+                                                        } else {
+                                                            toast.error(startToastId, 'No active subscription found');
+                                                        }
+                                                    }
+                                                } catch (err) { 
+                                                    toast.error(startToastId, err.message || 'Restore failed, try again'); 
+                                                } 
+                                            }}
                                             className="tap-action flex items-center justify-center gap-2 rounded-[1.1rem] border border-claude-border/70 bg-claude-bg/55 px-4 py-3.5 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text active:scale-[0.98] sm:flex-none"
                                         >
                                             <RefreshCw className="w-4 h-4" />

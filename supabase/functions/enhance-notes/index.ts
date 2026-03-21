@@ -122,6 +122,8 @@ serve(async (request) => {
       mp4: 'audio/mp4',
       mpeg: 'audio/mpeg',
       mp3: 'audio/mpeg',
+      aac: 'audio/aac',
+      m4a: 'audio/m4a',
     };
     const audioMimeType = mimeMap[ext] || 'audio/webm';
     const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });

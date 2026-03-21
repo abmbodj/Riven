@@ -80,6 +80,7 @@ export default function useAudioRecorder(noteId) {
     const audioBlobRef = useRef(null);
     const liveActivityIdRef = useRef(null);
     const durationRef = useRef(0);
+    const isRecordingRef = useRef(false);
 
     const isNative = Capacitor.isNativePlatform();
 
@@ -320,16 +321,20 @@ export default function useAudioRecorder(noteId) {
     }, [noteId]);
 
     useEffect(() => {
+        isRecordingRef.current = state === 'recording';
+    }, [state]);
+
+    useEffect(() => {
         return () => {
             if (!isNative && mediaRecorderRef.current?.state === 'recording' && chunksRef.current.length > 0) {
                 storeChunks(noteId, chunksRef.current).catch(() => {});
             }
-            if (isNative && state === 'recording') {
-                stopNative();
+            if (isNative && isRecordingRef.current) {
+                VoiceRecorder.stopRecording().catch(() => {});
             }
             cleanup();
         };
-    }, [noteId, cleanup, isNative, state]);
+    }, [noteId, cleanup, isNative]);
 
     return {
         state,

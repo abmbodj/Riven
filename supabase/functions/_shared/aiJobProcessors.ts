@@ -143,6 +143,8 @@ const getAudioMimeType = (audioPath: string) => {
     mp4: 'audio/mp4',
     mpeg: 'audio/mpeg',
     mp3: 'audio/mpeg',
+    aac: 'audio/aac',
+    m4a: 'audio/m4a',
   };
   return mimeMap[ext] || 'audio/webm';
 };

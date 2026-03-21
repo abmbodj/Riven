@@ -1813,11 +1813,18 @@ export const deleteNote = async (id) => {
 
 export const uploadNoteAudio = async (noteId, audioBlob) => {
     const userId = await getAppUserId();
-    const path = `${userId}/${noteId}.webm`;
+    let ext = 'webm';
+    if (audioBlob.type === 'audio/aac') ext = 'aac';
+    else if (audioBlob.type === 'audio/mp4' || audioBlob.type === 'audio/m4a' || audioBlob.type === 'audio/x-m4a') ext = 'm4a';
+    else if (audioBlob.type === 'audio/ogg' || audioBlob.type === 'audio/ogg;codecs=opus') ext = 'ogg';
+
+    const path = `${userId}/${noteId}.${ext}`;
+    const contentType = audioBlob.type || 'audio/webm';
+
     const { error } = await supabase.storage
         .from('note-audio')
         .upload(path, audioBlob, {
-            contentType: 'audio/webm',
+            contentType: contentType,
             upsert: true,
         });
     if (error) _sbThrow(error);
@@ -2938,6 +2945,8 @@ export const updateOnboardingProgress = async ({ nextStep, markComplete } = {}) 
     return mapOwnUserRow(data);
 };
 
+export const syncRevenueCat = () => edgeFunctionFetch('sync-revenuecat', { method: 'POST' });
+
 export const updateProfile = async (updates = {}) => {
     const nextUpdates = {};
 
@@ -3993,6 +4002,7 @@ export default {
     logout,
     getMe,
     restoreSessionUser,
+    syncRevenueCat,
     updateProfile,
     updateOnboardingProgress,
     changePassword,

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
     ArrowLeft,
@@ -243,13 +244,48 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         if (rc.isNative) {
             try {
                 const result = await rc.restorePurchases();
-                if (result?.customerInfo) {
-                    const updatedUser = await refreshUser();
-                    if (updatedUser.subscription_tier !== 'free') {
-                        setSuccess(`Welcome back, ${updatedUser.subscription_tier}. Your access has been restored.`);
+                
+                // 1. Verify RevenueCat actually recognizes an active subscription locally
+                const hasActiveEntitlement = result?.customerInfo?.entitlements?.active && 
+                                           Object.keys(result.customerInfo.entitlements.active).length > 0;
+                
+                if (hasActiveEntitlement) {
+                    setSuccess('Restoring... waiting for server sync...');
+                    
+                    try {
+                        const syncResult = await api.syncRevenueCat();
+                        if (syncResult && syncResult.subscription_tier !== 'free') {
+                            setSuccess(`Welcome back, ${syncResult.subscription_tier}. Your access has been restored.`);
+                            closeTimerRef.current = setTimeout(onClose, 1800);
+                            await refreshUser();
+                            return;
+                        }
+                    } catch (syncErr) {
+                         console.warn('[PricingModal] Manual sync failed, falling back to polling webhook', syncErr);
+                    }
+                    
+                    // 2. Poll up to 6 times (12 seconds) for the RevenueCat webhook to sync to Supabase
+                    let attempts = 0;
+                    let finalUser = null;
+                    while (attempts < 6) {
+                        try {
+                            const updatedUser = await refreshUser();
+                            if (updatedUser?.subscription_tier && updatedUser.subscription_tier !== 'free') {
+                                finalUser = updatedUser;
+                                break;
+                            }
+                        } catch (e) {
+                            console.error('Error refreshing user during poll', e);
+                        }
+                        await new Promise(r => setTimeout(r, 2000));
+                        attempts++;
+                    }
+
+                    if (finalUser && finalUser.subscription_tier !== 'free') {
+                        setSuccess(`Welcome back, ${finalUser.subscription_tier}. Your access has been restored.`);
                         closeTimerRef.current = setTimeout(onClose, 1800);
                     } else {
-                        setError('No active subscription found. If you just purchased, wait a moment and try again.');
+                        setError('We found your subscription, but our servers are taking too long to sync. Please restart the app or try again in a minute.');
                     }
                 } else if (rc.error) {
                     setError(rc.error);
@@ -281,11 +317,9 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
         }
     };
 
-    if (!isOpen) return null;
-
-    return (
+    return createPortal(
         <AnimatePresence>
-            {isOpen ? (
+            {isOpen && (
                 <div className="fixed inset-0 z-[999] flex items-end justify-center px-2 pt-[max(env(safe-area-inset-top,0px),0.75rem)] md:items-center md:p-6">
                     <Motion.div
                         initial={{ opacity: 0 }}
@@ -782,7 +816,8 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
                         </div>
                     </Motion.div>
                 </div>
-            ) : null}
-        </AnimatePresence>
+            )}
+        </AnimatePresence>,
+        document.body
     );
 }
