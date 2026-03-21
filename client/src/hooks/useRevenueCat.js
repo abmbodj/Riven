@@ -62,8 +62,8 @@ export function useRevenueCat(userId) {
                 const offeringsResponse = await Purchases.getOfferings();
                 console.log('[RevenueCat] getOfferings() raw response:', JSON.stringify(offeringsResponse, null, 2));
 
-                const offeringsResult = offeringsResponse?.offerings;
-                console.log('[RevenueCat] offerings.current:', offeringsResult?.current);
+                const offeringsResult = offeringsResponse;
+                console.log('[RevenueCat] offerings.current:', offeringsResult?.current?.identifier);
                 console.log('[RevenueCat] offerings.all keys:', offeringsResult?.all ? Object.keys(offeringsResult.all) : 'N/A');
 
                 setInitStatus('fetching customer info');
