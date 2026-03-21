@@ -94,17 +94,20 @@ serve(async (request: Request) => {
     let updated = false;
 
     // 1. Try supabase_auth_id (primary — UUID from Supabase auth)
-    const { data: byAuthId, error: authIdError } = await admin
-      .from('users')
-      .update({ subscription_tier: newTier })
-      .eq('supabase_auth_id', appUserId)
-      .select('id')
-      .maybeSingle();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appUserId);
+    if (isUuid) {
+      const { data: byAuthId, error: authIdError } = await admin
+        .from('users')
+        .update({ subscription_tier: newTier })
+        .eq('supabase_auth_id', appUserId)
+        .select('id')
+        .maybeSingle();
 
-    if (authIdError) throw authIdError;
-    if (byAuthId?.id) {
-      updated = true;
-      console.info(`[revenuecat-webhook] ✅ Updated user ${appUserId} (supabase_auth_id) → ${newTier}`);
+      if (authIdError) throw authIdError;
+      if (byAuthId?.id) {
+        updated = true;
+        console.info(`[revenuecat-webhook] ✅ Updated user ${appUserId} (supabase_auth_id) → ${newTier}`);
+      }
     }
 
     // 2. Fallback: numeric users.id (legacy / test app user IDs)

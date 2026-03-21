@@ -16,7 +16,8 @@ let package = Package(
         .package(name: "CapacitorLocalNotifications", path: "../../../node_modules/@capacitor/local-notifications"),
         .package(name: "CapawesomeCapacitorGoogleSignIn", path: "../../../node_modules/@capawesome/capacitor-google-sign-in"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../node_modules/@revenuecat/purchases-capacitor"),
-        .package(name: "CapacitorLiveActivity", path: "../../../node_modules/capacitor-live-activity")
+        .package(name: "CapacitorLiveActivity", path: "../../../node_modules/capacitor-live-activity"),
+        .package(name: "CapacitorVoiceRecorder", path: "../../../node_modules/capacitor-voice-recorder")
     ],
     targets: [
         .target(
@@ -28,7 +29,8 @@ let package = Package(
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapawesomeCapacitorGoogleSignIn", package: "CapawesomeCapacitorGoogleSignIn"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor"),
-                .product(name: "CapacitorLiveActivity", package: "CapacitorLiveActivity")
+                .product(name: "CapacitorLiveActivity", package: "CapacitorLiveActivity"),
+                .product(name: "CapacitorVoiceRecorder", package: "CapacitorVoiceRecorder")
             ]
         )
     ]
