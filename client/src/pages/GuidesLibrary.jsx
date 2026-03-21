@@ -8,7 +8,7 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
-import { getGuideProgress, isActiveRecallGuide } from '../utils/studyGuides';
+import { getGuideProgress, isActiveRecallGuide, normalizeGuideData } from '../utils/studyGuides';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -17,13 +17,17 @@ const GuideCard = memo(({ guide, classes, index }) => {
     const navigate = useNavigate();
     const cls = guide.class_id ? classes.find(c => c.id === guide.class_id) : null;
     const activeRecall = isActiveRecallGuide(guide);
+    const normalizedGuideData = activeRecall ? normalizeGuideData(guide.guide_data) : null;
     const progress = getGuideProgress(guide.guide_data, guide.study_state);
     const lastReviewed = guide.study_state?.last_reviewed_at
         ? new Date(guide.study_state.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Not started';
     const updatedAt = guide.updated_at
-        ? new Date(guide.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        ? new Date(guide.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Recently updated';
+    const nextSection = normalizedGuideData?.sections?.find((section) => section.id === progress.nextSectionId) || normalizedGuideData?.sections?.[0] || null;
+    const sessionStarted = Boolean(guide.study_state?.last_reviewed_at) || progress.revealedCount > 0 || progress.completedCount > 0;
+    const sessionCta = sessionStarted ? 'Resume Session' : 'Start Session';
 
     return (
         <motion.div
@@ -39,19 +43,18 @@ const GuideCard = memo(({ guide, classes, index }) => {
             <button
                 type="button"
                 onClick={() => navigate(`/guide/${guide.id}`)}
-                className="group relative block w-full bg-claude-surface border border-claude-border p-5 sm:p-6 pt-7 sm:pt-8 rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target text-left"
+                className="group relative block w-full bg-claude-surface border border-claude-border p-4 sm:p-6 pt-6 sm:pt-8 rounded-[1.35rem] sm:rounded-sm shadow-[0_4px_16px_rgba(0,0,0,0.02)] active:shadow-inner active:bg-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 overflow-hidden active:scale-[0.97] touch-target text-left"
             >
                 <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('/textures/paper-fibers.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-br from-claude-text/5 to-transparent pointer-events-none" />
 
                 <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4 opacity-70">
+                    <div className="flex items-center justify-between gap-3 mb-4 opacity-70">
+                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
+                            {activeRecall ? 'Study session' : 'Classic guide'}
+                        </span>
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">
                             {updatedAt}
-                        </span>
-                        <div className="h-px flex-1 bg-claude-border/40" />
-                        <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
-                            {activeRecall ? `${progress.totalSections} sections` : 'Legacy'}
                         </span>
                     </div>
 
@@ -77,7 +80,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                     <Target className="w-3.5 h-3.5 text-claude-accent" />
                                     {progress.completedCount}/{progress.totalSections} complete
                                 </span>
-                                <span>{progress.completionPercent}%</span>
+                                <span>{progress.totalSections} checkpoints</span>
                             </div>
                             <div className="h-2 rounded-full bg-claude-border/30 overflow-hidden">
                                 <div
@@ -85,21 +88,36 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                     style={{ width: `${progress.completionPercent}%` }}
                                 />
                             </div>
-                            <div className="flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
-                                <span>Last reviewed: {lastReviewed}</span>
-                                <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
-                                    <Play className="w-3.5 h-3.5" />
-                                    Resume
-                                </span>
+                            <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3 text-[11px] text-claude-secondary">
+                                <p>Next: {nextSection?.title || 'Ready to begin'}</p>
+                                <p className="mt-1">Last reviewed: {lastReviewed}</p>
+                            </div>
+                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
+                                <div className="flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
+                                    <span>{progress.completionPercent}% complete</span>
+                                    <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
+                                        <Play className="w-3.5 h-3.5" />
+                                        {sessionCta}
+                                    </span>
+                                </div>
+                                <div className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-surface/70 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">
+                                    Open study session
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
-                            <span>Open classic editable guide</span>
-                            <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
-                                <ArrowRight className="w-3.5 h-3.5" />
-                                Open
-                            </span>
+                        <div className="mt-4 space-y-3 text-[11px] text-claude-secondary">
+                            <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3">
+                                <p>Classic editable guide</p>
+                                <p className="mt-1">Convert it into a session-style workbook from inside the guide.</p>
+                            </div>
+                            <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
+                                <span>Convert to workbook</span>
+                                <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                    Open
+                                </span>
+                            </div>
                         </div>
                     )}
                 </div>

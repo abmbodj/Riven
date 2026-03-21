@@ -38,7 +38,7 @@ describe('GuidesLibrary', () => {
     api.getClasses.mockResolvedValue([]);
   });
 
-  it('shows active-recall progress metadata and a resume CTA for v2 guides', async () => {
+  it('shows study-session progress metadata and a resume CTA for v2 guides', async () => {
     api.getStudyGuides.mockResolvedValue([
       {
         id: 'guide-1',
@@ -87,10 +87,55 @@ describe('GuidesLibrary', () => {
     );
 
     expect(await screen.findByText('Biology Recall Workbook')).toBeInTheDocument();
-    expect(screen.getByText('2 sections')).toBeInTheDocument();
     expect(screen.getByText('1/2 complete')).toBeInTheDocument();
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText(/resume/i)).toBeInTheDocument();
+    expect(screen.getByText('Study session')).toBeInTheDocument();
+    expect(screen.getByText('2 checkpoints')).toBeInTheDocument();
+    expect(screen.getByText(/next: mitosis/i)).toBeInTheDocument();
+    expect(screen.getByText(/resume session/i)).toBeInTheDocument();
+    expect(screen.getByText(/open study session/i)).toBeInTheDocument();
+  });
+
+  it('shows a start-session cue for untouched workbooks', async () => {
+    api.getStudyGuides.mockResolvedValue([
+      {
+        id: 'guide-3',
+        title: 'Chemistry Recall Workbook',
+        class_id: null,
+        updated_at: '2026-03-21T10:00:00.000Z',
+        format_version: 2,
+        guide_data: {
+          overview: 'Review bonding basics.',
+          sections: [
+            {
+              id: 'bonding',
+              title: 'Chemical Bonding',
+              recall_prompt: 'Explain ionic vs covalent bonds.',
+              answer_points: ['Ionic bonds transfer electrons.'],
+              key_terms: ['ionic', 'covalent'],
+              mini_quiz: [],
+              common_traps: [],
+            },
+          ],
+        },
+        study_state: {
+          current_section_id: 'bonding',
+          section_states: {
+            bonding: { revealed: false, confidence: null, completed: false, note: '' },
+          },
+          last_reviewed_at: null,
+        },
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Chemistry Recall Workbook')).toBeInTheDocument();
+    expect(screen.getByText(/start session/i)).toBeInTheDocument();
+    expect(screen.getByText(/next: chemical bonding/i)).toBeInTheDocument();
   });
 
   it('keeps legacy guides distinguishable in the library', async () => {
@@ -113,8 +158,8 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByText('Legacy History Guide')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText('Legacy')).toBeInTheDocument();
-      expect(screen.getByText('Open')).toBeInTheDocument();
+      expect(screen.getByText('Classic guide')).toBeInTheDocument();
+      expect(screen.getByText('Convert to workbook')).toBeInTheDocument();
     });
   });
 });

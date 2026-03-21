@@ -21,6 +21,7 @@ import {
   createDefaultStudyGuideState,
   normalizeStudyGuideData,
 } from '../_shared/studyGuideCore.mjs';
+import { persistGeneratedStudyGuide } from '../_shared/studyGuidePersistence.mjs';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
@@ -166,22 +167,18 @@ serve(async (request) => {
           const studyState = createDefaultStudyGuideState(guideData);
 
           const finalTitle = body.title || 'AI Study Guide';
-          const { data: guide, error: guideErr } = await admin
-            .from('study_guides')
-            .insert({
-              user_id: authUser.id,
-              title: finalTitle,
-              format_version: STUDY_GUIDE_FORMAT_VERSION,
-              guide_data: guideData,
-              study_state: studyState,
-              content: guideContent,
-              note_id: body.noteId || null,
-              class_id: body.classId || null,
-            })
-            .select('id')
-            .single();
-
-          if (guideErr) throw guideErr;
+          const guide = await persistGeneratedStudyGuide({
+            admin,
+            userId: authUser.id,
+            title: finalTitle,
+            formatVersion: STUDY_GUIDE_FORMAT_VERSION,
+            guideData,
+            studyState,
+            content: guideContent,
+            noteId: body.noteId || null,
+            classId: body.classId || null,
+            replaceGuideId: typeof body.replaceGuideId === 'string' ? body.replaceGuideId : null,
+          });
 
           sendDone({ guide_id: guide.id, title: finalTitle });
         } catch (err: unknown) {
@@ -249,23 +246,18 @@ serve(async (request) => {
         });
       },
       createGuide: async ({ userId, title, formatVersion, guideData, studyState, content, noteId, classId }: CreateGuidePayload) => {
-        const { data, error: createError } = await admin
-          .from('study_guides')
-          .insert({
-            user_id: userId,
-            title,
-            format_version: formatVersion,
-            guide_data: guideData,
-            study_state: studyState,
-            content,
-            note_id: noteId,
-            class_id: classId,
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        return data;
+        return persistGeneratedStudyGuide({
+          admin,
+          userId,
+          title,
+          formatVersion,
+          guideData,
+          studyState,
+          content,
+          noteId,
+          classId,
+          replaceGuideId: typeof body.replaceGuideId === 'string' ? body.replaceGuideId : null,
+        });
       },
       deleteGuide: async (guideId: string) => {
         const { error: deleteError } = await admin

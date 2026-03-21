@@ -64,6 +64,7 @@ const buildV2Guide = (studyState = {}) => ({
   id: 'guide-7',
   title: 'World War I Workbook',
   class_id: 'class-9',
+  note_id: 'note-7',
   format_version: 2,
   guide_data: {
     overview: 'Review each front carefully before revealing the answer.',
@@ -126,6 +127,26 @@ const legacyGuide = {
   },
 };
 
+const brokenWorkbook = {
+  id: 'guide-10',
+  title: 'Broken Workbook',
+  class_id: 'class-4',
+  format_version: 2,
+  guide_data: null,
+  study_state: {},
+  content: {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Fallback workbook summary' },
+        ],
+      },
+    ],
+  },
+};
+
 describe('GuideView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -146,9 +167,14 @@ describe('GuideView', () => {
     });
   });
 
-  it('renders v2 guides in review mode and reveals the active section answer', async () => {
+  it('renders v2 guides in study-session mode and reveals the active section answer', async () => {
     api.getStudyGuide.mockResolvedValue(buildV2Guide({
       current_section_id: 'treaty',
+      section_states: {
+        alliances: { revealed: true, confidence: 'okay', completed: true, note: '' },
+        treaty: { revealed: false, confidence: null, completed: false, note: '' },
+      },
+      last_reviewed_at: '2026-03-20T14:00:00.000Z',
     }));
 
     render(
@@ -160,7 +186,14 @@ describe('GuideView', () => {
     );
 
     expect(await screen.findByDisplayValue('World War I Workbook')).toBeInTheDocument();
-    expect(screen.getByText(/active recall workbook/i)).toBeInTheDocument();
+    expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
+    expect(screen.getByTestId('workbook-shell-grid').className).toContain('grid-cols-1');
+    expect(screen.getByTestId('workbook-shell-grid').className).toContain('xl:grid-cols-[1.45fr,0.95fr]');
+    expect(screen.getByTestId('guide-session-layout').className).toContain('grid-cols-1');
+    expect(screen.getByTestId('checkpoint-chip-row').className).toContain('overflow-x-auto');
+    expect(screen.getByText(/study session/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /resume session/i })).toBeInTheDocument();
+    expect(screen.getByText(/pick up with treaty of versailles/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Treaty of Versailles' })).toBeInTheDocument();
     expect(screen.queryByText(/Germany accepted blame and reparations/i)).not.toBeInTheDocument();
 
@@ -198,6 +231,8 @@ describe('GuideView', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Alliance System' })).toBeInTheDocument();
+    expect(screen.getByText(/checkpoint map/i)).toBeInTheDocument();
+    expect(screen.getByText(/session flow/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/personal note/i), {
       target: { value: 'Review this before the exam essay.' },
@@ -220,7 +255,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('keeps legacy guides editable and exposes a workbook regeneration CTA', async () => {
+  it('keeps classic guides editable and exposes a convert-to-workbook CTA', async () => {
     api.getStudyGuide.mockResolvedValue(legacyGuide);
 
     render(
@@ -232,8 +267,90 @@ describe('GuideView', () => {
     );
 
     expect(await screen.findByDisplayValue('World War I Guide')).toBeInTheDocument();
+    expect(screen.getByText(/classic guide/i)).toBeInTheDocument();
     expect(screen.getByTestId('guide-editor')).toHaveTextContent('Your study guide content...');
-    expect(screen.getByRole('button', { name: /regenerate workbook/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /convert to workbook/i })).toBeInTheDocument();
+  });
+
+  it('rebuilds a legacy guide in place and swaps into workbook mode', async () => {
+    let releaseDone;
+    const doneSignal = new Promise((resolve) => {
+      releaseDone = resolve;
+    });
+
+    api.getStudyGuide
+      .mockResolvedValueOnce(legacyGuide)
+      .mockResolvedValueOnce({
+        ...buildV2Guide({
+          current_section_id: 'treaty',
+          section_states: {
+            alliances: { revealed: true, confidence: 'okay', completed: true, note: '' },
+            treaty: { revealed: false, confidence: null, completed: false, note: '' },
+          },
+          last_reviewed_at: '2026-03-20T14:00:00.000Z',
+        }),
+        id: 'guide-9',
+        title: 'World War I Recall Workbook',
+      });
+
+    api.generateAiGuideStream.mockResolvedValue({
+      chunks: async function* chunks() {
+        await doneSignal;
+        yield { type: 'done', data: { guide_id: 'guide-9', title: 'World War I Recall Workbook' } };
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-9']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByDisplayValue('World War I Guide')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /convert to workbook/i }));
+
+    await waitFor(() => {
+      expect(api.generateAiGuideStream).toHaveBeenCalledWith(
+        'Treaty of Versailles summary',
+        null,
+        'World War I Guide Recall Workbook',
+        null,
+        'class-9',
+        null,
+        'guide-9',
+      );
+    });
+    expect(await screen.findByText(/converting guide into a workbook/i)).toBeInTheDocument();
+    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
+
+    releaseDone();
+
+    expect(await screen.findByDisplayValue('World War I Recall Workbook')).toBeInTheDocument();
+    expect(screen.getByText(/study session/i)).toBeInTheDocument();
+    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
+  });
+
+  it('shows an explicit workbook repair state instead of falling back to the legacy editor', async () => {
+    api.getStudyGuide.mockResolvedValue(brokenWorkbook);
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-10']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByDisplayValue('Broken Workbook')).toBeInTheDocument();
+    expect(screen.getByText(/workbook needs rebuilding/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /rebuild workbook/i })).toBeInTheDocument();
+    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });
 
   it('flushes pending autosave before sharing a legacy guide', async () => {
