@@ -1,6 +1,19 @@
-import { createElement, useEffect } from 'react';
+import { createElement, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
-import { Check, Monitor, Moon, Palette, Smartphone, Sparkles, Sun, X } from 'lucide-react';
+import {
+    ArrowLeft,
+    ArrowRight,
+    Check,
+    ChevronRight,
+    Monitor,
+    Moon,
+    Palette,
+    Smartphone,
+    Sparkles,
+    Sun,
+    Wand2,
+    X
+} from 'lucide-react';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import {
     ACCENT_PRESETS,
@@ -11,6 +24,70 @@ import {
     getBaseTheme,
     visuallyMatchesTheme
 } from './themeEditorConfig';
+
+const STUDIO_STEPS = [
+    {
+        id: 'starter',
+        label: 'Starter',
+        eyebrow: 'Step 1',
+        title: 'Choose the starting atmosphere',
+        description: 'Start with a calm base or a curated direction, then refine the voice in later steps.'
+    },
+    {
+        id: 'style',
+        label: 'Style',
+        eyebrow: 'Step 2',
+        title: 'Shape the accent and typography',
+        description: 'Dial in the signal color and the reading voice without overloading the screen.'
+    },
+    {
+        id: 'advanced',
+        label: 'Advanced',
+        eyebrow: 'Optional step',
+        title: 'Fine-tune the color tokens',
+        description: 'Open the deeper controls only if the starter palette needs more precise tuning.'
+    },
+    {
+        id: 'review',
+        label: 'Review',
+        eyebrow: 'Final step',
+        title: 'Name it and save',
+        description: 'Check the final feel, give the theme a clear name, and save it back to your gallery.'
+    }
+];
+
+const PALETTE_FIELDS = COLOR_FIELDS.filter((field) => field !== 'accent_color');
+
+function matchesMediaQuery(query) {
+    return typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia(query).matches;
+}
+
+function useMediaQuery(query) {
+    const [matches, setMatches] = useState(() => matchesMediaQuery(query));
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return undefined;
+        }
+
+        const mediaQuery = window.matchMedia(query);
+        const handleChange = (event) => setMatches(event.matches);
+
+        setMatches(mediaQuery.matches);
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+    }, [query]);
+
+    return matches;
+}
 
 function hexToRgb(hex) {
     const sanitized = hex.replace('#', '').trim();
@@ -41,17 +118,143 @@ function isDarkTheme(hex) {
     return luminance < 0.58;
 }
 
-function Section({ eyebrow, title, description, children, theme }) {
+function paletteMatches(theme, comparison) {
+    return PALETTE_FIELDS.every((field) => theme[field] === comparison[field]);
+}
+
+function clampStep(nextStep) {
+    return Math.max(0, Math.min(STUDIO_STEPS.length - 1, nextStep));
+}
+
+function inferStarter(theme) {
+    const lightBase = getBaseTheme('light');
+    const darkBase = getBaseTheme('dark');
+
+    if (visuallyMatchesTheme(theme, darkBase)) {
+        return { label: 'Dark studio', helper: 'Base theme' };
+    }
+
+    if (visuallyMatchesTheme(theme, lightBase)) {
+        return { label: 'Light paper', helper: 'Base theme' };
+    }
+
+    const presetMatch = STYLE_PRESETS.find((preset) => visuallyMatchesTheme(theme, preset.theme));
+    if (presetMatch) {
+        return { label: presetMatch.name, helper: 'Curated starter' };
+    }
+
+    const paletteMatch = STYLE_PRESETS.find((preset) => paletteMatches(theme, preset.theme));
+    if (paletteMatch) {
+        return { label: paletteMatch.name, helper: 'Curated palette' };
+    }
+
+    if (paletteMatches(theme, darkBase)) {
+        return { label: 'Dark studio', helper: 'Base palette' };
+    }
+
+    if (paletteMatches(theme, lightBase)) {
+        return { label: 'Light paper', helper: 'Base palette' };
+    }
+
+    return { label: 'Custom blend', helper: 'Fine-tuned palette' };
+}
+
+function inferAccent(theme) {
+    const preset = ACCENT_PRESETS.find((item) => item.color.toLowerCase() === theme.accent_color.toLowerCase());
+    return preset ? preset.name : theme.accent_color.toUpperCase();
+}
+
+function inferFont(theme) {
+    const preset = FONT_PRESETS.find((item) => (
+        item.display === theme.font_family_display
+        && item.body === theme.font_family_body
+    ));
+
+    return preset ? preset.name : 'Custom type';
+}
+
+function hasFineTunedPalette(theme) {
+    return ![getBaseTheme('dark'), getBaseTheme('light'), ...STYLE_PRESETS.map((preset) => preset.theme)]
+        .some((comparison) => paletteMatches(theme, comparison));
+}
+
+function StepNavButton({ step, index, active, onClick, theme }) {
     return (
-        <section
-            className="rounded-[1.5rem] border p-3.5 shadow-sm md:rounded-[1.75rem] md:p-5"
+        <button
+            type="button"
+            onClick={onClick}
+            aria-current={active ? 'step' : undefined}
+            className="tap-action flex w-full items-start gap-3 rounded-[1.45rem] border px-3.5 py-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
             style={{
-                borderColor: withAlpha(theme.border_color, 0.9),
-                backgroundColor: withAlpha(theme.surface_color, 0.9),
-                boxShadow: `0 24px 80px ${withAlpha(theme.bg_color, 0.18)}`
+                borderColor: active ? withAlpha(theme.accent_color, 0.55) : withAlpha(theme.border_color, 0.82),
+                backgroundColor: active ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.surface_color, 0.82),
+                boxShadow: active ? `0 20px 40px ${withAlpha(theme.accent_color, 0.18)}` : 'none'
             }}
         >
-            <div className="mb-3 md:mb-4">
+            <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold uppercase tracking-[0.16em]"
+                style={{
+                    borderColor: active ? withAlpha(theme.accent_color, 0.44) : withAlpha(theme.border_color, 0.8),
+                    backgroundColor: active ? theme.accent_color : withAlpha(theme.bg_color, 0.55),
+                    color: active ? (isDarkTheme(theme.accent_color) ? '#f8fbfd' : '#0b1418') : theme.text_color
+                }}
+            >
+                {index + 1}
+            </div>
+            <div className="min-w-0 flex-1">
+                <p
+                    className="text-[10px] font-bold uppercase tracking-[0.22em]"
+                    style={{ color: withAlpha(theme.secondary_text_color, 0.92) }}
+                >
+                    {step.eyebrow}
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                    <h3 className="text-base leading-tight" style={{ color: theme.text_color }}>
+                        {step.label}
+                    </h3>
+                    <ChevronRight className="h-4 w-4 shrink-0" style={{ color: withAlpha(theme.secondary_text_color, 0.8) }} />
+                </div>
+            </div>
+        </button>
+    );
+}
+
+function MobileStepTabs({ activeStep, setActiveStep, theme }) {
+    return (
+        <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max gap-2">
+                {STUDIO_STEPS.map((step, index) => (
+                    <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => setActiveStep(index)}
+                        aria-current={activeStep === index ? 'step' : undefined}
+                        className="tap-action rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200"
+                        style={{
+                            borderColor: activeStep === index ? withAlpha(theme.accent_color, 0.45) : withAlpha(theme.border_color, 0.8),
+                            backgroundColor: activeStep === index ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.surface_color, 0.8),
+                            color: activeStep === index ? theme.text_color : withAlpha(theme.secondary_text_color, 0.95)
+                        }}
+                    >
+                        {step.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function StudioSection({ eyebrow, title, description, children, theme }) {
+    return (
+        <section
+            className="rounded-[1.65rem] border p-4 md:rounded-[1.9rem] md:p-5"
+            style={{
+                borderColor: withAlpha(theme.border_color, 0.88),
+                backgroundColor: withAlpha(theme.surface_color, 0.9),
+                boxShadow: `0 22px 70px ${withAlpha(theme.bg_color, 0.16)}`
+            }}
+        >
+            <div className="mb-4">
                 <p
                     className="text-[10px] font-bold uppercase tracking-[0.24em]"
                     style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}
@@ -59,15 +262,15 @@ function Section({ eyebrow, title, description, children, theme }) {
                     {eyebrow}
                 </p>
                 <h3
-                    className="mt-1 text-[1.65rem] leading-tight md:text-2xl"
+                    className="mt-2 text-[1.75rem] leading-tight md:text-[2rem]"
                     style={{ color: theme.text_color, fontFamily: theme.font_family_display }}
                 >
                     {title}
                 </h3>
                 {description ? (
                     <p
-                        className="mt-1 text-sm leading-5 md:leading-6"
-                        style={{ color: withAlpha(theme.secondary_text_color, 0.92), fontFamily: theme.font_family_body }}
+                        className="mt-2 max-w-2xl text-sm leading-6"
+                        style={{ color: withAlpha(theme.secondary_text_color, 0.94), fontFamily: theme.font_family_body }}
                     >
                         {description}
                     </p>
@@ -78,30 +281,30 @@ function Section({ eyebrow, title, description, children, theme }) {
     );
 }
 
-function ModeButton({ active, icon: Icon, label, helper, onClick, theme }) {
+function BaseChoiceCard({ active, icon: Icon, label, helper, onClick, theme }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className="tap-action flex min-h-[96px] flex-col justify-between rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:min-h-[108px] md:rounded-[1.5rem] md:p-4"
+            className="tap-action flex min-h-[124px] flex-col justify-between rounded-[1.4rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
             style={{
-                borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.85),
-                backgroundColor: active ? withAlpha(theme.accent_color, 0.12) : withAlpha(theme.bg_color, 0.36),
-                boxShadow: active ? `0 18px 40px ${withAlpha(theme.accent_color, 0.2)}` : 'none'
+                borderColor: active ? withAlpha(theme.accent_color, 0.55) : withAlpha(theme.border_color, 0.82),
+                backgroundColor: active ? withAlpha(theme.accent_color, 0.1) : withAlpha(theme.bg_color, 0.34),
+                boxShadow: active ? `0 20px 38px ${withAlpha(theme.accent_color, 0.16)}` : 'none'
             }}
         >
             <div
                 className="flex h-11 w-11 items-center justify-center rounded-2xl border"
                 style={{
-                    borderColor: active ? withAlpha(theme.accent_color, 0.55) : withAlpha(theme.border_color, 0.7),
-                    backgroundColor: active ? withAlpha(theme.accent_color, 0.18) : withAlpha(theme.surface_color, 0.95),
+                    borderColor: active ? withAlpha(theme.accent_color, 0.45) : withAlpha(theme.border_color, 0.74),
+                    backgroundColor: active ? withAlpha(theme.accent_color, 0.16) : withAlpha(theme.surface_color, 0.96),
                     color: active ? theme.accent_color : theme.text_color
                 }}
             >
-                {createElement(Icon, { className: 'h-5 w-5' })}
+                <Icon className="h-5 w-5" />
             </div>
             <div>
-                <p className="text-sm font-bold uppercase tracking-[0.18em]" style={{ color: theme.text_color }}>
+                <p className="text-sm font-bold uppercase tracking-[0.16em]" style={{ color: theme.text_color }}>
                     {label}
                 </p>
                 <p className="mt-1 text-xs leading-5" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
@@ -117,20 +320,23 @@ function PresetCard({ preset, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="tap-action rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.5rem] md:p-4"
+            className="tap-action rounded-[1.45rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
             style={{
                 borderColor: active ? preset.theme.accent_color : withAlpha(theme.border_color, 0.8),
                 background: `linear-gradient(135deg, ${withAlpha(preset.theme.bg_color, 0.98)} 0%, ${withAlpha(preset.theme.surface_color, 0.98)} 100%)`,
-                boxShadow: active ? `0 16px 40px ${withAlpha(preset.theme.accent_color, 0.18)}` : 'none'
+                boxShadow: active ? `0 22px 42px ${withAlpha(preset.theme.accent_color, 0.18)}` : 'none'
             }}
         >
-            <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: preset.theme.secondary_text_color }}>
+                    <p
+                        className="text-[10px] font-bold uppercase tracking-[0.22em]"
+                        style={{ color: withAlpha(preset.theme.secondary_text_color, 0.95) }}
+                    >
                         {preset.eyebrow}
                     </p>
                     <h4
-                        className="mt-1 text-xl leading-tight md:text-2xl"
+                        className="mt-1 text-xl leading-tight"
                         style={{ color: preset.theme.text_color, fontFamily: preset.theme.font_family_display }}
                     >
                         {preset.name}
@@ -139,8 +345,8 @@ function PresetCard({ preset, active, onClick, theme }) {
                 <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
                     style={{
-                        borderColor: withAlpha(preset.theme.accent_color, 0.4),
-                        backgroundColor: active ? preset.theme.accent_color : withAlpha(preset.theme.surface_color, 0.8),
+                        borderColor: withAlpha(preset.theme.accent_color, 0.34),
+                        backgroundColor: active ? preset.theme.accent_color : withAlpha(preset.theme.surface_color, 0.86),
                         color: active ? preset.theme.bg_color : preset.theme.accent_color
                     }}
                 >
@@ -159,7 +365,7 @@ function PresetCard({ preset, active, onClick, theme }) {
                     />
                 ))}
             </div>
-            <p className="text-sm leading-5 md:leading-6" style={{ color: withAlpha(preset.theme.secondary_text_color, 0.95) }}>
+            <p className="text-sm leading-6" style={{ color: withAlpha(preset.theme.secondary_text_color, 0.95) }}>
                 {preset.description}
             </p>
         </button>
@@ -171,18 +377,18 @@ function SwatchButton({ swatch, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="tap-action flex w-full min-w-0 flex-col items-center gap-3 rounded-[1.15rem] border px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.25rem]"
+            className="tap-action flex w-full min-w-0 flex-col items-center gap-3 rounded-[1.2rem] border px-3 py-3 text-center transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
             style={{
                 borderColor: active ? swatch.color : withAlpha(theme.border_color, 0.82),
-                backgroundColor: active ? withAlpha(swatch.color, 0.14) : withAlpha(theme.bg_color, 0.38),
-                boxShadow: active ? `0 16px 30px ${withAlpha(swatch.color, 0.18)}` : 'none'
+                backgroundColor: active ? withAlpha(swatch.color, 0.14) : withAlpha(theme.bg_color, 0.34),
+                boxShadow: active ? `0 16px 30px ${withAlpha(swatch.color, 0.16)}` : 'none'
             }}
         >
             <span
                 className="block h-10 w-10 rounded-full border"
                 style={{
                     backgroundColor: swatch.color,
-                    borderColor: active ? withAlpha(theme.text_color, 0.14) : 'transparent'
+                    borderColor: active ? withAlpha(theme.text_color, 0.18) : 'transparent'
                 }}
             />
             <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: theme.text_color }}>
@@ -197,11 +403,11 @@ function FontCard({ preset, active, onClick, theme }) {
         <button
             type="button"
             onClick={onClick}
-            className="tap-action rounded-[1.35rem] border p-3.5 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:rounded-[1.5rem] md:p-4"
+            className="tap-action rounded-[1.4rem] border p-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
             style={{
-                borderColor: active ? theme.accent_color : withAlpha(theme.border_color, 0.82),
+                borderColor: active ? withAlpha(theme.accent_color, 0.55) : withAlpha(theme.border_color, 0.82),
                 backgroundColor: active ? withAlpha(theme.accent_color, 0.08) : withAlpha(theme.bg_color, 0.34),
-                boxShadow: active ? `0 16px 30px ${withAlpha(theme.accent_color, 0.16)}` : 'none'
+                boxShadow: active ? `0 18px 32px ${withAlpha(theme.accent_color, 0.14)}` : 'none'
             }}
         >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -209,7 +415,7 @@ function FontCard({ preset, active, onClick, theme }) {
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: withAlpha(theme.secondary_text_color, 0.92) }}>
                         Typography
                     </p>
-                    <h4 className="mt-1 text-xl leading-tight md:text-2xl" style={{ color: theme.text_color, fontFamily: preset.display }}>
+                    <h4 className="mt-1 text-xl leading-tight" style={{ color: theme.text_color, fontFamily: preset.display }}>
                         {preset.name}
                     </h4>
                 </div>
@@ -224,10 +430,10 @@ function FontCard({ preset, active, onClick, theme }) {
                     <Check className="h-4 w-4" />
                 </div>
             </div>
-            <p className="text-sm" style={{ color: theme.text_color, fontFamily: preset.display }}>
+            <p className="text-base leading-tight" style={{ color: theme.text_color, fontFamily: preset.display }}>
                 The semester is under control.
             </p>
-            <p className="mt-2 text-sm leading-5 md:leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: preset.body }}>
+            <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: preset.body }}>
                 {preset.description}
             </p>
         </button>
@@ -237,7 +443,7 @@ function FontCard({ preset, active, onClick, theme }) {
 function ColorField({ field, theme, onChange }) {
     return (
         <label
-            className="block rounded-[1.2rem] border p-3 md:rounded-[1.4rem]"
+            className="block rounded-[1.2rem] border p-3"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.82),
                 backgroundColor: withAlpha(theme.bg_color, 0.34)
@@ -271,15 +477,73 @@ function ColorField({ field, theme, onChange }) {
     );
 }
 
+function SummaryChip({ label, value, theme }) {
+    return (
+        <div
+            className="rounded-full border px-3 py-2"
+            style={{
+                borderColor: withAlpha(theme.border_color, 0.82),
+                backgroundColor: withAlpha(theme.bg_color, 0.38)
+            }}
+        >
+            <p className="text-[9px] font-bold uppercase tracking-[0.22em]" style={{ color: withAlpha(theme.secondary_text_color, 0.9) }}>
+                {label}
+            </p>
+            <p className="mt-1 text-sm" style={{ color: theme.text_color }}>
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function PreviewToggle({ viewport, setViewport, theme }) {
+    return (
+        <div
+            className="inline-flex rounded-full border p-1"
+            style={{
+                borderColor: withAlpha(theme.border_color, 0.82),
+                backgroundColor: withAlpha(theme.bg_color, 0.34)
+            }}
+        >
+            {[
+                { id: 'phone', label: 'Phone preview', icon: Smartphone },
+                { id: 'desktop', label: 'Desktop preview', icon: Monitor }
+            ].map((option) => {
+                const Icon = option.icon;
+                const active = viewport === option.id;
+
+                return (
+                    <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setViewport(option.id)}
+                        aria-pressed={active}
+                        aria-label={option.label}
+                        className="tap-action flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200"
+                        style={{
+                            backgroundColor: active ? theme.accent_color : 'transparent',
+                            color: active ? (isDarkTheme(theme.accent_color) ? '#f8fbfd' : '#0b1418') : theme.text_color,
+                            opacity: active ? 1 : 0.72
+                        }}
+                    >
+                        <Icon className="h-3.5 w-3.5" />
+                        {option.id === 'phone' ? 'Phone' : 'Desktop'}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 function PreviewDesktop({ theme }) {
     return (
         <div
-            className="overflow-hidden rounded-[1.55rem] border md:rounded-[1.8rem]"
+            className="overflow-hidden rounded-[1.6rem] border"
             style={{
                 borderColor: withAlpha(theme.border_color, 0.9),
                 backgroundColor: theme.bg_color,
                 color: theme.text_color,
-                boxShadow: `0 30px 80px ${withAlpha(theme.bg_color, 0.3)}`
+                boxShadow: `0 30px 80px ${withAlpha(theme.bg_color, 0.26)}`
             }}
         >
             <div
@@ -303,19 +567,19 @@ function PreviewDesktop({ theme }) {
                     Ready
                 </div>
             </div>
-            <div className="grid gap-3 p-3 md:p-4">
+            <div className="grid gap-3 p-3">
                 <div
-                    className="rounded-[1.35rem] border p-3 md:rounded-[1.5rem] md:p-4"
+                    className="rounded-[1.35rem] border p-4"
                     style={{ borderColor: withAlpha(theme.border_color, 0.86), backgroundColor: withAlpha(theme.surface_color, 0.96) }}
                 >
                     <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
                         Today
                     </p>
-                    <h4 className="mt-2 text-[1.65rem] leading-none md:text-3xl" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
+                    <h4 className="mt-2 text-3xl leading-none" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
                         Study Queue
                     </h4>
-                    <p className="mt-2 text-sm leading-5 md:leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
-                        Strong hierarchy, softer surfaces, and a single accent line up with newer Riven screens.
+                    <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
+                        Strong hierarchy, softer surfaces, and a single accent line keep the screen clear.
                     </p>
                     <div className="mt-4 grid grid-cols-3 gap-2">
                         {['Due', 'Streak', 'Groups'].map((label, index) => (
@@ -340,7 +604,7 @@ function PreviewDesktop({ theme }) {
 
                 <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
                     <div
-                        className="rounded-[1.25rem] border p-3 md:rounded-[1.4rem] md:p-4"
+                        className="rounded-[1.25rem] border p-4"
                         style={{ borderColor: withAlpha(theme.border_color, 0.84), backgroundColor: withAlpha(theme.surface_color, 0.94) }}
                     >
                         <div className="flex items-center justify-between">
@@ -370,7 +634,7 @@ function PreviewDesktop({ theme }) {
                     </div>
 
                     <div
-                        className="rounded-[1.25rem] border p-3 md:rounded-[1.4rem] md:p-4"
+                        className="rounded-[1.25rem] border p-4"
                         style={{ borderColor: withAlpha(theme.border_color, 0.84), backgroundColor: withAlpha(theme.surface_color, 0.94) }}
                     >
                         <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
@@ -388,7 +652,7 @@ function PreviewDesktop({ theme }) {
                         </button>
                         <div className="mt-4 rounded-2xl border px-3 py-3" style={{ borderColor: withAlpha(theme.border_color, 0.78) }}>
                             <p className="text-xs" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
-                                Inputs, cards, hierarchy, and motion all read clearly in desktop layouts.
+                                Inputs, cards, hierarchy, and motion stay readable on larger layouts.
                             </p>
                         </div>
                     </div>
@@ -405,7 +669,7 @@ function PreviewPhone({ theme }) {
             style={{
                 borderColor: withAlpha(theme.border_color, 0.92),
                 backgroundColor: withAlpha(theme.bg_color, 0.92),
-                boxShadow: `0 26px 80px ${withAlpha(theme.bg_color, 0.34)}`
+                boxShadow: `0 26px 80px ${withAlpha(theme.bg_color, 0.3)}`
             }}
         >
             <div
@@ -475,64 +739,81 @@ function PreviewPhone({ theme }) {
     );
 }
 
-function PreviewColumn({ theme, compact = false, mobileFirst = false }) {
-    const previewSections = [
-        {
-            key: 'desktop',
-            label: 'Desktop',
-            icon: Monitor,
-            component: <PreviewDesktop theme={theme} />
-        },
-        {
-            key: 'mobile',
-            label: 'Mobile',
-            icon: Smartphone,
-            component: <PreviewPhone theme={theme} />
-        }
-    ];
-
-    const orderedPreviewSections = mobileFirst
-        ? [previewSections[1], previewSections[0]]
-        : previewSections;
+function PreviewSurface({ theme, viewport, setViewport, compact, summary, expanded }) {
+    const scale = compact ? (viewport === 'phone' ? 0.92 : 0.74) : 1;
+    const frameHeight = compact ? (viewport === 'phone' ? 320 : 250) : 'auto';
 
     return (
-        <div className="space-y-4">
-            <div
-                className="rounded-[1.75rem] border p-4"
-                style={{
-                    borderColor: withAlpha(theme.border_color, 0.88),
-                    backgroundColor: withAlpha(theme.surface_color, 0.92)
-                }}
-            >
-                <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" style={{ color: theme.accent_color }} />
+        <div
+            className="rounded-[1.7rem] border p-4"
+            style={{
+                borderColor: withAlpha(theme.border_color, 0.88),
+                backgroundColor: withAlpha(theme.surface_color, 0.92)
+            }}
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
                         Live preview
                     </p>
+                    <h4 className="mt-2 text-2xl leading-tight" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
+                        {theme.name?.trim() || 'Untitled atmosphere'}
+                    </h4>
+                    <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
+                        {expanded
+                            ? 'Use review mode to check the final hierarchy before you save.'
+                            : 'Switch between phone and desktop without stacking both previews at once.'}
+                    </p>
                 </div>
-                <h4 className="mt-2 text-2xl leading-tight" style={{ color: theme.text_color, fontFamily: theme.font_family_display }}>
-                    {theme.name?.trim() || 'Untitled atmosphere'}
-                </h4>
-                <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.95), fontFamily: theme.font_family_body }}>
-                    The editor now previews both viewport classes before you save, which is the missing piece in the old builder.
-                </p>
+                <PreviewToggle viewport={viewport} setViewport={setViewport} theme={theme} />
             </div>
 
-            {orderedPreviewSections.map((section) => {
-                const Icon = section.icon;
+            {summary?.length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {summary.map((item) => (
+                        <SummaryChip key={item.label} label={item.label} value={item.value} theme={theme} />
+                    ))}
+                </div>
+            ) : null}
 
-                return (
-                    <div key={section.key} className={compact ? 'space-y-4' : 'space-y-5'}>
-                        <div className="flex items-center gap-2 px-1">
-                            <Icon className="h-4 w-4" style={{ color: theme.accent_color }} />
-                            <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.95) }}>
-                                {section.label}
-                            </p>
-                        </div>
-                        {section.component}
-                    </div>
-                );
-            })}
+            <div
+                className="mt-5 overflow-hidden rounded-[1.6rem]"
+                style={{ height: frameHeight === 'auto' ? undefined : frameHeight }}
+            >
+                <div
+                    style={{
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top center'
+                    }}
+                >
+                    {viewport === 'phone' ? <PreviewPhone theme={theme} /> : <PreviewDesktop theme={theme} />}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function StepIntro({ step, theme }) {
+    return (
+        <div
+            className="rounded-[1.65rem] border px-4 py-4 md:px-5"
+            style={{
+                borderColor: withAlpha(theme.border_color, 0.84),
+                backgroundColor: withAlpha(theme.bg_color, 0.3)
+            }}
+        >
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(theme.secondary_text_color, 0.94) }}>
+                {step.eyebrow}
+            </p>
+            <h2
+                className="mt-2 text-[2rem] leading-none md:text-[2.35rem]"
+                style={{ color: theme.text_color, fontFamily: theme.font_family_display }}
+            >
+                {step.title}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: withAlpha(theme.secondary_text_color, 0.94), fontFamily: theme.font_family_body }}>
+                {step.description}
+            </p>
         </div>
     );
 }
@@ -542,13 +823,16 @@ export default function ThemeEditorModal({
     editingTheme,
     themeForm,
     setThemeForm,
-    editorMode,
-    setEditorMode,
     onClose,
     onSubmit,
     haptics
 }) {
     useBodyScrollLock(isOpen);
+
+    const isDesktop = useMediaQuery('(min-width: 768px)');
+    const [activeStep, setActiveStep] = useState(0);
+    const [previewViewport, setPreviewViewport] = useState('phone');
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -563,7 +847,31 @@ export default function ThemeEditorModal({
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-    const activeBase = visuallyMatchesTheme(themeForm, getBaseTheme('light')) ? 'light' : 'dark';
+    useEffect(() => {
+        if (!isOpen) return;
+
+        setActiveStep(editingTheme ? STUDIO_STEPS.length - 1 : 0);
+        setPreviewViewport(editingTheme ? 'desktop' : 'phone');
+        setAdvancedOpen(editingTheme ? hasFineTunedPalette(themeForm) : false);
+    }, [editingTheme?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const step = STUDIO_STEPS[activeStep];
+    const title = editingTheme ? 'Refine Theme' : 'Theme Studio';
+    const activeBase = visuallyMatchesTheme(themeForm, getBaseTheme('dark'))
+        ? 'dark'
+        : visuallyMatchesTheme(themeForm, getBaseTheme('light'))
+            ? 'light'
+            : null;
+
+    const starterSummary = useMemo(() => inferStarter(themeForm), [themeForm]);
+    const accentSummary = useMemo(() => inferAccent(themeForm), [themeForm]);
+    const fontSummary = useMemo(() => inferFont(themeForm), [themeForm]);
+    const summaryChips = useMemo(() => ([
+        { label: 'Starter', value: starterSummary.label },
+        { label: 'Accent', value: accentSummary },
+        { label: 'Type', value: fontSummary },
+        { label: 'Colors', value: advancedOpen || hasFineTunedPalette(themeForm) ? 'Fine-tuned' : 'Curated' }
+    ]), [accentSummary, advancedOpen, fontSummary, starterSummary.label, themeForm]);
 
     const updateTheme = (next) => {
         setThemeForm((previous) => ({
@@ -580,7 +888,6 @@ export default function ThemeEditorModal({
 
     const applyBaseTheme = (mode) => {
         pulse('light');
-        setEditorMode('curated');
         updateTheme((previous) => ({
             ...getBaseTheme(mode),
             name: previous.name
@@ -589,7 +896,6 @@ export default function ThemeEditorModal({
 
     const applyStylePreset = (preset) => {
         pulse('light');
-        setEditorMode('curated');
         updateTheme((previous) => ({
             ...preset.theme,
             name: previous.name
@@ -598,7 +904,7 @@ export default function ThemeEditorModal({
 
     const applyAccent = (accent) => {
         pulse('light');
-        updateTheme({ accent_color: accent, });
+        updateTheme({ accent_color: accent });
     };
 
     const applyFontPreset = (preset) => {
@@ -610,11 +916,271 @@ export default function ThemeEditorModal({
     };
 
     const setColorValue = (field, value) => {
-        setEditorMode('custom');
+        setAdvancedOpen(true);
         updateTheme({ [field]: value });
     };
 
-    const title = editingTheme ? 'Refine Theme' : 'Theme Studio';
+    const handleNext = () => {
+        pulse('light');
+        setActiveStep((previous) => clampStep(previous + 1));
+    };
+
+    const handleBack = () => {
+        pulse('light');
+        setActiveStep((previous) => clampStep(previous - 1));
+    };
+
+    const renderStepContent = () => {
+        if (step.id === 'starter') {
+            return (
+                <div className="space-y-5">
+                    <StepIntro step={step} theme={themeForm} />
+                    <StudioSection
+                        eyebrow="Base"
+                        title="Choose the lighting"
+                        description="Start with the broad mood first. The accent and typography can move later without making the flow noisy."
+                        theme={themeForm}
+                    >
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <BaseChoiceCard
+                                active={activeBase === 'dark'}
+                                icon={Moon}
+                                label="Dark studio"
+                                helper="Best for late sessions and richer contrast."
+                                onClick={() => applyBaseTheme('dark')}
+                                theme={themeForm}
+                            />
+                            <BaseChoiceCard
+                                active={activeBase === 'light'}
+                                icon={Sun}
+                                label="Light paper"
+                                helper="Cleaner daytime read with warmer surfaces."
+                                onClick={() => applyBaseTheme('light')}
+                                theme={themeForm}
+                            />
+                        </div>
+                    </StudioSection>
+
+                    <StudioSection
+                        eyebrow="Curated starters"
+                        title="Pick a full direction"
+                        description="These starters fit the current Riven language and give you a stronger first draft than the old freeform screen."
+                        theme={themeForm}
+                    >
+                        <div className="grid gap-3 xl:grid-cols-2">
+                            {STYLE_PRESETS.map((preset) => (
+                                <PresetCard
+                                    key={preset.id}
+                                    preset={preset}
+                                    active={visuallyMatchesTheme(themeForm, preset.theme)}
+                                    onClick={() => applyStylePreset(preset)}
+                                    theme={themeForm}
+                                />
+                            ))}
+                        </div>
+                    </StudioSection>
+                </div>
+            );
+        }
+
+        if (step.id === 'style') {
+            return (
+                <div className="space-y-5">
+                    <StepIntro step={step} theme={themeForm} />
+                    <StudioSection
+                        eyebrow="Accent"
+                        title="Choose the signal color"
+                        description="Accent should guide attention, not repaint the whole experience."
+                        theme={themeForm}
+                    >
+                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                            {ACCENT_PRESETS.map((swatch) => (
+                                <SwatchButton
+                                    key={swatch.color}
+                                    swatch={swatch}
+                                    active={themeForm.accent_color === swatch.color}
+                                    onClick={() => applyAccent(swatch.color)}
+                                    theme={themeForm}
+                                />
+                            ))}
+                        </div>
+                    </StudioSection>
+
+                    <StudioSection
+                        eyebrow="Typography"
+                        title="Match the voice"
+                        description="Keep the typography legible and intentional. The display face should set the tone without fighting the body copy."
+                        theme={themeForm}
+                    >
+                        <div className="grid gap-3 xl:grid-cols-2">
+                            {FONT_PRESETS.map((preset) => (
+                                <FontCard
+                                    key={preset.id}
+                                    preset={preset}
+                                    active={themeForm.font_family_display === preset.display && themeForm.font_family_body === preset.body}
+                                    onClick={() => applyFontPreset(preset)}
+                                    theme={themeForm}
+                                />
+                            ))}
+                        </div>
+                    </StudioSection>
+                </div>
+            );
+        }
+
+        if (step.id === 'advanced') {
+            return (
+                <div className="space-y-5">
+                    <StepIntro step={step} theme={themeForm} />
+                    <StudioSection
+                        eyebrow="Advanced controls"
+                        title="Fine-tune colors"
+                        description="Stay curated if the starter already feels right. Open the token controls only when you need precision."
+                        theme={themeForm}
+                    >
+                        {!advancedOpen ? (
+                            <div
+                                className="rounded-[1.4rem] border p-4"
+                                style={{
+                                    borderColor: withAlpha(themeForm.border_color, 0.82),
+                                    backgroundColor: withAlpha(themeForm.bg_color, 0.34)
+                                }}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div
+                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
+                                        style={{
+                                            borderColor: withAlpha(themeForm.accent_color, 0.3),
+                                            backgroundColor: withAlpha(themeForm.accent_color, 0.12),
+                                            color: themeForm.accent_color
+                                        }}
+                                    >
+                                        <Wand2 className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="text-lg leading-tight" style={{ color: themeForm.text_color, fontFamily: themeForm.font_family_display }}>
+                                            Keep the palette curated or open token editing
+                                        </h4>
+                                        <p className="mt-2 text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
+                                            Right now the theme still follows a starter palette. If you want exact control, reveal the individual tokens and tune each surface directly.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                pulse('medium');
+                                                setAdvancedOpen(true);
+                                            }}
+                                            className="tap-action mt-4 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                            style={{
+                                                backgroundColor: themeForm.accent_color,
+                                                color: isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418',
+                                                boxShadow: `0 18px 34px ${withAlpha(themeForm.accent_color, 0.22)}`
+                                            }}
+                                        >
+                                            <Palette className="h-4 w-4" />
+                                            Fine-tune colors
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="max-w-xl text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
+                                        Token controls are now active. Changes here override the starter palette while preserving the same saved theme shape.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            pulse('light');
+                                            setAdvancedOpen(false);
+                                        }}
+                                        className="tap-action rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                        style={{
+                                            borderColor: withAlpha(themeForm.border_color, 0.82),
+                                            backgroundColor: withAlpha(themeForm.surface_color, 0.92),
+                                            color: themeForm.text_color
+                                        }}
+                                    >
+                                        Hide controls
+                                    </button>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    {COLOR_FIELDS.map((field) => (
+                                        <ColorField
+                                            key={field}
+                                            field={field}
+                                            theme={themeForm}
+                                            onChange={setColorValue}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </StudioSection>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-5">
+                <StepIntro step={step} theme={themeForm} />
+                <StudioSection
+                    eyebrow="Summary"
+                    title="Review the final atmosphere"
+                    description="The summary keeps the last decisions understandable, and the larger preview makes it easier to catch contrast issues before saving."
+                    theme={themeForm}
+                >
+                    <div className="flex flex-wrap gap-2">
+                        {summaryChips.map((item) => (
+                            <SummaryChip key={item.label} label={item.label} value={item.value} theme={themeForm} />
+                        ))}
+                    </div>
+                </StudioSection>
+
+                {!isDesktop ? (
+                    <PreviewSurface
+                        theme={themeForm}
+                        viewport={previewViewport}
+                        setViewport={setPreviewViewport}
+                        compact={false}
+                        expanded
+                        summary={summaryChips}
+                    />
+                ) : null}
+
+                <StudioSection
+                    eyebrow="Name"
+                    title="Save this theme"
+                    description="Name is only required now, at the point of saving. Keep it short enough to scan easily in the gallery."
+                    theme={themeForm}
+                >
+                    <label className="block">
+                        <span className="sr-only">Theme name</span>
+                        <input
+                            type="text"
+                            value={themeForm.name}
+                            onChange={(event) => updateTheme({ name: event.target.value })}
+                            placeholder="Night lectures, paper desk, focus mode..."
+                            autoFocus
+                            className="w-full rounded-[1.25rem] border px-4 py-3.5 text-[1.65rem] outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] md:text-[2.3rem]"
+                            style={{
+                                borderColor: withAlpha(themeForm.border_color, 0.9),
+                                backgroundColor: withAlpha(themeForm.bg_color, 0.38),
+                                color: themeForm.text_color,
+                                fontFamily: themeForm.font_family_display
+                            }}
+                        />
+                    </label>
+                    <p className="mt-3 text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
+                        {editingTheme
+                            ? 'Saving updates this theme in place without changing the underlying data contract.'
+                            : 'Saving creates a new custom theme in your gallery without changing any existing presets.'}
+                    </p>
+                </StudioSection>
+            </div>
+        );
+    };
 
     return (
         <AnimatePresence>
@@ -638,7 +1204,7 @@ export default function ThemeEditorModal({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-                        className="modal-content relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full max-w-6xl flex-col overflow-hidden rounded-t-[2rem] border md:max-h-[94vh] md:rounded-[2rem]"
+                        className="relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full max-w-7xl flex-col overflow-hidden rounded-t-[2rem] border md:max-h-[94vh] md:rounded-[2rem]"
                         style={{
                             borderColor: withAlpha(themeForm.border_color, 0.95),
                             background: `linear-gradient(180deg, ${withAlpha(themeForm.bg_color, 0.98)} 0%, ${withAlpha(themeForm.surface_color, 0.98)} 100%)`,
@@ -650,7 +1216,7 @@ export default function ThemeEditorModal({
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
-                                background: `radial-gradient(circle at top right, ${withAlpha(themeForm.accent_color, 0.18)} 0%, transparent 34%), radial-gradient(circle at bottom left, ${withAlpha(themeForm.text_color, 0.05)} 0%, transparent 42%)`
+                                background: `radial-gradient(circle at top right, ${withAlpha(themeForm.accent_color, 0.16)} 0%, transparent 34%), radial-gradient(circle at bottom left, ${withAlpha(themeForm.text_color, 0.04)} 0%, transparent 42%)`
                             }}
                         />
 
@@ -658,278 +1224,186 @@ export default function ThemeEditorModal({
                             <div className="h-1.5 w-12 rounded-full" style={{ backgroundColor: withAlpha(themeForm.secondary_text_color, 0.4) }} />
                         </div>
 
-                        <div className="relative flex items-start justify-between gap-4 border-b px-4 pb-4 pt-3 md:items-center md:px-8 md:py-6" style={{ borderBottomColor: withAlpha(themeForm.border_color, 0.92) }}>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95) }}>
-                                    Create Theme
-                                </p>
-                                <h2 id="theme-editor-title" className="mt-2 text-[2rem] leading-none md:text-4xl" style={{ fontFamily: themeForm.font_family_display }}>
-                                    {title}
-                                </h2>
-                                <p className="mt-2 max-w-2xl pr-2 text-sm leading-5 md:pr-0 md:leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
-                                    One continuous flow: start with the phone read, keep scrolling, and finish on the desktop pass before you save.
-                                </p>
+                        <div
+                            className="relative border-b px-4 pb-4 pt-3 md:px-8 md:py-6"
+                            style={{ borderBottomColor: withAlpha(themeForm.border_color, 0.92) }}
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95) }}>
+                                        {editingTheme ? 'Edit Theme' : 'Create Theme'}
+                                    </p>
+                                    <h1 id="theme-editor-title" className="mt-2 text-[2rem] leading-none md:text-4xl" style={{ fontFamily: themeForm.font_family_display }}>
+                                        {title}
+                                    </h1>
+                                    <p className="mt-2 max-w-3xl pr-2 text-sm leading-5 md:pr-0 md:leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
+                                        A calmer step studio for mobile and desktop, with one clear decision at a time and a live preview that never doubles up the screen.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="tap-action flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:h-11 md:w-11"
+                                    style={{
+                                        borderColor: withAlpha(themeForm.border_color, 0.82),
+                                        backgroundColor: withAlpha(themeForm.surface_color, 0.9),
+                                        color: themeForm.text_color
+                                    }}
+                                    aria-label="Close theme editor"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="tap-action flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 md:h-11 md:w-11"
-                                style={{
-                                    borderColor: withAlpha(themeForm.border_color, 0.82),
-                                    backgroundColor: withAlpha(themeForm.surface_color, 0.9),
-                                    color: themeForm.text_color
-                                }}
-                                aria-label="Close theme editor"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
 
-                        <form id="theme-editor-form" onSubmit={onSubmit} className="modal-scroll-content relative min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
-                            <div className="grid gap-5 px-4 pb-32 pt-4 md:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:px-8 md:pb-8 md:pt-6">
-                                <div className="space-y-5">
-                                    <Section
-                                        eyebrow="Identity"
-                                        title="Name and intent"
-                                        description="Give the theme a name first. Everything else should reinforce that tone."
-                                        theme={themeForm}
-                                    >
-                                        <label className="block">
-                                            <span className="sr-only">Theme name</span>
-                                            <input
-                                                type="text"
-                                                value={themeForm.name}
-                                                onChange={(event) => updateTheme({ name: event.target.value })}
-                                                placeholder="Night lectures, paper desk, focus mode..."
-                                                autoFocus
-                                                className="w-full rounded-[1.2rem] border px-4 py-3.5 text-[2rem] outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow] md:rounded-[1.4rem] md:py-4 md:text-4xl"
-                                                style={{
-                                                    borderColor: withAlpha(themeForm.border_color, 0.9),
-                                                    backgroundColor: withAlpha(themeForm.bg_color, 0.38),
-                                                    color: themeForm.text_color,
-                                                    fontFamily: themeForm.font_family_display
-                                                }}
-                                            />
-                                        </label>
-                                    </Section>
-
-                                    <div className="md:hidden">
-                                        <Section
-                                            eyebrow="Preview"
-                                            title="Start on phone, keep scrolling"
-                                            description="The preview is fully linear on mobile now. Read the phone version first, then continue straight down into the desktop pass."
-                                            theme={themeForm}
-                                        >
-                                            <div
-                                                className="mt-4 rounded-[1.35rem] border p-3"
-                                                style={{
-                                                    borderColor: withAlpha(themeForm.border_color, 0.84),
-                                                    backgroundColor: withAlpha(themeForm.bg_color, 0.34)
-                                                }}
-                                            >
-                                                <PreviewColumn theme={themeForm} compact mobileFirst />
-                                            </div>
-                                        </Section>
-                                    </div>
-
-                                    <Section
-                                        eyebrow="Foundation"
-                                        title="Start from the right lighting"
-                                        description="Pick the base atmosphere that best matches how the theme will actually be used."
-                                        theme={themeForm}
-                                    >
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            <ModeButton
-                                                active={activeBase === 'dark'}
-                                                icon={Moon}
-                                                label="Dark studio"
-                                                helper="Best for late sessions and richer accent contrast."
-                                                onClick={() => applyBaseTheme('dark')}
-                                                theme={themeForm}
-                                            />
-                                            <ModeButton
-                                                active={activeBase === 'light'}
-                                                icon={Sun}
-                                                label="Light paper"
-                                                helper="Cleaner daytime read with warmer surfaces."
-                                                onClick={() => applyBaseTheme('light')}
-                                                theme={themeForm}
-                                            />
-                                        </div>
-                                    </Section>
-
-                                    <Section
-                                        eyebrow="Curated"
-                                        title="Riven-ready directions"
-                                        description="These presets are designed for the current product language, not the older theme screen."
-                                        theme={themeForm}
-                                    >
-                                        <div className="grid gap-3 xl:grid-cols-2">
-                                            {STYLE_PRESETS.map((preset) => (
-                                                <PresetCard
-                                                    key={preset.id}
-                                                    preset={preset}
-                                                    active={visuallyMatchesTheme(themeForm, preset.theme)}
-                                                    onClick={() => applyStylePreset(preset)}
-                                                    theme={themeForm}
-                                                />
-                                            ))}
-                                        </div>
-                                    </Section>
-
-                                    <Section
-                                        eyebrow="Accent"
-                                        title="Choose the signal color"
-                                        description="Accent should guide attention, not repaint the whole experience."
-                                        theme={themeForm}
-                                    >
-                                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-                                            {ACCENT_PRESETS.map((swatch) => (
-                                                <SwatchButton
-                                                    key={swatch.color}
-                                                    swatch={swatch}
-                                                    active={themeForm.accent_color === swatch.color}
-                                                    onClick={() => applyAccent(swatch.color)}
-                                                    theme={themeForm}
-                                                />
-                                            ))}
-                                        </div>
-                                    </Section>
-
-                                    <Section
-                                        eyebrow="Typography"
-                                        title="Match the voice"
-                                        description="Use the default editorial stack unless you have a specific reason to skew sharper or more technical."
-                                        theme={themeForm}
-                                    >
-                                        <div className="grid gap-3 xl:grid-cols-2">
-                                            {FONT_PRESETS.map((preset) => (
-                                                <FontCard
-                                                    key={preset.id}
-                                                    preset={preset}
-                                                    active={
-                                                        themeForm.font_family_display === preset.display
-                                                        && themeForm.font_family_body === preset.body
-                                                    }
-                                                    onClick={() => applyFontPreset(preset)}
-                                                    theme={themeForm}
-                                                />
-                                            ))}
-                                        </div>
-                                    </Section>
-
-                                    <Section
-                                        eyebrow="Precision"
-                                        title="Fine tune the tokens"
-                                        description="Curated keeps you close to the system. Custom lets you override each token when you need exact control."
-                                        theme={themeForm}
+                            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94) }}>
+                                        {step.eyebrow}
+                                    </p>
+                                    <p className="mt-2 text-base md:text-lg" style={{ color: themeForm.text_color }}>
+                                        {step.label}
+                                    </p>
+                                </div>
+                                <div className="w-full md:max-w-[320px]">
+                                    <div
+                                        className="h-2 overflow-hidden rounded-full"
+                                        style={{ backgroundColor: withAlpha(themeForm.border_color, 0.5) }}
                                     >
                                         <div
-                                            className="mb-4 inline-flex rounded-full border p-1"
+                                            className="h-full rounded-full transition-[width] duration-300"
                                             style={{
-                                                borderColor: withAlpha(themeForm.border_color, 0.82),
-                                                backgroundColor: withAlpha(themeForm.bg_color, 0.34)
+                                                width: `${((activeStep + 1) / STUDIO_STEPS.length) * 100}%`,
+                                                backgroundColor: themeForm.accent_color
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {!isDesktop ? <div className="mt-4"><MobileStepTabs activeStep={activeStep} setActiveStep={setActiveStep} theme={themeForm} /></div> : null}
+                        </div>
+
+                        <form id="theme-editor-form" onSubmit={onSubmit} className="relative flex min-h-0 flex-1 flex-col">
+                            <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 pb-28 pt-4 overscroll-contain custom-scrollbar md:grid-cols-[220px_minmax(0,1fr)_360px] md:gap-6 md:px-8 md:pb-8 md:pt-6">
+                                {isDesktop ? (
+                                    <aside className="sticky top-0 self-start space-y-3">
+                                        {STUDIO_STEPS.map((item, index) => (
+                                            <StepNavButton
+                                                key={item.id}
+                                                step={item}
+                                                index={index}
+                                                active={activeStep === index}
+                                                onClick={() => {
+                                                    pulse('light');
+                                                    setActiveStep(index);
+                                                }}
+                                                theme={themeForm}
+                                            />
+                                        ))}
+                                    </aside>
+                                ) : null}
+
+                                <div className="min-h-0">
+                                    {!isDesktop && step.id !== 'review' ? (
+                                        <div className="mb-5">
+                                            <PreviewSurface
+                                                theme={themeForm}
+                                                viewport={previewViewport}
+                                                setViewport={setPreviewViewport}
+                                                compact
+                                                expanded={false}
+                                                summary={[
+                                                    { label: 'Starter', value: starterSummary.label },
+                                                    { label: 'Accent', value: accentSummary }
+                                                ]}
+                                            />
+                                        </div>
+                                    ) : null}
+
+                                    {renderStepContent()}
+                                </div>
+
+                                {isDesktop ? (
+                                    <aside className="sticky top-0 self-start">
+                                        <PreviewSurface
+                                            theme={themeForm}
+                                            viewport={previewViewport}
+                                            setViewport={setPreviewViewport}
+                                            compact={step.id !== 'review'}
+                                            expanded={step.id === 'review'}
+                                            summary={summaryChips}
+                                        />
+                                    </aside>
+                                ) : null}
+                            </div>
+
+                            <div
+                                className="relative border-t px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:px-8 md:py-4"
+                                style={{
+                                    borderTopColor: withAlpha(themeForm.border_color, 0.92),
+                                    backgroundColor: withAlpha(themeForm.bg_color, 0.94)
+                                }}
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95) }}>
+                                            {step.id === 'review' ? 'Save' : 'Continue'}
+                                        </p>
+                                        <p className="mt-1 text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
+                                            {step.id === 'review'
+                                                ? 'The saved theme can still be refined later from your gallery.'
+                                                : 'Move one step at a time. Everything stays editable before you save.'}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                        <button
+                                            type="button"
+                                            onClick={activeStep === 0 ? onClose : handleBack}
+                                            className="tap-action rounded-full border px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                            style={{
+                                                borderColor: withAlpha(themeForm.border_color, 0.86),
+                                                backgroundColor: withAlpha(themeForm.surface_color, 0.96),
+                                                color: themeForm.text_color
                                             }}
                                         >
-                                            {[
-                                                { id: 'curated', label: 'Curated', icon: Sparkles },
-                                                { id: 'custom', label: 'Custom', icon: Palette }
-                                            ].map((mode) => {
-                                                const Icon = mode.icon;
-
-                                                return (
-                                                    <button
-                                                        key={mode.id}
-                                                        type="button"
-                                                        onClick={() => setEditorMode(mode.id)}
-                                                        className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200"
-                                                        style={{
-                                                            backgroundColor: editorMode === mode.id ? themeForm.accent_color : 'transparent',
-                                                            color: editorMode === mode.id ? (isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418') : themeForm.text_color,
-                                                            opacity: editorMode === mode.id ? 1 : 0.72
-                                                        }}
-                                                    >
-                                                        <Icon className="h-3.5 w-3.5" />
-                                                        {mode.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {editorMode === 'custom' ? (
-                                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                                {COLOR_FIELDS.map((field) => (
-                                                    <ColorField
-                                                        key={field}
-                                                        field={field}
-                                                        theme={themeForm}
-                                                        onChange={setColorValue}
-                                                    />
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div
-                                                className="rounded-[1.4rem] border px-4 py-4"
+                                            <span className="inline-flex items-center gap-2">
+                                                <ArrowLeft className="h-4 w-4" />
+                                                {activeStep === 0 ? 'Cancel' : 'Back'}
+                                            </span>
+                                        </button>
+                                        {step.id === 'review' ? (
+                                            <button
+                                                type="submit"
+                                                className="tap-action rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
                                                 style={{
-                                                    borderColor: withAlpha(themeForm.border_color, 0.82),
-                                                    backgroundColor: withAlpha(themeForm.bg_color, 0.34)
+                                                    backgroundColor: themeForm.accent_color,
+                                                    color: isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418',
+                                                    boxShadow: `0 20px 40px ${withAlpha(themeForm.accent_color, 0.26)}`
                                                 }}
                                             >
-                                                <p className="text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
-                                                    Stay in curated mode for stronger visual consistency. Jump to custom only when you need token-level changes that the preset system cannot express.
-                                                </p>
-                                            </div>
+                                                {editingTheme ? 'Save refinements' : 'Create theme'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={handleNext}
+                                                className="tap-action rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
+                                                style={{
+                                                    backgroundColor: themeForm.accent_color,
+                                                    color: isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418',
+                                                    boxShadow: `0 20px 40px ${withAlpha(themeForm.accent_color, 0.24)}`
+                                                }}
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    {step.id === 'advanced' && !advancedOpen ? 'Skip to review' : 'Next step'}
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </span>
+                                            </button>
                                         )}
-                                    </Section>
+                                    </div>
                                 </div>
-
-                                <aside className="hidden md:block md:self-start md:sticky md:top-0">
-                                    <PreviewColumn theme={themeForm} />
-                                </aside>
                             </div>
                         </form>
-
-                        <div
-                            className="relative border-t bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.02))] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 md:px-8 md:py-4"
-                            style={{ borderTopColor: withAlpha(themeForm.border_color, 0.92), backgroundColor: withAlpha(themeForm.bg_color, 0.92) }}
-                        >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95) }}>
-                                        Save
-                                    </p>
-                                    <p className="mt-1 text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
-                                        The saved theme can still be refined later from your gallery.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col gap-3 sm:flex-row">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="tap-action rounded-full border px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
-                                        style={{
-                                            borderColor: withAlpha(themeForm.border_color, 0.86),
-                                            backgroundColor: withAlpha(themeForm.surface_color, 0.96),
-                                            color: themeForm.text_color
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        form="theme-editor-form"
-                                        className="tap-action rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5"
-                                        style={{
-                                            backgroundColor: themeForm.accent_color,
-                                            color: isDarkTheme(themeForm.accent_color) ? '#f8fbfd' : '#0b1418',
-                                            boxShadow: `0 20px 40px ${withAlpha(themeForm.accent_color, 0.26)}`
-                                        }}
-                                    >
-                                        {editingTheme ? 'Save refinements' : 'Create theme'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                     </Motion.div>
                 </div>
             ) : null}

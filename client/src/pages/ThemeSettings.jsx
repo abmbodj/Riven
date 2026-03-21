@@ -459,7 +459,6 @@ export default function ThemeSettings() {
     const [showEditor, setShowEditor] = useState(false);
     const [editingTheme, setEditingTheme] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, theme: null });
-    const [editorMode, setEditorMode] = useState('curated');
     const [pricingOpen, setPricingOpen] = useState(false);
     const [carouselIndices, setCarouselIndices] = useState({ official: 0, professional: 0, custom: 0 });
     const [themeForm, setThemeForm] = useState(() => buildThemeDraft());
@@ -489,7 +488,6 @@ export default function ThemeSettings() {
         haptics.medium();
         setEditingTheme(null);
         setThemeForm(buildThemeDraft());
-        setEditorMode('curated');
         setShowEditor(true);
     };
 
@@ -498,7 +496,6 @@ export default function ThemeSettings() {
         haptics.light();
         setEditingTheme(theme);
         setThemeForm(buildThemeDraft(theme));
-        setEditorMode('custom');
         setShowEditor(true);
     };
 
@@ -663,8 +660,6 @@ export default function ThemeSettings() {
                 editingTheme={editingTheme}
                 themeForm={themeForm}
                 setThemeForm={setThemeForm}
-                editorMode={editorMode}
-                setEditorMode={setEditorMode}
                 onClose={() => setShowEditor(false)}
                 onSubmit={handleSaveTheme}
                 haptics={haptics}
