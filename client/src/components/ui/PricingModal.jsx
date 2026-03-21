@@ -168,8 +168,7 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
             try {
                 const offering = rc.offerings?.current;
                 if (!offering) {
-                    const debugInfo = `initStatus: ${rc.initStatus} | rc.error: ${rc.error || 'none'} | isNative: ${rc.isNative} | offerings: ${JSON.stringify(rc.offerings)?.substring(0, 200)}`;
-                    throw new Error(`No offerings available. Debug: ${debugInfo}`);
+                    throw new Error(rc.error ?? 'No active subscriptions found. Please restart the app.');
                 }
 
                 // Find the matching package: annual → ANNUAL, monthly → MONTHLY
@@ -182,9 +181,25 @@ export default function PricingModal({ isOpen, onClose, currentTier = 'free' }) 
 
                 const result = await rc.purchasePackage(pkg);
                 if (result) {
-                    await refreshUser();
+                    setSuccess('Processing your purchase...');
+                    
+                    // Poll up to 6 times (12 seconds) for the RevenueCat webhook to sync to Supabase
+                    let attempts = 0;
+                    while (attempts < 6) {
+                        try {
+                            const updatedUser = await refreshUser();
+                            if (updatedUser?.subscription_tier && updatedUser.subscription_tier !== 'free') {
+                                break;
+                            }
+                        } catch (e) {
+                            console.error('Error refreshing user during poll', e);
+                        }
+                        await new Promise(r => setTimeout(r, 2000));
+                        attempts++;
+                    }
+
                     setSuccess('Purchase complete! Your premium access is now active.');
-                    closeTimerRef.current = setTimeout(onClose, 1800);
+                    closeTimerRef.current = setTimeout(onClose, 2000);
                 } else if (rc.error) {
                     setError(rc.error);
                 }

@@ -12,6 +12,7 @@ import useHaptics from '../../hooks/useHaptics';
 import Avatar from '../Avatar';
 import LoadingSpinner from '../LoadingSpinner';
 import * as authApi from '../../api/authApi';
+import { Capacitor } from '@capacitor/core';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -288,6 +289,10 @@ const ProfileView = () => {
                                 <button
                                     onClick={() => {
                                         haptics.medium();
+                                        if (Capacitor.isNativePlatform()) {
+                                            window.location.href = 'https://apps.apple.com/account/subscriptions';
+                                            return;
+                                        }
                                         getManagementPortalUrl().then(url => {
                                             if (url) window.location.href = url;
                                             else toast.error('Failed to open management portal');
