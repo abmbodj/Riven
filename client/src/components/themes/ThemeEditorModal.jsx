@@ -1499,7 +1499,7 @@ export default function ThemeEditorModal({
                                 </div>
 
                                 <form id="theme-editor-form" onSubmit={onSubmit} className="relative flex min-h-0 flex-1 flex-col">
-                                    <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 pb-28 pt-4 overscroll-contain custom-scrollbar md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 md:px-8 md:pb-8 md:pt-6">
+                                    <div className="modal-scroll-content grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 pb-28 pt-4 overscroll-contain custom-scrollbar md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 md:px-8 md:pb-8 md:pt-6">
                                         <aside className="sticky top-0 self-start space-y-3">
                                             {STUDIO_STEPS.map((item, index) => (
                                                 <StepNavButton
@@ -1636,7 +1636,7 @@ export default function ThemeEditorModal({
                                     </div>
                                 </div>
 
-                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                                <div className="modal-scroll-content min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
                                     <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4">
                                         <div className="space-y-4">
                                             <StudioSection

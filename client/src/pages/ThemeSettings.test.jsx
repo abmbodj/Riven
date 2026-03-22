@@ -258,6 +258,7 @@ describe('ThemeSettings theme studio', () => {
     expect(within(dialog).queryByRole('button', { name: /next step/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/live preview/i)).not.toBeInTheDocument();
+    expect(dialog.querySelector('.modal-scroll-content')).not.toBeNull();
 
     applyDraftThemeMock.mockClear();
 
