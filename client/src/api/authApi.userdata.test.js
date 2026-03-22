@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
@@ -14,6 +14,9 @@ vi.mock('../lib/supabaseClient', () => ({
     rpc: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      refreshSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
     },
   },
 }));
@@ -28,6 +31,17 @@ const buildJsonResponse = (body) => ({
   },
   text: vi.fn().mockResolvedValue(JSON.stringify(body)),
 });
+
+const encodeSegment = (value) => btoa(JSON.stringify(value))
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/g, '');
+
+const buildJwt = (payload) => [
+  encodeSegment({ alg: 'HS256', typ: 'JWT' }),
+  encodeSegment(payload),
+  'signature',
+].join('.');
 
 const createSelectEqSingleChain = (data) => {
   const single = vi.fn().mockResolvedValue({ data, error: null });
@@ -72,9 +86,17 @@ describe('authApi user-owned profile data via Supabase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     supabase.rpc.mockReset();
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
+    supabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     localStorage.clear();
     authApi.setToken(null);
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'supabase-anon-key');
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, email: 'test@example.com' }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('updates the current profile through the users table', async () => {
@@ -136,6 +158,8 @@ describe('authApi user-owned profile data via Supabase', () => {
       subscription_tier: 'lifetime',
       simulate_free_tier: false,
       email_verified: true,
+      onboardingCompletedAt: null,
+      onboardingStep: 0,
     });
   });
 
@@ -270,6 +294,9 @@ describe('authApi user-owned profile data via Supabase', () => {
   it('loads LMS settings and global messages through Supabase tables', async () => {
     const canvasChain = createSelectEqSingleChain({
       canvas_ical_url: 'https://canvas.example.com/feed.ics',
+      canvas_auto_sync_enabled: true,
+      last_canvas_sync_at: '2026-03-20T12:00:00.000Z',
+      last_canvas_auto_sync_error: 'Canvas feed timed out.',
     });
     const messagesChain = createSelectEqOrderChain([
       {
@@ -303,11 +330,14 @@ describe('authApi user-owned profile data via Supabase', () => {
     const messages = await authApi.getActiveMessages();
     const dismissed = await authApi.dismissMessage(11);
 
-    expect(canvasChain.select).toHaveBeenCalledWith('canvas_ical_url');
+    expect(canvasChain.select).toHaveBeenCalledWith('canvas_ical_url, canvas_auto_sync_enabled, last_canvas_sync_at, last_canvas_auto_sync_error');
     expect(canvasChain.eq).toHaveBeenCalledWith('id', 42);
     expect(settings).toEqual({
       isConnected: true,
-      canvasUrl: 'Canvas Feed Active',
+      canvasUrl: 'https://canvas.example.com/feed.ics',
+      autoSyncEnabled: true,
+      lastSyncAt: '2026-03-20T12:00:00.000Z',
+      lastAutoSyncError: 'Canvas feed timed out.',
     });
 
     expect(messagesChain.select).toHaveBeenCalledWith('id, title, content, type, created_at, expires_at');
@@ -330,43 +360,78 @@ describe('authApi user-owned profile data via Supabase', () => {
     expect(dismissed).toEqual({ message: 'Message dismissed' });
   });
 
-  it('toggles simulate-free tier through Supabase RPC', async () => {
-    supabase.rpc.mockResolvedValue({
-      data: { simulate_free_tier: true, subscription_tier: 'free' },
-      error: null,
+  it('toggles simulate-free tier through the simulate-free edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: token,
+        },
+      },
     });
-
-    const result = await authApi.toggleSimulateFree();
-
-    expect(supabase.rpc).toHaveBeenCalledWith('toggle_simulate_free_tier');
-    expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
-  });
-
-  it('falls back to the legacy auth route when the Supabase session is not privileged', async () => {
-    supabase.rpc.mockResolvedValue({
-      data: null,
-      error: { message: 'Owner or Admin only' },
+    supabase.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'auth-user-id',
+        },
+      },
+      error: null,
     });
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
       simulate_free_tier: true,
       subscription_tier: 'free',
     }));
-    authApi.setToken('legacy-jwt');
 
     const result = await authApi.toggleSimulateFree();
 
-    expect(supabase.rpc).toHaveBeenCalledWith('toggle_simulate_free_tier');
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/auth/simulate-free',
+      'https://supabase.test/functions/v1/simulate-free',
       expect.objectContaining({
         method: 'POST',
-        credentials: 'include',
         headers: expect.objectContaining({
-          Authorization: 'Bearer legacy-jwt',
+          Authorization: `Bearer ${token}`,
+          'x-supabase-auth': token,
+          apikey: 'supabase-anon-key',
         }),
-      })
+      }),
     );
     expect(result).toEqual({ simulate_free_tier: true, subscription_tier: 'free' });
+  });
+
+  it('surfaces simulate-free edge function errors', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: token,
+        },
+      },
+    });
+    supabase.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'auth-user-id',
+        },
+      },
+      error: null,
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      headers: {
+        get: () => 'application/json',
+      },
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        error: 'Owner or Admin only',
+      })),
+    });
+
+    await expect(authApi.toggleSimulateFree()).rejects.toMatchObject({
+      message: 'Owner or Admin only',
+      status: 403,
+    });
   });
 
   it('loads Phase 2 group read endpoints through Supabase RPCs', async () => {

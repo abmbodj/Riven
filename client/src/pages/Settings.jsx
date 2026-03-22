@@ -44,11 +44,12 @@ const AI_CAPABILITIES = [
     'Audio note enhancement',
 ];
 
-const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null }) => (
+const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null, disabled = false }) => (
     <button
         onClick={onClick}
+        disabled={disabled}
         aria-pressed={toggle !== null ? toggleValue : undefined}
-        className={`tap-action group relative flex min-h-[72px] w-full items-center gap-3 overflow-hidden px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] sm:min-h-[76px] sm:gap-4 sm:px-5 ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
+        className={`tap-action group relative flex min-h-[72px] w-full items-center gap-3 overflow-hidden px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[76px] sm:gap-4 sm:px-5 ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
     >
         {!noBorder && (
             <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-claude-border/60 sm:inset-x-5" />
@@ -91,6 +92,24 @@ const getCanvasFeedLabel = (canvasUrl) => {
     } catch {
         return canvasUrl;
     }
+};
+
+const formatCanvasSyncTimestamp = (timestamp) => {
+    if (!timestamp) {
+        return 'No successful sync yet. Run a manual sync or leave auto-sync on for the next scheduled refresh.';
+    }
+
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) {
+        return 'Canvas sync completed recently.';
+    }
+
+    return parsed.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
 };
 
 const StatusNotice = ({ tone = 'info', title, detail }) => {
@@ -221,7 +240,16 @@ export default function Settings() {
         pricing: false
     });
 
-    const [lmsStatus, setLmsStatus] = useState({ loading: true, syncing: false, isConnected: false, canvasUrl: '' });
+    const [lmsStatus, setLmsStatus] = useState({
+        loading: true,
+        syncing: false,
+        savingAutoSync: false,
+        isConnected: false,
+        canvasUrl: '',
+        autoSyncEnabled: false,
+        lastSyncAt: null,
+        lastAutoSyncError: '',
+    });
     const [canvasForm, setCanvasForm] = useState({ url: '', token: '' });
     const [connectingCanvas, setConnectingCanvas] = useState(false);
     const [formErrors, setFormErrors] = useState({ url: false, token: false });
@@ -259,7 +287,7 @@ export default function Settings() {
     const canvasSummary = canvasCardState === 'loading'
         ? 'Checking Canvas'
         : canvasCardState === 'connected'
-            ? 'Canvas linked'
+            ? (lmsStatus.autoSyncEnabled ? 'Canvas linked • auto on' : 'Canvas linked • manual')
             : canvasCardState === 'locked'
                 ? 'Upgrade for Canvas'
                 : 'Canvas not linked';
@@ -268,7 +296,15 @@ export default function Settings() {
         const loadSettings = async () => {
             try {
                 const res = await api.getCanvasSettings();
-                setLmsStatus(prev => ({ ...prev, isConnected: res.isConnected, canvasUrl: res.canvasUrl || '', loading: false }));
+                setLmsStatus(prev => ({
+                    ...prev,
+                    isConnected: res.isConnected,
+                    canvasUrl: res.canvasUrl || '',
+                    autoSyncEnabled: Boolean(res.autoSyncEnabled),
+                    lastSyncAt: res.lastSyncAt || null,
+                    lastAutoSyncError: res.lastAutoSyncError || '',
+                    loading: false
+                }));
                 if (res.canvasUrl) setCanvasForm(prev => ({ ...prev, url: res.canvasUrl }));
             } catch {
                 setLmsStatus(prev => ({ ...prev, loading: false }));
@@ -316,12 +352,18 @@ export default function Settings() {
             await api.connectCanvas(submittedUrl);
             toast.success('Canvas connected successfully!');
             haptics.success();
-            setLmsStatus(prev => ({ ...prev, isConnected: true, canvasUrl: submittedUrl }));
+            setLmsStatus(prev => ({
+                ...prev,
+                isConnected: true,
+                canvasUrl: submittedUrl,
+                autoSyncEnabled: true,
+                lastAutoSyncError: '',
+            }));
             setCanvasForm({ url: '' }); // Clear input on success
             setCanvasNotice({
                 tone: 'success',
                 title: 'Feed saved',
-                detail: 'Run a sync now to import your current courses and assignments.'
+                detail: 'Auto-sync is now on every 12 hours. Run a sync now if you want your first import immediately.'
             });
         } catch (err) {
             haptics.error();
@@ -341,7 +383,14 @@ export default function Settings() {
         try {
             await api.disconnectCanvas();
             toast.success('Canvas disconnected');
-            setLmsStatus(prev => ({ ...prev, isConnected: false, canvasUrl: '' }));
+            setLmsStatus(prev => ({
+                ...prev,
+                isConnected: false,
+                canvasUrl: '',
+                autoSyncEnabled: false,
+                lastSyncAt: null,
+                lastAutoSyncError: '',
+            }));
             setCanvasForm({ url: '', token: '' });
             setCanvasNotice({
                 tone: 'info',
@@ -365,6 +414,11 @@ export default function Settings() {
             const res = await api.syncCanvas(false);
             toast.success(`Synced ${res.classesAdded} classes & ${res.assignmentsAdded} assignments!`);
             haptics.success();
+            setLmsStatus(prev => ({
+                ...prev,
+                lastSyncAt: new Date().toISOString(),
+                lastAutoSyncError: '',
+            }));
             setCanvasNotice({
                 tone: 'success',
                 title: 'Last sync completed',
@@ -389,6 +443,41 @@ export default function Settings() {
             }
         } finally {
             setLmsStatus(prev => ({ ...prev, syncing: false }));
+        }
+    };
+
+    const handleToggleCanvasAutoSync = async () => {
+        if (lmsStatus.savingAutoSync || !lmsStatus.isConnected) {
+            return;
+        }
+
+        const nextValue = !lmsStatus.autoSyncEnabled;
+        setLmsStatus(prev => ({ ...prev, savingAutoSync: true }));
+        haptics.light();
+
+        try {
+            await api.setCanvasAutoSync(nextValue);
+            setLmsStatus(prev => ({
+                ...prev,
+                autoSyncEnabled: nextValue,
+                savingAutoSync: false,
+            }));
+            setCanvasNotice({
+                tone: 'success',
+                title: nextValue ? 'Auto-sync enabled' : 'Auto-sync paused',
+                detail: nextValue
+                    ? 'Riven will check your Canvas feed about every 12 hours while it stays connected.'
+                    : 'Canvas will stay connected, but new imports will wait for a manual sync.'
+            });
+        } catch (err) {
+            setLmsStatus(prev => ({ ...prev, savingAutoSync: false }));
+            haptics.error();
+            toast.error(err.message || 'Failed to update Canvas auto-sync');
+            setCanvasNotice({
+                tone: 'error',
+                title: 'Auto-sync update failed',
+                detail: err.message || 'Riven could not update your Canvas auto-sync preference.'
+            });
         }
     };
 
@@ -723,7 +812,7 @@ export default function Settings() {
                                         : canvasCardState === 'loading'
                                             ? 'Checking your Canvas connection'
                                             : canvasCardState === 'connected'
-                                                ? 'Connected via Calendar Feed'
+                                                ? 'Connected via Calendar Feed with optional 12-hour auto-sync'
                                                 : 'Paste your Canvas feed to import courses and assignments'}
                                 </p>
                             </div>
@@ -760,7 +849,7 @@ export default function Settings() {
                                         >
                                             <StatusNotice
                                                 title="How this works"
-                                                detail="Copy your Canvas Calendar Feed, paste the .ics link here, then connect once to unlock one-tap syncing."
+                                                detail="Copy your Canvas Calendar Feed, paste the .ics link here, then connect once to enable manual sync and 12-hour auto-sync."
                                             />
 
                                             <div className="space-y-3">
@@ -820,9 +909,39 @@ export default function Settings() {
                                                 </p>
                                             </div>
                                             <StatusNotice
-                                                title="Next step"
-                                                detail="Run a sync to pull in any new classes or assignments from your connected Canvas feed."
+                                                title="Sync cadence"
+                                                detail={lmsStatus.autoSyncEnabled
+                                                    ? 'Riven checks your connected Canvas feed about every 12 hours. Manual sync is still available any time.'
+                                                    : 'Auto-sync is currently off. Use manual sync whenever you want to pull Canvas changes in.'}
                                             />
+                                            <div className="overflow-hidden rounded-[1.2rem] border border-claude-border/70 bg-claude-bg/35">
+                                                <SettingItem
+                                                    icon={RefreshCw}
+                                                    title="Auto-sync every 12 hours"
+                                                    description={lmsStatus.savingAutoSync
+                                                        ? 'Saving Canvas preference'
+                                                        : (lmsStatus.autoSyncEnabled
+                                                            ? 'Background refresh is active for this Canvas feed'
+                                                            : 'Manual sync only until you turn auto-sync back on')}
+                                                    badge={lmsStatus.autoSyncEnabled ? 'On' : 'Off'}
+                                                    toggle={true}
+                                                    toggleValue={lmsStatus.autoSyncEnabled}
+                                                    onClick={handleToggleCanvasAutoSync}
+                                                    disabled={lmsStatus.savingAutoSync}
+                                                    noBorder={true}
+                                                />
+                                            </div>
+                                            <StatusNotice
+                                                title={lmsStatus.lastSyncAt ? 'Last successful sync' : 'Sync status'}
+                                                detail={formatCanvasSyncTimestamp(lmsStatus.lastSyncAt)}
+                                            />
+                                            {lmsStatus.lastAutoSyncError && (
+                                                <StatusNotice
+                                                    tone="error"
+                                                    title="Last auto-sync issue"
+                                                    detail={lmsStatus.lastAutoSyncError}
+                                                />
+                                            )}
                                             {canvasNotice && (
                                                 <StatusNotice
                                                     tone={canvasNotice.tone}
@@ -939,7 +1058,7 @@ export default function Settings() {
                                     <SettingItem
                                         icon={Bell}
                                         title="Notifications"
-                                        description="Reminders & system updates"
+                                        description="Assignment reminders at 24h, 12h, 3h, 1h & 30m"
                                         badge={notificationsEnabled ? "On" : "Off"}
                                         toggle={true}
                                         toggleValue={notificationsEnabled}

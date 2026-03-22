@@ -58,7 +58,9 @@ const getMatches = (query) => {
     return window.matchMedia(query).matches;
 };
 
-function MobileBottomSheet({ open, title, subtitle, onClose, children, testId }) {
+function MobileBottomSheet({ open, title, subtitle, onClose, children, testId, opaque = false }) {
+    const panelBackgroundClass = opaque ? 'bg-claude-bg' : 'bg-claude-bg/95';
+
     return (
         <AnimatePresence>
             {open && (
@@ -78,7 +80,7 @@ function MobileBottomSheet({ open, title, subtitle, onClose, children, testId })
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-                        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border-t border-claude-border bg-claude-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 shadow-2xl"
+                        className={`fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border-t border-claude-border ${panelBackgroundClass} px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 shadow-2xl`}
                     >
                         <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-claude-border" />
                         <div className="mb-4 flex items-start justify-between gap-4">
@@ -1568,6 +1570,7 @@ export default function GuideView() {
                         subtitle="Everything else lives here."
                         onClose={() => setShowMobileMenu(false)}
                         testId="mobile-more-sheet"
+                        opaque
                     >
                         <div className="space-y-2">
                             <button

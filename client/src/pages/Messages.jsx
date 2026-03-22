@@ -159,6 +159,7 @@ export default function Messages() {
     const scrollParentRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const composerDockRef = useRef(null);
     const loadedMsgIdsRef = useRef(new Set());
     const deletingIdsRef = useRef(new Set());
     const animateSentRef = useRef(new Set());
@@ -170,6 +171,7 @@ export default function Messages() {
     const [loadingMore, setLoadingMore] = useState(false);
     // "New messages" pill — shown when user is scrolled up and new messages arrive
     const [showNewMessagesPill, setShowNewMessagesPill] = useState(false);
+    const [composerDockHeight, setComposerDockHeight] = useState(120);
     const isNearBottomRef = useRef(true);
     const typingPresenceRef = useRef(null);
 
@@ -208,6 +210,50 @@ export default function Messages() {
             { opacity: 1, duration: DURATION.normal, ease: EASE.organic, clearProps: 'all' }
         );
     }, [userId]);
+
+    const measureComposerDockHeight = useCallback(() => {
+        const node = composerDockRef.current;
+        if (!node) return;
+
+        const nextHeight = Math.ceil(node.getBoundingClientRect().height);
+        if (nextHeight > 0) {
+            setComposerDockHeight((current) => (current === nextHeight ? current : nextHeight));
+        }
+    }, []);
+
+    useEffect(() => {
+        measureComposerDockHeight();
+    }, [measureComposerDockHeight, imagePreview, editingMessageId]);
+
+    useEffect(() => {
+        const node = composerDockRef.current;
+        if (!node) return;
+
+        measureComposerDockHeight();
+
+        const viewport = window.visualViewport;
+        window.addEventListener('resize', measureComposerDockHeight);
+        viewport?.addEventListener('resize', measureComposerDockHeight);
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const resizeObserver = new ResizeObserver(() => {
+                measureComposerDockHeight();
+            });
+
+            resizeObserver.observe(node);
+
+            return () => {
+                resizeObserver.disconnect();
+                window.removeEventListener('resize', measureComposerDockHeight);
+                viewport?.removeEventListener('resize', measureComposerDockHeight);
+            };
+        }
+
+        return () => {
+            window.removeEventListener('resize', measureComposerDockHeight);
+            viewport?.removeEventListener('resize', measureComposerDockHeight);
+        };
+    }, [measureComposerDockHeight, userId]);
 
     // Load conversations list
     const loadConversations = useCallback(async () => {
@@ -813,6 +859,8 @@ export default function Messages() {
         [messages]
     );
     const threadMessageCount = messages.length;
+    const composerScrollClearance = Math.max(composerDockHeight + 12, 120);
+    const newMessagesPillOffset = composerScrollClearance + 16;
 
     const renderConversationsList = ({ embedded = false } = {}) => {
         if (user?.is_banned) {
@@ -1036,13 +1084,14 @@ export default function Messages() {
             </aside>
             <div
                 ref={chatViewRef}
-                className="safe-area-top-owned relative flex flex-col bg-claude-bg h-[calc(var(--app-height)-env(safe-area-inset-top,0px))] sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl lg:overflow-hidden"
+                data-testid="messages-thread-shell"
+                className="messages-thread-shell relative flex min-h-[var(--app-height)] h-[var(--app-height)] flex-col overflow-hidden bg-claude-bg sm:max-w-md sm:mx-auto sm:border-x sm:border-claude-border sm:shadow-2xl lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:max-w-none lg:mx-0 lg:rounded-[32px] lg:border lg:border-claude-border lg:shadow-2xl"
                 style={{
                     backgroundImage: 'radial-gradient(ellipse at 15% 88%, rgba(222, 185, 106, 0.04) 0%, transparent 50%), radial-gradient(ellipse at 85% 18%, rgba(122, 158, 114, 0.05) 0%, transparent 40%)',
                 }}
             >
             {/* Chat header */}
-            <div className="header-blur flex items-center gap-2 sm:gap-3 px-3 py-3 sm:p-4 border-b border-white/[0.06] shrink-0 relative z-20">
+            <div className="header-blur relative z-20 flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:gap-3 sm:px-4 sm:pb-4 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] lg:p-4">
                 <button
                     type="button"
                     onClick={() => navigate('/messages')}
@@ -1084,9 +1133,10 @@ export default function Messages() {
             {/* Messages Container — virtualized for performance */}
             <div
                 ref={scrollParentRef}
+                data-testid="messages-scroll-container"
                 className="flex-1 overflow-y-auto scroll-container relative bg-transparent"
                 style={{
-                    paddingBottom: '96px',
+                    paddingBottom: `${composerScrollClearance}px`,
                 }}
             >
                 {loading ? (
@@ -1375,7 +1425,8 @@ export default function Messages() {
                         exit={{ opacity: 0, y: 10, scale: 0.9 }}
                         transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
                         onClick={() => scrollToBottom('smooth')}
-                        className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-claude-accent text-white text-xs font-mono shadow-lg shadow-claude-accent/30 hover:brightness-110 active:scale-95 transition-all"
+                        className="absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-claude-accent px-4 py-2 text-xs font-mono text-white shadow-lg shadow-claude-accent/30 transition-all hover:brightness-110 active:scale-95"
+                        style={{ bottom: `${newMessagesPillOffset}px` }}
                     >
                         <ChevronDown className="w-3.5 h-3.5" />
                         New messages
@@ -1386,11 +1437,13 @@ export default function Messages() {
 
             {/* Native PWA Docked Message Input */}
 	            <motion.form
+                    ref={composerDockRef}
+                    data-testid="messages-composer-dock"
 	                initial={{ y: 20, opacity: 0 }}
 	                animate={{ y: 0, opacity: 1 }}
 	                transition={{ delay: 0.2 }}
 	                onSubmit={handleSendMessage}
-	                className="messages-composer-dock sticky bottom-0 left-0 right-0 z-20 mobile-bottom-nav-shell lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:border-0"
+	                className="messages-composer-dock mobile-bottom-nav-shell sticky bottom-0 left-0 right-0 z-20 shrink-0 lg:absolute lg:left-0 lg:right-0 lg:bottom-0 lg:border-0"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
                     paddingTop: '8px',

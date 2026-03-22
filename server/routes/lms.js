@@ -21,7 +21,13 @@ module.exports = function ({ app, db, authMiddleware }) {
 
         try {
             await db.execute(
-                'UPDATE users SET canvas_ical_url = $1, canvas_api_url = NULL, canvas_api_token = NULL WHERE id = $2',
+                `UPDATE users
+                 SET canvas_ical_url = $1,
+                     canvas_api_url = NULL,
+                     canvas_api_token = NULL,
+                     canvas_auto_sync_enabled = TRUE,
+                     last_canvas_auto_sync_error = NULL
+                 WHERE id = $2`,
                 [icalUrl, req.user.id]
             );
             res.json({ message: 'Canvas connected successfully.' });
@@ -35,7 +41,13 @@ module.exports = function ({ app, db, authMiddleware }) {
     app.post('/api/lms/canvas/disconnect', authMiddleware, async (req, res) => {
         try {
             await db.execute(
-                'UPDATE users SET canvas_ical_url = NULL WHERE id = $1',
+                `UPDATE users
+                 SET canvas_ical_url = NULL,
+                     canvas_auto_sync_enabled = FALSE,
+                     last_canvas_sync_at = NULL,
+                     last_canvas_auto_sync_attempt_at = NULL,
+                     last_canvas_auto_sync_error = NULL
+                 WHERE id = $1`,
                 [req.user.id]
             );
             res.json({ message: 'Canvas disconnected.' });
@@ -154,22 +166,39 @@ module.exports = function ({ app, db, authMiddleware }) {
                 const daysPastDue = (now - parsedDue) / (1000 * 60 * 60 * 24);
                 const assignmentStatus = daysPastDue > 7 ? 'Archived' : 'Todo';
 
-                await db.execute(
-                    `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [
-                        req.user.id,
-                        classId,
-                        assignmentTitle,
-                        description,
-                        parsedDue.toISOString(),
-                        assignmentStatus,
-                        uid
-                    ]
-                );
-                assignmentUids.add(uid);
-                syncedAssignmentsCount++;
+                try {
+                    await db.execute(
+                        `INSERT INTO assignments (user_id, class_id, title, description, due_date, status, canvas_assignment_id)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [
+                            req.user.id,
+                            classId,
+                            assignmentTitle,
+                            description,
+                            parsedDue.toISOString(),
+                            assignmentStatus,
+                            uid
+                        ]
+                    );
+                    assignmentUids.add(uid);
+                    syncedAssignmentsCount++;
+                } catch (insertError) {
+                    if (insertError?.code === '23505') {
+                        assignmentUids.add(uid);
+                        continue;
+                    }
+
+                    throw insertError;
+                }
             }
+
+            await db.execute(
+                `UPDATE users
+                 SET last_canvas_sync_at = $1,
+                     last_canvas_auto_sync_error = NULL
+                 WHERE id = $2`,
+                [new Date().toISOString(), req.user.id]
+            );
 
             res.json({
                 message: 'Canvas sync complete!',

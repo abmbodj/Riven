@@ -13,23 +13,18 @@ vi.mock('../lib/supabaseClient', () => ({
     from: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      refreshSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
     },
   },
 }));
 
+import { supabase } from '../lib/supabaseClient';
 import * as authApi from './authApi';
 
 const buildJsonResponse = (body) => ({
   ok: true,
-  headers: {
-    get: () => 'application/json',
-  },
-  text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-});
-
-const buildErrorResponse = (status, body) => ({
-  ok: false,
-  status,
   headers: {
     get: () => 'application/json',
   },
@@ -47,7 +42,25 @@ const buildJwt = (payload) => [
   'signature',
 ].join('.');
 
-describe('authApi Canvas LMS edge migration', () => {
+const setSupabaseEdgeSession = (token) => {
+  supabase.auth.getSession.mockResolvedValue({
+    data: {
+      session: {
+        access_token: token,
+      },
+    },
+  });
+  supabase.auth.getUser.mockResolvedValue({
+    data: {
+      user: {
+        id: 'auth-user-id',
+      },
+    },
+    error: null,
+  });
+};
+
+describe('authApi Canvas LMS edge integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('VITE_SUPABASE_URL', 'https://supabase.test');
@@ -61,7 +74,9 @@ describe('authApi Canvas LMS edge migration', () => {
   });
 
   it('uses the Canvas LMS edge function for Supabase connect requests', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       message: 'Canvas connected successfully.',
     }));
@@ -73,6 +88,11 @@ describe('authApi Canvas LMS edge migration', () => {
       'https://supabase.test/functions/v1/canvas-lms',
       expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${token}`,
+          'x-supabase-auth': token,
+          apikey: 'supabase-anon-key',
+        }),
         body: JSON.stringify({
           action: 'connect',
           icalUrl: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
@@ -82,7 +102,9 @@ describe('authApi Canvas LMS edge migration', () => {
   });
 
   it('uses the Canvas LMS edge function for Supabase disconnect requests', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
       message: 'Canvas disconnected.',
     }));
@@ -99,16 +121,15 @@ describe('authApi Canvas LMS edge migration', () => {
     );
   });
 
-  it('falls back to the legacy sync route when the Canvas LMS edge function is unavailable', async () => {
-    authApi.setToken(buildJwt({ aud: 'authenticated', sub: 'auth-user-id' }));
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce(buildErrorResponse(404, { error: 'Function not found' }))
-      .mockResolvedValueOnce(buildJsonResponse({
-        message: 'Canvas sync complete!',
-        classesAdded: 2,
-        assignmentsAdded: 5,
-      }));
+  it('sends manual sync requests through the Canvas LMS edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      message: 'Canvas sync complete!',
+      classesAdded: 2,
+      assignmentsAdded: 5,
+    }));
 
     const result = await authApi.syncCanvas(false);
 
@@ -117,38 +138,35 @@ describe('authApi Canvas LMS edge migration', () => {
       classesAdded: 2,
       assignmentsAdded: 5,
     });
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      1,
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://supabase.test/functions/v1/canvas-lms',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ action: 'sync', adGranted: false }),
       }),
     );
-    expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('/api/lms/sync'),
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    );
   });
 
-  it('uses the legacy connect route for non-Supabase tokens', async () => {
-    authApi.setToken(buildJwt({ id: 7, email: 'test@example.com', role: 'user' }));
+  it('sends Canvas auto-sync preference updates through the edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
     globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
-      message: 'Canvas connected successfully.',
+      message: 'Canvas auto-sync disabled.',
+      autoSyncEnabled: false,
     }));
 
-    await authApi.connectCanvas('https://canvas.example.edu/feeds/calendars/user_1.ics');
+    const result = await authApi.setCanvasAutoSync(false);
 
+    expect(result).toEqual({
+      message: 'Canvas auto-sync disabled.',
+      autoSyncEnabled: false,
+    });
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/lms/canvas/connect'),
+      'https://supabase.test/functions/v1/canvas-lms',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${authApi.getToken()}`,
-        }),
+        body: JSON.stringify({ action: 'set-auto-sync', enabled: false }),
       }),
     );
   });

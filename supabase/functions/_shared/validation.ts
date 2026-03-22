@@ -34,6 +34,10 @@ export const canvasConnectSchema = z.object({
     }),
 });
 
+export const canvasAutoSyncSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email format'),
 });
@@ -60,3 +64,4 @@ export const completeRegistrationSchema = z.object({
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 export type JoinGroupInput = z.infer<typeof joinGroupSchema>;
 export type CanvasConnectInput = z.infer<typeof canvasConnectSchema>;
+export type CanvasAutoSyncInput = z.infer<typeof canvasAutoSyncSchema>;

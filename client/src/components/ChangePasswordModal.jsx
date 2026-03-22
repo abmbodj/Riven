@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Lock, Save, Loader2 } from 'lucide-react';
+import { Lock, Save, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { changePasswordSchema } from '../schemas/auth';
+import ModalSurface from './ui/ModalSurface';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -12,8 +13,6 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
 
     const { changePassword } = useAuth();
     const toast = useToast();
-
-    if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -47,95 +46,93 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 md:backdrop-blur-sm animate-in fade-in duration-200">
-            <div
-                className="w-full max-w-md bg-[#e4ddd0] rounded-lg shadow-sm md:shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 border border-[#8fa6a8]/20"
-                style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
-                }}
-            >
-                {/* Header */}
-                <div className="relative p-6 border-b border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
-                    <button
-                        onClick={onClose}
-                        className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-claude-bg/5"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#233e46]/5 rounded-full text-[#233e46]">
-                            <Lock className="w-5 h-5" />
+        <ModalSurface
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Change Password"
+            eyebrow="Security"
+            description="Confirm your current password, then choose a new one for your account."
+            size="sm"
+            scrollClassName="space-y-6"
+        >
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                    <div className="mb-4 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
+                            <Lock className="h-5 w-5" />
                         </div>
-                        <h2 className="text-xl font-display text-[#1e3840]">Change Password</h2>
+                        <div>
+                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                Password update
+                            </p>
+                            <p className="text-sm text-claude-secondary">
+                                New passwords must be at least 8 characters long.
+                            </p>
+                        </div>
                     </div>
-                </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="space-y-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
+                        <div>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 Current Password
                             </label>
                             <input
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
                             />
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
+                        <div>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 New Password
                             </label>
                             <input
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
-                                minLength={6}
+                                minLength={8}
                             />
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
+                        <div>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 Confirm New Password
                             </label>
                             <input
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
-                                minLength={6}
+                                minLength={8}
                             />
                         </div>
                     </div>
+                </div>
 
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
-                        >
-                            {loading ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <>
-                                    <Save className="w-5 h-5" />
-                                    <span>Update Password</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="tap-action inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[1.15rem] bg-claude-text px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-claude-accent active:scale-[0.98] disabled:opacity-60"
+                >
+                    {loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                        <>
+                            <Save className="h-4 w-4" />
+                            <span>Update Password</span>
+                        </>
+                    )}
+                </button>
+            </form>
+        </ModalSurface>
     );
 }

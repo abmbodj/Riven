@@ -806,7 +806,7 @@ export default function Classes() {
                                                         {canvasStatus.isConnected ? (
                                                             <div className="space-y-4 pt-2">
                                                                 <p className="text-xs font-mono text-claude-secondary">
-                                                                    Your account is already linked to Canvas. Click below to pull in your latest classes and assignments.
+                                                                    Your account is already linked to Canvas. Riven checks for updates about every 12 hours, and you can still sync manually any time.
                                                                 </p>
                                                                 <button
                                                                     type="button"

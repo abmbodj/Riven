@@ -111,15 +111,18 @@ describe('Messages desktop workspace', () => {
       expect(screen.getByText('Conversations')).toBeInTheDocument();
     });
 
-    const activeThreadShell = screen.getByText('Replying to Bianca').closest('.safe-area-top-owned');
+    const activeThreadShell = screen.getByTestId('messages-thread-shell');
     expect(activeThreadShell).not.toBeNull();
-    expect(activeThreadShell.className).toContain('h-[calc(var(--app-height)-env(safe-area-inset-top,0px))]');
-    expect(activeThreadShell.className).not.toContain('h-[calc(100dvh-4rem)]');
+    expect(activeThreadShell.className).toContain('h-[var(--app-height)]');
+    expect(activeThreadShell.className).toContain('min-h-[var(--app-height)]');
+    expect(activeThreadShell.className).not.toContain('safe-area-top-owned');
     expect(activeThreadShell.style.backgroundImage).toContain('radial-gradient');
 
-    const scrollContainer = activeThreadShell.querySelector('.scroll-container');
+    const scrollContainer = screen.getByTestId('messages-scroll-container');
     expect(scrollContainer).not.toBeNull();
     expect(scrollContainer.style.backgroundImage).toBe('');
+    expect(Number.parseInt(scrollContainer.style.paddingBottom, 10)).toBeGreaterThanOrEqual(120);
+    expect(screen.getByTestId('messages-composer-dock')).toBeInTheDocument();
 
     expect(authApi.subscribeToTypingPresence).toHaveBeenCalledWith(
       99,

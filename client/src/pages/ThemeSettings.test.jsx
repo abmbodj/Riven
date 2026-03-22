@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ThemeSettings from './ThemeSettings.jsx';
 
@@ -91,6 +91,8 @@ function seedTheme(overrides = {}) {
     accent_color: '#deb96a',
     font_family_display: 'Cormorant Garamond',
     font_family_body: 'Lora',
+    effect_preset: 'auto',
+    effect_intensity: 'medium',
     is_active: false,
     is_default: true,
     ...overrides,
@@ -233,25 +235,33 @@ describe('ThemeSettings theme studio', () => {
     );
   });
 
-  it('opens the step studio on mobile and reveals advanced token controls', () => {
+  it('opens the mobile personalization sheet and reveals advanced token controls', async () => {
     mockUser.subscription_tier = 'supporter';
 
     const { container } = render(<ThemeSettings />);
+    const getDialog = () => screen.getByRole('dialog', { name: /personalize riven/i });
 
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
 
-    expect(screen.getByRole('dialog', { name: /theme studio/i })).toBeInTheDocument();
-    expect(screen.getByText(/choose the starting atmosphere/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /phone preview/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /desktop preview/i })).toBeInTheDocument();
+    const dialog = getDialog();
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/start from riven/i)).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /next step/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByText(/shape the accent and typography/i)).toBeInTheDocument();
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /focus/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByText(/fine-tune the color tokens/i)).toBeInTheDocument();
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
+    await waitFor(() => {
+      expect(within(getDialog()).getByText('Dust · Soft')).toBeInTheDocument();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: /fine-tune colors/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /^rich$/i }));
+    await waitFor(() => {
+      expect(within(getDialog()).getByText('Dust · Rich')).toBeInTheDocument();
+    });
+
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /^open$/i }));
 
     expect(screen.getByText('Canvas')).toBeInTheDocument();
     expect(container.querySelectorAll('input[type="color"]')).toHaveLength(6);
@@ -270,23 +280,32 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.getByRole('button', { name: /desktop preview/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /phone preview/i })).toBeInTheDocument();
     expect(screen.getByText(/choose the starting atmosphere/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(screen.getByText(/add curated motion/i)).toBeInTheDocument();
   });
 
-  it('creates a new theme after guided curated changes', async () => {
+  it('creates a new mobile theme with saved effect fields', async () => {
     mockUser.subscription_tier = 'supporter';
-    setViewport(1280);
 
     render(<ThemeSettings />);
+    const getDialog = () => screen.getByRole('dialog', { name: /personalize riven/i });
 
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Rose' }));
-    fireEvent.click(screen.getByRole('button', { name: /studio sans/i }));
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    fireEvent.click(screen.getByRole('button', { name: /skip to review/i }));
+    const dialog = getDialog();
 
-    fireEvent.change(screen.getByPlaceholderText(/night lectures/i), { target: { value: 'Focus Noir' } });
-    fireEvent.click(screen.getByRole('button', { name: /create theme/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /riven light/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /warm/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: 'Rose' }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /studio sans/i }));
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
+    await waitFor(() => {
+      expect(within(getDialog()).getByRole('button', { name: /^rich$/i })).toBeInTheDocument();
+    });
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /^rich$/i }));
+
+    fireEvent.change(within(getDialog()).getByPlaceholderText(/night lectures/i), { target: { value: 'Focus Noir' } });
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /^create$/i }));
 
     await waitFor(() => {
       expect(addThemeMock).toHaveBeenCalledWith(
@@ -295,12 +314,14 @@ describe('ThemeSettings theme studio', () => {
           accent_color: '#d989a9',
           font_family_display: 'Space Grotesk',
           font_family_body: 'Space Grotesk',
+          effect_preset: 'dust',
+          effect_intensity: 'rich',
         })
       );
     });
   });
 
-  it('opens editing on review and saves advanced token overrides', async () => {
+  it('opens editing on desktop review and saves effect plus advanced token overrides', async () => {
     mockUser.subscription_tier = 'supporter';
     setViewport(1280);
     mockThemes.push(
@@ -316,6 +337,8 @@ describe('ThemeSettings theme studio', () => {
         accent_color: '#6195ff',
         font_family_display: 'Space Grotesk',
         font_family_body: 'Space Grotesk',
+        effect_preset: 'dust',
+        effect_intensity: 'medium',
         is_default: false,
       })
     );
@@ -327,6 +350,9 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.getByRole('dialog', { name: /refine theme/i })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Custom Drift')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /style/i }));
+    fireEvent.click(screen.getByRole('button', { name: /grid/i }));
+    fireEvent.click(screen.getByRole('button', { name: /rich/i }));
     fireEvent.click(screen.getByRole('button', { name: /advanced/i }));
 
     const firstColorInput = container.querySelector('input[type="color"]');
@@ -342,6 +368,8 @@ describe('ThemeSettings theme studio', () => {
         expect.objectContaining({
           name: 'Custom Drift',
           bg_color: '#123456',
+          effect_preset: 'grid',
+          effect_intensity: 'rich',
         })
       );
     });

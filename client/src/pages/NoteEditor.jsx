@@ -800,8 +800,6 @@ export default function NoteEditor() {
                             )}
                         </button>
 
-                        <div className="w-px h-4 bg-claude-border/30 shrink-0 mx-0.5" />
-
                         <button
                             onClick={handleGenerateFlashcards}
                             disabled={generationDisabled}

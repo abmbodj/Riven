@@ -1,40 +1,16 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import nodeIcal from 'npm:node-ical@0.25.4';
 
 import {
   applyCanvasSyncQuota,
-  syncCanvasCalendar,
   validateCanvasFeedUrl,
 } from '../_shared/canvasLmsCore.mjs';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import { canvasConnectSchema } from '../_shared/validation.ts';
-
-type CanvasAssignment = {
-  title: string;
-  description: string;
-  dueDateIso: string | null;
-  status: string;
-  uid: string;
-};
-
-const ical = nodeIcal as typeof nodeIcal & {
-  async?: {
-    parseICS?: (data: string) => Promise<Record<string, unknown>>;
-  };
-};
-
-const parseCanvasCalendar = async (icalUrl: string) => {
-  const response = await fetch(icalUrl);
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-
-  const text = await response.text();
-  return await ical.async?.parseICS?.(text);
-};
+import { syncCanvasCalendarForUser, parseCanvasCalendar } from '../_shared/canvasLmsSync.ts';
+import { canvasAutoSyncSchema, canvasConnectSchema } from '../_shared/validation.ts';
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -79,6 +55,8 @@ serve(async (request) => {
           canvas_ical_url: icalUrl,
           canvas_api_url: null,
           canvas_api_token: null,
+          canvas_auto_sync_enabled: true,
+          last_canvas_auto_sync_error: null,
         })
         .eq('id', authUser.id);
 
@@ -90,12 +68,58 @@ serve(async (request) => {
     if (action === 'disconnect') {
       const { error } = await admin
         .from('users')
-        .update({ canvas_ical_url: null })
+        .update({
+          canvas_ical_url: null,
+          canvas_auto_sync_enabled: false,
+          last_canvas_sync_at: null,
+          last_canvas_auto_sync_attempt_at: null,
+          last_canvas_auto_sync_error: null,
+        })
         .eq('id', authUser.id);
 
       if (error) throw error;
 
       return jsonResponse({ message: 'Canvas disconnected.' }, {}, request);
+    }
+
+    if (action === 'set-auto-sync') {
+      const parsed = canvasAutoSyncSchema.safeParse(body);
+      if (!parsed.success) {
+        return jsonResponse(
+          { error: parsed.error.errors[0]?.message ?? 'Invalid auto-sync setting' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const { data: user, error: userError } = await admin
+        .from('users')
+        .select('canvas_ical_url')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (userError) throw userError;
+      if (!user?.canvas_ical_url) {
+        return jsonResponse(
+          { error: 'Canvas is not connected. Add your Canvas Calendar Link first.' },
+          { status: 400 },
+          request,
+        );
+      }
+
+      const { error } = await admin
+        .from('users')
+        .update({ canvas_auto_sync_enabled: parsed.data.enabled })
+        .eq('id', authUser.id);
+
+      if (error) throw error;
+
+      return jsonResponse({
+        message: parsed.data.enabled
+          ? 'Canvas auto-sync enabled.'
+          : 'Canvas auto-sync disabled.',
+        autoSyncEnabled: parsed.data.enabled,
+      }, {}, request);
     }
 
     if (action === 'sync') {
@@ -135,76 +159,32 @@ serve(async (request) => {
         },
       });
 
-      let events;
       try {
-        events = await parseCanvasCalendar(user.canvas_ical_url);
-      } catch {
-        return jsonResponse({ error: 'Failed to reach Canvas Calendar. Check your link.' }, { status: 502 }, request);
+        const result = await syncCanvasCalendarForUser({
+          admin,
+          userId: authUser.id,
+          icalUrl: user.canvas_ical_url,
+        });
+
+        const syncedAt = new Date().toISOString();
+        const { error: updateError } = await admin
+          .from('users')
+          .update({
+            last_canvas_sync_at: syncedAt,
+            last_canvas_auto_sync_error: null,
+          })
+          .eq('id', authUser.id);
+
+        if (updateError) throw updateError;
+
+        return jsonResponse(result, {}, request);
+      } catch (error) {
+        if (typeof error === 'object' && error && 'isCanvasFeedError' in error) {
+          return jsonResponse({ error: 'Failed to reach Canvas Calendar. Check your link.' }, { status: 502 }, request);
+        }
+
+        throw error;
       }
-
-      const [
-        { data: existingClasses, error: classesError },
-        { data: existingAssignments, error: assignmentsError },
-      ] = await Promise.all([
-        admin
-          .from('classes')
-          .select('id, name')
-          .eq('user_id', authUser.id),
-        admin
-          .from('assignments')
-          .select('canvas_assignment_id')
-          .eq('user_id', authUser.id)
-          .not('canvas_assignment_id', 'is', null),
-      ]);
-
-      if (classesError) throw classesError;
-      if (assignmentsError) throw assignmentsError;
-
-      const syncedAssignments = (existingAssignments || []) as Array<{
-        canvas_assignment_id: string | null;
-      }>;
-
-      const result = await syncCanvasCalendar({
-        userId: authUser.id,
-        events: events || {},
-        existingClasses: existingClasses || [],
-        existingAssignmentIds: syncedAssignments.map((assignment) => assignment.canvas_assignment_id),
-        createClass: async (userId: number, courseName: string) => {
-          const { data, error } = await admin
-            .from('classes')
-            .insert({
-              user_id: userId,
-              name: courseName,
-              color: '#4f46e5',
-            })
-            .select('id')
-            .single();
-
-          if (error) throw error;
-          return data;
-        },
-        createAssignment: async (
-          userId: number,
-          classId: number | string,
-          assignment: CanvasAssignment,
-        ) => {
-          const { error } = await admin
-            .from('assignments')
-            .insert({
-              user_id: userId,
-              class_id: classId,
-              title: assignment.title,
-              description: assignment.description,
-              due_date: assignment.dueDateIso,
-              status: assignment.status,
-              canvas_assignment_id: assignment.uid,
-            });
-
-          if (error) throw error;
-        },
-      });
-
-      return jsonResponse(result, {}, request);
     }
 
     return jsonResponse({ error: 'Unsupported action' }, { status: 400 }, request);
@@ -213,6 +193,9 @@ serve(async (request) => {
 
     console.error('[canvas-lms edge function] error', requestError);
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
+    if (status >= 500) {
+      await reportEdgeException(requestError, { request, functionName: 'canvas-lms' });
+    }
     const body: Record<string, unknown> = { error: requestError.message || 'Internal server error' };
 
     if (typeof requestError.canWatchAd === 'boolean') {

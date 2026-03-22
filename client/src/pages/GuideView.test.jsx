@@ -306,6 +306,8 @@ describe('GuideView', () => {
     fireEvent.click(within(focusShell).getByRole('button', { name: /sections/i }));
 
     const sectionsSheet = await screen.findByTestId('mobile-sections-sheet');
+    expect(sectionsSheet.className.split(/\s+/)).toContain('bg-claude-bg/95');
+    expect(sectionsSheet.className.split(/\s+/)).not.toContain('bg-claude-bg');
     expect(within(sectionsSheet).getByText(/0\/2 complete/i)).toBeInTheDocument();
 
     fireEvent.click(within(sectionsSheet).getByRole('button', { name: /treaty of versailles/i }));
@@ -337,6 +339,8 @@ describe('GuideView', () => {
     fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
 
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
+    expect(moreSheet.className.split(/\s+/)).toContain('bg-claude-bg');
+    expect(moreSheet.className.split(/\s+/)).not.toContain('bg-claude-bg/95');
     expect(within(moreSheet).getByRole('button', { name: /^share$/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /flashcards/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /mock exam/i })).toBeInTheDocument();

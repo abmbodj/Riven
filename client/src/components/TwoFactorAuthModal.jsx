@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Shield, QrCode, Check, Copy, Loader2, AlertTriangle } from 'lucide-react';
+import { Shield, Check, Copy, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
 import { useToast } from '../hooks/useToast';
 import { twoFactorVerifySchema } from '../schemas/auth';
+import ModalSurface from './ui/ModalSurface';
 
 export default function TwoFactorAuthModal({ isOpen, onClose }) {
     const { user, refreshUser } = useAuth();
@@ -41,8 +42,6 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
             }
         }
     }, [isOpen, user]);
-
-    if (!isOpen) return null;
 
     const startSetup = async () => {
         setLoading(true);
@@ -103,170 +102,165 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
         toast.success('Secret copied to clipboard');
     };
 
-    const Header = () => (
-        <div className="relative p-6 border-b border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
-            <button
-                onClick={onClose}
-                className="absolute right-4 top-4 p-2 text-[#6b7d7f] hover:text-[#1e3840] transition-colors rounded-full hover:bg-claude-bg/5"
-            >
-                <X className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#233e46]/5 rounded-full text-[#233e46]">
-                    <Shield className="w-5 h-5" />
-                </div>
-                <h2 className="text-xl font-display text-[#1e3840]">Two-Factor Auth</h2>
-            </div>
-        </div>
-    );
+    const modalDescription = mode === 'setup'
+        ? 'Scan the QR code with your authenticator app, then verify the 6-digit code below.'
+        : mode === 'disable'
+            ? 'Disabling two-factor authentication lowers account security. Confirm before continuing.'
+            : user?.twoFAEnabled
+                ? 'Your account is already protected with a second verification step at login.'
+                : 'Add an extra layer of protection with any TOTP app, including Google Authenticator or Authy.';
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 md:backdrop-blur-sm animate-in fade-in duration-200">
-            <div
-                className="w-full max-w-md bg-[#e4ddd0] rounded-lg shadow-sm md:shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 border border-[#8fa6a8]/20"
-                style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
-                }}
-            >
-                <Header />
+        <ModalSurface
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Two-Factor Auth"
+            eyebrow="Security"
+            description={modalDescription}
+            size="sm"
+            scrollClassName="space-y-6"
+        >
+            {mode === 'intro' ? (
+                <div className="space-y-6 text-center">
+                    <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-[1.75rem] border ${user?.twoFAEnabled ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300' : 'border-claude-accent/20 bg-claude-accent/10 text-claude-accent'}`}>
+                        {user?.twoFAEnabled ? <Check className="h-9 w-9" /> : <Shield className="h-9 w-9" />}
+                    </div>
 
-                <div className="p-6">
-                    {/* Intro View */}
-                    {mode === 'intro' && (
-                        <div className="space-y-6 text-center">
-                            <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${user?.twoFAEnabled ? 'bg-green-100/50 text-green-700' : 'bg-[#233e46]/10 text-[#233e46]'}`}>
-                                {user?.twoFAEnabled ? <Check className="w-8 h-8" /> : <Shield className="w-8 h-8" />}
-                            </div>
+                    <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 px-5 py-6">
+                        <h3 className="text-xl font-display font-semibold text-claude-text">
+                            {user?.twoFAEnabled ? '2FA is Enabled' : 'Secure Your Account'}
+                        </h3>
+                        <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-claude-secondary">
+                            {user?.twoFAEnabled
+                                ? 'Your account is protected with two-factor authentication. You will need a code from your authenticator app to log in.'
+                                : 'Add an extra layer of security. We support Google Authenticator, Authy, and other TOTP apps.'}
+                        </p>
+                    </div>
 
-                            <div className="space-y-2">
-                                <h3 className="text-lg font-bold text-[#1e3840]">
-                                    {user?.twoFAEnabled ? '2FA is Enabled' : 'Secure Your Account'}
-                                </h3>
-                                <p className="text-[#6b7d7f] text-sm leading-relaxed max-w-xs mx-auto">
-                                    {user?.twoFAEnabled
-                                        ? 'Your account is protected with two-factor authentication. You will need a code from your authenticator app to log in.'
-                                        : 'Add an extra layer of security. We support Google Authenticator, Authy, and other TOTP apps.'}
-                                </p>
-                            </div>
-
-                            {user?.twoFAEnabled ? (
-                                <button
-                                    onClick={() => setMode('disable')}
-                                    className="w-full py-3 border border-red-500/30 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
-                                >
-                                    Disable 2FA
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={startSetup}
-                                    disabled={loading}
-                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide text-lg hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-70 flex items-center justify-center gap-2"
-                                >
-                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enable 2FA'}
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Setup View */}
-                    {mode === 'setup' && (
-                        <div className="space-y-6">
-                            <div className="space-y-4 text-center">
-                                <p className="text-sm text-[#6b7d7f]">Scan this QR code with your authenticator app</p>
-                                <div className="bg-white p-4 rounded-xl shadow-inner inline-block relative group">
-                                    <img src={qrCode} alt="QR Code" className="w-48 h-48 md:mix-blend-multiply" />
-                                    {loading && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><Loader2 className="animate-spin text-[#233e46]" /></div>}
-                                </div>
-
-                                <button
-                                    onClick={copyToClipboard}
-                                    className="text-xs text-claude-secondary hover:text-[#233e46] flex items-center justify-center gap-1 mx-auto transition-colors"
-                                >
-                                    <Copy className="w-3 h-3" />
-                                    {secret}
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleVerify} className="space-y-4 pt-4 border-t border-[color-mix(in_srgb,var(--border-color)_10%,transparent)]">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
-                                        Verify Code
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={verifyCode}
-                                        onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono text-center text-xl tracking-[0.5em]"
-                                        placeholder="000000"
-                                        required
-                                        maxLength={6}
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={loading || verifyCode.length !== 6}
-                                    className="w-full py-3 glass-panel text-claude-text rounded-lg font-display tracking-wide hover:bg-claude-bg active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify & Enable'}
-                                </button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Disable View */}
-                    {mode === 'disable' && (
-                        <div className="space-y-6">
-                            <div className="flex items-start gap-3 p-4 bg-red-50 text-red-700 rounded-lg text-sm">
-                                <AlertTriangle className="w-5 h-5 shrink-0" />
-                                <p>Disabling 2FA makes your account less secure. Are you sure you want to continue?</p>
-                            </div>
-
-                            <form onSubmit={handleDisable} className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-mono uppercase tracking-wider text-[#6b7d7f] pl-1">
-                                        {disableProvider === 'supabase' ? 'Authenticator Code' : 'Confirm Password'}
-                                    </label>
-                                    <input
-                                        type={disableProvider === 'supabase' ? 'text' : 'password'}
-                                        inputMode={disableProvider === 'supabase' ? 'numeric' : undefined}
-                                        autoComplete={disableProvider === 'supabase' ? 'one-time-code' : 'current-password'}
-                                        value={disableProvider === 'supabase' ? disableCode : password}
-                                        onChange={(e) => {
-                                            if (disableProvider === 'supabase') {
-                                                setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                                            } else {
-                                                setPassword(e.target.value);
-                                            }
-                                        }}
-                                        className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] py-2 px-1 text-[#1e3840] placeholder-[#8fa6a8] focus:outline-none focus:border-[#deb96a] transition-colors font-mono"
-                                        placeholder={disableProvider === 'supabase' ? '000000' : '••••••••'}
-                                        required
-                                    />
-                                </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setMode('intro')}
-                                        className="flex-1 py-3 border border-[color-mix(in_srgb,var(--border-color)_20%,transparent)] text-[#6b7d7f] rounded-lg hover:bg-claude-bg/5 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading || (disableProvider === 'supabase' ? disableCode.length !== 6 : !password)}
-                                        className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 active:scale-[0.98] transition-[transform,opacity,color,background-color,border-color,box-shadow] disabled:opacity-50"
-                                    >
-                                        {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Disable 2FA'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                    {user?.twoFAEnabled ? (
+                        <button
+                            type="button"
+                            onClick={() => setMode('disable')}
+                            className="tap-action inline-flex min-h-[48px] w-full items-center justify-center rounded-[1.15rem] border border-red-500/30 bg-red-500/10 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-red-300 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-red-500/15 active:scale-[0.98]"
+                        >
+                            Disable 2FA
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={startSetup}
+                            disabled={loading}
+                            className="tap-action inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[1.15rem] bg-claude-text px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-claude-accent active:scale-[0.98] disabled:opacity-60"
+                        >
+                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enable 2FA'}
+                        </button>
                     )}
                 </div>
-            </div>
-        </div>
+            ) : null}
+
+            {mode === 'setup' ? (
+                <div className="space-y-6">
+                    <div className="space-y-4 text-center">
+                        <div className="mx-auto inline-flex max-w-full flex-col items-center rounded-[1.75rem] border border-claude-border/70 bg-claude-bg/45 px-5 py-5">
+                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                Scan with your authenticator
+                            </p>
+                            <div className="relative mt-4 overflow-hidden rounded-[1.5rem] bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+                                <img src={qrCode} alt="QR Code" className="h-48 w-48 md:mix-blend-multiply" />
+                                {loading ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                                        <Loader2 className="h-6 w-6 animate-spin text-[#233e46]" />
+                                    </div>
+                                ) : null}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={copyToClipboard}
+                                className="mt-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-claude-border/70 bg-claude-bg/75 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary transition-colors hover:border-claude-accent/30 hover:text-claude-text"
+                            >
+                                <Copy className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{secret}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleVerify} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                        <div>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                Verify Code
+                            </label>
+                            <input
+                                type="text"
+                                value={verifyCode}
+                                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-center font-mono text-lg tracking-[0.45em] text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                placeholder="000000"
+                                required
+                                maxLength={6}
+                                autoFocus
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading || verifyCode.length !== 6}
+                            className="tap-action inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[1.15rem] bg-claude-text px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-bg transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-claude-accent active:scale-[0.98] disabled:opacity-60"
+                        >
+                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Verify & Enable'}
+                        </button>
+                    </form>
+                </div>
+            ) : null}
+
+            {mode === 'disable' ? (
+                <div className="space-y-5">
+                    <div className="flex items-start gap-3 rounded-[1.5rem] border border-red-500/25 bg-red-500/10 px-4 py-4 text-sm text-red-100">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
+                        <p>Disabling 2FA makes your account less secure. Are you sure you want to continue?</p>
+                    </div>
+
+                    <form onSubmit={handleDisable} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                        <div>
+                            <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                {disableProvider === 'supabase' ? 'Authenticator Code' : 'Confirm Password'}
+                            </label>
+                            <input
+                                type={disableProvider === 'supabase' ? 'text' : 'password'}
+                                inputMode={disableProvider === 'supabase' ? 'numeric' : undefined}
+                                autoComplete={disableProvider === 'supabase' ? 'one-time-code' : 'current-password'}
+                                value={disableProvider === 'supabase' ? disableCode : password}
+                                onChange={(e) => {
+                                    if (disableProvider === 'supabase') {
+                                        setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                    } else {
+                                        setPassword(e.target.value);
+                                    }
+                                }}
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                placeholder={disableProvider === 'supabase' ? '000000' : '••••••••'}
+                                required
+                            />
+                        </div>
+
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={() => setMode('intro')}
+                                className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center rounded-[1.15rem] border border-claude-border/70 bg-claude-bg/65 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:text-claude-text active:scale-[0.98]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading || (disableProvider === 'supabase' ? disableCode.length !== 6 : !password)}
+                                className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-[1.15rem] bg-red-500 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-white transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:bg-red-400 active:scale-[0.98] disabled:opacity-60"
+                            >
+                                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Disable 2FA'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            ) : null}
+        </ModalSurface>
     );
 }

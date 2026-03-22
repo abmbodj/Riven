@@ -190,8 +190,17 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_url TEXT`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_token TEXT`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_ical_url TEXT`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS canvas_auto_sync_enabled BOOLEAN DEFAULT FALSE`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_canvas_sync_at TIMESTAMPTZ`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_canvas_auto_sync_attempt_at TIMESTAMPTZ`).catch(() => { });
+            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_canvas_auto_sync_error TEXT`).catch(() => { });
             await client.query(`ALTER TABLE classes ADD COLUMN IF NOT EXISTS canvas_id TEXT`).catch(() => { });
             await client.query(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS canvas_id TEXT`).catch(() => { });
+            await client.query(`
+                UPDATE users
+                SET canvas_auto_sync_enabled = TRUE
+                WHERE canvas_ical_url IS NOT NULL
+            `).catch(() => { });
 
             // Add Edlink integration columns (migration)
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS edlink_access_token TEXT`).catch(() => { });
@@ -424,6 +433,8 @@ if (global.__TEST_DB_MOCK__) {
                     accent_color TEXT NOT NULL,
                     font_family_display TEXT DEFAULT 'Cormorant Garamond',
                     font_family_body TEXT DEFAULT 'Lora',
+                    effect_preset TEXT DEFAULT 'none',
+                    effect_intensity TEXT DEFAULT 'soft',
                     is_active INTEGER DEFAULT 0,
                     is_default INTEGER DEFAULT 0
                 )
@@ -435,6 +446,12 @@ if (global.__TEST_DB_MOCK__) {
             `).catch(() => { });
             await client.query(`
                 ALTER TABLE themes ADD COLUMN IF NOT EXISTS font_family_body TEXT DEFAULT 'Lora'
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS effect_preset TEXT DEFAULT 'none'
+            `).catch(() => { });
+            await client.query(`
+                ALTER TABLE themes ADD COLUMN IF NOT EXISTS effect_intensity TEXT DEFAULT 'soft'
             `).catch(() => { });
 
             // Shared decks table
@@ -638,6 +655,27 @@ if (global.__TEST_DB_MOCK__) {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lms_sync_count INTEGER DEFAULT 0`).catch(() => { });
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lms_sync_reset_at TIMESTAMP`).catch(() => { });
 
+            // Remove duplicate Canvas assignments before adding the unique index.
+            await client.query(`
+                WITH duplicate_assignments AS (
+                    SELECT ctid
+                    FROM (
+                        SELECT
+                            ctid,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY user_id, canvas_assignment_id
+                                ORDER BY created_at ASC, id ASC
+                            ) AS row_num
+                        FROM assignments
+                        WHERE canvas_assignment_id IS NOT NULL
+                    ) ranked
+                    WHERE row_num > 1
+                )
+                DELETE FROM assignments assignments_to_delete
+                USING duplicate_assignments
+                WHERE assignments_to_delete.ctid = duplicate_assignments.ctid
+            `).catch(() => { });
+
             // Database schema initialized successfully
 
             // Create indexes for performance optimization
@@ -692,6 +730,16 @@ if (global.__TEST_DB_MOCK__) {
             `);
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id)
+            `);
+            await client.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS assignments_user_canvas_assignment_unique
+                ON assignments(user_id, canvas_assignment_id)
+                WHERE canvas_assignment_id IS NOT NULL
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS users_canvas_auto_sync_due_idx
+                ON users(canvas_auto_sync_enabled, last_canvas_sync_at)
+                WHERE canvas_ical_url IS NOT NULL
             `);
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_shared_decks_user_id ON shared_decks(user_id)

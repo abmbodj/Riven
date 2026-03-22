@@ -409,6 +409,9 @@ verify_jwt = false
 [functions.canvas-lms]
 verify_jwt = false
 
+[functions.canvas-lms-auto-sync]
+verify_jwt = false
+
 [functions.complete-registration]
 verify_jwt = false
 

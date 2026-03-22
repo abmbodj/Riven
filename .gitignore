@@ -11,6 +11,9 @@ build/
 out/
 .vercel
 dev-dist/
+tmp/DerivedData/
+tmp/DerivedDataBuild/
+tmp/SourcePackages/
 
 # IDE & Editors
 .idea/

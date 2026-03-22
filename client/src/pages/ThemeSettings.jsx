@@ -11,6 +11,7 @@ import { motion as Motion } from 'motion/react';
 import gsap from 'gsap';
 import ThemeEditorModal from '../components/themes/ThemeEditorModal.jsx';
 import { FOUNDATION_THEME_NAMES, buildThemeDraft } from '../components/themes/themeEditorConfig.js';
+import { ThemeEffectOverlay } from '../components/themes/themeEffects.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -595,7 +596,7 @@ export default function ThemeSettings() {
             {/* Active Theme Hero */}
             {activeTheme && (
                 <div className="px-4 md:px-0 relative z-10 mb-14">
-                    <ActiveThemeHero theme={activeTheme} showTexture={!simplifyThemeEffects} />
+                    <ActiveThemeHero theme={activeTheme} showTexture={!simplifyThemeEffects} simplifyMotion={simplifyThemeEffects} />
                 </div>
             )}
 
@@ -690,7 +691,7 @@ function getHeroDepthProfile() {
         };
 }
 
-function ActiveThemeHero({ theme, showTexture }) {
+function ActiveThemeHero({ theme, showTexture, simplifyMotion }) {
     const heroRef = useRef(null);
     const sceneRef = useRef(null);
     const identityRef = useRef(null);
@@ -998,7 +999,7 @@ function ActiveThemeHero({ theme, showTexture }) {
             />
 
             {/* Per-theme overlay */}
-            <ThemeAnimationOverlay themeName={theme.name} isHero={true} />
+            <ThemeEffectOverlay theme={theme} isHero={true} simplifyMotion={simplifyMotion} />
 
             {/* Accent bloom — GSAP-animated */}
             <div
@@ -1247,7 +1248,8 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
                             onEdit={onEdit}
                             onDelete={onDelete}
                             isCustom={isCustom}
-                            showAnimatedOverlay={!simplifyMotion && activeThemeId === theme.id}
+                            showAnimatedOverlay={activeThemeId === theme.id}
+                            simplifyMotion={simplifyMotion}
                         />
                     </Motion.div>
                 ))}
@@ -1271,7 +1273,7 @@ function ThemeSection({ title, subtitle, themes, activeThemeId, onSelect, isCust
 
 // ─── Theme Card ───────────────────────────────────────────────────────────────
 
-function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, showAnimatedOverlay }) {
+function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, showAnimatedOverlay, simplifyMotion }) {
     const cardRef = useRef(null);
     const archetype = THEME_ARCHETYPES[theme.name] || 'default';
 
@@ -1318,7 +1320,7 @@ function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete, isCustom, show
                 style={{ height: '54%', backgroundColor: theme.surface_color }}
             >
                 {showAnimatedOverlay && (
-                    <ThemeAnimationOverlay themeName={theme.name} isHero={false} />
+                    <ThemeEffectOverlay theme={theme} isHero={false} simplifyMotion={simplifyMotion} />
                 )}
 
                 {/* Signature diagonal accent — varies by archetype */}

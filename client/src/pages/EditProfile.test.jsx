@@ -74,11 +74,11 @@ vi.mock('../hooks/useGSAP', () => ({
 }));
 
 vi.mock('../components/AvatarPicker', () => ({
-    default: () => null,
+    default: () => <div data-testid="avatar-picker">Avatar Picker Open</div>,
 }));
 
 vi.mock('../components/BannerPicker', () => ({
-    default: () => null,
+    default: () => <div data-testid="banner-picker">Banner Picker Open</div>,
 }));
 
 describe('EditProfile', () => {
@@ -119,6 +119,26 @@ describe('EditProfile', () => {
 
         expect(within(mobileSaveBar).getByText('Publish State')).toBeInTheDocument();
         expect(within(mobileSaveBar).getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+    });
+
+    it('opens the avatar picker from the media action button', () => {
+        renderEditProfile();
+
+        expect(screen.queryByTestId('avatar-picker')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Change avatar' })[0]);
+
+        expect(screen.getByTestId('avatar-picker')).toBeInTheDocument();
+    });
+
+    it('opens the banner picker from the media action button', () => {
+        renderEditProfile();
+
+        expect(screen.queryByTestId('banner-picker')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Change banner' })[0]);
+
+        expect(screen.getByTestId('banner-picker')).toBeInTheDocument();
     });
 
     it('saves normalized profile data and allows an empty bio', async () => {

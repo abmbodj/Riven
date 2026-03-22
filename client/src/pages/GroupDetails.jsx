@@ -10,7 +10,6 @@ import ReportModal from '../components/ui/ReportModal';
 import useHaptics from '../hooks/useHaptics';
 import { useAuth } from '../hooks/useAuth';
 import * as authApi from '../api/authApi';
-import PricingModal from '../components/ui/PricingModal';
 import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import FileViewer from '../components/FileViewer';
@@ -26,7 +25,6 @@ export default function GroupDetails() {
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showPricingModal, setShowPricingModal] = useState(false);
 
     const currentUserId = user?.id;
     const isAdmin = group?.my_role === 'admin';
@@ -40,10 +38,10 @@ export default function GroupDetails() {
     const [currentFolderId, setCurrentFolderId] = useState(null);
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
 
-    // Upload & AI Flow
+    // Upload flow
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadStep, setUploadStep] = useState('form'); // form, ai_prompt, generating
-    const [uploadData, setUploadData] = useState({ name: '', file_url: '', file_type: 'pdf' });
+    const [uploadStep, setUploadStep] = useState('form'); // form, uploading
+    const [uploadData, setUploadData] = useState({ name: '', file: null, file_type: 'pdf' });
     const [newFolderName, setNewFolderName] = useState('');
 
     // Decks user currently owns and can share
@@ -398,14 +396,15 @@ export default function GroupDetails() {
         });
     };
 
-    const handleUploadInitialSubmit = (e) => {
+    const handleUploadInitialSubmit = async (e) => {
         e.preventDefault();
         const result = fileNameSchema.safeParse(uploadData.name.trim());
         if (!result.success || !uploadData.file) {
             toast.error(result.success ? 'File is required' : (result.error.errors[0]?.message || 'Name and file required'));
             return;
         }
-        setUploadStep('ai_prompt');
+        setUploadStep('uploading');
+        await finalizeFileUpload();
     };
 
     const finalizeFileUpload = async () => {
@@ -455,37 +454,6 @@ export default function GroupDetails() {
             console.error('File upload error:', err);
             toast.error(err.message || 'Failed to upload file');
             setUploadStep('form');
-        }
-    };
-
-    const handleUploadWithAi = async () => {
-        setUploadStep('generating');
-        try {
-            // Wait for AI generation
-            const deckRes = await api.generateAiDeck(
-                `File reference: ${uploadData.file?.name} `,
-                null,
-                `${uploadData.name} Flashcards`,
-                group?.class_id
-            );
-
-            if (deckRes && deckRes.deck_id) {
-                // Instantly share the new deck to this group
-                await api.shareDeckToGroup(id, deckRes.deck_id);
-                toast.success(`Deck generated with ${deckRes.card_count || 'several'} cards!`);
-            }
-
-            // Finally proceed to upload the file
-            await finalizeFileUpload();
-
-        } catch (err) {
-            if (err.status === 429) {
-                setShowPricingModal(true);
-            } else {
-                toast.error(err.message || 'AI Generation failed, falling back to upload-only');
-            }
-            // If AI specifically fails, still save the file
-            await finalizeFileUpload();
         }
     };
 
@@ -1111,7 +1079,7 @@ export default function GroupDetails() {
             <AnimatePresence>
                 {showUploadModal && (
                     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'generating' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={uploadStep !== 'uploading' ? closeUploadModal : undefined} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.div
                             initial={{ y: '100%', md: { scale: 0.95, opacity: 0, y: 0 } }}
                             animate={{ y: 0, md: { scale: 1, opacity: 1, y: 0 } }}
@@ -1157,39 +1125,19 @@ export default function GroupDetails() {
                                             </div>
                                         </div>
                                         <button type="submit" disabled={!uploadData.name.trim() || !uploadData.file} className="w-full py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50">
-                                            Continue
+                                            Upload File
                                         </button>
                                     </motion.form>
                                 )}
 
-                                {uploadStep === 'ai_prompt' && (
-                                    <motion.div key="step_ai" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="py-8 text-center">
-                                        <div className="w-20 h-20 rounded-3xl bg-claude-accent/10 flex items-center justify-center mx-auto mb-6 border border-claude-accent/20">
-                                            <span className="text-3xl">✨</span>
-                                        </div>
-                                        <h3 className="text-2xl font-bold mb-3 text-claude-text">Generate Flashcards?</h3>
-                                        <p className="text-sm font-medium text-claude-secondary mb-8 px-4 leading-relaxed">
-                                            Riven can automatically create flashcards from your file and share them with the group.
-                                        </p>
-                                        <div className="space-y-3">
-                                            <button onClick={handleUploadWithAi} className="w-full py-4 bg-claude-accent text-claude-text font-bold text-sm tracking-wide uppercase rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-                                                <span>✨</span> Yes, create a deck
-                                            </button>
-                                            <button onClick={finalizeFileUpload} className="w-full py-4 bg-claude-surface border border-claude-border font-bold text-sm tracking-wide uppercase rounded-2xl hover:bg-claude-border/50 transition-colors text-claude-text">
-                                                Skip for now
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                )}
-
-                                {uploadStep === 'generating' && (
-                                    <motion.div key="step_generating" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-16 text-center flex flex-col items-center">
+                                {uploadStep === 'uploading' && (
+                                    <motion.div key="step_uploading" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-16 text-center flex flex-col items-center">
                                         <div className="relative w-20 h-20 mb-8">
                                             <div className="absolute inset-0 bg-claude-accent/20 rounded-full blur-xl animate-pulse" />
                                             <div className="absolute inset-0 border-4 border-claude-accent/30 border-t-claude-accent rounded-full animate-spin" />
                                         </div>
-                                        <h3 className="text-2xl font-bold mb-2 text-claude-text">Generating Deck...</h3>
-                                        <p className="text-sm font-medium text-claude-secondary">Creating flashcards from your file...</p>
+                                        <h3 className="text-2xl font-bold mb-2 text-claude-text">Uploading File...</h3>
+                                        <p className="text-sm font-medium text-claude-secondary">Saving this file to the group library...</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -1200,7 +1148,6 @@ export default function GroupDetails() {
 
             <ConfirmModal isOpen={confirmModal.show} title={confirmModal.title} message={confirmModal.message} onConfirm={handleConfirmAction} onCancel={() => setConfirmModal({ show: false, title: '', message: '', action: null })} />
             <ReportModal isOpen={isReportModalOpen} onClose={() => { setIsReportModalOpen(false); setReportingUserId(null); }} onSubmit={handleReportUserSubmit} isSubmitting={isReporting} />
-            <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <FileViewer file={selectedFile} isOpen={isFileViewerOpen} onClose={() => setIsFileViewerOpen(false)} />
         </div>
     );

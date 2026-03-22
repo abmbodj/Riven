@@ -21,6 +21,7 @@ vi.mock('../api', () => ({
     getAILimits: vi.fn(),
     connectCanvas: vi.fn(),
     disconnectCanvas: vi.fn(),
+    setCanvasAutoSync: vi.fn(),
     syncCanvas: vi.fn(),
     getReferralInfo: vi.fn(),
     applyReferralCode: vi.fn(),
@@ -93,6 +94,9 @@ beforeEach(() => {
   api.getCanvasSettings.mockResolvedValue({
     isConnected: false,
     canvasUrl: '',
+    autoSyncEnabled: false,
+    lastSyncAt: null,
+    lastAutoSyncError: '',
   });
   api.getAILimits.mockResolvedValue({
     remaining: 10,
@@ -129,6 +133,7 @@ describe('Settings LMS sync', () => {
     expect(screen.getByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /riven ai/i })).toBeInTheDocument();
+    expect(screen.getByText(/assignment reminders at 24h, 12h, 3h, 1h & 30m/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Workspace snapshot' })).not.toBeInTheDocument();
     expect(screen.queryByText('Control center')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Theme & atmosphere' })).not.toBeInTheDocument();
@@ -193,7 +198,10 @@ describe('Settings LMS sync', () => {
   it('syncs Canvas without relying on undefined local state', async () => {
     api.getCanvasSettings.mockResolvedValue({
       isConnected: true,
-      canvasUrl: 'Canvas Feed Active',
+      canvasUrl: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
+      autoSyncEnabled: true,
+      lastSyncAt: '2026-03-20T12:00:00.000Z',
+      lastAutoSyncError: '',
     });
     api.syncCanvas.mockResolvedValue({
       classesAdded: 2,
@@ -210,6 +218,31 @@ describe('Settings LMS sync', () => {
     });
 
     expect(await screen.findByText(/imported 2 classes and 5 assignments just now/i)).toBeInTheDocument();
+  });
+
+  it('toggles Canvas auto-sync for connected users and shows sync metadata', async () => {
+    api.getCanvasSettings.mockResolvedValue({
+      isConnected: true,
+      canvasUrl: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
+      autoSyncEnabled: true,
+      lastSyncAt: '2026-03-20T12:00:00.000Z',
+      lastAutoSyncError: 'Canvas feed timed out during the last auto-sync.',
+    });
+    api.setCanvasAutoSync.mockResolvedValue({
+      autoSyncEnabled: false,
+    });
+
+    renderSettings();
+
+    expect(await screen.findByText(/canvas feed timed out during the last auto-sync/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /auto-sync every 12 hours/i }));
+
+    await waitFor(() => {
+      expect(api.setCanvasAutoSync).toHaveBeenCalledWith(false);
+    });
+
+    expect(await screen.findByText(/canvas will stay connected, but new imports will wait for a manual sync/i)).toBeInTheDocument();
   });
 
   it('shows the current plan without the extra lifetime membership card', async () => {

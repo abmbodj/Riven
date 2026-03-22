@@ -115,11 +115,13 @@ async function getDB() {
 
                 // Ensure all custom themes have font fields
                 for (const theme of existingThemes) {
-                    if (!theme.font_family_display) {
+                    if (!theme.font_family_display || !theme.effect_preset || !theme.effect_intensity) {
                         await db.put('themes', {
                             ...theme,
                             font_family_display: theme.font_family_display || 'Cormorant Garamond',
-                            font_family_body: theme.font_family_body || 'Lora'
+                            font_family_body: theme.font_family_body || 'Lora',
+                            effect_preset: theme.effect_preset || (theme.is_default ? 'auto' : 'none'),
+                            effect_intensity: theme.effect_intensity || (theme.is_default ? 'medium' : 'soft')
                         });
                     }
                 }

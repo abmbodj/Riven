@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import AlertModal from '../components/AlertModal';
 import CardImageUpload from '../components/CardImageUpload';
 import ShareToFriendModal from '../components/ShareToFriendModal';
+import ModalSurface from '../components/ui/ModalSurface';
 import gsap from 'gsap';
 import { EASE, DURATION, STAGGER } from '../utils/animations';
 import { buildShareMessageContent, serializeSharedPayload } from '../utils/sharedResources';
@@ -402,128 +403,108 @@ export default function DeckView() {
                 onCancel={() => setDeleteConfirm({ show: false, type: null, id: null })}
             />
 
-            {/* Stats Modal */}
-            {/* Stats Modal */}
-            <AnimatePresence>
-                {showStats && stats && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-claude-bg/60 md:backdrop-blur-sm"
-                            onClick={() => setShowStats(false)}
-                        />
-                        <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative glass-panel paper-texture text-claude-text w-full sm:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[2.5rem] sm:rounded-3xl p-6 shadow-md md:shadow-2xl touch-pan-y"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="sm:hidden w-12 h-1.5 bg-claude-accent/30 rounded-full mx-auto -mt-2 mb-4" />
-
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-display font-bold">Deck Statistics</h3>
-                                <button onClick={() => setShowStats(false)} className="p-2 -mr-2 active:bg-claude-accent/10 rounded-full tap-action">
-                                    <X className="w-7 h-7 text-claude-text/60" />
-                                </button>
+            <ModalSurface
+                isOpen={showStats && !!stats}
+                onClose={() => setShowStats(false)}
+                title="Deck Statistics"
+                eyebrow="Deck insights"
+                description="Review study accuracy, session volume, and how the deck is progressing over time."
+                size="sm"
+                scrollClassName="space-y-6"
+            >
+                {stats ? (
+                    <>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                                <span className="text-3xl font-bold text-claude-text">{stats.totalSessions || 0}</span>
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Sessions</p>
                             </div>
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                                <span className="text-3xl font-bold text-claude-accent">{stats.accuracy || 0}%</span>
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Accuracy</p>
+                            </div>
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                                <span className="text-3xl font-bold text-claude-text">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Studied</p>
+                            </div>
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                                <span className="text-3xl font-bold text-claude-text">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Time</p>
+                            </div>
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-8">
-                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
-                                    <span className="text-3xl font-bold text-claude-text">{stats.totalSessions || 0}</span>
-                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Sessions</p>
-                                </div>
-                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
-                                    <span className="text-3xl font-bold text-claude-accent">{stats.accuracy || 0}%</span>
-                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Accuracy</p>
-                                </div>
-                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
-                                    <span className="text-3xl font-bold text-claude-text">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
-                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Studied</p>
-                                </div>
-                                <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-4 text-center">
-                                    <span className="text-3xl font-bold text-claude-text">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
-                                    <p className="text-xs font-mono uppercase tracking-widest text-claude-secondary mt-1">Time</p>
+                        {stats.cardsByDifficulty ? (
+                            <div className="space-y-3">
+                                <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Card Progress</h4>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    <div className="rounded-[1.25rem] border border-blue-400/20 bg-blue-400/10 p-3 text-center">
+                                        <span className="text-xl font-bold text-blue-300">{stats.cardsByDifficulty.new || 0}</span>
+                                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-blue-200/80">New</p>
+                                    </div>
+                                    <div className="rounded-[1.25rem] border border-yellow-400/20 bg-yellow-400/10 p-3 text-center">
+                                        <span className="text-xl font-bold text-yellow-300">{stats.cardsByDifficulty.learning || 0}</span>
+                                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-yellow-200/80">Learning</p>
+                                    </div>
+                                    <div className="rounded-[1.25rem] border border-green-400/20 bg-green-400/10 p-3 text-center">
+                                        <span className="text-xl font-bold text-green-300">{stats.cardsByDifficulty.familiar || 0}</span>
+                                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-green-200/80">Familiar</p>
+                                    </div>
+                                    <div className="rounded-[1.25rem] border border-purple-400/20 bg-purple-400/10 p-3 text-center">
+                                        <span className="text-xl font-bold text-purple-300">{stats.cardsByDifficulty.mastered || 0}</span>
+                                        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-purple-200/80">Mastered</p>
+                                    </div>
                                 </div>
                             </div>
+                        ) : null}
 
-                            {stats.cardsByDifficulty && (
-                                <div className="mb-8">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Card Progress</h4>
-                                    <div className="flex gap-2.5">
-                                        <div className="flex-1 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
-                                            <span className="text-xl font-bold text-blue-400">{stats.cardsByDifficulty.new || 0}</span>
-                                            <p className="text-[10px] uppercase font-bold text-blue-400">New</p>
-                                        </div>
-                                        <div className="flex-1 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center">
-                                            <span className="text-xl font-bold text-yellow-400">{stats.cardsByDifficulty.learning || 0}</span>
-                                            <p className="text-[10px] uppercase font-bold text-yellow-400">Learning</p>
-                                        </div>
-                                        <div className="flex-1 bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
-                                            <span className="text-xl font-bold text-green-400">{stats.cardsByDifficulty.familiar || 0}</span>
-                                            <p className="text-[10px] uppercase font-bold text-green-400">Familiar</p>
-                                        </div>
-                                        <div className="flex-1 bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
-                                            <span className="text-xl font-bold text-purple-400">{stats.cardsByDifficulty.mastered || 0}</span>
-                                            <p className="text-[10px] uppercase font-bold text-purple-400">Mastered</p>
-                                        </div>
+                        {stats.masteredCount !== undefined && !stats.cardsByDifficulty ? (
+                            <div className="space-y-3">
+                                <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Mastery Progress</h4>
+                                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-5">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <span className="text-sm text-claude-secondary">Mastered Cards</span>
+                                        <span className="text-lg font-bold text-green-300">{stats.masteredCount} / {stats.cardCount || 0}</span>
                                     </div>
-                                </div>
-                            )}
-
-                            {stats.masteredCount !== undefined && !stats.cardsByDifficulty && (
-                                <div className="mb-8">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Mastery Progress</h4>
-                                    <div className="bg-claude-bg border border-claude-border/50 rounded-2xl p-5">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <span className="text-sm text-claude-secondary">Mastered Cards</span>
-                                            <span className="text-lg font-bold text-green-400">{stats.masteredCount} / {stats.cardCount || 0}</span>
+                                    {stats.cardCount > 0 ? (
+                                        <div className="h-3 overflow-hidden rounded-full bg-claude-border/70 shadow-inner">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
+                                                transition={{ duration: 1, ease: 'easeOut' }}
+                                                className="h-full rounded-full bg-gradient-to-r from-claude-accent to-emerald-300"
+                                            />
                                         </div>
-                                        {stats.cardCount > 0 && (
-                                            <div className="h-3 bg-claude-border rounded-full overflow-hidden shadow-inner">
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${(stats.masteredCount / stats.cardCount) * 100}%` }}
-                                                    transition={{ duration: 1, ease: 'easeOut' }}
-                                                    className="h-full bg-gradient-to-r from-claude-accent to-claude-accent/60 rounded-full"
-                                                />
+                                    ) : null}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {stats.recentSessions && stats.recentSessions.length > 0 ? (
+                            <div className="space-y-3">
+                                <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Recent Activity</h4>
+                                <div className="space-y-2.5">
+                                    {stats.recentSessions.slice(0, 5).map((session, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/45 p-4">
+                                            <div className="min-w-0">
+                                                <span className="block text-sm font-semibold text-claude-text">
+                                                    {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                                <span className="mt-1 block text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Session Result</span>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {stats.recentSessions && stats.recentSessions.length > 0 && (
-                                <div className="mb-4">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest text-claude-secondary mb-3 pl-1">Recent Activity</h4>
-                                    <div className="space-y-2.5">
-                                        {stats.recentSessions.slice(0, 5).map((session, i) => (
-                                            <div key={i} className="bg-claude-bg/50 border border-claude-border/30 rounded-xl p-4 flex justify-between items-center">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-claude-text">
-                                                        {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                    </span>
-                                                    <span className="text-[10px] uppercase tracking-wider text-claude-secondary">Session Result</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-sm font-bold text-claude-accent">
-                                                        {session.cards_correct}/{session.cards_studied}
-                                                    </span>
-                                                    <p className="text-[10px] text-claude-secondary">Correct</p>
-                                                </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-bold text-claude-accent">
+                                                    {session.cards_correct}/{session.cards_studied}
+                                                </span>
+                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Correct</p>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
-                            <div className="h-safe-bottom sm:hidden" />
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                            </div>
+                        ) : null}
+                    </>
+                ) : null}
+            </ModalSurface>
 
             {/* Elegant Header Area */}
             <div className="px-4 mb-6 pt-4 relative">

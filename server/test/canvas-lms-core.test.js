@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applyCanvasSyncQuota,
+  selectCanvasAutoSyncUsers,
   syncCanvasCalendar,
   validateCanvasFeedUrl,
 } from '../../supabase/functions/_shared/canvasLmsCore.mjs';
@@ -138,5 +139,83 @@ describe('canvasLmsCore', () => {
         },
       },
     ]);
+  });
+
+  it('selects only due premium users for Canvas auto-sync', () => {
+    const selected = selectCanvasAutoSyncUsers({
+      now: new Date('2026-03-21T12:00:00.000Z'),
+      users: [
+        {
+          id: 1,
+          canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_1.ics',
+          canvas_auto_sync_enabled: true,
+          subscription_tier: 'supporter',
+          role: 'user',
+          simulate_free_tier: false,
+          last_canvas_sync_at: '2026-03-20T00:00:00.000Z',
+          last_canvas_auto_sync_attempt_at: '2026-03-20T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_2.ics',
+          canvas_auto_sync_enabled: true,
+          subscription_tier: 'free',
+          role: 'user',
+          simulate_free_tier: false,
+          last_canvas_sync_at: null,
+          last_canvas_auto_sync_attempt_at: null,
+        },
+        {
+          id: 3,
+          canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_3.ics',
+          canvas_auto_sync_enabled: true,
+          subscription_tier: 'supporter',
+          role: 'admin',
+          simulate_free_tier: true,
+          last_canvas_sync_at: null,
+          last_canvas_auto_sync_attempt_at: null,
+        },
+        {
+          id: 4,
+          canvas_ical_url: 'https://canvas.example.edu/feeds/calendars/user_4.ics',
+          canvas_auto_sync_enabled: true,
+          subscription_tier: 'lifetime',
+          role: 'user',
+          simulate_free_tier: false,
+          last_canvas_sync_at: '2026-03-21T02:00:00.000Z',
+          last_canvas_auto_sync_attempt_at: '2026-03-21T11:20:00.000Z',
+        },
+      ],
+    });
+
+    expect(selected.map((user) => user.id)).toEqual([1]);
+  });
+
+  it('does not increment assignment totals when inserts are skipped by the unique Canvas index', async () => {
+    const result = await syncCanvasCalendar({
+      userId: 42,
+      now: new Date('2026-03-14T12:00:00.000Z'),
+      events: {
+        a: {
+          type: 'VEVENT',
+          summary: 'Lab Report [Biology]',
+          description: 'Submit PDF',
+          uid: 'bio-1',
+          end: new Date('2026-03-16T17:00:00.000Z'),
+        },
+      },
+      existingClasses: [{ id: 'class-1', name: 'Biology' }],
+      existingAssignmentIds: [],
+      createClass: async () => {
+        throw new Error('should not create class');
+      },
+      createAssignment: async () => ({ inserted: false }),
+    });
+
+    expect(result).toEqual({
+      message: 'Canvas sync complete!',
+      classesAdded: 0,
+      assignmentsAdded: 0,
+    });
   });
 });

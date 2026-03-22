@@ -96,7 +96,16 @@ export const api = {
     // ============ LMS (Canvas) ============
     connectCanvas: (icalUrl) => isLoggedIn() ? serverApi.connectCanvas(icalUrl) : Promise.reject(new Error('Must be logged in to connect LMS')),
     disconnectCanvas: () => isLoggedIn() ? serverApi.disconnectCanvas() : Promise.reject(new Error('Must be logged in')),
-    getCanvasSettings: () => isLoggedIn() ? serverApi.getCanvasSettings() : Promise.resolve({ isConnected: false }),
+    getCanvasSettings: () => isLoggedIn()
+        ? serverApi.getCanvasSettings()
+        : Promise.resolve({
+            isConnected: false,
+            canvasUrl: '',
+            autoSyncEnabled: false,
+            lastSyncAt: null,
+            lastAutoSyncError: '',
+        }),
+    setCanvasAutoSync: (enabled) => isLoggedIn() ? serverApi.setCanvasAutoSync(enabled) : Promise.reject(new Error('Must be logged in')),
     syncCanvas: (adGranted) => {
         if (!isLoggedIn()) return Promise.reject(new Error('Must be logged in to sync LMS'));
         return serverApi.syncCanvas(adGranted).then(res => {

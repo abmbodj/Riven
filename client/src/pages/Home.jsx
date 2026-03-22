@@ -264,7 +264,9 @@ function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
 
 function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
     const [pastDueExpanded, setPastDueExpanded] = useState(false);
+    const [upNextExpanded, setUpNextExpanded] = useState(false);
     const visiblePastDue = pastDueExpanded ? pastDue : pastDue.slice(0, 3);
+    const visibleUpcoming = upNextExpanded ? upcoming : upcoming.slice(0, 5);
 
     return (
         <div className="gsap-section">
@@ -301,24 +303,36 @@ function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
             <SectionHeading icon={Sparkles} title="Up Next" to="/classes" />
             <div className="glass-panel-premium relative overflow-hidden rounded-3xl p-5 md:p-6">
                 {upcoming.length > 0 ? (
-                    <div className="relative z-10 space-y-2">
-                        <AnimatePresence>
-                            {upcoming.map((assignment) => (
-                                <AssignmentItem
-                                    key={assignment.id}
-                                    assignment={assignment}
-                                    associatedClass={classesById.get(assignment.class_id)}
-                                    onToggleStatus={onToggleStatus}
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </div>
+                    <>
+                        <div className="relative z-10 space-y-2">
+                            <AnimatePresence>
+                                {visibleUpcoming.map((assignment) => (
+                                    <AssignmentItem
+                                        key={assignment.id}
+                                        assignment={assignment}
+                                        associatedClass={classesById.get(assignment.class_id)}
+                                        onToggleStatus={onToggleStatus}
+                                    />
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                        {upcoming.length > 5 && (
+                            <Motion.button
+                                type="button"
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => setUpNextExpanded((v) => !v)}
+                                className="mt-3 w-full rounded-xl border border-claude-border/60 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-colors hover:text-claude-accent tap-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                            >
+                                {upNextExpanded ? 'Show less' : `+${upcoming.length - 5} more upcoming`}
+                            </Motion.button>
+                        )}
+                    </>
                 ) : (
                     <div className="py-10 text-center opacity-60">
                         <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-claude-accent opacity-50" />
-                        <p className="font-display italic text-botanical-parchment">All caught up!</p>
+                        <p className="font-display italic text-botanical-parchment">Nothing coming up.</p>
                         <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-claude-secondary">
-                            No upcoming assignments this week.
+                            No upcoming assignments.
                         </p>
                     </div>
                 )}
@@ -511,20 +525,15 @@ function DashboardHome() {
 
     const upcomingAssignments = useMemo(() => {
         const now = new Date();
-        const endOfWeek = new Date(now);
-        const daysUntilSunday = (7 - now.getDay()) % 7;
-        endOfWeek.setDate(now.getDate() + daysUntilSunday);
-        endOfWeek.setHours(23, 59, 59, 999);
 
         return assignments
             .filter((assignment) => {
                 if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
                 const dueDate = new Date(assignment.due_date);
                 if (Number.isNaN(dueDate.getTime())) return false;
-                return dueDate >= now && dueDate <= endOfWeek;
+                return dueDate >= now;
             })
-            .sort((left, right) => new Date(left.due_date) - new Date(right.due_date))
-            .slice(0, 5);
+            .sort((left, right) => new Date(left.due_date) - new Date(right.due_date));
     }, [assignments]);
 
     const pastDueAssignments = useMemo(() => {
@@ -607,7 +616,7 @@ function DashboardHome() {
                     ? [getRelativeDueLabel(focusAssignment.due_date), focusAssignment.title || focusAssignment.name, classesById.get(focusAssignment.class_id)?.name].filter(Boolean).join(' · ')
                     : focusDeck
                         ? `Resume ${focusDeck.title} — ${focusDeck.cardCount || 0} cards ready.`
-                        : 'You have upcoming work this week.',
+                        : 'You have upcoming work ahead.',
                 cta: {
                     to: focusDeck ? `/deck/${focusDeck.id}/study` : '/classes',
                     icon: Play,
@@ -697,7 +706,7 @@ function DashboardHome() {
     }, [classes, assignments]);
 
     const stats = useMemo(() => ([
-        { label: 'This Week', value: upcomingAssignments.length },
+        { label: 'Up Next', value: upcomingAssignments.length },
         { label: 'Past Due', value: pastDueAssignments.length, tone: 'danger' },
         { label: 'Decks', value: decks.length },
         { label: 'Classes', value: classes.length }

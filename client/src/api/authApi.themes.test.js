@@ -181,6 +181,8 @@ describe('authApi themes PostgREST', () => {
       is_default: 0,
       font_family_display: 'Cormorant Garamond',
       font_family_body: 'Lora',
+      effect_preset: 'none',
+      effect_intensity: 'soft',
     }));
   });
 

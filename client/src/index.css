@@ -762,6 +762,13 @@
     -webkit-backdrop-filter: blur(40px) saturate(200%);
   }
 
+  .mobile-bottom-nav-shell__clip {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+
   .mobile-bottom-nav-shell::before {
     content: '';
     position: absolute;
@@ -793,6 +800,9 @@
     background: transparent;
     border: none;
     box-shadow: none;
+    z-index: 1;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   /* Theme-aware glass disc — matches mobile-bottom-nav-shell, ties in accent */
@@ -816,6 +826,26 @@
     backdrop-filter: blur(40px) saturate(200%);
     -webkit-backdrop-filter: blur(40px) saturate(200%);
     z-index: 1;
+    pointer-events: none;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .mobile-fab-icon {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform, opacity;
+  }
+
+  .mobile-fab-menu-frame {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform, opacity;
   }
 
   .mobile-fab-menu {
@@ -833,6 +863,9 @@
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(40px) saturate(200%);
     -webkit-backdrop-filter: blur(40px) saturate(200%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform, opacity;
   }
 
   .mobile-fab-menu::before {
@@ -1146,21 +1179,6 @@
   /* Fluid transitions */
   .transition-fluid {
     transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  /* Herbarium Paper Texture */
-  .paper-texture {
-    position: relative;
-    background-color: #fcfaf2;
-    background-image:
-      url("/textures/natural-paper.png"),
-      linear-gradient(to bottom right, rgba(255, 255, 255, 0.4), transparent);
-    box-shadow:
-      0 1px 1px rgba(0, 0, 0, 0.1),
-      0 8px 0 -4px #fcfaf2,
-      0 8px 0 -3px #d1c9b8,
-      0 16px 0 -8px #fcfaf2,
-      0 16px 0 -7px #d1c9b8;
   }
 
   /* Specimen Tape Effect */

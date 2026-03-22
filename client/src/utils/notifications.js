@@ -1,6 +1,65 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 
+const HOUR_IN_MS = 60 * 60 * 1000;
+const MINUTE_IN_MS = 60 * 1000;
+const MAX_ACTIVE_ASSIGNMENT_NOTIFICATIONS = 50;
+const DEFAULT_SMALL_ICON = 'ic_stat_icon_config_sample';
+
+const ASSIGNMENT_REMINDER_CONFIGS = [
+    {
+        leadTimeMs: 24 * HOUR_IN_MS,
+        title: 'Upcoming Assignment',
+        body: (assignmentTitle) => `${assignmentTitle} is due tomorrow.`,
+        iconColor: '#488AFF',
+    },
+    {
+        leadTimeMs: 12 * HOUR_IN_MS,
+        title: 'Upcoming Assignment',
+        body: (assignmentTitle) => `${assignmentTitle} is due in 12 hours.`,
+        iconColor: '#488AFF',
+    },
+    {
+        leadTimeMs: 3 * HOUR_IN_MS,
+        title: 'Assignment Due Soon',
+        body: (assignmentTitle) => `${assignmentTitle} is due in 3 hours.`,
+        iconColor: '#FF3B30',
+    },
+    {
+        leadTimeMs: 1 * HOUR_IN_MS,
+        title: 'Assignment Due Soon',
+        body: (assignmentTitle) => `${assignmentTitle} is due in 1 hour.`,
+        iconColor: '#FF3B30',
+    },
+    {
+        leadTimeMs: 30 * MINUTE_IN_MS,
+        title: 'Assignment Due Soon',
+        body: (assignmentTitle) => `${assignmentTitle} is due in 30 minutes.`,
+        iconColor: '#FF3B30',
+    },
+];
+
+function buildAssignmentReminderNotifications(assignment, dueDate, now, startingId) {
+    const assignmentTitle = assignment.title || assignment.name || assignment.assignment_title || 'Untitled Assignment';
+    let nextId = startingId;
+
+    return ASSIGNMENT_REMINDER_CONFIGS.flatMap((reminder) => {
+        const scheduledAt = new Date(dueDate.getTime() - reminder.leadTimeMs);
+        if (scheduledAt <= now) {
+            return [];
+        }
+
+        return [{
+            id: nextId++,
+            title: reminder.title,
+            body: reminder.body(assignmentTitle),
+            schedule: { at: scheduledAt },
+            smallIcon: DEFAULT_SMALL_ICON,
+            iconColor: reminder.iconColor,
+        }];
+    });
+}
+
 export async function requestNotificationPermissions() {
     if (!Capacitor.isNativePlatform()) return false;
     
@@ -53,46 +112,30 @@ export async function scheduleAssignmentNotifications(assignments, notifications
         const now = new Date();
         const notificationsToSchedule = [];
         let idCounter = 1;
+        const assignmentList = Array.isArray(assignments) ? assignments : [];
 
-        // Keep track of assignments we process to avoid overflowing if there are many
-        const futureAssignments = assignments.filter(assignment => {
-            if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
-            const dueDate = new Date(assignment.due_date);
-            return !Number.isNaN(dueDate.getTime()) && dueDate > now;
-        });
+        const futureAssignments = assignmentList
+            .map((assignment) => ({
+                assignment,
+                dueDate: new Date(assignment.due_date ?? ''),
+            }))
+            .filter(({ assignment, dueDate }) => {
+                if (assignment.status === 'Done' || assignment.status === 'Archived' || !assignment.due_date) return false;
+                return !Number.isNaN(dueDate.getTime()) && dueDate > now;
+            })
+            .sort((left, right) => left.dueDate.getTime() - right.dueDate.getTime());
 
-        for (const assignment of futureAssignments) {
-            const dueDate = new Date(assignment.due_date);
-            const title = assignment.title || assignment.name || assignment.assignment_title || 'Untitled Assignment';
+        for (const { assignment, dueDate } of futureAssignments) {
+            const remindersForAssignment = buildAssignmentReminderNotifications(assignment, dueDate, now, idCounter);
+            if (remindersForAssignment.length === 0) continue;
 
-            // Schedule for 24 hours before
-            const hours24Before = new Date(dueDate.getTime() - 24 * 60 * 60 * 1000);
-            if (hours24Before > now) {
-                notificationsToSchedule.push({
-                    id: idCounter++,
-                    title: 'Upcoming Assignment',
-                    body: `${title} is due tomorrow.`,
-                    schedule: { at: hours24Before },
-                    smallIcon: 'ic_stat_icon_config_sample',
-                    iconColor: '#488AFF'
-                });
+            // Keep the full reminder bundle for the soonest due assignments first.
+            if (notificationsToSchedule.length + remindersForAssignment.length > MAX_ACTIVE_ASSIGNMENT_NOTIFICATIONS) {
+                break;
             }
 
-            // Schedule for 3 hours before
-            const hours3Before = new Date(dueDate.getTime() - 3 * 60 * 60 * 1000);
-            if (hours3Before > now) {
-                notificationsToSchedule.push({
-                    id: idCounter++,
-                    title: 'Assignment Due Soon',
-                    body: `${title} is due in 3 hours!`,
-                    schedule: { at: hours3Before },
-                    smallIcon: 'ic_stat_icon_config_sample',
-                    iconColor: '#FF3B30'
-                });
-            }
-            
-            // Limit to 50 active localized notifications to be safe with iOS bounds
-            if (notificationsToSchedule.length >= 50) break;
+            notificationsToSchedule.push(...remindersForAssignment);
+            idCounter += remindersForAssignment.length;
         }
 
         if (notificationsToSchedule.length > 0) {

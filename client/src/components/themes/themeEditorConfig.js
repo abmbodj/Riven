@@ -3,28 +3,107 @@ import { FOUNDATION_THEME_NAMES } from '../../themeCatalog.js';
 export { FOUNDATION_THEME_NAMES };
 
 export const DEFAULT_THEME_DARK = {
-    name: 'After Hours',
-    bg_color: '#101a20',
-    surface_color: '#16252d',
-    text_color: '#edf0ea',
-    secondary_text_color: '#8da1a6',
-    border_color: '#24343c',
-    accent_color: '#cfa76a',
-    font_family_display: 'Instrument Serif',
-    font_family_body: 'Space Grotesk'
+    name: 'Riven',
+    bg_color: '#162a31',
+    surface_color: '#1e3840',
+    text_color: '#e4ddd0',
+    secondary_text_color: '#8fa6a8',
+    border_color: '#233e46',
+    accent_color: '#deb96a',
+    font_family_display: 'Cormorant Garamond',
+    font_family_body: 'Lora',
+    effect_preset: 'none',
+    effect_intensity: 'soft'
 };
 
 export const DEFAULT_THEME_LIGHT = {
-    name: 'Paper Studio',
-    bg_color: '#f6f1e8',
-    surface_color: '#fffaf2',
-    text_color: '#18262d',
-    secondary_text_color: '#60737a',
-    border_color: '#d7cec1',
-    accent_color: '#c88a56',
-    font_family_display: 'Instrument Serif',
-    font_family_body: 'Space Grotesk'
+    name: 'Riven Light',
+    bg_color: '#f5f0e8',
+    surface_color: '#ffffff',
+    text_color: '#1e3840',
+    secondary_text_color: '#6b7d7f',
+    border_color: '#ddd5c8',
+    accent_color: '#deb96a',
+    font_family_display: 'Cormorant Garamond',
+    font_family_body: 'Lora',
+    effect_preset: 'none',
+    effect_intensity: 'soft'
 };
+
+export const MOBILE_MOOD_PRESETS = [
+    {
+        id: 'calm',
+        name: 'Calm',
+        description: 'Soft surfaces and a gentler reading rhythm.',
+        dark: {
+            surface_color: '#213840',
+            secondary_text_color: '#97aaad',
+            border_color: '#2d4951',
+        },
+        light: {
+            surface_color: '#fffaf3',
+            secondary_text_color: '#738488',
+            border_color: '#ddd3c7',
+        }
+    },
+    {
+        id: 'focus',
+        name: 'Focus',
+        description: 'Sharper contrast and cooler structure for study-heavy sessions.',
+        dark: {
+            bg_color: '#101c23',
+            surface_color: '#162933',
+            text_color: '#edf4f6',
+            secondary_text_color: '#87a0ab',
+            border_color: '#1f3d49',
+        },
+        light: {
+            bg_color: '#eef3f4',
+            surface_color: '#fbfeff',
+            text_color: '#172f38',
+            secondary_text_color: '#617882',
+            border_color: '#cad8dd',
+        }
+    },
+    {
+        id: 'warm',
+        name: 'Warm',
+        description: 'Paper-like warmth with softer contrast edges.',
+        dark: {
+            bg_color: '#1b1610',
+            surface_color: '#271f16',
+            text_color: '#f4eadf',
+            secondary_text_color: '#b49d88',
+            border_color: '#433427',
+        },
+        light: {
+            bg_color: '#f7eee3',
+            surface_color: '#fff8f0',
+            text_color: '#2b2016',
+            secondary_text_color: '#86705e',
+            border_color: '#e0d0bd',
+        }
+    },
+    {
+        id: 'bloom',
+        name: 'Bloom',
+        description: 'Moodier panels with a more expressive canvas.',
+        dark: {
+            bg_color: '#17182a',
+            surface_color: '#1f2238',
+            text_color: '#f3eef7',
+            secondary_text_color: '#aba6c1',
+            border_color: '#313650',
+        },
+        light: {
+            bg_color: '#f5eef6',
+            surface_color: '#fff8ff',
+            text_color: '#251d33',
+            secondary_text_color: '#7b718c',
+            border_color: '#ddd0e4',
+        }
+    }
+];
 
 export const FONT_PRESETS = [
     {
@@ -151,6 +230,40 @@ export const STYLE_PRESETS = [
     }
 ];
 
+export const EFFECT_PRESETS = [
+    {
+        id: 'none',
+        name: 'None',
+        description: 'Keep the surfaces clean and static.'
+    },
+    {
+        id: 'dust',
+        name: 'Dust',
+        description: 'Soft floating motes with a calm accent glow.'
+    },
+    {
+        id: 'stars',
+        name: 'Stars',
+        description: 'Tiny distant points for a more atmospheric mood.'
+    },
+    {
+        id: 'bubbles',
+        name: 'Bubbles',
+        description: 'Gentle rising circles for a fluid, layered feel.'
+    },
+    {
+        id: 'grid',
+        name: 'Grid',
+        description: 'Structured lines and nodes for a sharper signal.'
+    }
+];
+
+export const EFFECT_INTENSITY_OPTIONS = [
+    { id: 'soft', name: 'Soft' },
+    { id: 'medium', name: 'Medium' },
+    { id: 'rich', name: 'Rich' }
+];
+
 export const COLOR_FIELDS = [
     'bg_color',
     'surface_color',
@@ -170,17 +283,33 @@ export const COLOR_FIELD_LABELS = {
 };
 
 export function buildThemeDraft(theme = {}) {
+    const isDefaultTheme = Boolean(theme.is_default);
     return {
         ...DEFAULT_THEME_DARK,
         ...theme,
         name: theme.name ?? '',
         font_family_display: theme.font_family_display || DEFAULT_THEME_DARK.font_family_display,
-        font_family_body: theme.font_family_body || DEFAULT_THEME_DARK.font_family_body
+        font_family_body: theme.font_family_body || DEFAULT_THEME_DARK.font_family_body,
+        effect_preset: theme.effect_preset || (isDefaultTheme ? 'auto' : 'none'),
+        effect_intensity: theme.effect_intensity || (isDefaultTheme ? 'medium' : 'soft')
     };
 }
 
 export function getBaseTheme(mode) {
     return mode === 'light' ? DEFAULT_THEME_LIGHT : DEFAULT_THEME_DARK;
+}
+
+export function getMoodTheme(mode, moodId) {
+    const base = getBaseTheme(mode);
+    const mood = MOBILE_MOOD_PRESETS.find((item) => item.id === moodId) || MOBILE_MOOD_PRESETS[0];
+    const overrides = mood?.[mode] || {};
+
+    return {
+        ...base,
+        ...overrides,
+        effect_preset: 'none',
+        effect_intensity: 'soft'
+    };
 }
 
 export function visuallyMatchesTheme(theme, comparison) {

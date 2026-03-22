@@ -110,7 +110,7 @@ function MediaActionButton({ icon: Icon, label, ariaLabel, onClick }) {
             type="button"
             onClick={onClick}
             aria-label={ariaLabel}
-            className="inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
+            className="pointer-events-auto relative z-10 inline-flex min-w-[7.5rem] items-center justify-start gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:min-w-[8rem] sm:text-[11px] md:backdrop-blur-md"
         >
             <Icon className="h-4 w-4 shrink-0" />
             <span>{label}</span>
@@ -281,6 +281,16 @@ export default function EditProfile() {
                 detail: 'Everything shown here matches what other people see.',
             };
 
+    const openAvatarPicker = () => {
+        haptics.light();
+        setShowAvatarPicker(true);
+    };
+
+    const openBannerPicker = () => {
+        haptics.light();
+        setShowBannerPicker(true);
+    };
+
     const canSave = hasChanges && !saving;
 
     const validateAndCollectErrors = () => {
@@ -354,12 +364,12 @@ export default function EditProfile() {
                     <div className="rounded-[2.4rem] bg-white/[0.02] p-1 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.82)] sm:rounded-[3rem] sm:p-1.5 lg:bg-transparent lg:p-2 glass-shell">
                         <div className="relative h-[21rem] overflow-hidden rounded-[2.15rem] border border-white/15 shadow-sm sm:h-[21rem] sm:rounded-[2.65rem] md:shadow-lg lg:h-[24rem]">
                             {banner ? (
-                                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
+                                <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${banner})` }}>
                                     <div className="absolute inset-0 bg-claude-bg/55" />
                                 </div>
                             ) : (
                                 <>
-                                    <div className="absolute inset-0 bg-[#0f2026]" />
+                                    <div className="pointer-events-none absolute inset-0 bg-[#0f2026]" />
                                     <MotionDiv
                                         initial={{ opacity: 0.6, scale: 0.95 }}
                                         animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1.18 }}
@@ -368,13 +378,14 @@ export default function EditProfile() {
                                                 ? undefined
                                                 : { duration: 4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }
                                         }
-                                        className="absolute -left-[18%] -top-[45%] h-[140%] w-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.16),transparent_58%)] blur-3xl"
+                                        className="pointer-events-none absolute -left-[18%] -top-[45%] h-[140%] w-[140%] bg-[radial-gradient(circle_at_center,rgba(122,158,114,0.16),transparent_58%)] blur-3xl"
                                     />
-                                    <div className="absolute inset-0 opacity-10 bg-[url('/textures/cubes.png')] md:mix-blend-overlay" />
+                                    <div className="pointer-events-none absolute inset-0 opacity-10 bg-[url('/textures/cubes.png')] md:mix-blend-overlay" />
 
                                     <MotionDiv
                                         animate={prefersReducedMotion ? undefined : { y: [0, -10, 0], rotate: [12, 15, 12] }}
                                         transition={prefersReducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                                        className="pointer-events-none"
                                     >
                                         <Leaf className="absolute -bottom-8 -right-8 h-40 w-40 text-claude-accent/5" />
                                     </MotionDiv>
@@ -382,24 +393,25 @@ export default function EditProfile() {
                                     <MotionDiv
                                         animate={prefersReducedMotion ? undefined : { y: [0, 10, 0], rotate: [-12, -15, -12] }}
                                         transition={prefersReducedMotion ? undefined : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                                        className="pointer-events-none"
                                     >
                                         <Leaf className="absolute -left-6 -top-4 h-32 w-32 text-claude-accent/5 opacity-40" />
                                     </MotionDiv>
                                 </>
                             )}
 
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-claude-bg/95" />
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-claude-bg/95" />
 
-                            <div className="absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pb-3 pt-3 safe-area-top sm:gap-3 sm:p-4 lg:p-5">
                                 <button
                                     onClick={() => navigate('/account')}
                                     aria-label="Back to account"
-                                    className="rounded-full border border-white/10 bg-black/20 p-2.5 text-white/90 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:p-3 md:backdrop-blur-md"
+                                    className="pointer-events-auto rounded-full border border-white/10 bg-black/20 p-2.5 text-white/90 shadow-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:bg-black/30 active:scale-95 sm:p-3 md:backdrop-blur-md"
                                 >
                                     <ArrowLeft className="h-5 w-5" />
                                 </button>
 
-                                <div className="hidden sm:flex sm:flex-col sm:items-end sm:gap-2">
+                                <div className="pointer-events-auto hidden sm:flex sm:flex-col sm:items-end sm:gap-2">
                                     <div>
                                         <StatusBadge tone={statusMeta.badgeTone}>{statusMeta.badgeLabel}</StatusBadge>
                                     </div>
@@ -408,46 +420,34 @@ export default function EditProfile() {
                                         icon={User}
                                         label="Avatar"
                                         ariaLabel="Change avatar"
-                                        onClick={() => {
-                                            haptics.light();
-                                            setShowAvatarPicker(true);
-                                        }}
+                                        onClick={openAvatarPicker}
                                     />
 
                                     <MediaActionButton
                                         icon={ImageIcon}
                                         label="Banner"
                                         ariaLabel="Change banner"
-                                        onClick={() => {
-                                            haptics.light();
-                                            setShowBannerPicker(true);
-                                        }}
+                                        onClick={openBannerPicker}
                                     />
                                 </div>
                             </div>
 
-                            <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5 lg:p-8">
                                 <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
-                                    <div className="flex self-end sm:hidden">
+                                    <div className="pointer-events-auto relative z-40 flex self-end sm:hidden">
                                         <div className="flex flex-col items-end gap-2">
                                             <MediaActionButton
                                                 icon={User}
                                                 label="Avatar"
                                                 ariaLabel="Change avatar"
-                                                onClick={() => {
-                                                    haptics.light();
-                                                    setShowAvatarPicker(true);
-                                                }}
+                                                onClick={openAvatarPicker}
                                             />
 
                                             <MediaActionButton
                                                 icon={ImageIcon}
                                                 label="Banner"
                                                 ariaLabel="Change banner"
-                                                onClick={() => {
-                                                    haptics.light();
-                                                    setShowBannerPicker(true);
-                                                }}
+                                                onClick={openBannerPicker}
                                             />
                                         </div>
                                     </div>

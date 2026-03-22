@@ -77,4 +77,11 @@ describe('Layout primary navigation', () => {
 
     expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
   });
+
+  it('lets active message threads own their top safe area spacing and hide the mobile nav', () => {
+    renderLayout('/messages/21');
+
+    expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
+  });
 });

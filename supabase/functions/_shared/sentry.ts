@@ -25,7 +25,12 @@ function ensureSentryInit(): void {
  */
 export async function reportEdgeException(
     error: unknown,
-    context?: { request?: Request; functionName?: string },
+    context?: {
+        request?: Request;
+        functionName?: string;
+        tags?: Record<string, string | number | boolean | null | undefined>;
+        extras?: Record<string, unknown>;
+    },
 ): Promise<void> {
     if (!Deno.env.get('SENTRY_DSN')) return;
 
@@ -57,6 +62,16 @@ export async function reportEdgeException(
             } catch {
                 scope.setContext('request', { method: req.method });
             }
+        }
+
+        Object.entries(context?.tags || {}).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                scope.setTag(key, String(value));
+            }
+        });
+
+        if (context?.extras && Object.keys(context.extras).length > 0) {
+            scope.setContext('extra', context.extras);
         }
 
         Sentry.captureException(err);

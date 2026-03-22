@@ -1,4 +1,6 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const CANVAS_AUTO_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
+export const CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS = 60 * 60 * 1000;
 
 const createHttpError = (message, status, extra = {}) => {
   const error = new Error(message);
@@ -9,6 +11,23 @@ const createHttpError = (message, status, extra = {}) => {
 
 const isPrivilegedUser = (user) => (
   (user.role === 'owner' || user.role === 'admin') && !user.simulate_free_tier
+);
+
+const toValidDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const isPremiumCanvasUser = (user) => (
+  Boolean(
+    isPrivilegedUser(user)
+    || user?.subscription_tier === 'supporter'
+    || user?.subscription_tier === 'lifetime'
+  )
 );
 
 export const validateCanvasFeedUrl = (icalUrl) => {
@@ -31,11 +50,7 @@ export const applyCanvasSyncQuota = async ({
   resetSyncState,
   incrementSyncCount,
 }) => {
-  const isPremium = isPrivilegedUser(user)
-    || user.subscription_tier === 'supporter'
-    || user.subscription_tier === 'lifetime';
-
-  if (isPremium) {
+  if (isPremiumCanvasUser(user)) {
     return;
   }
 
@@ -57,6 +72,53 @@ export const applyCanvasSyncQuota = async ({
 
   await incrementSyncCount(syncCount + 1);
 };
+
+export const isCanvasAutoSyncDue = ({
+  user,
+  now = new Date(),
+  syncIntervalMs = CANVAS_AUTO_SYNC_INTERVAL_MS,
+  attemptCooldownMs = CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS,
+}) => {
+  if (!user?.canvas_ical_url || user?.canvas_auto_sync_enabled !== true) {
+    return false;
+  }
+
+  if (user?.simulate_free_tier) {
+    return false;
+  }
+
+  if (!isPremiumCanvasUser(user)) {
+    return false;
+  }
+
+  const lastAttemptAt = toValidDate(user.last_canvas_auto_sync_attempt_at);
+  if (lastAttemptAt && (now - lastAttemptAt) < attemptCooldownMs) {
+    return false;
+  }
+
+  const lastSyncAt = toValidDate(user.last_canvas_sync_at);
+  return !lastSyncAt || (now - lastSyncAt) >= syncIntervalMs;
+};
+
+export const selectCanvasAutoSyncUsers = ({
+  users,
+  now = new Date(),
+  batchSize = 25,
+  syncIntervalMs = CANVAS_AUTO_SYNC_INTERVAL_MS,
+  attemptCooldownMs = CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS,
+}) => (users || [])
+  .filter((user) => isCanvasAutoSyncDue({
+    user,
+    now,
+    syncIntervalMs,
+    attemptCooldownMs,
+  }))
+  .sort((leftUser, rightUser) => {
+    const leftSyncAt = toValidDate(leftUser.last_canvas_sync_at)?.getTime() ?? 0;
+    const rightSyncAt = toValidDate(rightUser.last_canvas_sync_at)?.getTime() ?? 0;
+    return leftSyncAt - rightSyncAt;
+  })
+  .slice(0, batchSize);
 
 const deriveCanvasAssignment = (event, now) => {
   if (event.type !== 'VEVENT') {
@@ -126,9 +188,15 @@ export const syncCanvasCalendar = async ({
       syncedClassesCount += 1;
     }
 
-    await createAssignment(userId, classId, assignment);
+    const createAssignmentResult = await createAssignment(userId, classId, assignment);
+    const inserted = createAssignmentResult === false
+      ? false
+      : createAssignmentResult?.inserted !== false;
+
     assignmentIds.add(assignment.uid);
-    syncedAssignmentsCount += 1;
+    if (inserted) {
+      syncedAssignmentsCount += 1;
+    }
   }
 
   return {

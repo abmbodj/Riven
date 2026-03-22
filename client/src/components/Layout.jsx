@@ -132,7 +132,7 @@ export default function Layout({ children }) {
     const isOnboardingPage = location.pathname === '/onboarding';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
-    const pageOwnsTopSafeArea = isOnboardingPage || isLandingPage;
+    const pageOwnsTopSafeArea = isOnboardingPage || isLandingPage || isMessagesChat;
     const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || isOnboardingPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
     // Fullscreen pages that need edge-to-edge backgrounds (no padding from Layout)

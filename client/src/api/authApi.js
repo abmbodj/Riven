@@ -1495,18 +1495,25 @@ export const connectCanvas = (icalUrl) => callCanvasLmsEndpoint({
 export const disconnectCanvas = () => callCanvasLmsEndpoint({
     action: 'disconnect',
 });
+export const setCanvasAutoSync = (enabled) => callCanvasLmsEndpoint({
+    action: 'set-auto-sync',
+    payload: { enabled },
+});
 export const getCanvasSettings = async () => {
     const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('users')
-        .select('canvas_ical_url')
+        .select('canvas_ical_url, canvas_auto_sync_enabled, last_canvas_sync_at, last_canvas_auto_sync_error')
         .eq('id', userId)
         .single();
     if (error) _sbThrow(error);
 
     return {
         isConnected: Boolean(data?.canvas_ical_url),
-        canvasUrl: data?.canvas_ical_url ? 'Canvas Feed Active' : '',
+        canvasUrl: data?.canvas_ical_url || '',
+        autoSyncEnabled: Boolean(data?.canvas_auto_sync_enabled),
+        lastSyncAt: data?.last_canvas_sync_at || null,
+        lastAutoSyncError: data?.last_canvas_auto_sync_error || '',
     };
 };
 export const syncCanvas = (adGranted = false) => callCanvasLmsEndpoint({
@@ -2567,6 +2574,8 @@ export const createTheme = async (themeData) => {
         accent_color: themeData.accent_color,
         font_family_display: themeData.font_family_display || 'Cormorant Garamond',
         font_family_body: themeData.font_family_body || 'Lora',
+        effect_preset: themeData.effect_preset || 'none',
+        effect_intensity: themeData.effect_intensity || 'soft',
         is_active: 0,
         is_default: 0,
     };
@@ -2591,6 +2600,8 @@ export const updateTheme = async (id, themeData) => {
     if (themeData.accent_color !== undefined) updates.accent_color = themeData.accent_color;
     if (themeData.font_family_display !== undefined) updates.font_family_display = themeData.font_family_display;
     if (themeData.font_family_body !== undefined) updates.font_family_body = themeData.font_family_body;
+    if (themeData.effect_preset !== undefined) updates.effect_preset = themeData.effect_preset;
+    if (themeData.effect_intensity !== undefined) updates.effect_intensity = themeData.effect_intensity;
 
     const { data, error } = await supabase
         .from('themes')
