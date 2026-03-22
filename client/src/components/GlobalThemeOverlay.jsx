@@ -2,6 +2,7 @@ import { useGSAP } from '../hooks/useGSAP';
 import gsap from 'gsap';
 import { useTheme } from '../hooks/useTheme';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
+import { ThemeEffectOverlay } from './themes/themeEffects.jsx';
 
 /** Static accent wash — no GSAP, no particles (mobile / coarse pointer). */
 function LightThemeAtmosphere({ accent, containerRef, children }) {
@@ -78,15 +79,29 @@ const THEME_MAP = {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function GlobalThemeOverlay() {
-    const { activeTheme } = useTheme();
+    const { activeTheme, appliedTheme } = useTheme();
     const lightAtmosphere = useMobileVisualBudget();
-    if (!activeTheme) return null;
-    const archetype = THEME_MAP[activeTheme.name];
+    const theme = appliedTheme || activeTheme;
+
+    if (!theme) return null;
+
+    const explicitPreset = typeof theme.effect_preset === 'string' ? theme.effect_preset : '';
+    const shouldRenderCustomEffect = !theme.is_default && explicitPreset && explicitPreset !== 'none' && explicitPreset !== 'auto';
+    const archetype = THEME_MAP[theme.name];
+
+    if (shouldRenderCustomEffect) {
+        return (
+            <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
+                <ThemeEffectOverlay theme={theme} simplifyMotion={lightAtmosphere} />
+            </div>
+        );
+    }
+
     if (!archetype) return null;
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden" aria-hidden="true">
-            <GlobalOverlayContent archetype={archetype} accent={activeTheme.accent_color} lightAtmosphere={lightAtmosphere} />
+            <GlobalOverlayContent archetype={archetype} accent={theme.accent_color} lightAtmosphere={lightAtmosphere} />
         </div>
     );
 }

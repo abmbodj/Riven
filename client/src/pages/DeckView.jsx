@@ -415,19 +415,19 @@ export default function DeckView() {
                 {stats ? (
                     <>
                         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-surface p-4 text-center">
                                 <span className="text-3xl font-bold text-claude-text">{stats.totalSessions || 0}</span>
                                 <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Sessions</p>
                             </div>
-                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-surface p-4 text-center">
                                 <span className="text-3xl font-bold text-claude-accent">{stats.accuracy || 0}%</span>
                                 <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Accuracy</p>
                             </div>
-                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-surface p-4 text-center">
                                 <span className="text-3xl font-bold text-claude-text">{stats.totalCardsStudied || stats.totalStudied || 0}</span>
                                 <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Studied</p>
                             </div>
-                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 p-4 text-center">
+                            <div className="rounded-[1.35rem] border border-claude-border/70 bg-claude-surface p-4 text-center">
                                 <span className="text-3xl font-bold text-claude-text">{Math.round((stats.totalTimeSeconds || stats.totalTime || 0) / 60)}m</span>
                                 <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Time</p>
                             </div>
@@ -437,19 +437,19 @@ export default function DeckView() {
                             <div className="space-y-3">
                                 <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Card Progress</h4>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                    <div className="rounded-[1.25rem] border border-blue-400/20 bg-blue-400/10 p-3 text-center">
+                                    <div className="rounded-[1.25rem] border border-blue-400/20 bg-claude-surface p-3 text-center">
                                         <span className="text-xl font-bold text-blue-300">{stats.cardsByDifficulty.new || 0}</span>
                                         <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-blue-200/80">New</p>
                                     </div>
-                                    <div className="rounded-[1.25rem] border border-yellow-400/20 bg-yellow-400/10 p-3 text-center">
+                                    <div className="rounded-[1.25rem] border border-yellow-400/20 bg-claude-surface p-3 text-center">
                                         <span className="text-xl font-bold text-yellow-300">{stats.cardsByDifficulty.learning || 0}</span>
                                         <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-yellow-200/80">Learning</p>
                                     </div>
-                                    <div className="rounded-[1.25rem] border border-green-400/20 bg-green-400/10 p-3 text-center">
+                                    <div className="rounded-[1.25rem] border border-green-400/20 bg-claude-surface p-3 text-center">
                                         <span className="text-xl font-bold text-green-300">{stats.cardsByDifficulty.familiar || 0}</span>
                                         <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-green-200/80">Familiar</p>
                                     </div>
-                                    <div className="rounded-[1.25rem] border border-purple-400/20 bg-purple-400/10 p-3 text-center">
+                                    <div className="rounded-[1.25rem] border border-purple-400/20 bg-claude-surface p-3 text-center">
                                         <span className="text-xl font-bold text-purple-300">{stats.cardsByDifficulty.mastered || 0}</span>
                                         <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-purple-200/80">Mastered</p>
                                     </div>
@@ -460,7 +460,7 @@ export default function DeckView() {
                         {stats.masteredCount !== undefined && !stats.cardsByDifficulty ? (
                             <div className="space-y-3">
                                 <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Mastery Progress</h4>
-                                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-5">
+                                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-surface p-5">
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <span className="text-sm text-claude-secondary">Mastered Cards</span>
                                         <span className="text-lg font-bold text-green-300">{stats.masteredCount} / {stats.cardCount || 0}</span>
@@ -484,7 +484,7 @@ export default function DeckView() {
                                 <h4 className="pl-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Recent Activity</h4>
                                 <div className="space-y-2.5">
                                     {stats.recentSessions.slice(0, 5).map((session, i) => (
-                                        <div key={i} className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-claude-border/70 bg-claude-bg/45 p-4">
+                                        <div key={i} className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-claude-border/70 bg-claude-surface p-4">
                                             <div className="min-w-0">
                                                 <span className="block text-sm font-semibold text-claude-text">
                                                     {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}

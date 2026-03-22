@@ -40,9 +40,9 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
             scrollClassName="space-y-6"
         >
             <form onSubmit={handleDelete} className="space-y-5">
-                <div className="rounded-[1.5rem] border border-red-500/22 bg-red-500/10 p-4 sm:p-5">
+                <div className="rounded-[1.5rem] border border-red-500/22 bg-[#2a171d] p-4 sm:p-5">
                     <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/12 text-red-200">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-400/25 bg-[#3b2026] text-red-200">
                             <Trash2 className="h-5 w-5" />
                         </div>
                         <div className="space-y-1">
@@ -56,7 +56,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                     </div>
                 </div>
 
-                <div className="rounded-[1.5rem] border border-red-500/18 bg-black/15 p-4 sm:p-5">
+                <div className="rounded-[1.5rem] border border-red-500/18 bg-[#171217] p-4 sm:p-5">
                     <div className="flex items-start gap-3">
                         <AlertOctagon className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
                         <div className="min-w-0 flex-1">
@@ -67,7 +67,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="mt-3 w-full rounded-[1rem] border border-red-500/18 bg-black/20 px-4 py-3 text-sm text-red-50 placeholder:text-red-100/25 focus:border-red-400/45 focus:outline-none"
+                                className="mt-3 w-full rounded-[1rem] border border-red-500/18 bg-[#110d12] px-4 py-3 text-sm text-red-50 placeholder:text-red-100/25 focus:border-red-400/45 focus:outline-none"
                                 placeholder="Enter password..."
                                 required
                             />
@@ -79,7 +79,7 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center rounded-[1.15rem] border border-red-500/18 bg-red-500/8 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-red-100/75 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-red-400/32 hover:text-red-50 active:scale-[0.98]"
+                        className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center rounded-[1.15rem] border border-red-500/18 bg-[#1c1419] px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-red-100/75 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-red-400/32 hover:text-red-50 active:scale-[0.98]"
                     >
                         Cancel
                     </button>

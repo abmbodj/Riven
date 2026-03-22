@@ -5,18 +5,22 @@ import ThemeSettings from './ThemeSettings.jsx';
 
 const {
   addThemeMock,
+  applyDraftThemeMock,
   deleteThemeMock,
   mockThemes,
   mockUser,
   pricingModalMock,
+  restoreActiveThemeMock,
   switchThemeMock,
   updateThemeMock,
 } = vi.hoisted(() => ({
   addThemeMock: vi.fn(),
+  applyDraftThemeMock: vi.fn(),
   deleteThemeMock: vi.fn(),
   mockThemes: [],
   mockUser: { subscription_tier: 'free' },
   pricingModalMock: vi.fn(),
+  restoreActiveThemeMock: vi.fn(),
   switchThemeMock: vi.fn(),
   updateThemeMock: vi.fn(),
 }));
@@ -139,10 +143,13 @@ vi.mock('../hooks/useTheme', () => ({
   useTheme: () => ({
     themes: mockThemes,
     activeTheme: mockThemes.find((theme) => theme.is_active) ?? null,
+    appliedTheme: mockThemes.find((theme) => theme.is_active) ?? null,
     switchTheme: switchThemeMock,
     addTheme: addThemeMock,
     updateTheme: updateThemeMock,
     deleteTheme: deleteThemeMock,
+    applyDraftTheme: applyDraftThemeMock,
+    restoreActiveTheme: restoreActiveThemeMock,
   }),
 }));
 
@@ -184,8 +191,10 @@ describe('ThemeSettings theme studio', () => {
     mockThemes.length = 0;
     mockUser.subscription_tier = 'free';
     addThemeMock.mockReset();
+    applyDraftThemeMock.mockReset();
     deleteThemeMock.mockReset();
     pricingModalMock.mockClear();
+    restoreActiveThemeMock.mockReset();
     switchThemeMock.mockReset();
     updateThemeMock.mockReset();
     setViewport(390);
@@ -248,17 +257,25 @@ describe('ThemeSettings theme studio', () => {
     expect(within(dialog).getByText(/start from riven/i)).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /next step/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/live preview/i)).not.toBeInTheDocument();
+
+    applyDraftThemeMock.mockClear();
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /focus/i }));
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /dust/i }));
     await waitFor(() => {
-      expect(within(getDialog()).getByText('Dust · Soft')).toBeInTheDocument();
+      expect(within(getDialog()).getByRole('button', { name: /^rich$/i })).toBeInTheDocument();
     });
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /^rich$/i }));
     await waitFor(() => {
-      expect(within(getDialog()).getByText('Dust · Rich')).toBeInTheDocument();
+      expect(applyDraftThemeMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          effect_preset: 'dust',
+          effect_intensity: 'rich',
+        })
+      );
     });
 
     fireEvent.click(within(getDialog()).getByRole('button', { name: /^open$/i }));
@@ -268,7 +285,7 @@ describe('ThemeSettings theme studio', () => {
     expect(screen.queryByText('Pricing modal open')).not.toBeInTheDocument();
   });
 
-  it('shows the desktop preview rail for premium users', () => {
+  it('keeps the desktop guided editor but removes dedicated preview controls', () => {
     mockUser.subscription_tier = 'supporter';
     setViewport(1280);
 
@@ -277,8 +294,8 @@ describe('ThemeSettings theme studio', () => {
     fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
 
     expect(screen.getByRole('dialog', { name: /theme studio/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /desktop preview/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /phone preview/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /desktop preview/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /phone preview/i })).not.toBeInTheDocument();
     expect(screen.getByText(/choose the starting atmosphere/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
@@ -287,6 +304,8 @@ describe('ThemeSettings theme studio', () => {
 
   it('creates a new mobile theme with saved effect fields', async () => {
     mockUser.subscription_tier = 'supporter';
+    addThemeMock.mockResolvedValue({ id: 444, name: 'Focus Noir' });
+    switchThemeMock.mockResolvedValue({ id: 444, name: 'Focus Noir', is_active: 1 });
 
     render(<ThemeSettings />);
     const getDialog = () => screen.getByRole('dialog', { name: /personalize riven/i });
@@ -319,11 +338,14 @@ describe('ThemeSettings theme studio', () => {
         })
       );
     });
+    expect(switchThemeMock).toHaveBeenCalledWith(444);
   });
 
   it('opens editing on desktop review and saves effect plus advanced token overrides', async () => {
     mockUser.subscription_tier = 'supporter';
     setViewport(1280);
+    updateThemeMock.mockResolvedValue({ id: 31, name: 'Custom Drift' });
+    switchThemeMock.mockResolvedValue({ id: 31, name: 'Custom Drift', is_active: 1 });
     mockThemes.push(
       seedTheme({ id: 1, name: 'Riven', is_active: true }),
       seedTheme({
@@ -373,5 +395,27 @@ describe('ThemeSettings theme studio', () => {
         })
       );
     });
+    expect(switchThemeMock).toHaveBeenCalledWith(31);
+  });
+
+  it('restores the active theme when the editor closes without saving', async () => {
+    mockUser.subscription_tier = 'supporter';
+    mockThemes.push(seedTheme({ id: 1, name: 'Riven', is_active: true }));
+
+    render(<ThemeSettings />);
+    const getDialog = () => screen.getByRole('dialog', { name: /personalize riven/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /create custom/i }));
+    applyDraftThemeMock.mockClear();
+
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /riven light/i }));
+
+    await waitFor(() => {
+      expect(applyDraftThemeMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(within(getDialog()).getByRole('button', { name: /close theme editor/i }));
+
+    expect(restoreActiveThemeMock).toHaveBeenCalledTimes(1);
   });
 });

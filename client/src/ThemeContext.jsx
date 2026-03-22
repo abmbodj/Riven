@@ -26,6 +26,7 @@ export function ThemeProvider({ children }) {
     const { isLoggedIn } = useAuth();
     const [themes, setThemes] = useState([]);
     const [activeTheme, setActiveTheme] = useState(null);
+    const [appliedTheme, setAppliedTheme] = useState(null);
 
     const applyTheme = useCallback((theme) => {
         if (!theme) return;
@@ -61,6 +62,7 @@ export function ThemeProvider({ children }) {
             setThemes(data);
             const active = data.find(t => t.is_active) || data[0];
             setActiveTheme(active);
+            setAppliedTheme(active);
             if (active) applyTheme(active);
         }).catch(() => {
             // Failed to load themes silently
@@ -69,17 +71,30 @@ export function ThemeProvider({ children }) {
     }, [applyTheme, isLoggedIn]);
 
     const switchTheme = useCallback(async (themeId) => {
-        try {
-            await api.activateTheme(themeId);
-            const theme = themes.find(t => t.id === themeId);
-            if (theme) {
-                setActiveTheme(theme);
-                applyTheme(theme);
-            }
-        } catch {
-            // Failed to switch theme silently
-        }
-    }, [applyTheme, themes]);
+        const activatedTheme = await api.activateTheme(themeId);
+
+        setThemes((previous) => {
+            let foundTheme = false;
+
+            const nextThemes = previous.map((theme) => {
+                const isTarget = theme.id === themeId;
+                foundTheme = foundTheme || isTarget;
+
+                return isTarget
+                    ? { ...activatedTheme, is_active: 1 }
+                    : { ...theme, is_active: 0 };
+            });
+
+            return foundTheme
+                ? nextThemes
+                : [...nextThemes, { ...activatedTheme, is_active: 1 }];
+        });
+        setActiveTheme(activatedTheme);
+        setAppliedTheme(activatedTheme);
+        applyTheme(activatedTheme);
+
+        return activatedTheme;
+    }, [applyTheme]);
 
     const addTheme = useCallback(async (themeData) => {
         const newTheme = await api.createTheme(themeData);
@@ -93,6 +108,7 @@ export function ThemeProvider({ children }) {
         // If this is the active theme, re-apply it
         if (activeTheme?.id === themeId) {
             setActiveTheme(updatedTheme);
+            setAppliedTheme(updatedTheme);
             applyTheme(updatedTheme);
         }
         return updatedTheme;
@@ -107,7 +123,29 @@ export function ThemeProvider({ children }) {
         setThemes(prev => prev.filter(t => t.id !== themeId));
     }, [activeTheme]);
 
-    const value = useMemo(() => ({ themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme }), [themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme]);
+    const applyDraftTheme = useCallback((theme) => {
+        if (!theme) return;
+        setAppliedTheme(theme);
+        applyTheme(theme);
+    }, [applyTheme]);
+
+    const restoreActiveTheme = useCallback(() => {
+        if (!activeTheme) return;
+        setAppliedTheme(activeTheme);
+        applyTheme(activeTheme);
+    }, [activeTheme, applyTheme]);
+
+    const value = useMemo(() => ({
+        themes,
+        activeTheme,
+        appliedTheme,
+        switchTheme,
+        addTheme,
+        updateTheme,
+        deleteTheme,
+        applyDraftTheme,
+        restoreActiveTheme
+    }), [themes, activeTheme, appliedTheme, switchTheme, addTheme, updateTheme, deleteTheme, applyDraftTheme, restoreActiveTheme]);
 
     return (
         <ThemeContext.Provider value={value}>

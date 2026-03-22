@@ -126,7 +126,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                         {user?.twoFAEnabled ? <Check className="h-9 w-9" /> : <Shield className="h-9 w-9" />}
                     </div>
 
-                    <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 px-5 py-6">
+                    <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-surface px-5 py-6">
                         <h3 className="text-xl font-display font-semibold text-claude-text">
                             {user?.twoFAEnabled ? '2FA is Enabled' : 'Secure Your Account'}
                         </h3>
@@ -161,7 +161,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
             {mode === 'setup' ? (
                 <div className="space-y-6">
                     <div className="space-y-4 text-center">
-                        <div className="mx-auto inline-flex max-w-full flex-col items-center rounded-[1.75rem] border border-claude-border/70 bg-claude-bg/45 px-5 py-5">
+                        <div className="mx-auto inline-flex max-w-full flex-col items-center rounded-[1.75rem] border border-claude-border/70 bg-claude-surface px-5 py-5">
                             <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 Scan with your authenticator
                             </p>
@@ -176,7 +176,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                             <button
                                 type="button"
                                 onClick={copyToClipboard}
-                                className="mt-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-claude-border/70 bg-claude-bg/75 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary transition-colors hover:border-claude-accent/30 hover:text-claude-text"
+                                className="mt-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-claude-border/70 bg-claude-bg px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary transition-colors hover:border-claude-accent/30 hover:text-claude-text"
                             >
                                 <Copy className="h-3.5 w-3.5 shrink-0" />
                                 <span className="truncate">{secret}</span>
@@ -184,7 +184,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                         </div>
                     </div>
 
-                    <form onSubmit={handleVerify} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                    <form onSubmit={handleVerify} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-surface p-4 sm:p-5">
                         <div>
                             <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 Verify Code
@@ -193,7 +193,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                 type="text"
                                 value={verifyCode}
                                 onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-center font-mono text-lg tracking-[0.45em] text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-center font-mono text-lg tracking-[0.45em] text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="000000"
                                 required
                                 maxLength={6}
@@ -219,7 +219,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                         <p>Disabling 2FA makes your account less secure. Are you sure you want to continue?</p>
                     </div>
 
-                    <form onSubmit={handleDisable} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                    <form onSubmit={handleDisable} className="space-y-4 rounded-[1.5rem] border border-claude-border/70 bg-claude-surface p-4 sm:p-5">
                         <div>
                             <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                 {disableProvider === 'supabase' ? 'Authenticator Code' : 'Confirm Password'}
@@ -236,7 +236,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                                         setPassword(e.target.value);
                                     }
                                 }}
-                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder={disableProvider === 'supabase' ? '000000' : '••••••••'}
                                 required
                             />
@@ -246,7 +246,7 @@ export default function TwoFactorAuthModal({ isOpen, onClose }) {
                             <button
                                 type="button"
                                 onClick={() => setMode('intro')}
-                                className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center rounded-[1.15rem] border border-claude-border/70 bg-claude-bg/65 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:text-claude-text active:scale-[0.98]"
+                                className="tap-action inline-flex min-h-[48px] flex-1 items-center justify-center rounded-[1.15rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:text-claude-text active:scale-[0.98]"
                             >
                                 Cancel
                             </button>

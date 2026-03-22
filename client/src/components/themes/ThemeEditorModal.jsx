@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
     ArrowLeft,
@@ -9,7 +9,6 @@ import {
     Moon,
     Palette,
     Smartphone,
-    Sparkles,
     Sun,
     Wand2,
     X
@@ -57,7 +56,7 @@ const STUDIO_STEPS = [
         label: 'Review',
         eyebrow: 'Final step',
         title: 'Name it and save',
-        description: 'Check the final feel, give the theme a clear name, and save it back to your gallery.'
+        description: 'Review the key choices, give the theme a clear name, and save it back to your gallery.'
     }
 ];
 
@@ -974,7 +973,6 @@ export default function ThemeEditorModal({
     const isDesktop = useMediaQuery('(min-width: 768px)');
     const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const [activeStep, setActiveStep] = useState(0);
-    const [previewViewport, setPreviewViewport] = useState('phone');
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [mobileMode, setMobileMode] = useState('dark');
     const [mobileMood, setMobileMood] = useState('calm');
@@ -996,12 +994,11 @@ export default function ThemeEditorModal({
         if (!isOpen) return;
 
         setActiveStep(editingTheme ? STUDIO_STEPS.length - 1 : 0);
-        setPreviewViewport(editingTheme && isDesktop ? 'desktop' : 'phone');
         setAdvancedOpen(editingTheme ? hasFineTunedPalette(themeForm) : false);
         const nextMode = inferMode(themeForm);
         setMobileMode(nextMode);
         setMobileMood(inferMood(themeForm, nextMode));
-    }, [editingTheme?.id, isDesktop, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [editingTheme?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const step = STUDIO_STEPS[activeStep];
     const title = editingTheme ? 'Refine Theme' : isDesktop ? 'Theme Studio' : 'Personalize Riven';
@@ -1015,10 +1012,6 @@ export default function ThemeEditorModal({
     const accentSummary = useMemo(() => inferAccent(themeForm), [themeForm]);
     const fontSummary = useMemo(() => inferFont(themeForm), [themeForm]);
     const effectSummary = useMemo(() => getThemeEffectLabel(themeForm), [themeForm]);
-    const currentMoodPreset = useMemo(
-        () => MOBILE_MOOD_PRESETS.find((preset) => preset.id === mobileMood) || MOBILE_MOOD_PRESETS[0],
-        [mobileMood]
-    );
     const summaryChips = useMemo(() => ([
         { label: 'Starter', value: starterSummary.label },
         { label: 'Accent', value: accentSummary },
@@ -1026,11 +1019,6 @@ export default function ThemeEditorModal({
         { label: 'Effects', value: effectSummary },
         { label: 'Colors', value: advancedOpen || hasFineTunedPalette(themeForm) ? 'Fine-tuned' : 'Curated' }
     ]), [accentSummary, advancedOpen, effectSummary, fontSummary, starterSummary.label, themeForm]);
-    const mobileSummary = useMemo(() => ([
-        { label: 'Mode', value: mobileMode === 'dark' ? 'Dark' : 'Light' },
-        { label: 'Mood', value: currentMoodPreset.name },
-        { label: 'Effect', value: effectSummary }
-    ]), [currentMoodPreset.name, effectSummary, mobileMode]);
 
     const updateTheme = (next) => {
         setThemeForm((previous) => ({
@@ -1367,7 +1355,7 @@ export default function ThemeEditorModal({
                 <StudioSection
                     eyebrow="Summary"
                     title="Review the final atmosphere"
-                    description="The summary keeps the last decisions understandable, and the larger preview makes it easier to catch contrast issues before saving."
+                    description="The summary keeps the final decisions understandable before you save the theme into your gallery."
                     theme={themeForm}
                 >
                     <div className="flex flex-wrap gap-2">
@@ -1376,18 +1364,6 @@ export default function ThemeEditorModal({
                         ))}
                     </div>
                 </StudioSection>
-
-                {!isDesktop ? (
-                    <PreviewSurface
-                        theme={themeForm}
-                        viewport={previewViewport}
-                        setViewport={setPreviewViewport}
-                        compact={false}
-                        expanded
-                        summary={summaryChips}
-                        simplifyEffects={prefersReducedMotion}
-                    />
-                ) : null}
 
                 <StudioSection
                     eyebrow="Name"
@@ -1444,7 +1420,7 @@ export default function ThemeEditorModal({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 24, scale: 0.98 }}
                         transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-                        className="relative flex max-h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full max-w-7xl flex-col overflow-hidden rounded-t-[2rem] border md:max-h-[94vh] md:rounded-[2rem]"
+                        className="relative flex h-[calc(100dvh-max(env(safe-area-inset-top,0px),0.75rem))] w-full max-w-7xl flex-col overflow-hidden rounded-t-[2rem] border md:h-auto md:max-h-[94vh] md:rounded-[2rem]"
                         style={{
                             borderColor: withAlpha(themeForm.border_color, 0.95),
                             background: `linear-gradient(180deg, ${withAlpha(themeForm.bg_color, 0.98)} 0%, ${withAlpha(themeForm.surface_color, 0.98)} 100%)`,
@@ -1478,7 +1454,7 @@ export default function ThemeEditorModal({
                                                 {title}
                                             </h1>
                                             <p className="mt-2 max-w-3xl pr-2 text-sm leading-5 md:pr-0 md:leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94), fontFamily: themeForm.font_family_body }}>
-                                                A calmer studio with curated controls, live preview, and a new atmospheric effects layer.
+                                                A calmer studio with curated controls that apply directly to Riven while you personalize the atmosphere.
                                             </p>
                                         </div>
                                         <button
@@ -1523,7 +1499,7 @@ export default function ThemeEditorModal({
                                 </div>
 
                                 <form id="theme-editor-form" onSubmit={onSubmit} className="relative flex min-h-0 flex-1 flex-col">
-                                    <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 pb-28 pt-4 overscroll-contain custom-scrollbar md:grid-cols-[220px_minmax(0,1fr)_360px] md:gap-6 md:px-8 md:pb-8 md:pt-6">
+                                    <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-4 pb-28 pt-4 overscroll-contain custom-scrollbar md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 md:px-8 md:pb-8 md:pt-6">
                                         <aside className="sticky top-0 self-start space-y-3">
                                             {STUDIO_STEPS.map((item, index) => (
                                                 <StepNavButton
@@ -1543,18 +1519,6 @@ export default function ThemeEditorModal({
                                         <div className="min-h-0">
                                             {renderStepContent()}
                                         </div>
-
-                                        <aside className="sticky top-0 self-start">
-                                            <PreviewSurface
-                                                theme={themeForm}
-                                                viewport={previewViewport}
-                                                setViewport={setPreviewViewport}
-                                                compact={step.id !== 'review'}
-                                                expanded={step.id === 'review'}
-                                                summary={summaryChips}
-                                                simplifyEffects={prefersReducedMotion}
-                                            />
-                                        </aside>
                                     </div>
 
                                     <div
@@ -1672,205 +1636,196 @@ export default function ThemeEditorModal({
                                     </div>
                                 </div>
 
-                                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 overscroll-contain custom-scrollbar">
-                                    <div className="space-y-4">
-                                        <PreviewSurface
-                                            theme={themeForm}
-                                            viewport="phone"
-                                            setViewport={setPreviewViewport}
-                                            compact={false}
-                                            expanded={false}
-                                            summary={mobileSummary}
-                                            showViewportToggle={false}
-                                            simplifyEffects={prefersReducedMotion}
-                                        />
-
-                                        <StudioSection
-                                            eyebrow="Theme name"
-                                            title="Name your atmosphere"
-                                            description="Give it a short name now. Everything else keeps updating live below."
-                                            theme={themeForm}
-                                        >
-                                            <label className="block">
-                                                <span className="sr-only">Theme name</span>
-                                                <input
-                                                    type="text"
-                                                    value={themeForm.name}
-                                                    onChange={(event) => updateTheme({ name: event.target.value })}
-                                                    placeholder="Night lectures, paper desk, focus mode..."
-                                                    className="w-full rounded-[1.1rem] border px-4 py-3 text-[1.5rem] outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow]"
-                                                    style={{
-                                                        borderColor: withAlpha(themeForm.border_color, 0.88),
-                                                        backgroundColor: withAlpha(themeForm.bg_color, 0.34),
-                                                        color: themeForm.text_color,
-                                                        fontFamily: themeForm.font_family_display
-                                                    }}
-                                                />
-                                            </label>
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Mode"
-                                            title="Start from Riven"
-                                            description="Pick the dark or light foundation first, then shape the mood without getting lost in steps."
-                                            theme={themeForm}
-                                        >
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                <BaseChoiceCard
-                                                    active={mobileMode === 'dark'}
-                                                    icon={Moon}
-                                                    label="Riven Dark"
-                                                    helper="The classic late-night Riven canvas."
-                                                    onClick={() => applyMobileMode('dark')}
-                                                    theme={themeForm}
-                                                />
-                                                <BaseChoiceCard
-                                                    active={mobileMode === 'light'}
-                                                    icon={Sun}
-                                                    label="Riven Light"
-                                                    helper="A brighter paper-inspired take on the same system."
-                                                    onClick={() => applyMobileMode('light')}
-                                                    theme={themeForm}
-                                                />
-                                            </div>
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Mood"
-                                            title="Choose a direction"
-                                            description="Moods reshape the palette while keeping the result easy to refine."
-                                            theme={themeForm}
-                                        >
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                {MOBILE_MOOD_PRESETS.map((preset) => (
-                                                    <MoodCard
-                                                        key={preset.id}
-                                                        preset={preset}
-                                                        active={mobileMood === preset.id}
-                                                        onClick={() => applyMobileMood(preset.id)}
-                                                        theme={themeForm}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Accent"
-                                            title="Choose the signal color"
-                                            description="Accent should guide attention, not repaint the whole screen."
-                                            theme={themeForm}
-                                        >
-                                            <div className="grid grid-cols-3 gap-3">
-                                                {ACCENT_PRESETS.map((swatch) => (
-                                                    <SwatchButton
-                                                        key={swatch.color}
-                                                        swatch={swatch}
-                                                        active={themeForm.accent_color === swatch.color}
-                                                        onClick={() => applyAccent(swatch.color)}
-                                                        theme={themeForm}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Type"
-                                            title="Choose the voice"
-                                            description="Keep the typography expressive, but still calm enough to live across the app."
-                                            theme={themeForm}
-                                        >
-                                            <div className="space-y-3">
-                                                {FONT_PRESETS.map((preset) => (
-                                                    <FontCard
-                                                        key={preset.id}
-                                                        preset={preset}
-                                                        active={themeForm.font_family_display === preset.display && themeForm.font_family_body === preset.body}
-                                                        onClick={() => applyFontPreset(preset)}
-                                                        theme={themeForm}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Effects"
-                                            title="Add atmosphere"
-                                            description="Curated effects keep the theme polished. Pick one, then dial the intensity if you want a little more motion."
-                                            theme={themeForm}
-                                        >
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                {EFFECT_PRESETS.map((effect) => (
-                                                    <EffectCard
-                                                        key={effect.id}
-                                                        effect={effect}
-                                                        active={themeForm.effect_preset === effect.id}
-                                                        onClick={() => applyEffectPreset(effect.id)}
-                                                        theme={themeForm}
-                                                        themePreview={themeForm}
-                                                        simplifyMotion={prefersReducedMotion}
-                                                    />
-                                                ))}
-                                            </div>
-                                            {themeForm.effect_preset !== 'none' ? (
-                                                <div className="mt-4">
-                                                    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94) }}>
-                                                        Intensity
-                                                    </p>
-                                                    <SegmentedChoices
-                                                        options={EFFECT_INTENSITY_OPTIONS}
-                                                        value={themeForm.effect_intensity}
-                                                        onChange={applyEffectIntensity}
-                                                        theme={themeForm}
-                                                        ariaLabel="Effect intensity"
-                                                    />
-                                                </div>
-                                            ) : null}
-                                        </StudioSection>
-
-                                        <StudioSection
-                                            eyebrow="Advanced colors"
-                                            title="Fine-tune the palette"
-                                            description="Open the precise token controls only when the curated mix needs a little more adjustment."
-                                            theme={themeForm}
-                                        >
-                                            <div className="space-y-4">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <p className="max-w-[14rem] text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
-                                                        {advancedOpen
-                                                            ? 'Token edits override the chosen mood while keeping the same saved theme shape.'
-                                                            : 'Leave this closed for the simpler curated flow, or open it for exact control.'}
-                                                    </p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            pulse('light');
-                                                            setAdvancedOpen((previous) => !previous);
-                                                        }}
-                                                        className="tap-action inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em]"
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                                    <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4">
+                                        <div className="space-y-4">
+                                            <StudioSection
+                                                eyebrow="Theme name"
+                                                title="Name your atmosphere"
+                                                description="Give it a short name now. Riven updates live while you personalize everything below."
+                                                theme={themeForm}
+                                            >
+                                                <label className="block">
+                                                    <span className="sr-only">Theme name</span>
+                                                    <input
+                                                        type="text"
+                                                        value={themeForm.name}
+                                                        onChange={(event) => updateTheme({ name: event.target.value })}
+                                                        placeholder="Night lectures, paper desk, focus mode..."
+                                                        className="w-full rounded-[1.1rem] border px-4 py-3 text-[1.5rem] outline-none transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                                                         style={{
-                                                            borderColor: withAlpha(themeForm.border_color, 0.82),
-                                                            backgroundColor: withAlpha(themeForm.surface_color, 0.92),
-                                                            color: themeForm.text_color
+                                                            borderColor: withAlpha(themeForm.border_color, 0.88),
+                                                            backgroundColor: withAlpha(themeForm.bg_color, 0.34),
+                                                            color: themeForm.text_color,
+                                                            fontFamily: themeForm.font_family_display
                                                         }}
-                                                    >
-                                                        <Palette className="h-4 w-4" />
-                                                        {advancedOpen ? 'Hide' : 'Open'}
-                                                    </button>
+                                                    />
+                                                </label>
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Mode"
+                                                title="Start from Riven"
+                                                description="Pick the dark or light foundation first, then shape the mood without getting lost in steps."
+                                                theme={themeForm}
+                                            >
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    <BaseChoiceCard
+                                                        active={mobileMode === 'dark'}
+                                                        icon={Moon}
+                                                        label="Riven Dark"
+                                                        helper="The classic late-night Riven canvas."
+                                                        onClick={() => applyMobileMode('dark')}
+                                                        theme={themeForm}
+                                                    />
+                                                    <BaseChoiceCard
+                                                        active={mobileMode === 'light'}
+                                                        icon={Sun}
+                                                        label="Riven Light"
+                                                        helper="A brighter paper-inspired take on the same system."
+                                                        onClick={() => applyMobileMode('light')}
+                                                        theme={themeForm}
+                                                    />
                                                 </div>
-                                                {advancedOpen ? (
-                                                    <div className="grid gap-3">
-                                                        {COLOR_FIELDS.map((field) => (
-                                                            <ColorField
-                                                                key={field}
-                                                                field={field}
-                                                                theme={themeForm}
-                                                                onChange={setColorValue}
-                                                            />
-                                                        ))}
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Mood"
+                                                title="Choose a direction"
+                                                description="Moods reshape the palette while keeping the result easy to refine."
+                                                theme={themeForm}
+                                            >
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    {MOBILE_MOOD_PRESETS.map((preset) => (
+                                                        <MoodCard
+                                                            key={preset.id}
+                                                            preset={preset}
+                                                            active={mobileMood === preset.id}
+                                                            onClick={() => applyMobileMood(preset.id)}
+                                                            theme={themeForm}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Accent"
+                                                title="Choose the signal color"
+                                                description="Accent should guide attention, not repaint the whole screen."
+                                                theme={themeForm}
+                                            >
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    {ACCENT_PRESETS.map((swatch) => (
+                                                        <SwatchButton
+                                                            key={swatch.color}
+                                                            swatch={swatch}
+                                                            active={themeForm.accent_color === swatch.color}
+                                                            onClick={() => applyAccent(swatch.color)}
+                                                            theme={themeForm}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Type"
+                                                title="Choose the voice"
+                                                description="Keep the typography expressive, but still calm enough to live across the app."
+                                                theme={themeForm}
+                                            >
+                                                <div className="space-y-3">
+                                                    {FONT_PRESETS.map((preset) => (
+                                                        <FontCard
+                                                            key={preset.id}
+                                                            preset={preset}
+                                                            active={themeForm.font_family_display === preset.display && themeForm.font_family_body === preset.body}
+                                                            onClick={() => applyFontPreset(preset)}
+                                                            theme={themeForm}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Effects"
+                                                title="Add atmosphere"
+                                                description="Curated effects keep the theme polished. Pick one, then dial the intensity if you want a little more motion."
+                                                theme={themeForm}
+                                            >
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    {EFFECT_PRESETS.map((effect) => (
+                                                        <EffectCard
+                                                            key={effect.id}
+                                                            effect={effect}
+                                                            active={themeForm.effect_preset === effect.id}
+                                                            onClick={() => applyEffectPreset(effect.id)}
+                                                            theme={themeForm}
+                                                            themePreview={themeForm}
+                                                            simplifyMotion={prefersReducedMotion}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                {themeForm.effect_preset !== 'none' ? (
+                                                    <div className="mt-4">
+                                                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: withAlpha(themeForm.secondary_text_color, 0.94) }}>
+                                                            Intensity
+                                                        </p>
+                                                        <SegmentedChoices
+                                                            options={EFFECT_INTENSITY_OPTIONS}
+                                                            value={themeForm.effect_intensity}
+                                                            onChange={applyEffectIntensity}
+                                                            theme={themeForm}
+                                                            ariaLabel="Effect intensity"
+                                                        />
                                                     </div>
                                                 ) : null}
-                                            </div>
-                                        </StudioSection>
+                                            </StudioSection>
+
+                                            <StudioSection
+                                                eyebrow="Advanced colors"
+                                                title="Fine-tune the palette"
+                                                description="Open the precise token controls only when the curated mix needs a little more adjustment."
+                                                theme={themeForm}
+                                            >
+                                                <div className="space-y-4">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <p className="max-w-[14rem] text-sm leading-6" style={{ color: withAlpha(themeForm.secondary_text_color, 0.95), fontFamily: themeForm.font_family_body }}>
+                                                            {advancedOpen
+                                                                ? 'Token edits override the chosen mood while keeping the same saved theme shape.'
+                                                                : 'Leave this closed for the simpler curated flow, or open it for exact control.'}
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                pulse('light');
+                                                                setAdvancedOpen((previous) => !previous);
+                                                            }}
+                                                            className="tap-action inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em]"
+                                                            style={{
+                                                                borderColor: withAlpha(themeForm.border_color, 0.82),
+                                                                backgroundColor: withAlpha(themeForm.surface_color, 0.92),
+                                                                color: themeForm.text_color
+                                                            }}
+                                                        >
+                                                            <Palette className="h-4 w-4" />
+                                                            {advancedOpen ? 'Hide' : 'Open'}
+                                                        </button>
+                                                    </div>
+                                                    {advancedOpen ? (
+                                                        <div className="grid gap-3">
+                                                            {COLOR_FIELDS.map((field) => (
+                                                                <ColorField
+                                                                    key={field}
+                                                                    field={field}
+                                                                    theme={themeForm}
+                                                                    onChange={setColorValue}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            </StudioSection>
+                                        </div>
                                     </div>
                                 </div>
                             </form>

@@ -26,12 +26,12 @@ export default function ShareToFriendModal({
             scrollClassName="space-y-3"
         >
             {loading ? (
-                <div className="flex min-h-48 flex-col items-center justify-center rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 px-6 py-10 text-center text-claude-secondary">
+                <div className="flex min-h-48 flex-col items-center justify-center rounded-[1.5rem] border border-claude-border/70 bg-claude-surface px-6 py-10 text-center text-claude-secondary">
                     <Loader2 className="mb-3 h-5 w-5 animate-spin text-claude-accent" />
                     <p className="font-mono text-sm uppercase tracking-[0.14em]">Loading friends...</p>
                 </div>
             ) : friends.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 px-6 py-10 text-center">
+                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-surface px-6 py-10 text-center">
                     <p className="font-mono text-sm uppercase tracking-[0.14em] text-claude-secondary">
                         You have no friends yet.
                     </p>
@@ -49,13 +49,13 @@ export default function ShareToFriendModal({
                     return (
                         <div
                             key={friend.id}
-                            className="flex items-center justify-between gap-3 rounded-[1.35rem] border border-claude-border/70 bg-claude-bg/45 px-4 py-3.5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]"
+                            className="flex items-center justify-between gap-3 rounded-[1.35rem] border border-claude-border/70 bg-claude-surface px-4 py-3.5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]"
                         >
                             <div className="flex min-w-0 items-center gap-3">
                                 <Avatar
                                     src={friend.avatar || null}
                                     size="sm"
-                                    className="border border-white/10 bg-claude-bg/70"
+                                    className="border border-white/10 bg-claude-bg"
                                 />
                                 <div className="min-w-0">
                                     <p className="truncate font-display text-lg font-semibold text-claude-text">

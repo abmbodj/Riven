@@ -56,7 +56,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
             scrollClassName="space-y-6"
         >
             <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-bg/45 p-4 sm:p-5">
+                <div className="rounded-[1.5rem] border border-claude-border/70 bg-claude-surface p-4 sm:p-5">
                     <div className="mb-4 flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
                             <Lock className="h-5 w-5" />
@@ -80,7 +80,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
                             />
@@ -94,7 +94,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
                                 minLength={8}
@@ -109,7 +109,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg/80 px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
+                                className="mt-2 w-full rounded-[1rem] border border-claude-border/70 bg-claude-bg px-4 py-3 text-sm text-claude-text placeholder:text-claude-secondary/45 focus:border-claude-accent/35 focus:outline-none"
                                 placeholder="••••••••"
                                 required
                                 minLength={8}

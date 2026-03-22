@@ -103,6 +103,22 @@ function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
 
+function getPdfRenderWidth({ availableWidth, availableHeight, pageMetrics, isMobile, zoom }) {
+    const fallbackWidth = isMobile ? 280 : 796;
+    const widthFitBase = availableWidth > 0 ? availableWidth : fallbackWidth;
+
+    if (!isMobile || !pageMetrics?.originalWidth || !pageMetrics?.originalHeight || availableHeight <= 0) {
+        return Math.max(Math.floor(widthFitBase * zoom), 1);
+    }
+
+    const fitScale = Math.min(
+        widthFitBase / pageMetrics.originalWidth,
+        availableHeight / pageMetrics.originalHeight
+    );
+
+    return Math.max(Math.floor(pageMetrics.originalWidth * fitScale * zoom), 1);
+}
+
 export default function FileViewer({ file, isOpen, onClose }) {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
@@ -112,12 +128,26 @@ export default function FileViewer({ file, isOpen, onClose }) {
     const [textContent, setTextContent] = useState('');
     const [textError, setTextError] = useState(null);
     const [isTextLoading, setIsTextLoading] = useState(false);
-    const [pdfContainerWidth, setPdfContainerWidth] = useState(0);
+    const [pdfViewportSize, setPdfViewportSize] = useState({ width: 0, height: 0 });
+    const [pdfPageMetrics, setPdfPageMetrics] = useState(null);
 
     const docxIframeRef = useRef(null);
     const pdfContainerRef = useRef(null);
+    const pdfViewportRef = useRef(null);
 
     const fileInfo = useMemo(() => resolveFileKind(file), [file]);
+    const isMobilePdfLayout =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(max-width: 767px)').matches;
+    const activePdfPageMetrics = pdfPageMetrics?.pageNumber === pageNumber ? pdfPageMetrics : null;
+    const pdfRenderWidth = useMemo(() => getPdfRenderWidth({
+        availableWidth: pdfViewportSize.width,
+        availableHeight: pdfViewportSize.height,
+        pageMetrics: activePdfPageMetrics,
+        isMobile: isMobilePdfLayout,
+        zoom: scale
+    }), [activePdfPageMetrics, isMobilePdfLayout, pdfViewportSize.height, pdfViewportSize.width, scale]);
 
     useEffect(() => {
         setPageNumber(1);
@@ -126,7 +156,15 @@ export default function FileViewer({ file, isOpen, onClose }) {
         setDocxError(null);
         setTextError(null);
         setTextContent('');
+        setPdfViewportSize({ width: 0, height: 0 });
+        setPdfPageMetrics(null);
     }, [file, isOpen]);
+
+    useEffect(() => {
+        if (fileInfo.kind === 'pdf') {
+            setPdfPageMetrics(null);
+        }
+    }, [fileInfo.kind, pageNumber]);
 
     useEffect(() => {
         if (!isOpen || fileInfo.kind !== 'docx' || !file?.url) return;
@@ -208,14 +246,34 @@ export default function FileViewer({ file, isOpen, onClose }) {
     useEffect(() => {
         if (!isOpen || fileInfo.kind !== 'pdf') return;
 
-        const updateWidth = () => {
-            if (!pdfContainerRef.current) return;
-            setPdfContainerWidth(pdfContainerRef.current.clientWidth);
+        const measurePdfViewport = () => {
+            if (!pdfViewportRef.current) return;
+
+            const nextWidth = Math.ceil(pdfViewportRef.current.clientWidth);
+            const nextHeight = Math.ceil(pdfViewportRef.current.clientHeight);
+
+            setPdfViewportSize((current) => {
+                if (current.width === nextWidth && current.height === nextHeight) {
+                    return current;
+                }
+
+                return { width: nextWidth, height: nextHeight };
+            });
         };
 
-        updateWidth();
-        window.addEventListener('resize', updateWidth);
-        return () => window.removeEventListener('resize', updateWidth);
+        measurePdfViewport();
+
+        if (typeof ResizeObserver === 'function' && pdfContainerRef.current) {
+            const resizeObserver = new ResizeObserver(() => {
+                measurePdfViewport();
+            });
+
+            resizeObserver.observe(pdfContainerRef.current);
+            return () => resizeObserver.disconnect();
+        }
+
+        window.addEventListener('resize', measurePdfViewport);
+        return () => window.removeEventListener('resize', measurePdfViewport);
     }, [isOpen, fileInfo.kind]);
 
     if (!file) return null;
@@ -357,10 +415,17 @@ export default function FileViewer({ file, isOpen, onClose }) {
         }
 
         if (fileInfo.kind === 'pdf') {
-            const baseWidth = Math.max((pdfContainerWidth || 820) - 24, 240);
             return (
-                <div ref={pdfContainerRef} className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6">
-                    <div className="min-h-full flex items-start justify-center">
+                <div
+                    ref={pdfContainerRef}
+                    data-testid="file-viewer-pdf-container"
+                    className="h-full w-full overflow-auto custom-scrollbar p-3 sm:p-6"
+                >
+                    <div
+                        ref={pdfViewportRef}
+                        data-testid="file-viewer-pdf-viewport"
+                        className="min-h-full w-full flex items-start justify-center"
+                    >
                         <Document
                             file={file.url}
                             onLoadSuccess={({ numPages: loadedPages }) => setNumPages(loadedPages)}
@@ -369,7 +434,24 @@ export default function FileViewer({ file, isOpen, onClose }) {
                         >
                             <Page
                                 pageNumber={pageNumber}
-                                width={Math.floor(baseWidth * scale)}
+                                width={pdfRenderWidth}
+                                onLoadSuccess={(page) => {
+                                    setPdfPageMetrics((current) => {
+                                        if (
+                                            current?.pageNumber === page.pageNumber &&
+                                            current?.originalWidth === page.originalWidth &&
+                                            current?.originalHeight === page.originalHeight
+                                        ) {
+                                            return current;
+                                        }
+
+                                        return {
+                                            pageNumber: page.pageNumber,
+                                            originalWidth: page.originalWidth,
+                                            originalHeight: page.originalHeight
+                                        };
+                                    });
+                                }}
                                 renderTextLayer
                                 renderAnnotationLayer
                                 className="shadow-2xl rounded-sm"

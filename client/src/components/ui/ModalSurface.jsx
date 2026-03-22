@@ -10,28 +10,32 @@ const SIZE_CLASSES = {
 
 const TONE_CLASSES = {
     default: {
-        panel: 'border-claude-border bg-claude-bg/96 shadow-[0_30px_90px_rgba(0,0,0,0.38)]',
+        panel: 'border-claude-border bg-claude-bg shadow-[0_30px_90px_rgba(0,0,0,0.38)]',
         overlay: 'bg-claude-bg/72 md:backdrop-blur-md',
-        handle: 'bg-claude-surface/80',
-        headerBorder: 'border-claude-border/80',
+        handle: 'bg-claude-surface',
+        header: 'bg-claude-surface',
+        headerBorder: 'border-claude-border',
         headerEyebrow: 'border-claude-accent/20 bg-claude-accent/10 text-claude-accent',
         title: 'text-claude-text',
         description: 'text-claude-secondary',
-        closeButton: 'border-claude-border bg-claude-bg/15 text-claude-secondary hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text',
+        closeButton: 'border-claude-border bg-claude-bg text-claude-secondary hover:-translate-y-0.5 hover:border-claude-accent/35 hover:text-claude-text',
         accent: 'bg-[radial-gradient(circle_at_top_left,rgba(168,192,127,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(216,182,106,0.14),transparent_32%)]',
-        footer: 'border-claude-border/80 bg-claude-bg/55',
+        body: 'bg-claude-bg',
+        footer: 'border-claude-border bg-claude-surface',
     },
     danger: {
-        panel: 'border-red-500/25 bg-[#120f14]/98 shadow-[0_30px_90px_rgba(0,0,0,0.45)]',
+        panel: 'border-red-500/25 bg-[#120f14] shadow-[0_30px_90px_rgba(0,0,0,0.45)]',
         overlay: 'bg-black/72 md:backdrop-blur-md',
-        handle: 'bg-red-500/25',
+        handle: 'bg-[#2a161d]',
+        header: 'bg-[#171217]',
         headerBorder: 'border-red-500/18',
         headerEyebrow: 'border-red-500/20 bg-red-500/10 text-red-300',
         title: 'text-red-50',
         description: 'text-red-100/75',
-        closeButton: 'border-red-500/20 bg-red-500/8 text-red-200/75 hover:-translate-y-0.5 hover:border-red-400/40 hover:text-red-50',
+        closeButton: 'border-red-500/20 bg-[#20161c] text-red-200/75 hover:-translate-y-0.5 hover:border-red-400/40 hover:text-red-50',
         accent: 'bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(127,29,29,0.22),transparent_42%)]',
-        footer: 'border-red-500/18 bg-red-950/18',
+        body: 'bg-[#120f14]',
+        footer: 'border-red-500/18 bg-[#171217]',
     },
 };
 
@@ -100,7 +104,7 @@ export default function ModalSurface({
                         </div>
 
                         {hasHeader ? (
-                            <div className={`relative flex items-start justify-between gap-4 border-b px-5 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-5 ${toneClasses.headerBorder}`}>
+                            <div className={`relative flex items-start justify-between gap-4 border-b px-5 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-5 ${toneClasses.header} ${toneClasses.headerBorder}`}>
                                 <div className="min-w-0 flex-1">
                                     {eyebrow ? (
                                         <div className={`mb-3 inline-flex items-center rounded-full border px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.18em] ${toneClasses.headerEyebrow}`}>
@@ -130,7 +134,7 @@ export default function ModalSurface({
                             </div>
                         ) : null}
 
-                        <div className={`modal-scroll-content relative flex-1 overflow-y-auto overscroll-contain ${bodyPadding} ${scrollClassName}`}>
+                        <div className={`modal-scroll-content relative flex-1 overflow-y-auto overscroll-contain ${toneClasses.body} ${bodyPadding} ${scrollClassName}`}>
                             {children}
                         </div>
 

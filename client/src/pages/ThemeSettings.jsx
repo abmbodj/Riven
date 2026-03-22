@@ -448,7 +448,16 @@ function ThemeAnimationOverlay({ themeName, isHero = false }) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ThemeSettings() {
-    const { themes, activeTheme, switchTheme, addTheme, updateTheme, deleteTheme } = useTheme();
+    const {
+        themes,
+        activeTheme,
+        switchTheme,
+        addTheme,
+        updateTheme,
+        deleteTheme,
+        applyDraftTheme,
+        restoreActiveTheme
+    } = useTheme();
     const { user } = useAuth();
     const toast = useToast();
     const haptics = useHaptics();
@@ -465,6 +474,11 @@ export default function ThemeSettings() {
     const [themeForm, setThemeForm] = useState(() => buildThemeDraft());
     const canCreateCustomThemes = (user?.subscription_tier || 'free') !== 'free';
 
+    useEffect(() => {
+        if (!showEditor) return;
+        applyDraftTheme(themeForm);
+    }, [showEditor, themeForm, applyDraftTheme]);
+
     const handleSwitchTheme = async (themeId, isPro) => {
         if (activeTheme?.id === themeId) return;
         if (isPro) {
@@ -475,9 +489,14 @@ export default function ThemeSettings() {
                 return;
             }
         }
-        haptics.light();
-        await switchTheme(themeId);
-        toast.success('Theme applied');
+        try {
+            haptics.light();
+            await switchTheme(themeId);
+            toast.success('Theme applied');
+        } catch (err) {
+            haptics.error();
+            toast.error(err?.message || 'Failed to apply theme');
+        }
     };
 
     const handleCreateNew = () => {
@@ -498,6 +517,12 @@ export default function ThemeSettings() {
         setEditingTheme(theme);
         setThemeForm(buildThemeDraft(theme));
         setShowEditor(true);
+    };
+
+    const handleCloseEditor = () => {
+        restoreActiveTheme();
+        setShowEditor(false);
+        setEditingTheme(null);
     };
 
     const handleDeleteClick = (e, theme) => {
@@ -535,11 +560,15 @@ export default function ThemeSettings() {
         try {
             const themePayload = { ...themeForm, name: result.data };
             if (editingTheme) {
-                await updateTheme(editingTheme.id, themePayload);
+                const savedTheme = await updateTheme(editingTheme.id, themePayload);
+                await switchTheme(savedTheme.id);
                 haptics.success();
                 toast.success('Atmosphere refined');
             } else {
-                await addTheme(themePayload);
+                const savedTheme = await addTheme(themePayload);
+                setEditingTheme(savedTheme);
+                setThemeForm(buildThemeDraft(savedTheme));
+                await switchTheme(savedTheme.id);
                 haptics.success();
                 toast.success('New atmosphere materialized');
             }
@@ -661,7 +690,7 @@ export default function ThemeSettings() {
                 editingTheme={editingTheme}
                 themeForm={themeForm}
                 setThemeForm={setThemeForm}
-                onClose={() => setShowEditor(false)}
+                onClose={handleCloseEditor}
                 onSubmit={handleSaveTheme}
                 haptics={haptics}
             />
