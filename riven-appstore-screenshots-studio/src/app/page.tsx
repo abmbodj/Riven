@@ -37,6 +37,14 @@ const IPHONE_SIZES = [
   { label: '6.1"', w: 1125, h: 2436 },
 ] as const;
 
+const AUTH_BACKDROP_EXPORT = {
+  filename: "auth-backdrop-riven-panel-1284x2778.png",
+  w: 1284,
+  h: 2778,
+} as const;
+
+const AUTH_GRAIN_BACKGROUND_IMAGE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
+
 const THEMES = {
   riven: {
     id: "riven",
@@ -652,6 +660,72 @@ function SlideArt({
   );
 }
 
+function AuthBackdropArt({ W, H }: { W: number; H: number }) {
+  const s = W / AUTH_BACKDROP_EXPORT.w;
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: W,
+        height: H,
+        overflow: "hidden",
+        background: "#0a1015",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "10%",
+          right: "10%",
+          width: "50%",
+          height: "50%",
+          borderRadius: "9999px",
+          background: "rgba(122,158,114,0.1)",
+          filter: `blur(${120 * s}px)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "15%",
+          left: "5%",
+          width: "40%",
+          height: "40%",
+          borderRadius: "9999px",
+          background: "rgba(222,185,106,0.08)",
+          filter: `blur(${100 * s}px)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: "40%",
+          left: "30%",
+          width: "30%",
+          height: "30%",
+          borderRadius: "9999px",
+          background: "rgba(30,56,64,0.4)",
+          filter: `blur(${80 * s}px)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.04,
+          backgroundImage: AUTH_GRAIN_BACKGROUND_IMAGE,
+          mixBlendMode: "overlay",
+        }}
+      />
+    </div>
+  );
+}
+
+type SlideExportJob = { type: "slide"; slideIndex: number; sizeIndex: number };
+type AuthBackdropExportJob = { type: "auth-backdrop" };
+type ExportJob = SlideExportJob | AuthBackdropExportJob;
+
 export default function StudioPage() {
   const locale: Locale = "en";
   const themeId: keyof typeof THEMES = "riven";
@@ -659,6 +733,7 @@ export default function StudioPage() {
   const exportNodeRef = useRef<HTMLDivElement | null>(null);
   const [captureVisible, setCaptureVisible] = useState(false);
   const phoneScreensReadyRef = useRef(false);
+  const authBackdropAutoExportedRef = useRef(false);
 
   const [exportState, setExportState] = useState<{ running: boolean; done: number; total: number; last?: string }>({
     running: false,
@@ -666,8 +741,15 @@ export default function StudioPage() {
     total: IPHONE_SIZES.length * SLIDES.length,
   });
 
-  const [exportJob, setExportJob] = useState<{ slideIndex: number; sizeIndex: number } | null>(null);
-  const exportCanvas = exportJob ? IPHONE_SIZES[exportJob.sizeIndex]! : IPHONE_SIZES[0]!;
+  const [backdropExportState, setBackdropExportState] = useState<{ running: boolean; last?: string }>({
+    running: false,
+  });
+  const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const exportCanvas =
+    exportJob?.type === "slide"
+      ? IPHONE_SIZES[exportJob.sizeIndex]!
+      : { w: AUTH_BACKDROP_EXPORT.w, h: AUTH_BACKDROP_EXPORT.h };
+  const isAnyExportRunning = exportState.running || backdropExportState.running;
 
   useEffect(() => {
     let cancelled = false;
@@ -707,20 +789,29 @@ export default function StudioPage() {
     }
   }
 
-  async function exportOne({ slideIndex, sizeIndex }: { slideIndex: number; sizeIndex: number }) {
-    const size = IPHONE_SIZES[sizeIndex]!;
-    const W = size.w;
-    const H = size.h;
-
-    // html-to-image can capture before <img> resources finish loading, so we preload and wait.
-    const start = Date.now();
-    while (!phoneScreensReadyRef.current && Date.now() - start < 10_000) {
-      await new Promise((r) => setTimeout(r, 50));
+  async function captureExport({
+    job,
+    W,
+    H,
+    filename,
+    waitForPhoneScreens = false,
+  }: {
+    job: ExportJob;
+    W: number;
+    H: number;
+    filename: string;
+    waitForPhoneScreens?: boolean;
+  }) {
+    if (waitForPhoneScreens) {
+      const start = Date.now();
+      while (!phoneScreensReadyRef.current && Date.now() - start < 10_000) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
     }
 
     setCaptureVisible(true);
     try {
-      setExportJob({ slideIndex, sizeIndex });
+      setExportJob(job);
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 60)));
 
       const node = exportNodeRef.current;
@@ -740,17 +831,27 @@ export default function StudioPage() {
         throw err;
       }
 
-      const paddedSlide = String(slideIndex + 1).padStart(2, "0");
-      const filename = `${paddedSlide}-riven-${locale}-${themeId}-iphone-${size.w}x${size.h}.png`;
-
       await savePng({ filename, dataUrl });
     } finally {
       setCaptureVisible(false);
     }
   }
 
+  async function exportOne({ slideIndex, sizeIndex }: { slideIndex: number; sizeIndex: number }) {
+    const size = IPHONE_SIZES[sizeIndex]!;
+    const filename = `${String(slideIndex + 1).padStart(2, "0")}-riven-${locale}-${themeId}-iphone-${size.w}x${size.h}.png`;
+
+    await captureExport({
+      job: { type: "slide", slideIndex, sizeIndex },
+      W: size.w,
+      H: size.h,
+      filename,
+      waitForPhoneScreens: true,
+    });
+  }
+
   async function handleExportAll() {
-    if (exportState.running) return;
+    if (isAnyExportRunning) return;
 
     setExportState({ running: true, done: 0, total: IPHONE_SIZES.length * SLIDES.length });
     try {
@@ -780,7 +881,43 @@ export default function StudioPage() {
     }
   }
 
+  async function handleExportAuthBackdrop() {
+    if (isAnyExportRunning) return;
+
+    setBackdropExportState({ running: true });
+    try {
+      await captureExport({
+        job: { type: "auth-backdrop" },
+        W: AUTH_BACKDROP_EXPORT.w,
+        H: AUTH_BACKDROP_EXPORT.h,
+        filename: AUTH_BACKDROP_EXPORT.filename,
+      });
+      setBackdropExportState({
+        running: false,
+        last: `Export complete: ${AUTH_BACKDROP_EXPORT.filename} saved to /exports`,
+      });
+    } catch (err: any) {
+      setBackdropExportState({
+        running: false,
+        last: `Export failed: ${err?.message || String(err)}`,
+      });
+      console.error(err);
+    }
+  }
+
+  useEffect(() => {
+    if (authBackdropAutoExportedRef.current) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("export") !== "auth-backdrop") return;
+
+    authBackdropAutoExportedRef.current = true;
+    void handleExportAuthBackdrop();
+  }, []);
+
   const previewSize = IPHONE_SIZES[3]!;
+  const authBackdropPreviewWidth = 240;
+  const authBackdropPreviewScale = authBackdropPreviewWidth / AUTH_BACKDROP_EXPORT.w;
 
   return (
     <div style={{ minHeight: "100vh", padding: 24 }}>
@@ -803,7 +940,7 @@ export default function StudioPage() {
           <div style={{ minWidth: 260 }}>
             <button
               onClick={handleExportAll}
-              disabled={exportState.running}
+              disabled={isAnyExportRunning}
               style={{
                 width: "100%",
                 padding: "14px 18px",
@@ -812,13 +949,86 @@ export default function StudioPage() {
                 border: "1px solid rgba(255,255,255,0.12)",
                 color: "#102228",
                 fontWeight: 1000,
-                cursor: exportState.running ? "not-allowed" : "pointer",
+                cursor: isAnyExportRunning ? "not-allowed" : "pointer",
               }}
             >
               {exportState.running ? `Exporting... ${exportState.done}/${exportState.total}` : "Export ALL PNGs"}
             </button>
             <div style={{ marginTop: 12, color: THEMES[themeId].secondary, fontSize: 13, fontWeight: 700 }}>
               {exportState.last ? exportState.last : "Click to export and save under: /exports"}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 22,
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: 20,
+            alignItems: "start",
+            padding: 20,
+            borderRadius: 24,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(10,16,21,0.58)",
+            backdropFilter: "blur(18px)",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 13, color: THEMES[themeId].secondary, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.18em" }}>
+              Auth Backdrop Asset
+            </div>
+            <div style={{ fontFamily: "var(--font-display, serif)", fontSize: 30, fontWeight: 900, marginTop: 10, lineHeight: 1.05 }}>
+              Text-free auth gradient panel
+            </div>
+            <div style={{ marginTop: 12, color: THEMES[themeId].secondary, fontWeight: 700, maxWidth: 560, lineHeight: 1.5 }}>
+              Exports the right-panel login/signup background only, with the same layered glows and grain from the shared auth layout.
+            </div>
+            <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button
+                onClick={handleExportAuthBackdrop}
+                disabled={isAnyExportRunning}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: 18,
+                  background: "linear-gradient(90deg, rgba(222,185,106,0.95) 0%, rgba(168,192,127,0.88) 100%)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#102228",
+                  fontWeight: 1000,
+                  cursor: isAnyExportRunning ? "not-allowed" : "pointer",
+                }}
+              >
+                {backdropExportState.running ? "Exporting auth backdrop..." : "Export Auth Backdrop PNG"}
+              </button>
+              <div style={{ color: THEMES[themeId].secondary, fontSize: 13, fontWeight: 700, alignSelf: "center" }}>
+                {AUTH_BACKDROP_EXPORT.w}x{AUTH_BACKDROP_EXPORT.h}
+              </div>
+            </div>
+            <div style={{ marginTop: 12, color: THEMES[themeId].secondary, fontSize: 13, fontWeight: 700 }}>
+              {backdropExportState.last ? backdropExportState.last : `Saves ${AUTH_BACKDROP_EXPORT.filename} to /exports`}
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: authBackdropPreviewWidth,
+              height: AUTH_BACKDROP_EXPORT.h * authBackdropPreviewScale,
+              borderRadius: 20,
+              border: "1px solid rgba(255,255,255,0.08)",
+              overflow: "hidden",
+              justifySelf: "center",
+              boxShadow: "0 24px 80px -36px rgba(0,0,0,0.7)",
+            }}
+          >
+            <div
+              style={{
+                width: AUTH_BACKDROP_EXPORT.w,
+                height: AUTH_BACKDROP_EXPORT.h,
+                transform: `scale(${authBackdropPreviewScale})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <AuthBackdropArt W={AUTH_BACKDROP_EXPORT.w} H={AUTH_BACKDROP_EXPORT.h} />
             </div>
           </div>
         </div>
@@ -842,8 +1052,10 @@ export default function StudioPage() {
       {/* Offscreen export node (kept mounted; dimensions updated per job) */}
       <div style={{ position: "absolute", top: 0, left: captureVisible ? 0 : -99999, opacity: 1, pointerEvents: "none" }}>
         <div ref={exportNodeRef} style={{ width: exportCanvas.w, height: exportCanvas.h, position: "relative" }}>
-          {exportJob ? (
+          {exportJob?.type === "slide" ? (
             <SlideArt slideIndex={exportJob.slideIndex} locale={locale} themeId={themeId} W={exportCanvas.w} H={exportCanvas.h} />
+          ) : exportJob?.type === "auth-backdrop" ? (
+            <AuthBackdropArt W={AUTH_BACKDROP_EXPORT.w} H={AUTH_BACKDROP_EXPORT.h} />
           ) : (
             <SlideArt slideIndex={0} locale={locale} themeId={themeId} W={exportCanvas.w} H={exportCanvas.h} />
           )}
