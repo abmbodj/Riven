@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
-import useAudioRecorder from '../hooks/useAudioRecorder';
+import useRecordingSession from '../hooks/useRecordingSession.js';
 import TiptapEditor from '../components/editor/TiptapEditor';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
 import { createArrayStreamParser } from '../utils/streamingJsonParser';
 import ShareToFriendModal from '../components/ShareToFriendModal';
+import WaveformBars from '../components/audio/WaveformBars.jsx';
+import { formatRecordingDuration } from '../utils/audioRecording.js';
 import {
     buildShareMessageContent,
     buildSharedPreviewText,
@@ -22,6 +24,8 @@ import {
 } from '../utils/sharedResources';
 
 const ACTIVE_AI_JOB_STATUSES = ['queued', 'running', 'streaming', 'saving'];
+const ENHANCEMENT_POLL_MS = 3000;
+const ENHANCEMENT_SAVING_POLL_MS = 1500;
 
 const ENHANCEMENT_PHASE_LABELS = {
     accepted: 'Accepted AI job',
@@ -34,22 +38,6 @@ const ENHANCEMENT_PHASE_LABELS = {
     done: 'Enhanced notes ready',
     error: 'Enhancement failed',
 };
-
-function formatDuration(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-function WaveformBars() {
-    return (
-        <div className="waveform-bars" aria-hidden="true">
-            <div className="waveform-bar" />
-            <div className="waveform-bar" />
-            <div className="waveform-bar" />
-        </div>
-    );
-}
 
 const createDocFromSections = (sections) => ({
     type: 'doc',
@@ -71,7 +59,7 @@ const getJobPreviewDoc = (job) => {
 const getJobFinalDoc = (job) => {
     const payload = job?.result_payload || {};
     if (payload.final_doc) return payload.final_doc;
-    return getJobPreviewDoc(job);
+    return null;
 };
 
 const getEnhancementStatusText = (job) => (
@@ -120,7 +108,10 @@ export default function NoteEditor() {
     const titleRef = useRef(title);
     const activeSaveRef = useRef(Promise.resolve(null));
     const enhancementUnsubscribeRef = useRef(null);
+    const enhancementPollTimerRef = useRef(null);
+    const trackedEnhancementJobIdRef = useRef(null);
     const handledJobStatesRef = useRef(new Set());
+    const completionRefreshAttemptedRef = useRef(new Set());
     const enhancementMetricsRef = useRef({
         clickAt: null,
         ackMs: null,
@@ -132,7 +123,10 @@ export default function NoteEditor() {
         toastRef.current = toast;
     }, [toast]);
 
-    const recorder = useAudioRecorder(noteId);
+    const recorder = useRecordingSession({
+        noteId,
+        noteTitle: title || titleRef.current || 'Untitled',
+    });
 
     const clearEnhancementSubscription = useCallback(() => {
         if (enhancementUnsubscribeRef.current) {
@@ -141,8 +135,40 @@ export default function NoteEditor() {
         }
     }, []);
 
+    const clearEnhancementPoll = useCallback(() => {
+        if (enhancementPollTimerRef.current) {
+            window.clearTimeout(enhancementPollTimerRef.current);
+            enhancementPollTimerRef.current = null;
+        }
+    }, []);
+
+    const stopEnhancementTracking = useCallback(() => {
+        trackedEnhancementJobIdRef.current = null;
+        clearEnhancementPoll();
+        clearEnhancementSubscription();
+    }, [clearEnhancementPoll, clearEnhancementSubscription]);
+
     const extractText = useCallback((doc) => {
         return extractTextFromDoc(doc).replace(/\s+/g, ' ').trim();
+    }, []);
+
+    const hydrateEnhancedContentFromNote = useCallback(async (job, fallbackNoteId) => {
+        const jobId = job?.id;
+        if (!jobId || completionRefreshAttemptedRef.current.has(jobId)) {
+            return null;
+        }
+
+        completionRefreshAttemptedRef.current.add(jobId);
+        const persistedNoteId = job?.result_payload?.note_id || fallbackNoteId;
+        if (!persistedNoteId) return null;
+
+        try {
+            const note = await api.getNote(persistedNoteId);
+            return note?.enhanced_content || note?.content || null;
+        } catch (error) {
+            console.warn('[NoteEditor] Failed to refresh enhanced note content', error?.message || error);
+            return null;
+        }
     }, []);
 
     const logEnhancementMetrics = useCallback((job) => {
@@ -162,7 +188,7 @@ export default function NoteEditor() {
         });
     }, []);
 
-    const handleEnhancementJobUpdate = useCallback((job) => {
+    const handleEnhancementJobUpdate = useCallback(async (job) => {
         setActiveEnhancementJob(job || null);
         const previewDoc = getJobPreviewDoc(job);
         setEnhancementPreviewDoc(previewDoc);
@@ -199,7 +225,14 @@ export default function NoteEditor() {
         handledJobStatesRef.current.add(handledKey);
 
         if (job.status === 'completed') {
-            const finalDoc = getJobFinalDoc(job);
+            let finalDoc = getJobFinalDoc(job);
+            if (!finalDoc) {
+                finalDoc = await hydrateEnhancedContentFromNote(job, noteId);
+            }
+            if (!finalDoc) {
+                finalDoc = previewDoc;
+            }
+
             if (finalDoc) {
                 setContent(finalDoc);
                 contentRef.current = finalDoc;
@@ -212,7 +245,7 @@ export default function NoteEditor() {
             setActiveEnhancementJob(null);
             setAudioPath(null);
             recorder.setProcessingState('complete');
-            clearEnhancementSubscription();
+            stopEnhancementTracking();
             logEnhancementMetrics(job);
             toast.success('Notes enhanced with AI');
             return;
@@ -223,7 +256,7 @@ export default function NoteEditor() {
             setEnhancementPreviewDoc(null);
             setActiveEnhancementJob(null);
             recorder.setProcessingState('error');
-            clearEnhancementSubscription();
+            stopEnhancementTracking();
             logEnhancementMetrics(job);
             setEnhanceError(
                 job?.error_payload?.message
@@ -231,16 +264,42 @@ export default function NoteEditor() {
                 || 'Enhancement failed',
             );
         }
-    }, [clearEnhancementSubscription, logEnhancementMetrics, recorder, toast]);
+    }, [hydrateEnhancedContentFromNote, logEnhancementMetrics, noteId, recorder, stopEnhancementTracking, toast]);
 
-    const subscribeToEnhancementJob = useCallback((jobId) => {
-        clearEnhancementSubscription();
+    const processTrackedEnhancementJob = useCallback((jobId, job) => {
+        if (!jobId || trackedEnhancementJobIdRef.current !== jobId || !job) {
+            return;
+        }
+
+        void handleEnhancementJobUpdate(job);
+    }, [handleEnhancementJobUpdate]);
+
+    const trackEnhancementJob = useCallback(async (jobId, fallbackJob = null) => {
+        if (!jobId) return;
+
+        stopEnhancementTracking();
+        trackedEnhancementJobIdRef.current = jobId;
+        completionRefreshAttemptedRef.current.delete(jobId);
+
         enhancementUnsubscribeRef.current = api.subscribeToAiJob(jobId, {
-            onUpdate: handleEnhancementJobUpdate,
-            onComplete: handleEnhancementJobUpdate,
-            onError: handleEnhancementJobUpdate,
+            onUpdate: (job) => processTrackedEnhancementJob(jobId, job),
+            onComplete: (job) => processTrackedEnhancementJob(jobId, job),
+            onError: (job) => processTrackedEnhancementJob(jobId, job),
         });
-    }, [clearEnhancementSubscription, handleEnhancementJobUpdate]);
+
+        if (fallbackJob) {
+            processTrackedEnhancementJob(jobId, fallbackJob);
+        }
+
+        try {
+            const latestJob = await api.getAiJob(jobId);
+            if (latestJob) {
+                processTrackedEnhancementJob(jobId, latestJob);
+            }
+        } catch (error) {
+            console.warn('[NoteEditor] Failed to reconcile enhancement job', error?.message || error);
+        }
+    }, [processTrackedEnhancementJob, stopEnhancementTracking]);
 
     useEffect(() => {
         api.warmupAiFunctions(
@@ -288,6 +347,37 @@ export default function NoteEditor() {
     }, [activeEnhancementJob, recorder.state]);
 
     useEffect(() => {
+        clearEnhancementPoll();
+
+        const trackedJobId = trackedEnhancementJobIdRef.current;
+        if (!trackedJobId || !activeEnhancementJob || activeEnhancementJob.id !== trackedJobId || !isEnhancementJobActive(activeEnhancementJob)) {
+            return undefined;
+        }
+
+        const delay = activeEnhancementJob.status === 'saving' || activeEnhancementJob.phase === 'saving'
+            ? ENHANCEMENT_SAVING_POLL_MS
+            : ENHANCEMENT_POLL_MS;
+
+        enhancementPollTimerRef.current = window.setTimeout(async () => {
+            enhancementPollTimerRef.current = null;
+            if (trackedEnhancementJobIdRef.current !== trackedJobId) {
+                return;
+            }
+
+            try {
+                const latestJob = await api.getAiJob(trackedJobId);
+                processTrackedEnhancementJob(trackedJobId, latestJob);
+            } catch (error) {
+                if (trackedEnhancementJobIdRef.current === trackedJobId) {
+                    console.warn('[NoteEditor] Failed to poll enhancement job', error?.message || error);
+                }
+            }
+        }, delay);
+
+        return clearEnhancementPoll;
+    }, [activeEnhancementJob, clearEnhancementPoll, processTrackedEnhancementJob]);
+
+    useEffect(() => {
         if (!noteId) return undefined;
 
         let cancelled = false;
@@ -305,8 +395,7 @@ export default function NoteEditor() {
                 if (cancelled) return;
 
                 if (job) {
-                    handleEnhancementJobUpdate(job);
-                    subscribeToEnhancementJob(job.id);
+                    trackEnhancementJob(job.id, job);
                 }
             } catch (error) {
                 console.warn('[NoteEditor] Failed to restore enhancement job', error?.message || error);
@@ -317,9 +406,9 @@ export default function NoteEditor() {
 
         return () => {
             cancelled = true;
-            clearEnhancementSubscription();
+            stopEnhancementTracking();
         };
-    }, [clearEnhancementSubscription, handleEnhancementJobUpdate, noteId, subscribeToEnhancementJob]);
+    }, [noteId, stopEnhancementTracking, trackEnhancementJob]);
 
     const saveNote = useCallback(async () => {
         if (!noteId && !isNew) return;
@@ -455,6 +544,10 @@ export default function NoteEditor() {
     };
 
     const handleMicToggle = async () => {
+        if (recorder.isAnotherNoteRecording) {
+            return;
+        }
+
         if (recorder.state === 'recording') {
             recorder.stop();
             return;
@@ -464,7 +557,9 @@ export default function NoteEditor() {
             return;
         }
 
-        if (!noteId) {
+        let resolvedNoteId = noteId;
+
+        if (!resolvedNoteId) {
             setSaving(true);
             try {
                 const newNote = await api.createNote(
@@ -472,6 +567,7 @@ export default function NoteEditor() {
                     contentRef.current || {},
                     classId,
                 );
+                resolvedNoteId = newNote.id;
                 setNoteId(newNote.id);
                 window.history.replaceState(null, '', `/note/${newNote.id}`);
                 setSaved(true);
@@ -483,7 +579,7 @@ export default function NoteEditor() {
             setSaving(false);
         }
 
-        recorder.start();
+        await recorder.start(resolvedNoteId, titleRef.current || 'Untitled');
     };
 
     const handleEnhance = async () => {
@@ -515,6 +611,7 @@ export default function NoteEditor() {
             const uploadResult = await api.uploadNoteAudio(noteId, blob);
             const storagePath = uploadResult.path;
             setAudioPath(storagePath);
+            recorder.setAudioPath(storagePath);
 
             const userNotesSnapshot = extractText(contentRef.current).trim() || null;
             const selectedClassName = classes.find((c) => c.id === classId)?.name || null;
@@ -531,18 +628,15 @@ export default function NoteEditor() {
                 performance.now() - enhancementMetricsRef.current.clickAt,
             );
 
-            const job = await api.getAiJob(jobResponse.jobId).catch(() => ({
+            await trackEnhancementJob(jobResponse.jobId, {
                 id: jobResponse.jobId,
                 status: jobResponse.status,
                 phase: jobResponse.phase,
                 progress_message: getEnhancementStatusText(jobResponse),
                 result_payload: {},
-            }));
-
-            handleEnhancementJobUpdate(job);
-            subscribeToEnhancementJob(jobResponse.jobId);
+            });
         } catch (err) {
-            clearEnhancementSubscription();
+            stopEnhancementTracking();
             setActiveEnhancementJob(null);
             setEnhancementPreviewDoc(null);
             setEnhancing(false);
@@ -720,13 +814,15 @@ export default function NoteEditor() {
 
     const selectedClass = classes.find((c) => c.id === classId);
     const isRecording = recorder.state === 'recording';
+    const isRecordingInAnotherNote = recorder.isAnotherNoteRecording;
     const enhancementLocked = isEnhancementJobActive(activeEnhancementJob);
-    const micDisabled = enhancing || enhancementLocked || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
+    const micDisabled = isRecordingInAnotherNote || enhancing || enhancementLocked || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
     const generationDisabled = enhancementLocked || !!generating;
     const enhancementStatusText = getEnhancementStatusText(activeEnhancementJob);
 
     const micLabel = isRecording
-        ? `Stop recording (${formatDuration(recorder.duration)})`
+        ? `Stop recording (${formatRecordingDuration(recorder.duration)})`
+        : isRecordingInAnotherNote ? `Recording in ${recorder.activeNoteTitle || 'another note'}`
         : recorder.state === 'uploading' ? 'Uploading audio'
         : recorder.state === 'processing' ? enhancementStatusText
         : 'Record lecture';
@@ -792,7 +888,7 @@ export default function NoteEditor() {
                             }`}
                         >
                             {isRecording ? (
-                                <><WaveformBars /><span className="tabular-nums">{formatDuration(recorder.duration)}</span></>
+                                <><WaveformBars /><span className="tabular-nums">{formatRecordingDuration(recorder.duration)}</span></>
                             ) : recorder.state === 'uploading' || recorder.state === 'processing' ? (
                                 <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Processing</span></>
                             ) : (
@@ -831,6 +927,31 @@ export default function NoteEditor() {
 
                 <div className="max-w-3xl mx-auto px-4 pt-6">
                     <AnimatePresence>
+                        {isRecordingInAnotherNote && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-claude-accent/25 bg-claude-surface/65 px-3 py-3"
+                            >
+                                <div className="min-w-0">
+                                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">Lecture Recording Active</p>
+                                    <p className="mt-1 text-[12px] text-claude-text">
+                                        {recorder.activeNoteTitle || 'Another note'} is still recording. Jump back there to stop or review it.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={recorder.goToActiveNote}
+                                    className="shrink-0 rounded-lg bg-claude-accent px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-bg transition-colors hover:bg-claude-accent/90 tap-action"
+                                >
+                                    Back to recording
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
                         {recorder.hasRecoveryData && (
                             <motion.div
                                 initial={{ opacity: 0, y: -8 }}
@@ -845,7 +966,7 @@ export default function NoteEditor() {
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={async () => {
-                                            await recorder.recoverAudio();
+                                            await recorder.recover(noteId, titleRef.current || title || 'Untitled');
                                             setShowEnhanceBanner(true);
                                         }}
                                         className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors tap-action"
@@ -853,7 +974,7 @@ export default function NoteEditor() {
                                         Recover
                                     </button>
                                     <button
-                                        onClick={() => recorder.discardRecovery()}
+                                        onClick={() => recorder.discardRecovery(noteId)}
                                         className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary hover:text-red-400 transition-colors tap-action"
                                     >
                                         Discard

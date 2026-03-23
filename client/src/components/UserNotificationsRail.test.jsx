@@ -23,8 +23,8 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }));
 
-const renderRail = () => render(
-  <MemoryRouter>
+const renderRail = (pathname = '/') => render(
+  <MemoryRouter initialEntries={[pathname]}>
     <UserNotificationsRail />
   </MemoryRouter>
 );
@@ -69,5 +69,21 @@ describe('UserNotificationsRail', () => {
     await waitFor(() => {
       expect(screen.queryByRole('region', { name: /user notifications/i })).not.toBeInTheDocument();
     });
+  });
+
+  it('uses the wider desktop shell on the settings route', async () => {
+    renderRail('/settings');
+
+    const region = await screen.findByRole('region', { name: /user notifications/i });
+    expect(region.parentElement).toHaveClass('lg:max-w-5xl');
+    expect(region.parentElement).toHaveClass('xl:max-w-7xl');
+  });
+
+  it('keeps the standard desktop shell on non-settings routes', async () => {
+    renderRail('/dashboard');
+
+    const region = await screen.findByRole('region', { name: /user notifications/i });
+    expect(region.parentElement).toHaveClass('lg:max-w-5xl');
+    expect(region.parentElement).not.toHaveClass('xl:max-w-7xl');
   });
 });

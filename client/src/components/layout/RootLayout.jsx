@@ -1,6 +1,10 @@
 import Layout from '../Layout.jsx';
+import { RecordingSessionProvider } from '../../context/RecordingSessionContext.jsx';
 
 export function RootLayout({ children }) {
-  return <Layout>{children}</Layout>;
+  return (
+    <RecordingSessionProvider>
+      <Layout>{children}</Layout>
+    </RecordingSessionProvider>
+  );
 }
-

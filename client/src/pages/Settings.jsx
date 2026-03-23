@@ -49,7 +49,7 @@ const SettingItem = ({ icon: IconComponent, title, description, onClick, destruc
         onClick={onClick}
         disabled={disabled}
         aria-pressed={toggle !== null ? toggleValue : undefined}
-        className={`tap-action group relative flex min-h-[72px] w-full items-center gap-3 overflow-hidden px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[76px] sm:gap-4 sm:px-5 ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
+        className={`tap-action group relative flex min-h-[72px] w-full items-center gap-3 overflow-hidden px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[76px] sm:gap-4 sm:px-5 xl:min-h-[68px] xl:px-4 xl:py-3.5 ${destructive ? 'hover:bg-red-500/[0.04] active:bg-red-500/[0.06]' : 'hover:bg-claude-bg/35 active:bg-claude-bg/45'}`}
     >
         {!noBorder && (
             <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-claude-border/60 sm:inset-x-5" />
@@ -147,19 +147,19 @@ const SectionHeader = ({ eyebrow, title, description, tone = 'default' }) => {
                             : 'text-claude-secondary';
 
     return (
-        <div className="mb-3 px-0.5 sm:mb-4 sm:px-1">
+        <div className="mb-3 px-0.5 sm:mb-4 sm:px-1 xl:mb-3 xl:px-0">
             <div className="flex items-center gap-2.5 sm:gap-3">
                 <p className={`text-[9px] font-mono uppercase tracking-[0.22em] sm:text-[10px] sm:tracking-[0.24em] ${eyebrowTone}`}>
                     {eyebrow}
                 </p>
                 <div className="h-px flex-1 bg-claude-border/60" />
             </div>
-            <div className="mt-2.5 sm:mt-3">
+            <div className="mt-2.5 sm:mt-3 xl:mt-2">
                 <h2 className="font-serif text-[1.55rem] font-semibold italic leading-none tracking-[-0.03em] text-claude-text sm:text-[1.9rem]">
                     {title}
                 </h2>
                 {description && (
-                    <p className="mt-2 max-w-xl text-[10px] font-mono uppercase leading-relaxed tracking-[0.11em] text-claude-secondary/78 sm:max-w-2xl sm:text-[11px] sm:tracking-[0.12em]">
+                    <p className="mt-2 max-w-xl text-[10px] font-mono uppercase leading-relaxed tracking-[0.11em] text-claude-secondary/78 sm:max-w-2xl sm:text-[11px] sm:tracking-[0.12em] xl:mt-1.5 xl:max-w-[28rem]">
                         {description}
                     </p>
                 )}
@@ -206,16 +206,16 @@ const QuickJumpButton = ({ icon: IconComponent, label, meta, onClick, tone = 'de
     return (
         <button
             onClick={onClick}
-            className={`tap-action group flex min-h-[104px] w-full flex-col items-start gap-4 rounded-[1.15rem] border px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 active:scale-[0.99] sm:min-h-[72px] sm:flex-row sm:items-center sm:gap-3 sm:rounded-[1.2rem] sm:py-3 ${toneClasses}`}
+            className={`tap-action group flex min-h-[104px] w-full flex-col items-start gap-4 rounded-[1.15rem] border px-4 py-4 text-left transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 active:scale-[0.99] sm:min-h-[72px] sm:flex-row sm:items-center sm:gap-3 sm:rounded-[1.2rem] sm:py-3 xl:min-h-[64px] xl:gap-2.5 xl:px-3.5 xl:py-3 ${toneClasses}`}
         >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-claude-border/70 bg-claude-bg/70 text-claude-text/75 transition-colors group-hover:text-claude-accent sm:h-11 sm:w-11">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-claude-border/70 bg-claude-bg/70 text-claude-text/75 transition-colors group-hover:text-claude-accent sm:h-11 sm:w-11 xl:h-10 xl:w-10">
                 <IconComponent className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0 flex-1">
                 <p className="font-display text-[15px] leading-none text-claude-text transition-colors group-hover:text-claude-accent sm:text-base">
                     {label}
                 </p>
-                <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary/80 sm:truncate sm:text-[10px] sm:tracking-[0.16em]">
+                <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary/80 sm:truncate sm:text-[10px] sm:tracking-[0.16em] xl:mt-1.5">
                     {meta}
                 </p>
             </div>
@@ -581,72 +581,31 @@ export default function Settings() {
                 animate="show"
                 className="mx-auto max-w-7xl px-4 py-6 lg:px-8"
             >
-                <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[360px,minmax(0,1fr)] xl:items-start xl:gap-8">
-                    <div className="contents xl:sticky xl:top-32 xl:block xl:self-start xl:space-y-6">
-                        <motion.div variants={itemVariants} className="order-1">
-                            <SectionHeader
-                                eyebrow="Map"
-                                title="Jump to"
-                                description="Scan the settings surface and jump straight to the section you need."
-                            />
-                            <SectionCard className="p-2.5 sm:p-2">
-                                <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
-                                    {quickLinks.map(link => (
-                                        <QuickJumpButton
-                                            key={link.id}
-                                            icon={link.icon}
-                                            label={link.label}
-                                            meta={link.meta}
-                                            tone={link.tone}
-                                            onClick={() => scrollToSection(link.id)}
-                                        />
-                                    ))}
-                                </div>
-                            </SectionCard>
-                        </motion.div>
+                <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[312px,minmax(0,1fr)] xl:items-start xl:gap-6 2xl:grid-cols-[320px,minmax(0,1fr)] 2xl:gap-7">
+                    <motion.div variants={itemVariants} className="order-1 xl:sticky xl:top-28 xl:self-start">
+                        <SectionHeader
+                            eyebrow="Map"
+                            title="Jump to"
+                            description="Scan the settings surface and jump straight to the section you need."
+                        />
+                        <SectionCard className="p-2.5 sm:p-2 xl:p-2">
+                            <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
+                                {quickLinks.map(link => (
+                                    <QuickJumpButton
+                                        key={link.id}
+                                        icon={link.icon}
+                                        label={link.label}
+                                        meta={link.meta}
+                                        tone={link.tone}
+                                        onClick={() => scrollToSection(link.id)}
+                                    />
+                                ))}
+                            </div>
+                        </SectionCard>
+                    </motion.div>
 
-                        <motion.div id="support-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-8`}>
-                            <SectionHeader
-                                eyebrow="Support"
-                                title="Help & policies"
-                                description="Reach support and review the documents that govern your account."
-                            />
-                            <SectionCard className="overflow-hidden">
-                                <SettingItem
-                                    icon={MessageSquare}
-                                    title="Send feedback"
-                                    description="Share a suggestion with the owner"
-                                    badge="Inbox"
-                                    onClick={() => openModal('feedback')}
-                                />
-                                <SettingItem
-                                    icon={Mail}
-                                    title="Contact Support"
-                                    description="Email the developer"
-                                    badge="Direct"
-                                    onClick={() => window.open('mailto:support@Riven.app')}
-                                />
-                                <SettingItem
-                                    icon={Shield}
-                                    title="Privacy Policy"
-                                    description="How we protect your data"
-                                    badge="Policy"
-                                    onClick={() => navigate('/privacy')}
-                                />
-                                <SettingItem
-                                    icon={BookOpen}
-                                    title="Terms of Service"
-                                    description="EULA and usage rules"
-                                    badge="Legal"
-                                    onClick={() => navigate('/terms')}
-                                    noBorder
-                                />
-                            </SectionCard>
-                        </motion.div>
-                    </div>
-
-                    <div className="contents xl:block xl:min-w-0 xl:space-y-6">
-                        <div className="order-3 grid gap-6 lg:grid-cols-2">
+                    <div className="order-2 min-w-0 space-y-6">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             <motion.div id="security-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Account"
@@ -666,7 +625,7 @@ export default function Settings() {
                                     description="Manage your subscription, restore purchases, and check premium status."
                                     tone="accent"
                                 />
-                                <SectionCard tone="accent" className="space-y-4 p-5 sm:p-6">
+                                <SectionCard tone="accent" className="space-y-4 p-5 sm:p-6 xl:p-5">
                                     <div className="flex items-start gap-4 sm:items-center">
                                         <div className="p-3 rounded-2xl bg-claude-accent/10 border border-claude-accent/20 shadow-inner">
                                             <Sparkles className="w-6 h-6 text-claude-accent" />
@@ -768,11 +727,11 @@ export default function Settings() {
                                 </SectionCard>
                             </motion.div>
                         </div>
-                        <div className="order-4">
+                        <div>
                             <ReferralCard />
                         </div>
 
-                        <div className="order-5 grid gap-6 lg:grid-cols-2">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             <motion.div id="integrations-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Workspace"
@@ -780,7 +739,7 @@ export default function Settings() {
                                     description="Connect external systems that keep your classes and assignments in sync."
                                     tone="info"
                                 />
-                                <SectionCard tone="info" className="flex flex-col space-y-5 p-5 sm:p-6">
+                                <SectionCard tone="info" className="flex flex-col space-y-5 p-5 sm:p-6 xl:p-5">
                         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                             <div className="p-3 rounded-2xl bg-blue-400/10 border border-blue-400/20 shadow-inner">
                                 <Network className="w-6 h-6 text-blue-400" />
@@ -979,7 +938,7 @@ export default function Settings() {
                                     description="Track your allowance and the study tools it powers."
                                     tone="warning"
                                 />
-                                <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6">
+                                <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6 xl:p-5">
                                     <div className="flex items-start gap-4 sm:items-center">
                                         <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
                                             <Sparkles className="w-6 h-6 text-amber-500" />
@@ -1047,7 +1006,7 @@ export default function Settings() {
                             </motion.div>
                         </div>
 
-                        <div className="order-6 grid gap-6 lg:grid-cols-2">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             <motion.div id="notifications-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
                                 <SectionHeader
                                     eyebrow="Preferences"
@@ -1100,7 +1059,46 @@ export default function Settings() {
                             </motion.div>
                         </div>
 
-                        <motion.div id="danger-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} order-9 pt-1`}>
+                        <motion.div id="support-panel" variants={itemVariants} className={SECTION_ANCHOR_CLASS}>
+                            <SectionHeader
+                                eyebrow="Support"
+                                title="Help & policies"
+                                description="Reach support and review the documents that govern your account."
+                            />
+                            <SectionCard className="overflow-hidden">
+                                <SettingItem
+                                    icon={MessageSquare}
+                                    title="Send feedback"
+                                    description="Share a suggestion with the owner"
+                                    badge="Inbox"
+                                    onClick={() => openModal('feedback')}
+                                />
+                                <SettingItem
+                                    icon={Mail}
+                                    title="Contact Support"
+                                    description="Email the developer"
+                                    badge="Direct"
+                                    onClick={() => window.open('mailto:support@Riven.app')}
+                                />
+                                <SettingItem
+                                    icon={Shield}
+                                    title="Privacy Policy"
+                                    description="How we protect your data"
+                                    badge="Policy"
+                                    onClick={() => navigate('/privacy')}
+                                />
+                                <SettingItem
+                                    icon={BookOpen}
+                                    title="Terms of Service"
+                                    description="EULA and usage rules"
+                                    badge="Legal"
+                                    onClick={() => navigate('/terms')}
+                                    noBorder
+                                />
+                            </SectionCard>
+                        </motion.div>
+
+                        <motion.div id="danger-panel" variants={itemVariants} className={`${SECTION_ANCHOR_CLASS} pt-1`}>
                             <SectionHeader
                                 eyebrow="Danger"
                                 title="Danger zone"
@@ -1113,7 +1111,7 @@ export default function Settings() {
                             </SectionCard>
                         </motion.div>
 
-                        <motion.div variants={itemVariants} className="order-10 pb-4 pt-2 text-center opacity-40">
+                        <motion.div variants={itemVariants} className="pb-4 pt-2 text-center opacity-40">
                             <Leaf className="w-6 h-6 text-claude-accent mx-auto mb-3" />
                             <p className="text-[10px] text-claude-secondary font-mono tracking-widest uppercase">
                                 Riven OS v1.0.0
@@ -1212,7 +1210,7 @@ function ReferralCard() {
                 description="Track referral progress and share or apply referral codes."
                 tone="pink"
             />
-            <SectionCard tone="pink" className="space-y-5 p-5 sm:p-6">
+            <SectionCard tone="pink" className="space-y-5 p-5 sm:p-6 xl:p-5">
                 <div className="flex items-start gap-4 sm:items-center">
                     <div className="p-3 rounded-2xl bg-pink-500/10 border border-pink-500/20 shadow-inner">
                         <Gift className="w-6 h-6 text-pink-400" />

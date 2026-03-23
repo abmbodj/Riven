@@ -1,9 +1,35 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NoteEditor from './NoteEditor.jsx';
+
+const { subscriptionHandlers, toast, recorderMock } = vi.hoisted(() => ({
+  subscriptionHandlers: new Map(),
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    show: vi.fn(),
+  },
+  recorderMock: {
+    state: 'idle',
+    globalState: 'idle',
+    duration: 0,
+    hasRecoveryData: false,
+    activeNoteId: 'note-42',
+    activeNoteTitle: 'Cell Respiration Notes',
+    isAnotherNoteRecording: false,
+    setProcessingState: vi.fn(),
+    setAudioPath: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    getBlob: vi.fn(() => null),
+    discardRecovery: vi.fn(),
+    recover: vi.fn(),
+    goToActiveNote: vi.fn(),
+  },
+}));
 
 const updatedNoteContent = {
   type: 'doc',
@@ -23,12 +49,15 @@ vi.mock('../api', () => ({
     primeEdgeFunctionAuth: vi.fn().mockResolvedValue(null),
     getClasses: vi.fn(),
     getNote: vi.fn(),
+    getAiJob: vi.fn(),
     updateNote: vi.fn(),
     createNote: vi.fn(),
     getFriends: vi.fn(),
     sendMessage: vi.fn(),
     listAiJobs: vi.fn(),
     subscribeToAiJob: vi.fn(() => () => {}),
+    uploadNoteAudio: vi.fn(),
+    createAiJob: vi.fn(),
     generateAiDeckStream: vi.fn(),
     generateAiGuideStream: vi.fn(),
     generateAiExamStream: vi.fn(),
@@ -37,46 +66,60 @@ vi.mock('../api', () => ({
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-  }),
+  useToast: () => toast,
 }));
 
-vi.mock('../hooks/useAudioRecorder', () => ({
-  default: () => ({
-    state: 'idle',
-    duration: 0,
-    hasRecoveryData: false,
-    setProcessingState: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    getBlob: vi.fn(() => null),
-  }),
+vi.mock('../hooks/useRecordingSession.js', () => ({
+  default: () => recorderMock,
 }));
 
 vi.mock('../components/editor/TiptapEditor', () => ({
-  default: ({ placeholder, onUpdate }) => (
-    <div>
-      <div data-testid="note-editor">{placeholder}</div>
-      <button
-        type="button"
-        onClick={() => onUpdate?.({
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
+  default: ({ placeholder, onUpdate, content, editable = true }) => {
+    const extractMockText = (node) => {
+      if (!node || typeof node !== 'object') return '';
+      const segments = [];
+
+      const walk = (currentNode) => {
+        if (!currentNode || typeof currentNode !== 'object') return;
+        if (typeof currentNode.text === 'string') {
+          segments.push(currentNode.text);
+        }
+        if (Array.isArray(currentNode.content)) {
+          currentNode.content.forEach(walk);
+        }
+      };
+
+      walk(node);
+      return segments.join(' ').trim();
+    };
+
+    return (
+      <div>
+        <div data-testid={editable ? 'note-editor' : 'note-editor-readonly'}>{placeholder}</div>
+        <div data-testid={editable ? 'note-editor-content' : 'note-editor-content-readonly'}>
+          {extractMockText(content)}
+        </div>
+        {onUpdate ? (
+          <button
+            type="button"
+            onClick={() => onUpdate({
+              type: 'doc',
               content: [
-                { type: 'text', text: 'Updated note content for sharing.' },
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Updated note content for sharing.' },
+                  ],
+                },
               ],
-            },
-          ],
-        })}
-      >
-        Update note content
-      </button>
-    </div>
-  ),
+            })}
+          >
+            Update note content
+          </button>
+        ) : null}
+      </div>
+    );
+  },
 }));
 
 vi.mock('../components/ConfirmModal', () => ({
@@ -108,12 +151,69 @@ const note = {
   audio_url: null,
 };
 
-describe('NoteEditor sharing flow', () => {
+const renderNoteEditor = () =>
+  render(
+    <MemoryRouter initialEntries={['/note/note-42']}>
+      <Routes>
+        <Route path="/note/:id" element={<NoteEditor />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+const flushAsync = async (cycles = 4) => {
+  await act(async () => {
+    for (let index = 0; index < cycles; index += 1) {
+      await Promise.resolve();
+    }
+  });
+};
+
+const buildEnhancementJob = (overrides = {}) => ({
+  id: 'job-1',
+  status: 'saving',
+  phase: 'saving',
+  progress_percent: 90,
+  progress_message: 'Saving enhanced notes',
+  result_payload: {},
+  error_payload: {},
+  ...overrides,
+});
+
+describe('NoteEditor', () => {
   beforeEach(() => {
+    subscriptionHandlers.clear();
     vi.clearAllMocks();
+    toast.error.mockReset();
+    toast.success.mockReset();
+    toast.show.mockReset();
+    recorderMock.setProcessingState.mockReset();
+    recorderMock.setAudioPath.mockReset();
+    recorderMock.start.mockReset();
+    recorderMock.stop.mockReset();
+    recorderMock.getBlob.mockReset();
+    recorderMock.getBlob.mockReturnValue(null);
+    recorderMock.discardRecovery.mockReset();
+    recorderMock.recover.mockReset();
+    recorderMock.goToActiveNote.mockReset();
+    recorderMock.isAnotherNoteRecording = false;
+    recorderMock.activeNoteId = 'note-42';
+    recorderMock.activeNoteTitle = 'Cell Respiration Notes';
+    recorderMock.state = 'idle';
+    recorderMock.globalState = 'idle';
+    recorderMock.duration = 0;
+    recorderMock.hasRecoveryData = false;
     api.getClasses.mockResolvedValue([]);
     api.getNote.mockResolvedValue(note);
+    api.getAiJob.mockResolvedValue(null);
     api.listAiJobs.mockResolvedValue([]);
+    api.subscribeToAiJob.mockImplementation((jobId, handlers) => {
+      subscriptionHandlers.set(jobId, handlers);
+      return vi.fn();
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('flushes pending autosave before sharing a note', async () => {
@@ -126,13 +226,7 @@ describe('NoteEditor sharing flow', () => {
     });
     api.sendMessage.mockResolvedValue({ id: 100 });
 
-    const { container } = render(
-      <MemoryRouter initialEntries={['/note/note-42']}>
-        <Routes>
-          <Route path="/note/:id" element={<NoteEditor />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    const { container } = renderNoteEditor();
 
     expect(await screen.findByDisplayValue('Cell Respiration Notes')).toBeInTheDocument();
 
@@ -162,5 +256,198 @@ describe('NoteEditor sharing flow', () => {
         }),
       );
     });
+  });
+
+  it('creates a note before starting a recording from a new draft', async () => {
+    api.createNote.mockResolvedValue({
+      id: 'note-new',
+      title: 'Untitled',
+      class_id: null,
+      content: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/note/new']}>
+        <Routes>
+          <Route path="/note/:id" element={<NoteEditor />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByPlaceholderText('Untitled')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /record lecture/i }));
+
+    await waitFor(() => {
+      expect(api.createNote).toHaveBeenCalledWith('Untitled', {}, null);
+      expect(recorderMock.start).toHaveBeenCalledWith('note-new', 'Untitled');
+    });
+  });
+
+  it('shows a banner when another note is recording and routes back on demand', async () => {
+    recorderMock.isAnotherNoteRecording = true;
+    recorderMock.activeNoteId = 'note-77';
+    recorderMock.activeNoteTitle = 'World History Lecture';
+
+    renderNoteEditor();
+
+    expect(await screen.findByText(/world history lecture is still recording/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /back to recording/i }));
+
+    expect(recorderMock.goToActiveNote).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /recording in world history lecture/i })).toBeDisabled();
+  });
+
+  it('reconciles a saving enhancement job to completion when realtime misses the final update', async () => {
+    vi.useFakeTimers();
+
+    const previewDoc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Preview enhancement section' },
+          ],
+        },
+      ],
+    };
+    const finalDoc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Enhanced notes from polling reconciliation.' },
+          ],
+        },
+      ],
+    };
+
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        result_payload: {
+          preview_doc: previewDoc,
+        },
+      }),
+    ]);
+    api.getAiJob
+      .mockResolvedValueOnce(buildEnhancementJob({
+        result_payload: {
+          preview_doc: previewDoc,
+        },
+      }))
+      .mockResolvedValueOnce(buildEnhancementJob({
+        status: 'completed',
+        phase: 'done',
+        progress_percent: 100,
+        progress_message: 'Notes enhanced successfully',
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    expect(screen.getByDisplayValue('Cell Respiration Notes')).toBeInTheDocument();
+    expect(screen.getByText('Editor locked')).toBeInTheDocument();
+    expect(screen.getByText('Preview enhancement section')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await flushAsync(4);
+
+    expect(screen.getByText('Enhanced notes from polling reconciliation.')).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(recorderMock.setProcessingState).toHaveBeenCalledWith('complete');
+    expect(api.getAiJob).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes the persisted note once when a completed job is missing final_doc', async () => {
+    const refreshedDoc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Enhanced notes loaded from the saved note row.' },
+          ],
+        },
+      ],
+    };
+
+    api.getNote
+      .mockResolvedValueOnce(note)
+      .mockResolvedValueOnce({
+        ...note,
+        content: refreshedDoc,
+        enhanced_content: refreshedDoc,
+      });
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob(),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      status: 'completed',
+      phase: 'done',
+      progress_percent: 100,
+      progress_message: 'Notes enhanced successfully',
+      result_payload: {
+        note_id: 'note-42',
+      },
+    }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    await waitFor(() => {
+      expect(api.getNote).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByText('Enhanced notes loaded from the saved note row.')).toBeInTheDocument();
+    expect(screen.queryByText('Editor locked')).not.toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+  });
+
+  it('stops enhancement polling when the editor unmounts', async () => {
+    vi.useFakeTimers();
+
+    const unsubscribe = vi.fn();
+    api.subscribeToAiJob.mockImplementation((jobId, handlers) => {
+      subscriptionHandlers.set(jobId, handlers);
+      return unsubscribe;
+    });
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        status: 'running',
+        phase: 'drafting',
+        progress_percent: 62,
+        progress_message: 'Drafting enhanced notes',
+      }),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      status: 'running',
+      phase: 'drafting',
+      progress_percent: 62,
+      progress_message: 'Drafting enhanced notes',
+    }));
+
+    const view = renderNoteEditor();
+    await flushAsync(6);
+
+    expect(api.getAiJob).toHaveBeenCalledTimes(1);
+
+    view.unmount();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(api.getAiJob).toHaveBeenCalledTimes(1);
   });
 });

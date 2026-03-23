@@ -1,9 +1,20 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Layout from './Layout.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { UIContext } from '../context/UIContext.jsx';
+
+const { recordingSessionMock, mobileBudgetMock } = vi.hoisted(() => ({
+  recordingSessionMock: {
+    state: 'idle',
+    activeNoteId: null,
+    activeNoteTitle: '',
+    duration: 0,
+    goToActiveNote: vi.fn(),
+  },
+  mobileBudgetMock: vi.fn(() => false),
+}));
 
 vi.mock('../api', () => ({
   api: {
@@ -22,6 +33,14 @@ vi.mock('./UserNotificationsRail.jsx', () => ({
   default: () => null,
 }));
 
+vi.mock('../hooks/useRecordingSession.js', () => ({
+  default: () => recordingSessionMock,
+}));
+
+vi.mock('../hooks/useMobileVisualBudget.js', () => ({
+  useMobileVisualBudget: () => mobileBudgetMock(),
+}));
+
 function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   return render(
     <MemoryRouter initialEntries={[pathname]}>
@@ -36,7 +55,21 @@ function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   );
 }
 
+function getMainContentWidthWrapper() {
+  return screen.getByText('Page Body').parentElement?.parentElement;
+}
+
 describe('Layout primary navigation', () => {
+  beforeEach(() => {
+    recordingSessionMock.state = 'idle';
+    recordingSessionMock.activeNoteId = null;
+    recordingSessionMock.activeNoteTitle = '';
+    recordingSessionMock.duration = 0;
+    recordingSessionMock.goToActiveNote.mockReset();
+    mobileBudgetMock.mockReset();
+    mobileBudgetMock.mockReturnValue(false);
+  });
+
   it('shows study groups as a primary navigation destination', () => {
     renderLayout();
 
@@ -83,5 +116,53 @@ describe('Layout primary navigation', () => {
 
     expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
+  });
+
+  it('widens the desktop content shell on the settings route only', () => {
+    renderLayout('/settings');
+
+    expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-5xl');
+    expect(getMainContentWidthWrapper()).toHaveClass('xl:max-w-7xl');
+  });
+
+  it('keeps the standard desktop content shell on non-settings routes', () => {
+    renderLayout('/dashboard');
+
+    expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-5xl');
+    expect(getMainContentWidthWrapper()).not.toHaveClass('xl:max-w-7xl');
+  });
+
+  it('shows the floating recording widget away from the active note route', () => {
+    recordingSessionMock.state = 'recording';
+    recordingSessionMock.activeNoteId = 'note-42';
+    recordingSessionMock.activeNoteTitle = 'Chemistry Lecture';
+    recordingSessionMock.duration = 85;
+
+    renderLayout('/classes');
+
+    expect(screen.getByTestId('floating-recording-widget')).toBeInTheDocument();
+    expect(screen.getByText('Recording note')).toBeInTheDocument();
+  });
+
+  it('hides the floating recording widget on the active note route', () => {
+    recordingSessionMock.state = 'recording';
+    recordingSessionMock.activeNoteId = 'note-42';
+    recordingSessionMock.activeNoteTitle = 'Chemistry Lecture';
+
+    renderLayout('/note/note-42');
+
+    expect(screen.queryByTestId('floating-recording-widget')).not.toBeInTheDocument();
+  });
+
+  it('offsets the mobile recording widget above the bottom navigation', () => {
+    mobileBudgetMock.mockReturnValue(true);
+    recordingSessionMock.state = 'recording';
+    recordingSessionMock.activeNoteId = 'note-42';
+    recordingSessionMock.activeNoteTitle = 'Chemistry Lecture';
+
+    renderLayout('/dashboard');
+
+    expect(screen.getByTestId('floating-recording-widget')).toHaveClass('bottom-[calc(env(safe-area-inset-bottom,0px)+5.75rem)]');
+    mobileBudgetMock.mockReturnValue(false);
   });
 });

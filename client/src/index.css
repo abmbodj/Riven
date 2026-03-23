@@ -196,6 +196,60 @@
   }
 }
 
+.recording-waveform {
+  --recording-waveform-bar-width: 3px;
+  --recording-waveform-min-height: 4px;
+  --recording-waveform-max-height: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+
+.recording-waveform--compact {
+  --recording-waveform-bar-width: 2.5px;
+  --recording-waveform-min-height: 3px;
+  --recording-waveform-max-height: 11px;
+  height: 14px;
+}
+
+.recording-waveform__bar {
+  width: var(--recording-waveform-bar-width);
+  height: var(--recording-waveform-min-height);
+  border-radius: 999px;
+  background: var(--accent-color);
+  animation: recording-waveform-pulse 1.2s ease-in-out infinite;
+}
+
+.recording-waveform__bar:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.recording-waveform__bar:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes recording-waveform-pulse {
+  0%,
+  100% {
+    height: var(--recording-waveform-min-height);
+    opacity: 0.75;
+  }
+
+  50% {
+    height: var(--recording-waveform-max-height);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-waveform__bar {
+    animation: none;
+    height: calc((var(--recording-waveform-min-height) + var(--recording-waveform-max-height)) / 2);
+    opacity: 0.95;
+  }
+}
+
 @layer utilities {
   .perspective-1000 {
     perspective: 1000px;

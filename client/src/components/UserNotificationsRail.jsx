@@ -28,6 +28,7 @@ export default function UserNotificationsRail() {
     const { isLoggedIn, getUserNotifications, dismissUserNotification } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const isSettingsPage = location.pathname === '/settings';
 
     const loadNotifications = useCallback(async () => {
         if (!isLoggedIn) {
@@ -86,7 +87,7 @@ export default function UserNotificationsRail() {
 
     return (
         <div className="px-4 pt-3 lg:px-8">
-            <div className="lg:mx-auto lg:max-w-5xl">
+            <div className={`lg:mx-auto lg:max-w-5xl ${isSettingsPage ? 'xl:max-w-7xl' : ''}`}>
                 <div role="region" aria-live="polite" aria-label="User notifications" className="space-y-3">
                     <AnimatePresence initial={false}>
                         {notifications.map((notification) => {

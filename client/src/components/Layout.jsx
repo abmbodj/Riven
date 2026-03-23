@@ -22,6 +22,7 @@ import GlobalThemeOverlay from './GlobalThemeOverlay.jsx';
 import MobileBottomNav from './MobileBottomNav.jsx';
 import UserNotificationsRail from './UserNotificationsRail.jsx';
 import { useNotificationSync } from '../hooks/useNotificationSync';
+import FloatingRecordingWidget from './audio/FloatingRecordingWidget.jsx';
 
 
 const routeMatches = (pathname, matchers = []) => matchers.some((matcher) => (
@@ -132,6 +133,7 @@ export default function Layout({ children }) {
     const isOnboardingPage = location.pathname === '/onboarding';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
+    const isSettingsPage = location.pathname === '/settings';
     const pageOwnsTopSafeArea = isOnboardingPage || isLandingPage || isMessagesChat;
     const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || isOnboardingPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
@@ -275,7 +277,7 @@ export default function Layout({ children }) {
                         } ${!isOffline && !pageOwnsTopSafeArea ? 'safe-area-top' : ''
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
-                        <div className={isFullscreenPage ? '' : 'lg:max-w-5xl lg:mx-auto'}>
+                        <div className={isFullscreenPage ? '' : `lg:mx-auto lg:max-w-5xl ${isSettingsPage ? 'xl:max-w-7xl' : ''}`}>
                             <div
                                 ref={pageContentRef}
                                 key={location.pathname}
@@ -292,6 +294,8 @@ export default function Layout({ children }) {
                             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                         />
                     )}
+
+                    <FloatingRecordingWidget hideBottomNav={hideBottomNav} />
                 </div>
             </div>
             <GlobalCommandPalette
