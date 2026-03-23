@@ -15,6 +15,18 @@ tmp/DerivedData/
 tmp/DerivedDataBuild/
 tmp/SourcePackages/
 
+# Root local caches
+/.cursor/
+/.codex-home/
+/.derivedData/
+/.pnpm-dlx-cache/
+/.pnpm-store/
+/.swiftpm-cache/
+/.tmp/
+/.xcode/
+/.xcodebuild-archives/
+/.xcodebuild-deriveddata/
+
 # IDE & Editors
 .idea/
 .vscode/
@@ -74,7 +86,6 @@ brain/
 # Re-including project assets manually if they were caught by a broad rule
 # But better to just ignore the specific brain/ directory and recordings
 .system_generated/
-*.webp
 
 # Project Specific
 client/public/generate-icons.cjs
