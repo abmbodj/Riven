@@ -8,7 +8,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "youtube-caption-extractor": "1.9.0"
+    "youtube-caption-extractor": "1.9.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
