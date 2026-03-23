@@ -32,7 +32,7 @@
     "@tiptap/extension-placeholder": "^3.20.2",
     "@tiptap/pm": "^3.20.2",
     "@tiptap/react": "^3.20.2",
-    "@tiptap/starter-kit": "^3.20.2",
+    "@tiptap/starter-kit": "^3.20.4",
     "@tiptap/suggestion": "^3.20.2",
     "capacitor-live-activity": "^8.1.0",
     "capacitor-voice-recorder": "^7.0.6",
