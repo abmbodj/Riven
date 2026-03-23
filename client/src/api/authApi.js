@@ -1843,6 +1843,17 @@ export const uploadNoteAudio = async (noteId, audioBlob) => {
     return { path };
 };
 
+export const deleteNoteAudio = async (audioPath) => {
+    const normalizedPath = String(audioPath || '').trim();
+    if (!normalizedPath) return { path: null };
+
+    const { error } = await supabase.storage
+        .from('note-audio')
+        .remove([normalizedPath]);
+    if (error) _sbThrow(error);
+    return { path: normalizedPath };
+};
+
 export const enhanceNoteWithAudio = (noteId, audioPath, userNotes, title, className) =>
     edgeFunctionFetch('enhance-notes', { body: { noteId, audioPath, userNotes, title, className } });
 

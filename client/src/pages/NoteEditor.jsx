@@ -85,6 +85,8 @@ export default function NoteEditor() {
     const [saved, setSaved] = useState(true);
     const [showClassPicker, setShowClassPicker] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [discardAudioConfirmOpen, setDiscardAudioConfirmOpen] = useState(false);
+    const [discardingAudio, setDiscardingAudio] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [friends, setFriends] = useState([]);
@@ -244,6 +246,7 @@ export default function NoteEditor() {
             setEnhancementPreviewDoc(null);
             setActiveEnhancementJob(null);
             setAudioPath(null);
+            recorder.setAudioPath(null);
             recorder.setProcessingState('complete');
             stopEnhancementTracking();
             logEnhancementMetrics(job);
@@ -265,6 +268,55 @@ export default function NoteEditor() {
             );
         }
     }, [hydrateEnhancedContentFromNote, logEnhancementMetrics, noteId, recorder, stopEnhancementTracking, toast]);
+
+    const getTrackedAudioPath = useCallback(() => {
+        const localPath = typeof audioPath === 'string' ? audioPath.trim() : '';
+        if (localPath) return localPath;
+
+        const recorderPath = typeof recorder.audioPath === 'string' ? recorder.audioPath.trim() : '';
+        return recorderPath || null;
+    }, [audioPath, recorder.audioPath]);
+
+    const hasDiscardableAudio = useCallback(() => (
+        Boolean(getTrackedAudioPath() || recorder.getBlob())
+    ), [getTrackedAudioPath, recorder]);
+
+    const clearDiscardableAudioState = useCallback(() => {
+        recorder.reset();
+        recorder.setAudioPath(null);
+        setAudioPath(null);
+        setShowEnhanceBanner(false);
+        setEnhanceError(null);
+    }, [recorder]);
+
+    const openDiscardAudioConfirm = useCallback(() => {
+        if (!hasDiscardableAudio()) {
+            setShowEnhanceBanner(false);
+            setEnhanceError(null);
+            return;
+        }
+
+        setDiscardAudioConfirmOpen(true);
+    }, [hasDiscardableAudio]);
+
+    const handleDiscardAudio = useCallback(async () => {
+        if (discardingAudio) return;
+
+        setDiscardingAudio(true);
+        try {
+            const trackedAudioPath = getTrackedAudioPath();
+            if (trackedAudioPath) {
+                await api.deleteNoteAudio(trackedAudioPath);
+            }
+
+            clearDiscardableAudioState();
+            setDiscardAudioConfirmOpen(false);
+        } catch (err) {
+            toast.error(err?.message || 'Failed to delete audio recording');
+        } finally {
+            setDiscardingAudio(false);
+        }
+    }, [clearDiscardableAudioState, discardingAudio, getTrackedAudioPath, toast]);
 
     const processTrackedEnhancementJob = useCallback((jobId, job) => {
         if (!jobId || trackedEnhancementJobIdRef.current !== jobId || !job) {
@@ -838,6 +890,19 @@ export default function NoteEditor() {
                     onConfirm={handleDelete}
                     onCancel={() => setDeleteConfirm(false)}
                 />
+                <ConfirmModal
+                    isOpen={discardAudioConfirmOpen}
+                    title="Discard this recording?"
+                    message="This removes the captured audio for this note. You’ll need to record again to enhance from audio."
+                    confirmText={discardingAudio ? 'Discarding...' : 'Discard audio'}
+                    cancelText="Keep audio"
+                    onConfirm={handleDiscardAudio}
+                    onCancel={() => {
+                        if (!discardingAudio) {
+                            setDiscardAudioConfirmOpen(false);
+                        }
+                    }}
+                />
                 <ShareToFriendModal
                     isOpen={showShareModal}
                     onClose={() => setShowShareModal(false)}
@@ -1010,7 +1075,7 @@ export default function NoteEditor() {
                                         Enhance
                                     </button>
                                     <button
-                                        onClick={() => setShowEnhanceBanner(false)}
+                                        onClick={openDiscardAudioConfirm}
                                         className="p-1 text-claude-secondary hover:text-claude-text transition-colors tap-action"
                                     >
                                         <X className="w-3.5 h-3.5" />
@@ -1068,7 +1133,7 @@ export default function NoteEditor() {
                                         Retry
                                     </button>
                                     <button
-                                        onClick={() => setEnhanceError(null)}
+                                        onClick={openDiscardAudioConfirm}
                                         className="p-1 text-claude-secondary hover:text-claude-text transition-colors tap-action"
                                     >
                                         <X className="w-3.5 h-3.5" />

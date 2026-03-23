@@ -11,6 +11,9 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    storage: {
+      from: vi.fn(),
+    },
     channel: vi.fn(),
     removeChannel: vi.fn(),
     auth: {
@@ -262,6 +265,28 @@ describe('authApi AI edge migration', () => {
         }),
       }),
     );
+  });
+
+  it('deletes note audio from the private note-audio bucket', async () => {
+    const remove = vi.fn().mockResolvedValue({ error: null });
+    supabase.storage.from.mockReturnValue({ remove });
+
+    const result = await authApi.deleteNoteAudio('7/note-1.webm');
+
+    expect(result).toEqual({ path: '7/note-1.webm' });
+    expect(supabase.storage.from).toHaveBeenCalledWith('note-audio');
+    expect(remove).toHaveBeenCalledWith(['7/note-1.webm']);
+  });
+
+  it('propagates storage delete failures when note audio cleanup fails', async () => {
+    const remove = vi.fn().mockResolvedValue({
+      error: { message: 'permission denied' },
+    });
+    supabase.storage.from.mockReturnValue({ remove });
+
+    await expect(authApi.deleteNoteAudio('7/note-1.webm')).rejects.toMatchObject({
+      message: 'permission denied',
+    });
   });
 
   it('preserves the current session when the legacy auth bridge route is unavailable after an edge 401', async () => {

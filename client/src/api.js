@@ -192,6 +192,9 @@ export const api = {
     uploadNoteAudio: (noteId, audioBlob) => isLoggedIn()
         ? serverApi.uploadNoteAudio(noteId, audioBlob)
         : Promise.reject(new Error('Must be logged in to upload audio')),
+    deleteNoteAudio: (audioPath) => isLoggedIn()
+        ? serverApi.deleteNoteAudio(audioPath)
+        : Promise.reject(new Error('Must be logged in to delete note audio')),
     enhanceNoteWithAudio: (noteId, audioPath, userNotes, title, className) => isLoggedIn()
         ? serverApi.enhanceNoteWithAudio(noteId, audioPath, userNotes, title, className)
         : Promise.reject(new Error('Must be logged in to enhance notes')),

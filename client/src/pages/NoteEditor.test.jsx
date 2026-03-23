@@ -16,10 +16,12 @@ const { subscriptionHandlers, toast, recorderMock } = vi.hoisted(() => ({
     state: 'idle',
     globalState: 'idle',
     duration: 0,
+    audioPath: null,
     hasRecoveryData: false,
     activeNoteId: 'note-42',
     activeNoteTitle: 'Cell Respiration Notes',
     isAnotherNoteRecording: false,
+    reset: vi.fn(),
     setProcessingState: vi.fn(),
     setAudioPath: vi.fn(),
     start: vi.fn(),
@@ -57,6 +59,7 @@ vi.mock('../api', () => ({
     listAiJobs: vi.fn(),
     subscribeToAiJob: vi.fn(() => () => {}),
     uploadNoteAudio: vi.fn(),
+    deleteNoteAudio: vi.fn(),
     createAiJob: vi.fn(),
     generateAiDeckStream: vi.fn(),
     generateAiGuideStream: vi.fn(),
@@ -123,7 +126,22 @@ vi.mock('../components/editor/TiptapEditor', () => ({
 }));
 
 vi.mock('../components/ConfirmModal', () => ({
-  default: () => null,
+  default: ({
+    isOpen,
+    title,
+    message,
+    confirmText = 'Delete',
+    cancelText = 'Cancel',
+    onConfirm,
+    onCancel,
+  }) => (isOpen ? (
+    <div data-testid="confirm-modal">
+      <h2>{title}</h2>
+      <p>{message}</p>
+      <button type="button" onClick={onCancel}>{cancelText}</button>
+      <button type="button" onClick={onConfirm}>{confirmText}</button>
+    </div>
+  ) : null),
 }));
 
 vi.mock('../components/ui/PricingModal', () => ({
@@ -168,6 +186,13 @@ const flushAsync = async (cycles = 4) => {
   });
 };
 
+const clickBannerDismissButton = (actionButtonName) => {
+  const actionButton = screen.getByRole('button', { name: actionButtonName });
+  const actionGroup = actionButton.parentElement;
+  const buttons = within(actionGroup).getAllByRole('button');
+  fireEvent.click(buttons[buttons.length - 1]);
+};
+
 const buildEnhancementJob = (overrides = {}) => ({
   id: 'job-1',
   status: 'saving',
@@ -186,6 +211,7 @@ describe('NoteEditor', () => {
     toast.error.mockReset();
     toast.success.mockReset();
     toast.show.mockReset();
+    recorderMock.reset.mockReset();
     recorderMock.setProcessingState.mockReset();
     recorderMock.setAudioPath.mockReset();
     recorderMock.start.mockReset();
@@ -201,11 +227,13 @@ describe('NoteEditor', () => {
     recorderMock.state = 'idle';
     recorderMock.globalState = 'idle';
     recorderMock.duration = 0;
+    recorderMock.audioPath = null;
     recorderMock.hasRecoveryData = false;
     api.getClasses.mockResolvedValue([]);
     api.getNote.mockResolvedValue(note);
     api.getAiJob.mockResolvedValue(null);
     api.listAiJobs.mockResolvedValue([]);
+    api.deleteNoteAudio.mockResolvedValue({ path: '7/note-42.webm' });
     api.subscribeToAiJob.mockImplementation((jobId, handlers) => {
       subscriptionHandlers.set(jobId, handlers);
       return vi.fn();
@@ -297,6 +325,77 @@ describe('NoteEditor', () => {
 
     expect(recorderMock.goToActiveNote).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /recording in world history lecture/i })).toBeDisabled();
+  });
+
+  it('keeps the captured audio when discard is cancelled from the enhance banner', async () => {
+    recorderMock.state = 'stopped';
+    recorderMock.duration = 15;
+    recorderMock.getBlob.mockReturnValue(new Blob(['audio'], { type: 'audio/webm' }));
+
+    renderNoteEditor();
+
+    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+
+    clickBannerDismissButton(/enhance/i);
+
+    expect(screen.getByText('Discard this recording?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /keep audio/i }));
+
+    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
+    expect(screen.getByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+    expect(api.deleteNoteAudio).not.toHaveBeenCalled();
+    expect(recorderMock.reset).not.toHaveBeenCalled();
+  });
+
+  it('discards a local-only recording from the enhance banner', async () => {
+    recorderMock.state = 'stopped';
+    recorderMock.duration = 15;
+    recorderMock.getBlob.mockReturnValue(new Blob(['audio'], { type: 'audio/webm' }));
+
+    renderNoteEditor();
+
+    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+
+    clickBannerDismissButton(/enhance/i);
+    fireEvent.click(screen.getByRole('button', { name: /discard audio/i }));
+
+    await waitFor(() => {
+      expect(recorderMock.reset).toHaveBeenCalledTimes(1);
+      expect(recorderMock.setAudioPath).toHaveBeenCalledWith(null);
+    });
+
+    expect(api.deleteNoteAudio).not.toHaveBeenCalled();
+    expect(screen.queryByText(/lecture captured - enhance your notes with ai/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
+  });
+
+  it('deletes uploaded note audio when discarding from the enhancement error banner', async () => {
+    recorderMock.state = 'stopped';
+    recorderMock.duration = 15;
+    recorderMock.getBlob.mockReturnValue(new Blob(['audio'], { type: 'audio/webm' }));
+    api.uploadNoteAudio.mockResolvedValue({ path: '7/note-42.webm' });
+    api.createAiJob.mockRejectedValue(new Error('Enhancement failed upstream'));
+
+    renderNoteEditor();
+
+    expect(await screen.findByText(/lecture captured - enhance your notes with ai/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /enhance/i }));
+
+    expect(await screen.findByText('Enhancement failed upstream')).toBeInTheDocument();
+
+    clickBannerDismissButton(/retry/i);
+    fireEvent.click(screen.getByRole('button', { name: /discard audio/i }));
+
+    await waitFor(() => {
+      expect(api.deleteNoteAudio).toHaveBeenCalledWith('7/note-42.webm');
+      expect(recorderMock.reset).toHaveBeenCalledTimes(1);
+      expect(recorderMock.setAudioPath).toHaveBeenCalledWith(null);
+    });
+
+    expect(screen.queryByText('Enhancement failed upstream')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('confirm-modal')).not.toBeInTheDocument();
   });
 
   it('reconciles a saving enhancement job to completion when realtime misses the final update', async () => {
