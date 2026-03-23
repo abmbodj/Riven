@@ -52,7 +52,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.1.0",
+    "@capacitor/cli": "^8.2.0",
     "@capacitor/ios": "^8.1.0",
     "@eslint/js": "^9.39.1",
     "@sentry/vite-plugin": "^5.1.1",
