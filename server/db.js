@@ -530,6 +530,52 @@ if (global.__TEST_DB_MOCK__) {
                 ON user_notifications (user_id, created_at DESC)
             `).catch(() => { });
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_push_devices (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    installation_id TEXT NOT NULL UNIQUE,
+                    platform TEXT NOT NULL,
+                    push_token TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    last_seen_at TIMESTAMPTZ DEFAULT now(),
+                    last_registered_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ DEFAULT now(),
+                    updated_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_push_devices_user_active
+                ON user_push_devices (user_id, is_active, platform)
+            `).catch(() => { });
+
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_push_devices_active_seen
+                ON user_push_devices (is_active, last_seen_at DESC)
+            `).catch(() => { });
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_push_preferences (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    messages_enabled BOOLEAN DEFAULT TRUE,
+                    streak_enabled BOOLEAN DEFAULT TRUE,
+                    reengagement_enabled BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMPTZ DEFAULT now(),
+                    updated_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_push_engagement_state (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    last_streak_reminder_marker TEXT,
+                    last_inactivity_stage_sent INTEGER,
+                    created_at TIMESTAMPTZ DEFAULT now(),
+                    updated_at TIMESTAMPTZ DEFAULT now()
+                )
+            `);
+
             // Friendships table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS friendships (

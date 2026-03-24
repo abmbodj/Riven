@@ -11,5 +11,14 @@
       "challenges.cloudflare.com",
       "*.cloudflare.com"
     ]
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
   }
 }

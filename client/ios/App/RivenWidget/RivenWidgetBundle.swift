@@ -11,8 +11,6 @@ import SwiftUI
 @main
 struct RivenWidgetBundle: WidgetBundle {
     var body: some Widget {
-        RivenWidget()
-        RivenWidgetControl()
         RivenWidgetLiveActivity()
     }
 }

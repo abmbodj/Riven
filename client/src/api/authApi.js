@@ -62,6 +62,11 @@ export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
 const csrfTokenCache = new Map();
 const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
+export const DEFAULT_PUSH_PREFERENCES = Object.freeze({
+    messagesEnabled: true,
+    streakEnabled: true,
+    reengagementEnabled: true,
+});
 const memoryTokenStore = (() => {
     const store = new Map();
     return {
@@ -156,6 +161,27 @@ const clearGoogleOAuthBridgeToken = () => {
         storage.removeItem(GOOGLE_OAUTH_BRIDGE_TOKEN_KEY);
     });
 };
+
+const normalizePushPreferenceFlag = (value, fallback) => {
+    if (typeof value === 'boolean') return value;
+    if (value == null) return fallback;
+    return Boolean(value);
+};
+
+const normalizePushPreferences = (value) => ({
+    messagesEnabled: normalizePushPreferenceFlag(
+        value?.messagesEnabled ?? value?.messages_enabled,
+        DEFAULT_PUSH_PREFERENCES.messagesEnabled,
+    ),
+    streakEnabled: normalizePushPreferenceFlag(
+        value?.streakEnabled ?? value?.streak_enabled,
+        DEFAULT_PUSH_PREFERENCES.streakEnabled,
+    ),
+    reengagementEnabled: normalizePushPreferenceFlag(
+        value?.reengagementEnabled ?? value?.reengagement_enabled,
+        DEFAULT_PUSH_PREFERENCES.reengagementEnabled,
+    ),
+});
 
 const decodeJwtPayload = (token) => {
     if (typeof token !== 'string') return null;
@@ -3940,6 +3966,79 @@ export const dismissUserNotification = async (id) => {
     return { message: 'Notification dismissed' };
 };
 
+export const getPushPreferences = async () => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('user_push_preferences')
+        .select('messages_enabled, streak_enabled, reengagement_enabled')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') _sbThrow(error);
+    return normalizePushPreferences(data);
+};
+
+export const updatePushPreferences = async (preferences) => {
+    const userId = await getAppUserId();
+    const normalized = normalizePushPreferences(preferences);
+    const { data, error } = await supabase
+        .from('user_push_preferences')
+        .upsert({
+            user_id: userId,
+            messages_enabled: normalized.messagesEnabled,
+            streak_enabled: normalized.streakEnabled,
+            reengagement_enabled: normalized.reengagementEnabled,
+        }, {
+            onConflict: 'user_id',
+        })
+        .select('messages_enabled, streak_enabled, reengagement_enabled')
+        .single();
+
+    if (error) _sbThrow(error);
+    return normalizePushPreferences(data);
+};
+
+export const upsertPushDevice = async ({
+    installationId,
+    platform = 'ios',
+    pushToken,
+}) => {
+    const normalizedInstallationId = String(installationId || '').trim();
+    const normalizedPlatform = String(platform || '').trim().toLowerCase() || 'ios';
+    const normalizedPushToken = String(pushToken || '').trim();
+
+    if (!normalizedInstallationId) {
+        throw new Error('installationId is required');
+    }
+
+    if (!normalizedPushToken) {
+        throw new Error('pushToken is required');
+    }
+
+    const { error } = await supabase.rpc('upsert_user_push_device', {
+        installation_id_param: normalizedInstallationId,
+        platform_param: normalizedPlatform,
+        push_token_param: normalizedPushToken,
+    });
+
+    if (error) _sbThrow(error);
+    return { message: 'Push device registered' };
+};
+
+export const deactivatePushDevice = async (installationId) => {
+    const normalizedInstallationId = String(installationId || '').trim();
+    if (!normalizedInstallationId) {
+        return { message: 'No push installation to deactivate' };
+    }
+
+    const { error } = await supabase.rpc('deactivate_user_push_device', {
+        installation_id_param: normalizedInstallationId,
+    });
+
+    if (error) _sbThrow(error);
+    return { message: 'Push device deactivated' };
+};
+
 // ============ 2FA ENDPOINTS ============
 
 export const getActiveTwoFactorProvider = async () => {
@@ -4275,6 +4374,10 @@ export default {
     dismissMessage,
     getUserNotifications,
     dismissUserNotification,
+    getPushPreferences,
+    updatePushPreferences,
+    upsertPushDevice,
+    deactivatePushDevice,
     getGroups,
     createGroup,
     getGroup,

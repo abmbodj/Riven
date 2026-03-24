@@ -3,11 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 
-vi.mock('@capacitor/core', () => ({
-    Capacitor: {
-        isNativePlatform: () => false,
-    },
-}));
+vi.mock('@capacitor/core', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        Capacitor: {
+            ...actual.Capacitor,
+            isNativePlatform: () => false,
+            getPlatform: () => 'web',
+        },
+        registerPlugin: vi.fn(() => ({})),
+    };
+});
 
 const {
     restoreSessionUserMock,

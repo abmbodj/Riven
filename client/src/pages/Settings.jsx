@@ -14,6 +14,7 @@ import PricingModal from '../components/ui/PricingModal';
 import { useRevenueCat } from '../hooks/useRevenueCat';
 import { canvasIcalUrlSchema, referralCodeSchema } from '../schemas/forms';
 import { checkNotificationPermissions, requestNotificationPermissions, scheduleAssignmentNotifications } from '../utils/notifications';
+import { checkPushPermissions, isNativeIos, registerPushNotifications, requestPushPermissions } from '../utils/pushNotifications.js';
 
 
 const containerVariants = {
@@ -43,6 +44,11 @@ const AI_CAPABILITIES = [
     'YouTube study imports',
     'Audio note enhancement',
 ];
+const DEFAULT_REMOTE_PUSH_PREFERENCES = Object.freeze({
+    messagesEnabled: true,
+    streakEnabled: true,
+    reengagementEnabled: true,
+});
 
 const SettingItem = ({ icon: IconComponent, title, description, onClick, destructive = false, toggle = null, toggleValue = false, noBorder = false, badge = null, disabled = false }) => (
     <button
@@ -225,9 +231,16 @@ const QuickJumpButton = ({ icon: IconComponent, label, meta, onClick, tone = 'de
 };
 
 export default function Settings() {
-    const { user, signOut, refreshUser } = useAuth();
+    const {
+        user,
+        signOut,
+        refreshUser,
+        getPushPreferences,
+        updatePushPreferences,
+    } = useAuth();
     const rc = useRevenueCat();
     const isPremium = user?.subscription_tier === 'supporter' || user?.subscription_tier === 'lifetime';
+    const remotePushAvailable = isNativeIos();
     const navigate = useNavigate();
     const toast = useToast();
     const haptics = useHaptics();
@@ -268,6 +281,10 @@ export default function Settings() {
         const saved = localStorage.getItem('notifications_enabled');
         return saved === null ? true : saved === 'true';
     });
+    const [remotePushPreferences, setRemotePushPreferences] = useState(DEFAULT_REMOTE_PUSH_PREFERENCES);
+    const [pushPermissionGranted, setPushPermissionGranted] = useState(false);
+    const [pushPreferencesLoading, setPushPreferencesLoading] = useState(remotePushAvailable);
+    const [savingPushPreference, setSavingPushPreference] = useState(null);
 
 
     const hasCanvasUrl = canvasForm.url.trim().length > 0;
@@ -325,10 +342,31 @@ export default function Settings() {
                     localStorage.setItem('notifications_enabled', 'false');
                 }
             }
+
+            if (remotePushAvailable) {
+                try {
+                    const [preferences, hasPushPermission] = await Promise.all([
+                        getPushPreferences(),
+                        checkPushPermissions(),
+                    ]);
+
+                    setRemotePushPreferences({
+                        ...DEFAULT_REMOTE_PUSH_PREFERENCES,
+                        ...preferences,
+                    });
+                    setPushPermissionGranted(hasPushPermission);
+                } catch (error) {
+                    console.warn('[Settings] Failed to load push preferences:', error);
+                } finally {
+                    setPushPreferencesLoading(false);
+                }
+            } else {
+                setPushPreferencesLoading(false);
+            }
         };
 
         loadSettings();
-    }, []);
+    }, [getPushPreferences, notificationsEnabled, remotePushAvailable]);
 
     const handleConnectCanvas = async () => {
         const result = canvasIcalUrlSchema.safeParse(canvasForm.url.trim());
@@ -481,12 +519,59 @@ export default function Settings() {
         }
     };
 
-    const handleSignOut = () => {
+    const handleSignOut = async () => {
         haptics.medium();
-        signOut();
+        await signOut();
         toast.success('Signed out');
         navigate('/');
     };
+
+    const handleToggleRemotePushPreference = useCallback(async (preferenceKey, labels) => {
+        if (!remotePushAvailable || pushPreferencesLoading || savingPushPreference) {
+            return;
+        }
+
+        haptics.light();
+        const currentValue = Boolean(remotePushPreferences[preferenceKey]);
+        const nextPreferences = {
+            ...remotePushPreferences,
+            [preferenceKey]: !currentValue,
+        };
+
+        if (!currentValue) {
+            const granted = await requestPushPermissions();
+            setPushPermissionGranted(granted);
+
+            if (!granted) {
+                toast.error('Allow iPhone notifications in Settings to enable remote alerts.');
+                return;
+            }
+
+            await registerPushNotifications().catch(() => false);
+        }
+
+        setSavingPushPreference(preferenceKey);
+        try {
+            const savedPreferences = await updatePushPreferences(nextPreferences);
+            setRemotePushPreferences({
+                ...DEFAULT_REMOTE_PUSH_PREFERENCES,
+                ...savedPreferences,
+            });
+            toast.show(!currentValue ? labels.enabledToast : labels.disabledToast);
+        } catch (error) {
+            toast.error(error.message || 'Failed to update remote push settings.');
+        } finally {
+            setSavingPushPreference(null);
+        }
+    }, [
+        haptics,
+        pushPreferencesLoading,
+        remotePushAvailable,
+        remotePushPreferences,
+        savingPushPreference,
+        toast,
+        updatePushPreferences,
+    ]);
 
     const openModal = (name) => {
         haptics.light();
@@ -538,6 +623,30 @@ export default function Settings() {
         haptics.light();
         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, [haptics]);
+
+    const remotePushStatus = !remotePushAvailable
+        ? {
+            tone: 'info',
+            title: 'iPhone app only',
+            detail: 'Remote pushes for messages, streak rescue, and comeback nudges are available in the native iOS app.',
+        }
+        : pushPreferencesLoading
+            ? {
+                tone: 'info',
+                title: 'Checking push status',
+                detail: 'Riven is loading your iPhone push preferences.',
+            }
+            : pushPermissionGranted
+                ? {
+                    tone: 'success',
+                    title: 'Remote push ready',
+                    detail: 'Message alerts, streak rescue, and comeback nudges can reach this iPhone when their toggles are on.',
+                }
+                : {
+                    tone: 'info',
+                    title: 'Permission needed',
+                    detail: 'Allow iPhone notifications to receive direct messages, garden streak rescue, and comeback nudges.',
+                };
 
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text pb-24 font-sans">
@@ -1011,12 +1120,19 @@ export default function Settings() {
                                 <SectionHeader
                                     eyebrow="Preferences"
                                     title="Notifications"
-                                    description="Control reminders and system alerts."
+                                    description="Control assignment reminders and remote iPhone pushes."
                                 />
                                 <SectionCard className="overflow-hidden">
+                                    <div className="px-4 py-4 sm:px-5">
+                                        <StatusNotice
+                                            tone={remotePushStatus.tone}
+                                            title={remotePushStatus.title}
+                                            detail={remotePushStatus.detail}
+                                        />
+                                    </div>
                                     <SettingItem
                                         icon={Bell}
-                                        title="Notifications"
+                                        title="Assignment reminders"
                                         description="Assignment reminders at 24h, 12h, 3h, 1h & 30m"
                                         badge={notificationsEnabled ? "On" : "Off"}
                                         toggle={true}
@@ -1048,9 +1164,47 @@ export default function Settings() {
                                                 toast.show('Notifications disabled');
                                             }
                                         }}
+                                    />
+                                    <SettingItem
+                                        icon={MessageSquare}
+                                        title="Messages"
+                                        description="Preview new direct messages on your lock screen"
+                                        badge={savingPushPreference === 'messagesEnabled' ? 'Saving' : (pushPermissionGranted && remotePushPreferences.messagesEnabled ? 'On' : 'Off')}
+                                        toggle={true}
+                                        toggleValue={pushPermissionGranted && remotePushPreferences.messagesEnabled}
+                                        onClick={() => handleToggleRemotePushPreference('messagesEnabled', {
+                                            enabledToast: 'Message push alerts enabled',
+                                            disabledToast: 'Message push alerts paused',
+                                        })}
+                                        disabled={!remotePushAvailable || pushPreferencesLoading || Boolean(savingPushPreference)}
+                                    />
+                                    <SettingItem
+                                        icon={Leaf}
+                                        title="Garden streak rescue"
+                                        description="Get one nudge before a live streak slips past the 48-hour window"
+                                        badge={savingPushPreference === 'streakEnabled' ? 'Saving' : (pushPermissionGranted && remotePushPreferences.streakEnabled ? 'On' : 'Off')}
+                                        toggle={true}
+                                        toggleValue={pushPermissionGranted && remotePushPreferences.streakEnabled}
+                                        onClick={() => handleToggleRemotePushPreference('streakEnabled', {
+                                            enabledToast: 'Garden streak rescue enabled',
+                                            disabledToast: 'Garden streak rescue paused',
+                                        })}
+                                        disabled={!remotePushAvailable || pushPreferencesLoading || Boolean(savingPushPreference)}
+                                    />
+                                    <SettingItem
+                                        icon={RefreshCw}
+                                        title="Come back nudges"
+                                        description="Gentle re-engagement reminders after 3, 7, and 14 inactive days"
+                                        badge={savingPushPreference === 'reengagementEnabled' ? 'Saving' : (pushPermissionGranted && remotePushPreferences.reengagementEnabled ? 'On' : 'Off')}
+                                        toggle={true}
+                                        toggleValue={pushPermissionGranted && remotePushPreferences.reengagementEnabled}
+                                        onClick={() => handleToggleRemotePushPreference('reengagementEnabled', {
+                                            enabledToast: 'Come back nudges enabled',
+                                            disabledToast: 'Come back nudges paused',
+                                        })}
+                                        disabled={!remotePushAvailable || pushPreferencesLoading || Boolean(savingPushPreference)}
                                         noBorder={true}
                                     />
-
                                 </SectionCard>
                             </motion.div>
 

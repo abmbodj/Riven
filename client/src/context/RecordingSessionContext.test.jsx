@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,9 +20,10 @@ const {
   return {
     appStateListeners: listeners,
     liveActivityMock: {
-      start: vi.fn(async () => ({ activityId: 'live-activity-1' })),
-      update: vi.fn(async () => ({})),
-      stop: vi.fn(async () => ({})),
+      isAvailable: vi.fn(async () => ({ value: true })),
+      startActivity: vi.fn(async () => ({})),
+      updateActivity: vi.fn(async () => ({})),
+      endActivity: vi.fn(async () => ({})),
     },
     recorderStore: store,
     voiceRecorderMock: {
@@ -129,16 +131,27 @@ class MockMediaRecorder {
 
 function NoteRouteHarness() {
   const navigate = useNavigate();
+  const [noteTitle, setNoteTitle] = useState('Biology Lecture');
   const recorder = useRecordingSession({
     noteId: 'note-42',
-    noteTitle: 'Biology Lecture',
+    noteTitle,
   });
 
   return (
     <div>
       <div data-testid="note-state">{recorder.state}</div>
+      <div data-testid="note-title">{noteTitle}</div>
       <button type="button" onClick={() => recorder.start('note-42', 'Biology Lecture')}>
         Start recording
+      </button>
+      <button type="button" onClick={() => recorder.stop()}>
+        Stop recording
+      </button>
+      <button type="button" onClick={() => recorder.reset()}>
+        Reset recording
+      </button>
+      <button type="button" onClick={() => setNoteTitle('Chemistry Lecture')}>
+        Rename note
       </button>
       <button type="button" onClick={() => navigate('/classes')}>
         Go classes
@@ -170,6 +183,11 @@ function renderHarness(initialEntries = ['/note/note-42']) {
   );
 }
 
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe('RecordingSessionProvider', () => {
   beforeEach(() => {
     capacitorState.native = false;
@@ -178,9 +196,10 @@ describe('RecordingSessionProvider', () => {
     localStorage.clear();
     MockMediaRecorder.instances = [];
     mediaDevicesMock.getUserMedia.mockClear();
-    liveActivityMock.start.mockClear();
-    liveActivityMock.update.mockClear();
-    liveActivityMock.stop.mockClear();
+    liveActivityMock.isAvailable.mockClear();
+    liveActivityMock.startActivity.mockClear();
+    liveActivityMock.updateActivity.mockClear();
+    liveActivityMock.endActivity.mockClear();
     voiceRecorderMock.hasAudioRecordingPermission.mockClear();
     voiceRecorderMock.requestAudioRecordingPermission.mockClear();
     voiceRecorderMock.startRecording.mockClear();
@@ -203,6 +222,7 @@ describe('RecordingSessionProvider', () => {
 
   afterEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
   });
 
   it('keeps the recording session alive across route changes', async () => {
@@ -270,6 +290,136 @@ describe('RecordingSessionProvider', () => {
 
     await waitFor(() => {
       expect(recorderStore.some((entry) => entry.noteId === 'note-42')).toBe(true);
+    });
+  });
+
+  it('starts a native live activity with a stable id and does not update it every second', async () => {
+    capacitorState.native = true;
+    vi.useFakeTimers();
+
+    renderHarness();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+      await flushMicrotasks();
+    });
+
+    expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    expect(liveActivityMock.startActivity).toHaveBeenCalledWith({
+      id: 'active-note-recording',
+      attributes: {
+        kind: 'noteRecording',
+        noteId: 'note-42',
+      },
+      contentState: expect.objectContaining({
+        noteTitle: 'Biology Lecture',
+        status: 'Recording note',
+        startedAt: expect.any(String),
+      }),
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+      await flushMicrotasks();
+    });
+
+    expect(liveActivityMock.updateActivity).not.toHaveBeenCalled();
+  });
+
+  it('updates the native live activity when the active note title changes', async () => {
+    capacitorState.native = true;
+
+    renderHarness();
+
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /rename note/i }));
+
+    await waitFor(() => {
+      expect(liveActivityMock.updateActivity).toHaveBeenCalledWith({
+        id: 'active-note-recording',
+        attributes: {
+          kind: 'noteRecording',
+          noteId: 'note-42',
+        },
+        contentState: expect.objectContaining({
+          noteTitle: 'Chemistry Lecture',
+          status: 'Recording note',
+          startedAt: expect.any(String),
+        }),
+      });
+    });
+  });
+
+  it('ends the native live activity when recording stops or resets', async () => {
+    capacitorState.native = true;
+
+    renderHarness();
+
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    });
+
+    liveActivityMock.endActivity.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /stop recording/i }));
+
+    await waitFor(() => {
+      expect(liveActivityMock.endActivity).toHaveBeenCalledWith({
+        id: 'active-note-recording',
+        attributes: {
+          kind: 'noteRecording',
+          noteId: 'note-42',
+        },
+        contentState: expect.objectContaining({
+          noteTitle: 'Biology Lecture',
+          status: 'Recording note',
+          startedAt: expect.any(String),
+        }),
+      });
+    });
+
+    liveActivityMock.endActivity.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    });
+
+    liveActivityMock.endActivity.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /reset recording/i }));
+
+    await waitFor(() => {
+      expect(liveActivityMock.endActivity).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('ends the native live activity when stopping the recorder fails', async () => {
+    capacitorState.native = true;
+    voiceRecorderMock.stopRecording.mockRejectedValueOnce(new Error('stop failed'));
+
+    renderHarness();
+
+    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
+    });
+
+    liveActivityMock.endActivity.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /stop recording/i }));
+
+    await waitFor(() => {
+      expect(liveActivityMock.endActivity).toHaveBeenCalledTimes(1);
     });
   });
 });

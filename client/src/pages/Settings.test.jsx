@@ -15,6 +15,18 @@ const { mockUser, mockToast } = vi.hoisted(() => ({
   },
 }));
 
+const {
+  mockSignOut,
+  mockRefreshUser,
+  mockGetPushPreferences,
+  mockUpdatePushPreferences,
+} = vi.hoisted(() => ({
+  mockSignOut: vi.fn(),
+  mockRefreshUser: vi.fn(),
+  mockGetPushPreferences: vi.fn(),
+  mockUpdatePushPreferences: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   api: {
     getCanvasSettings: vi.fn(),
@@ -31,8 +43,10 @@ vi.mock('../api', () => ({
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
-    signOut: vi.fn(),
-    refreshUser: vi.fn(),
+    signOut: mockSignOut,
+    refreshUser: mockRefreshUser,
+    getPushPreferences: mockGetPushPreferences,
+    updatePushPreferences: mockUpdatePushPreferences,
     user: mockUser,
   }),
 }));
@@ -78,7 +92,15 @@ vi.mock('../utils/notifications', () => ({
   scheduleAssignmentNotifications: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../utils/pushNotifications.js', () => ({
+  isNativeIos: vi.fn().mockReturnValue(true),
+  checkPushPermissions: vi.fn().mockResolvedValue(false),
+  requestPushPermissions: vi.fn().mockResolvedValue(true),
+  registerPushNotifications: vi.fn().mockResolvedValue(true),
+}));
+
 const { api } = await import('../api');
+const pushNotifications = await import('../utils/pushNotifications.js');
 
 const renderSettings = () => render(
   <MemoryRouter>
@@ -91,6 +113,18 @@ beforeEach(() => {
   window.scrollTo = vi.fn();
   mockUser.subscription_tier = 'supporter';
   mockUser.twoFAEnabled = false;
+  mockSignOut.mockResolvedValue(undefined);
+  mockRefreshUser.mockResolvedValue(mockUser);
+  mockGetPushPreferences.mockResolvedValue({
+    messagesEnabled: true,
+    streakEnabled: true,
+    reengagementEnabled: true,
+  });
+  mockUpdatePushPreferences.mockImplementation(async (preferences) => preferences);
+  pushNotifications.isNativeIos.mockReturnValue(true);
+  pushNotifications.checkPushPermissions.mockResolvedValue(false);
+  pushNotifications.requestPushPermissions.mockResolvedValue(true);
+  pushNotifications.registerPushNotifications.mockResolvedValue(true);
   api.getCanvasSettings.mockResolvedValue({
     isConnected: false,
     canvasUrl: '',
@@ -124,6 +158,7 @@ describe('Settings LMS sync', () => {
     await waitFor(() => {
       expect(api.getCanvasSettings).toHaveBeenCalled();
       expect(api.getAILimits).toHaveBeenCalled();
+      expect(mockGetPushPreferences).toHaveBeenCalled();
     });
 
     expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
@@ -134,6 +169,9 @@ describe('Settings LMS sync', () => {
     expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /riven ai/i })).toBeInTheDocument();
     expect(screen.getByText(/assignment reminders at 24h, 12h, 3h, 1h & 30m/i)).toBeInTheDocument();
+    expect(screen.getByText('Messages')).toBeInTheDocument();
+    expect(screen.getByText('Garden streak rescue')).toBeInTheDocument();
+    expect(screen.getByText('Come back nudges')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Workspace snapshot' })).not.toBeInTheDocument();
     expect(screen.queryByText('Control center')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Theme & atmosphere' })).not.toBeInTheDocument();
@@ -243,6 +281,29 @@ describe('Settings LMS sync', () => {
     });
 
     expect(await screen.findByText(/canvas will stay connected, but new imports will wait for a manual sync/i)).toBeInTheDocument();
+  });
+
+  it('requests iPhone push permission before enabling message pushes', async () => {
+    mockGetPushPreferences.mockResolvedValue({
+      messagesEnabled: false,
+      streakEnabled: true,
+      reengagementEnabled: true,
+    });
+
+    renderSettings();
+
+    const messagesToggle = await screen.findByText('Messages');
+    fireEvent.click(messagesToggle.closest('button'));
+
+    await waitFor(() => {
+      expect(pushNotifications.requestPushPermissions).toHaveBeenCalled();
+      expect(pushNotifications.registerPushNotifications).toHaveBeenCalled();
+      expect(mockUpdatePushPreferences).toHaveBeenCalledWith({
+        messagesEnabled: true,
+        streakEnabled: true,
+        reengagementEnabled: true,
+      });
+    });
   });
 
   it('shows the current plan without the extra lifetime membership card', async () => {

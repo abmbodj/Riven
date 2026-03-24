@@ -30,6 +30,14 @@
 				<string>$(GOOGLE_IOS_URL_SCHEME)</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>RivenDeepLink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>riven</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>

@@ -11,6 +11,7 @@ vi.mock('@capacitor/core', () => ({
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
     },
@@ -39,6 +40,8 @@ describe('authApi PostgREST inserts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    supabase.from.mockReset();
+    supabase.rpc.mockReset();
     authApi.setToken(null);
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({ id: 42, email: 'test@example.com' }));
   });
@@ -122,6 +125,87 @@ describe('authApi PostgREST inserts', () => {
       day_of_week: 2,
       start_time: '09:00',
       end_time: '10:00',
+    });
+  });
+
+  it('returns default push preferences when no row exists yet', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    supabase.from.mockReturnValue({ select });
+
+    authApi.setToken('supabase-token');
+    const preferences = await authApi.getPushPreferences();
+
+    expect(select).toHaveBeenCalledWith('messages_enabled, streak_enabled, reengagement_enabled');
+    expect(eq).toHaveBeenCalledWith('user_id', 42);
+    expect(preferences).toEqual({
+      messagesEnabled: true,
+      streakEnabled: true,
+      reengagementEnabled: true,
+    });
+  });
+
+  it('upserts push preferences under the current user id', async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        messages_enabled: false,
+        streak_enabled: true,
+        reengagement_enabled: false,
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const upsert = vi.fn().mockReturnValue({ select });
+    supabase.from.mockReturnValue({ upsert });
+
+    authApi.setToken('supabase-token');
+    const preferences = await authApi.updatePushPreferences({
+      messagesEnabled: false,
+      streakEnabled: true,
+      reengagementEnabled: false,
+    });
+
+    expect(upsert).toHaveBeenCalledWith({
+      user_id: 42,
+      messages_enabled: false,
+      streak_enabled: true,
+      reengagement_enabled: false,
+    }, {
+      onConflict: 'user_id',
+    });
+    expect(preferences).toEqual({
+      messagesEnabled: false,
+      streakEnabled: true,
+      reengagementEnabled: false,
+    });
+  });
+
+  it('registers push devices through the Supabase rpc', async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    authApi.setToken('supabase-token');
+    await authApi.upsertPushDevice({
+      installationId: 'install-123',
+      platform: 'ios',
+      pushToken: 'token-abc',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('upsert_user_push_device', {
+      installation_id_param: 'install-123',
+      platform_param: 'ios',
+      push_token_param: 'token-abc',
+    });
+  });
+
+  it('deactivates push devices through the Supabase rpc', async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: null });
+
+    authApi.setToken('supabase-token');
+    await authApi.deactivatePushDevice('install-123');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('deactivate_user_push_device', {
+      installation_id_param: 'install-123',
     });
   });
 });

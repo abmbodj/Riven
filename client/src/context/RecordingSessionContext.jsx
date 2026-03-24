@@ -13,6 +13,8 @@ const CHUNK_INTERVAL_MS = 10_000;
 const MIME_TYPE = 'audio/webm;codecs=opus';
 const FALLBACK_MIME = 'audio/webm';
 const ACTIVE_SESSION_STORAGE_KEY = 'riven-active-recording-session';
+const LIVE_ACTIVITY_ID = 'active-note-recording';
+const LIVE_ACTIVITY_STATUS = 'Recording note';
 
 const INITIAL_SESSION = {
     activeNoteId: null,
@@ -140,7 +142,7 @@ export function RecordingSessionProvider({ children }) {
     const audioBlobRef = useRef(null);
     const durationTimerRef = useRef(null);
     const flushTimerRef = useRef(null);
-    const liveActivityIdRef = useRef(null);
+    const liveActivityAvailableRef = useRef(null);
     const durationRef = useRef(0);
     const recoveryLookupRef = useRef(0);
 
@@ -177,48 +179,74 @@ export function RecordingSessionProvider({ children }) {
         mediaRecorderRef.current = null;
     }, []);
 
-    const updateLiveActivity = useCallback(async (seconds) => {
-        if (!isNative || !liveActivityIdRef.current) return;
+    const isLiveActivityAvailable = useCallback(async () => {
+        if (!isNative) return false;
+        if (typeof liveActivityAvailableRef.current === 'boolean') {
+            return liveActivityAvailableRef.current;
+        }
 
         try {
-            await LiveActivity.update({
-                activityId: liveActivityIdRef.current,
-                contentState: { duration: seconds },
-            });
+            const result = await LiveActivity.isAvailable();
+            liveActivityAvailableRef.current = Boolean(result?.value);
+        } catch {
+            liveActivityAvailableRef.current = false;
+        }
+
+        return liveActivityAvailableRef.current;
+    }, [isNative]);
+
+    const buildLiveActivityPayload = useCallback((noteId, noteTitle = 'Untitled', startedAt = Date.now()) => ({
+        id: LIVE_ACTIVITY_ID,
+        attributes: {
+            kind: 'noteRecording',
+            noteId,
+        },
+        contentState: {
+            noteTitle: noteTitle || 'Untitled',
+            status: LIVE_ACTIVITY_STATUS,
+            startedAt: String(Math.floor(startedAt / 1000)),
+        },
+    }), []);
+
+    const updateLiveActivity = useCallback(async (noteId, noteTitle, startedAt) => {
+        if (!noteId || !startedAt) return;
+        if (!(await isLiveActivityAvailable())) return;
+
+        try {
+            await LiveActivity.updateActivity(
+                buildLiveActivityPayload(noteId, noteTitle, startedAt),
+            );
         } catch (error) {
             console.log('Failed to update live activity', error);
         }
-    }, [isNative]);
+    }, [buildLiveActivityPayload, isLiveActivityAvailable]);
 
-    const startLiveActivity = useCallback(async () => {
-        if (!isNative) return null;
+    const startLiveActivity = useCallback(async (noteId, noteTitle, startedAt) => {
+        if (!noteId || !startedAt) return;
+        if (!(await isLiveActivityAvailable())) return;
+
+        const payload = buildLiveActivityPayload(noteId, noteTitle, startedAt);
 
         try {
-            const { activityId } = await LiveActivity.start({
-                attributes: { type: 'audioRecording', title: 'Recording Note' },
-                contentState: { duration: 0 },
-            });
-            return activityId;
+            await LiveActivity.endActivity(payload);
+            await LiveActivity.startActivity(payload);
         } catch (error) {
             console.log('Failed to start live activity', error);
-            return null;
         }
-    }, [isNative]);
+    }, [buildLiveActivityPayload, isLiveActivityAvailable]);
 
-    const stopLiveActivity = useCallback(async () => {
-        if (!isNative || !liveActivityIdRef.current) return;
+    const stopLiveActivity = useCallback(async (snapshot = sessionRef.current) => {
+        if (!snapshot?.activeNoteId || !snapshot?.startedAt) return;
+        if (!(await isLiveActivityAvailable())) return;
 
         try {
-            await LiveActivity.stop({
-                activityId: liveActivityIdRef.current,
-                finalContentState: { duration: durationRef.current },
-            });
+            await LiveActivity.endActivity(
+                buildLiveActivityPayload(snapshot.activeNoteId, snapshot.activeNoteTitle, snapshot.startedAt),
+            );
         } catch (error) {
             console.log('Failed to stop live activity', error);
-        } finally {
-            liveActivityIdRef.current = null;
         }
-    }, [isNative]);
+    }, [buildLiveActivityPayload, isLiveActivityAvailable]);
 
     const persistRecordingState = useCallback((snapshot = sessionRef.current) => {
         if (snapshot.state === 'recording' && snapshot.activeNoteId) {
@@ -235,7 +263,6 @@ export function RecordingSessionProvider({ children }) {
 
     const updateDuration = useCallback((seconds, startedAt = sessionRef.current.startedAt) => {
         durationRef.current = seconds;
-        void updateLiveActivity(seconds);
 
         setSessionSnapshot((prev) => {
             if (prev.duration === seconds && prev.startedAt === startedAt) {
@@ -337,10 +364,14 @@ export function RecordingSessionProvider({ children }) {
             sessionRef.current = nextSnapshot;
             setSession(nextSnapshot);
             persistRecordingState(nextSnapshot);
+
+            if (nextSnapshot.state === 'recording' && nextSnapshot.startedAt) {
+                void updateLiveActivity(nextSnapshot.activeNoteId, safeTitle, nextSnapshot.startedAt);
+            }
         }
 
         await hydrateRecoveryState(noteId);
-    }, [hydrateRecoveryState, persistRecordingState]);
+    }, [hydrateRecoveryState, persistRecordingState, setSession, updateLiveActivity]);
 
     const setAudioPath = useCallback((audioPath) => {
         setSessionSnapshot((prev) => {
@@ -497,7 +528,7 @@ export function RecordingSessionProvider({ children }) {
             sessionRef.current = nextSnapshot;
             setSession(nextSnapshot);
             persistRecordingState(nextSnapshot);
-            liveActivityIdRef.current = await startLiveActivity();
+            await startLiveActivity(nextSnapshot.activeNoteId, nextSnapshot.activeNoteTitle, startedAt);
             startDurationTicker(startedAt);
         } catch (error) {
             releaseWebMediaResources();
@@ -667,6 +698,11 @@ export function RecordingSessionProvider({ children }) {
 
             if (!isStillRecording) {
                 clearPersistedActiveSession();
+                void stopLiveActivity({
+                    activeNoteId: persisted.activeNoteId,
+                    activeNoteTitle: persisted.activeNoteTitle || 'Untitled',
+                    startedAt: persisted.startedAt || Date.now(),
+                });
                 if (sessionRef.current.state === 'recording') {
                     stopDurationTimer();
                     setSessionSnapshot((prev) => ({
@@ -693,11 +729,12 @@ export function RecordingSessionProvider({ children }) {
             sessionRef.current = nextSnapshot;
             setSession(nextSnapshot);
             persistRecordingState(nextSnapshot);
+            void updateLiveActivity(nextSnapshot.activeNoteId, nextSnapshot.activeNoteTitle, startedAt);
             startDurationTicker(startedAt);
         } catch {
             clearPersistedActiveSession();
         }
-    }, [persistRecordingState, setSession, setSessionSnapshot, startDurationTicker, stopDurationTimer]);
+    }, [persistRecordingState, setSession, setSessionSnapshot, startDurationTicker, stopDurationTimer, stopLiveActivity, updateLiveActivity]);
 
     useEffect(() => {
         const persisted = readPersistedActiveSession();

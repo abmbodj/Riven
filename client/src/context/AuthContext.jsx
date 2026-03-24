@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as authApi from '../api/authApi';
 import { supabase } from '../lib/supabaseClient';
 import { clearOnboardingDoneClient, markOnboardingDoneClient } from '../utils/onboardingGate';
+import { getStoredPushInstallationId } from '../utils/pushNotifications.js';
 import { AuthContext, AuthActionsContext } from './authContextDef';
 
 // Re-export for convenience
@@ -178,9 +179,15 @@ export function AuthProvider({ children }) {
         return next;
     }, []);
 
-    const signOut = useCallback(() => {
+    const signOut = useCallback(async () => {
         clearOnboardingDoneClient();
-        authApi.logout().catch(console.warn);
+        const installationId = getStoredPushInstallationId();
+        if (installationId) {
+            await authApi.deactivatePushDevice(installationId).catch((error) => {
+                console.warn('[AuthContext] Failed to deactivate push device during sign out:', error);
+            });
+        }
+        await authApi.logout().catch(console.warn);
         authApi.setToken(null);
         setPendingTwoFactor(null);
         setUser(null);
@@ -259,6 +266,8 @@ export function AuthProvider({ children }) {
     const dismissMessage = useCallback((id) => authApi.dismissMessage(id), []);
     const getUserNotifications = useCallback(() => authApi.getUserNotifications(), []);
     const dismissUserNotification = useCallback((id) => authApi.dismissUserNotification(id), []);
+    const getPushPreferences = useCallback(() => authApi.getPushPreferences(), []);
+    const updatePushPreferences = useCallback((prefs) => authApi.updatePushPreferences(prefs), []);
     const adminGetUserStreakData = useCallback(() => { return null; }, []);
     const adminUpdateStreakData = useCallback(() => { return true; }, []);
 
@@ -335,6 +344,8 @@ export function AuthProvider({ children }) {
         dismissMessage,
         getUserNotifications,
         dismissUserNotification,
+        getPushPreferences,
+        updatePushPreferences,
         toggleSimulateFree
     }), [
         signIn, signUp, startGoogleOAuth, signInWithGoogle, signInWithApple, signInWith2FA, cancelPendingTwoFactor, signOut, updateProfile, changePassword,
@@ -344,7 +355,7 @@ export function AuthProvider({ children }) {
         adminDeleteMessage, adminGetFeedback, adminToggleFeedbackFavorite, adminDeleteFeedback,
         adminThankFeedback, adminGetReports, adminResolveReport, adminCloseReport,
         adminBanUser, getActiveMessages, dismissMessage, getUserNotifications,
-        dismissUserNotification, toggleSimulateFree
+        dismissUserNotification, getPushPreferences, updatePushPreferences, toggleSimulateFree
     ]);
 
     return (
