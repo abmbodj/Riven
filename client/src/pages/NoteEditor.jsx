@@ -105,6 +105,8 @@ export default function NoteEditor() {
     const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
 
     const toastRef = useRef(toast);
+    const navigateRef = useRef(navigate);
+    navigateRef.current = navigate;
     const saveTimerRef = useRef(null);
     const contentRef = useRef(content);
     const titleRef = useRef(title);
@@ -314,10 +316,10 @@ export default function NoteEditor() {
             }
 
             clearDiscardableAudioState();
-            setDiscardAudioConfirmOpen(false);
         } catch (err) {
             toast.error(err?.message || 'Failed to delete audio recording');
         } finally {
+            setDiscardAudioConfirmOpen(false);
             setDiscardingAudio(false);
         }
     }, [clearDiscardableAudioState, discardingAudio, getTrackedAudioPath, toast]);
@@ -388,13 +390,13 @@ export default function NoteEditor() {
                 }
             } catch {
                 toastRef.current.error('Failed to load note');
-                navigate('/notes');
+                navigateRef.current('/notes');
             } finally {
                 setLoading(false);
             }
         };
         load();
-    }, [id, isNew, navigate]);
+    }, [id, isNew]);
 
     useEffect(() => {
         if (recorder.state === 'stopped' && !isEnhancementJobActive(activeEnhancementJob)) {

@@ -2,17 +2,50 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// MARK: - Riven Design Tokens
+// MARK: - Riven Design Tokens (Defaults)
 
 @available(iOS 16.2, *)
-private enum RivenColors {
+private enum RivenDefaults {
     static let bgDeep    = Color(red: 0.086, green: 0.165, blue: 0.192)   // #162a31
     static let surface   = Color(red: 0.118, green: 0.220, blue: 0.251)   // #1e3840
     static let border    = Color(red: 0.137, green: 0.243, blue: 0.275)   // #233e46
     static let parchment = Color(red: 0.894, green: 0.867, blue: 0.816)   // #e4ddd0
     static let secondary = Color(red: 0.561, green: 0.651, blue: 0.659)   // #8fa6a8
     static let gold      = Color(red: 0.871, green: 0.725, blue: 0.416)   // #deb96a
-    static let forest    = Color(red: 0.478, green: 0.620, blue: 0.447)   // #7a9e72
+}
+
+/// Resolved theme colors from the activity's static attributes, with fallbacks.
+@available(iOS 16.2, *)
+private struct ThemeColors {
+    let bg: Color
+    let surface: Color
+    let text: Color
+    let secondaryText: Color
+    let border: Color
+    let accent: Color
+
+    init(from staticValues: [String: String]) {
+        self.bg            = Self.parse(staticValues["bgColor"])            ?? RivenDefaults.bgDeep
+        self.surface       = Self.parse(staticValues["surfaceColor"])       ?? RivenDefaults.surface
+        self.text          = Self.parse(staticValues["textColor"])          ?? RivenDefaults.parchment
+        self.secondaryText = Self.parse(staticValues["secondaryTextColor"]) ?? RivenDefaults.secondary
+        self.border        = Self.parse(staticValues["borderColor"])        ?? RivenDefaults.border
+        self.accent        = Self.parse(staticValues["accentColor"])        ?? RivenDefaults.gold
+    }
+
+    private static func parse(_ hex: String?) -> Color? {
+        guard let hex = hex?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !hex.isEmpty else { return nil }
+
+        let clean = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard clean.count == 6, let value = UInt64(clean, radix: 16) else { return nil }
+
+        let r = Double((value >> 16) & 0xFF) / 255.0
+        let g = Double((value >> 8)  & 0xFF) / 255.0
+        let b = Double( value        & 0xFF) / 255.0
+
+        return Color(red: r, green: g, blue: b)
+    }
 }
 
 // MARK: - Live Activity Widget
@@ -21,18 +54,20 @@ private enum RivenColors {
 struct RivenWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: GenericAttributes.self) { context in
+            let theme = ThemeColors(from: context.attributes.staticValues)
+
             // MARK: Lock Screen / Banner
             HStack(spacing: 14) {
-                // Gold glow ring with waveform icon
+                // Accent glow ring with waveform icon
                 ZStack {
                     Circle()
-                        .fill(RivenColors.gold.opacity(0.18))
+                        .fill(theme.accent.opacity(0.18))
                         .frame(width: 36, height: 36)
 
                     Circle()
                         .strokeBorder(
                             LinearGradient(
-                                colors: [RivenColors.gold, RivenColors.gold.opacity(0.3)],
+                                colors: [theme.accent, theme.accent.opacity(0.3)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
@@ -41,7 +76,7 @@ struct RivenWidgetLiveActivity: Widget {
                         .frame(width: 36, height: 36)
 
                     Image(systemName: "waveform")
-                        .foregroundStyle(RivenColors.gold)
+                        .foregroundStyle(theme.accent)
                         .font(.system(size: 15, weight: .semibold))
                 }
 
@@ -49,37 +84,39 @@ struct RivenWidgetLiveActivity: Widget {
                     Text(context.statusLabel)
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .tracking(1.2)
-                        .foregroundStyle(RivenColors.secondary)
+                        .foregroundStyle(theme.secondaryText)
                         .textCase(.uppercase)
 
                     Text(context.noteTitle)
                         .font(.system(size: 15, weight: .semibold, design: .serif))
-                        .foregroundStyle(RivenColors.parchment)
+                        .foregroundStyle(theme.text)
                         .lineLimit(1)
                 }
 
                 Spacer()
 
                 RecordingElapsedTimeText(startDate: context.startedAt)
-                    .foregroundStyle(RivenColors.gold)
+                    .foregroundStyle(theme.accent)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
-            .activityBackgroundTint(RivenColors.bgDeep)
-            .activitySystemActionForegroundColor(RivenColors.parchment)
+            .activityBackgroundTint(theme.bg)
+            .activitySystemActionForegroundColor(theme.text)
             .widgetURL(context.deepLinkURL)
 
         } dynamicIsland: { context in
+            let theme = ThemeColors(from: context.attributes.staticValues)
+
             DynamicIsland {
                 // MARK: Expanded - Leading
                 DynamicIslandExpandedRegion(.leading) {
                     ZStack {
                         Circle()
-                            .fill(RivenColors.gold.opacity(0.18))
+                            .fill(theme.accent.opacity(0.18))
                             .frame(width: 32, height: 32)
 
                         Image(systemName: "waveform")
-                            .foregroundStyle(RivenColors.gold)
+                            .foregroundStyle(theme.accent)
                             .font(.system(size: 14, weight: .semibold))
                     }
                 }
@@ -87,7 +124,7 @@ struct RivenWidgetLiveActivity: Widget {
                 // MARK: Expanded - Trailing
                 DynamicIslandExpandedRegion(.trailing) {
                     RecordingElapsedTimeText(startDate: context.startedAt)
-                        .foregroundStyle(RivenColors.gold)
+                        .foregroundStyle(theme.accent)
                 }
 
                 // MARK: Expanded - Bottom
@@ -96,21 +133,21 @@ struct RivenWidgetLiveActivity: Widget {
                         Text(context.statusLabel)
                             .font(.system(size: 10, weight: .semibold, design: .monospaced))
                             .tracking(1.0)
-                            .foregroundStyle(RivenColors.secondary)
+                            .foregroundStyle(theme.secondaryText)
                             .textCase(.uppercase)
 
                         Text(context.noteTitle)
                             .font(.system(size: 14, weight: .medium, design: .serif))
-                            .foregroundStyle(RivenColors.parchment)
+                            .foregroundStyle(theme.text)
                             .lineLimit(1)
 
-                        // Gradient separator — gold fade to teal
+                        // Gradient separator — accent fade to border
                         Rectangle()
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        RivenColors.gold.opacity(0.4),
-                                        RivenColors.border,
+                                        theme.accent.opacity(0.4),
+                                        theme.border,
                                         Color.clear
                                     ],
                                     startPoint: .leading,
@@ -126,26 +163,26 @@ struct RivenWidgetLiveActivity: Widget {
             // MARK: Compact - Leading
             } compactLeading: {
                 Image(systemName: "waveform")
-                    .foregroundStyle(RivenColors.gold)
+                    .foregroundStyle(theme.accent)
                     .font(.system(size: 12, weight: .semibold))
 
             // MARK: Compact - Trailing
             } compactTrailing: {
                 RecordingElapsedTimeText(startDate: context.startedAt, font: .caption2)
-                    .foregroundStyle(RivenColors.gold)
+                    .foregroundStyle(theme.accent)
 
             // MARK: Minimal
             } minimal: {
                 ZStack {
                     Circle()
-                        .fill(RivenColors.gold.opacity(0.15))
+                        .fill(theme.accent.opacity(0.15))
                     Image(systemName: "waveform")
-                        .foregroundStyle(RivenColors.gold)
+                        .foregroundStyle(theme.accent)
                         .font(.system(size: 11, weight: .bold))
                 }
             }
             .widgetURL(context.deepLinkURL)
-            .keylineTint(RivenColors.gold)
+            .keylineTint(theme.accent)
         }
     }
 }

@@ -1,8 +1,9 @@
-import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { LiveActivity } from 'capacitor-live-activity';
+import { ThemeContext } from './themeContext';
 
 const CHUNK_INTERVAL_MS = 10_000;
 const MIME_TYPE = 'audio/webm;codecs=opus';
@@ -73,6 +74,7 @@ function clearPersistedActiveSession() {
 }
 
 export function RecordingSessionProvider({ children }) {
+    const { activeTheme } = useContext(ThemeContext) || {};
     const [session, setSession] = useState(INITIAL_SESSION);
     const sessionRef = useRef(INITIAL_SESSION);
 
@@ -131,13 +133,21 @@ export function RecordingSessionProvider({ children }) {
         attributes: {
             kind: 'noteRecording',
             noteId,
+            ...(activeTheme && {
+                bgColor: activeTheme.bg_color,
+                surfaceColor: activeTheme.surface_color,
+                textColor: activeTheme.text_color,
+                secondaryTextColor: activeTheme.secondary_text_color,
+                borderColor: activeTheme.border_color,
+                accentColor: activeTheme.accent_color,
+            }),
         },
         contentState: {
             noteTitle: noteTitle || 'Untitled',
             status: LIVE_ACTIVITY_STATUS,
             startedAt: String(Math.floor(startedAt / 1000)),
         },
-    }), []);
+    }), [activeTheme]);
 
     const updateLiveActivity = useCallback(async (noteId, noteTitle, startedAt) => {
         if (!noteId || !startedAt) return;
