@@ -33,14 +33,6 @@ export function useRecordingSession(options = {}) {
         context.start(targetNoteId, targetNoteTitle || 'Untitled')
     ), [context, noteId, noteTitle]);
 
-    const recover = useCallback((targetNoteId = noteId, targetNoteTitle = noteTitle) => (
-        context.recover(targetNoteId, targetNoteTitle || 'Untitled')
-    ), [context, noteId, noteTitle]);
-
-    const discardRecovery = useCallback((targetNoteId = noteId) => (
-        context.discardRecovery(targetNoteId)
-    ), [context, noteId]);
-
     const getBlob = useCallback(() => {
         if (noteId && !isActiveNote) {
             return null;
@@ -54,9 +46,6 @@ export function useRecordingSession(options = {}) {
     const scopedError = noteId && !isActiveNote ? null : context.error;
     const scopedStartedAt = noteId && !isActiveNote ? null : context.startedAt;
     const scopedAudioPath = noteId && !isActiveNote ? null : context.audioPath;
-    const scopedHasRecoveryData = noteId
-        ? context.hasRecoveryData && context.recoveryNoteId === noteId
-        : context.hasRecoveryData;
 
     return useMemo(() => ({
         ...context,
@@ -65,27 +54,21 @@ export function useRecordingSession(options = {}) {
         error: scopedError,
         startedAt: scopedStartedAt,
         audioPath: scopedAudioPath,
-        hasRecoveryData: scopedHasRecoveryData,
         isActiveNote,
         isAnotherNoteRecording,
         start,
-        recover,
-        discardRecovery,
         getBlob,
         goToActiveNote,
         globalState: context.state,
     }), [
         context,
-        discardRecovery,
         getBlob,
         goToActiveNote,
         isActiveNote,
         isAnotherNoteRecording,
-        recover,
         scopedAudioPath,
         scopedDuration,
         scopedError,
-        scopedHasRecoveryData,
         scopedStartedAt,
         scopedState,
         start,

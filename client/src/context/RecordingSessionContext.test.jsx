@@ -8,14 +8,11 @@ import useRecordingSession from '../hooks/useRecordingSession.js';
 const {
   appStateListeners,
   liveActivityMock,
-  recorderStore,
   voiceRecorderMock,
   capacitorState,
   mediaDevicesMock,
-  resetRecorderStore,
 } = vi.hoisted(() => {
   const listeners = [];
-  const store = [];
 
   return {
     appStateListeners: listeners,
@@ -25,7 +22,6 @@ const {
       updateActivity: vi.fn(async () => ({})),
       endActivity: vi.fn(async () => ({})),
     },
-    recorderStore: store,
     voiceRecorderMock: {
       hasAudioRecordingPermission: vi.fn(async () => ({ value: true })),
       requestAudioRecordingPermission: vi.fn(async () => ({ value: true })),
@@ -40,9 +36,6 @@ const {
       getUserMedia: vi.fn(async () => ({
         getTracks: () => [{ stop: vi.fn() }],
       })),
-    },
-    resetRecorderStore: () => {
-      store.splice(0, store.length);
     },
   };
 });
@@ -77,30 +70,6 @@ vi.mock('capacitor-live-activity', () => ({
   LiveActivity: liveActivityMock,
 }));
 
-vi.mock('idb', () => ({
-  openDB: vi.fn(async () => ({
-    objectStoreNames: {
-      contains: () => true,
-    },
-    createObjectStore: vi.fn(),
-    transaction: () => ({
-      store: {
-        getAll: vi.fn(async () => recorderStore.map((entry) => ({ ...entry }))),
-        add: vi.fn(async (entry) => {
-          recorderStore.push({ ...entry, id: recorderStore.length + 1 });
-        }),
-        delete: vi.fn(async (id) => {
-          const index = recorderStore.findIndex((entry) => entry.id === id);
-          if (index >= 0) {
-            recorderStore.splice(index, 1);
-          }
-        }),
-      },
-      done: Promise.resolve(),
-    }),
-    getAll: vi.fn(async () => recorderStore.map((entry) => ({ ...entry }))),
-  })),
-}));
 
 class MockMediaRecorder {
   static instances = [];
@@ -191,7 +160,6 @@ async function flushMicrotasks() {
 describe('RecordingSessionProvider', () => {
   beforeEach(() => {
     capacitorState.native = false;
-    resetRecorderStore();
     appStateListeners.splice(0, appStateListeners.length);
     localStorage.clear();
     MockMediaRecorder.instances = [];
@@ -271,26 +239,6 @@ describe('RecordingSessionProvider', () => {
     });
 
     expect(screen.getByTestId('global-session')).toHaveTextContent('idle:none');
-  });
-
-  it('flushes pending web chunks on pagehide', async () => {
-    renderHarness();
-
-    fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('note-state')).toHaveTextContent('recording');
-    });
-
-    await act(async () => {
-      MockMediaRecorder.instances[0].emitChunk('pending chunk');
-      window.dispatchEvent(new Event('pagehide'));
-      await Promise.resolve();
-    });
-
-    await waitFor(() => {
-      expect(recorderStore.some((entry) => entry.noteId === 'note-42')).toBe(true);
-    });
   });
 
   it('starts a native live activity with a stable id and does not update it every second', async () => {

@@ -1,14 +1,9 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { openDB } from 'idb';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { LiveActivity } from 'capacitor-live-activity';
 
-const AUDIO_DB_NAME = 'riven-audio';
-const AUDIO_DB_VERSION = 1;
-const CHUNKS_STORE = 'audioChunks';
-const FLUSH_INTERVAL_MS = 5 * 60 * 1000;
 const CHUNK_INTERVAL_MS = 10_000;
 const MIME_TYPE = 'audio/webm;codecs=opus';
 const FALLBACK_MIME = 'audio/webm';
@@ -23,22 +18,10 @@ const INITIAL_SESSION = {
     duration: 0,
     startedAt: null,
     error: null,
-    hasRecoveryData: false,
-    recoveryNoteId: null,
     audioPath: null,
 };
 
 export const RecordingSessionContext = createContext(null);
-
-function getAudioDB() {
-    return openDB(AUDIO_DB_NAME, AUDIO_DB_VERSION, {
-        upgrade(db) {
-            if (!db.objectStoreNames.contains(CHUNKS_STORE)) {
-                db.createObjectStore(CHUNKS_STORE, { keyPath: 'id', autoIncrement: true });
-            }
-        },
-    });
-}
 
 function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
     const byteCharacters = atob(b64Data);
@@ -56,49 +39,6 @@ function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
     }
 
     return new Blob(byteArrays, { type: contentType });
-}
-
-async function storeChunks(noteId, chunks) {
-    if (!noteId) return;
-
-    const db = await getAudioDB();
-    const tx = db.transaction(CHUNKS_STORE, 'readwrite');
-    const all = await tx.store.getAll();
-
-    for (const entry of all) {
-        if (entry.noteId === noteId) {
-            await tx.store.delete(entry.id);
-        }
-    }
-
-    for (const chunk of chunks) {
-        await tx.store.add({ noteId, blob: chunk, timestamp: Date.now() });
-    }
-
-    await tx.done;
-}
-
-async function getStoredChunks(noteId) {
-    if (!noteId) return [];
-    const db = await getAudioDB();
-    const all = await db.getAll(CHUNKS_STORE);
-    return all.filter((entry) => entry.noteId === noteId);
-}
-
-async function clearStoredChunks(noteId) {
-    if (!noteId) return;
-
-    const db = await getAudioDB();
-    const tx = db.transaction(CHUNKS_STORE, 'readwrite');
-    const all = await tx.store.getAll();
-
-    for (const entry of all) {
-        if (entry.noteId === noteId) {
-            await tx.store.delete(entry.id);
-        }
-    }
-
-    await tx.done;
 }
 
 function readPersistedActiveSession() {
@@ -141,10 +81,8 @@ export function RecordingSessionProvider({ children }) {
     const chunksRef = useRef([]);
     const audioBlobRef = useRef(null);
     const durationTimerRef = useRef(null);
-    const flushTimerRef = useRef(null);
     const liveActivityAvailableRef = useRef(null);
     const durationRef = useRef(0);
-    const recoveryLookupRef = useRef(0);
 
     const isNative = Capacitor.isNativePlatform();
 
@@ -160,13 +98,6 @@ export function RecordingSessionProvider({ children }) {
         if (durationTimerRef.current) {
             window.clearInterval(durationTimerRef.current);
             durationTimerRef.current = null;
-        }
-    }, []);
-
-    const stopFlushTimer = useCallback(() => {
-        if (flushTimerRef.current) {
-            window.clearInterval(flushTimerRef.current);
-            flushTimerRef.current = null;
         }
     }, []);
 
@@ -294,61 +225,13 @@ export function RecordingSessionProvider({ children }) {
         chunksRef.current = [];
         durationRef.current = 0;
         stopDurationTimer();
-        stopFlushTimer();
         clearPersistedActiveSession();
 
         setSessionSnapshot((prev) => {
-            const base = {
-                ...INITIAL_SESSION,
-                recoveryNoteId: prev.recoveryNoteId,
-                hasRecoveryData: prev.hasRecoveryData,
-            };
-
+            const base = { ...INITIAL_SESSION };
             return typeof updater === 'function' ? updater(base, prev) : base;
         });
-    }, [setSessionSnapshot, stopDurationTimer, stopFlushTimer]);
-
-    const hydrateRecoveryState = useCallback(async (noteId) => {
-        if (!noteId) return;
-
-        const lookupId = recoveryLookupRef.current + 1;
-        recoveryLookupRef.current = lookupId;
-
-        try {
-            const storedChunks = await getStoredChunks(noteId);
-            if (recoveryLookupRef.current !== lookupId) {
-                return;
-            }
-
-            const hasRecoveryForNote = storedChunks.length > 0
-                && !(sessionRef.current.state === 'recording' && sessionRef.current.activeNoteId === noteId);
-
-            setSessionSnapshot((prev) => {
-                const nextRecoveryNoteId = hasRecoveryForNote
-                    ? noteId
-                    : prev.recoveryNoteId === noteId
-                        ? null
-                        : prev.recoveryNoteId;
-                const nextHasRecoveryData = hasRecoveryForNote
-                    ? true
-                    : prev.recoveryNoteId === noteId
-                        ? false
-                        : prev.hasRecoveryData;
-
-                if (prev.recoveryNoteId === nextRecoveryNoteId && prev.hasRecoveryData === nextHasRecoveryData) {
-                    return prev;
-                }
-
-                return {
-                    ...prev,
-                    recoveryNoteId: nextRecoveryNoteId,
-                    hasRecoveryData: nextHasRecoveryData,
-                };
-            });
-        } catch {
-            // Ignore IndexedDB read failures.
-        }
-    }, [setSessionSnapshot]);
+    }, [setSessionSnapshot, stopDurationTimer]);
 
     const syncNoteContext = useCallback(async (noteId, noteTitle = 'Untitled') => {
         if (!noteId) return;
@@ -369,9 +252,7 @@ export function RecordingSessionProvider({ children }) {
                 void updateLiveActivity(nextSnapshot.activeNoteId, safeTitle, nextSnapshot.startedAt);
             }
         }
-
-        await hydrateRecoveryState(noteId);
-    }, [hydrateRecoveryState, persistRecordingState, setSession, updateLiveActivity]);
+    }, [persistRecordingState, setSession, updateLiveActivity]);
 
     const setAudioPath = useCallback((audioPath) => {
         setSessionSnapshot((prev) => {
@@ -386,9 +267,8 @@ export function RecordingSessionProvider({ children }) {
         });
     }, [setSessionSnapshot]);
 
-    const finalizeStoppedSession = useCallback((noteId) => {
+    const finalizeStoppedSession = useCallback(() => {
         stopDurationTimer();
-        stopFlushTimer();
         clearPersistedActiveSession();
 
         setSessionSnapshot((prev) => ({
@@ -396,11 +276,9 @@ export function RecordingSessionProvider({ children }) {
             state: 'stopped',
             startedAt: null,
             error: null,
-            hasRecoveryData: prev.recoveryNoteId === noteId ? false : prev.hasRecoveryData,
-            recoveryNoteId: prev.recoveryNoteId === noteId ? null : prev.recoveryNoteId,
             audioPath: null,
         }));
-    }, [setSessionSnapshot, stopDurationTimer, stopFlushTimer]);
+    }, [setSessionSnapshot, stopDurationTimer]);
 
     const startWeb = useCallback(async (noteId) => {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -425,7 +303,6 @@ export function RecordingSessionProvider({ children }) {
         recorder.onerror = () => {
             releaseWebMediaResources();
             stopDurationTimer();
-            stopFlushTimer();
             clearPersistedActiveSession();
 
             setSessionSnapshot((prev) => ({
@@ -441,7 +318,6 @@ export function RecordingSessionProvider({ children }) {
             audioBlobRef.current = blob;
             releaseWebMediaResources();
             stopDurationTimer();
-            stopFlushTimer();
             clearPersistedActiveSession();
 
             if (blob.size < 1000) {
@@ -454,12 +330,11 @@ export function RecordingSessionProvider({ children }) {
                 return;
             }
 
-            finalizeStoppedSession(noteId);
-            clearStoredChunks(noteId).catch(() => {});
+            finalizeStoppedSession();
         };
 
         recorder.start(CHUNK_INTERVAL_MS);
-    }, [finalizeStoppedSession, releaseWebMediaResources, setSessionSnapshot, stopDurationTimer, stopFlushTimer]);
+    }, [finalizeStoppedSession, releaseWebMediaResources, setSessionSnapshot, stopDurationTimer]);
 
     const startNative = useCallback(async () => {
         const permission = await VoiceRecorder.hasAudioRecordingPermission();
@@ -490,7 +365,6 @@ export function RecordingSessionProvider({ children }) {
         chunksRef.current = [];
         durationRef.current = 0;
         stopDurationTimer();
-        stopFlushTimer();
         clearPersistedActiveSession();
 
         setSessionSnapshot((prev) => ({
@@ -502,8 +376,6 @@ export function RecordingSessionProvider({ children }) {
             startedAt: null,
             error: null,
             audioPath: null,
-            hasRecoveryData: prev.recoveryNoteId === noteId ? false : prev.hasRecoveryData,
-            recoveryNoteId: prev.recoveryNoteId === noteId ? null : prev.recoveryNoteId,
         }));
 
         try {
@@ -533,7 +405,6 @@ export function RecordingSessionProvider({ children }) {
         } catch (error) {
             releaseWebMediaResources();
             stopDurationTimer();
-            stopFlushTimer();
             clearPersistedActiveSession();
             await stopLiveActivity();
 
@@ -560,7 +431,6 @@ export function RecordingSessionProvider({ children }) {
         startNative,
         startWeb,
         stopDurationTimer,
-        stopFlushTimer,
         stopLiveActivity,
     ]);
 
@@ -571,7 +441,7 @@ export function RecordingSessionProvider({ children }) {
 
             if (result.value && result.value.recordDataBase64) {
                 audioBlobRef.current = b64toBlob(result.value.recordDataBase64, result.value.mimeType);
-                finalizeStoppedSession(sessionRef.current.activeNoteId);
+                finalizeStoppedSession();
             } else {
                 setSessionSnapshot((prev) => ({
                     ...prev,
@@ -623,7 +493,6 @@ export function RecordingSessionProvider({ children }) {
 
         clearPersistedActiveSession();
         stopDurationTimer();
-        stopFlushTimer();
 
         setSessionSnapshot((prev) => ({
             ...prev,
@@ -631,59 +500,13 @@ export function RecordingSessionProvider({ children }) {
             startedAt: null,
             error: newState === 'error' ? prev.error || 'recording_failed' : null,
         }));
-    }, [setSessionSnapshot, stopDurationTimer, stopFlushTimer]);
+    }, [setSessionSnapshot, stopDurationTimer]);
 
     const reset = useCallback(() => {
         releaseWebMediaResources();
         void stopLiveActivity();
         resetInMemorySession();
     }, [releaseWebMediaResources, resetInMemorySession, stopLiveActivity]);
-
-    const discardRecovery = useCallback(async (noteId) => {
-        await clearStoredChunks(noteId).catch(() => {});
-
-        setSessionSnapshot((prev) => {
-            if (prev.recoveryNoteId !== noteId) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                recoveryNoteId: null,
-                hasRecoveryData: false,
-            };
-        });
-    }, [setSessionSnapshot]);
-
-    const recover = useCallback(async (noteId, noteTitle = 'Untitled') => {
-        const storedChunks = await getStoredChunks(noteId);
-        if (storedChunks.length === 0) {
-            setSessionSnapshot((prev) => ({
-                ...prev,
-                recoveryNoteId: prev.recoveryNoteId === noteId ? null : prev.recoveryNoteId,
-                hasRecoveryData: prev.recoveryNoteId === noteId ? false : prev.hasRecoveryData,
-            }));
-            return null;
-        }
-
-        audioBlobRef.current = new Blob(storedChunks.map((entry) => entry.blob), { type: FALLBACK_MIME });
-        clearStoredChunks(noteId).catch(() => {});
-
-        setSessionSnapshot((prev) => ({
-            ...prev,
-            activeNoteId: noteId,
-            activeNoteTitle: noteTitle || prev.activeNoteTitle || 'Untitled',
-            state: 'stopped',
-            startedAt: null,
-            duration: prev.activeNoteId === noteId ? prev.duration : 0,
-            error: null,
-            recoveryNoteId: prev.recoveryNoteId === noteId ? null : prev.recoveryNoteId,
-            hasRecoveryData: prev.recoveryNoteId === noteId ? false : prev.hasRecoveryData,
-            audioPath: null,
-        }));
-
-        return audioBlobRef.current;
-    }, [setSessionSnapshot]);
 
     const getBlob = useCallback(() => audioBlobRef.current, []);
 
@@ -766,98 +589,23 @@ export function RecordingSessionProvider({ children }) {
     }, [isNative, persistRecordingState, reconcileNativeSession]);
 
     useEffect(() => {
-        if (isNative) return undefined;
-
-        const flushPendingChunks = () => {
-            const { activeNoteId, state } = sessionRef.current;
-            if (state === 'recording' && activeNoteId && chunksRef.current.length > 0) {
-                storeChunks(activeNoteId, chunksRef.current).catch(() => {});
-            }
-        };
-
-        const reconcileWebRecording = () => {
-            const { activeNoteId, state } = sessionRef.current;
-            if (state !== 'recording') {
-                return;
-            }
-
-            if (mediaRecorderRef.current?.state === 'recording') {
-                persistRecordingState();
-                return;
-            }
-
-            clearPersistedActiveSession();
-
-            if (activeNoteId && chunksRef.current.length > 0) {
-                storeChunks(activeNoteId, chunksRef.current).catch(() => {});
-            }
-        };
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                flushPendingChunks();
-                return;
-            }
-
-            reconcileWebRecording();
-        };
-
-        const handlePageHide = () => {
-            flushPendingChunks();
-            reconcileWebRecording();
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('pagehide', handlePageHide);
-
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('pagehide', handlePageHide);
-        };
-    }, [isNative, persistRecordingState]);
-
-    useEffect(() => {
-        return () => {
-            if (!isNative && sessionRef.current.activeNoteId && chunksRef.current.length > 0) {
-                storeChunks(sessionRef.current.activeNoteId, chunksRef.current).catch(() => {});
-            }
-
             stopDurationTimer();
-            stopFlushTimer();
             releaseWebMediaResources();
         };
-    }, [isNative, releaseWebMediaResources, stopDurationTimer, stopFlushTimer]);
-
-    useEffect(() => {
-        if (isNative) return;
-        if (session.state !== 'recording') return;
-        if (!session.activeNoteId) return;
-
-        stopFlushTimer();
-        flushTimerRef.current = window.setInterval(() => {
-            if (chunksRef.current.length > 0) {
-                storeChunks(session.activeNoteId, chunksRef.current).catch(() => {});
-            }
-        }, FLUSH_INTERVAL_MS);
-
-        return stopFlushTimer;
-    }, [isNative, session.activeNoteId, session.state, stopFlushTimer]);
+    }, [releaseWebMediaResources, stopDurationTimer]);
 
     const value = useMemo(() => ({
         ...session,
         start,
         stop,
         reset,
-        recover,
-        discardRecovery,
         getBlob,
         setProcessingState,
         setAudioPath,
         syncNoteContext,
     }), [
-        discardRecovery,
         getBlob,
-        recover,
         reset,
         session,
         setAudioPath,

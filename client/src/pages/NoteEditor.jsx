@@ -255,6 +255,10 @@ export default function NoteEditor() {
         }
 
         if (job.status === 'failed' || job.status === 'cancelled') {
+            const pathToClean = job?.result_payload?.audio_path || getTrackedAudioPath();
+            if (pathToClean) {
+                api.deleteNoteAudio(pathToClean).catch(() => {});
+            }
             setEnhancing(false);
             setEnhancementPreviewDoc(null);
             setActiveEnhancementJob(null);
@@ -1012,39 +1016,6 @@ export default function NoteEditor() {
                                 >
                                     Back to recording
                                 </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                        {recorder.hasRecoveryData && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                className="mb-4 p-3 rounded-xl glass-panel border border-claude-border flex items-center justify-between gap-3"
-                            >
-                                <div className="flex items-center gap-2 text-claude-secondary">
-                                    <AlertCircle className="w-4 h-4 text-claude-accent shrink-0" />
-                                    <span className="text-[11px] font-mono">Unfinished recording found</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={async () => {
-                                            await recorder.recover(noteId, titleRef.current || title || 'Untitled');
-                                            setShowEnhanceBanner(true);
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-claude-accent/10 text-claude-accent hover:bg-claude-accent/20 transition-colors tap-action"
-                                    >
-                                        Recover
-                                    </button>
-                                    <button
-                                        onClick={() => recorder.discardRecovery(noteId)}
-                                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider text-claude-secondary hover:text-red-400 transition-colors tap-action"
-                                    >
-                                        Discard
-                                    </button>
-                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
