@@ -150,9 +150,9 @@ export function AuthProvider({ children }) {
         await authApi.startGoogleOAuth();
     }, []);
 
-    const signInWithApple = useCallback(async (identityToken, appleUser) => {
+    const signInWithApple = useCallback(async (identityToken, rawNonce, appleUser) => {
         try {
-            const data = await authApi.loginWithApple(identityToken, appleUser);
+            const data = await authApi.loginWithApple(identityToken, rawNonce, appleUser);
             if (data.require2FA) {
                 setPendingTwoFactor(data);
                 setUser(null);

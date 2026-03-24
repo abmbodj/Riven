@@ -18,6 +18,7 @@ vi.mock('../lib/supabaseClient', () => ({
       signInWithPassword: vi.fn(),
       signInWithIdToken: vi.fn(),
       signUp: vi.fn(),
+      updateUser: vi.fn(),
       signOut: vi.fn().mockResolvedValue({ error: null }),
       mfa: {
         getAuthenticatorAssuranceLevel: vi.fn(),
@@ -66,6 +67,10 @@ describe('authApi login migration bridge', () => {
       error: null,
     });
     supabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-user' } },
+      error: null,
+    });
+    supabase.auth.updateUser.mockResolvedValue({
       data: { user: { id: 'auth-user' } },
       error: null,
     });
@@ -297,5 +302,96 @@ describe('authApi login migration bridge', () => {
     expect(supabase.auth.signOut).toHaveBeenCalled();
     expect(result).toBeNull();
     expect(sessionStorage.getItem('riven_auth_token')).toBeNull();
+  });
+
+  it('passes the Apple nonce into Supabase and persists first-time Apple name metadata', async () => {
+    supabase.auth.signInWithIdToken.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({
+      user: {
+        id: 7,
+        email: 'test@example.com',
+        username: 'tester',
+        twoFAEnabled: false,
+      },
+    }));
+
+    const result = await authApi.loginWithApple('apple-id-token', 'raw-nonce', {
+      givenName: 'Avery',
+      familyName: 'Stone',
+      fullName: 'Avery Stone',
+      name: { firstName: 'Avery', lastName: 'Stone' },
+    });
+
+    expect(supabase.auth.signInWithIdToken).toHaveBeenCalledWith({
+      provider: 'apple',
+      token: 'apple-id-token',
+      nonce: 'raw-nonce',
+    });
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({
+      data: {
+        full_name: 'Avery Stone',
+        given_name: 'Avery',
+        family_name: 'Stone',
+      },
+    });
+    expect(result).toEqual({
+      user: {
+        id: 7,
+        email: 'test@example.com',
+        username: 'tester',
+        twoFAEnabled: false,
+      },
+    });
+  });
+
+  it('falls back to the legacy Apple 2FA bridge with the normalized Apple name payload', async () => {
+    document.cookie = 'riven_csrf=test-csrf-token; path=/';
+    supabase.auth.signInWithIdToken.mockResolvedValue({
+      data: { session: { access_token: SUPABASE_ACCESS_TOKEN } },
+      error: null,
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        user: { id: 7, email: 'test@example.com', username: 'tester', twoFAEnabled: true },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        require2FA: true,
+        tempToken: 'legacy-temp-token',
+      }));
+
+    const result = await authApi.loginWithApple('apple-id-token', 'raw-nonce', {
+      givenName: 'Avery',
+      familyName: 'Stone',
+      name: { firstName: 'Avery', lastName: 'Stone' },
+    });
+
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/auth/oauth/apple'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          identityToken: 'apple-id-token',
+          user: {
+            name: {
+              firstName: 'Avery',
+              lastName: 'Stone',
+            },
+          },
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      require2FA: true,
+      tempToken: 'legacy-temp-token',
+      provider: 'legacy',
+    });
   });
 });

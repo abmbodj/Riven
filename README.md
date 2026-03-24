@@ -553,7 +553,7 @@ npx supabase db push
 
 ### iOS (Capacitor)
 
-The client ships with Capacitor 8 and an Xcode project under `client/ios/`. Native Google Sign-In, auth storage, and signup (without Turnstile in the WebView) are already wired in the React app.
+The client ships with Capacitor 8 and an Xcode project under `client/ios/`. Native Google Sign-In, native iOS Sign in with Apple, auth storage, and signup (without Turnstile in the WebView) are already wired in the React app.
 
 **Prerequisites:** macOS, Xcode, CocoaPods (if prompted by Capacitor), Node 20+.
 
@@ -578,6 +578,13 @@ Or step-by-step: `npm run build`, `npm run ios:sync`, then open `client/ios/App/
 | `VITE_STRIPE_PRICE_*` | If you test checkout from the app. |
 
 **Google Sign-In (iOS)** — Create an iOS OAuth client in Google Cloud for bundle ID `com.riven.app`. Copy values into `client/ios/debug.xcconfig` as `GOOGLE_IOS_CLIENT_ID` and `GOOGLE_IOS_URL_SCHEME` (reversed client ID). Use a non-committed Release xcconfig or Xcode build settings for production signing.
+
+**Sign in with Apple (iOS native)** — The Capacitor app uses native Apple auth on iOS only, then exchanges the Apple ID token with Supabase via `signInWithIdToken(...)`.
+
+1. In the Apple Developer portal, enable **Sign in with Apple** for the App ID / bundle ID `com.riven.app`.
+2. In the Supabase dashboard, enable the Apple auth provider for the hosted project. For hosted Supabase, this dashboard configuration is the source of truth; the repo `supabase/config.toml` Apple block is only a local/self-host reference.
+3. In the Express API, set `APPLE_CLIENT_ID` in `server/.env` so the legacy `/api/auth/oauth/apple` bridge can still verify Apple tokens for users who fall back to legacy 2FA.
+4. Open the iOS target in Xcode and confirm the **Sign in with Apple** capability is present under **Signing & Capabilities**.
 
 **Production API CORS** — Ensure `ALLOWED_ORIGINS` on the Express server includes `capacitor://localhost` (defaults already do). Add `ionic://localhost` if you see that `Origin` in logs.
 

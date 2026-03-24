@@ -6,11 +6,18 @@ This document tracks product and technical decisions before submitting the Capac
 
 If the native app offers **third-party login** (e.g. Google), Apple generally requires **Sign in with Apple** unless an [exemption](https://developer.apple.com/app-store/review/guidelines/#sign-in-with-apple) applies.
 
-**Options:**
+**Implementation status:** Native iOS Sign in with Apple is implemented.
 
-1. **Implement Sign in with Apple** for the iOS build: enable the Apple provider in Supabase Auth, configure Services ID / redirect URLs, and wire [`react-apple-signin-auth`](https://www.npmjs.com/package/react-apple-signin-auth) (already in `client/package.json`) in [`OAuthButtons.jsx`](../client/src/components/auth/OAuthButtons.jsx) when `Capacitor.isNativePlatform()` is true. Use the same session pattern as Google native (ID token → Supabase).
-2. **Product change:** remove social login from the native app only (not ideal for parity).
-3. **Legal review:** confirm whether your category qualifies for an exemption.
+- **Native iOS app** → [`@capawesome/capacitor-apple-sign-in`](https://www.npmjs.com/package/@capawesome/capacitor-apple-sign-in) from [`OAuthButtons.jsx`](../client/src/components/auth/OAuthButtons.jsx), then Supabase `signInWithIdToken(...)`.
+- **Metadata handling** → Apple only sends the user's name on first authorization, so the client immediately writes `full_name`, `given_name`, and `family_name` into Supabase user metadata before completing registration.
+- **Legacy compatibility** → The app still falls back to [`/api/auth/oauth/apple`](../server/routes/auth.js) for existing users who need the legacy 2FA bridge.
+- **Xcode capability** → [`App.entitlements`](../client/ios/App/App/App.entitlements) includes the Sign in with Apple entitlement, and the app target should show the capability in **Signing & Capabilities**.
+
+**Required setup outside the repo:**
+
+1. In Apple Developer, enable **Sign in with Apple** for the App ID / bundle ID `com.riven.app`.
+2. In the Supabase dashboard, enable the Apple auth provider for the hosted project. Do not rely on `supabase/config.toml` for hosted-project config.
+3. In `server/.env`, set `APPLE_CLIENT_ID` so the legacy Express fallback can verify Apple ID tokens for the compatibility bridge.
 
 ## Payments: RevenueCat IAP (implemented) ✅
 
@@ -49,7 +56,7 @@ npx supabase secrets set CLIENT_URL=https://your-production-domain
 
 ## Checklist before submission
 
-- [ ] Sign in with Apple (or documented exemption path)
+- [x] Sign in with Apple implemented for the native iOS app; verify Apple Developer + Supabase dashboard config in the release environment
 - [x] Payments model documented and implemented per Apple rules (RevenueCat IAP)
 - [ ] Privacy Nutrition Labels and `Info.plist` usage strings match actual behavior (camera, mic, photos, tracking)
 - [ ] `CLIENT_URL` set; test checkout from device → redirect completes in Safari to your HTTPS site

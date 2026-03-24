@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../hooks/useAuth';
 import { signInWithNativeGoogle } from '../../lib/googleSignInNative';
+import { signInWithNativeApple } from '../../lib/appleSignInNative';
 
 // Google SVG
 const GoogleIcon = () => (
@@ -21,12 +22,15 @@ const AppleIcon = () => (
 );
 
 export default function OAuthButtons({ onError }) {
-    const { startGoogleOAuth, signInWithGoogle } = useAuth();
+    const { startGoogleOAuth, signInWithGoogle, signInWithApple } = useAuth();
     const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+    const [isLoadingApple, setIsLoadingApple] = useState(false);
     const isNativeClient = Capacitor.isNativePlatform();
+    const isIosNativeClient = isNativeClient && Capacitor.getPlatform() === 'ios';
+    const isAnyLoading = isLoadingGoogle || isLoadingApple;
 
     const handleGoogleClick = async () => {
-        if (isLoadingGoogle) {
+        if (isAnyLoading) {
             return;
         }
 
@@ -48,14 +52,30 @@ export default function OAuthButtons({ onError }) {
         }
     };
 
+    const handleAppleClick = async () => {
+        if (isAnyLoading) {
+            return;
+        }
+
+        setIsLoadingApple(true);
+        try {
+            const { identityToken, rawNonce, user } = await signInWithNativeApple();
+            await signInWithApple(identityToken, rawNonce, user);
+        } catch (error) {
+            onError?.(error);
+        } finally {
+            setIsLoadingApple(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-2.5 w-full mb-4">
             <button
                 type="button"
                 onClick={handleGoogleClick}
-                disabled={isLoadingGoogle}
+                disabled={isAnyLoading}
                 className={`w-full flex items-center justify-center font-semibold py-2.5 rounded-lg shadow-sm border transition-colors ${
-                    isLoadingGoogle
+                    isAnyLoading
                         ? 'bg-claude-surface/50 text-claude-text/40 border-claude-border/50 cursor-not-allowed'
                         : 'bg-claude-surface/80 text-claude-text hover:bg-claude-surface border-claude-border'
                 }`}
@@ -69,16 +89,25 @@ export default function OAuthButtons({ onError }) {
                         : 'Continue with Google'}
                 </span>
             </button>
-            <button
-                type="button"
-                disabled={true}
-                className="w-full md:hidden flex items-center justify-center border border-white/5 bg-black/50 text-white/40 font-semibold py-2.5 rounded-lg shadow-sm cursor-not-allowed"
-            >
-                <div className="opacity-50">
-                    <AppleIcon />
-                </div>
-                <span className="text-sm font-sans tracking-wide">Continue with Apple <span className="text-xs ml-1 opacity-70">(Coming Soon)</span></span>
-            </button>
+            {isIosNativeClient ? (
+                <button
+                    type="button"
+                    onClick={handleAppleClick}
+                    disabled={isAnyLoading}
+                    className={`w-full flex items-center justify-center font-semibold py-2.5 rounded-lg shadow-sm border transition-colors ${
+                        isAnyLoading
+                            ? 'border-white/10 bg-black/60 text-white/40 cursor-not-allowed'
+                            : 'border-white/15 bg-black/80 text-white hover:bg-black'
+                    }`}
+                >
+                    <div className={isLoadingApple ? 'opacity-50' : ''}>
+                        <AppleIcon />
+                    </div>
+                    <span className="text-sm font-sans tracking-wide">
+                        {isLoadingApple ? 'Signing in with Apple...' : 'Continue with Apple'}
+                    </span>
+                </button>
+            ) : null}
 
             <div className="relative flex items-center py-3">
                 <div className="flex-grow border-t border-white/10"></div>

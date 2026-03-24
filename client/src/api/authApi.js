@@ -925,13 +925,63 @@ export const startGoogleOAuth = async () => {
     }
 };
 
-export const loginWithApple = async (identityToken, _user) => {
+const normalizeLegacyAppleUserPayload = (appleUser) => {
+    const firstName = typeof appleUser?.name?.firstName === 'string'
+        ? appleUser.name.firstName.trim()
+        : (typeof appleUser?.givenName === 'string' ? appleUser.givenName.trim() : '');
+    const lastName = typeof appleUser?.name?.lastName === 'string'
+        ? appleUser.name.lastName.trim()
+        : (typeof appleUser?.familyName === 'string' ? appleUser.familyName.trim() : '');
+
+    if (!firstName && !lastName) {
+        return null;
+    }
+
+    return {
+        name: {
+            ...(firstName ? { firstName } : {}),
+            ...(lastName ? { lastName } : {}),
+        },
+    };
+};
+
+const persistAppleIdentityMetadata = async (appleUser) => {
+    const givenName = typeof appleUser?.givenName === 'string' ? appleUser.givenName.trim() : '';
+    const familyName = typeof appleUser?.familyName === 'string' ? appleUser.familyName.trim() : '';
+    const fullName = typeof appleUser?.fullName === 'string'
+        ? appleUser.fullName.trim()
+        : [givenName, familyName].filter(Boolean).join(' ');
+
+    if (!givenName && !familyName && !fullName) {
+        return;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+        data: {
+            ...(fullName ? { full_name: fullName } : {}),
+            ...(givenName ? { given_name: givenName } : {}),
+            ...(familyName ? { family_name: familyName } : {}),
+        },
+    });
+
+    if (error) {
+        throw error;
+    }
+};
+
+export const loginWithApple = async (identityToken, rawNonce, appleUser) => {
     const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: identityToken,
+        ...(rawNonce ? { nonce: rawNonce } : {}),
     });
     if (error) throw new Error(error.message);
     setToken(data.session.access_token);
+
+    await persistAppleIdentityMetadata(appleUser).catch((metadataError) => {
+        console.warn('[authApi] Apple metadata update failed:', metadataError);
+    });
+
     const result = await completeRegistration();
     const mfaState = await getSupabaseMfaState().catch(() => ({
         hasSession: true,
@@ -947,7 +997,10 @@ export const loginWithApple = async (identityToken, _user) => {
 
         const legacyData = await authFetch('/auth/oauth/apple', {
             method: 'POST',
-            body: JSON.stringify({ identityToken, user: _user }),
+            body: JSON.stringify({
+                identityToken,
+                user: normalizeLegacyAppleUserPayload(appleUser),
+            }),
         });
         if (legacyData.require2FA) {
             return {
