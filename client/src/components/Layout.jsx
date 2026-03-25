@@ -13,6 +13,7 @@ import Settings from 'lucide-react/dist/esm/icons/settings';
 import Search from 'lucide-react/dist/esm/icons/search';
 import OnboardingArt from './OnboardingArt';
 import { motion, AnimatePresence } from 'motion/react';
+import { prefetchRoute } from '../routes/config.jsx';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
 import gsap from 'gsap';
@@ -189,6 +190,7 @@ export default function Layout({ children }) {
                                             <Link
                                                 key={item.to}
                                                 to={item.to}
+                                                onMouseEnter={() => prefetchRoute(item.to)}
                                                 className={`group relative overflow-hidden rounded-xl px-3 py-2.5 flex items-center gap-3.5 transition-all duration-300 ${isActive
                                                     ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                                                     : 'text-claude-secondary/70 hover:bg-white/[0.05] hover:text-white hover:translate-x-1'
@@ -217,6 +219,7 @@ export default function Layout({ children }) {
                                             <Link
                                                 key={item.to}
                                                 to={item.to}
+                                                onMouseEnter={() => prefetchRoute(item.to)}
                                                 className={`group flex items-center gap-3.5 px-3 py-2 rounded-xl transition-all duration-300 ${isActive
                                                     ? `bg-white/[0.08] ${item.color}`
                                                     : 'text-claude-secondary/70 hover:text-white hover:bg-white/[0.05] hover:translate-x-1'

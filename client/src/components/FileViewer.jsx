@@ -15,12 +15,29 @@ import {
     Video,
     Music
 } from 'lucide-react';
-import { Document, Page, pdfjs } from 'react-pdf';
-import { renderAsync } from 'docx-preview';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+// Heavy deps loaded dynamically to avoid bundling on pages that don't use FileViewer
+let pdfModule = null;
+let docxModule = null;
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+async function loadPdfModule() {
+    if (!pdfModule) {
+        const [mod] = await Promise.all([
+            import('react-pdf'),
+            import('react-pdf/dist/Page/AnnotationLayer.css'),
+            import('react-pdf/dist/Page/TextLayer.css'),
+        ]);
+        mod.pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+        pdfModule = mod;
+    }
+    return pdfModule;
+}
+
+async function loadDocxModule() {
+    if (!docxModule) {
+        docxModule = await import('docx-preview');
+    }
+    return docxModule;
+}
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif']);
 const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogg']);
@@ -130,6 +147,7 @@ export default function FileViewer({ file, isOpen, onClose }) {
     const [isTextLoading, setIsTextLoading] = useState(false);
     const [pdfViewportSize, setPdfViewportSize] = useState({ width: 0, height: 0 });
     const [pdfPageMetrics, setPdfPageMetrics] = useState(null);
+    const [PdfComponents, setPdfComponents] = useState(null);
 
     const docxIframeRef = useRef(null);
     const pdfContainerRef = useRef(null);
@@ -166,6 +184,16 @@ export default function FileViewer({ file, isOpen, onClose }) {
         }
     }, [fileInfo.kind, pageNumber]);
 
+    // Dynamically load react-pdf when a PDF is opened
+    useEffect(() => {
+        if (!isOpen || fileInfo.kind !== 'pdf' || PdfComponents) return;
+        let cancelled = false;
+        loadPdfModule().then((mod) => {
+            if (!cancelled) setPdfComponents({ Document: mod.Document, Page: mod.Page });
+        });
+        return () => { cancelled = true; };
+    }, [isOpen, fileInfo.kind, PdfComponents]);
+
     useEffect(() => {
         if (!isOpen || fileInfo.kind !== 'docx' || !file?.url) return;
 
@@ -181,6 +209,7 @@ export default function FileViewer({ file, isOpen, onClose }) {
 
                 if (isCancelled) return;
 
+                const { renderAsync } = await loadDocxModule();
                 const container = document.createElement('div');
                 await renderAsync(arrayBuffer, container, undefined, {
                     className: 'docx-preview',
@@ -426,37 +455,41 @@ export default function FileViewer({ file, isOpen, onClose }) {
                         data-testid="file-viewer-pdf-viewport"
                         className="min-h-full w-full flex items-start justify-center"
                     >
-                        <Document
-                            file={file.url}
-                            onLoadSuccess={({ numPages: loadedPages }) => setNumPages(loadedPages)}
-                            loading={<div className="text-white/80 text-sm">Loading PDF...</div>}
-                            error={<div className="text-red-300 text-sm">Unable to display PDF preview.</div>}
-                        >
-                            <Page
-                                pageNumber={pageNumber}
-                                width={pdfRenderWidth}
-                                onLoadSuccess={(page) => {
-                                    setPdfPageMetrics((current) => {
-                                        if (
-                                            current?.pageNumber === page.pageNumber &&
-                                            current?.originalWidth === page.originalWidth &&
-                                            current?.originalHeight === page.originalHeight
-                                        ) {
-                                            return current;
-                                        }
+                        {PdfComponents ? (
+                            <PdfComponents.Document
+                                file={file.url}
+                                onLoadSuccess={({ numPages: loadedPages }) => setNumPages(loadedPages)}
+                                loading={<div className="text-white/80 text-sm">Loading PDF...</div>}
+                                error={<div className="text-red-300 text-sm">Unable to display PDF preview.</div>}
+                            >
+                                <PdfComponents.Page
+                                    pageNumber={pageNumber}
+                                    width={pdfRenderWidth}
+                                    onLoadSuccess={(page) => {
+                                        setPdfPageMetrics((current) => {
+                                            if (
+                                                current?.pageNumber === page.pageNumber &&
+                                                current?.originalWidth === page.originalWidth &&
+                                                current?.originalHeight === page.originalHeight
+                                            ) {
+                                                return current;
+                                            }
 
-                                        return {
-                                            pageNumber: page.pageNumber,
-                                            originalWidth: page.originalWidth,
-                                            originalHeight: page.originalHeight
-                                        };
-                                    });
-                                }}
-                                renderTextLayer
-                                renderAnnotationLayer
-                                className="shadow-2xl rounded-sm"
-                            />
-                        </Document>
+                                            return {
+                                                pageNumber: page.pageNumber,
+                                                originalWidth: page.originalWidth,
+                                                originalHeight: page.originalHeight
+                                            };
+                                        });
+                                    }}
+                                    renderTextLayer
+                                    renderAnnotationLayer
+                                    className="shadow-2xl rounded-sm"
+                                />
+                            </PdfComponents.Document>
+                        ) : (
+                            <div className="text-white/80 text-sm">Loading PDF viewer...</div>
+                        )}
                     </div>
                 </div>
             );

@@ -208,18 +208,15 @@ module.exports = function registerGroupsRoutes({ app, db, authMiddleware }) {
             if (!memberCheck) return res.status(404).json({ error: 'Not a member of this group' });
 
             if (memberCheck.role === 'admin') {
-                const adminCountReq = await db.queryOne(
-                    "SELECT COUNT(*) as count FROM group_members WHERE group_id = $1 AND role = 'admin'",
+                const counts = await db.queryOne(
+                    `SELECT COUNT(*) as total_count,
+                            COUNT(*) FILTER (WHERE role = 'admin') as admin_count
+                     FROM group_members WHERE group_id = $1`,
                     [id]
                 );
 
-                if (parseInt(adminCountReq.count) === 1) {
-                    const memberCountReq = await db.queryOne(
-                        "SELECT COUNT(*) as count FROM group_members WHERE group_id = $1",
-                        [id]
-                    );
-
-                    if (parseInt(memberCountReq.count) > 1) {
+                if (parseInt(counts.admin_count) === 1) {
+                    if (parseInt(counts.total_count) > 1) {
                         return res.status(400).json({
                             error: 'You must promote another admin before leaving, or delete the group.'
                         });

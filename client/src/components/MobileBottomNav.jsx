@@ -7,6 +7,7 @@ import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import User from 'lucide-react/dist/esm/icons/user';
+import { prefetchRoute } from '../routes/config.jsx';
 
 const routeMatches = (pathname, matchers = []) =>
     matchers.some((m) => pathname === m || pathname.startsWith(`${m}/`));
@@ -94,6 +95,8 @@ export default function MobileBottomNav({
                                                 <Link
                                                     to={item.to}
                                                     onClick={() => handleFabMenuAction(item)}
+                                                    onTouchStart={() => item.to && prefetchRoute(item.to)}
+                                                    onMouseEnter={() => item.to && prefetchRoute(item.to)}
                                                     className="flex flex-col items-center justify-center gap-2 w-full min-h-[80px] rounded-2xl bg-white/[0.05] border border-white/[0.08] transition-colors duration-200 cursor-pointer touch-target active:bg-white/[0.10]"
                                                 >
                                                     <Icon className={`w-[20px] h-[20px] ${
@@ -155,6 +158,8 @@ export default function MobileBottomNav({
                                         <Link
                                             key={item.to}
                                             to={item.to}
+                                            onTouchStart={() => prefetchRoute(item.to)}
+                                            onMouseEnter={() => prefetchRoute(item.to)}
                                             className="flex-1 flex flex-col items-center justify-center gap-1 tap-action cursor-pointer group"
                                         >
                                             <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl transition-colors duration-200">

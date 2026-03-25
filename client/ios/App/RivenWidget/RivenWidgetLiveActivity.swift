@@ -107,7 +107,7 @@ struct RivenWidgetLiveActivity: Widget {
         } dynamicIsland: { context in
             let theme = ThemeColors(from: context.attributes.staticValues)
 
-            DynamicIsland {
+            return DynamicIsland {
                 // MARK: Expanded - Leading
                 DynamicIslandExpandedRegion(.leading) {
                     ZStack {

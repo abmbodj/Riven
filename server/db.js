@@ -22,7 +22,8 @@ if (global.__TEST_DB_MOCK__) {
         ssl: needsSsl ? { rejectUnauthorized: false } : false,
         // Serverless-friendly: short idle timeout so connections don't linger
         idleTimeoutMillis: isProduction ? 20000 : 30000,
-        max: isProduction ? 5 : 10,
+        connectionTimeoutMillis: 5000,
+        max: isProduction ? 15 : 10,
     });
 
     // Handle unexpected pool errors to prevent silent crashes

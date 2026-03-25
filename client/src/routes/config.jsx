@@ -40,6 +40,33 @@ const ExamView = lazy(() => import('../pages/ExamView.jsx'));
 const YouTubeImport = lazy(() => import('../pages/YouTubeImport.jsx'));
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'));
 
+// Route prefetch map — call prefetchRoute(path) on hover/touchstart for instant navigation
+const routeImportMap = {
+  '/dashboard': () => import('../pages/Home.jsx'),
+  '/decks/library': () => import('../pages/DeckLibrary.jsx'),
+  '/notes': () => import('../pages/NotesLibrary.jsx'),
+  '/guides': () => import('../pages/GuidesLibrary.jsx'),
+  '/exams': () => import('../pages/ExamsLibrary.jsx'),
+  '/classes': () => import('../pages/Classes.jsx'),
+  '/create': () => import('../pages/CreateDeck.jsx'),
+  '/themes': () => import('../pages/ThemeSettings.jsx'),
+  '/garden': () => import('../pages/GardenSettings.jsx'),
+  '/settings': () => import('../pages/Settings.jsx'),
+  '/friends': () => import('../pages/Friends.jsx'),
+  '/messages': () => import('../pages/Messages.jsx'),
+  '/groups': () => import('../pages/StudyGroups.jsx'),
+};
+
+const prefetched = new Set();
+
+export function prefetchRoute(path) {
+  // Normalize dynamic routes to their base
+  const basePath = Object.keys(routeImportMap).find(p => path === p || path.startsWith(p + '/'));
+  if (!basePath || prefetched.has(basePath)) return;
+  prefetched.add(basePath);
+  routeImportMap[basePath]?.();
+}
+
 export const routesConfig = [
   // Public Routes
   { path: '/', element: <Home mode="landing" /> },

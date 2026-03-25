@@ -223,13 +223,11 @@ module.exports = function registerAuthRoutes({
         }
 
         try {
-            const existingEmail = await db.queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-            if (existingEmail) {
-                return res.status(400).json({ error: 'Account with this email or username already exists' });
-            }
-
-            const existingUsername = await db.queryOne('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
-            if (existingUsername) {
+            const existing = await db.queryOne(
+                'SELECT id FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2) LIMIT 1',
+                [email, username]
+            );
+            if (existing) {
                 return res.status(400).json({ error: 'Account with this email or username already exists' });
             }
 

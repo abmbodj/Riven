@@ -88,6 +88,36 @@ export default defineConfig({
                 statuses: [0, 200]
               }
             }
+          },
+          // Cache Supabase storage images (avatars, card images, uploads)
+          {
+            urlPattern: /^https:\/\/.*supabase.*\/storage\/.*\.(png|jpg|jpeg|webp|gif|svg)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-image-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Cache DiceBear avatar SVGs
+          {
+            urlPattern: /^https:\/\/api\.dicebear\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'dicebear-avatar-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
           }
         ]
       }
@@ -105,22 +135,31 @@ export default defineConfig({
         ]
       : []),
   ],
+  esbuild: {
+    drop: ['debugger'],
+    pure: ['console.log', 'console.info', 'console.debug'],
+  },
   build: {
     sourcemap: sentrySourceMapsEnabled,
     // Optimize chunk splitting for faster initial load
     cssCodeSplit: true,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-        drop_debugger: true
-      }
-    },
+    // esbuild minify (default, ~10x faster than terser)
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-db': ['idb']
+          'vendor-db': ['idb'],
+          'vendor-gsap': ['gsap'],
+          'vendor-motion': ['motion'],
+          'vendor-tiptap': [
+            '@tiptap/react', '@tiptap/starter-kit',
+            '@tiptap/extension-horizontal-rule', '@tiptap/extension-placeholder',
+            '@tiptap/suggestion'
+          ],
+          'vendor-pdf': ['react-pdf'],
+          'vendor-sentry': ['@sentry/react'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-analytics': ['posthog-js'],
         }
       }
     },

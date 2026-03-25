@@ -48,12 +48,12 @@ const HOST = process.env.HOST || '0.0.0.0';
 let sentryEnabled = false;
 if (process.env.NODE_ENV !== 'test' && process.env.SENTRY_DSN) {
     sentryEnabled = true;
-    const tracesSampleRate = parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1');
+    const tracesSampleRate = parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.05');
     Sentry.init({
         dsn: process.env.SENTRY_DSN,
         environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
         release: process.env.SENTRY_RELEASE,
-        tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
+        tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.05,
         integrations: [
             Sentry.expressIntegration(),
             Sentry.captureConsoleIntegration({ levels: ['error'] }),
