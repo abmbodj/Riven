@@ -12,6 +12,7 @@
     "example-skills@anthropic-agent-skills": true,
     "claude-api@anthropic-agent-skills": true,
     "context7-plugin@context7-marketplace": true,
-    "playwright-skill@playwright-skill": true
+    "playwright-skill@playwright-skill": true,
+    "code-review@claude-plugins-official": true
   }
 }
