@@ -11,7 +11,7 @@ vi.mock('../api', () => ({
     getNotes: vi.fn(),
     getStudyGuides: vi.fn(),
     getMockExams: vi.fn(),
-    updateAssignment: vi.fn(),
+    getWeeklySummary: vi.fn(),
   },
 }));
 
@@ -62,27 +62,39 @@ vi.mock('../utils/notifications', () => ({
   scheduleAssignmentNotifications: vi.fn(),
 }));
 
-vi.mock('motion/react', () => ({
-  motion: {
-    article: ({ children, layout, initial, animate, exit, whileTap, ...props }) => (
-      <article {...props}>{children}</article>
-    ),
-    button: ({ children, layout, initial, animate, exit, whileTap, ...props }) => (
-      <button {...props}>{children}</button>
-    ),
-  },
-  AnimatePresence: ({ children }) => <>{children}</>,
-}));
-
 const { api } = await import('../api');
 
 const FIXED_NOW = new Date('2026-03-21T12:00:00.000Z');
 
-function getSectionPanel(name) {
-  const heading = screen.getByRole('heading', { name });
-  const panel = heading.parentElement?.nextElementSibling;
-  expect(panel).not.toBeNull();
-  return within(panel);
+const weeklySummary = {
+  cards_studied: 47,
+  accuracy: 0.82,
+  total_minutes: 138,
+  daily_breakdown: [
+    { date: '2026-03-15', day: 'Sun', cards: 4, minutes: 10, studied: true, is_today: false },
+    { date: '2026-03-16', day: 'Mon', cards: 6, minutes: 18, studied: true, is_today: false },
+    { date: '2026-03-17', day: 'Tue', cards: 8, minutes: 20, studied: true, is_today: false },
+    { date: '2026-03-18', day: 'Wed', cards: 10, minutes: 26, studied: true, is_today: false },
+    { date: '2026-03-19', day: 'Thu', cards: 7, minutes: 21, studied: true, is_today: false },
+    { date: '2026-03-20', day: 'Fri', cards: 5, minutes: 16, studied: true, is_today: false },
+    { date: '2026-03-21', day: 'Sat', cards: 7, minutes: 27, studied: true, is_today: true },
+  ],
+};
+
+function mockReducedMotion() {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 }
 
 async function renderDashboard() {
@@ -98,11 +110,12 @@ async function renderDashboard() {
   });
 }
 
-describe('DashboardHome', () => {
+describe('DashboardHome analytics repositioning', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
+    mockReducedMotion();
 
     api.getAssignments.mockResolvedValue([]);
     api.getDecks.mockResolvedValue([]);
@@ -110,154 +123,110 @@ describe('DashboardHome', () => {
     api.getNotes.mockResolvedValue([]);
     api.getStudyGuides.mockResolvedValue([]);
     api.getMockExams.mockResolvedValue([]);
-    api.updateAssignment.mockResolvedValue({});
+    api.getWeeklySummary.mockResolvedValue(weeklySummary);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('shows a 5-item Up Next preview with a show more toggle', async () => {
+  it('surfaces the new streak activity, weekly summary, and strict priority items on the dashboard', async () => {
     api.getAssignments.mockResolvedValue([
       {
         id: 1,
         title: 'Overdue assignment',
         class_id: 11,
         status: 'Todo',
-        due_date: '2026-03-20T12:00:00.000Z',
+        due_date: '2026-03-19T12:00:00.000Z',
       },
       {
         id: 2,
-        title: 'Future assignment 1',
+        title: 'Due today reading',
         class_id: 11,
-        status: 'Todo',
-        due_date: '2026-03-22T12:00:00.000Z',
+        status: 'Doing',
+        due_date: '2026-03-21T18:00:00.000Z',
       },
       {
         id: 3,
-        title: 'Future assignment 2',
+        title: 'Due tomorrow lab',
         class_id: 12,
-        status: 'Doing',
-        due_date: '2026-03-23T12:00:00.000Z',
+        status: 'Todo',
+        due_date: '2026-03-22T09:00:00.000Z',
       },
       {
         id: 4,
-        title: 'Future assignment 3',
-        class_id: 11,
-        status: 'Todo',
-        due_date: '2026-03-24T12:00:00.000Z',
-      },
-      {
-        id: 5,
-        title: 'Future assignment 4',
+        title: 'Later this week',
         class_id: 12,
         status: 'Todo',
-        due_date: '2026-03-25T12:00:00.000Z',
-      },
-      {
-        id: 6,
-        title: 'Future assignment 5',
-        class_id: 11,
-        status: 'Todo',
-        due_date: '2026-03-26T12:00:00.000Z',
-      },
-      {
-        id: 7,
-        title: 'Future assignment 6',
-        class_id: 12,
-        status: 'Todo',
-        due_date: '2026-03-31T12:00:00.000Z',
-      },
-      {
-        id: 8,
-        title: 'Archived assignment',
-        class_id: 11,
-        status: 'Archived',
-        due_date: '2026-03-23T12:00:00.000Z',
-      },
-      {
-        id: 9,
-        title: 'Undated assignment',
-        class_id: 12,
-        status: 'Todo',
-        due_date: null,
+        due_date: '2026-03-24T09:00:00.000Z',
       },
     ]);
 
     api.getClasses.mockResolvedValue([
-      {
-        id: 11,
-        name: 'Biology',
-        color: '#7a9e72',
-      },
-      {
-        id: 12,
-        name: 'History',
-        color: '#cf8f43',
-      },
+      { id: 11, name: 'Biology', color: '#7a9e72' },
+      { id: 12, name: 'History', color: '#cf8f43' },
+    ]);
+
+    api.getDecks.mockResolvedValue([
+      { id: 51, title: 'Cell Biology', created_at: '2026-03-10T12:00:00.000Z', last_studied: '2026-03-20T12:00:00.000Z', cardCount: 24 },
+    ]);
+
+    api.getNotes.mockResolvedValue([
+      { id: 81, title: 'Lecture Notes', updated_at: '2026-03-20T10:00:00.000Z', class_id: 11 },
     ]);
 
     await renderDashboard();
 
-    const upNextPanel = getSectionPanel(/up next/i);
-    expect(upNextPanel.getByText('Future assignment 1')).toBeInTheDocument();
-    expect(upNextPanel.getByText('Future assignment 5')).toBeInTheDocument();
-    expect(upNextPanel.queryByText('Future assignment 6')).not.toBeInTheDocument();
-    expect(upNextPanel.queryByText('Overdue assignment')).not.toBeInTheDocument();
-    expect(upNextPanel.queryByText('Archived assignment')).not.toBeInTheDocument();
-    expect(upNextPanel.queryByText('Undated assignment')).not.toBeInTheDocument();
-    expect(upNextPanel.getByRole('button', { name: /\+1 more upcoming/i })).toBeInTheDocument();
+    expect(screen.getByTestId('streak-activity-card')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /how it's going/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /what needs you/i })).toBeInTheDocument();
 
-    const pastDuePanel = getSectionPanel(/past due/i);
-    expect(pastDuePanel.getByText('Overdue assignment')).toBeInTheDocument();
-    expect(pastDuePanel.queryByText('Future assignment 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Overdue assignment')).toBeInTheDocument();
+    expect(screen.getByText('Due today reading')).toBeInTheDocument();
+    expect(screen.getByText('Due tomorrow lab')).toBeInTheDocument();
+    expect(screen.queryByText('Later this week')).not.toBeInTheDocument();
 
-    const firstFutureAssignment = upNextPanel.getByText('Future assignment 1');
-    const fifthFutureAssignment = upNextPanel.getByText('Future assignment 5');
-    expect(
-      firstFutureAssignment.compareDocumentPosition(fifthFutureAssignment) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-
-    fireEvent.click(upNextPanel.getByRole('button', { name: /\+1 more upcoming/i }));
-    expect(upNextPanel.getByText('Future assignment 6')).toBeInTheDocument();
-    expect(upNextPanel.getByRole('button', { name: /show less/i })).toBeInTheDocument();
-
-    const expandedFifthAssignment = upNextPanel.getByText('Future assignment 5');
-    const sixthFutureAssignment = upNextPanel.getByText('Future assignment 6');
-    expect(
-      expandedFifthAssignment.compareDocumentPosition(sixthFutureAssignment) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-
-    fireEvent.click(upNextPanel.getByRole('button', { name: /show less/i }));
-    expect(upNextPanel.queryByText('Future assignment 6')).not.toBeInTheDocument();
-    expect(upNextPanel.getByRole('button', { name: /\+1 more upcoming/i })).toBeInTheDocument();
-
-    expect(screen.getAllByText('Up Next').length).toBeGreaterThan(1);
+    expect(within(screen.getByTestId('weekly-summary')).getByText('47')).toBeInTheDocument();
+    expect(within(screen.getByTestId('weekly-summary')).getByText('Cards')).toBeInTheDocument();
+    expect(api.getWeeklySummary).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the new empty-state copy when there are no upcoming assignments', async () => {
+  it('expands the strict priority list inline and orders urgency correctly', async () => {
     api.getAssignments.mockResolvedValue([
-      {
-        id: 1,
-        title: 'Overdue assignment',
-        class_id: 11,
-        status: 'Todo',
-        due_date: '2026-03-20T12:00:00.000Z',
-      },
+      { id: 1, title: 'Essay draft', class_id: 11, status: 'Todo', due_date: '2026-03-18T12:00:00.000Z' },
+      { id: 2, title: 'Lab correction', class_id: 11, status: 'Todo', due_date: '2026-03-20T12:00:00.000Z' },
+      { id: 3, title: 'Quiz review', class_id: 11, status: 'Todo', due_date: '2026-03-21T09:00:00.000Z' },
+      { id: 4, title: 'Reading notes', class_id: 11, status: 'Todo', due_date: '2026-03-21T18:00:00.000Z' },
+      { id: 5, title: 'Practice sheet', class_id: 11, status: 'Todo', due_date: '2026-03-22T08:00:00.000Z' },
+      { id: 6, title: 'Discussion prep', class_id: 11, status: 'Todo', due_date: '2026-03-22T19:00:00.000Z' },
+      { id: 7, title: 'Future next week', class_id: 11, status: 'Todo', due_date: '2026-03-26T12:00:00.000Z' },
     ]);
 
     api.getClasses.mockResolvedValue([
-      {
-        id: 11,
-        name: 'Biology',
-        color: '#7a9e72',
-      },
+      { id: 11, name: 'Biology', color: '#7a9e72' },
     ]);
 
     await renderDashboard();
 
-    const upNextPanel = getSectionPanel(/up next/i);
-    expect(upNextPanel.getByText('Nothing coming up.')).toBeInTheDocument();
-    expect(upNextPanel.getByText('No upcoming assignments.')).toBeInTheDocument();
+    const priorityItems = screen.getByTestId('priority-items');
+
+    expect(within(priorityItems).getByText('Essay draft')).toBeInTheDocument();
+    expect(within(priorityItems).getByText('Practice sheet')).toBeInTheDocument();
+    expect(within(priorityItems).queryByText('Discussion prep')).not.toBeInTheDocument();
+    expect(within(priorityItems).queryByText('Future next week')).not.toBeInTheDocument();
+
+    const overdueThree = within(priorityItems).getByText('Essay draft');
+    const overdueOne = within(priorityItems).getByText('Lab correction');
+    const dueTodayMorning = within(priorityItems).getByText('Quiz review');
+    expect(
+      overdueThree.compareDocumentPosition(overdueOne) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      overdueOne.compareDocumentPosition(dueTodayMorning) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(within(priorityItems).getByRole('button', { name: /show all \(6\)/i }));
+    expect(within(priorityItems).getByText('Discussion prep')).toBeInTheDocument();
+    expect(within(priorityItems).getByRole('button', { name: /show fewer/i })).toBeInTheDocument();
   });
 });

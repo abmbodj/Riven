@@ -45,6 +45,7 @@ describe('authApi decks and study PostgREST', () => {
     supabase.from.mockReset();
     supabase.rpc.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
     authApi.setToken('supabase-token');
     globalThis.fetch = vi.fn().mockResolvedValue(buildJsonResponse({
       id: 42,
@@ -275,7 +276,7 @@ describe('authApi decks and study PostgREST', () => {
       .mockReturnValueOnce({ select })
       .mockReturnValueOnce({ update });
 
-    const result = await authApi.reviewCard(88, 4); // Rating.Easy
+    await authApi.reviewCard(88, 4); // Rating.Easy
 
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       times_reviewed: 5,
@@ -295,6 +296,11 @@ describe('authApi decks and study PostgREST', () => {
   });
 
   it('stores study sessions and derives deck stats from Supabase rows', async () => {
+    sessionStorage.setItem('riven:weekly-summary:UTC', JSON.stringify({
+      expiresAt: Date.now() + 1000,
+      value: { cards_studied: 99 },
+    }));
+
     const sessionSingle = vi.fn().mockResolvedValue({
       data: {
         id: 501,
@@ -360,6 +366,7 @@ describe('authApi decks and study PostgREST', () => {
       duration_seconds: 480,
       session_type: 'study',
     });
+    expect(sessionStorage.getItem('riven:weekly-summary:UTC')).toBeNull();
     expect(stats).toEqual({
       totalSessions: 3,
       totalCardsStudied: 23,
@@ -382,5 +389,74 @@ describe('authApi decks and study PostgREST', () => {
         { id: 1, deck_id: 7, cards_studied: 5, cards_correct: 2, duration_seconds: 120, created_at: '2026-03-11T12:00:00.000Z' },
       ],
     });
+  });
+
+  it('aggregates a weekly summary from Supabase study sessions and reuses the cached response', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
+
+    const deckEq = vi.fn().mockResolvedValue({
+      data: [{ id: 7 }, { id: 9 }],
+      error: null,
+    });
+    const deckSelect = vi.fn().mockReturnValue({ eq: deckEq });
+
+    const sessionOrder = vi.fn().mockResolvedValue({
+      data: [
+        { cards_studied: 5, cards_correct: 4, duration_seconds: 1800, created_at: '2026-03-20T13:00:00.000Z' },
+        { cards_studied: 7, cards_correct: 6, duration_seconds: 2400, created_at: '2026-03-21T09:00:00.000Z' },
+      ],
+      error: null,
+    });
+    const sessionGte = vi.fn().mockReturnValue({ order: sessionOrder });
+    const sessionIn = vi.fn().mockReturnValue({ gte: sessionGte });
+    const sessionSelect = vi.fn().mockReturnValue({ in: sessionIn });
+
+    supabase.from
+      .mockReturnValueOnce({ select: deckSelect })
+      .mockReturnValueOnce({ select: sessionSelect });
+
+    const summary = await authApi.getWeeklySummary('UTC');
+
+    expect(deckEq).toHaveBeenCalledWith('user_id', 42);
+    expect(sessionIn).toHaveBeenCalledWith('deck_id', [7, 9]);
+    expect(summary.cards_studied).toBe(12);
+    expect(summary.accuracy).toBeCloseTo(10 / 12);
+    expect(summary.total_minutes).toBe(70);
+    expect(summary.daily_breakdown).toHaveLength(7);
+    expect(summary.daily_breakdown.at(-2)).toMatchObject({ date: '2026-03-20', cards: 5, studied: true });
+    expect(summary.daily_breakdown.at(-1)).toMatchObject({ date: '2026-03-21', cards: 7, studied: true, is_today: true });
+
+    supabase.from.mockClear();
+    const cachedSummary = await authApi.getWeeklySummary('UTC');
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(cachedSummary).toEqual(summary);
+
+    vi.useRealTimers();
+  });
+
+  it('returns an empty seven-day weekly summary when the user has no owned decks', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
+
+    const deckEq = vi.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const deckSelect = vi.fn().mockReturnValue({ eq: deckEq });
+
+    supabase.from.mockReturnValueOnce({ select: deckSelect });
+
+    const summary = await authApi.getWeeklySummary('UTC');
+
+    expect(summary).toMatchObject({
+      cards_studied: 0,
+      accuracy: null,
+      total_minutes: 0,
+    });
+    expect(summary.daily_breakdown).toHaveLength(7);
+    expect(summary.daily_breakdown.every((day) => day.cards === 0 && day.studied === false)).toBe(true);
+
+    vi.useRealTimers();
   });
 });

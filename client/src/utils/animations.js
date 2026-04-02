@@ -166,7 +166,11 @@ export function pageEnterTimeline(container) {
  * @param {object} opts
  */
 export function animateCounter(el, end, opts = {}) {
-    const { duration = 1.5, ease = EASE.organic } = opts;
+    const {
+        duration = 1.5,
+        ease = EASE.organic,
+        formatter = (value) => Math.round(value),
+    } = opts;
     const obj = { val: 0 };
 
     return gsap.to(obj, {
@@ -174,7 +178,7 @@ export function animateCounter(el, end, opts = {}) {
         duration,
         ease,
         onUpdate: () => {
-            if (el) el.textContent = Math.round(obj.val);
+            if (el) el.textContent = String(formatter(obj.val));
         },
     });
 }

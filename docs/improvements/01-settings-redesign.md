@@ -1,6 +1,6 @@
 # Settings Page Redesign
 
-> **Status:** Planned | **Priority:** High | **Alpha-Critical:** Yes | **Effort:** M (3-5 days)
+> **Status:** Done | **Priority:** High | **Alpha-Critical:** Yes | **Effort:** M (3-5 days)
 
 ## Summary
 

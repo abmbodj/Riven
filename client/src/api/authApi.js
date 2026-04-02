@@ -62,6 +62,8 @@ export const AUTH_SESSION_EXPIRED_EVENT = 'riven-auth-session-expired';
 const useLocalStorage = Capacitor.isNativePlatform();
 const csrfTokenCache = new Map();
 const EDGE_FUNCTION_AUTH_HEADER = 'x-supabase-auth';
+const WEEKLY_SUMMARY_STORAGE_PREFIX = 'riven:weekly-summary';
+const WEEKLY_SUMMARY_TTL_MS = 15 * 60 * 1000;
 export const DEFAULT_PUSH_PREFERENCES = Object.freeze({
     messagesEnabled: true,
     streakEnabled: true,
@@ -98,6 +100,51 @@ const getSafeStorage = (kind) => {
 const getTokenStore = () => {
     const preferred = useLocalStorage ? 'localStorage' : 'sessionStorage';
     return getSafeStorage(preferred) || memoryTokenStore;
+};
+
+const getWeeklySummaryStorageKey = (timeZone = 'UTC') => `${WEEKLY_SUMMARY_STORAGE_PREFIX}:${timeZone}`;
+
+const clearWeeklySummaryCache = () => {
+    const storage = getSafeStorage('sessionStorage');
+    if (!storage) return;
+
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith(WEEKLY_SUMMARY_STORAGE_PREFIX)) {
+            storage.removeItem(key);
+        }
+    }
+};
+
+const readWeeklySummaryCache = (timeZone) => {
+    const storage = getSafeStorage('sessionStorage');
+    if (!storage) return null;
+
+    try {
+        const raw = storage.getItem(getWeeklySummaryStorageKey(timeZone));
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed?.expiresAt || Date.now() > parsed.expiresAt) {
+            storage.removeItem(getWeeklySummaryStorageKey(timeZone));
+            return null;
+        }
+
+        return parsed.value ?? null;
+    } catch {
+        storage.removeItem(getWeeklySummaryStorageKey(timeZone));
+        return null;
+    }
+};
+
+const writeWeeklySummaryCache = (timeZone, value) => {
+    const storage = getSafeStorage('sessionStorage');
+    if (!storage) return;
+
+    storage.setItem(getWeeklySummaryStorageKey(timeZone), JSON.stringify({
+        expiresAt: Date.now() + WEEKLY_SUMMARY_TTL_MS,
+        value,
+    }));
 };
 
 const forEachTokenStorage = (callback) => {
@@ -1348,6 +1395,62 @@ const getAppUserId = async () => {
     return cachedAppUserId;
 };
 
+const normalizeWeeklySummaryTimeZone = (timeZone) => {
+    const normalized = typeof timeZone === 'string' && timeZone.trim() ? timeZone.trim() : 'UTC';
+
+    try {
+        new Intl.DateTimeFormat('en-US', { timeZone: normalized }).format(new Date());
+        return normalized;
+    } catch {
+        return 'UTC';
+    }
+};
+
+const getDatePartsInTimeZone = (date, timeZone) => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+
+    const parts = formatter.formatToParts(date);
+    return {
+        year: parts.find((part) => part.type === 'year')?.value || '1970',
+        month: parts.find((part) => part.type === 'month')?.value || '01',
+        day: parts.find((part) => part.type === 'day')?.value || '01',
+    };
+};
+
+const getTimeZoneDateKey = (date, timeZone) => {
+    const parts = getDatePartsInTimeZone(date, timeZone);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const buildWeeklyBreakdownTemplate = (timeZone, now = new Date()) => {
+    const todayParts = getDatePartsInTimeZone(now, timeZone);
+    const anchorDate = new Date(Date.UTC(
+        Number(todayParts.year),
+        Number(todayParts.month) - 1,
+        Number(todayParts.day),
+    ));
+
+    return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(anchorDate);
+        date.setUTCDate(anchorDate.getUTCDate() - (6 - index));
+        const isoDate = date.toISOString().slice(0, 10);
+
+        return {
+            date: isoDate,
+            day: date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+            cards: 0,
+            minutes: 0,
+            studied: false,
+            is_today: index === 6,
+        };
+    });
+};
+
 // --- Folders (PostgREST) ---
 
 export const getFolders = async () => {
@@ -2533,7 +2636,86 @@ export const saveStudySession = async (deckId, cardsStudied, cardsCorrect, durat
         .eq('id', numericDeckId);
     if (deckError) _sbThrow(deckError);
 
+    clearWeeklySummaryCache();
     return data;
+};
+
+export const getWeeklySummary = async (timeZone) => {
+    const normalizedTimeZone = normalizeWeeklySummaryTimeZone(timeZone);
+    const cached = readWeeklySummaryCache(normalizedTimeZone);
+    if (cached) {
+        return cached;
+    }
+
+    const appUserId = await getAppUserId();
+    const template = buildWeeklyBreakdownTemplate(normalizedTimeZone);
+
+    const { data: deckRows, error: deckError } = await supabase
+        .from('decks')
+        .select('id')
+        .eq('user_id', appUserId);
+    if (deckError) _sbThrow(deckError);
+
+    const ownedDeckIds = (deckRows || []).map((deck) => deck.id).filter(Boolean);
+    if (ownedDeckIds.length === 0) {
+        const emptySummary = {
+            cards_studied: 0,
+            accuracy: null,
+            total_minutes: 0,
+            daily_breakdown: template,
+        };
+        writeWeeklySummaryCache(normalizedTimeZone, emptySummary);
+        return emptySummary;
+    }
+
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - 8);
+
+    const { data: sessionRows, error: sessionError } = await supabase
+        .from('study_sessions')
+        .select('cards_studied, cards_correct, duration_seconds, created_at')
+        .in('deck_id', ownedDeckIds)
+        .gte('created_at', cutoff.toISOString())
+        .order('created_at', { ascending: true });
+    if (sessionError) _sbThrow(sessionError);
+
+    const breakdown = template.map((day) => ({ ...day }));
+    const breakdownByDate = new Map(breakdown.map((day) => [day.date, day]));
+
+    let totalCards = 0;
+    let totalCorrect = 0;
+    let totalDurationSeconds = 0;
+
+    for (const session of sessionRows || []) {
+        const cardsStudiedCount = Number(session.cards_studied || 0);
+        const cardsCorrectCount = Number(session.cards_correct || 0);
+        const durationSecondsCount = Number(session.duration_seconds || 0);
+        const createdAt = new Date(session.created_at);
+
+        if (Number.isNaN(createdAt.getTime())) continue;
+
+        const dateKey = getTimeZoneDateKey(createdAt, normalizedTimeZone);
+        const dayBucket = breakdownByDate.get(dateKey);
+        if (!dayBucket) continue;
+
+        dayBucket.cards += cardsStudiedCount;
+        dayBucket.minutes += Math.round(durationSecondsCount / 60);
+        dayBucket.studied = dayBucket.studied || cardsStudiedCount > 0 || durationSecondsCount > 0;
+
+        totalCards += cardsStudiedCount;
+        totalCorrect += cardsCorrectCount;
+        totalDurationSeconds += durationSecondsCount;
+    }
+
+    const summary = {
+        cards_studied: totalCards,
+        accuracy: totalCards > 0 ? totalCorrect / totalCards : null,
+        total_minutes: Math.round(totalDurationSeconds / 60),
+        daily_breakdown: breakdown,
+    };
+
+    writeWeeklySummaryCache(normalizedTimeZone, summary);
+    return summary;
 };
 
 export const getDeckStats = async (deckId) => {

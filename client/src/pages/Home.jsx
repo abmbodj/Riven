@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { motion as Motion, AnimatePresence } from 'motion/react';
 import {
     ArrowRight,
     BookOpen,
     Calendar,
     CalendarDays,
     CheckCircle2,
-    Circle,
     Clock,
     Layers,
     Leaf,
@@ -24,15 +22,31 @@ import AIGenDisplay from '../components/ui/AIGenDisplay';
 import PricingModal from '../components/ui/PricingModal';
 import { PageLoader } from '../components/ui/PageLoader.jsx';
 import GardenLanding from '../components/ui/GardenLanding';
+import PriorityItems from '../components/dashboard/PriorityItems.jsx';
+import WeeklySummary from '../components/dashboard/WeeklySummary.jsx';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../hooks/useGSAP';
 import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 import { EASE, DURATION, STAGGER, animateCounter, breathe } from '../utils/animations';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
+import { subscribeMediaQueryList } from '../utils/matchMediaSubscribe';
 
 
 gsap.registerPlugin(ScrollTrigger);
+
+const REDUCED_MOTION_MQ = '(prefers-reduced-motion: reduce)';
+
+function subscribeReducedMotion(cb) {
+    if (typeof window === 'undefined') return () => {};
+    const mq = window.matchMedia(REDUCED_MOTION_MQ);
+    return subscribeMediaQueryList(mq, cb);
+}
+
+function getReducedMotionSnapshot() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(REDUCED_MOTION_MQ).matches;
+}
 
 function getRelativeDueLabel(dueValue, now = new Date()) {
     if (!dueValue) return null;
@@ -81,16 +95,27 @@ function formatDuration(totalDays) {
     return `${years}y`;
 }
 
-function formatDueDateTime(dueValue) {
-    const date = new Date(dueValue);
-    if (Number.isNaN(date.getTime())) return '';
-
-    return date.toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
+function getLast7DayFallback(now = new Date()) {
+    return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(now);
+        date.setDate(now.getDate() - (6 - index));
+        return {
+            date: date.toISOString().slice(0, 10),
+            day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+            studied: false,
+            is_today: index === 6,
+        };
     });
+}
+
+function getAssignmentDayDiff(dueValue, now = new Date()) {
+    if (!dueValue) return null;
+    const dueDate = new Date(dueValue);
+    if (Number.isNaN(dueDate.getTime())) return null;
+
+    const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+    const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((dueDay - nowDay) / 86400000);
 }
 
 function SectionHeading({ icon, title, to, action = 'View All', tone = 'default' }) {
@@ -117,24 +142,6 @@ function SectionHeading({ icon, title, to, action = 'View All', tone = 'default'
     );
 }
 
-function StreakBadge({ streak, status }) {
-    const statusColor = status === 'active'
-        ? 'text-botanical-forest border-botanical-forest/30 bg-botanical-forest/10'
-        : status === 'at-risk'
-            ? 'text-orange-400 border-orange-400/30 bg-orange-400/10'
-            : 'text-claude-secondary border-claude-border bg-claude-surface/50';
-
-    return (
-        <Link
-            to="/garden"
-            className={`tap-action inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.18em] transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${statusColor}`}
-        >
-            <Leaf className={`h-3 w-3${status === 'at-risk' ? ' streak-leaf-icon' : ''}`} />
-            {streak > 0 ? `${streak}d` : 'Start'}
-        </Link>
-    );
-}
-
 function StatStrip({ stats }) {
     return (
         <div className="flex items-center gap-0 divide-x divide-claude-border/60">
@@ -154,7 +161,6 @@ function StatStrip({ stats }) {
         </div>
     );
 }
-
 
 function QueueChip({ icon, eyebrow, title, meta, to, tone = 'default' }) {
     const toneClasses = tone === 'danger'
@@ -187,157 +193,61 @@ function QueueChip({ icon, eyebrow, title, meta, to, tone = 'default' }) {
     );
 }
 
-function AssignmentItem({ assignment, associatedClass, onToggleStatus }) {
-    const rawTitle = assignment?.title ?? assignment?.name ?? assignment?.assignment_title ?? '';
-    const assignmentTitle = String(rawTitle).trim() || 'Untitled Assignment';
-    const relativeDueLabel = getRelativeDueLabel(assignment.due_date);
-    const isOverdue = Boolean(relativeDueLabel && relativeDueLabel.startsWith('Overdue'));
-    const dueDateTime = assignment.due_date ? formatDueDateTime(assignment.due_date) : '';
+function ActivityStreakCard({ streak, weeklySummary, loading }) {
+    const days = weeklySummary?.daily_breakdown?.length
+        ? weeklySummary.daily_breakdown
+        : getLast7DayFallback();
 
-    const statusIcon = assignment.status === 'Doing'
-        ? <Clock className="h-5 w-5" />
-        : assignment.status === 'Done'
-            ? <CheckCircle2 className="h-5 w-5" />
-            : <Circle className="h-5 w-5" />;
+    const statusTone = streak.status === 'at-risk'
+        ? 'border-orange-400/30 bg-orange-400/10 text-orange-400'
+        : streak.status === 'active'
+            ? 'border-claude-accent/25 bg-claude-accent/10 text-claude-accent'
+            : 'border-claude-border/60 bg-claude-bg/20 text-claude-secondary';
 
     return (
-        <Motion.article
-            layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="group flex min-h-[92px] flex-col gap-3 rounded-2xl p-4 transition-[transform,opacity,color,background-color,border-color,box-shadow] glass-item sm:flex-row sm:items-start"
+        <Link
+            to="/garden"
+            className="glass-panel-premium gsap-section tap-action block rounded-[28px] p-5 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 sm:p-6"
+            data-testid="streak-activity-card"
         >
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-                <button
-                    type="button"
-                    onClick={() => onToggleStatus(assignment)}
-                    className={`tap-action mt-0.5 rounded-md transition-[transform,opacity,color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 ${assignment.status === 'Doing' ? 'text-orange-400' : assignment.status === 'Done' ? 'text-claude-accent' : 'text-claude-secondary hover:text-claude-accent'}`}
-                    aria-label={`Change status for ${assignmentTitle}`}
-                >
-                    {statusIcon}
-                </button>
-
-                <Link
-                    to={`/class/${assignment.class_id}`}
-                    className="block min-w-0 w-full flex-1 rounded-lg pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                >
-                    <h4
-                        title={assignmentTitle}
-                        className="line-clamp-2 max-w-full font-serif leading-tight text-white transition-colors group-hover:text-claude-accent md:text-lg"
-                    >
-                        {assignmentTitle}
-                    </h4>
-                    {associatedClass ? (
-                        <div
-                            className="mt-1 flex max-w-full min-w-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest"
-                            style={{ color: associatedClass.color || '#7a9e72' }}
-                        >
-                            <Layers className="h-3 w-3 shrink-0" />
-                            <span title={associatedClass.name} className="block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                                {associatedClass.name}
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.26em] text-claude-secondary">
+                        Study Rhythm
+                    </p>
+                    <div className="mt-3 flex items-end gap-3">
+                        <div className="flex items-end gap-2">
+                            <span className="font-display text-[2.2rem] font-bold leading-none text-claude-text">
+                                {streak.currentStreak || 0}
+                            </span>
+                            <span className="pb-1 text-[11px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">
+                                day streak
                             </span>
                         </div>
-                    ) : null}
-                </Link>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {assignment.due_date ? (
-                    <>
-                        <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[9px] font-bold uppercase tracking-widest ${isOverdue ? 'border-red-400/20 bg-red-400/10 text-red-400' : 'border-[#8fa6a8]/20 bg-[#8fa6a8]/10 text-[color-mix(in_srgb,var(--secondary-text-color)_70%,white)]'}`}>
-                            <Calendar className="h-3 w-3" />
-                            <time dateTime={assignment.due_date}>{dueDateTime}</time>
-                        </div>
-                        {relativeDueLabel ? (
-                            <span className={`rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest ${isOverdue ? 'bg-red-500/15 text-red-300' : 'bg-claude-accent/10 text-claude-accent'}`}>
-                                {relativeDueLabel}
-                            </span>
-                        ) : null}
-                    </>
-                ) : null}
-
-            </div>
-        </Motion.article>
-    );
-}
-
-function AssignmentStream({ upcoming, pastDue, classesById, onToggleStatus }) {
-    const [pastDueExpanded, setPastDueExpanded] = useState(false);
-    const [upNextExpanded, setUpNextExpanded] = useState(false);
-    const visiblePastDue = pastDueExpanded ? pastDue : pastDue.slice(0, 3);
-    const visibleUpcoming = upNextExpanded ? upcoming : upcoming.slice(0, 5);
-
-    return (
-        <div className="gsap-section">
-            {pastDue.length > 0 && (
-                <div className="mb-6">
-                    <SectionHeading icon={Clock} title="Past Due" tone="danger" />
-                    <div className="glass-panel-premium glass-danger relative overflow-hidden rounded-3xl p-5 md:p-6">
-                        <div className="relative z-10 space-y-2">
-                            <AnimatePresence>
-                                {visiblePastDue.map((assignment) => (
-                                    <AssignmentItem
-                                        key={assignment.id}
-                                        assignment={assignment}
-                                        associatedClass={classesById.get(assignment.class_id)}
-                                        onToggleStatus={onToggleStatus}
-                                    />
-                                ))}
-                            </AnimatePresence>
-                        </div>
-                        {pastDue.length > 3 && (
-                            <Motion.button
-                                type="button"
-                                whileTap={{ scale: 0.97 }}
-                                onClick={() => setPastDueExpanded((v) => !v)}
-                                className="mt-3 w-full rounded-xl border border-claude-border/60 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-colors hover:text-claude-accent tap-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                            >
-                                {pastDueExpanded ? 'Show less' : `+${pastDue.length - 3} more overdue`}
-                            </Motion.button>
-                        )}
                     </div>
                 </div>
-            )}
-
-            <SectionHeading icon={Sparkles} title="Up Next" to="/classes" />
-            <div className="glass-panel-premium relative overflow-hidden rounded-3xl p-5 md:p-6">
-                {upcoming.length > 0 ? (
-                    <>
-                        <div className="relative z-10 space-y-2">
-                            <AnimatePresence>
-                                {visibleUpcoming.map((assignment) => (
-                                    <AssignmentItem
-                                        key={assignment.id}
-                                        assignment={assignment}
-                                        associatedClass={classesById.get(assignment.class_id)}
-                                        onToggleStatus={onToggleStatus}
-                                    />
-                                ))}
-                            </AnimatePresence>
-                        </div>
-                        {upcoming.length > 5 && (
-                            <Motion.button
-                                type="button"
-                                whileTap={{ scale: 0.97 }}
-                                onClick={() => setUpNextExpanded((v) => !v)}
-                                className="mt-3 w-full rounded-xl border border-claude-border/60 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-claude-secondary transition-colors hover:text-claude-accent tap-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                            >
-                                {upNextExpanded ? 'Show less' : `+${upcoming.length - 5} more upcoming`}
-                            </Motion.button>
-                        )}
-                    </>
-                ) : (
-                    <div className="py-10 text-center opacity-60">
-                        <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-claude-accent opacity-50" />
-                        <p className="font-display italic text-botanical-parchment">Nothing coming up.</p>
-                        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-claude-secondary">
-                            No upcoming assignments.
-                        </p>
-                    </div>
-                )}
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-[0.18em] ${statusTone}`}>
+                    <Leaf className={`h-3.5 w-3.5${streak.status === 'at-risk' ? ' streak-leaf-icon' : ''}`} />
+                    {streak.status === 'at-risk' ? 'Needs care' : streak.status === 'active' ? 'In motion' : 'Restart'}
+                </div>
             </div>
-        </div>
+
+            <div className="mt-5" role="list" aria-label="Study activity for the last seven days">
+                <div className="flex items-center justify-between gap-2">
+                    {days.map((day) => (
+                        <div key={day.date} className="flex flex-1 flex-col items-center gap-2" role="listitem">
+                            <span
+                                className={`block rounded-full ${loading ? 'animate-pulse bg-claude-border/50' : day.studied ? 'bg-claude-accent' : 'bg-claude-border/40'} ${day.is_today ? 'ring-2 ring-claude-accent/35 ring-offset-2 ring-offset-transparent' : ''} h-3.5 w-3.5`}
+                                aria-label={`${day.day}: ${day.studied ? 'studied' : 'no study activity'}`}
+                            />
+                            <span className={`text-[9px] font-mono font-bold uppercase tracking-[0.16em] ${day.is_today ? 'text-claude-accent' : 'text-claude-secondary/70'}`}>
+                                {day.day.slice(0, 1)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Link>
     );
 }
 
@@ -372,11 +282,18 @@ function DashboardHome() {
     const [notes, setNotes] = useState([]);
     const [guides, setGuides] = useState([]);
     const [exams, setExams] = useState([]);
+    const [weeklySummary, setWeeklySummary] = useState(null);
+    const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(true);
     const [pricingOpen, setPricingOpen] = useState(false);
     const lightVisualBudget = useMobileVisualBudget();
+    const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot, () => false);
+    const timeZone = useMemo(
+        () => (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
+        [],
+    );
 
     useGSAP(() => {
-        if (loading || !pageRef.current) return;
+        if (loading || !pageRef.current || reducedMotion) return;
 
         const ctx = gsap.context(() => {
             // Hero rows stagger in
@@ -451,7 +368,7 @@ function DashboardHome() {
         }, pageRef.current);
 
         return () => ctx.revert();
-    }, [loading, lightVisualBudget]);
+    }, [loading, lightVisualBudget, reducedMotion]);
 
     useEffect(() => {
         const loadDashboard = async () => {
@@ -489,32 +406,38 @@ function DashboardHome() {
         loadDashboard();
     }, [toast]);
 
-    const toggleAssignStatus = async (assignment) => {
-        const nextStatus = assignment.status === 'Todo'
-            ? 'Doing'
-            : assignment.status === 'Doing'
-                ? 'Done'
-                : 'Todo';
+    useEffect(() => {
+        let active = true;
 
-        try {
-            await api.updateAssignment(assignment.id, { status: nextStatus });
-            setAssignments((current) => {
-                const updated = current.map((item) => (
-                    item.id === assignment.id ? { ...item, status: nextStatus } : item
-                ));
-                
-                // Reschedule notifications based on updated statuses
-                const saved = localStorage.getItem('notifications_enabled');
-                const notificationsEnabled = saved === null ? true : saved === 'true';
-                scheduleAssignmentNotifications(updated, notificationsEnabled);
-                
-                return updated;
-            });
+        const loadWeeklySummary = async () => {
+            setWeeklySummaryLoading(true);
+            try {
+                const summary = await api.getWeeklySummary(timeZone);
+                if (active) {
+                    setWeeklySummary(summary);
+                }
+            } catch (error) {
+                console.error('Weekly summary load error', error);
+                if (active) {
+                    setWeeklySummary({
+                        cards_studied: 0,
+                        accuracy: null,
+                        total_minutes: 0,
+                        daily_breakdown: getLast7DayFallback(),
+                    });
+                }
+            } finally {
+                if (active) {
+                    setWeeklySummaryLoading(false);
+                }
+            }
+        };
 
-        } catch {
-            toast.error('Failed to update status');
-        }
-    };
+        loadWeeklySummary();
+        return () => {
+            active = false;
+        };
+    }, [timeZone]);
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -587,6 +510,45 @@ function DashboardHome() {
     }, [decks, notes, guides, exams]);
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
+    const priorityItems = useMemo(() => {
+        const now = new Date();
+
+        return assignments
+            .filter((assignment) => assignment.status !== 'Done' && assignment.status !== 'Archived')
+            .map((assignment) => {
+                const diffDays = getAssignmentDayDiff(assignment.due_date, now);
+                if (diffDays == null || diffDays > 1) {
+                    return null;
+                }
+
+                const rawTitle = assignment?.title ?? assignment?.name ?? assignment?.assignment_title ?? '';
+                const associatedClass = classesById.get(assignment.class_id);
+                const tone = diffDays < 0 ? 'overdue' : diffDays === 0 ? 'today' : 'tomorrow';
+
+                return {
+                    id: assignment.id,
+                    title: String(rawTitle).trim() || 'Untitled Assignment',
+                    tone,
+                    urgencyLabel: diffDays < 0
+                        ? `Overdue ${formatDuration(Math.abs(diffDays))}`
+                        : diffDays === 0
+                            ? 'Due today'
+                            : 'Due tomorrow',
+                    dueDate: assignment.due_date,
+                    sortDays: diffDays,
+                    className: associatedClass?.name || '',
+                    classColor: associatedClass?.color || 'var(--border-color)',
+                    to: assignment.class_id ? `/class/${assignment.class_id}` : '/classes',
+                };
+            })
+            .filter(Boolean)
+            .sort((left, right) => {
+                if (left.sortDays !== right.sortDays) {
+                    return left.sortDays - right.sortDays;
+                }
+                return new Date(left.dueDate) - new Date(right.dueDate);
+            });
+    }, [assignments, classesById]);
     const focusDeck = recentDecks[0] ?? null;
     const focusAssignment = pastDueAssignments[0] ?? upcomingAssignments[0] ?? null;
     const focusClass = focusAssignment ? classesById.get(focusAssignment.class_id) : (classes[0] ?? null);
@@ -780,7 +742,6 @@ function DashboardHome() {
                                 {greeting} · {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                             </p>
                             <div className="flex items-center gap-2 lg:hidden">
-                                <StreakBadge streak={streak.currentStreak} status={streak.status} />
                                 <AIGenDisplay onClick={() => setPricingOpen(true)} />
                                 <HeartsDisplay onClick={() => setPricingOpen(true)} />
                             </div>
@@ -879,7 +840,6 @@ function DashboardHome() {
                     {/* RIGHT — Stats + Queue (desktop only) */}
                     <div className="hidden lg:flex lg:flex-col lg:gap-4 lg:justify-between">
                         <div className="gsap-hero-row flex items-center justify-end gap-2">
-                            <StreakBadge streak={streak.currentStreak} status={streak.status} />
                             <AIGenDisplay onClick={() => setPricingOpen(true)} />
                             <HeartsDisplay onClick={() => setPricingOpen(true)} />
                         </div>
@@ -906,15 +866,26 @@ function DashboardHome() {
             </div>
 
             {/* ZONE B — Work Surface */}
-            <div className="mb-10 grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-                <AssignmentStream
-                    upcoming={upcomingAssignments}
-                    pastDue={pastDueAssignments}
-                    classesById={classesById}
-                    onToggleStatus={toggleAssignStatus}
-                />
+            <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
+                <div className="order-1 space-y-6">
+                    <ActivityStreakCard
+                        streak={streak}
+                        weeklySummary={weeklySummary}
+                        loading={weeklySummaryLoading}
+                    />
+                    <WeeklySummary
+                        summary={weeklySummary}
+                        loading={weeklySummaryLoading}
+                        reducedMotion={reducedMotion}
+                        lowVisualBudget={lightVisualBudget}
+                    />
+                </div>
 
-                <div>
+                <div className="order-2 lg:row-span-2">
+                    <PriorityItems items={priorityItems} />
+                </div>
+
+                <div className="order-3">
                     <SectionHeading icon={Clock} title="Recently Visited" to="/notes" />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {recentStudyItems.length > 0 ? (
@@ -981,7 +952,6 @@ function DashboardHome() {
                     </div>
                 </div>
             </div>
-
 
             <PricingModal
                 isOpen={pricingOpen}

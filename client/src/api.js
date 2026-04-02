@@ -324,6 +324,14 @@ export const api = {
     getDeckStats: (deckId) => isLoggedIn()
         ? serverApi.getDeckStats(deckId)
         : db.getDeckStats(deckId),
+    getWeeklySummary: (timeZone) => isLoggedIn()
+        ? serverApi.getWeeklySummary(timeZone)
+        : Promise.resolve({
+            cards_studied: 0,
+            accuracy: null,
+            total_minutes: 0,
+            daily_breakdown: [],
+        }),
 
     // ============ THEMES ============
     getThemes: () => isLoggedIn()

@@ -1,6 +1,6 @@
 # Calendar Integration
 
-> **Status:** Planned | **Priority:** High | **Effort:** XL (2-4 weeks) | **Alpha-Critical:** No
+> **Status:** Done | **Priority:** High | **Effort:** XL (2-4 weeks) | **Alpha-Critical:** No
 
 ## Summary
 
