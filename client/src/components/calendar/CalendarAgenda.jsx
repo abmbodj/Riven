@@ -59,6 +59,11 @@ export default function CalendarAgenda({ assignments, classes }) {
             const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
             if (dayStart < windowStart || dayStart > windowEnd) continue;
 
+            // For past days: only show incomplete overdue assignments
+            const isPastDay = dayStart < now;
+            const isComplete = a.status === 'Done' || a.status === 'Archived';
+            if (isPastDay && isComplete) continue;
+
             const key = dayStart.getTime();
             if (!map[key]) map[key] = { date: dayStart, items: [] };
             map[key].items.push(a);
@@ -69,17 +74,17 @@ export default function CalendarAgenda({ assignments, classes }) {
             map[key].items.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         }
 
-        // Build 30-day list, including empty days
+        // Build 30-day list; skip empty past days
         const result = [];
         for (let i = -2; i <= 28; i++) {
             const d = new Date(now);
             d.setDate(now.getDate() + i);
             d.setHours(0, 0, 0, 0);
-            const key = d.getTime();
-            result.push({
-                date: d,
-                items: map[key]?.items || [],
-            });
+            const isPast = d < now;
+            const items = map[d.getTime()]?.items || [];
+            // Hide past days that have nothing overdue
+            if (isPast && items.length === 0) continue;
+            result.push({ date: d, items });
         }
 
         return result;
