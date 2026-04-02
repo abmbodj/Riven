@@ -6,6 +6,7 @@ import Users from 'lucide-react/dist/esm/icons/users';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Sprout from 'lucide-react/dist/esm/icons/sprout';
 import Palette from 'lucide-react/dist/esm/icons/palette';
+import User from 'lucide-react/dist/esm/icons/user';
 import { UIContext } from '../context/UIContext';
 import { prefetchRoute } from '../routes/config.jsx';
 
@@ -14,6 +15,7 @@ const DRAWER_ITEMS = [
     { to: '/messages', icon: MessageSquare,   label: 'Messages', matchers: ['/messages'],           accent: false },
     { to: '/garden',   icon: Sprout,          label: 'Garden',   matchers: ['/garden'],             accent: true  },
     { to: '/themes',   icon: Palette,         label: 'Themes',   matchers: ['/themes'],             accent: true  },
+    { to: '/account',  icon: User,            label: 'Account',  matchers: ['/account', '/edit-profile'], accent: false },
 ];
 
 const routeMatches = (pathname, matchers = []) =>

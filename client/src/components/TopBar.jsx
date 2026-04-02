@@ -83,9 +83,11 @@ export default function TopBar({ onOpenCommandPalette }) {
     return (
         <header
             role="banner"
-            className="sticky top-0 z-30 flex h-10 md:h-12 items-center justify-between px-4 bg-claude-surface/80 backdrop-blur-sm border-b border-claude-border/30"
-            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            className="sticky top-0 z-30 bg-claude-surface/80 backdrop-blur-sm border-b border-claude-border/30"
         >
+            {/* Safe area spacer — pushes bar below status bar */}
+            <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+            <div className="h-10 md:h-12 flex items-center justify-between px-4">
             {/* Left: hamburger (mobile) / sidebar toggle (desktop) */}
             <div className="flex items-center">
                 {/* Mobile: hamburger → drawer */}
@@ -189,6 +191,7 @@ export default function TopBar({ onOpenCommandPalette }) {
                         )}
                     </Link>
                 )}
+            </div>
             </div>
         </header>
     );
