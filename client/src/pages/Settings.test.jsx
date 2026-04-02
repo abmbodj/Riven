@@ -108,9 +108,17 @@ const renderSettings = () => render(
   </MemoryRouter>
 );
 
+/** Click the first tab matching the given section name. */
+const navigateToSection = (name) => {
+  const tabs = screen.getAllByRole('tab', { name: new RegExp(name, 'i') });
+  fireEvent.click(tabs[0]);
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.scrollTo = vi.fn();
+  // Reset location hash so default section is 'security'
+  window.location.hash = '';
   mockUser.subscription_tier = 'supporter';
   mockUser.twoFAEnabled = false;
   mockSignOut.mockResolvedValue(undefined);
@@ -152,6 +160,41 @@ beforeEach(() => {
   });
 });
 
+describe('Settings navigation', () => {
+  it('renders tab navigation and defaults to Security section', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(api.getCanvasSettings).toHaveBeenCalled();
+      expect(api.getAILimits).toHaveBeenCalled();
+      expect(mockGetPushPreferences).toHaveBeenCalled();
+    });
+
+    // Security is the default active section
+    expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
+
+    // Tab navigation is present with all 8 sections
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('navigates between sections via tabs', async () => {
+    renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    // Default: Security
+    expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
+
+    // Navigate to Riven AI
+    navigateToSection('Riven AI');
+    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+
+    // Navigate to Help & policies
+    navigateToSection('Help & policies');
+    expect(await screen.findByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
+  });
+});
+
 describe('Settings LMS sync', () => {
   it('renders the streamlined settings hierarchy for premium users', async () => {
     renderSettings();
@@ -161,17 +204,36 @@ describe('Settings LMS sync', () => {
       expect(mockGetPushPreferences).toHaveBeenCalled();
     });
 
+    // Security is default
     expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Plan & access' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /riven ai/i })).toBeInTheDocument();
-    expect(screen.getByText(/assignment reminders at 24h, 12h, 3h, 1h & 30m/i)).toBeInTheDocument();
+
+    // Navigate to Plan & access
+    navigateToSection('Plan & access');
+    expect(await screen.findByRole('heading', { name: 'Plan & access' })).toBeInTheDocument();
+
+    // Navigate to Integrations
+    navigateToSection('Integrations');
+    expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
+
+    // Navigate to Riven AI
+    navigateToSection('Riven AI');
+    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+
+    // Navigate to Notifications
+    navigateToSection('Notifications');
+    await waitFor(() => {
+      expect(screen.getByText(/assignment reminders at 24h, 12h, 3h, 1h & 30m/i)).toBeInTheDocument();
+    });
     expect(screen.getByText('Messages')).toBeInTheDocument();
     expect(screen.getByText('Garden streak rescue')).toBeInTheDocument();
     expect(screen.getByText('Come back nudges')).toBeInTheDocument();
+
+    // Navigate to Help & policies
+    navigateToSection('Help & policies');
+    expect(await screen.findByRole('heading', { name: 'Help & policies' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send feedback/i })).toBeInTheDocument();
+
+    // Verify removed sections don't exist
     expect(screen.queryByRole('heading', { name: 'Workspace snapshot' })).not.toBeInTheDocument();
     expect(screen.queryByText('Control center')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Theme & atmosphere' })).not.toBeInTheDocument();
@@ -180,7 +242,9 @@ describe('Settings LMS sync', () => {
 
   it('opens and closes the feedback modal from help and policies', async () => {
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
 
+    navigateToSection('Help & policies');
     fireEvent.click(await screen.findByRole('button', { name: /send feedback/i }));
 
     expect(screen.getByRole('heading', { name: /shape what comes next/i })).toBeInTheDocument();
@@ -194,7 +258,9 @@ describe('Settings LMS sync', () => {
 
   it('blocks empty feedback submissions in the composer modal', async () => {
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
 
+    navigateToSection('Help & policies');
     fireEvent.click(await screen.findByRole('button', { name: /send feedback/i }));
 
     expect(screen.getByRole('button', { name: /^send feedback$/i })).toBeDisabled();
@@ -203,7 +269,9 @@ describe('Settings LMS sync', () => {
 
   it('submits feedback suggestions from the settings modal', async () => {
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
 
+    navigateToSection('Help & policies');
     fireEvent.click(await screen.findByRole('button', { name: /send feedback/i }));
     fireEvent.change(screen.getByLabelText(/your suggestion/i), {
       target: { value: 'Add a feedback inbox for theme ideas.' },
@@ -221,6 +289,9 @@ describe('Settings LMS sync', () => {
 
   it('keeps connect CTA disabled until a Canvas feed URL is entered', async () => {
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Integrations');
 
     const connectButton = await screen.findByRole('button', { name: /connect calendar feed/i });
     expect(connectButton).toBeDisabled();
@@ -247,6 +318,9 @@ describe('Settings LMS sync', () => {
     });
 
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Integrations');
 
     const syncButton = await screen.findByRole('button', { name: /sync canvas now/i });
     fireEvent.click(syncButton);
@@ -271,6 +345,9 @@ describe('Settings LMS sync', () => {
     });
 
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Integrations');
 
     expect(await screen.findByText(/canvas feed timed out during the last auto-sync/i)).toBeInTheDocument();
 
@@ -291,6 +368,9 @@ describe('Settings LMS sync', () => {
     });
 
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Notifications');
 
     const messagesToggle = await screen.findByText('Messages');
     fireEvent.click(messagesToggle.closest('button'));
@@ -310,6 +390,9 @@ describe('Settings LMS sync', () => {
     mockUser.subscription_tier = 'lifetime';
 
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Plan & access');
 
     expect(await screen.findByRole('heading', { name: 'Plan & access' })).toBeInTheDocument();
     expect(screen.getAllByText(/^lifetime$/i).length).toBeGreaterThan(0);
@@ -326,6 +409,9 @@ describe('Settings LMS sync', () => {
     });
 
     renderSettings();
+    await waitFor(() => expect(api.getAILimits).toHaveBeenCalled());
+
+    navigateToSection('Riven AI');
 
     expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
     expect(screen.getByText('Every 12 hours')).toBeInTheDocument();
@@ -358,6 +444,9 @@ describe('Settings referral flow', () => {
     });
 
     renderSettings();
+    await waitFor(() => expect(api.getCanvasSettings).toHaveBeenCalled());
+
+    navigateToSection('Plan & access');
 
     const copyButton = await screen.findByRole('button', { name: /copy code/i });
     fireEvent.click(copyButton);

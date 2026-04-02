@@ -121,15 +121,15 @@ describe('Layout primary navigation', () => {
   it('widens the desktop content shell on the settings route only', () => {
     renderLayout('/settings');
 
-    expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-5xl');
-    expect(getMainContentWidthWrapper()).toHaveClass('xl:max-w-7xl');
+    expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-none');
+    expect(getMainContentWidthWrapper()).not.toHaveClass('lg:max-w-5xl');
   });
 
   it('keeps the standard desktop content shell on non-settings routes', () => {
     renderLayout('/dashboard');
 
     expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-5xl');
-    expect(getMainContentWidthWrapper()).not.toHaveClass('xl:max-w-7xl');
+    expect(getMainContentWidthWrapper()).not.toHaveClass('lg:max-w-none');
   });
 
   it('shows the floating recording widget away from the active note route', () => {

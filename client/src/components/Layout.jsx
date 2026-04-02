@@ -280,7 +280,7 @@ export default function Layout({ children }) {
                         } ${!isOffline && !pageOwnsTopSafeArea ? 'safe-area-top' : ''
                         }`}>
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
-                        <div className={isFullscreenPage ? '' : `lg:mx-auto lg:max-w-5xl ${isSettingsPage ? 'xl:max-w-7xl' : ''}`}>
+                        <div className={isFullscreenPage ? '' : `lg:mx-auto ${isSettingsPage ? 'lg:max-w-none' : 'lg:max-w-5xl'}`}>
                             <div
                                 ref={pageContentRef}
                                 key={location.pathname}
