@@ -39,6 +39,7 @@ const ExamsLibrary = lazy(() => import('../pages/ExamsLibrary.jsx'));
 const ExamView = lazy(() => import('../pages/ExamView.jsx'));
 const YouTubeImport = lazy(() => import('../pages/YouTubeImport.jsx'));
 const Onboarding = lazy(() => import('../pages/Onboarding.jsx'));
+const Calendar = lazy(() => import('../pages/Calendar.jsx'));
 
 // Route prefetch map — call prefetchRoute(path) on hover/touchstart for instant navigation
 const routeImportMap = {
@@ -48,6 +49,7 @@ const routeImportMap = {
   '/guides': () => import('../pages/GuidesLibrary.jsx'),
   '/exams': () => import('../pages/ExamsLibrary.jsx'),
   '/classes': () => import('../pages/Classes.jsx'),
+  '/calendar': () => import('../pages/Calendar.jsx'),
   '/create': () => import('../pages/CreateDeck.jsx'),
   '/themes': () => import('../pages/ThemeSettings.jsx'),
   '/garden': () => import('../pages/GardenSettings.jsx'),
@@ -90,6 +92,7 @@ export const routesConfig = [
       { path: '/exams', element: <ExamsLibrary /> },
       { path: '/exam/:id', element: <ExamView /> },
       { path: '/classes', element: <Classes /> },
+      { path: '/calendar', element: <Calendar /> },
       { path: '/class/:id', element: <ClassView /> },
       { path: '/create', element: <CreateDeck /> },
       { path: '/deck/:id', element: <DeckView /> },

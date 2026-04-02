@@ -1560,6 +1560,39 @@ export const deleteScheduleSlot = async (id) => {
     return { message: 'Schedule slot deleted' };
 };
 
+// --- Calendar Sources (PostgREST) ---
+
+export const getCalendarSources = async () => {
+    const { data, error } = await supabase
+        .from('calendar_sources')
+        .select('*')
+        .order('created_at', { ascending: true });
+    if (error) _sbThrow(error);
+    return data || [];
+};
+
+export const addCalendarSource = async ({ label, url, color, type = 'ical' }) => {
+    const userId = await getAppUserId();
+    const { data, error } = await supabase
+        .from('calendar_sources')
+        .insert({ user_id: userId, label, url, color, type })
+        .select()
+        .single();
+    if (error) _sbThrow(error);
+    return data;
+};
+
+export const deleteCalendarSource = async (id) => {
+    const { error } = await supabase.from('calendar_sources').delete().eq('id', id);
+    if (error) _sbThrow(error);
+};
+
+export const syncCalendarSource = (sourceId) =>
+    edgeFunctionFetch('calendar-source-sync', {
+        method: 'POST',
+        body: { sourceId },
+    });
+
 // --- LMS Integration (Canvas)
 const callCanvasLmsEndpoint = ({ action, payload }) =>
     edgeFunctionFetch('canvas-lms', {
@@ -4477,5 +4510,16 @@ export default {
     // Password Reset
     forgotPassword,
     resetPassword,
+
+    // Calendar Sources
+    getCalendarSources,
+    addCalendarSource,
+    deleteCalendarSource,
+    syncCalendarSource,
+
+    // Schedule
+    getSchedule,
+    createScheduleSlot,
+    deleteScheduleSlot,
 
 };

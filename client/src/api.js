@@ -397,4 +397,16 @@ export const api = {
 
     // RevenueCat API
     syncRevenueCat: (opts) => isLoggedIn() ? serverApi.syncRevenueCat(opts) : Promise.reject(new Error('Must be logged in')),
+
+    // ============ CALENDAR SOURCES ============
+    getCalendarSources: () => isLoggedIn() ? serverApi.getCalendarSources() : Promise.resolve([]),
+    addCalendarSource: (data) => isLoggedIn()
+        ? serverApi.addCalendarSource(data)
+        : Promise.reject(new Error('Must be logged in to add calendar sources')),
+    deleteCalendarSource: (id) => isLoggedIn()
+        ? serverApi.deleteCalendarSource(id)
+        : Promise.reject(new Error('Must be logged in to delete calendar sources')),
+    syncCalendarSource: (id) => isLoggedIn()
+        ? serverApi.syncCalendarSource(id)
+        : Promise.reject(new Error('Must be logged in to sync calendar sources')),
 };

@@ -1,6 +1,6 @@
 # Navigation Overhaul
 
-> **Status:** Planned | **Priority:** High | **Effort:** L (1-2 weeks) | **Alpha-Critical:** No
+> **Status:** Done | **Priority:** High | **Effort:** L (1-2 weeks) | **Alpha-Critical:** No
 
 ## Summary
 

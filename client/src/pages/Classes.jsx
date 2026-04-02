@@ -407,16 +407,25 @@ export default function Classes() {
             {/* Classes List */}
             <div className="px-4 sm:px-6">
                 {/* Segmented Control */}
-                <div className="flex glass-panel rounded-xl p-1 mb-6 max-w-xs transition-[transform,opacity,color,background-color,border-color,box-shadow]">
-                    {['Calendar', 'Roster'].map(mode => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            className={`flex-1 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${viewMode === mode ? 'bg-claude-accent text-claude-text shadow-sm' : 'text-claude-secondary hover:text-claude-text'}`}
-                        >
-                            {mode}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="flex glass-panel rounded-xl p-1 transition-[transform,opacity,color,background-color,border-color,box-shadow]">
+                        {['Schedule', 'Roster'].map(mode => (
+                            <button
+                                key={mode}
+                                onClick={() => setViewMode(mode)}
+                                className={`px-4 py-2 font-mono text-[10px] uppercase font-bold tracking-widest rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action ${viewMode === mode ? 'bg-claude-accent text-claude-text shadow-sm' : 'text-claude-secondary hover:text-claude-text'}`}
+                            >
+                                {mode}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={() => navigate('/calendar')}
+                        className="flex items-center gap-1.5 px-3 py-2 glass-panel rounded-xl font-mono text-[10px] uppercase font-bold tracking-widest text-claude-secondary hover:text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action"
+                    >
+                        <Calendar className="w-3.5 h-3.5" />
+                        Monthly
+                    </button>
                 </div>
 
                 {viewMode === 'Roster' && (() => {
@@ -474,7 +483,7 @@ export default function Classes() {
                     );
                 })()}
 
-                {viewMode === 'Calendar' && (() => {
+                {viewMode === 'Schedule' && (() => {
                     if (scheduleSlots.length === 0) {
                         return (
                             <div className="animate-fade-in pb-12">

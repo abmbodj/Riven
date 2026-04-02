@@ -6,6 +6,9 @@ const MINUTE_IN_MS = 60 * 1000;
 const MAX_ACTIVE_ASSIGNMENT_NOTIFICATIONS = 50;
 const DEFAULT_SMALL_ICON = 'ic_stat_icon_config_sample';
 
+// Pattern to detect exams, quizzes, and tests by title
+const EXAM_PATTERN = /\b(test|quiz|exam|midterm|final|assessment)\b/i;
+
 const ASSIGNMENT_REMINDER_CONFIGS = [
     {
         leadTimeMs: 24 * HOUR_IN_MS,
@@ -39,11 +42,27 @@ const ASSIGNMENT_REMINDER_CONFIGS = [
     },
 ];
 
+// Extra 48h lead reminder for exams/quizzes/tests
+const EXAM_EXTRA_REMINDER = {
+    leadTimeMs: 48 * HOUR_IN_MS,
+    title: 'Exam in 2 Days',
+    body: (assignmentTitle) => `${assignmentTitle} is in 2 days — start preparing!`,
+    iconColor: '#FF9500',
+};
+
 function buildAssignmentReminderNotifications(assignment, dueDate, now, startingId) {
     const assignmentTitle = assignment.title || assignment.name || assignment.assignment_title || 'Untitled Assignment';
     let nextId = startingId;
 
-    return ASSIGNMENT_REMINDER_CONFIGS.flatMap((reminder) => {
+    const isExam =
+        EXAM_PATTERN.test(assignmentTitle) ||
+        (assignment.assignment_type && assignment.assignment_type !== 'assignment');
+
+    const configs = isExam
+        ? [EXAM_EXTRA_REMINDER, ...ASSIGNMENT_REMINDER_CONFIGS]
+        : ASSIGNMENT_REMINDER_CONFIGS;
+
+    return configs.flatMap((reminder) => {
         const scheduledAt = new Date(dueDate.getTime() - reminder.leadTimeMs);
         if (scheduledAt <= now) {
             return [];
