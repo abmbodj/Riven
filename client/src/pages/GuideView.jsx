@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
     AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ClipboardCheck,
-    ChevronDown, Eye, Layers, Loader2, Menu, Play, RotateCcw, Share2, Sparkles, Trash2, X
+    ChevronDown, Eye, Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -31,6 +31,8 @@ import {
 import StudySection from '../components/StudySection.jsx';
 import GuideProgressDashboard from '../components/GuideProgressDashboard.jsx';
 import QuizMeMode from '../components/QuizMeMode.jsx';
+import SectionEditor from '../components/SectionEditor.jsx';
+import { updateSection } from '../utils/studyGuides.js';
 
 const EMPTY_STUDY_STATE = {
     current_section_id: null,
@@ -189,6 +191,8 @@ export default function GuideView() {
     const [showMobileGuideInfo, setShowMobileGuideInfo] = useState(false);
     const [showMobileMoreDetails, setShowMobileMoreDetails] = useState(false);
     const [showMobileNoteEditor, setShowMobileNoteEditor] = useState(false);
+
+    const [editingSectionId, setEditingSectionId] = useState(null);
 
     // Session mode state — drives the new study flow for v2 guides
     // 'entry' | 'studying' | 'quiz' | 'dashboard'
@@ -564,6 +568,24 @@ export default function GuideView() {
         return guideRef.current;
     }, [commitSave, saved, saving]);
 
+    const handleSaveSection = useCallback(async (sectionId, updates) => {
+        const currentGuideData = guideDataRef.current;
+        const updatedGuideData = updateSection(currentGuideData, sectionId, updates);
+        const normalizedNewState = normalizeGuideStudyState(updatedGuideData, studyStateRef.current);
+
+        setGuideData(updatedGuideData);
+        guideDataRef.current = updatedGuideData;
+        setStudyState(normalizedNewState);
+        studyStateRef.current = normalizedNewState;
+        setEditingSectionId(null);
+
+        try {
+            await api.updateStudyGuide(id, { guide_data: updatedGuideData });
+        } catch {
+            toast.error('Failed to save section');
+        }
+    }, [id, toast]);
+
     const handleShareGuide = async () => {
         setShowShareModal(true);
         setLoadingFriends(true);
@@ -912,6 +934,18 @@ export default function GuideView() {
                         className="h-full rounded-full bg-claude-accent transition-all"
                         style={{ width: `${(sessionIndex / sessionSections.length) * 100}%` }}
                     />
+                </div>
+
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-claude-text">{activeSessionSection.title}</p>
+                    <button
+                        type="button"
+                        onClick={() => setEditingSectionId(activeSessionSection.id)}
+                        className="text-claude-secondary hover:text-claude-accent transition-colors"
+                        aria-label="Edit section"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </button>
                 </div>
 
                 <StudySection
@@ -1272,6 +1306,24 @@ export default function GuideView() {
                 {sessionMode === 'dashboard' && renderDashboard()}
             </div>
 
+            {editingSectionId && (() => {
+                const sectionToEdit = normalizedGuideData?.sections.find((s) => s.id === editingSectionId);
+                if (!sectionToEdit) return null;
+                return (
+                    <MobileBottomSheet
+                        open
+                        title="Edit Section"
+                        onClose={() => setEditingSectionId(null)}
+                        opaque
+                    >
+                        <SectionEditor
+                            section={sectionToEdit}
+                            onSave={(updates) => handleSaveSection(editingSectionId, updates)}
+                            onCancel={() => setEditingSectionId(null)}
+                        />
+                    </MobileBottomSheet>
+                );
+            })()}
 
             {isMobileLayout ? (
                 <>
