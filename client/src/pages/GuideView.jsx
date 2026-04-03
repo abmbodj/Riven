@@ -22,9 +22,15 @@ import {
     STUDY_GUIDE_FORMAT_VERSION,
     getGuideProgress,
     getGuideStudySourceText,
+    getSessionSections,
+    getSectionStatus,
+    getWeakSections,
     normalizeGuideData,
     normalizeGuideStudyState,
 } from '../utils/studyGuides';
+import StudySection from '../components/StudySection.jsx';
+import GuideProgressDashboard from '../components/GuideProgressDashboard.jsx';
+import QuizMeMode from '../components/QuizMeMode.jsx';
 
 const EMPTY_STUDY_STATE = {
     current_section_id: null,
@@ -184,6 +190,12 @@ export default function GuideView() {
     const [showMobileMoreDetails, setShowMobileMoreDetails] = useState(false);
     const [showMobileNoteEditor, setShowMobileNoteEditor] = useState(false);
 
+    // Session mode state — drives the new study flow for v2 guides
+    // 'entry' | 'studying' | 'quiz' | 'dashboard'
+    const [sessionMode, setSessionMode] = useState('entry');
+    const [sessionSections, setSessionSections] = useState([]);
+    const [sessionIndex, setSessionIndex] = useState(0);
+
     const toastRef = useRef(toast);
     const saveTimerRef = useRef(null);
     const contentRef = useRef(null);
@@ -258,6 +270,9 @@ export default function GuideView() {
             setGuideData(normalizedData);
             setStudyState(normalizedState);
             setFormatVersion(resolvedFormatVersion);
+            setSessionMode('entry');
+            setSessionSections([]);
+            setSessionIndex(0);
 
             titleRef.current = guide.title || '';
             contentRef.current = guide.content || {};
@@ -328,6 +343,33 @@ export default function GuideView() {
 
     const focusSession = useCallback(() => {
         sessionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, []);
+
+    const startStudySession = useCallback((sectionList) => {
+        if (!sectionList.length) return;
+        setSessionSections(sectionList);
+        setSessionIndex(0);
+        setSessionMode('studying');
+    }, []);
+
+    const startFullSession = useCallback(() => {
+        const sectionList = normalizedGuideData?.sections ?? [];
+        if (!sectionList.length) return;
+        startStudySession(sectionList);
+    }, [startStudySession, normalizedGuideData]);
+
+    const startQuickSession = useCallback((durationMinutes) => {
+        const sessionSecs = getSessionSections(normalizedGuideData, normalizedStudyState, durationMinutes);
+        startStudySession(sessionSecs.length ? sessionSecs : normalizedGuideData?.sections ?? []);
+    }, [startStudySession, normalizedGuideData, normalizedStudyState]);
+
+    const startWeakSession = useCallback(() => {
+        const weak = getWeakSections(normalizedGuideData, normalizedStudyState);
+        startStudySession(weak.length ? weak : normalizedGuideData?.sections ?? []);
+    }, [startStudySession, normalizedGuideData, normalizedStudyState]);
+
+    const startQuizMode = useCallback(() => {
+        setSessionMode('quiz');
     }, []);
 
     useEffect(() => {
@@ -433,6 +475,78 @@ export default function GuideView() {
         studyStateRef.current = nextState;
         scheduleSave({ immediate });
     }, [scheduleSave]);
+
+    const handleSectionReveal = useCallback((sectionId) => {
+        updateStudyState((state) => ({
+            ...state,
+            section_states: {
+                ...state.section_states,
+                [sectionId]: {
+                    ...state.section_states[sectionId],
+                    revealed: true,
+                },
+            },
+        }));
+    }, [updateStudyState]);
+
+    const handleConfidenceSelect = useCallback((sectionId, confidence) => {
+        const now = new Date().toISOString();
+        updateStudyState((state) => ({
+            ...state,
+            section_states: {
+                ...state.section_states,
+                [sectionId]: {
+                    ...state.section_states[sectionId],
+                    confidence,
+                    revealed: true,
+                    last_reviewed_at: now,
+                },
+            },
+            last_reviewed_at: now,
+        }), { immediate: true });
+    }, [updateStudyState]);
+
+    const handleSectionComplete = useCallback((sectionId) => {
+        updateStudyState((state) => ({
+            ...state,
+            section_states: {
+                ...state.section_states,
+                [sectionId]: {
+                    ...state.section_states[sectionId],
+                    completed: true,
+                },
+            },
+        }));
+        if (sessionIndex + 1 >= sessionSections.length) {
+            setSessionMode('dashboard');
+        } else {
+            setSessionIndex(sessionIndex + 1);
+        }
+    }, [updateStudyState, sessionSections.length, sessionIndex]);
+
+    const handleQuizComplete = useCallback(() => {
+        setSessionMode('dashboard');
+    }, []);
+
+    const allQuizQuestions = useMemo(() => (
+        (normalizedGuideData?.sections ?? []).flatMap((section) => (
+            (section.mini_quiz ?? []).map((item) => ({
+                prompt: item.prompt,
+                answer: item.answer,
+                sectionId: section.id,
+                sectionTitle: section.title,
+            }))
+        ))
+    ), [normalizedGuideData]);
+
+    const weakCoachMessage = useMemo(() => {
+        if (!normalizedGuideData || !normalizedStudyState) return null;
+        const weak = getWeakSections(normalizedGuideData, normalizedStudyState);
+        if (!weak.length) return null;
+        if (weak.length === 1) return `You're weak on ${weak[0].title}. Focus there first.`;
+        if (weak.length === 2) return `You're weak on ${weak[0].title} and ${weak[1].title}. Start there.`;
+        return `${weak.length} sections need review. Start with the weakest ones.`;
+    }, [normalizedGuideData, normalizedStudyState]);
 
     const flushPendingSave = useCallback(async () => {
         if (saveTimerRef.current) {
@@ -699,6 +813,152 @@ export default function GuideView() {
         if (nextIndex < 0 || nextIndex >= sections.length) return;
         handleSelectSection(sections[nextIndex].id);
     };
+
+    const activeSessionSection = sessionSections[sessionIndex] ?? null;
+    const activeSessionSectionState = activeSessionSection
+        ? normalizedStudyState.section_states[activeSessionSection.id] ?? DEFAULT_SECTION_STATE
+        : null;
+
+    const renderSessionEntry = () => (
+        <div data-testid="session-entry" className="flex flex-col gap-4 px-4 py-4">
+            <div>
+                <h1 className="font-serif text-2xl font-bold italic text-claude-text">{title}</h1>
+                {normalizedStudyState.last_reviewed_at && (
+                    <p className="mt-1 text-xs text-claude-secondary">
+                        Last studied {formatLastReviewed(normalizedStudyState.last_reviewed_at)}
+                    </p>
+                )}
+            </div>
+
+            {weakCoachMessage && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                    <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.14em] text-blue-600">Study Coach</p>
+                    <p className="text-sm text-blue-800">{weakCoachMessage}</p>
+                </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+                <div className="rounded-2xl bg-claude-accent p-4 text-white">
+                    <p className="font-bold">⚡ Quick Session</p>
+                    <p className="mt-1 text-xs opacity-80">Pick a time — app selects what matters most</p>
+                    <div className="mt-3 flex gap-2">
+                        {[5, 10, 20].map((min) => (
+                            <button
+                                key={min}
+                                type="button"
+                                onClick={() => startQuickSession(min)}
+                                className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold hover:bg-white/30 transition-colors"
+                            >
+                                {min} min
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={startFullSession}
+                    className="rounded-2xl border border-claude-border bg-claude-surface p-4 text-left"
+                >
+                    <p className="font-bold text-claude-text">📚 Full Session</p>
+                    <p className="mt-1 text-xs text-claude-secondary">
+                        All {sections.length} sections · ~{sections.length * 3} min
+                    </p>
+                </button>
+
+                {allQuizQuestions.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={startQuizMode}
+                        className="rounded-2xl border border-claude-border bg-claude-surface p-4 text-left"
+                    >
+                        <p className="font-bold text-claude-text">🎯 Quiz Me</p>
+                        <p className="mt-1 text-xs text-claude-secondary">
+                            Rapid-fire · {allQuizQuestions.length} questions · Pure recall
+                        </p>
+                    </button>
+                )}
+            </div>
+
+            <button
+                type="button"
+                onClick={() => setSessionMode('dashboard')}
+                className="text-center text-xs text-claude-secondary underline"
+            >
+                View progress dashboard
+            </button>
+        </div>
+    );
+
+    const renderStudying = () => {
+        if (!activeSessionSection) return null;
+        return (
+            <div data-testid="session-studying" className="flex flex-col gap-4 px-4 py-4">
+                <div className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('entry')}
+                        className="flex items-center gap-1 text-xs text-claude-secondary"
+                    >
+                        <ChevronLeft className="h-3 w-3" /> Exit session
+                    </button>
+                    <p className="text-xs text-claude-secondary">
+                        {sessionIndex + 1} / {sessionSections.length}
+                    </p>
+                </div>
+
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-claude-border">
+                    <div
+                        className="h-full rounded-full bg-claude-accent transition-all"
+                        style={{ width: `${(sessionIndex / sessionSections.length) * 100}%` }}
+                    />
+                </div>
+
+                <StudySection
+                    section={activeSessionSection}
+                    sectionState={activeSessionSectionState}
+                    onReveal={() => handleSectionReveal(activeSessionSection.id)}
+                    onConfidenceSelect={(confidence) => handleConfidenceSelect(activeSessionSection.id, confidence)}
+                    onComplete={() => handleSectionComplete(activeSessionSection.id)}
+                />
+            </div>
+        );
+    };
+
+    const renderDashboard = () => (
+        <div data-testid="session-dashboard" className="flex flex-col gap-4 px-4 py-4">
+            <div className="flex items-center justify-between">
+                <h2 className="font-serif text-xl font-bold italic text-claude-text">Progress</h2>
+                <button
+                    type="button"
+                    onClick={() => setSessionMode('entry')}
+                    className="text-xs text-claude-secondary underline"
+                >
+                    Back
+                </button>
+            </div>
+            <GuideProgressDashboard
+                guideData={normalizedGuideData}
+                studyState={normalizedStudyState}
+                onStartWeakSession={startWeakSession}
+            />
+        </div>
+    );
+
+    const renderQuiz = () => (
+        <div data-testid="session-quiz" className="flex flex-col gap-4 px-4 py-4">
+            <div className="flex items-center justify-between">
+                <button
+                    type="button"
+                    onClick={() => setSessionMode('entry')}
+                    className="flex items-center gap-1 text-xs text-claude-secondary"
+                >
+                    <ChevronLeft className="h-3 w-3" /> Exit quiz
+                </button>
+            </div>
+            <QuizMeMode questions={allQuizQuestions} onComplete={handleQuizComplete} />
+        </div>
+    );
 
     if (transitioningWorkbook) {
         return (
@@ -1006,562 +1266,12 @@ export default function GuideView() {
             )}
 
             <div className={`max-w-5xl mx-auto px-4 ${isMobileLayout ? 'pt-4' : 'pt-6'}`}>
-                {isMobileLayout ? (
-                    <div data-testid="mobile-focus-shell" className="space-y-4">
-                        <div className="rounded-[30px] border border-claude-accent/20 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_55%),linear-gradient(135deg,rgba(239,68,68,0.12),rgba(15,23,42,0.04))] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.10)]">
-                            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Active Recall Workbook</p>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={handleTitleChange}
-                                placeholder="Untitled Guide"
-                                className="mt-3 w-full bg-transparent text-2xl font-serif font-bold italic tracking-tight text-claude-text placeholder:text-claude-secondary/30 outline-none"
-                            />
-                            <p className="mt-3 text-sm leading-relaxed text-claude-secondary">
-                                {sessionStarted ? 'Continue one checkpoint at a time.' : 'Start with one checkpoint and build recall step by step.'}
-                            </p>
-
-                            <button
-                                type="button"
-                                onClick={focusSession}
-                                className="mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15"
-                            >
-                                <Play className="w-4 h-4" />
-                                {sessionLabel}
-                            </button>
-
-                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-claude-border/25">
-                                <div
-                                    className="h-full rounded-full bg-claude-accent transition-all duration-300"
-                                    style={{ width: `${progress.completionPercent}%` }}
-                                />
-                            </div>
-
-                            <div className="mt-4 grid grid-cols-2 gap-3">
-                                <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">Progress</p>
-                                    <p className="mt-2 text-sm text-claude-text">{mobileProgressLabel}</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowMobileSections(true)}
-                                    className="rounded-2xl border border-claude-border bg-claude-surface/80 px-4 py-3 text-left transition-colors hover:border-claude-accent/20 tap-action"
-                                >
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Sections</p>
-                                    <p className="mt-2 truncate text-sm text-claude-text">{activeSection?.title || 'Open section picker'}</p>
-                                </button>
-                            </div>
-
-                            <div className="mt-3 rounded-2xl border border-claude-border bg-claude-surface/75 px-4 py-3">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Next checkpoint</p>
-                                        <p className="mt-2 text-sm text-claude-text">{nextSection?.title || 'Ready to begin'}</p>
-                                    </div>
-                                    <div className="rounded-full border border-claude-border bg-claude-bg/70 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] text-claude-secondary">
-                                        {formatLastReviewed(normalizedStudyState.last_reviewed_at)}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {activeSection && activeSectionState ? (
-                            <div
-                                ref={sessionCardRef}
-                                data-testid="mobile-active-section-card"
-                                className="rounded-[30px] border border-claude-border bg-claude-surface/90 p-4 shadow-[0_12px_36px_rgba(0,0,0,0.08)]"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Section {activeSectionIndex + 1} of {sections.length}</p>
-                                        <h2 className="mt-2 text-2xl font-serif italic font-bold text-claude-text">{activeSection.title}</h2>
-                                    </div>
-                                    <div className="shrink-0 rounded-full border border-claude-border bg-claude-bg/60 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                                        {activeSectionStatusLabel}
-                                    </div>
-                                </div>
-
-                                <div className="mt-5 rounded-3xl border border-claude-accent/20 bg-claude-accent/5 p-4">
-                                    <div className="flex items-center gap-2 text-claude-accent">
-                                        <Sparkles className="w-4 h-4" />
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em]">Recall First</p>
-                                    </div>
-                                    <p className="mt-3 text-base leading-relaxed text-claude-text">{activeSection.recall_prompt}</p>
-                                </div>
-
-                                {!activeSectionState.revealed ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleRevealAnswer}
-                                        className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15"
-                                    >
-                                        <Eye className="w-4 h-4" />
-                                        Reveal Answer
-                                    </button>
-                                ) : (
-                                    <div className="mt-5 space-y-5">
-                                        <div>
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Answer Points</p>
-                                            {activeSection.answer_points.length > 0 ? (
-                                                <ul className="mt-3 space-y-2">
-                                                    {activeSection.answer_points.map((point) => (
-                                                        <li key={point} className="flex gap-3 text-sm text-claude-text">
-                                                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-claude-accent" />
-                                                            <span>{point}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p className="mt-3 text-sm text-claude-secondary">No answer points were generated for this checkpoint.</p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">How did that feel?</p>
-                                            <div className="mt-3 grid grid-cols-1 gap-2 min-[380px]:grid-cols-3">
-                                                {STUDY_GUIDE_CONFIDENCE_OPTIONS.map((option) => (
-                                                    <ConfidenceButton
-                                                        key={option.value}
-                                                        active={activeSectionState.confidence === option.value}
-                                                        label={option.label}
-                                                        onClick={() => handleConfidenceChange(option.value)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {hasMobileMoreDetails ? (
-                                            <DisclosureCard
-                                                label="More details"
-                                                summary="Key terms, quiz, and common traps."
-                                                open={showMobileMoreDetails}
-                                                onToggle={() => setShowMobileMoreDetails((value) => !value)}
-                                                testId="mobile-more-details"
-                                            >
-                                                <div className="space-y-5">
-                                                    {activeSection.key_terms.length > 0 && (
-                                                        <div>
-                                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Key Terms</p>
-                                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                                {activeSection.key_terms.map((term) => (
-                                                                    <span key={term} className="rounded-full border border-claude-border bg-claude-bg/60 px-3 py-2 text-xs text-claude-text">
-                                                                        {term}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {activeSection.mini_quiz.length > 0 && (
-                                                        <div>
-                                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Mini Quiz</p>
-                                                            <div className="mt-3 space-y-3">
-                                                                {activeSection.mini_quiz.map((item) => (
-                                                                    <div key={`${activeSection.id}-${item.prompt}`} className="rounded-2xl border border-claude-border bg-claude-bg/60 p-4">
-                                                                        <p className="text-sm font-medium text-claude-text">{item.prompt}</p>
-                                                                        {item.answer ? <p className="mt-2 text-sm text-claude-secondary">{item.answer}</p> : null}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {activeSection.common_traps.length > 0 && (
-                                                        <div>
-                                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Common Traps</p>
-                                                            <ul className="mt-3 space-y-2">
-                                                                {activeSection.common_traps.map((trap) => (
-                                                                    <li key={trap} className="text-sm text-claude-secondary">{trap}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </DisclosureCard>
-                                        ) : null}
-
-                                        <DisclosureCard
-                                            label={activeSectionState.note?.trim() ? 'Edit note' : 'Add note'}
-                                            summary={noteDisclosureSummary}
-                                            open={showMobileNoteEditor}
-                                            onToggle={() => setShowMobileNoteEditor((value) => !value)}
-                                            testId="mobile-note-disclosure"
-                                        >
-                                            <label htmlFor="mobile-section-note" className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Personal Note</label>
-                                            <textarea
-                                                id="mobile-section-note"
-                                                aria-label="Personal note"
-                                                value={activeSectionState.note}
-                                                onChange={handleSectionNoteChange}
-                                                rows={4}
-                                                placeholder="Add a quick memory hook, mistake to avoid, or what to revisit later..."
-                                                className="mt-3 w-full resize-none rounded-3xl border border-claude-border bg-claude-bg/70 p-4 text-sm text-claude-text placeholder:text-claude-secondary/50 outline-none focus:border-claude-accent/30"
-                                            />
-                                        </DisclosureCard>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="rounded-[30px] border border-claude-border bg-claude-surface/85 p-5 text-sm text-claude-secondary">
-                                No study sections are available for this workbook yet.
-                            </div>
-                        )}
-
-                        <DisclosureCard
-                            label="Guide info"
-                            summary={guideInfoSummary}
-                            open={showMobileGuideInfo}
-                            onToggle={() => setShowMobileGuideInfo((value) => !value)}
-                            testId="mobile-guide-info"
-                        >
-                            <div className="space-y-5">
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Overview</p>
-                                    <p className="mt-3 text-sm leading-relaxed text-claude-text">{normalizedGuideData?.overview}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Session Flow</p>
-                                    <div className="mt-3 space-y-3 text-sm leading-relaxed text-claude-secondary">
-                                        <p><span className="text-claude-text">1.</span> Recall the answer before revealing anything.</p>
-                                        <p><span className="text-claude-text">2.</span> Compare your recall to the workbook answer points.</p>
-                                        <p><span className="text-claude-text">3.</span> Rate confidence, jot a note, and continue to the next checkpoint.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </DisclosureCard>
-                    </div>
-                ) : (
-                    <>
-                        <div data-testid="workbook-shell-grid" className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr,0.95fr]">
-                            <div className="rounded-[32px] border border-claude-accent/20 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_55%),linear-gradient(135deg,rgba(239,68,68,0.12),rgba(15,23,42,0.04))] p-5 sm:p-7 shadow-[0_18px_60px_rgba(0,0,0,0.10)]">
-                                <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Active Recall Workbook</p>
-                                <input
-                                    type="text"
-                                    value={title}
-                                    onChange={handleTitleChange}
-                                    placeholder="Untitled Guide"
-                                    className="mt-3 w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none tracking-tight leading-tight"
-                                />
-                                <p className="mt-5 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Study Session</p>
-                                <p className="mt-2 text-base sm:text-lg leading-relaxed text-claude-text">{sessionMessage}</p>
-
-                                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                    <SessionMetric
-                                        label="Progress"
-                                        value={`${progress.completedCount}/${progress.totalSections}`}
-                                        accent
-                                    />
-                                    <SessionMetric label="Finished" value={`${progress.completionPercent}%`} />
-                                    <div className="col-span-2 sm:col-span-1">
-                                        <SessionMetric label="Last reviewed" value={formatLastReviewed(normalizedStudyState.last_reviewed_at)} />
-                                    </div>
-                                </div>
-
-                                <div className="mt-5 h-2 rounded-full bg-claude-border/25 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-claude-accent transition-all duration-300"
-                                        style={{ width: `${progress.completionPercent}%` }}
-                                    />
-                                </div>
-
-                                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                                    <button
-                                        type="button"
-                                        onClick={focusSession}
-                                        className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 sm:w-auto"
-                                    >
-                                        <Play className="w-4 h-4" />
-                                        {sessionLabel}
-                                    </button>
-                                    <div className="w-full rounded-2xl border border-claude-border bg-claude-surface/70 px-4 py-3 sm:w-auto sm:min-w-[240px]">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">Next checkpoint</p>
-                                        <p className="mt-2 text-sm text-claude-text">{nextSection?.title || 'Ready to begin'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="hidden rounded-[30px] border border-claude-border bg-claude-surface/80 p-5 sm:p-6 xl:block">
-                                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Session Snapshot</p>
-                                <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-1">
-                                    <SessionMetric
-                                        label="Progress"
-                                        value={`${progress.completedCount}/${progress.totalSections} checkpoints`}
-                                        accent
-                                    />
-                                    <SessionMetric label="Finished" value={`${progress.completionPercent}% complete`} />
-                                    <SessionMetric label="Last reviewed" value={formatLastReviewed(normalizedStudyState.last_reviewed_at)} />
-                                    <SessionMetric label="Reveal count" value={`${progress.revealedCount} answered`} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 rounded-[28px] border border-claude-border bg-claude-surface/75 p-4 sm:p-5">
-                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                <div>
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Checkpoint Map</p>
-                                    <p className="mt-1 text-sm text-claude-secondary">Use the map to jump between sections without leaving study-session mode.</p>
-                                </div>
-                                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                                    <button
-                                        onClick={handleGenerateFlashcards}
-                                        disabled={!!generating}
-                                        className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
-                                    >
-                                        {generating === 'flashcards' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
-                                        <span>Flashcards</span>
-                                    </button>
-                                    <button
-                                        onClick={handleGenerateExam}
-                                        disabled={!!generating}
-                                        className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
-                                    >
-                                        {generating === 'exam' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-                                        <span>Mock Exam</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 h-2 rounded-full bg-claude-border/25 overflow-hidden">
-                                <div
-                                    className="h-full rounded-full bg-claude-accent transition-all duration-300"
-                                    style={{ width: `${progress.completionPercent}%` }}
-                                />
-                            </div>
-
-                            <div data-testid="checkpoint-chip-row" className="mt-4 flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-                                {sections.map((section, index) => {
-                                    const sectionState = normalizedStudyState.section_states[section.id] || {};
-                                    const isCurrent = normalizedStudyState.current_section_id === section.id;
-                                    const isComplete = sectionState.completed;
-                                    return (
-                                        <button
-                                            key={section.id}
-                                            type="button"
-                                            onClick={() => handleSelectSection(section.id)}
-                                            className={`touch-target shrink-0 rounded-full border px-4 py-3 text-[10px] font-mono uppercase tracking-[0.14em] transition-all ${
-                                                isCurrent
-                                                    ? 'border-claude-accent bg-claude-accent/10 text-claude-accent'
-                                                    : isComplete
-                                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                        : 'border-claude-border bg-claude-surface text-claude-secondary hover:border-claude-accent/20 hover:text-claude-accent'
-                                            }`}
-                                        >
-                                            {index + 1}. {section.title}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div data-testid="guide-session-layout" className="mt-6 grid grid-cols-1 gap-6 items-start xl:grid-cols-[1.55fr,0.95fr]">
-                            {activeSection && activeSectionState && (
-                                <div
-                                    ref={sessionCardRef}
-                                    className="rounded-[30px] border border-claude-border bg-claude-surface/85 p-4 sm:p-6 shadow-[0_12px_36px_rgba(0,0,0,0.08)]"
-                                >
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div>
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Section {activeSectionIndex + 1} of {sections.length}</p>
-                                            <h2 className="mt-2 text-2xl sm:text-3xl font-serif italic font-bold text-claude-text">{activeSection.title}</h2>
-                                        </div>
-                                        <div className="rounded-full border border-claude-border bg-claude-bg/60 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                                            {activeSectionStatusLabel}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 rounded-3xl border border-claude-accent/20 bg-claude-accent/5 p-4 sm:p-5">
-                                        <div className="flex items-center gap-2 text-claude-accent">
-                                            <Sparkles className="w-4 h-4" />
-                                            <p className="text-[10px] font-mono uppercase tracking-[0.18em]">Recall First</p>
-                                        </div>
-                                        <p className="mt-3 text-base sm:text-lg leading-relaxed text-claude-text">{activeSection.recall_prompt}</p>
-                                    </div>
-
-                                    {!activeSectionState.revealed ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleRevealAnswer}
-                                            className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 sm:w-auto"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            Reveal Answer
-                                        </button>
-                                    ) : (
-                                        <div className="mt-6 space-y-5">
-                                            {activeSection.answer_points.length > 0 && (
-                                                <div>
-                                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Answer Points</p>
-                                                    <ul className="mt-3 space-y-2">
-                                                        {activeSection.answer_points.map((point) => (
-                                                            <li key={point} className="flex gap-3 text-sm sm:text-base text-claude-text">
-                                                                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-claude-accent shrink-0" />
-                                                                <span>{point}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-
-                                            {activeSection.key_terms.length > 0 && (
-                                                <div>
-                                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Key Terms</p>
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        {activeSection.key_terms.map((term) => (
-                                                            <span key={term} className="rounded-full border border-claude-border bg-claude-bg/60 px-3 py-2 text-xs text-claude-text">
-                                                                {term}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {activeSection.mini_quiz.length > 0 && (
-                                                <div>
-                                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Mini Quiz</p>
-                                                    <div className="mt-3 space-y-3">
-                                                        {activeSection.mini_quiz.map((item) => (
-                                                            <div key={`${activeSection.id}-${item.prompt}`} className="rounded-2xl border border-claude-border bg-claude-bg/60 p-4">
-                                                                <p className="text-sm text-claude-text font-medium">{item.prompt}</p>
-                                                                {item.answer && <p className="mt-2 text-sm text-claude-secondary">{item.answer}</p>}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {activeSection.common_traps.length > 0 && (
-                                                <div>
-                                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Common Traps</p>
-                                                    <ul className="mt-3 space-y-2">
-                                                        {activeSection.common_traps.map((trap) => (
-                                                            <li key={trap} className="text-sm text-claude-secondary">{trap}</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <div className="mt-6">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">How did that feel?</p>
-                                        <div className="mt-3 grid grid-cols-1 gap-2 min-[380px]:grid-cols-3">
-                                            {STUDY_GUIDE_CONFIDENCE_OPTIONS.map((option) => (
-                                                <ConfidenceButton
-                                                    key={option.value}
-                                                    active={activeSectionState.confidence === option.value}
-                                                    label={option.label}
-                                                    onClick={() => handleConfidenceChange(option.value)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6">
-                                        <label htmlFor="section-note" className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Personal Note</label>
-                                        <textarea
-                                            id="section-note"
-                                            value={activeSectionState.note}
-                                            onChange={handleSectionNoteChange}
-                                            rows={4}
-                                            placeholder="Add a quick memory hook, mistake to avoid, or what to revisit later..."
-                                            className="mt-3 w-full rounded-3xl border border-claude-border bg-claude-bg/70 p-4 text-sm text-claude-text placeholder:text-claude-secondary/50 outline-none focus:border-claude-accent/30 resize-none"
-                                        />
-                                    </div>
-
-                                    <div className="mt-6 grid grid-cols-2 gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleStepNavigation(-1)}
-                                            disabled={!canGoPrevious}
-                                            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-border px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:text-claude-accent disabled:opacity-40"
-                                        >
-                                            <ArrowLeft className="w-4 h-4" />
-                                            Previous
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleStepNavigation(1)}
-                                            disabled={!canGoNext}
-                                            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 disabled:opacity-40"
-                                        >
-                                            {canGoNext ? 'Next section' : 'Last section'}
-                                            <ArrowRight className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="space-y-4">
-                                <div className="rounded-[28px] border border-claude-border bg-claude-surface/80 p-5 sm:p-6">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Overview</p>
-                                    <p className="mt-3 text-sm sm:text-base text-claude-text leading-relaxed">{normalizedGuideData?.overview}</p>
-                                </div>
-
-                                <div className="rounded-[28px] border border-claude-border bg-claude-surface/80 p-5 sm:p-6">
-                                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Session Flow</p>
-                                    <div className="mt-4 space-y-3 text-sm text-claude-secondary leading-relaxed">
-                                        <p><span className="text-claude-text">1.</span> Recall the answer from memory before revealing anything.</p>
-                                        <p><span className="text-claude-text">2.</span> Reveal the checkpoint answer and compare your recall to the target points.</p>
-                                        <p><span className="text-claude-text">3.</span> Rate your confidence, leave a quick note, and move to the next section.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
+                {sessionMode === 'entry' && renderSessionEntry()}
+                {sessionMode === 'studying' && renderStudying()}
+                {sessionMode === 'quiz' && renderQuiz()}
+                {sessionMode === 'dashboard' && renderDashboard()}
             </div>
 
-            {isMobileLayout && activeSection && activeSectionState ? (
-                <div
-                    data-testid="mobile-bottom-bar"
-                    className="fixed inset-x-0 bottom-0 z-20 border-t border-claude-border/20 bg-claude-bg/95 px-4 pt-3 backdrop-blur-md"
-                >
-                    <div className="mx-auto flex max-w-5xl gap-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
-                        {!activeSectionState.revealed ? (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowMobileSections(true)}
-                                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-surface/90 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:text-claude-accent"
-                                >
-                                    <Layers className="w-4 h-4" />
-                                    Sections
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleRevealAnswer}
-                                    className="inline-flex min-h-[48px] flex-[1.2] items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15"
-                                >
-                                    <Eye className="w-4 h-4" />
-                                    Reveal Answer
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => handleStepNavigation(-1)}
-                                    disabled={!canGoPrevious}
-                                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl border border-claude-border bg-claude-surface/90 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:text-claude-accent disabled:opacity-40"
-                                >
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Previous
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleStepNavigation(1)}
-                                    disabled={!canGoNext}
-                                    className="inline-flex min-h-[48px] flex-[1.2] items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 disabled:opacity-40"
-                                >
-                                    {canGoNext ? 'Next checkpoint' : 'Last checkpoint'}
-                                    <ArrowRight className="w-4 h-4" />
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            ) : null}
 
             {isMobileLayout ? (
                 <>

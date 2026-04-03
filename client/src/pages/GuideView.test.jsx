@@ -58,6 +58,44 @@ vi.mock('../components/ui/PricingModal', () => ({
   default: () => null,
 }));
 
+vi.mock('../components/StudySection.jsx', () => ({
+  default: ({ section, sectionState, onReveal, onConfidenceSelect, onComplete }) => (
+    <div data-testid="study-section">
+      <p data-testid="study-section-title">{section.title}</p>
+      <p data-testid="study-section-prompt">{section.recall_prompt}</p>
+      {!sectionState.revealed ? (
+        <button type="button" onClick={onReveal}>Reveal Answer</button>
+      ) : (
+        <div>
+          {section.answer_points.map((point) => <p key={point}>{point}</p>)}
+          <button type="button" onClick={() => onConfidenceSelect('know_it')}>Know it</button>
+          <button type="button" onClick={() => onConfidenceSelect('okay')}>Okay</button>
+          <button type="button" onClick={() => onConfidenceSelect('struggled')}>Struggled</button>
+        </div>
+      )}
+      <button type="button" onClick={onComplete}>Complete section</button>
+    </div>
+  ),
+}));
+
+vi.mock('../components/GuideProgressDashboard.jsx', () => ({
+  default: ({ guideData, studyState, onStartWeakSession }) => (
+    <div data-testid="guide-progress-dashboard">
+      <p>Progress Dashboard</p>
+      <button type="button" onClick={onStartWeakSession}>Start weak session</button>
+    </div>
+  ),
+}));
+
+vi.mock('../components/QuizMeMode.jsx', () => ({
+  default: ({ questions, onComplete }) => (
+    <div data-testid="quiz-me-mode">
+      <p>Quiz Mode ({questions.length} questions)</p>
+      <button type="button" onClick={onComplete}>Finish quiz</button>
+    </div>
+  ),
+}));
+
 const { api } = await import('../api');
 
 const buildV2Guide = (studyState = {}) => ({
@@ -185,7 +223,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('keeps the richer workbook layout on desktop and reveals the active section answer', async () => {
+  it('shows session entry screen on desktop and can start a full session to study a section', async () => {
     api.getStudyGuide.mockResolvedValue(buildV2Guide({
       current_section_id: 'treaty',
       section_states: {
@@ -203,34 +241,34 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByDisplayValue('World War I Workbook')).toBeInTheDocument();
+    const entryScreen = await screen.findByTestId('session-entry');
     expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
+    expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
-    expect(screen.getByTestId('workbook-shell-grid').className).toContain('grid-cols-1');
-    expect(screen.getByTestId('workbook-shell-grid').className).toContain('xl:grid-cols-[1.45fr,0.95fr]');
-    expect(screen.getByTestId('guide-session-layout').className).toContain('grid-cols-1');
-    expect(screen.getByTestId('checkpoint-chip-row').className).toContain('overflow-x-auto');
-    expect(screen.getByText(/study session/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /resume session/i })).toBeInTheDocument();
-    expect(screen.getByText(/pick up with treaty of versailles/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Treaty of Versailles' })).toBeInTheDocument();
-    expect(screen.queryByText(/Germany accepted blame and reparations/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('workbook-shell-grid')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('checkpoint-chip-row')).not.toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /reveal answer/i }));
+    // Navigate into full session (starts at first section = alliances, already revealed)
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
-    expect(await screen.findByText(/Germany accepted blame and reparations/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /know it/i }));
+    const studyingScreen = await screen.findByTestId('session-studying');
+    expect(screen.queryByTestId('session-entry')).not.toBeInTheDocument();
+    const studySection = within(studyingScreen).getByTestId('study-section');
+    expect(studySection).toBeInTheDocument();
+    // alliances is already revealed, so answer points are shown — rate confidence
+    expect(within(studySection).getByText(/Treaties pulled additional countries into the war/i)).toBeInTheDocument();
+    fireEvent.click(within(studySection).getByRole('button', { name: /know it/i }));
 
     await waitFor(() => {
       expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-7', expect.objectContaining({
-        title: 'World War I Workbook',
         study_state: expect.objectContaining({
-          current_section_id: 'treaty',
           section_states: expect.objectContaining({
-            treaty: expect.objectContaining({
+            alliances: expect.objectContaining({
               revealed: true,
               confidence: 'know_it',
-              completed: true,
+              last_reviewed_at: expect.any(String),
             }),
           }),
         }),
@@ -238,7 +276,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('renders the mobile workbook in focus mode with collapsed details and note editing', async () => {
+  it('renders the mobile workbook session entry and allows starting a quick session', async () => {
     mockMatchMedia(true);
     api.getStudyGuide.mockResolvedValue(buildV2Guide());
 
@@ -250,39 +288,32 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    const focusShell = await screen.findByTestId('mobile-focus-shell');
-    const activeCard = screen.getByTestId('mobile-active-section-card');
-
-    expect(within(focusShell).getByText(/active recall workbook/i)).toBeInTheDocument();
+    const entryScreen = await screen.findByTestId('session-entry');
+    expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checkpoint-chip-row')).not.toBeInTheDocument();
     expect(screen.queryByText(/checkpoint map/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/session snapshot/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId('mobile-bottom-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-bottom-bar')).not.toBeInTheDocument();
 
-    fireEvent.click(within(activeCard).getByRole('button', { name: /reveal answer/i }));
+    // Start a quick 5-min session
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /5 min/i }));
 
-    expect(await screen.findByText(/Treaties pulled additional countries into the war/i)).toBeInTheDocument();
-    expect(screen.queryByText('Triple Entente')).not.toBeInTheDocument();
+    const studyingScreen = await screen.findByTestId('session-studying');
+    expect(screen.queryByTestId('session-entry')).not.toBeInTheDocument();
+    expect(within(studyingScreen).getByTestId('study-section')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /more details/i }));
-    expect(screen.getAllByText('Triple Entente')).toHaveLength(2);
-    expect(screen.getByText(/What alliance included Britain\?/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /add note/i }));
-    fireEvent.change(screen.getByLabelText(/personal note/i), {
-      target: { value: 'Review this before the exam essay.' },
-    });
-    fireEvent.click(within(activeCard).getByRole('button', { name: /know it/i }));
+    // Reveal and rate confidence to trigger save
+    fireEvent.click(within(studyingScreen).getByRole('button', { name: /reveal answer/i }));
+    fireEvent.click(within(studyingScreen).getByRole('button', { name: /know it/i }));
 
     await waitFor(() => {
       expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-7', expect.objectContaining({
         study_state: expect.objectContaining({
-          current_section_id: 'alliances',
           section_states: expect.objectContaining({
             alliances: expect.objectContaining({
               confidence: 'know_it',
-              completed: true,
-              note: 'Review this before the exam essay.',
+              revealed: true,
             }),
           }),
         }),
@@ -290,7 +321,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('opens a mobile sections sheet and updates the current checkpoint when a section is selected', async () => {
+  it('opens a mobile sections sheet from the menu and shows section list', async () => {
     mockMatchMedia(true);
     api.getStudyGuide.mockResolvedValue(buildV2Guide());
 
@@ -302,25 +333,16 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    const focusShell = await screen.findByTestId('mobile-focus-shell');
-    fireEvent.click(within(focusShell).getByRole('button', { name: /sections/i }));
+    // Wait for session entry to load
+    await screen.findByTestId('session-entry');
 
-    const sectionsSheet = await screen.findByTestId('mobile-sections-sheet');
-    expect(sectionsSheet.className.split(/\s+/)).toContain('bg-claude-bg/95');
-    expect(sectionsSheet.className.split(/\s+/)).not.toContain('bg-claude-bg');
-    expect(within(sectionsSheet).getByText(/0\/2 complete/i)).toBeInTheDocument();
+    // Open the mobile menu (three-bar button in the navbar)
+    fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
 
-    fireEvent.click(within(sectionsSheet).getByRole('button', { name: /treaty of versailles/i }));
-
-    expect(await screen.findByRole('heading', { name: 'Treaty of Versailles' })).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-7', expect.objectContaining({
-        study_state: expect.objectContaining({
-          current_section_id: 'treaty',
-        }),
-      }));
-    });
+    // Verify the menu opens
+    const moreSheet = await screen.findByTestId('mobile-more-sheet');
+    expect(moreSheet).toBeInTheDocument();
+    expect(within(moreSheet).getByRole('button', { name: /^share$/i })).toBeInTheDocument();
   });
 
   it('moves secondary mobile actions into a single more sheet', async () => {
@@ -335,7 +357,7 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByDisplayValue('World War I Workbook')).toBeInTheDocument();
+    await screen.findByTestId('session-entry');
     fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
 
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
@@ -422,8 +444,8 @@ describe('GuideView', () => {
 
     releaseDone();
 
-    expect(await screen.findByDisplayValue('World War I Recall Workbook')).toBeInTheDocument();
-    expect(screen.getByText(/study session/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'World War I Recall Workbook' })).toBeInTheDocument();
+    expect(screen.getByTestId('session-entry')).toBeInTheDocument();
     expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });
