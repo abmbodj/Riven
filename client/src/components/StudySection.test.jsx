@@ -68,7 +68,6 @@ describe('StudySection', () => {
         render(<StudySection {...defaultProps} onComplete={onComplete} />);
         fireEvent.click(screen.getByText('Show Answer'));
         fireEvent.click(screen.getByTestId('confidence-know_it'));
-        // Now in quiz step — reveal answer first
         fireEvent.click(screen.getByText('Show Answer'));
         fireEvent.click(screen.getByTestId('quiz-thumbs-up'));
         expect(onComplete).toHaveBeenCalledOnce();

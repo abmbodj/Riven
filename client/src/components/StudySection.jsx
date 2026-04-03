@@ -14,6 +14,7 @@ export default function StudySection({
     const quizItem = section.mini_quiz?.[0] ?? null;
 
     useEffect(() => {
+        // Reset internal state when section changes
         setStep('recall');
         setQuizRevealed(false);
     }, [section.id]);
@@ -68,19 +69,19 @@ export default function StudySection({
                     {section.title}
                 </p>
                 <ul className="space-y-1 pl-4">
-                    {section.answer_points.map((point, i) => (
+                    {(section.answer_points ?? []).map((point, i) => (
                         // eslint-disable-next-line react/no-array-index-key
                         <li key={i} className="list-disc text-sm leading-relaxed text-claude-text">
                             {point}
                         </li>
                     ))}
                 </ul>
-                {section.common_traps.length > 0 && (
+                {(section.common_traps ?? []).length > 0 && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                         <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.14em] text-amber-700">
                             Common trap
                         </p>
-                        {section.common_traps.map((trap, i) => (
+                        {(section.common_traps ?? []).map((trap, i) => (
                             // eslint-disable-next-line react/no-array-index-key
                             <p key={i} className="text-xs text-amber-800">{trap}</p>
                         ))}
