@@ -13,7 +13,7 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
     const normalizedGuideData = normalizeGuideData(guideData);
     const normalizedStudyState = normalizeGuideStudyState(guideData, studyState);
     const progress = getGuideProgress(normalizedGuideData, normalizedStudyState);
-    const weakSections = getWeakSections(guideData, studyState);
+    const weakSections = getWeakSections(normalizedGuideData, normalizedStudyState);
 
     if (!normalizedGuideData) return null;
 
