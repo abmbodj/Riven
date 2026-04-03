@@ -343,7 +343,8 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const buildGuidePrompt = (className) => `You are an expert tutor creating an active-recall study workbook.
+const buildGuidePrompt = (className) => `You are an expert tutor creating an active-recall study workbook${className ? ` for ${className}` : ''}.
+${className ? `Tailor section granularity, terminology, and common traps specifically to ${className}.` : ''}
 
 ${buildSubjectContext(className)}
 
@@ -356,7 +357,7 @@ Required structure:
       "id": "optional-short-slug",
       "title": "Section title",
       "recall_prompt": "Prompt that forces the student to answer before revealing the guide",
-      "answer_points": ["3-6 concise correct points"],
+      "answer_points": ["3-5 exam-testable points — every point must be something that could appear on an exam, no definitional filler"],
       "key_terms": ["important terms or formulas"],
       "mini_quiz": [
         { "prompt": "short checkpoint question", "answer": "short answer" }
@@ -366,7 +367,9 @@ Required structure:
   ]
 }
 Build an active-recall workbook, not passive notes.
-Create 4-8 sections when possible. Keep answer_points concrete and exam-useful.`;
+Create 4-8 sections when possible. Keep answer_points concrete and exam-useful. Max 5 answer_points per section.
+Each section must map to a DISTINCT testable concept — sections must not overlap in content.
+If a concept in a section is commonly confused with another concept, it MUST appear in common_traps. Do not leave common_traps empty for sections where confusion is likely.`;
 
 export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
   const contents = [{ text: buildGuidePrompt(className) }];
