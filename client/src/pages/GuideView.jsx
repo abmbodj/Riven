@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-    AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronLeft, ClipboardCheck,
-    ChevronDown, Eye, Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
+    AlertTriangle, Check, ChevronLeft, ClipboardCheck,
+    Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -18,7 +18,6 @@ import {
     serializeSharedPayload,
 } from '../utils/sharedResources';
 import {
-    STUDY_GUIDE_CONFIDENCE_OPTIONS,
     STUDY_GUIDE_FORMAT_VERSION,
     getGuideProgress,
     getGuideStudySourceText,
@@ -68,7 +67,7 @@ const getMatches = (query) => {
 };
 
 function MobileBottomSheet({ open, title, subtitle, onClose, children, testId, opaque = false }) {
-    const panelBackgroundClass = opaque ? 'bg-claude-bg' : 'bg-claude-bg/95';
+    const panelBackgroundClass = opaque ? 'bg-claude-bg/95' : '';
 
     return (
         <AnimatePresence>
@@ -89,12 +88,12 @@ function MobileBottomSheet({ open, title, subtitle, onClose, children, testId, o
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-                        className={`fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border-t border-claude-border ${panelBackgroundClass} px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 shadow-2xl`}
+                        className={`guide-sheet fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border-t border-claude-border px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 shadow-2xl ${panelBackgroundClass}`}
                     >
                         <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-claude-border" />
                         <div className="mb-4 flex items-start justify-between gap-4">
                             <div>
-                                <p className="font-serif text-xl font-bold italic text-claude-text">{title}</p>
+                                <p className="font-display text-xl font-bold italic text-claude-text">{title}</p>
                                 {subtitle ? (
                                     <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                         {subtitle}
@@ -120,48 +119,100 @@ function MobileBottomSheet({ open, title, subtitle, onClose, children, testId, o
     );
 }
 
-function DisclosureCard({ label, summary, open, onToggle, children, testId }) {
+function DesktopSideSheet({ open, title, subtitle, onClose, children, testId }) {
     return (
-        <div data-testid={testId} className="rounded-[24px] border border-claude-border bg-claude-surface/80">
-            <button
-                type="button"
-                onClick={onToggle}
-                className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-4 text-left"
-            >
-                <div>
-                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">{label}</p>
-                    {summary ? <p className="mt-1 text-sm text-claude-secondary">{summary}</p> : null}
-                </div>
-                <ChevronDown className={`h-4 w-4 shrink-0 text-claude-secondary transition-transform ${open ? 'rotate-180' : ''}`} />
-            </button>
-            {open ? <div className="border-t border-claude-border px-4 py-4">{children}</div> : null}
-        </div>
-    );
-}
-
-function ConfidenceButton({ active, label, onClick }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`flex min-h-[44px] w-full items-center justify-center rounded-2xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${
-                active
-                    ? 'border-claude-accent bg-claude-accent/10 text-claude-accent'
-                    : 'border-claude-border bg-claude-surface text-claude-secondary hover:border-claude-accent/30 hover:text-claude-accent'
-            }`}
-        >
-            {label}
-        </button>
+        <AnimatePresence>
+            {open && (
+                <>
+                    <motion.button
+                        type="button"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+                        aria-label={`Close ${title}`}
+                    />
+                    <motion.aside
+                        data-testid={testId}
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        className="guide-sheet fixed inset-y-0 right-0 z-50 w-full max-w-[34rem] border-l border-claude-border p-5 shadow-[0_40px_100px_-48px_rgba(0,0,0,0.92)]"
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="font-display text-[1.75rem] font-bold italic text-claude-text">{title}</p>
+                                {subtitle ? (
+                                    <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
+                                        {subtitle}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-3"
+                                aria-label={`Close ${title}`}
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="mt-6 h-[calc(100%-5rem)] overflow-y-auto pb-4">
+                            {children}
+                        </div>
+                    </motion.aside>
+                </>
+            )}
+        </AnimatePresence>
     );
 }
 
 function SessionMetric({ label, value, accent = false }) {
     return (
-        <div className={`min-h-[84px] rounded-2xl border px-4 py-4 ${accent ? 'border-claude-accent/20 bg-claude-accent/5' : 'border-claude-border bg-claude-surface/70'}`}>
+        <div className={`guide-metric min-h-[84px] rounded-[1.4rem] px-4 py-4 ${accent ? 'shadow-[0_24px_60px_-36px_rgba(0,0,0,0.82)]' : ''}`}>
             <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary">{label}</p>
-            <p className={`mt-2 text-sm sm:text-base ${accent ? 'text-claude-accent' : 'text-claude-text'}`}>{value}</p>
+            <p className={`mt-2 font-display text-[1.5rem] font-bold italic leading-none ${accent ? 'text-claude-accent' : 'text-claude-text'}`}>{value}</p>
         </div>
     );
+}
+
+const GUIDE_STATUS_META = {
+    review_now: {
+        label: 'Review Now',
+        tone: 'guide-status-pill--danger',
+        panel: 'guide-tone-danger',
+    },
+    coming_up: {
+        label: 'Coming Up',
+        tone: 'guide-status-pill--warning',
+        panel: 'guide-tone-warning',
+    },
+    review_soon: {
+        label: 'Review Soon',
+        tone: 'guide-status-pill--warning',
+        panel: 'guide-tone-warning',
+    },
+    good: {
+        label: 'Good',
+        tone: 'guide-status-pill--success',
+        panel: 'guide-tone-success',
+    },
+    unstudied: {
+        label: 'Not Studied',
+        tone: 'guide-status-pill--danger',
+        panel: 'guide-tone-neutral',
+    },
+};
+
+function getGuideStatusMeta(sectionState) {
+    const rawStatus = getSectionStatus(sectionState, sectionState?.last_reviewed_at ?? null);
+    const status = !sectionState?.confidence ? 'unstudied' : rawStatus;
+    return {
+        status,
+        ...(GUIDE_STATUS_META[status] || GUIDE_STATUS_META.unstudied),
+    };
 }
 
 export default function GuideView() {
@@ -188,7 +239,6 @@ export default function GuideView() {
     const [isMobileLayout, setIsMobileLayout] = useState(() => getMatches(MOBILE_MEDIA_QUERY));
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showMobileSections, setShowMobileSections] = useState(false);
-    const [showMobileGuideInfo, setShowMobileGuideInfo] = useState(false);
     const [showMobileMoreDetails, setShowMobileMoreDetails] = useState(false);
     const [showMobileNoteEditor, setShowMobileNoteEditor] = useState(false);
 
@@ -209,7 +259,6 @@ export default function GuideView() {
     const formatVersionRef = useRef(1);
     const guideRef = useRef(null);
     const activeSaveRef = useRef(Promise.resolve(null));
-    const sessionCardRef = useRef(null);
 
     useEffect(() => {
         toastRef.current = toast;
@@ -314,7 +363,7 @@ export default function GuideView() {
         () => getGuideProgress(normalizedGuideData, normalizedStudyState),
         [normalizedGuideData, normalizedStudyState],
     );
-    const sections = normalizedGuideData?.sections || [];
+    const sections = useMemo(() => normalizedGuideData?.sections || [], [normalizedGuideData]);
     const activeSectionIndex = getSectionIndex(sections, normalizedStudyState.current_section_id);
     const activeSection = sections[activeSectionIndex] || null;
     const activeSectionState = activeSection
@@ -327,60 +376,71 @@ export default function GuideView() {
         ? `Pick up with ${nextSection?.title || 'your next checkpoint'} and keep the review moving.`
         : `Start with ${nextSection?.title || 'Section 1'} and work through one checkpoint at a time.`;
     const workbookActionLabel = legacyGuide ? 'Convert to workbook' : 'Rebuild workbook';
-    const activeSectionStatusLabel = activeSectionState?.completed
-        ? 'Completed'
-        : activeSectionState?.revealed
-            ? 'Revealed'
-            : 'Recall first';
-    const hasMobileMoreDetails = Boolean(
-        activeSection?.key_terms?.length
-        || activeSection?.mini_quiz?.length
-        || activeSection?.common_traps?.length
+    const mobileProgressLabel = `${progress.completedCount}/${progress.totalSections} complete`;
+    const weakSections = useMemo(
+        () => getWeakSections(normalizedGuideData, normalizedStudyState),
+        [normalizedGuideData, normalizedStudyState],
     );
-    const noteDisclosureSummary = activeSectionState?.note?.trim()
+    const sectionSummaries = useMemo(() => (
+        sections.map((section, index) => {
+            const state = normalizedStudyState.section_states[section.id] || DEFAULT_SECTION_STATE;
+            return {
+                section,
+                index,
+                state,
+                ...getGuideStatusMeta(state),
+            };
+        })
+    ), [sections, normalizedStudyState]);
+    const activeSessionSection = sessionSections[sessionIndex] ?? null;
+    const activeSessionSectionState = activeSessionSection
+        ? normalizedStudyState.section_states[activeSessionSection.id] ?? DEFAULT_SECTION_STATE
+        : null;
+    const displaySection = sessionMode === 'studying' ? activeSessionSection : activeSection;
+    const displaySectionState = sessionMode === 'studying' ? activeSessionSectionState : activeSectionState;
+    const displaySectionMeta = displaySectionState
+        ? getGuideStatusMeta(displaySectionState)
+        : GUIDE_STATUS_META.unstudied;
+    const hasDisplayDetails = Boolean(
+        displaySection?.key_terms?.length
+        || displaySection?.common_traps?.length
+    );
+    const noteDisclosureSummary = displaySectionState?.note?.trim()
         ? 'Your note is saved here.'
         : 'Add a quick memory hook or reminder.';
-    const guideInfoSummary = `${progress.completedCount}/${progress.totalSections} checkpoints complete`;
-    const canGoPrevious = activeSectionIndex > 0;
-    const canGoNext = activeSectionIndex < sections.length - 1;
-    const mobileProgressLabel = `${progress.completedCount}/${progress.totalSections} complete`;
+    const railSections = useMemo(() => {
+        if (sessionMode === 'studying' && sessionSections.length > 0) {
+            return sessionSections.map((sessionSection, index) => {
+                const existing = sectionSummaries.find((item) => item.section.id === sessionSection.id);
+                return existing
+                    ? { ...existing, index }
+                    : {
+                        section: sessionSection,
+                        index,
+                        state: normalizedStudyState.section_states[sessionSection.id] || DEFAULT_SECTION_STATE,
+                        ...getGuideStatusMeta(normalizedStudyState.section_states[sessionSection.id] || DEFAULT_SECTION_STATE),
+                    };
+            });
+        }
 
-    const focusSession = useCallback(() => {
-        sessionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
-    const startStudySession = useCallback((sectionList) => {
-        if (!sectionList.length) return;
-        setSessionSections(sectionList);
-        setSessionIndex(0);
-        setSessionMode('studying');
-    }, []);
-
-    const startFullSession = useCallback(() => {
-        const sectionList = normalizedGuideData?.sections ?? [];
-        if (!sectionList.length) return;
-        startStudySession(sectionList);
-    }, [startStudySession, normalizedGuideData]);
-
-    const startQuickSession = useCallback((durationMinutes) => {
-        const sessionSecs = getSessionSections(normalizedGuideData, normalizedStudyState, durationMinutes);
-        startStudySession(sessionSecs.length ? sessionSecs : normalizedGuideData?.sections ?? []);
-    }, [startStudySession, normalizedGuideData, normalizedStudyState]);
-
-    const startWeakSession = useCallback(() => {
-        const weak = getWeakSections(normalizedGuideData, normalizedStudyState);
-        startStudySession(weak.length ? weak : normalizedGuideData?.sections ?? []);
-    }, [startStudySession, normalizedGuideData, normalizedStudyState]);
-
-    const startQuizMode = useCallback(() => {
-        setSessionMode('quiz');
-    }, []);
+        return sectionSummaries;
+    }, [normalizedStudyState, sectionSummaries, sessionMode, sessionSections]);
+    const railActiveId = sessionMode === 'studying' ? activeSessionSection?.id : activeSection?.id;
+    const canGoPrevious = sessionMode === 'studying' ? sessionIndex > 0 : activeSectionIndex > 0;
+    const canGoNext = sessionMode === 'studying'
+        ? sessionIndex < sessionSections.length - 1
+        : activeSectionIndex < sections.length - 1;
+    const displaySectionPosition = sessionMode === 'studying'
+        ? sessionIndex + 1
+        : activeSectionIndex + 1;
+    const displaySectionCount = sessionMode === 'studying'
+        ? sessionSections.length
+        : sections.length;
 
     useEffect(() => {
         if (!isMobileLayout) {
             setShowMobileMenu(false);
             setShowMobileSections(false);
-            setShowMobileGuideInfo(false);
             setShowMobileMoreDetails(false);
             setShowMobileNoteEditor(false);
         }
@@ -390,7 +450,7 @@ export default function GuideView() {
         setShowMobileSections(false);
         setShowMobileMoreDetails(false);
         setShowMobileNoteEditor(false);
-    }, [activeSection?.id]);
+    }, [displaySection?.id]);
 
     const saveGuide = useCallback(async () => {
         setSaving(true);
@@ -510,28 +570,6 @@ export default function GuideView() {
         }), { immediate: true });
     }, [updateStudyState]);
 
-    const handleSectionComplete = useCallback((sectionId) => {
-        updateStudyState((state) => ({
-            ...state,
-            section_states: {
-                ...state.section_states,
-                [sectionId]: {
-                    ...state.section_states[sectionId],
-                    completed: true,
-                },
-            },
-        }));
-        if (sessionIndex + 1 >= sessionSections.length) {
-            setSessionMode('dashboard');
-        } else {
-            setSessionIndex(sessionIndex + 1);
-        }
-    }, [updateStudyState, sessionSections.length, sessionIndex]);
-
-    const handleQuizComplete = useCallback(() => {
-        setSessionMode('dashboard');
-    }, []);
-
     const allQuizQuestions = useMemo(() => (
         (normalizedGuideData?.sections ?? []).flatMap((section) => (
             (section.mini_quiz ?? []).map((item) => ({
@@ -542,15 +580,6 @@ export default function GuideView() {
             }))
         ))
     ), [normalizedGuideData]);
-
-    const weakCoachMessage = useMemo(() => {
-        if (!normalizedGuideData || !normalizedStudyState) return null;
-        const weak = getWeakSections(normalizedGuideData, normalizedStudyState);
-        if (!weak.length) return null;
-        if (weak.length === 1) return `You're weak on ${weak[0].title}. Focus there first.`;
-        if (weak.length === 2) return `You're weak on ${weak[0].title} and ${weak[1].title}. Start there.`;
-        return `${weak.length} sections need review. Start with the weakest ones.`;
-    }, [normalizedGuideData, normalizedStudyState]);
 
     const flushPendingSave = useCallback(async () => {
         if (saveTimerRef.current) {
@@ -774,104 +803,182 @@ export default function GuideView() {
         }
     };
 
-    const handleRevealAnswer = () => {
-        if (!activeSection) return;
-        updateStudyState((current) => ({
-            ...current,
-            last_reviewed_at: new Date().toISOString(),
-            section_states: {
-                ...current.section_states,
-                [activeSection.id]: {
-                    ...current.section_states[activeSection.id],
-                    revealed: true,
-                },
-            },
-        }), { immediate: true });
-    };
-
-    const handleConfidenceChange = (value) => {
-        if (!activeSection) return;
-        updateStudyState((current) => ({
-            ...current,
-            last_reviewed_at: new Date().toISOString(),
-            section_states: {
-                ...current.section_states,
-                [activeSection.id]: {
-                    ...current.section_states[activeSection.id],
-                    revealed: true,
-                    confidence: value,
-                    completed: true,
-                },
-            },
-        }), { immediate: true });
-    };
-
-    const handleSectionNoteChange = (e) => {
-        if (!activeSection) return;
-        const nextNote = e.target.value;
+    const handleSectionNoteChange = useCallback((sectionId, nextNote) => {
+        if (!sectionId) return;
         updateStudyState((current) => ({
             ...current,
             section_states: {
                 ...current.section_states,
-                [activeSection.id]: {
-                    ...current.section_states[activeSection.id],
+                [sectionId]: {
+                    ...current.section_states[sectionId],
                     note: nextNote,
                 },
             },
         }));
-    };
+    }, [updateStudyState]);
 
-    const handleSelectSection = (sectionId) => {
+    const handleSelectSection = useCallback((sectionId) => {
+        if (!sectionId) return;
         updateStudyState((current) => ({
             ...current,
             current_section_id: sectionId,
             last_reviewed_at: new Date().toISOString(),
         }), { immediate: true });
-    };
+    }, [updateStudyState]);
 
-    const handleStepNavigation = (direction) => {
-        if (!activeSection) return;
-        const nextIndex = activeSectionIndex + direction;
-        if (nextIndex < 0 || nextIndex >= sections.length) return;
-        handleSelectSection(sections[nextIndex].id);
-    };
+    const handleSessionIndexChange = useCallback((nextIndex) => {
+        if (nextIndex < 0 || nextIndex >= sessionSections.length) return;
+        const nextSessionSection = sessionSections[nextIndex];
+        setSessionIndex(nextIndex);
+        handleSelectSection(nextSessionSection?.id);
+    }, [handleSelectSection, sessionSections]);
 
-    const activeSessionSection = sessionSections[sessionIndex] ?? null;
-    const activeSessionSectionState = activeSessionSection
-        ? normalizedStudyState.section_states[activeSessionSection.id] ?? DEFAULT_SECTION_STATE
-        : null;
+    const startStudySession = useCallback((sectionList) => {
+        if (!sectionList.length) return;
+        setSessionSections(sectionList);
+        setSessionIndex(0);
+        setSessionMode('studying');
+        handleSelectSection(sectionList[0].id);
+    }, [handleSelectSection]);
+
+    const startFullSession = useCallback(() => {
+        const sectionList = normalizedGuideData?.sections ?? [];
+        if (!sectionList.length) return;
+        startStudySession(sectionList);
+    }, [normalizedGuideData, startStudySession]);
+
+    const startQuickSession = useCallback((durationMinutes) => {
+        const sessionSelection = getSessionSections(normalizedGuideData, normalizedStudyState, durationMinutes);
+        startStudySession(sessionSelection.length ? sessionSelection : normalizedGuideData?.sections ?? []);
+    }, [normalizedGuideData, normalizedStudyState, startStudySession]);
+
+    const startWeakSession = useCallback(() => {
+        startStudySession(weakSections.length ? weakSections : normalizedGuideData?.sections ?? []);
+    }, [normalizedGuideData, startStudySession, weakSections]);
+
+    const startQuizMode = useCallback(() => {
+        setSessionMode('quiz');
+    }, []);
+
+    const handleSectionComplete = useCallback((sectionId) => {
+        updateStudyState((state) => ({
+            ...state,
+            section_states: {
+                ...state.section_states,
+                [sectionId]: {
+                    ...state.section_states[sectionId],
+                    completed: true,
+                },
+            },
+        }));
+        if (sessionIndex + 1 >= sessionSections.length) {
+            setSessionMode('dashboard');
+        } else {
+            handleSessionIndexChange(sessionIndex + 1);
+        }
+    }, [handleSessionIndexChange, sessionIndex, sessionSections.length, updateStudyState]);
+
+    const handleQuizComplete = useCallback(() => {
+        setSessionMode('dashboard');
+    }, []);
+
+    const weakCoachMessage = useMemo(() => {
+        if (!weakSections.length) return null;
+        if (weakSections.length === 1) return `You’re weakest on ${weakSections[0].title}. Start there first.`;
+        if (weakSections.length === 2) return `Focus on ${weakSections[0].title} and ${weakSections[1].title} before anything else.`;
+        return `${weakSections.length} sections need review. Start with the weakest ones and keep the session tight.`;
+    }, [weakSections]);
 
     const renderSessionEntry = () => (
-        <div data-testid="session-entry" className="flex flex-col gap-4 px-4 py-4">
-            <div>
-                <h1 className="font-serif text-2xl font-bold italic text-claude-text">{title}</h1>
-                {normalizedStudyState.last_reviewed_at && (
-                    <p className="mt-1 text-xs text-claude-secondary">
-                        Last studied {formatLastReviewed(normalizedStudyState.last_reviewed_at)}
-                    </p>
-                )}
+        <div data-testid="session-entry" className="flex flex-col gap-5">
+            <div data-testid="entry-hero-card" className="guide-hero rounded-[2rem] p-5 sm:p-6">
+                <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
+                                Botanical Observatory
+                            </p>
+                            <h1 className="mt-3 font-display text-[2.2rem] font-bold italic leading-[0.94] text-claude-text sm:text-[2.8rem]">
+                                {title}
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                {sessionMessage}
+                            </p>
+                        </div>
+                        <span className="guide-status-pill guide-status-pill--neutral self-start sm:self-auto">
+                            {normalizedStudyState.last_reviewed_at ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)}` : 'Not started'}
+                        </span>
+                    </div>
+
+                    {weakCoachMessage ? (
+                        <div className="guide-tone-warning rounded-[1.6rem] p-4 sm:p-5">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                Study Coach
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-claude-text">{weakCoachMessage}</p>
+                        </div>
+                    ) : null}
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <SessionMetric label="Complete" value={`${progress.completionPercent}%`} accent />
+                        <SessionMetric label="Weak Spots" value={weakSections.length} />
+                        <SessionMetric label="Quiz Prompts" value={allQuizQuestions.length} />
+                    </div>
+                </div>
             </div>
 
-            {weakCoachMessage && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                    <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.14em] text-blue-600">Study Coach</p>
-                    <p className="text-sm text-blue-800">{weakCoachMessage}</p>
-                </div>
-            )}
+            <div className="grid gap-4 xl:grid-cols-3">
+                <button
+                    type="button"
+                    onClick={startFullSession}
+                    className="guide-shell guide-focus-ring rounded-[1.7rem] p-5 text-left transition-transform duration-200 hover:-translate-y-1"
+                >
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                Full Session
+                            </p>
+                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
+                                {sessionLabel}
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                                All {sections.length} checkpoints with answer reveals, confidence rating, and progress tracking.
+                            </p>
+                        </div>
+                        <div className="guide-status-pill guide-status-pill--neutral">
+                            <Play className="h-3.5 w-3.5" />
+                            ~{Math.max(sections.length * 3, 1)} min
+                        </div>
+                    </div>
+                </button>
 
-            <div className="flex flex-col gap-3">
-                <div className="rounded-2xl bg-claude-accent p-4 text-white">
-                    <p className="font-bold">⚡ Quick Session</p>
-                    <p className="mt-1 text-xs opacity-80">Pick a time — app selects what matters most</p>
-                    <div className="mt-3 flex gap-2">
-                        {[5, 10, 20].map((min) => (
+                <div className="guide-shell rounded-[1.7rem] p-5">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                Quick Session
+                            </p>
+                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
+                                Time-box the review
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                                Pick a time and Riven will queue the most important sections first.
+                            </p>
+                        </div>
+                        <div className="guide-status-pill guide-status-pill--warning">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Adaptive
+                        </div>
+                    </div>
+                    <div data-testid="checkpoint-chip-row" className="mt-5 grid grid-cols-3 gap-2">
+                        {[5, 10, 20].map((minutes) => (
                             <button
-                                key={min}
+                                key={minutes}
                                 type="button"
-                                onClick={() => startQuickSession(min)}
-                                className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold hover:bg-white/30 transition-colors"
+                                onClick={() => startQuickSession(minutes)}
+                                className="guide-chip guide-focus-ring min-h-[48px] rounded-[1.2rem] px-3 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-text transition-all hover:border-claude-accent/35 hover:text-claude-accent"
                             >
-                                {min} min
+                                {minutes} min
                             </button>
                         ))}
                     </div>
@@ -879,130 +986,419 @@ export default function GuideView() {
 
                 <button
                     type="button"
-                    onClick={startFullSession}
-                    className="rounded-2xl border border-claude-border bg-claude-surface p-4 text-left"
+                    onClick={allQuizQuestions.length > 0 ? startQuizMode : () => setSessionMode('dashboard')}
+                    className="guide-shell guide-focus-ring rounded-[1.7rem] p-5 text-left transition-transform duration-200 hover:-translate-y-1"
                 >
-                    <p className="font-bold text-claude-text">📚 Full Session</p>
-                    <p className="mt-1 text-xs text-claude-secondary">
-                        All {sections.length} sections · ~{sections.length * 3} min
-                    </p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                {allQuizQuestions.length > 0 ? 'Quiz Me' : 'Progress'}
+                            </p>
+                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
+                                {allQuizQuestions.length > 0 ? 'Rapid recall' : 'Review dashboard'}
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                                {allQuizQuestions.length > 0
+                                    ? `${allQuizQuestions.length} prompts with no filler. Great for exam-speed recall.`
+                                    : 'Open the progress dashboard to see what needs attention next.'}
+                            </p>
+                        </div>
+                        <div className="guide-status-pill guide-status-pill--neutral">
+                            {allQuizQuestions.length > 0 ? `${allQuizQuestions.length} prompts` : `${weakSections.length} weak`}
+                        </div>
+                    </div>
                 </button>
-
-                {allQuizQuestions.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={startQuizMode}
-                        className="rounded-2xl border border-claude-border bg-claude-surface p-4 text-left"
-                    >
-                        <p className="font-bold text-claude-text">🎯 Quiz Me</p>
-                        <p className="mt-1 text-xs text-claude-secondary">
-                            Rapid-fire · {allQuizQuestions.length} questions · Pure recall
-                        </p>
-                    </button>
-                )}
             </div>
 
-            <button
-                type="button"
-                onClick={() => setSessionMode('dashboard')}
-                className="text-center text-xs text-claude-secondary underline"
-            >
-                View progress dashboard
-            </button>
+            <div className="guide-shell rounded-[1.75rem] p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Session snapshot
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            A quick map of the sections most likely to matter next.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('dashboard')}
+                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0"
+                    >
+                        <span>View progress</span>
+                    </button>
+                </div>
+                <div className="mt-5 space-y-3">
+                    {sectionSummaries.slice(0, 4).map((item) => (
+                        <div key={item.section.id} className={`rounded-[1.4rem] p-4 ${item.panel}`}>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                        Section {item.index + 1}
+                                    </p>
+                                    <p className="mt-2 text-sm font-medium text-claude-text">{item.section.title}</p>
+                                </div>
+                                <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 
     const renderStudying = () => {
         if (!activeSessionSection) return null;
         return (
-            <div data-testid="session-studying" className="flex flex-col gap-4 px-4 py-4">
-                <div className="flex items-center justify-between">
-                    <button
-                        type="button"
-                        onClick={() => setSessionMode('entry')}
-                        className="flex items-center gap-1 text-xs text-claude-secondary"
-                    >
-                        <ChevronLeft className="h-3 w-3" /> Exit session
-                    </button>
-                    <p className="text-xs text-claude-secondary">
-                        {sessionIndex + 1} / {sessionSections.length}
-                    </p>
-                </div>
+            <div data-testid="session-studying" className="flex flex-col gap-5">
+                <div
+                    data-testid={isMobileLayout ? 'mobile-focus-shell' : 'desktop-focus-shell'}
+                    className="guide-stage rounded-[2rem] p-5 sm:p-6"
+                >
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setSessionMode('entry')}
+                            className="guide-cta guide-cta--ghost guide-focus-ring"
+                        >
+                            <span>Exit session</span>
+                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="guide-status-pill guide-status-pill--neutral">
+                                {sessionIndex + 1}/{sessionSections.length}
+                            </span>
+                            <span className={`guide-status-pill ${displaySectionMeta.tone}`}>
+                                {displaySectionMeta.label}
+                            </span>
+                        </div>
+                    </div>
 
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-claude-border">
-                    <div
-                        className="h-full rounded-full bg-claude-accent transition-all"
-                        style={{ width: `${(sessionIndex / sessionSections.length) * 100}%` }}
+                    <StudySection
+                        section={activeSessionSection}
+                        sectionState={activeSessionSectionState}
+                        onReveal={() => handleSectionReveal(activeSessionSection.id)}
+                        onConfidenceSelect={(confidence) => handleConfidenceSelect(activeSessionSection.id, confidence)}
+                        onComplete={() => handleSectionComplete(activeSessionSection.id)}
+                        sectionIndex={sessionIndex}
+                        sectionCount={sessionSections.length}
+                        canGoPrevious={canGoPrevious}
+                        canGoNext={canGoNext}
+                        onPrevious={() => handleSessionIndexChange(sessionIndex - 1)}
+                        onNext={() => handleSessionIndexChange(sessionIndex + 1)}
+                        onEdit={() => setEditingSectionId(activeSessionSection.id)}
                     />
                 </div>
-
-                <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-claude-text">{activeSessionSection.title}</p>
-                    <button
-                        type="button"
-                        onClick={() => setEditingSectionId(activeSessionSection.id)}
-                        className="text-claude-secondary hover:text-claude-accent transition-colors"
-                        aria-label="Edit section"
-                    >
-                        <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                </div>
-
-                <StudySection
-                    section={activeSessionSection}
-                    sectionState={activeSessionSectionState}
-                    onReveal={() => handleSectionReveal(activeSessionSection.id)}
-                    onConfidenceSelect={(confidence) => handleConfidenceSelect(activeSessionSection.id, confidence)}
-                    onComplete={() => handleSectionComplete(activeSessionSection.id)}
-                />
             </div>
         );
     };
 
     const renderDashboard = () => (
-        <div data-testid="session-dashboard" className="flex flex-col gap-4 px-4 py-4">
-            <div className="flex items-center justify-between">
-                <h2 className="font-serif text-xl font-bold italic text-claude-text">Progress</h2>
-                <button
-                    type="button"
-                    onClick={() => setSessionMode('entry')}
-                    className="text-xs text-claude-secondary underline"
-                >
-                    Back
-                </button>
+        <div data-testid="session-dashboard" className="flex flex-col gap-5">
+            <div className="guide-stage rounded-[2rem] p-5 sm:p-6">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Workbook progress
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            Review the weak spots, edit fuzzy sections, then jump back into the next focused run.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('entry')}
+                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0"
+                    >
+                        <span>Back</span>
+                    </button>
+                </div>
+                <GuideProgressDashboard
+                    guideData={normalizedGuideData}
+                    studyState={normalizedStudyState}
+                    onStartWeakSession={startWeakSession}
+                    onEditSection={setEditingSectionId}
+                />
             </div>
-            <GuideProgressDashboard
-                guideData={normalizedGuideData}
-                studyState={normalizedStudyState}
-                onStartWeakSession={startWeakSession}
-            />
         </div>
     );
 
     const renderQuiz = () => (
-        <div data-testid="session-quiz" className="flex flex-col gap-4 px-4 py-4">
-            <div className="flex items-center justify-between">
-                <button
-                    type="button"
-                    onClick={() => setSessionMode('entry')}
-                    className="flex items-center gap-1 text-xs text-claude-secondary"
-                >
-                    <ChevronLeft className="h-3 w-3" /> Exit quiz
-                </button>
+        <div data-testid="session-quiz" className="flex flex-col gap-5">
+            <div className="guide-stage rounded-[2rem] p-5 sm:p-6">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Quiz Me
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            Fast recall, no reading mode. Reveal, judge honestly, move on.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('entry')}
+                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0"
+                    >
+                        <span>Exit quiz</span>
+                    </button>
+                </div>
+                <QuizMeMode questions={allQuizQuestions} onComplete={handleQuizComplete} />
             </div>
-            <QuizMeMode questions={allQuizQuestions} onComplete={handleQuizComplete} />
         </div>
     );
 
+    const renderDesktopRail = () => (
+        <aside
+            data-testid="desktop-guide-rail"
+            className="guide-rail h-fit rounded-[2rem] p-5 sm:p-6 lg:sticky lg:top-[calc(var(--safe-area-top)+1.25rem)]"
+        >
+            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
+                Workbook
+            </p>
+            <h1 className="mt-3 font-display text-[2rem] font-bold italic leading-[0.95] text-claude-text">
+                {title}
+            </h1>
+            {normalizedGuideData?.overview ? (
+                <p className="mt-4 text-sm leading-6 text-claude-secondary">
+                    {normalizedGuideData.overview}
+                </p>
+            ) : null}
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <SessionMetric label="Complete" value={`${progress.completionPercent}%`} accent />
+                <SessionMetric label="Weak Spots" value={weakSections.length} />
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    onClick={() => setSessionMode('entry')}
+                    className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'entry' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
+                >
+                    Overview
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSessionMode('dashboard')}
+                    className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'dashboard' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
+                >
+                    Progress
+                </button>
+                {allQuizQuestions.length > 0 ? (
+                    <button
+                        type="button"
+                        onClick={startQuizMode}
+                        className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'quiz' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
+                    >
+                        Quiz
+                    </button>
+                ) : null}
+            </div>
+
+            <div className="mt-5 grid gap-3">
+                <button
+                    type="button"
+                    onClick={startFullSession}
+                    className="guide-cta guide-cta--primary guide-focus-ring w-full"
+                >
+                    <Play className="h-4 w-4" />
+                    <span>{sessionLabel}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={startWeakSession}
+                    className="guide-cta guide-cta--secondary guide-focus-ring w-full"
+                >
+                    <Sparkles className="h-4 w-4" />
+                    <span>Review Weak Sections</span>
+                </button>
+            </div>
+
+            <div className="mt-6">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                        Checkpoints
+                    </p>
+                    <span className="guide-status-pill guide-status-pill--neutral">
+                        {railSections.length}
+                    </span>
+                </div>
+                <div className="mt-4 space-y-2.5">
+                    {railSections.map((item) => (
+                        <button
+                            key={item.section.id}
+                            type="button"
+                            onClick={() => (
+                                sessionMode === 'studying'
+                                    ? handleSessionIndexChange(item.index)
+                                    : handleSelectSection(item.section.id)
+                            )}
+                            className={`w-full rounded-[1.35rem] p-4 text-left transition-all duration-200 ${
+                                railActiveId === item.section.id
+                                    ? `${item.panel} shadow-[0_20px_50px_-34px_rgba(0,0,0,0.82)]`
+                                    : 'guide-tone-neutral hover:border-claude-accent/20'
+                            }`}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                        Section {item.index + 1}
+                                    </p>
+                                    <p className="mt-2 text-sm font-medium leading-snug text-claude-text">
+                                        {item.section.title}
+                                    </p>
+                                </div>
+                                <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </aside>
+    );
+
+    const renderDesktopContext = () => {
+        if (sessionMode === 'dashboard') {
+            return (
+                <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                        Next move
+                    </p>
+                    <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
+                        Coach Notes
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                        {weakCoachMessage || 'You are in a strong spot. Use the dashboard to decide whether to tighten a section or run a quiz.'}
+                    </p>
+                    <div className="mt-5 grid gap-3">
+                        <button
+                            type="button"
+                            onClick={startWeakSession}
+                            className="guide-cta guide-cta--primary guide-focus-ring w-full"
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            <span>Review Weak</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={startQuizMode}
+                            disabled={allQuizQuestions.length === 0}
+                            className="guide-cta guide-cta--secondary guide-focus-ring w-full disabled:opacity-40"
+                        >
+                            <ClipboardCheck className="h-4 w-4" />
+                            <span>Quiz Me</span>
+                        </button>
+                    </div>
+                </aside>
+            );
+        }
+
+        if (sessionMode === 'quiz') {
+            return (
+                <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                        Quiz context
+                    </p>
+                    <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
+                        Speed over comfort
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                        Reveal only after you answer mentally. This mode is for pressure-testing retrieval, not rereading.
+                    </p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                        <SessionMetric label="Prompts" value={allQuizQuestions.length} accent />
+                        <SessionMetric label="Weak Sections" value={weakSections.length} />
+                    </div>
+                </aside>
+            );
+        }
+
+        return (
+            <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Context
+                        </p>
+                        <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
+                            {displaySection?.title || 'Session companion'}
+                        </h2>
+                    </div>
+                    {displaySection ? (
+                        <span className={`guide-status-pill ${displaySectionMeta.tone}`}>{displaySectionMeta.label}</span>
+                    ) : null}
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-claude-secondary">
+                    {displaySection?.recall_prompt || weakCoachMessage || sessionMessage}
+                </p>
+
+                {displaySection?.key_terms?.length ? (
+                    <div className="guide-tone-neutral mt-5 rounded-[1.5rem] p-4">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Key terms
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {displaySection.key_terms.map((term) => (
+                                <span key={term} className="guide-status-pill guide-status-pill--neutral">
+                                    {term}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+
+                {displaySection?.common_traps?.length ? (
+                    <div className="guide-tone-warning mt-5 rounded-[1.5rem] p-4">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                            Common traps
+                        </p>
+                        <div className="mt-3 space-y-2 text-sm leading-6 text-claude-text">
+                            {displaySection.common_traps.map((trap) => (
+                                <p key={trap}>{trap}</p>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+
+                <div className="guide-shell mt-5 rounded-[1.5rem] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Study note
+                        </p>
+                        {displaySection ? (
+                            <button
+                                type="button"
+                                onClick={() => setEditingSectionId(displaySection.id)}
+                                className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                <span>Edit</span>
+                            </button>
+                        ) : null}
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-claude-secondary">{noteDisclosureSummary}</p>
+                    <textarea
+                        value={displaySectionState?.note ?? ''}
+                        onChange={(event) => handleSectionNoteChange(displaySection?.id, event.target.value)}
+                        placeholder="Capture a memory hook, a tricky contrast, or the thing you keep missing."
+                        className="mt-4 min-h-[140px] w-full resize-none rounded-[1.2rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                    />
+                </div>
+            </aside>
+        );
+    };
+
     if (transitioningWorkbook) {
         return (
-            <div className="min-h-dvh safe-area-top safe-area-bottom bg-claude-bg px-4 py-8 sm:py-16">
-                <div className="mx-auto flex max-w-2xl flex-col items-center rounded-[32px] border border-claude-accent/20 bg-claude-surface/85 p-8 text-center shadow-[0_18px_60px_rgba(0,0,0,0.10)]">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-claude-accent/20 bg-claude-accent/10 text-claude-accent">
+            <div className="min-h-dvh safe-area-top safe-area-bottom px-4 py-8 sm:py-16">
+                <div className="guide-hero mx-auto flex max-w-2xl flex-col items-center rounded-[2.2rem] p-8 text-center">
+                    <div className="guide-status-pill guide-status-pill--warning">
                         <Loader2 className="h-6 w-6 animate-spin" />
+                        Building
                     </div>
                     <p className="mt-6 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Workbook Upgrade</p>
-                    <h1 className="mt-3 text-3xl font-serif font-bold italic text-claude-text">Converting guide into a workbook</h1>
+                    <h1 className="mt-3 font-display text-3xl font-bold italic text-claude-text">Converting guide into a workbook</h1>
                     <p className="mt-4 max-w-xl text-sm leading-relaxed text-claude-secondary">
                         Rebuilding this guide into a checkpoint-by-checkpoint study session with reveal-first answers,
                         confidence tracking, and resume progress.
@@ -1032,43 +1428,42 @@ export default function GuideView() {
                     onCancel={() => setDeleteConfirm(false)}
                 />
 
-                <div className="safe-area-top sticky top-0 z-30 bg-claude-bg/85 backdrop-blur-md border-b border-claude-border/10 px-4 py-3">
-                    <div className="flex items-center justify-between max-w-4xl mx-auto gap-4">
-                        <button onClick={() => navigate('/guides')} className="flex items-center gap-1 text-claude-secondary hover:text-claude-accent transition-colors tap-action">
+                <div className="safe-area-top sticky top-0 z-30 border-b border-claude-border/10 bg-claude-bg/85 px-4 py-3 backdrop-blur-md">
+                    <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+                        <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest hidden sm:inline">Guides</span>
+                            <span>Guides</span>
                         </button>
 
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
+                            <div className="guide-status-pill guide-status-pill--neutral">
                                 {saving ? (
                                     <Loader2 className="w-3.5 h-3.5 text-claude-secondary animate-spin" />
                                 ) : saved ? (
                                     <Check className="w-3.5 h-3.5 text-claude-accent" />
                                 ) : null}
-                                <span className="text-[9px] font-mono uppercase tracking-widest text-claude-secondary hidden sm:inline">
-                                    {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
-                                </span>
+                                <span>{saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}</span>
                             </div>
-                            <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
+                            <button onClick={() => setDeleteConfirm(true)} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="max-w-3xl mx-auto px-4 pt-8">
-                    <div className="rounded-[32px] border border-amber-500/20 bg-amber-500/5 p-6 sm:p-8 shadow-[0_14px_40px_rgba(0,0,0,0.08)]">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-300">
-                            <AlertTriangle className="w-5 h-5" />
+                <div className="mx-auto max-w-3xl px-4 pt-8">
+                    <div className="guide-hero rounded-[2.1rem] p-6 sm:p-8">
+                        <div className="guide-status-pill guide-status-pill--warning">
+                            <AlertTriangle className="h-4 w-4" />
+                            Repair Required
                         </div>
-                        <p className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-amber-300">Workbook Needs Rebuilding</p>
+                        <p className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Workbook Needs Rebuilding</p>
                         <input
                             type="text"
                             value={title}
                             onChange={handleTitleChange}
                             placeholder="Untitled Guide"
-                            className="mt-3 w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none tracking-tight leading-tight"
+                            className="mt-3 w-full bg-transparent text-3xl font-display font-bold italic tracking-tight leading-tight text-claude-text outline-none placeholder:text-claude-secondary/30 sm:text-4xl"
                         />
                         <p className="mt-4 text-sm sm:text-base leading-relaxed text-claude-secondary">
                             This guide is marked as a workbook, but its study sections are missing. Rebuild it to restore
@@ -1079,7 +1474,7 @@ export default function GuideView() {
                                 type="button"
                                 onClick={handleRegenerateWorkbook}
                                 disabled={!!generating}
-                                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 disabled:opacity-50 sm:w-auto"
+                                className="guide-cta guide-cta--primary guide-focus-ring w-full disabled:opacity-50 sm:w-auto"
                             >
                                 {generating === 'guide' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                                 {generating === 'guide' ? 'Rebuilding workbook' : 'Rebuild workbook'}
@@ -1087,7 +1482,7 @@ export default function GuideView() {
                             <button
                                 type="button"
                                 onClick={() => navigate('/guides')}
-                                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-border px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:text-claude-accent sm:w-auto"
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full sm:w-auto"
                             >
                                 Back to guides
                             </button>
@@ -1120,38 +1515,36 @@ export default function GuideView() {
                     resourceTitle={title || 'Untitled Guide'}
                 />
 
-                <div className="safe-area-top sticky top-0 z-30 bg-claude-bg/80 backdrop-blur-md border-b border-claude-border/10 px-4 pt-3 pb-2">
-                    <div className="flex items-center justify-between max-w-3xl mx-auto mb-2">
-                        <button onClick={() => navigate('/guides')} className="flex items-center gap-1 text-claude-secondary hover:text-claude-accent transition-colors tap-action">
+                <div className="safe-area-top sticky top-0 z-30 border-b border-claude-border/10 bg-claude-bg/80 px-4 pt-3 pb-2 backdrop-blur-md">
+                    <div className="mx-auto mb-2 flex max-w-4xl items-center justify-between gap-3">
+                        <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest hidden sm:inline">Guides</span>
+                            <span>Guides</span>
                         </button>
 
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
+                            <div className="guide-status-pill guide-status-pill--neutral">
                                 {saving ? (
                                     <Loader2 className="w-3.5 h-3.5 text-claude-secondary animate-spin" />
                                 ) : saved ? (
                                     <Check className="w-3.5 h-3.5 text-claude-accent" />
                                 ) : null}
-                                <span className="text-[9px] font-mono uppercase tracking-widest text-claude-secondary">
-                                    {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
-                                </span>
+                                <span>{saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}</span>
                             </div>
-                            <button onClick={handleShareGuide} className="p-2 text-claude-secondary hover:text-claude-accent transition-colors tap-action" aria-label="Share guide">
+                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share guide">
                                 <Share2 className="w-4 h-4" />
                             </button>
-                            <button onClick={() => setDeleteConfirm(true)} className="p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
+                            <button onClick={() => setDeleteConfirm(true)} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <div className="mx-auto flex max-w-4xl items-center gap-1.5 overflow-x-auto scrollbar-hide">
                         <button
                             onClick={handleRegenerateWorkbook}
                             disabled={!!generating}
-                            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                            className="guide-cta guide-cta--secondary guide-focus-ring shrink-0 disabled:opacity-50"
                         >
                             {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                             <span>{generating === 'guide' ? 'Building workbook' : workbookActionLabel}</span>
@@ -1160,7 +1553,7 @@ export default function GuideView() {
                         <button
                             onClick={handleGenerateFlashcards}
                             disabled={!!generating}
-                            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                            className="guide-cta guide-cta--secondary guide-focus-ring shrink-0 disabled:opacity-50"
                         >
                             {generating === 'flashcards' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
                             <span>Flashcards</span>
@@ -1169,7 +1562,7 @@ export default function GuideView() {
                         <button
                             onClick={handleGenerateExam}
                             disabled={!!generating}
-                            className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
+                            className="guide-cta guide-cta--secondary guide-focus-ring shrink-0 disabled:opacity-50"
                         >
                             {generating === 'exam' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
                             <span>Mock Exam</span>
@@ -1177,10 +1570,10 @@ export default function GuideView() {
                     </div>
                 </div>
 
-                <div className="max-w-3xl mx-auto px-4 pt-6">
-                    <div className="mb-4 rounded-2xl border border-claude-accent/20 bg-claude-accent/5 p-4 text-sm text-claude-secondary">
+                <div className="mx-auto max-w-4xl px-4 pt-6">
+                    <div className="guide-hero mb-5 rounded-[2rem] p-5 sm:p-6">
                         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent mb-2">Classic Guide</p>
-                        <p>
+                        <p className="text-sm leading-6 text-claude-secondary">
                             This guide is still a document. Convert it into an active-recall workbook to get one-section-at-a-time
                             review, checkpoint reveals, confidence tracking, and resume progress.
                         </p>
@@ -1188,36 +1581,40 @@ export default function GuideView() {
                             type="button"
                             onClick={handleRegenerateWorkbook}
                             disabled={!!generating}
-                            className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-claude-accent/30 bg-claude-accent/10 px-4 py-3 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent transition-colors hover:bg-claude-accent/15 disabled:opacity-50 sm:w-auto"
+                            className="guide-cta guide-cta--primary guide-focus-ring mt-4 w-full disabled:opacity-50 sm:w-auto"
                         >
                             {generating === 'guide' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                             {generating === 'guide' ? 'Building workbook' : 'Convert guide to workbook'}
                         </button>
                     </div>
 
-                    <input
-                        type="text"
-                        value={title}
-                        onChange={handleTitleChange}
-                        placeholder="Untitled Guide"
-                        className="w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none mb-2 tracking-tight leading-tight"
-                    />
+                    <div className="guide-shell rounded-[2rem] p-5 sm:p-6">
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={handleTitleChange}
+                            placeholder="Untitled Guide"
+                            className="mb-4 w-full bg-transparent text-3xl font-display font-bold italic tracking-tight leading-tight text-claude-text outline-none placeholder:text-claude-secondary/30 sm:text-4xl"
+                        />
 
-                    <TiptapEditor
-                        content={content}
-                        onUpdate={handleLegacyContentUpdate}
-                        editable={true}
-                        placeholder="Your study guide content..."
-                    />
+                        <TiptapEditor
+                            content={content}
+                            onUpdate={handleLegacyContentUpdate}
+                            editable={true}
+                            placeholder="Your study guide content..."
+                        />
+                    </div>
                 </div>
             </div>
         );
     }
 
+    const showWorkbookBottomBar = isMobileLayout && sessionMode === 'studying';
+
     return (
         <div
             data-testid="guide-screen"
-            className={`relative min-h-screen safe-area-bottom ${isMobileLayout ? 'pb-[calc(env(safe-area-inset-bottom,0px)+7.5rem)]' : 'pb-[calc(env(safe-area-inset-bottom,0px)+1.75rem)]'}`}
+            className={`relative min-h-screen safe-area-bottom ${showWorkbookBottomBar ? 'pb-[calc(env(safe-area-inset-bottom,0px)+8.5rem)]' : 'pb-[calc(env(safe-area-inset-bottom,0px)+1.75rem)]'}`}
         >
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
@@ -1239,59 +1636,59 @@ export default function GuideView() {
             />
 
             {isMobileLayout ? (
-                <div className="safe-area-top sticky top-0 z-30 border-b border-claude-border/10 bg-claude-bg/92 px-4 py-3 backdrop-blur-md">
-                    <div className="mx-auto flex max-w-5xl items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate('/guides')}
-                            className="touch-target rounded-full p-2 text-claude-secondary transition-colors hover:text-claude-accent tap-action"
-                            aria-label="Back to guides"
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </button>
+                <div className="safe-area-top sticky top-0 z-30 px-4 py-3">
+                    <div className="mobile-top-nav-glass rounded-[1.6rem] border border-claude-border px-4 py-3">
+                        <div className="mx-auto flex max-w-5xl items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/guides')}
+                                className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-3"
+                                aria-label="Back to guides"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </button>
 
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Workbook</p>
-                            <p className="truncate text-sm font-medium text-claude-text">{activeSection?.title || title || 'Recall workbook'}</p>
-                            <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
-                                {mobileProgressLabel}
-                                {activeSection ? ` • Section ${activeSectionIndex + 1}/${sections.length}` : ''}
-                            </p>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Workbook</p>
+                                <p className="truncate text-sm font-medium text-claude-text">{displaySection?.title || title || 'Recall workbook'}</p>
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                    {mobileProgressLabel}
+                                    {displaySection ? ` • Section ${displaySectionPosition}/${Math.max(displaySectionCount, 1)}` : ''}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowMobileMenu(true)}
+                                className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-3"
+                                aria-label="More workbook actions"
+                            >
+                                <Menu className="h-4 w-4" />
+                            </button>
                         </div>
-
-                        <button
-                            type="button"
-                            onClick={() => setShowMobileMenu(true)}
-                            className="touch-target rounded-full border border-claude-border bg-claude-surface/80 p-2 text-claude-secondary transition-colors hover:text-claude-accent tap-action"
-                            aria-label="More workbook actions"
-                        >
-                            <Menu className="h-4 w-4" />
-                        </button>
                     </div>
                 </div>
             ) : (
-                <div className="safe-area-top sticky top-0 z-30 border-b border-claude-border/10 bg-claude-bg/85 px-4 py-3 backdrop-blur-md">
-                    <div className="flex items-center justify-between max-w-5xl mx-auto gap-4">
-                        <button onClick={() => navigate('/guides')} className="flex items-center gap-1 text-claude-secondary hover:text-claude-accent transition-colors tap-action">
+                <div className="safe-area-top sticky top-0 z-30 px-4 py-3">
+                    <div className="guide-shell mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-[1.8rem] px-5 py-4">
+                        <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest hidden sm:inline">Guides</span>
+                            <span>Guides</span>
                         </button>
 
                         <div className="flex items-center gap-2 sm:gap-3">
-                            <div className="flex items-center gap-1.5">
+                            <div className="guide-status-pill guide-status-pill--neutral">
                                 {saving ? (
                                     <Loader2 className="w-3.5 h-3.5 text-claude-secondary animate-spin" />
                                 ) : saved ? (
                                     <Check className="w-3.5 h-3.5 text-claude-accent" />
                                 ) : null}
-                                <span className="text-[9px] font-mono uppercase tracking-widest text-claude-secondary hidden sm:inline">
-                                    {saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}
-                                </span>
+                                <span>{saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}</span>
                             </div>
-                            <button onClick={handleShareGuide} className="touch-target rounded-full p-2 text-claude-secondary hover:text-claude-accent transition-colors tap-action" aria-label="Share guide">
+                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share guide">
                                 <Share2 className="w-4 h-4" />
                             </button>
-                            <button onClick={() => setDeleteConfirm(true)} className="touch-target rounded-full p-2 text-claude-secondary hover:text-red-400 transition-colors tap-action">
+                            <button onClick={() => setDeleteConfirm(true)} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                                 <Trash2 className="w-4 h-4" />
                             </button>
                         </div>
@@ -1299,29 +1696,67 @@ export default function GuideView() {
                 </div>
             )}
 
-            <div className={`max-w-5xl mx-auto px-4 ${isMobileLayout ? 'pt-4' : 'pt-6'}`}>
-                {sessionMode === 'entry' && renderSessionEntry()}
-                {sessionMode === 'studying' && renderStudying()}
-                {sessionMode === 'quiz' && renderQuiz()}
-                {sessionMode === 'dashboard' && renderDashboard()}
+            <div className={`mx-auto max-w-7xl px-4 ${isMobileLayout ? 'pt-4' : 'pt-6'}`}>
+                {isMobileLayout ? (
+                    <>
+                        {sessionMode === 'entry' && renderSessionEntry()}
+                        {sessionMode === 'studying' && renderStudying()}
+                        {sessionMode === 'quiz' && renderQuiz()}
+                        {sessionMode === 'dashboard' && renderDashboard()}
+                    </>
+                ) : (
+                    <div data-testid="workbook-shell-grid" className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
+                        {renderDesktopRail()}
+                        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_320px]">
+                            <div data-testid="desktop-guide-stage">
+                                {sessionMode === 'entry' && renderSessionEntry()}
+                                {sessionMode === 'studying' && renderStudying()}
+                                {sessionMode === 'quiz' && renderQuiz()}
+                                {sessionMode === 'dashboard' && renderDashboard()}
+                            </div>
+                            {renderDesktopContext()}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {editingSectionId && (() => {
-                const sectionToEdit = normalizedGuideData?.sections.find((s) => s.id === editingSectionId);
+                const sectionToEdit = normalizedGuideData?.sections.find((section) => section.id === editingSectionId);
                 if (!sectionToEdit) return null;
+
+                if (isMobileLayout) {
+                    return (
+                        <MobileBottomSheet
+                            open
+                            title="Edit Section"
+                            subtitle={sectionToEdit.title}
+                            onClose={() => setEditingSectionId(null)}
+                            testId="mobile-edit-sheet"
+                            opaque
+                        >
+                            <SectionEditor
+                                section={sectionToEdit}
+                                onSave={(updates) => handleSaveSection(editingSectionId, updates)}
+                                onCancel={() => setEditingSectionId(null)}
+                            />
+                        </MobileBottomSheet>
+                    );
+                }
+
                 return (
-                    <MobileBottomSheet
+                    <DesktopSideSheet
                         open
                         title="Edit Section"
+                        subtitle={sectionToEdit.title}
                         onClose={() => setEditingSectionId(null)}
-                        opaque
+                        testId="desktop-edit-sheet"
                     >
                         <SectionEditor
                             section={sectionToEdit}
                             onSave={(updates) => handleSaveSection(editingSectionId, updates)}
                             onCancel={() => setEditingSectionId(null)}
                         />
-                    </MobileBottomSheet>
+                    </DesktopSideSheet>
                 );
             })()}
 
@@ -1330,7 +1765,7 @@ export default function GuideView() {
                     <MobileBottomSheet
                         open={showMobileMenu}
                         title="Workbook actions"
-                        subtitle="Everything else lives here."
+                        subtitle="Share, generate, or rebuild."
                         onClose={() => setShowMobileMenu(false)}
                         testId="mobile-more-sheet"
                         opaque
@@ -1342,10 +1777,10 @@ export default function GuideView() {
                                     setShowMobileMenu(false);
                                     handleShareGuide();
                                 }}
-                                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-claude-border bg-claude-surface/80 px-4 py-3 text-left text-sm text-claude-text"
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full justify-between"
                             >
                                 <span>Share</span>
-                                <Share2 className="h-4 w-4 text-claude-secondary" />
+                                <Share2 className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
@@ -1354,10 +1789,10 @@ export default function GuideView() {
                                     handleGenerateFlashcards();
                                 }}
                                 disabled={!!generating}
-                                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-claude-border bg-claude-surface/80 px-4 py-3 text-left text-sm text-claude-text disabled:opacity-50"
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full justify-between disabled:opacity-50"
                             >
                                 <span>Flashcards</span>
-                                {generating === 'flashcards' ? <Loader2 className="h-4 w-4 animate-spin text-claude-secondary" /> : <Layers className="h-4 w-4 text-claude-secondary" />}
+                                {generating === 'flashcards' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
                             </button>
                             <button
                                 type="button"
@@ -1366,10 +1801,10 @@ export default function GuideView() {
                                     handleGenerateExam();
                                 }}
                                 disabled={!!generating}
-                                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-claude-border bg-claude-surface/80 px-4 py-3 text-left text-sm text-claude-text disabled:opacity-50"
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full justify-between disabled:opacity-50"
                             >
                                 <span>Mock Exam</span>
-                                {generating === 'exam' ? <Loader2 className="h-4 w-4 animate-spin text-claude-secondary" /> : <ClipboardCheck className="h-4 w-4 text-claude-secondary" />}
+                                {generating === 'exam' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
                             </button>
                             <button
                                 type="button"
@@ -1378,10 +1813,10 @@ export default function GuideView() {
                                     handleRegenerateWorkbook();
                                 }}
                                 disabled={!!generating}
-                                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3 text-left text-sm text-claude-text disabled:opacity-50"
+                                className="guide-cta guide-cta--primary guide-focus-ring w-full justify-between disabled:opacity-50"
                             >
                                 <span>Rebuild Workbook</span>
-                                {generating === 'guide' ? <Loader2 className="h-4 w-4 animate-spin text-claude-accent" /> : <RotateCcw className="h-4 w-4 text-claude-accent" />}
+                                {generating === 'guide' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                             </button>
                             <button
                                 type="button"
@@ -1389,62 +1824,147 @@ export default function GuideView() {
                                     setShowMobileMenu(false);
                                     setDeleteConfirm(true);
                                 }}
-                                className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left text-sm text-red-200"
+                                className="guide-cta guide-cta--danger guide-focus-ring w-full justify-between"
                             >
                                 <span>Delete</span>
-                                <Trash2 className="h-4 w-4 text-red-300" />
+                                <Trash2 className="h-4 w-4" />
                             </button>
                         </div>
                     </MobileBottomSheet>
 
                     <MobileBottomSheet
                         open={showMobileSections}
-                        title="Sections"
+                        title="Checkpoints"
                         subtitle={`${progress.completedCount}/${progress.totalSections} complete`}
                         onClose={() => setShowMobileSections(false)}
                         testId="mobile-sections-sheet"
                     >
                         <div className="space-y-2">
-                            {sections.map((section, index) => {
-                                const sectionState = normalizedStudyState.section_states[section.id] || {};
-                                const isCurrent = normalizedStudyState.current_section_id === section.id;
-                                const isComplete = sectionState.completed;
-                                return (
-                                    <button
-                                        key={section.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setShowMobileSections(false);
-                                            handleSelectSection(section.id);
-                                        }}
-                                        className={`w-full rounded-[22px] border px-4 py-4 text-left transition-all ${
-                                            isCurrent
-                                                ? 'border-claude-accent bg-claude-accent/10'
-                                                : isComplete
-                                                    ? 'border-emerald-500/30 bg-emerald-500/10'
-                                                    : 'border-claude-border bg-claude-surface/80'
-                                        }`}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Section {index + 1}</p>
-                                                <p className="mt-2 text-sm font-medium text-claude-text">{section.title}</p>
-                                            </div>
-                                            <div className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] ${
-                                                isCurrent
-                                                    ? 'bg-claude-accent/15 text-claude-accent'
-                                                    : isComplete
-                                                        ? 'bg-emerald-500/15 text-emerald-300'
-                                                        : 'bg-claude-bg/60 text-claude-secondary'
-                                            }`}>
-                                                {isCurrent ? 'Current' : isComplete ? 'Done' : 'Next'}
-                                            </div>
+                            {railSections.map((item) => (
+                                <button
+                                    key={item.section.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setShowMobileSections(false);
+                                        if (sessionMode === 'studying') {
+                                            handleSessionIndexChange(item.index);
+                                        } else {
+                                            handleSelectSection(item.section.id);
+                                        }
+                                    }}
+                                    className={`w-full rounded-[1.35rem] p-4 text-left transition-all ${
+                                        railActiveId === item.section.id
+                                            ? `${item.panel} shadow-[0_18px_48px_-34px_rgba(0,0,0,0.82)]`
+                                            : 'guide-tone-neutral'
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                                Section {item.index + 1}
+                                            </p>
+                                            <p className="mt-2 text-sm font-medium text-claude-text">{item.section.title}</p>
                                         </div>
-                                    </button>
-                                );
-                            })}
+                                        <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
+                                    </div>
+                                </button>
+                            ))}
                         </div>
                     </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        open={showMobileMoreDetails}
+                        title={displaySection?.title || 'Checkpoint details'}
+                        subtitle={displaySectionMeta.label}
+                        onClose={() => setShowMobileMoreDetails(false)}
+                        testId="mobile-details-sheet"
+                    >
+                        <div className="space-y-4">
+                            {displaySection?.key_terms?.length ? (
+                                <div className="guide-tone-neutral rounded-[1.4rem] p-4">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Key terms</p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {displaySection.key_terms.map((term) => (
+                                            <span key={term} className="guide-status-pill guide-status-pill--neutral">{term}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+                            {displaySection?.common_traps?.length ? (
+                                <div className="guide-tone-warning rounded-[1.4rem] p-4">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">Common traps</p>
+                                    <div className="mt-3 space-y-2 text-sm leading-6 text-claude-text">
+                                        {displaySection.common_traps.map((trap) => (
+                                            <p key={trap}>{trap}</p>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+                            {displaySection ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowMobileMoreDetails(false);
+                                        setEditingSectionId(displaySection.id);
+                                    }}
+                                    className="guide-cta guide-cta--secondary guide-focus-ring w-full"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    <span>Edit Section</span>
+                                </button>
+                            ) : null}
+                        </div>
+                    </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        open={showMobileNoteEditor}
+                        title="Study note"
+                        subtitle={noteDisclosureSummary}
+                        onClose={() => setShowMobileNoteEditor(false)}
+                        testId="mobile-note-sheet"
+                    >
+                        <div className="space-y-4">
+                            <textarea
+                                value={displaySectionState?.note ?? ''}
+                                onChange={(event) => handleSectionNoteChange(displaySection?.id, event.target.value)}
+                                placeholder="Capture a memory hook or reminder for this checkpoint."
+                                className="min-h-[180px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                            />
+                        </div>
+                    </MobileBottomSheet>
+
+                    {showWorkbookBottomBar ? (
+                        <div data-testid="mobile-bottom-bar" className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
+                            <div className="mobile-bottom-nav-shell rounded-[1.75rem]">
+                                <div className="mobile-bottom-nav-shell__clip rounded-[inherit] px-4 py-3">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMobileSections(true)}
+                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full"
+                                        >
+                                            <span>Sections</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMobileMoreDetails(true)}
+                                            disabled={!hasDisplayDetails}
+                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full disabled:opacity-35"
+                                        >
+                                            <span>Details</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMobileNoteEditor(true)}
+                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full"
+                                        >
+                                            <span>Notes</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </>
             ) : null}
         </div>

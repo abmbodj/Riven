@@ -79,7 +79,7 @@ vi.mock('../components/StudySection.jsx', () => ({
 }));
 
 vi.mock('../components/GuideProgressDashboard.jsx', () => ({
-  default: ({ guideData, studyState, onStartWeakSession }) => (
+  default: ({ guideData: _guideData, studyState: _studyState, onStartWeakSession }) => (
     <div data-testid="guide-progress-dashboard">
       <p>Progress Dashboard</p>
       <button type="button" onClick={onStartWeakSession}>Start weak session</button>
@@ -244,9 +244,12 @@ describe('GuideView', () => {
     const entryScreen = await screen.findByTestId('session-entry');
     expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
     expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
+    expect(screen.getByTestId('workbook-shell-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-guide-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-guide-context')).toBeInTheDocument();
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('workbook-shell-grid')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('checkpoint-chip-row')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
+    expect(within(entryScreen).getByText(/session snapshot/i)).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
 
@@ -255,6 +258,7 @@ describe('GuideView', () => {
 
     const studyingScreen = await screen.findByTestId('session-studying');
     expect(screen.queryByTestId('session-entry')).not.toBeInTheDocument();
+    expect(screen.getByTestId('desktop-guide-context')).toBeInTheDocument();
     const studySection = within(studyingScreen).getByTestId('study-section');
     expect(studySection).toBeInTheDocument();
     // alliances is already revealed, so answer points are shown — rate confidence
@@ -290,10 +294,9 @@ describe('GuideView', () => {
 
     const entryScreen = await screen.findByTestId('session-entry');
     expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
+    expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
+    expect(within(entryScreen).getByText(/session snapshot/i)).toBeInTheDocument();
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('checkpoint-chip-row')).not.toBeInTheDocument();
-    expect(screen.queryByText(/checkpoint map/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/session snapshot/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-bottom-bar')).not.toBeInTheDocument();
 
     // Start a quick 5-min session
@@ -301,6 +304,8 @@ describe('GuideView', () => {
 
     const studyingScreen = await screen.findByTestId('session-studying');
     expect(screen.queryByTestId('session-entry')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mobile-focus-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-bottom-bar')).toBeInTheDocument();
     expect(within(studyingScreen).getByTestId('study-section')).toBeInTheDocument();
 
     // Reveal and rate confidence to trigger save
@@ -321,7 +326,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('opens a mobile sections sheet from the menu and shows section list', async () => {
+  it('opens the mobile more sheet from the header menu', async () => {
     mockMatchMedia(true);
     api.getStudyGuide.mockResolvedValue(buildV2Guide());
 
@@ -333,19 +338,16 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    // Wait for session entry to load
     await screen.findByTestId('session-entry');
 
-    // Open the mobile menu (three-bar button in the navbar)
     fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
 
-    // Verify the menu opens
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
     expect(moreSheet).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /^share$/i })).toBeInTheDocument();
   });
 
-  it('moves secondary mobile actions into a single more sheet', async () => {
+  it('keeps secondary mobile actions inside the opaque more sheet', async () => {
     mockMatchMedia(true);
     api.getStudyGuide.mockResolvedValue(buildV2Guide());
 
@@ -361,13 +363,76 @@ describe('GuideView', () => {
     fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
 
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
-    expect(moreSheet.className.split(/\s+/)).toContain('bg-claude-bg');
-    expect(moreSheet.className.split(/\s+/)).not.toContain('bg-claude-bg/95');
+    expect(moreSheet.className.split(/\s+/)).toContain('bg-claude-bg/95');
     expect(within(moreSheet).getByRole('button', { name: /^share$/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /flashcards/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /mock exam/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /rebuild workbook/i })).toBeInTheDocument();
     expect(within(moreSheet).getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+  });
+
+  it('uses the mobile studying dock to open sections, details, and notes sheets', async () => {
+    mockMatchMedia(true);
+    api.getStudyGuide.mockResolvedValue(buildV2Guide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+
+    await screen.findByTestId('mobile-bottom-bar');
+
+    fireEvent.click(screen.getByRole('button', { name: /^sections$/i }));
+    const sectionsSheet = await screen.findByTestId('mobile-sections-sheet');
+    expect(within(sectionsSheet).getByText('Alliance System')).toBeInTheDocument();
+    expect(within(sectionsSheet).getByText('Treaty of Versailles')).toBeInTheDocument();
+
+    fireEvent.click(within(sectionsSheet).getByText('Treaty of Versailles').closest('button'));
+
+    fireEvent.click(screen.getByRole('button', { name: /^details$/i }));
+    const detailsSheet = await screen.findByTestId('mobile-details-sheet');
+    expect(within(detailsSheet).getByText('reparations')).toBeInTheDocument();
+    expect(within(detailsSheet).getByText(/armistice and treaty are different events/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^notes$/i }));
+    const noteSheet = await screen.findByTestId('mobile-note-sheet');
+    expect(within(noteSheet).getByPlaceholderText(/capture a memory hook or reminder/i)).toBeInTheDocument();
+  });
+
+  it('disables the mobile Details button when a section only has mini-quiz content', async () => {
+    mockMatchMedia(true);
+    const quizOnlyGuide = buildV2Guide();
+    quizOnlyGuide.guide_data.sections = [
+      {
+        ...quizOnlyGuide.guide_data.sections[0],
+        title: 'Quiz-only checkpoint',
+        key_terms: [],
+        common_traps: [],
+        mini_quiz: [{ prompt: 'What started the chain reaction?', answer: 'Alliance escalation' }],
+      },
+      quizOnlyGuide.guide_data.sections[1],
+    ];
+    api.getStudyGuide.mockResolvedValue(quizOnlyGuide);
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+
+    await screen.findByTestId('mobile-bottom-bar');
+    expect(screen.getByRole('button', { name: /^details$/i })).toBeDisabled();
   });
 
   it('keeps classic guides editable and exposes a convert-to-workbook CTA', async () => {
@@ -444,8 +509,8 @@ describe('GuideView', () => {
 
     releaseDone();
 
-    expect(await screen.findByRole('heading', { name: 'World War I Recall Workbook' })).toBeInTheDocument();
-    expect(screen.getByTestId('session-entry')).toBeInTheDocument();
+    const rebuiltEntry = await screen.findByTestId('session-entry');
+    expect(within(rebuiltEntry).getByRole('heading', { name: 'World War I Recall Workbook' })).toBeInTheDocument();
     expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });

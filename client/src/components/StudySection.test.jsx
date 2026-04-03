@@ -24,11 +24,22 @@ const defaultProps = {
 };
 
 describe('StudySection', () => {
-    it('starts on recall step — shows recall prompt and Show Answer button', () => {
+    it('starts on recall step and shows the recall prompt', () => {
         render(<StudySection {...defaultProps} />);
         expect(screen.getByTestId('study-section-recall')).toBeTruthy();
         expect(screen.getByText('How does DNA become a protein?')).toBeTruthy();
         expect(screen.getByText('Show Answer')).toBeTruthy();
+    });
+
+    it('starts on answer step when the section was already revealed', () => {
+        render(
+            <StudySection
+                {...defaultProps}
+                sectionState={{ revealed: true, confidence: 'okay', completed: false, note: '', last_reviewed_at: null }}
+            />
+        );
+        expect(screen.getByTestId('study-section-answer')).toBeTruthy();
+        expect(screen.queryByTestId('study-section-recall')).toBeNull();
     });
 
     it('advances to answer step when Show Answer is tapped', () => {
@@ -79,5 +90,31 @@ describe('StudySection', () => {
         expect(screen.getByTestId('study-section-answer')).toBeTruthy();
         rerender(<StudySection {...defaultProps} section={{ ...section, id: 'sec-2' }} />);
         expect(screen.getByTestId('study-section-recall')).toBeTruthy();
+    });
+
+    it('wires navigation and edit controls when provided', () => {
+        const onPrevious = vi.fn();
+        const onNext = vi.fn();
+        const onEdit = vi.fn();
+
+        render(
+            <StudySection
+                {...defaultProps}
+                sectionState={{ revealed: true, confidence: 'okay', completed: false, note: '', last_reviewed_at: null }}
+                canGoPrevious
+                canGoNext
+                onPrevious={onPrevious}
+                onNext={onNext}
+                onEdit={onEdit}
+            />
+        );
+
+        fireEvent.click(screen.getByTestId('study-edit'));
+        fireEvent.click(screen.getByTestId('study-previous'));
+        fireEvent.click(screen.getByTestId('study-next'));
+
+        expect(onEdit).toHaveBeenCalledOnce();
+        expect(onPrevious).toHaveBeenCalledOnce();
+        expect(onNext).toHaveBeenCalledOnce();
     });
 });

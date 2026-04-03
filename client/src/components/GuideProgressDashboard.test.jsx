@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import GuideProgressDashboard from './GuideProgressDashboard.jsx';
 
@@ -25,19 +25,31 @@ const studyState = {
 describe('GuideProgressDashboard', () => {
     it('renders each section title', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={vi.fn()} />);
+        expect(screen.getByTestId('guide-progress-dashboard')).toBeTruthy();
         expect(screen.getByText('Cell Structure')).toBeTruthy();
         expect(screen.getByText('Mitosis')).toBeTruthy();
         expect(screen.getByText('Protein Synthesis')).toBeTruthy();
     });
 
-    it('shows Review Now label for need_work section', () => {
+    it('shows Review Now label and counts unstudied sections into the review-now metric', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={vi.fn()} />);
-        expect(screen.getAllByText('Review Now').length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/review now/i).length).toBeGreaterThan(0);
+        const reviewNowMetricLabel = screen.getByText(/^review now$/i, { selector: 'p' });
+        const reviewNowCard = reviewNowMetricLabel.closest('article');
+        expect(reviewNowCard).toBeTruthy();
+        expect(within(reviewNowCard).getByText('2')).toBeTruthy();
     });
 
-    it('shows Not Studied label for unstudied section', () => {
+    it('shows Not Studied label with the danger-pill styling for an unstudied section', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={vi.fn()} />);
-        expect(screen.getByText('Not Studied')).toBeTruthy();
+        const notStudiedPills = screen.getAllByText(/not studied/i);
+        expect(notStudiedPills.length).toBeGreaterThan(0);
+        expect(notStudiedPills[0].className).toContain('guide-status-pill--danger');
+    });
+
+    it('returns null when guide data cannot be normalized', () => {
+        render(<GuideProgressDashboard guideData={null} studyState={studyState} onStartWeakSession={vi.fn()} />);
+        expect(screen.queryByTestId('guide-progress-dashboard')).toBeNull();
     });
 
     it('calls onStartWeakSession when CTA is clicked', () => {
@@ -45,6 +57,20 @@ describe('GuideProgressDashboard', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={onStartWeakSession} />);
         fireEvent.click(screen.getByTestId('review-weak-cta'));
         expect(onStartWeakSession).toHaveBeenCalledOnce();
+    });
+
+    it('calls onEditSection for the matching section card', () => {
+        const onEditSection = vi.fn();
+        render(
+            <GuideProgressDashboard
+                guideData={guideData}
+                studyState={studyState}
+                onStartWeakSession={vi.fn()}
+                onEditSection={onEditSection}
+            />
+        );
+        fireEvent.click(screen.getByTestId('dashboard-edit-sec-2'));
+        expect(onEditSection).toHaveBeenCalledWith('sec-2');
     });
 
     it('hides CTA when no weak sections exist', () => {
