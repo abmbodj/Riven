@@ -37,6 +37,7 @@ const DEFAULT_SECTION_STATE = {
     confidence: null,
     completed: false,
     note: '',
+    last_reviewed_at: null,
 };
 
 const getSectionIndex = (sections, sectionId) => {

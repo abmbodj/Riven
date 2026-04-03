@@ -71,6 +71,7 @@ const buildDefaultSectionState = () => ({
     confidence: null,
     completed: false,
     note: '',
+    last_reviewed_at: null,
 });
 
 export const normalizeGuideStudyState = (guideData, studyState) => {
@@ -92,6 +93,7 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
                 confidence: typeof incoming.confidence === 'string' ? incoming.confidence : null,
                 completed: Boolean(incoming.completed),
                 note: typeof incoming.note === 'string' ? incoming.note : '',
+                last_reviewed_at: typeof incoming.last_reviewed_at === 'string' ? incoming.last_reviewed_at : null,
             }];
         })
     );
@@ -174,5 +176,74 @@ export const getGuideStudySourceText = (guide) => {
     }
 
     return extractTextFromDoc(guide?.content).replace(/\s+/g, ' ').trim();
+};
+
+// Returns 'review_now' | 'coming_up' | 'good' | 'review_soon'
+export const getSectionStatus = (sectionState, sectionLastReviewedAt) => {
+    const confidence = sectionState?.confidence ?? null;
+    if (!confidence) return 'review_now';
+    if (confidence === 'need_work') return 'review_now';
+    if (confidence === 'okay') return 'coming_up';
+    if (confidence === 'know_it') {
+        if (!sectionLastReviewedAt) return 'review_soon';
+        const daysSince = (Date.now() - new Date(sectionLastReviewedAt).getTime()) / (1000 * 60 * 60 * 24);
+        return daysSince > 3 ? 'review_soon' : 'good';
+    }
+    return 'review_now';
+};
+
+export const getWeakSections = (guideData, studyState) => {
+    const normalizedGuideData = normalizeGuideData(guideData);
+    const normalizedStudyState = normalizeGuideStudyState(guideData, studyState);
+    if (!normalizedGuideData) return [];
+    return normalizedGuideData.sections.filter((section) => {
+        const sectionState = normalizedStudyState.section_states[section.id];
+        const status = getSectionStatus(sectionState, sectionState?.last_reviewed_at ?? null);
+        return status === 'review_now' || status === 'coming_up';
+    });
+};
+
+const SECTION_PRIORITY = ['review_now', 'coming_up', 'review_soon', 'good'];
+const MINUTES_PER_SECTION = 3;
+const QUIZ_EXTRA_MINUTES = 1;
+
+export const getSessionSections = (guideData, studyState, durationMinutes) => {
+    const normalizedGuideData = normalizeGuideData(guideData);
+    const normalizedStudyState = normalizeGuideStudyState(guideData, studyState);
+    if (!normalizedGuideData) return [];
+
+    const ranked = normalizedGuideData.sections
+        .map((section) => {
+            const sectionState = normalizedStudyState.section_states[section.id];
+            const status = getSectionStatus(sectionState, sectionState?.last_reviewed_at ?? null);
+            return { section, status, priority: SECTION_PRIORITY.indexOf(status) };
+        })
+        .sort((a, b) => a.priority - b.priority);
+
+    const selected = [];
+    let budget = durationMinutes;
+
+    for (const { section } of ranked) {
+        const hasQuiz = section.mini_quiz?.length > 0;
+        const cost = MINUTES_PER_SECTION + (hasQuiz ? QUIZ_EXTRA_MINUTES : 0);
+        if (budget >= cost) {
+            selected.push(section);
+            budget -= cost;
+        }
+        if (budget < MINUTES_PER_SECTION) break;
+    }
+
+    return selected;
+};
+
+export const updateSection = (guideData, sectionId, updates) => {
+    const normalized = normalizeGuideData(guideData);
+    if (!normalized) return guideData;
+    return {
+        ...normalized,
+        sections: normalized.sections.map((section) => (
+            section.id === sectionId ? { ...section, ...updates } : section
+        )),
+    };
 };
 
