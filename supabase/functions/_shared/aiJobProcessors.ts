@@ -563,10 +563,6 @@ const processNoteEnhancementJob = async ({
     resultPatch: {
       final_doc: finalDoc,
       note_id: noteId,
-      preview_doc: finalDoc,
-      preview_sections: Array.isArray((finalDoc as Record<string, unknown>).content)
-        ? (finalDoc as Record<string, unknown>).content
-        : [],
     },
   });
 };

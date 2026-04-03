@@ -424,6 +424,26 @@ export default function NoteEditor() {
 
             try {
                 const latestJob = await api.getAiJob(trackedJobId);
+                // Recovery: if the job is stuck in saving but the note was already saved to DB,
+                // complete the UI. This handles edge function timeouts and dropped Realtime events.
+                if (latestJob?.status === 'saving' && latestJob?.result_payload?.final_doc) {
+                    try {
+                        const savedNoteId = String(latestJob.result_payload.note_id || '');
+                        if (savedNoteId) {
+                            const savedNote = await api.getNote(savedNoteId);
+                            if (savedNote?.enhanced_content) {
+                                processTrackedEnhancementJob(trackedJobId, {
+                                    ...latestJob,
+                                    status: 'completed',
+                                    phase: 'done',
+                                    progress_percent: 100,
+                                    progress_message: 'Notes enhanced successfully',
+                                });
+                                return;
+                            }
+                        }
+                    } catch { /* fall through to normal processing */ }
+                }
                 processTrackedEnhancementJob(trackedJobId, latestJob);
             } catch (error) {
                 if (trackedEnhancementJobIdRef.current === trackedJobId) {
