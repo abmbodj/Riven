@@ -24,8 +24,8 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                         backgroundColor: 'rgba(20,40,20,0.75)',
                         borderColor: 'rgba(34,197,94,0.2)',
                     } : {
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(0,0,0,0)',
+                        borderColor: 'rgba(0,0,0,0)',
                     }}
                     transition={SPRING}
                     className="mobile-bottom-nav-shell rounded-[1.75rem] border"
