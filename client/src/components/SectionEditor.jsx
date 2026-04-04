@@ -67,11 +67,11 @@ function FieldShell({ icon: Icon, label, children }) {
 }
 
 export default function SectionEditor({ section, onSave, onCancel }) {
-    const [title, setTitle] = useState(section.title);
-    const [recallPrompt, setRecallPrompt] = useState(section.recall_prompt);
-    const [answerPoints, setAnswerPoints] = useState(section.answer_points);
-    const [commonTraps, setCommonTraps] = useState(section.common_traps);
-    const [keyTerms, setKeyTerms] = useState(section.key_terms);
+    const [title, setTitle] = useState(section.title ?? '');
+    const [recallPrompt, setRecallPrompt] = useState(section.recall_prompt ?? '');
+    const [answerPoints, setAnswerPoints] = useState(section.answer_points ?? []);
+    const [commonTraps, setCommonTraps] = useState(section.common_traps ?? []);
+    const [keyTerms, setKeyTerms] = useState(section.key_terms ?? []);
 
     const handleSave = () => {
         onSave({
