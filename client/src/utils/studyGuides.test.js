@@ -5,6 +5,8 @@ import {
     getWeakSections,
     normalizeGuideStudyState,
     updateSection,
+    getRecommendedSession,
+    getSessionDelta,
 } from './studyGuides.js';
 
 const makeGuideData = (overrides = []) => ({
@@ -147,5 +149,71 @@ describe('updateSection', () => {
         const guideData = makeGuideData();
         const updated = updateSection(guideData, 'nonexistent', { title: 'X' });
         expect(updated.sections).toHaveLength(3);
+    });
+});
+
+// --- getRecommendedSession ---
+
+describe('getRecommendedSession', () => {
+    it('returns type "weak" when weak sections exist', () => {
+        const guideData = makeGuideData();
+        // sec-2 has need_work → weak
+        const studyState = makeStudyState();
+        const result = getRecommendedSession(guideData, studyState);
+        expect(result.type).toBe('weak');
+        expect(result.sections.length).toBeGreaterThan(0);
+    });
+
+    it('returns type "continue" when no weak sections but guide incomplete', () => {
+        const guideData = makeGuideData();
+        const studyState = makeStudyState({
+            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-3': { revealed: true, confidence: 'know_it', completed: false, note: '', last_reviewed_at: new Date().toISOString() },
+        });
+        const result = getRecommendedSession(guideData, studyState);
+        expect(result.type).toBe('continue');
+        expect(result.sections.length).toBeGreaterThan(0);
+    });
+
+    it('returns type "full" when guide is 100% complete', () => {
+        const guideData = makeGuideData();
+        const studyState = makeStudyState({
+            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-3': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+        });
+        const result = getRecommendedSession(guideData, studyState);
+        expect(result.type).toBe('full');
+    });
+});
+
+// --- getSessionDelta ---
+
+describe('getSessionDelta', () => {
+    it('returns mastery delta and weak count delta between two states', () => {
+        const guideData = makeGuideData();
+        const stateBefore = makeStudyState({
+            'sec-1': { revealed: true, confidence: 'need_work', completed: false, note: '', last_reviewed_at: null },
+            'sec-2': { revealed: true, confidence: 'need_work', completed: false, note: '', last_reviewed_at: null },
+            'sec-3': { revealed: false, confidence: null, completed: false, note: '', last_reviewed_at: null },
+        });
+        const stateAfter = makeStudyState({
+            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
+            'sec-3': { revealed: false, confidence: null, completed: false, note: '', last_reviewed_at: null },
+        });
+        const delta = getSessionDelta(guideData, stateBefore, stateAfter);
+        expect(delta.masteryDeltaPercent).toBeGreaterThan(0);
+        expect(delta.weakCountAfter).toBeLessThan(delta.weakCountBefore);
+        expect(delta.sectionsReviewed).toBe(2);
+    });
+
+    it('returns zeroes when nothing changed', () => {
+        const guideData = makeGuideData();
+        const state = makeStudyState();
+        const delta = getSessionDelta(guideData, state, state);
+        expect(delta.masteryDeltaPercent).toBe(0);
+        expect(delta.sectionsReviewed).toBe(0);
     });
 });
