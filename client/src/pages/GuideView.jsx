@@ -923,8 +923,9 @@ export default function GuideView() {
     }, [normalizedGuideData, startStudySession, weakSections]);
 
     const startQuizMode = useCallback(() => {
+        sessionStartStateRef.current = normalizedStudyState;
         setSessionMode('quiz');
-    }, []);
+    }, [normalizedStudyState]);
 
     const handleSectionComplete = useCallback((sectionId) => {
         updateStudyState((state) => ({
