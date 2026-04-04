@@ -22,6 +22,7 @@ import {
     getGuideProgress,
     getGuideStudySourceText,
     getRecommendedSession,
+    getSessionDelta,
     getSessionSections,
     getSectionStatus,
     getWeakSections,
@@ -281,6 +282,7 @@ export default function GuideView() {
     const formatVersionRef = useRef(1);
     const guideRef = useRef(null);
     const activeSaveRef = useRef(Promise.resolve(null));
+    const sessionStartStateRef = useRef(null);
 
     useEffect(() => {
         toastRef.current = toast;
@@ -898,11 +900,12 @@ export default function GuideView() {
 
     const startStudySession = useCallback((sectionList) => {
         if (!sectionList.length) return;
+        sessionStartStateRef.current = normalizedStudyState; // snapshot before session
         setSessionSections(sectionList);
         setSessionIndex(0);
         setSessionMode('studying');
         handleSelectSection(sectionList[0].id);
-    }, [handleSelectSection]);
+    }, [handleSelectSection, normalizedStudyState]);
 
     const startFullSession = useCallback(() => {
         const sectionList = normalizedGuideData?.sections ?? [];
@@ -935,14 +938,14 @@ export default function GuideView() {
             },
         }));
         if (sessionIndex + 1 >= sessionSections.length) {
-            setSessionMode('dashboard');
+            setSessionMode('post-session');
         } else {
             handleSessionIndexChange(sessionIndex + 1);
         }
     }, [handleSessionIndexChange, sessionIndex, sessionSections.length, updateStudyState]);
 
     const handleQuizComplete = useCallback(() => {
-        setSessionMode('dashboard');
+        setSessionMode('post-session');
     }, []);
 
     const weakCoachMessage = useMemo(() => {
@@ -951,6 +954,81 @@ export default function GuideView() {
         if (weakSections.length === 2) return `Focus on ${weakSections[0].title} and ${weakSections[1].title} before anything else.`;
         return `${weakSections.length} sections need review. Start with the weakest ones and keep the session tight.`;
     }, [weakSections]);
+
+    const renderPostSession = () => {
+        const delta = getSessionDelta(
+            normalizedGuideData,
+            sessionStartStateRef.current,
+            normalizedStudyState
+        );
+        const stillWeak = getWeakSections(normalizedGuideData, normalizedStudyState);
+
+        return (
+            <div data-testid="post-session" className="flex flex-col gap-4">
+                <div className="guide-hero rounded-[2rem] p-5 sm:p-6">
+                    <div className="flex flex-col items-center gap-4 text-center">
+                        <span className="text-4xl">🎉</span>
+                        <div>
+                            <h2 className="font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
+                                Session Complete
+                            </h2>
+                            <p className="mt-2 text-sm text-claude-secondary">
+                                {delta.sectionsReviewed} section{delta.sectionsReviewed !== 1 ? 's' : ''} reviewed
+                            </p>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="grid w-full grid-cols-3 gap-3">
+                            {[
+                                { label: 'Mastery', value: `${progress.completionPercent}%`, accent: true },
+                                { label: 'Still Weak', value: stillWeak.length },
+                                { label: 'This Session', value: delta.masteryDeltaPercent > 0 ? `+${delta.masteryDeltaPercent}%` : '—' },
+                            ].map(({ label, value, accent }) => (
+                                <div key={label} className="guide-shell rounded-[1.3rem] py-3">
+                                    <p className={`text-[1.3rem] font-bold ${accent ? 'text-[#86efac]' : 'text-claude-text'}`}>
+                                        {value}
+                                    </p>
+                                    <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.1em] text-claude-secondary">
+                                        {label}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Primary CTA */}
+                        <div className="guide-tone-success w-full rounded-[1.4rem] p-4">
+                            <p className="font-semibold text-claude-text">
+                                {stillWeak.length > 0 ? 'Keep Going — Weak Sections Remain' : 'Study Again Tomorrow'}
+                            </p>
+                            <p className="mt-1 text-sm text-claude-secondary">
+                                {stillWeak.length > 0
+                                    ? `${stillWeak.length} section${stillWeak.length !== 1 ? 's' : ''} still need review`
+                                    : 'Riven will remind you when sections are due'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Secondary actions */}
+                <div className="flex flex-col gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('entry')}
+                        className="guide-cta guide-cta--secondary guide-focus-ring w-full"
+                    >
+                        Back to Guide
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSessionMode('dashboard')}
+                        className="text-center text-[12px] text-claude-secondary/60 hover:text-claude-secondary transition-colors py-2"
+                    >
+                        View full progress dashboard ›
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     const renderSessionEntry = () => (
         <div data-testid="session-entry" className="flex flex-col gap-4">
@@ -1814,6 +1892,7 @@ export default function GuideView() {
                         {sessionMode === 'entry' && renderSessionEntry()}
                         {sessionMode === 'studying' && renderStudying()}
                         {sessionMode === 'quiz' && renderQuiz()}
+                        {sessionMode === 'post-session' && renderPostSession()}
                         {sessionMode === 'dashboard' && renderDashboard()}
                     </>
                 ) : (
@@ -1827,6 +1906,7 @@ export default function GuideView() {
                             {sessionMode === 'entry' && renderSessionEntry()}
                             {sessionMode === 'studying' && renderStudying()}
                             {sessionMode === 'quiz' && renderQuiz()}
+                            {sessionMode === 'post-session' && renderPostSession()}
                             {sessionMode === 'dashboard' && renderDashboard()}
                         </div>
                         {renderDesktopContext()}
