@@ -2,8 +2,8 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-    AlertTriangle, Check, ChevronLeft, ClipboardCheck,
-    Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
+    AlertTriangle, ArrowRight, BookOpen, Check, CheckCircle2, ChevronLeft, ClipboardCheck,
+    Clock3, Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -26,6 +26,7 @@ import {
     getSessionSections,
     getSectionStatus,
     getWeakSections,
+    estimateSessionEffortMinutes,
     normalizeGuideData,
     normalizeGuideStudyState,
 } from '../utils/studyGuides';
@@ -74,6 +75,19 @@ const getGuideSynopsis = (overview) => {
 };
 
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)';
+const QUICK_SESSION_OPTIONS = [5, 10, 20];
+
+const formatCountLabel = (count, singular, plural = `${singular}s`) => (
+    `${count} ${count === 1 ? singular : plural}`
+);
+
+const joinSectionTitles = (sections, limit = 2) => {
+    const names = (sections ?? []).slice(0, limit).map((section) => section.title);
+    if (names.length === 0) return 'Ready to begin';
+    if (names.length === 1) return names[0];
+    const remainder = (sections?.length ?? 0) - names.length;
+    return `${names.join(' + ')}${remainder > 0 ? ` + ${remainder} more` : ''}`;
+};
 
 const getMatches = (query) => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -271,7 +285,6 @@ export default function GuideView() {
     const [showOnboardingHint, setShowOnboardingHint] = useState(
         () => !localStorage.getItem('riven_guide_onboarded')
     );
-    const [showOtherOptions, setShowOtherOptions] = useState(false);
 
     const toastRef = useRef(toast);
     const saveTimerRef = useRef(null);
@@ -409,6 +422,61 @@ export default function GuideView() {
         () => getRecommendedSession(normalizedGuideData, normalizedStudyState),
         [normalizedGuideData, normalizedStudyState]
     );
+    const recommendedEstimateMinutes = useMemo(
+        () => estimateSessionEffortMinutes(recommendedSession.sections),
+        [recommendedSession.sections],
+    );
+    const recommendedHeadline = useMemo(() => {
+        if (recommendedSession.type === 'weak') {
+            return `Review ${formatCountLabel(recommendedSession.sections.length, 'weak checkpoint')}`;
+        }
+
+        if (recommendedSession.type === 'continue') {
+            return `Resume with ${nextSection?.title || 'your next checkpoint'}`;
+        }
+
+        return sessionStarted ? 'Restart a full review pass' : 'Start your first review pass';
+    }, [nextSection, recommendedSession, sessionStarted]);
+    const recommendedReason = useMemo(() => {
+        if (recommendedSession.type === 'weak') {
+            return `Fastest payoff first. ${joinSectionTitles(recommendedSession.sections)} need the most attention right now, so this run will lift recall quickest.`;
+        }
+
+        if (recommendedSession.type === 'continue') {
+            return `Momentum matters. Pick up where you stopped before the material cools off and the next checkpoint turns into rereading.`;
+        }
+
+        return 'Best first move: touch every checkpoint once, reveal only after you try, and let your confidence taps shape the next session.';
+    }, [recommendedSession]);
+    const recommendedPrimaryLabel = useMemo(() => {
+        if (recommendedSession.type === 'weak') return 'Start recommended review';
+        if (recommendedSession.type === 'continue') return 'Resume coach session';
+        return 'Start full review';
+    }, [recommendedSession.type]);
+    const coachPanelMessage = useMemo(() => {
+        if (weakSections.length > 0) {
+            return `Coach note: ${joinSectionTitles(weakSections)} should come before quiz mode or a full reread.`;
+        }
+
+        if (sessionStarted) {
+            return `Coach note: finish ${nextSection?.title || 'the next checkpoint'} before switching modes to keep recall effort high and friction low.`;
+        }
+
+        return 'Coach note: start with one checkpoint, reveal the answer only after you try, then rate confidence honestly so the next session stays focused.';
+    }, [nextSection, sessionStarted, weakSections]);
+    const quickSessionChoices = useMemo(() => (
+        QUICK_SESSION_OPTIONS.map((durationMinutes) => {
+            const sessionSelection = getSessionSections(normalizedGuideData, normalizedStudyState, durationMinutes);
+            const effectiveSections = sessionSelection.length ? sessionSelection : sections;
+            return {
+                durationMinutes,
+                sections: effectiveSections,
+                checkpointCount: effectiveSections.length,
+                estimateMinutes: estimateSessionEffortMinutes(effectiveSections),
+                targetLabel: joinSectionTitles(effectiveSections, 1),
+            };
+        })
+    ), [normalizedGuideData, normalizedStudyState, sections]);
     const sectionSummaries = useMemo(() => (
         sections.map((section, index) => {
             const state = normalizedStudyState.section_states[section.id] || DEFAULT_SECTION_STATE;
@@ -968,7 +1036,10 @@ export default function GuideView() {
             <div data-testid="post-session" className="flex flex-col gap-4">
                 <div className="guide-hero rounded-[2rem] p-5 sm:p-6">
                     <div className="flex flex-col items-center gap-4 text-center">
-                        <span className="text-4xl">🎉</span>
+                        <span className="guide-status-pill guide-status-pill--success">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Session complete
+                        </span>
                         <div>
                             <h2 className="font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
                                 Session Complete
@@ -1034,20 +1105,37 @@ export default function GuideView() {
     const renderSessionEntry = () => (
         <div data-testid="session-entry" className="flex flex-col gap-4">
             <div data-testid="entry-hero-card" className="guide-hero rounded-[2rem] p-5 sm:p-6">
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
+                <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
                             <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
-                                Botanical Observatory
+                                Study coach
                             </p>
-                            <h1 className="mt-3 font-display text-[2.2rem] font-bold italic leading-[0.94] text-claude-text sm:text-[2.8rem]">
-                                {title}
+                            <p className="mt-3 inline-flex max-w-full items-center gap-2 text-sm text-claude-secondary">
+                                <BookOpen className="h-4 w-4 shrink-0 text-claude-accent" />
+                                <span className="truncate">{title}</span>
+                            </p>
+                            <h1 className="mt-3 font-display text-[2.15rem] font-bold italic leading-[0.94] text-claude-text sm:text-[2.7rem]">
+                                Here&apos;s the next best move.
                             </h1>
-                            <p className="mt-2 text-sm text-claude-secondary">
-                                {normalizedStudyState.last_reviewed_at
-                                    ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)} · ${progress.completionPercent}% complete`
-                                    : 'Not started yet'}
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                {recommendedReason}
                             </p>
+                        </div>
+                        <div className="grid gap-3 sm:min-w-[12rem] sm:max-w-[14rem]">
+                            <div className="guide-sheet rounded-[1.3rem] p-4">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                    Progress
+                                </p>
+                                <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
+                                    {progress.completedCount}/{progress.totalSections}
+                                </p>
+                                <p className="mt-2 text-xs leading-5 text-claude-secondary">
+                                    {normalizedStudyState.last_reviewed_at
+                                        ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)}`
+                                        : 'Not started yet'}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -1062,7 +1150,9 @@ export default function GuideView() {
                                 className="overflow-hidden"
                             >
                                 <div className="flex items-start gap-3 rounded-[1.4rem] border border-[rgba(147,197,253,0.18)] bg-[#1a1f2e] p-4">
-                                    <span className="text-base mt-0.5">💡</span>
+                                    <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(147,197,253,0.18)] bg-[#101826] text-[#93c5fd]">
+                                        <Sparkles className="h-4 w-4" />
+                                    </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-[#93c5fd]">
                                             How this works
@@ -1078,9 +1168,9 @@ export default function GuideView() {
                                             setShowOnboardingHint(false);
                                             localStorage.setItem('riven_guide_onboarded', 'true');
                                         }}
-                                        className="shrink-0 text-[#93c5fd]/40 hover:text-[#93c5fd]/70 transition-colors text-sm"
+                                        className="shrink-0 rounded-full p-1 text-[#93c5fd]/40 hover:text-[#93c5fd]/70 transition-colors"
                                     >
-                                        ✕
+                                        <X className="h-4 w-4" />
                                     </button>
                                 </div>
                             </motion.div>
@@ -1098,88 +1188,127 @@ export default function GuideView() {
                         }}
                         className="guide-tone-success guide-focus-ring rounded-[1.6rem] p-5 text-left transition-transform duration-200 hover:-translate-y-0.5"
                     >
-                        <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-[#86efac]">
-                            Recommended for you
-                        </p>
-                        <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
-                            {recommendedSession.label}
-                        </p>
-                        <p className="mt-2 text-sm text-claude-secondary">{recommendedSession.detail}</p>
-                        <div className="mt-4 flex items-center justify-center rounded-[1rem] bg-[#22c55e] py-3">
-                            <span className="text-[13px] font-bold text-black">Start Session →</span>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-[#86efac]">
+                                    Recommended next move
+                                </p>
+                                <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
+                                    {recommendedHeadline}
+                                </p>
+                                <p className="mt-3 text-sm text-claude-secondary">
+                                    {recommendedSession.detail}
+                                </p>
+                            </div>
+                            <div className="grid gap-2 sm:min-w-[12rem]">
+                                <span className="guide-status-pill guide-status-pill--neutral">
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                    {recommendedEstimateMinutes > 0 ? `~${recommendedEstimateMinutes} min` : 'Ready now'}
+                                </span>
+                                <span className="guide-status-pill guide-status-pill--neutral">
+                                    <BookOpen className="h-3.5 w-3.5" />
+                                    {joinSectionTitles(recommendedSession.sections)}
+                                </span>
+                                <span className="guide-status-pill guide-status-pill--neutral">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    {formatCountLabel(recommendedSession.sections.length, 'checkpoint')}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-5 flex items-center justify-center gap-2 rounded-[1rem] bg-[#22c55e] py-3 text-black">
+                            <span className="text-[13px] font-bold">{recommendedPrimaryLabel}</span>
+                            <ArrowRight className="h-4 w-4" />
                         </div>
                     </button>
 
-                    {/* Other options expander */}
-                    <button
-                        type="button"
-                        aria-expanded={showOtherOptions}
-                        onClick={() => setShowOtherOptions((v) => !v)}
-                        className="text-center text-[12px] text-claude-secondary/60 hover:text-claude-secondary transition-colors"
-                    >
-                        {showOtherOptions ? 'Hide options ↑' : 'Other options: Full session · Quiz me · Custom ›'}
-                    </button>
-
-                    <AnimatePresence>
-                        {showOtherOptions && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="flex flex-col gap-3 pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={startFullSession}
-                                        className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
-                                    >
-                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Full Session</p>
-                                        <p className="mt-1 text-sm text-claude-secondary">{sessionLabel} · All sections</p>
-                                    </button>
-
-                                    <div className="guide-shell rounded-[1.4rem] p-4">
-                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quick Session</p>
-                                        <div data-testid="checkpoint-chip-row" className="mt-3 flex gap-2">
-                                            {[5, 10, 20].map((mins) => (
-                                                <button
-                                                    key={mins}
-                                                    type="button"
-                                                    onClick={() => startQuickSession(mins)}
-                                                    className="guide-cta guide-cta--secondary guide-focus-ring flex-1"
-                                                >
-                                                    {mins} min
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {allQuizQuestions.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={startQuizMode}
-                                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
-                                        >
-                                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quiz Me</p>
-                                            <p className="mt-1 text-sm text-claude-secondary">Rapid-fire · {allQuizQuestions.length} prompts</p>
-                                        </button>
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Compact weak-section pills (max 2) */}
-                    {weakSections.length > 0 && (
-                        <div className="flex gap-2">
-                            {weakSections.slice(0, 2).map((s) => (
-                                <div key={s.id} className="guide-tone-danger flex-1 rounded-[0.9rem] px-3 py-2 text-[11px] font-medium text-[#fca5a5]">
-                                    🔴 {s.title}
-                                </div>
+                    <div className="guide-shell rounded-[1.55rem] p-4 sm:p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                    Quick session
+                                </p>
+                                <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                                    Want the lowest-friction option? Pick a time budget and let Riven choose the checkpoints.
+                                </p>
+                            </div>
+                        </div>
+                        <div data-testid="checkpoint-chip-row" className="mt-4 grid gap-3 sm:grid-cols-3">
+                            {quickSessionChoices.map((option) => (
+                                <button
+                                    key={option.durationMinutes}
+                                    type="button"
+                                    onClick={() => startQuickSession(option.durationMinutes)}
+                                    className="guide-chip guide-focus-ring min-h-[92px] rounded-[1.25rem] px-4 py-4 text-left transition-transform duration-200 hover:-translate-y-0.5"
+                                >
+                                    <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                        {option.durationMinutes} min
+                                    </p>
+                                    <p className="mt-2 text-sm font-medium text-claude-text">
+                                        {formatCountLabel(option.checkpointCount, 'checkpoint')}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                        Start with {option.targetLabel} · ~{option.estimateMinutes} min
+                                    </p>
+                                </button>
                             ))}
                         </div>
-                    )}
+                    </div>
+
+                    <div className={`grid gap-3 ${allQuizQuestions.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                        <button
+                            type="button"
+                            onClick={startFullSession}
+                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                        >
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Full session</p>
+                            <p className="mt-2 text-sm font-medium text-claude-text">{sessionLabel}</p>
+                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                All {formatCountLabel(sections.length, 'checkpoint')}
+                            </p>
+                        </button>
+
+                        {allQuizQuestions.length > 0 ? (
+                            <button
+                                type="button"
+                                onClick={startQuizMode}
+                                className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                            >
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quiz me</p>
+                                <p className="mt-2 text-sm font-medium text-claude-text">Pressure-test recall</p>
+                                <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                    {formatCountLabel(allQuizQuestions.length, 'prompt')}
+                                </p>
+                            </button>
+                        ) : null}
+
+                        <button
+                            type="button"
+                            onClick={() => setSessionMode('dashboard')}
+                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                        >
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Progress</p>
+                            <p className="mt-2 text-sm font-medium text-claude-text">See urgency first</p>
+                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
+                                {progress.completionPercent}% complete
+                            </p>
+                        </button>
+                    </div>
+
+                    <div className={`rounded-[1.45rem] px-4 py-4 ${weakSections.length > 0 ? 'guide-tone-warning' : 'guide-tone-neutral'}`}>
+                        <div className="flex items-start gap-3">
+                            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/10">
+                                {weakSections.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                    Coach note
+                                </p>
+                                <p className="mt-2 text-sm leading-6 text-claude-text">
+                                    {coachPanelMessage}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1467,53 +1596,76 @@ export default function GuideView() {
         return (
             <aside data-testid="desktop-guide-context" className={contextShellClassName}>
                 <div className={contextBodyClassName}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                Context
-                            </p>
-                            <h2 className="mt-3 font-display text-[1.65rem] font-bold italic leading-[1.02] text-claude-text">
-                                {displaySection?.title || 'Session companion'}
-                            </h2>
+                    <div className="guide-sheet rounded-[1.7rem] p-4 sm:p-5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                    Coach notes
+                                </p>
+                                <h2 className="mt-3 font-display text-[1.65rem] font-bold italic leading-[1.02] text-claude-text">
+                                    {displaySection?.title || 'Session companion'}
+                                </h2>
+                            </div>
+                            {displaySection ? (
+                                <span className={`guide-status-pill ${displaySectionMeta.tone}`}>{displaySectionMeta.label}</span>
+                            ) : null}
                         </div>
-                        {displaySection ? (
-                            <span className={`guide-status-pill ${displaySectionMeta.tone}`}>{displaySectionMeta.label}</span>
+
+                        <p className="mt-4 max-w-[30rem] text-[0.95rem] leading-[1.6] text-claude-secondary">
+                            {displaySection?.recall_prompt || weakCoachMessage || sessionMessage}
+                        </p>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={weakSections.length > 0 ? startWeakSession : startFullSession}
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full"
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                <span>{weakSections.length > 0 ? 'Review weak' : 'Start review'}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startQuizMode}
+                                disabled={allQuizQuestions.length === 0}
+                                className="guide-cta guide-cta--ghost guide-focus-ring w-full disabled:opacity-40"
+                            >
+                                <ClipboardCheck className="h-4 w-4" />
+                                <span>Quiz me</span>
+                            </button>
+                        </div>
+
+                        {displaySection?.key_terms?.length ? (
+                            <div className="guide-tone-neutral mt-4 rounded-[1.35rem] p-3.5">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                    Key terms
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {displaySection.key_terms.map((term) => (
+                                        <span key={term} className="guide-status-pill guide-status-pill--neutral">
+                                            {term}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
                         ) : null}
-                    </div>
 
-                    <p className="max-w-[30rem] text-[0.95rem] leading-[1.6] text-claude-secondary">
-                        {displaySection?.recall_prompt || weakCoachMessage || sessionMessage}
-                    </p>
-
-                    {displaySection?.key_terms?.length ? (
-                        <div className="guide-tone-neutral rounded-[1.35rem] p-3.5">
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                Key terms
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {displaySection.key_terms.map((term) => (
-                                    <span key={term} className="guide-status-pill guide-status-pill--neutral">
-                                        {term}
-                                    </span>
-                                ))}
+                        {displaySection?.common_traps?.length ? (
+                            <div className="guide-tone-warning mt-4 rounded-[1.35rem] p-3.5">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                    Common traps
+                                </p>
+                                <div className="mt-3 space-y-1.5 text-[0.95rem] leading-[1.6] text-claude-text">
+                                    {displaySection.common_traps.map((trap) => (
+                                        <p key={trap}>{trap}</p>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ) : null}
+                        ) : null}
 
-                    {displaySection?.common_traps?.length ? (
-                        <div className="guide-tone-warning rounded-[1.35rem] p-3.5">
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
-                                Common traps
-                            </p>
-                            <div className="mt-3 space-y-1.5 text-[0.95rem] leading-[1.6] text-claude-text">
-                                {displaySection.common_traps.map((trap) => (
-                                    <p key={trap}>{trap}</p>
-                                ))}
-                            </div>
-                        </div>
-                    ) : null}
+                        <div className="guide-divider my-4" />
 
-                    <div data-testid="desktop-note-module" className="guide-sheet rounded-[1.4rem] p-3.5">
+                        <div data-testid="desktop-note-module" className="guide-tone-neutral rounded-[1.4rem] p-3.5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
@@ -1568,6 +1720,7 @@ export default function GuideView() {
                                 </p>
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -1844,7 +1997,7 @@ export default function GuideView() {
                                 type="button"
                                 onClick={() => setShowMobileMenu(true)}
                                 className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-3"
-                                aria-label="More workbook actions"
+                                aria-label="More coach actions"
                             >
                                 <Menu className="h-4 w-4" />
                             </button>
@@ -1951,7 +2104,7 @@ export default function GuideView() {
                 <>
                     <MobileBottomSheet
                         open={showMobileMenu}
-                        title="Workbook actions"
+                        title="Coach actions"
                         subtitle="Share, generate, or rebuild."
                         onClose={() => setShowMobileMenu(false)}
                         testId="mobile-more-sheet"
@@ -2061,7 +2214,7 @@ export default function GuideView() {
 
                     <MobileBottomSheet
                         open={showMobileMoreDetails}
-                        title={displaySection?.title || 'Checkpoint details'}
+                        title={displaySection?.title || 'Coach notes'}
                         subtitle={displaySectionMeta.label}
                         onClose={() => setShowMobileMoreDetails(false)}
                         testId="mobile-details-sheet"
@@ -2105,7 +2258,7 @@ export default function GuideView() {
 
                     <MobileBottomSheet
                         open={showMobileNoteEditor}
-                        title="Study note"
+                        title="Checkpoint note"
                         subtitle={noteDisclosureSummary}
                         onClose={() => setShowMobileNoteEditor(false)}
                         testId="mobile-note-sheet"

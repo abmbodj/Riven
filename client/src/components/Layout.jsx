@@ -79,6 +79,7 @@ export default function Layout({ children }) {
         navCollapsed,
         toggleNav,
         studyMode,
+        contextToolbar,
     } = useContext(UIContext) || {};
     const { isLoggedIn } = useContext(AuthContext) || {};
     useNotificationSync();
@@ -381,7 +382,9 @@ export default function Layout({ children }) {
                         } ${
                             hideBottomNav
                                 ? ((isFullscreenPage || isMessagesChat) ? '' : 'pb-6')
-                                : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-6'
+                                : contextToolbar
+                                    ? 'pb-[calc(10rem+env(safe-area-inset-bottom,0px))] md:pb-6'
+                                    : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-6'
                         } ${
                             !isOffline && !pageOwnsTopSafeArea && !showTopBar ? 'safe-area-top' : ''
                         }`}
@@ -403,6 +406,7 @@ export default function Layout({ children }) {
                             primaryNavItems={primaryNavItems}
                             onFabPress={() => setCreateSheetOpen(true)}
                             studyMode={studyMode}
+                            contextToolbar={contextToolbar}
                         />
                     )}
 

@@ -2,13 +2,13 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-    BookOpen, ChevronLeft, Sparkles, Calendar, Loader2, X, Upload, Check, ArrowRight, Target, Play
+    BookOpen, ChevronLeft, Sparkles, Calendar, Clock3, Loader2, X, Upload, Check, ArrowRight, Target, Play
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
-import { getGuideProgress, isActiveRecallGuide, normalizeGuideData } from '../utils/studyGuides';
+import { estimateSessionEffortMinutes, getGuideProgress, isActiveRecallGuide, normalizeGuideData } from '../utils/studyGuides';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -28,6 +28,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
     const nextSection = normalizedGuideData?.sections?.find((section) => section.id === progress.nextSectionId) || normalizedGuideData?.sections?.[0] || null;
     const sessionStarted = Boolean(guide.study_state?.last_reviewed_at) || progress.revealedCount > 0 || progress.completedCount > 0;
     const sessionCta = sessionStarted ? 'Resume Session' : 'Start Session';
+    const nextStepMinutes = nextSection ? estimateSessionEffortMinutes([nextSection]) : 0;
 
     return (
         <motion.div
@@ -51,7 +52,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                 <div className="relative z-10">
                     <div className="flex items-center justify-between gap-3 mb-4 opacity-70">
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
-                            {activeRecall ? 'Study session' : 'Classic guide'}
+                            {activeRecall ? 'Coach workbook' : 'Classic guide'}
                         </span>
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">
                             {updatedAt}
@@ -75,6 +76,26 @@ const GuideCard = memo(({ guide, classes, index }) => {
 
                     {activeRecall ? (
                         <div className="mt-4 space-y-3">
+                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
+                                <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">
+                                    <span>{sessionStarted ? 'Resume coach session' : 'Best next move'}</span>
+                                    {nextStepMinutes > 0 ? (
+                                        <span className="inline-flex items-center gap-1 text-claude-secondary">
+                                            <Clock3 className="w-3.5 h-3.5" />
+                                            ~{nextStepMinutes} min
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <p className="mt-3 text-sm leading-6 text-claude-text">
+                                    {nextSection?.title || 'Start your first checkpoint'}.
+                                </p>
+                                <p className="mt-1 text-[11px] leading-5 text-claude-secondary">
+                                    {sessionStarted
+                                        ? `Pick up where you left off and keep the recall rhythm going.`
+                                        : 'Open with one checkpoint, reveal the answer, then rate confidence honestly.'}
+                                </p>
+                            </div>
+
                             <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest text-claude-secondary">
                                 <span className="inline-flex items-center gap-1.5">
                                     <Target className="w-3.5 h-3.5 text-claude-accent" />
@@ -89,10 +110,10 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                 />
                             </div>
                             <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3 text-[11px] text-claude-secondary">
-                                <p>Next: {nextSection?.title || 'Ready to begin'}</p>
+                                <p>Next checkpoint: {nextSection?.title || 'Ready to begin'}</p>
                                 <p className="mt-1">Last reviewed: {lastReviewed}</p>
                             </div>
-                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
+                            <div className="rounded-2xl border border-claude-accent/20 bg-claude-surface/70 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3 text-[11px] text-claude-secondary">
                                     <span>{progress.completionPercent}% complete</span>
                                     <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
@@ -101,7 +122,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                     </span>
                                 </div>
                                 <div className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-surface/70 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                    Open study session
+                                    Open coach view
                                 </div>
                             </div>
                         </div>
@@ -109,7 +130,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                         <div className="mt-4 space-y-3 text-[11px] text-claude-secondary">
                             <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3">
                                 <p>Classic editable guide</p>
-                                <p className="mt-1">Convert it into a session-style workbook from inside the guide.</p>
+                                <p className="mt-1">Convert it into a coach-style workbook from inside the guide.</p>
                             </div>
                             <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
                                 <span>Convert to workbook</span>
@@ -311,7 +332,7 @@ export default function GuidesLibrary() {
                                         type="text"
                                         value={genTitle}
                                         onChange={e => setGenTitle(e.target.value)}
-                                        placeholder="AI Recall Workbook"
+                                        placeholder="New Recall Workbook"
                                         className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                     />
                                 </div>
@@ -396,13 +417,15 @@ export default function GuidesLibrary() {
                         <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">AI</span>
                     </div>
                     <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Study Guides</h1>
-                    <p className="mt-2 text-sm text-claude-secondary">Active-recall workbooks built from your notes and readings.</p>
+                    <p className="mt-2 text-sm text-claude-secondary">Coach-style recall workbooks built from your notes and readings.</p>
                 </div>
                 <button
                     onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNotes([]); setGenFile(null); setGenTitle(''); }}
-                    className="w-[3.25rem] h-[3.25rem] sm:w-[3.75rem] sm:h-[3.75rem] bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white rounded-xl sm:rounded-2xl hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                    className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                    aria-label="Create workbook"
                 >
                     <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New workbook</span>
                 </button>
             </div>
 
@@ -411,8 +434,8 @@ export default function GuidesLibrary() {
                 {guides.length === 0 ? (
                     <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
                         <BookOpen className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Study Guides</h3>
-                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first active-recall workbook from notes or a file.</p>
+                        <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Recall Workbooks Yet</h3>
+                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first coach workbook from notes or a file.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">

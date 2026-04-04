@@ -617,43 +617,48 @@
   .guide-rail,
   .guide-sheet {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.018) 100%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 76%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 68%, transparent) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+        color-mix(in srgb, var(--surface-color) 74%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 66%, transparent) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
-      0 24px 72px -40px rgba(0, 0, 0, 0.78),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 22px 64px -42px rgba(0, 0, 0, 0.74),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease,
+      background-color 200ms ease,
+      transform 200ms ease;
   }
 
   .guide-stage {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.032) 100%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 82%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 72%, transparent) 100%);
-    border-color: rgba(255, 255, 255, 0.11);
+        color-mix(in srgb, var(--surface-color) 84%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 74%, transparent) 100%);
+    border-color: rgba(255, 255, 255, 0.12);
     box-shadow:
-      0 28px 80px -38px rgba(0, 0, 0, 0.82),
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 30px 86px -40px rgba(0, 0, 0, 0.84),
+      inset 0 1px 0 rgba(255, 255, 255, 0.19),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .guide-rail,
   .guide-sheet {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.015) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.058) 0%, rgba(255, 255, 255, 0.012) 100%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 68%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 62%, transparent) 100%);
-    border-color: rgba(255, 255, 255, 0.075);
+        color-mix(in srgb, var(--surface-color) 64%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 58%, transparent) 100%);
+    border-color: rgba(255, 255, 255, 0.068);
     box-shadow:
-      0 18px 56px -40px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 16px 48px -42px rgba(0, 0, 0, 0.68),
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
       inset 0 -1px 0 rgba(255, 255, 255, 0.03);
   }
 
@@ -680,15 +685,15 @@
 
   .guide-hero {
     background:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--accent-color) 28%, transparent), transparent 32%),
+      radial-gradient(circle at top left, color-mix(in srgb, var(--accent-color) 30%, transparent), transparent 30%),
       linear-gradient(160deg,
-        color-mix(in srgb, var(--surface-color) 82%, transparent) 0%,
-        color-mix(in srgb, var(--bg-color) 74%, transparent) 100%);
-    border: 1px solid color-mix(in srgb, var(--accent-color) 24%, rgba(255, 255, 255, 0.08));
+        color-mix(in srgb, var(--surface-color) 84%, transparent) 0%,
+        color-mix(in srgb, var(--bg-color) 75%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--accent-color) 28%, rgba(255, 255, 255, 0.08));
     box-shadow:
-      0 34px 90px -40px rgba(0, 0, 0, 0.88),
-      0 0 0 1px color-mix(in srgb, var(--accent-color) 18%, transparent),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 36px 96px -40px rgba(0, 0, 0, 0.9),
+      0 0 0 1px color-mix(in srgb, var(--accent-color) 22%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
       inset 0 -1px 0 rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(30px) saturate(190%);
     -webkit-backdrop-filter: blur(30px) saturate(190%);
@@ -718,13 +723,109 @@
   .guide-chip {
     border: 1px solid rgba(255, 255, 255, 0.08);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.01)),
       color-mix(in srgb, var(--surface-color) 72%, transparent);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
       inset 0 -1px 0 rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(18px) saturate(170%);
     -webkit-backdrop-filter: blur(18px) saturate(170%);
+  }
+
+  .guide-step-track {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .guide-step-pill {
+    position: relative;
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+      color-mix(in srgb, var(--surface-color) 68%, transparent);
+    padding: 0.9rem 1rem;
+    color: color-mix(in srgb, var(--secondary-text-color) 86%, white);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px) saturate(165%);
+    -webkit-backdrop-filter: blur(16px) saturate(165%);
+    transition:
+      border-color 200ms ease,
+      color 200ms ease,
+      box-shadow 200ms ease,
+      transform 200ms ease;
+  }
+
+  .guide-step-pill__icon {
+    display: inline-flex;
+    height: 2rem;
+    width: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
+  }
+
+  .guide-step-pill__eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .guide-step-pill__title {
+    margin-top: 0.25rem;
+    font-size: 0.92rem;
+    line-height: 1.35;
+    color: var(--text-color);
+  }
+
+  .guide-step-pill--active {
+    border-color: color-mix(in srgb, var(--accent-color) 32%, transparent);
+    color: color-mix(in srgb, var(--accent-color) 74%, white);
+    box-shadow:
+      0 18px 40px -30px color-mix(in srgb, var(--accent-color) 35%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    transform: translateY(-1px);
+  }
+
+  .guide-step-pill--active .guide-step-pill__icon,
+  .guide-step-pill--complete .guide-step-pill__icon {
+    border-color: color-mix(in srgb, var(--accent-color) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  }
+
+  .guide-step-pill--complete {
+    border-color: color-mix(in srgb, var(--botanical-forest) 36%, transparent);
+    color: color-mix(in srgb, #b9dfb0 70%, white);
+  }
+
+  .guide-step-pill--complete .guide-step-pill__icon {
+    border-color: color-mix(in srgb, var(--botanical-forest) 32%, transparent);
+    background: color-mix(in srgb, var(--botanical-forest) 18%, transparent);
+  }
+
+  .guide-divider {
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent-color) 28%, rgba(255, 255, 255, 0.08)) 18%,
+      rgba(255, 255, 255, 0.08) 50%,
+      color-mix(in srgb, var(--botanical-forest) 24%, rgba(255, 255, 255, 0.08)) 82%,
+      transparent 100%
+    );
   }
 
   .guide-status-pill {
@@ -808,12 +909,12 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     transition:
-      transform 180ms ease,
-      color 180ms ease,
-      border-color 180ms ease,
-      background-color 180ms ease,
-      box-shadow 180ms ease,
-      opacity 180ms ease;
+      transform 200ms ease,
+      color 200ms ease,
+      border-color 200ms ease,
+      background-color 200ms ease,
+      box-shadow 200ms ease,
+      opacity 200ms ease;
   }
 
   .guide-cta:active {
@@ -883,6 +984,12 @@
   .guide-sheet > * {
     position: relative;
     z-index: 1;
+  }
+
+  @media (max-width: 639px) {
+    .guide-step-track {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* Local mobile glass treatment for the account profile */

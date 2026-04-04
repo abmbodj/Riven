@@ -27,8 +27,17 @@ describe('StudySection', () => {
     it('starts on recall step and shows the recall prompt', () => {
         render(<StudySection {...defaultProps} />);
         expect(screen.getByTestId('study-section-recall')).toBeTruthy();
+        expect(screen.getByTestId('study-step-track')).toBeTruthy();
+        expect(screen.getByTestId('study-step-recall').className).toContain('guide-step-pill--active');
         expect(screen.getByText('How does DNA become a protein?')).toBeTruthy();
         expect(screen.getByText('Show Answer')).toBeTruthy();
+        expect(screen.queryByTestId('study-draft-answer')).toBeNull();
+    });
+
+    it('keeps the draft answer scratchpad collapsed until requested', () => {
+        render(<StudySection {...defaultProps} />);
+        fireEvent.click(screen.getByTestId('study-write-toggle'));
+        expect(screen.getByTestId('study-draft-answer')).toBeTruthy();
     });
 
     it('starts on answer step when the section was already revealed', () => {
@@ -48,6 +57,7 @@ describe('StudySection', () => {
         fireEvent.click(screen.getByText('Show Answer'));
         expect(onReveal).toHaveBeenCalledOnce();
         expect(screen.getByTestId('study-section-answer')).toBeTruthy();
+        expect(screen.getByTestId('study-step-reveal').className).toContain('guide-step-pill--active');
         expect(screen.getByText('Transcription: DNA → mRNA')).toBeTruthy();
     });
 

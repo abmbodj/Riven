@@ -10,8 +10,80 @@ const routeMatches = (pathname, matchers = []) =>
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 30 };
 
-export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode = null }) {
+function PrimaryNavRow({ primaryNavItems, onFabPress, location }) {
+    return (
+        <div className="flex items-stretch h-[68px]">
+            {primaryNavItems.map((item) => {
+                if (item.isFab) {
+                    return (
+                        <button
+                            key="fab"
+                            type="button"
+                            onClick={onFabPress}
+                            aria-label="Create"
+                            className="flex-1 flex items-center justify-center tap-action relative cursor-pointer"
+                        >
+                            <div className="mobile-fab-button w-[52px] h-[52px] -mt-3 rounded-full flex items-center justify-center overflow-visible">
+                                <motion.div
+                                    whileTap={{ scale: 0.88 }}
+                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                    className="mobile-fab-icon h-full w-full"
+                                >
+                                    <Plus className="w-6 h-6 text-claude-accent" strokeWidth={2.5} />
+                                </motion.div>
+                            </div>
+                        </button>
+                    );
+                }
+
+                const isActive = routeMatches(location.pathname, item.matchers);
+                const Icon = item.icon;
+
+                return (
+                    <Link
+                        key={item.to}
+                        to={item.to}
+                        onTouchStart={() => prefetchRoute(item.to)}
+                        onMouseEnter={() => prefetchRoute(item.to)}
+                        className="flex-1 flex flex-col items-center justify-center gap-1 tap-action cursor-pointer group"
+                    >
+                        <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl transition-colors duration-200">
+                            {isActive && (
+                                <motion.div
+                                    layoutId="mobile-nav-pill"
+                                    className="absolute inset-0 rounded-2xl bg-claude-accent/12 border border-claude-accent/15"
+                                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                />
+                            )}
+                            <Icon
+                                className={`w-[20px] h-[20px] relative z-[1] transition-colors duration-200 ${
+                                    isActive
+                                        ? 'text-claude-accent'
+                                        : 'text-claude-secondary group-hover:text-claude-text'
+                                }`}
+                                strokeWidth={isActive ? 2.2 : 1.8}
+                            />
+                        </div>
+                        <span
+                            className={`text-[9px] font-mono font-semibold uppercase tracking-[0.1em] transition-colors duration-200 ${
+                                isActive
+                                    ? 'text-claude-accent'
+                                    : 'text-claude-secondary/70 group-hover:text-claude-secondary'
+                            }`}
+                        >
+                            {item.label}
+                        </span>
+                    </Link>
+                );
+            })}
+        </div>
+    );
+}
+
+export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode = null, contextToolbar = null }) {
     const location = useLocation();
+
+    const activeVariant = studyMode ? 'study' : contextToolbar ? 'contextual' : 'default';
 
     return (
         <nav
@@ -20,6 +92,7 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
         >
             <div className="mx-3 mb-2">
                 <motion.div
+                    layout
                     animate={studyMode ? {
                         backgroundColor: 'rgba(20,40,20,0.75)',
                         borderColor: 'rgba(34,197,94,0.2)',
@@ -30,9 +103,9 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                     transition={SPRING}
                     className="mobile-bottom-nav-shell rounded-[1.75rem] border"
                 >
-                    <div className="mobile-bottom-nav-shell__clip rounded-[inherit]">
+                    <motion.div layout className="mobile-bottom-nav-shell__clip rounded-[inherit]">
                         <AnimatePresence mode="wait" initial={false}>
-                            {studyMode ? (
+                            {activeVariant === 'study' ? (
                                 <motion.div
                                     key="study"
                                     initial={{ opacity: 0, y: 6 }}
@@ -83,6 +156,48 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                                         </button>
                                     </div>
                                 </motion.div>
+                            ) : activeVariant === 'contextual' ? (
+                                <motion.div
+                                    key="contextual"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                    transition={SPRING}
+                                    className="flex flex-col"
+                                >
+                                    {/* Top tier: contextual tool buttons */}
+                                    <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-2 overflow-x-auto scrollbar-hide">
+                                        {contextToolbar.map((item) => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={item.onClick}
+                                                    disabled={item.disabled}
+                                                    className={`inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all tap-action shrink-0 disabled:opacity-50 ${
+                                                        item.active
+                                                            ? 'text-claude-accent border-claude-accent/40 bg-claude-accent/10'
+                                                            : 'bg-white/[0.06] border-white/10 text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30'
+                                                    }`}
+                                                >
+                                                    <Icon className={`w-3.5 h-3.5${item.loading ? ' animate-spin' : ''}`} />
+                                                    <span>{item.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="mx-4 border-t border-white/[0.06]" />
+
+                                    {/* Bottom tier: primary nav */}
+                                    <PrimaryNavRow
+                                        primaryNavItems={primaryNavItems}
+                                        onFabPress={onFabPress}
+                                        location={location}
+                                    />
+                                </motion.div>
                             ) : (
                                 <motion.div
                                     key="default"
@@ -90,75 +205,16 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -6 }}
                                     transition={SPRING}
-                                    className="flex items-stretch h-[68px]"
                                 >
-                                    {primaryNavItems.map((item) => {
-                                        if (item.isFab) {
-                                            return (
-                                                <button
-                                                    key="fab"
-                                                    type="button"
-                                                    onClick={onFabPress}
-                                                    aria-label="Create"
-                                                    className="flex-1 flex items-center justify-center tap-action relative cursor-pointer"
-                                                >
-                                                    <div className="mobile-fab-button w-[52px] h-[52px] -mt-3 rounded-full flex items-center justify-center overflow-visible">
-                                                        <motion.div
-                                                            whileTap={{ scale: 0.88 }}
-                                                            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                                                            className="mobile-fab-icon h-full w-full"
-                                                        >
-                                                            <Plus className="w-6 h-6 text-claude-accent" strokeWidth={2.5} />
-                                                        </motion.div>
-                                                    </div>
-                                                </button>
-                                            );
-                                        }
-
-                                        const isActive = routeMatches(location.pathname, item.matchers);
-                                        const Icon = item.icon;
-
-                                        return (
-                                            <Link
-                                                key={item.to}
-                                                to={item.to}
-                                                onTouchStart={() => prefetchRoute(item.to)}
-                                                onMouseEnter={() => prefetchRoute(item.to)}
-                                                className="flex-1 flex flex-col items-center justify-center gap-1 tap-action cursor-pointer group"
-                                            >
-                                                <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl transition-colors duration-200">
-                                                    {isActive && (
-                                                        <motion.div
-                                                            layoutId="mobile-nav-pill"
-                                                            className="absolute inset-0 rounded-2xl bg-claude-accent/12 border border-claude-accent/15"
-                                                            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                                                        />
-                                                    )}
-                                                    <Icon
-                                                        className={`w-[20px] h-[20px] relative z-[1] transition-colors duration-200 ${
-                                                            isActive
-                                                                ? 'text-claude-accent'
-                                                                : 'text-claude-secondary group-hover:text-claude-text'
-                                                        }`}
-                                                        strokeWidth={isActive ? 2.2 : 1.8}
-                                                    />
-                                                </div>
-                                                <span
-                                                    className={`text-[9px] font-mono font-semibold uppercase tracking-[0.1em] transition-colors duration-200 ${
-                                                        isActive
-                                                            ? 'text-claude-accent'
-                                                            : 'text-claude-secondary/70 group-hover:text-claude-secondary'
-                                                    }`}
-                                                >
-                                                    {item.label}
-                                                </span>
-                                            </Link>
-                                        );
-                                    })}
+                                    <PrimaryNavRow
+                                        primaryNavItems={primaryNavItems}
+                                        onFabPress={onFabPress}
+                                        location={location}
+                                    />
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </div>
+                    </motion.div>
                 </motion.div>
             </div>
         </nav>

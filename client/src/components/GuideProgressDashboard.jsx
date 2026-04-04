@@ -49,6 +49,8 @@ const STATUS_CONFIG = {
     },
 };
 
+const STATUS_ORDER = ['review_now', 'unstudied', 'coming_up', 'review_soon', 'good'];
+
 function DashboardMetric({ eyebrow, value, caption, accent = false }) {
     return (
         <article className={`guide-metric rounded-[1.5rem] p-4 ${accent ? 'shadow-[0_24px_60px_-34px_rgba(0,0,0,0.85)]' : ''}`}>
@@ -85,12 +87,19 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
     const sections = useMemo(() => {
         if (!normalizedGuideData || !normalizedStudyState) return [];
 
-        return normalizedGuideData.sections.map((section) => {
-            const sectionState = normalizedStudyState.section_states[section.id];
-            const rawStatus = getSectionStatus(sectionState, sectionState?.last_reviewed_at ?? null);
-            const status = !sectionState?.confidence ? 'unstudied' : rawStatus;
-            return { section, sectionState, status };
-        });
+        return normalizedGuideData.sections
+            .map((section, index) => {
+                const sectionState = normalizedStudyState.section_states[section.id];
+                const rawStatus = getSectionStatus(sectionState, sectionState?.last_reviewed_at ?? null);
+                const status = !sectionState?.confidence ? 'unstudied' : rawStatus;
+                return { section, sectionState, status, index };
+            })
+            .sort((left, right) => {
+                const leftOrder = STATUS_ORDER.indexOf(left.status);
+                const rightOrder = STATUS_ORDER.indexOf(right.status);
+                if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+                return left.index - right.index;
+            });
     }, [normalizedGuideData, normalizedStudyState]);
 
     const statusCounts = useMemo(() => (
@@ -166,6 +175,18 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
                     </div>
                 </div>
             </div>
+
+            {weakSections.length > 0 ? (
+                <div className="guide-tone-warning rounded-[1.55rem] p-4 sm:p-5">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                        Urgent next
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-claude-text">
+                        Review {weakSections.slice(0, 2).map((section) => section.title).join(' and ')}
+                        {weakSections.length > 2 ? `, plus ${weakSections.length - 2} more checkpoint${weakSections.length - 2 === 1 ? '' : 's'}.` : ' next.'}
+                    </p>
+                </div>
+            ) : null}
 
             <div className="flex flex-col gap-3">
                 {sections.map(({ section, sectionState, status }) => {

@@ -34,6 +34,7 @@ describe('GuideProgressDashboard', () => {
     it('shows Review Now label and counts unstudied sections into the review-now metric', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={vi.fn()} />);
         expect(screen.getAllByText(/review now/i).length).toBeGreaterThan(0);
+        expect(screen.getByText(/urgent next/i)).toBeTruthy();
         const reviewNowMetricLabel = screen.getByText(/^review now$/i, { selector: 'p' });
         const reviewNowCard = reviewNowMetricLabel.closest('article');
         expect(reviewNowCard).toBeTruthy();

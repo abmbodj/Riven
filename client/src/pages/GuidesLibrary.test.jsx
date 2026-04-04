@@ -88,11 +88,11 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByText('Biology Recall Workbook')).toBeInTheDocument();
     expect(screen.getByText('1/2 complete')).toBeInTheDocument();
-    expect(screen.getByText('Study session')).toBeInTheDocument();
+    expect(screen.getByText('Coach workbook')).toBeInTheDocument();
+    expect(screen.getByText(/resume coach session/i)).toBeInTheDocument();
     expect(screen.getByText('2 checkpoints')).toBeInTheDocument();
-    expect(screen.getByText(/next: mitosis/i)).toBeInTheDocument();
-    expect(screen.getByText(/resume session/i)).toBeInTheDocument();
-    expect(screen.getByText(/open study session/i)).toBeInTheDocument();
+    expect(screen.getByText(/next checkpoint: mitosis/i)).toBeInTheDocument();
+    expect(screen.getByText(/open coach view/i)).toBeInTheDocument();
   });
 
   it('shows a start-session cue for untouched workbooks', async () => {
@@ -135,7 +135,7 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByText('Chemistry Recall Workbook')).toBeInTheDocument();
     expect(screen.getByText(/start session/i)).toBeInTheDocument();
-    expect(screen.getByText(/next: chemical bonding/i)).toBeInTheDocument();
+    expect(screen.getByText(/next checkpoint: chemical bonding/i)).toBeInTheDocument();
   });
 
   it('keeps legacy guides distinguishable in the library', async () => {

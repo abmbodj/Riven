@@ -257,7 +257,11 @@ describe('GuideView', () => {
 
     const entryScreen = await screen.findByTestId('session-entry');
     expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
-    expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
+    expect(within(entryScreen).getByText('Study coach')).toBeInTheDocument();
+    expect(within(entryScreen).getByText('World War I Workbook')).toBeInTheDocument();
+    expect(within(entryScreen).getByText(/here's the next best move/i)).toBeInTheDocument();
+    expect(within(entryScreen).getByTestId('recommended-cta')).toBeInTheDocument();
+    expect(within(entryScreen).getByText(/recommended next move/i)).toBeInTheDocument();
     const workspaceGrid = screen.getByTestId('workbook-shell-grid');
     const desktopRail = screen.getByTestId('desktop-guide-rail');
     const desktopStage = screen.getByTestId('desktop-guide-stage');
@@ -271,9 +275,8 @@ describe('GuideView', () => {
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
     expect(within(desktopRail).getByRole('button', { name: /Alliance System/i })).toBeInTheDocument();
 
-    // Expand other options to access full session / quiz me / quick session chips
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /5 min/i })).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
 
@@ -316,7 +319,6 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     await screen.findByTestId('session-studying');
@@ -345,13 +347,13 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
+    expect(within(entryScreen).getByText('Study coach')).toBeInTheDocument();
+    expect(within(entryScreen).getByText('World War I Workbook')).toBeInTheDocument();
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-bottom-bar')).not.toBeInTheDocument();
 
-    // Expand other options to reveal quick session chips
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /5 min/i })).toBeInTheDocument();
 
     // Start a quick 5-min session
     fireEvent.click(within(entryScreen).getByRole('button', { name: /5 min/i }));
@@ -393,7 +395,7 @@ describe('GuideView', () => {
 
     await screen.findByTestId('session-entry');
 
-    fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more coach actions/i }));
 
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
     expect(moreSheet).toBeInTheDocument();
@@ -413,7 +415,7 @@ describe('GuideView', () => {
     );
 
     await screen.findByTestId('session-entry');
-    fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more coach actions/i }));
 
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
     expect(moreSheet.className.split(/\s+/)).toContain('bg-claude-bg/95');
@@ -437,7 +439,6 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     const studyingScreen = await screen.findByTestId('session-studying');
@@ -447,7 +448,7 @@ describe('GuideView', () => {
     // Sections and Note sheets are rendered by GuideView — verify the rail is accessible
     // (dock buttons live in MobileBottomNav outside this render, so sheets are tested
     //  via the mobile-more-sheet path instead)
-    fireEvent.click(screen.getByRole('button', { name: /more workbook actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more coach actions/i }));
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
     expect(moreSheet).toBeInTheDocument();
   });
@@ -476,7 +477,6 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     const studyingScreen = await screen.findByTestId('session-studying');
@@ -559,7 +559,7 @@ describe('GuideView', () => {
     releaseDone();
 
     const rebuiltEntry = await screen.findByTestId('session-entry');
-    expect(within(rebuiltEntry).getByRole('heading', { name: 'World War I Recall Workbook' })).toBeInTheDocument();
+    expect(within(rebuiltEntry).getByText('World War I Recall Workbook')).toBeInTheDocument();
     expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });

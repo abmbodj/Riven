@@ -76,9 +76,15 @@ function StudySectionBody({
     const [step, setStep] = useState(() => getInitialStep(sectionState));
     const [quizRevealed, setQuizRevealed] = useState(false);
     const [draftAnswer, setDraftAnswer] = useState('');
+    const [showDraftAnswer, setShowDraftAnswer] = useState(false);
     const hasQuiz = section.mini_quiz?.length > 0;
     const quizItem = section.mini_quiz?.[0] ?? null;
     const activeConfidence = sectionState?.confidence ?? null;
+    const stepState = useMemo(() => ({
+        recall: step === 'recall' ? 'active' : 'complete',
+        reveal: step === 'answer' ? 'active' : (step === 'quiz' || sectionState?.completed ? 'complete' : 'idle'),
+        check: step === 'quiz' ? 'active' : (sectionState?.completed ? 'complete' : 'idle'),
+    }), [sectionState?.completed, step]);
 
     const nextDisabled = useMemo(() => {
         if (!canGoNext) return true;
@@ -120,22 +126,41 @@ function StudySectionBody({
                 </div>
             </div>
 
-            <label className="guide-sheet rounded-[1.5rem] p-4 sm:p-5">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                    Draft your answer
-                </span>
-                <textarea
-                    value={draftAnswer}
-                    onChange={(event) => setDraftAnswer(event.target.value)}
-                    className="mt-3 min-h-[128px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-[0.95rem] leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
-                    rows={4}
-                    placeholder="Type what you remember. This stays on-device for your current session."
-                    aria-label="Draft answer"
-                />
-                <p className="mt-2 text-xs leading-5 text-claude-secondary/70">
-                    Try your best — revealing never hurts. It powers weak-section review.
-                </p>
-            </label>
+            <div className="guide-sheet rounded-[1.5rem] p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Optional scratchpad
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            Write it out only if it helps. The fastest path is still recall first, reveal second.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        data-testid="study-write-toggle"
+                        onClick={() => setShowDraftAnswer((current) => !current)}
+                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-4"
+                    >
+                        <span>{showDraftAnswer ? 'Hide scratchpad' : 'Write it out'}</span>
+                    </button>
+                </div>
+
+                {showDraftAnswer ? (
+                    <label className="mt-4 block">
+                        <span className="sr-only">Draft answer</span>
+                        <textarea
+                            data-testid="study-draft-answer"
+                            value={draftAnswer}
+                            onChange={(event) => setDraftAnswer(event.target.value)}
+                            className="min-h-[128px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-[0.95rem] leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                            rows={4}
+                            placeholder="Type what you remember. This stays on-device for your current session."
+                            aria-label="Draft answer"
+                        />
+                    </label>
+                ) : null}
+            </div>
 
             <button
                 type="button"
@@ -168,11 +193,11 @@ function StudySectionBody({
                 </div>
             </div>
 
-            <div className="guide-sheet rounded-[1.5rem] p-4 sm:p-5">
+            <div className="guide-stage rounded-[1.5rem] p-4 sm:p-5">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
                     Answer points
                 </p>
-                <ul className="mt-3 space-y-2.5">
+                <ul className="mt-4 space-y-3">
                     {(section.answer_points ?? []).map((point, index) => (
                         <li key={`${section.id}-answer-${index}`} className="flex items-start gap-3">
                             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-claude-accent" aria-hidden="true" />
@@ -211,7 +236,7 @@ function StudySectionBody({
                         </p>
                     </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
                     {Object.entries(CONFIDENCE_STYLES).map(([value, config]) => {
                         const Icon = config.icon;
                         const isActive = activeConfidence === value;
@@ -313,6 +338,49 @@ function StudySectionBody({
 
     return (
         <div data-testid="study-section" className="flex flex-col gap-4">
+            <div data-testid="study-step-track" className="guide-step-track">
+                {[
+                    {
+                        id: 'recall',
+                        eyebrow: 'Step 1',
+                        title: 'Recall from memory',
+                        icon: Brain,
+                        state: stepState.recall,
+                    },
+                    {
+                        id: 'reveal',
+                        eyebrow: 'Step 2',
+                        title: 'Reveal the answer',
+                        icon: Eye,
+                        state: stepState.reveal,
+                    },
+                    {
+                        id: 'check',
+                        eyebrow: 'Step 3',
+                        title: hasQuiz ? 'Check with a quiz' : 'Check your confidence',
+                        icon: CheckCircle2,
+                        state: stepState.check,
+                    },
+                ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                        <div
+                            key={item.id}
+                            data-testid={`study-step-${item.id}`}
+                            className={`guide-step-pill ${item.state === 'active' ? 'guide-step-pill--active' : ''} ${item.state === 'complete' ? 'guide-step-pill--complete' : ''}`}
+                        >
+                            <span className="guide-step-pill__icon">
+                                <Icon className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="guide-step-pill__eyebrow">{item.eyebrow}</p>
+                                <p className="guide-step-pill__title">{item.title}</p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
             <div className="guide-shell rounded-[1.75rem] p-4 sm:p-5">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">

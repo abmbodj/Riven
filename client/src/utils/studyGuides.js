@@ -207,6 +207,14 @@ const SECTION_PRIORITY = ['review_now', 'coming_up', 'review_soon', 'good'];
 const MINUTES_PER_SECTION = 3;
 const QUIZ_EXTRA_MINUTES = 1;
 
+export const estimateSectionEffortMinutes = (section) => (
+    MINUTES_PER_SECTION + (((section?.mini_quiz?.length ?? 0) > 0) ? QUIZ_EXTRA_MINUTES : 0)
+);
+
+export const estimateSessionEffortMinutes = (sections = []) => (
+    sections.reduce((total, section) => total + estimateSectionEffortMinutes(section), 0)
+);
+
 export const getSessionSections = (guideData, studyState, durationMinutes) => {
     const normalizedGuideData = normalizeGuideData(guideData);
     const normalizedStudyState = normalizeGuideStudyState(guideData, studyState);
@@ -224,8 +232,7 @@ export const getSessionSections = (guideData, studyState, durationMinutes) => {
     let budget = durationMinutes;
 
     for (const { section } of ranked) {
-        const hasQuiz = section.mini_quiz?.length > 0;
-        const cost = MINUTES_PER_SECTION + (hasQuiz ? QUIZ_EXTRA_MINUTES : 0);
+        const cost = estimateSectionEffortMinutes(section);
         if (budget >= cost) {
             selected.push(section);
             budget -= cost;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -15,6 +15,7 @@ import { createArrayStreamParser } from '../utils/streamingJsonParser';
 import ShareToFriendModal from '../components/ShareToFriendModal';
 import WaveformBars from '../components/audio/WaveformBars.jsx';
 import { formatRecordingDuration } from '../utils/audioRecording.js';
+import { UIContext } from '../context/UIContext';
 import {
     buildShareMessageContent,
     buildSharedPreviewText,
@@ -131,6 +132,8 @@ export default function NoteEditor() {
         noteId,
         noteTitle: title || titleRef.current || 'Untitled',
     });
+
+    const { setContextToolbar, clearContextToolbar } = useContext(UIContext) || {};
 
     const clearEnhancementSubscription = useCallback(() => {
         if (enhancementUnsubscribeRef.current) {
@@ -882,6 +885,79 @@ export default function NoteEditor() {
         }
     };
 
+    // Refs for handlers so the context toolbar effect doesn't need them as deps
+    const handleMicToggleRef = useRef(handleMicToggle);
+    handleMicToggleRef.current = handleMicToggle;
+    const handleGenerateFlashcardsRef = useRef(handleGenerateFlashcards);
+    handleGenerateFlashcardsRef.current = handleGenerateFlashcards;
+    const handleGenerateGuideRef = useRef(handleGenerateGuide);
+    handleGenerateGuideRef.current = handleGenerateGuide;
+    const handleGenerateExamRef = useRef(handleGenerateExam);
+    handleGenerateExamRef.current = handleGenerateExam;
+
+    // Push study tools into bottom nav context toolbar (mobile)
+    useEffect(() => {
+        if (!setContextToolbar) return;
+
+        const isRec = recorder.state === 'recording';
+        const recProcessing = recorder.state === 'uploading' || recorder.state === 'processing';
+        const enhLocked = isEnhancementJobActive(activeEnhancementJob);
+        const micOff = recorder.isAnotherNoteRecording || enhancing || enhLocked || !!generating || recProcessing;
+        const genOff = enhLocked || !!generating;
+
+        setContextToolbar([
+            {
+                id: 'audio',
+                label: isRec ? formatRecordingDuration(recorder.duration)
+                    : recProcessing ? 'Processing'
+                    : 'Audio',
+                icon: isRec ? WaveformBars : recProcessing ? Loader2 : Mic,
+                onClick: () => handleMicToggleRef.current(),
+                disabled: micOff,
+                active: isRec,
+                loading: recProcessing,
+            },
+            {
+                id: 'flashcards',
+                label: generating === 'flashcards' && streamingCards.length > 0
+                    ? `${streamingCards.length} cards` : 'Flashcards',
+                icon: generating === 'flashcards' ? Loader2 : Layers,
+                onClick: () => handleGenerateFlashcardsRef.current(),
+                disabled: genOff,
+                active: false,
+                loading: generating === 'flashcards',
+            },
+            {
+                id: 'guide',
+                label: generating === 'guide' && generatingStatus ? generatingStatus : 'Recall Guide',
+                icon: generating === 'guide' ? Loader2 : BookOpen,
+                onClick: () => handleGenerateGuideRef.current(),
+                disabled: genOff,
+                active: false,
+                loading: generating === 'guide',
+            },
+            {
+                id: 'exam',
+                label: generating === 'exam' && streamingCards.length > 0
+                    ? `${streamingCards.length} questions` : 'Mock Exam',
+                icon: generating === 'exam' ? Loader2 : ClipboardCheck,
+                onClick: () => handleGenerateExamRef.current(),
+                disabled: genOff,
+                active: false,
+                loading: generating === 'exam',
+            },
+        ]);
+    }, [
+        setContextToolbar,
+        recorder.state, recorder.duration, recorder.isAnotherNoteRecording,
+        enhancing, activeEnhancementJob, generating, generatingStatus, streamingCards,
+    ]);
+
+    // Clear context toolbar on unmount
+    useEffect(() => {
+        return () => clearContextToolbar?.();
+    }, [clearContextToolbar]);
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -967,7 +1043,7 @@ export default function NoteEditor() {
                         </div>
                     </div>
 
-                    <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <div className="max-w-3xl mx-auto hidden md:flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
                         <button
                             onClick={handleMicToggle}
                             disabled={micDisabled}

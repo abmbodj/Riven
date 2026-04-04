@@ -11,6 +11,9 @@ export function UIProvider({ children }) {
 
     // Study session state — set by GuideView, read by MobileBottomNav via Layout
     const [studyMode, setStudyModeState] = useState(null);
+
+    // Contextual toolbar — set by pages (e.g. NoteEditor) for multi-level bottom nav
+    const [contextToolbar, setContextToolbarState] = useState(null);
     // studyMode shape: {
     //   currentIndex: number,
     //   totalSections: number,
@@ -42,18 +45,23 @@ export function UIProvider({ children }) {
     const setStudyMode = useCallback((actions) => setStudyModeState(actions), []);
     const clearStudyMode = useCallback(() => setStudyModeState(null), []);
 
+    const setContextToolbar = useCallback((items) => setContextToolbarState(items), []);
+    const clearContextToolbar = useCallback(() => setContextToolbarState(null), []);
+
     const value = useMemo(() => ({
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
         studyMode, setStudyMode, clearStudyMode,
+        contextToolbar, setContextToolbar, clearContextToolbar,
     }), [
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
         studyMode, setStudyMode, clearStudyMode,
+        contextToolbar, setContextToolbar, clearContextToolbar,
     ]);
 
     return (
