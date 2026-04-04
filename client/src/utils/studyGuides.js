@@ -296,11 +296,14 @@ export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
     const normalizedGuideData = normalizeGuideData(guideData);
     if (!normalizedGuideData) return { masteryDeltaPercent: 0, weakCountBefore: 0, weakCountAfter: 0, sectionsReviewed: 0 };
 
+    const normalizedBefore = normalizeGuideStudyState(guideData, stateBefore);
+    const normalizedAfter = normalizeGuideStudyState(guideData, stateAfter);
+
     const sections = normalizedGuideData.sections;
     const total = sections.length;
 
-    const completedBefore = sections.filter((s) => stateBefore?.section_states?.[s.id]?.completed).length;
-    const completedAfter = sections.filter((s) => stateAfter?.section_states?.[s.id]?.completed).length;
+    const completedBefore = sections.filter((s) => normalizedBefore.section_states[s.id]?.completed).length;
+    const completedAfter = sections.filter((s) => normalizedAfter.section_states[s.id]?.completed).length;
 
     const masteryBefore = total > 0 ? Math.round((completedBefore / total) * 100) : 0;
     const masteryAfter = total > 0 ? Math.round((completedAfter / total) * 100) : 0;
@@ -309,8 +312,8 @@ export const getSessionDelta = (guideData, stateBefore, stateAfter) => {
     const weakAfter = getWeakSections(guideData, stateAfter).length;
 
     const sectionsReviewed = sections.filter((s) => {
-        const before = stateBefore?.section_states?.[s.id];
-        const after = stateAfter?.section_states?.[s.id];
+        const before = normalizedBefore.section_states[s.id];
+        const after = normalizedAfter.section_states[s.id];
         return !before?.completed && after?.completed;
     }).length;
 
