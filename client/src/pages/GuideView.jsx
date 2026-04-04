@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -33,6 +33,7 @@ import GuideProgressDashboard from '../components/GuideProgressDashboard.jsx';
 import QuizMeMode from '../components/QuizMeMode.jsx';
 import SectionEditor from '../components/SectionEditor.jsx';
 import { updateSection } from '../utils/studyGuides.js';
+import { UIContext } from '../context/UIContext.jsx';
 
 const EMPTY_STUDY_STATE = {
     current_section_id: null,
@@ -231,6 +232,10 @@ export default function GuideView() {
     const { id } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
+    const uiCtx = useContext(UIContext);
+    const noopRef = useRef(() => {});
+    const setStudyMode = uiCtx?.setStudyMode ?? noopRef.current;
+    const clearStudyMode = uiCtx?.clearStudyMode ?? noopRef.current;
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState(null);
@@ -863,6 +868,33 @@ export default function GuideView() {
         setSessionIndex(nextIndex);
         handleSelectSection(nextSessionSection?.id);
     }, [handleSelectSection, sessionSections]);
+
+    useEffect(() => {
+        if (sessionMode === 'studying') {
+            setStudyMode({
+                currentIndex: sessionIndex,
+                totalSections: sessionSections.length,
+                onSections: () => setShowMobileSections(true),
+                onDetails: () => setShowMobileMoreDetails(true),
+                onNote: () => setShowMobileNoteEditor(true),
+                onPrev: canGoPrevious ? () => handleSessionIndexChange(sessionIndex - 1) : undefined,
+                onNext: canGoNext ? () => handleSessionIndexChange(sessionIndex + 1) : undefined,
+                canPrev: canGoPrevious,
+                canNext: canGoNext,
+                canDetails: hasDisplayDetails,
+            });
+        } else {
+            clearStudyMode();
+        }
+    }, [
+        sessionMode, sessionIndex, sessionSections.length,
+        canGoPrevious, canGoNext, hasDisplayDetails,
+        setStudyMode, clearStudyMode,
+        handleSessionIndexChange,
+    ]);
+
+    // Clear on unmount
+    useEffect(() => () => clearStudyMode(), [clearStudyMode]);
 
     const startStudySession = useCallback((sectionList) => {
         if (!sectionList.length) return;
@@ -1691,12 +1723,10 @@ export default function GuideView() {
         );
     }
 
-    const showWorkbookBottomBar = isMobileLayout && sessionMode === 'studying';
-
     return (
         <div
             data-testid="guide-screen"
-            className={`relative min-h-screen safe-area-bottom ${showWorkbookBottomBar ? 'pb-[calc(env(safe-area-inset-bottom,0px)+8.5rem)]' : 'pb-[calc(env(safe-area-inset-bottom,0px)+1.75rem)]'}`}
+            className="relative min-h-screen safe-area-bottom pb-[calc(env(safe-area-inset-bottom,0px)+1.75rem)]"
         >
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
@@ -2017,38 +2047,6 @@ export default function GuideView() {
                         </div>
                     </MobileBottomSheet>
 
-                    {showWorkbookBottomBar ? (
-                        <div data-testid="mobile-bottom-bar" className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
-                            <div className="mobile-bottom-nav-shell rounded-[1.75rem]">
-                                <div className="mobile-bottom-nav-shell__clip rounded-[inherit] px-4 py-3">
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowMobileSections(true)}
-                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full"
-                                        >
-                                            <span>Sections</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowMobileMoreDetails(true)}
-                                            disabled={!hasDisplayDetails}
-                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full disabled:opacity-35"
-                                        >
-                                            <span>Details</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowMobileNoteEditor(true)}
-                                            className="guide-cta guide-cta--ghost guide-focus-ring w-full"
-                                        >
-                                            <span>Notes</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
                 </>
             ) : null}
         </div>
