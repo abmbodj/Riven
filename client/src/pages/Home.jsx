@@ -339,6 +339,7 @@ function DashboardHome() {
                     stagger: STAGGER.tight,
                     ease: EASE.reveal,
                     delay: 0.2,
+                    clearProps: 'opacity,transform',
                 });
             } else {
                 gsap.utils.toArray('.gsap-section').forEach((section) => {
@@ -347,6 +348,7 @@ function DashboardHome() {
                         opacity: 0,
                         duration: DURATION.slow,
                         ease: EASE.reveal,
+                        clearProps: 'opacity,transform',
                         scrollTrigger: {
                             trigger: section,
                             start: 'top 88%',
