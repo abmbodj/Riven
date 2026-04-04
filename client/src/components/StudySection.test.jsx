@@ -14,6 +14,22 @@ const section = {
 };
 
 const sectionNoQuiz = { ...section, mini_quiz: [] };
+const adaptiveSection = {
+    ...sectionNoQuiz,
+    summary: 'DNA is transcribed into RNA, which is translated into protein.',
+    key_terms: [{ term: 'mRNA', definition: 'Messenger RNA' }],
+    flashcards: [{ front: 'Transcription', back: 'DNA to mRNA' }],
+    visual: {
+        type: 'sequence',
+        title: 'Protein flow',
+        steps: ['DNA', 'RNA', 'Protein'],
+    },
+    ai_helpers: {
+        simpler: 'DNA becomes RNA, and RNA helps build protein.',
+        example: 'Insulin is made after a gene is transcribed and translated.',
+        mnemonic: 'DNA -> RNA -> Protein: copy, carry, build.',
+    },
+};
 
 const defaultProps = {
     section,
@@ -82,6 +98,42 @@ describe('StudySection', () => {
         fireEvent.click(screen.getByText('Show Answer'));
         fireEvent.click(screen.getByTestId('confidence-okay'));
         expect(onComplete).toHaveBeenCalledOnce();
+    });
+
+    it('shows inline helper actions, summary context, and an Ask action for adaptive sections', () => {
+        const onAsk = vi.fn();
+        render(<StudySection {...defaultProps} section={adaptiveSection} onAsk={onAsk} />);
+
+        fireEvent.click(screen.getByText('Show Answer'));
+
+        expect(screen.getByText(adaptiveSection.summary)).toBeTruthy();
+        expect(screen.getByText('Protein flow')).toBeTruthy();
+        expect(screen.getByText('mRNA: Messenger RNA')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: /explain simpler/i }));
+        expect(screen.getByText(adaptiveSection.ai_helpers.simpler)).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: /^ask$/i }));
+        expect(onAsk).toHaveBeenCalledOnce();
+    });
+
+    it('turns flashcards into a drill loop before completing the section', () => {
+        const onComplete = vi.fn();
+        render(<StudySection {...defaultProps} section={adaptiveSection} onComplete={onComplete} />);
+
+        fireEvent.click(screen.getByText('Show Answer'));
+        fireEvent.click(screen.getByTestId('confidence-okay'));
+
+        expect(screen.getByTestId('study-section-quiz')).toBeTruthy();
+        expect(screen.getByText('Transcription')).toBeTruthy();
+
+        fireEvent.click(screen.getByText('Show Answer'));
+        fireEvent.click(screen.getByTestId('quiz-thumbs-up'));
+
+        expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+            quizCorrect: 1,
+            quizTotal: 1,
+        }));
     });
 
     it('calls onComplete after thumbs up/down in quiz step', () => {

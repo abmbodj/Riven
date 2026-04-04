@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
     AlertTriangle, ArrowRight, BookOpen, Check, CheckCircle2, ChevronLeft, ClipboardCheck,
-    Clock3, Layers, Loader2, Menu, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
+    Clock3, Layers, Loader2, Menu, MessageCircle, Pencil, Play, RotateCcw, Share2, Sparkles, Trash2, X
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -18,15 +18,18 @@ import {
     serializeSharedPayload,
 } from '../utils/sharedResources';
 import {
-    STUDY_GUIDE_FORMAT_VERSION,
+    ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION,
     getGuideProgress,
+    getGuideMasterySnapshot,
     getGuideStudySourceText,
     getRecommendedSession,
+    getSectionMasteryScore,
     getSessionDelta,
     getSessionSections,
     getSectionStatus,
     getWeakSections,
     estimateSessionEffortMinutes,
+    estimateNextReviewAt,
     normalizeGuideData,
     normalizeGuideStudyState,
 } from '../utils/studyGuides';
@@ -72,6 +75,13 @@ const getGuideSynopsis = (overview) => {
     if (firstSentence && firstSentence.length >= 56) return firstSentence;
     if (compactOverview.length <= 180) return compactOverview;
     return `${compactOverview.slice(0, 177).trimEnd()}...`;
+};
+
+const getKeyTermLabel = (term) => {
+    if (typeof term === 'string') return term;
+    if (!term || typeof term !== 'object') return '';
+    if (term.definition) return `${term.term} — ${term.definition}`;
+    return term.term || '';
 };
 
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)';
@@ -274,6 +284,12 @@ export default function GuideView() {
     const [showMobileMoreDetails, setShowMobileMoreDetails] = useState(false);
     const [showMobileNoteEditor, setShowMobileNoteEditor] = useState(false);
     const [showDesktopNoteEditor, setShowDesktopNoteEditor] = useState(false);
+    const [showAskSheet, setShowAskSheet] = useState(false);
+    const [askDraft, setAskDraft] = useState('');
+    const [askResponse, setAskResponse] = useState('');
+    const [askLoading, setAskLoading] = useState(false);
+    const [sessionSummary, setSessionSummary] = useState(null);
+    const [sessionSummaryLoading, setSessionSummaryLoading] = useState(false);
 
     const [editingSectionId, setEditingSectionId] = useState(null);
 
@@ -296,6 +312,8 @@ export default function GuideView() {
     const guideRef = useRef(null);
     const activeSaveRef = useRef(Promise.resolve(null));
     const sessionStartStateRef = useRef(null);
+    const sessionRequestMetaRef = useRef({ mode: 'guided', source: 'guide_view' });
+    const sessionCompletionStartedRef = useRef(false);
 
     useEffect(() => {
         toastRef.current = toast;
@@ -333,6 +351,12 @@ export default function GuideView() {
         setFormatVersion(1);
         setSaved(true);
         setSaving(false);
+        setShowAskSheet(false);
+        setAskDraft('');
+        setAskResponse('');
+        setAskLoading(false);
+        setSessionSummary(null);
+        setSessionSummaryLoading(false);
 
         titleRef.current = '';
         contentRef.current = null;
@@ -341,6 +365,9 @@ export default function GuideView() {
         formatVersionRef.current = 1;
         guideRef.current = null;
         activeSaveRef.current = Promise.resolve(null);
+        sessionStartStateRef.current = null;
+        sessionRequestMetaRef.current = { mode: 'guided', source: 'guide_view' };
+        sessionCompletionStartedRef.current = false;
     }, []);
 
     const loadGuide = useCallback(async (guideId, { navigateOnError = true } = {}) => {
@@ -393,7 +420,7 @@ export default function GuideView() {
         () => normalizeGuideStudyState(normalizedGuideData, studyState),
         [normalizedGuideData, studyState],
     );
-    const workbookGuide = Number(formatVersion) >= STUDY_GUIDE_FORMAT_VERSION;
+    const workbookGuide = Number(formatVersion) >= ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION;
     const workbookSchemaIssue = workbookGuide && !normalizedGuideData;
     const legacyGuide = !workbookGuide;
     const progress = useMemo(
@@ -539,6 +566,72 @@ export default function GuideView() {
         ? sessionSections.length
         : sections.length;
 
+    const deriveAdaptiveSectionState = useCallback((sectionId, baseState, overrides = {}) => {
+        const section = sections.find((item) => item.id === sectionId);
+        if (!section) {
+            return {
+                ...baseState,
+                ...overrides,
+            };
+        }
+
+        const mergedState = {
+            ...baseState,
+            ...overrides,
+        };
+        const nextReviewAt = mergedState.next_review_at || estimateNextReviewAt(mergedState);
+        const masteryScore = getSectionMasteryScore(section, {
+            ...mergedState,
+            next_review_at: nextReviewAt,
+        });
+        const currentDifficulty = masteryScore < 40 ? 'support' : masteryScore < 75 ? 'standard' : 'challenge';
+
+        return {
+            ...mergedState,
+            next_review_at: nextReviewAt,
+            mastery_score: masteryScore,
+            current_difficulty: currentDifficulty,
+        };
+    }, [sections]);
+
+    const buildFallbackSessionSummary = useCallback(() => {
+        const baseline = sessionStartStateRef.current || normalizedStudyState;
+        const delta = getSessionDelta(normalizedGuideData, baseline, normalizedStudyState);
+        const masterySnapshot = getGuideMasterySnapshot(normalizedGuideData, normalizedStudyState);
+        const weakTopicsRemaining = getWeakSections(normalizedGuideData, normalizedStudyState)
+            .slice(0, 3)
+            .map((section) => ({ id: section.id, title: section.title }));
+        const xpEarned = Math.max(
+            12,
+            (delta.sectionsReviewed * 20) + Math.max(0, delta.masteryDeltaPercent * 2),
+        );
+
+        return {
+            xpEarned,
+            masteryDelta: delta.masteryDeltaPercent,
+            weakTopicsRemaining,
+            nextReviewAt: masterySnapshot.nextReviewAt,
+        };
+    }, [normalizedGuideData, normalizedStudyState]);
+
+    const buildAssistFallback = useCallback((question) => {
+        const helperParts = [
+            displaySection?.summary,
+            displaySection?.ai_helpers?.simpler ? `Simpler: ${displaySection.ai_helpers.simpler}` : null,
+            displaySection?.ai_helpers?.example ? `Example: ${displaySection.ai_helpers.example}` : null,
+            displaySection?.ai_helpers?.mnemonic ? `Mnemonic: ${displaySection.ai_helpers.mnemonic}` : null,
+            Array.isArray(displaySection?.answer_points) && displaySection.answer_points.length > 0
+                ? `Key points: ${displaySection.answer_points.slice(0, 3).join(' ')}`
+                : null,
+        ].filter(Boolean);
+
+        if (helperParts.length === 0) {
+            return question ? `Try restating "${question}" from memory, then compare it with the answer points above.` : '';
+        }
+
+        return `${displaySection?.title || 'This checkpoint'}: ${helperParts.join(' ')}`;
+    }, [displaySection]);
+
     useEffect(() => {
         if (!isMobileLayout) {
             setShowMobileMenu(false);
@@ -567,9 +660,9 @@ export default function GuideView() {
             const currentFormatVersion = Number(formatVersionRef.current) || 1;
             const normalizedCurrentGuideData = normalizeGuideData(guideDataRef.current);
 
-            if (currentFormatVersion >= STUDY_GUIDE_FORMAT_VERSION && normalizedCurrentGuideData) {
+            if (currentFormatVersion >= ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION && normalizedCurrentGuideData) {
                 payload.study_state = normalizeGuideStudyState(normalizedCurrentGuideData, studyStateRef.current);
-            } else if (currentFormatVersion < STUDY_GUIDE_FORMAT_VERSION) {
+            } else if (currentFormatVersion < ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION) {
                 payload.content = cloneRichTextDoc(contentRef.current);
             }
 
@@ -665,16 +758,19 @@ export default function GuideView() {
             ...state,
             section_states: {
                 ...state.section_states,
-                [sectionId]: {
-                    ...state.section_states[sectionId],
-                    confidence,
-                    revealed: true,
-                    last_reviewed_at: now,
-                },
+                [sectionId]: deriveAdaptiveSectionState(
+                    sectionId,
+                    state.section_states[sectionId],
+                    {
+                        confidence,
+                        revealed: true,
+                        last_reviewed_at: now,
+                    },
+                ),
             },
             last_reviewed_at: now,
         }), { immediate: true });
-    }, [updateStudyState]);
+    }, [deriveAdaptiveSectionState, updateStudyState]);
 
     const allQuizQuestions = useMemo(() => (
         (normalizedGuideData?.sections ?? []).flatMap((section) => (
@@ -966,9 +1062,15 @@ export default function GuideView() {
     // Clear on unmount
     useEffect(() => () => clearStudyMode(), [clearStudyMode]);
 
-    const startStudySession = useCallback((sectionList) => {
+    const startStudySession = useCallback((sectionList, options = {}) => {
         if (!sectionList.length) return;
         sessionStartStateRef.current = normalizedStudyState; // snapshot before session
+        sessionRequestMetaRef.current = {
+            mode: options.mode || 'guided',
+            source: options.source || 'guide_view',
+        };
+        sessionCompletionStartedRef.current = false;
+        setSessionSummary(null);
         setSessionSections(sectionList);
         setSessionIndex(0);
         setSessionMode('studying');
@@ -978,40 +1080,58 @@ export default function GuideView() {
     const startFullSession = useCallback(() => {
         const sectionList = normalizedGuideData?.sections ?? [];
         if (!sectionList.length) return;
-        startStudySession(sectionList);
+        startStudySession(sectionList, { mode: 'guided' });
     }, [normalizedGuideData, startStudySession]);
 
     const startQuickSession = useCallback((durationMinutes) => {
         const sessionSelection = getSessionSections(normalizedGuideData, normalizedStudyState, durationMinutes);
-        startStudySession(sessionSelection.length ? sessionSelection : normalizedGuideData?.sections ?? []);
+        startStudySession(
+            sessionSelection.length ? sessionSelection : normalizedGuideData?.sections ?? [],
+            { mode: 'guided' },
+        );
     }, [normalizedGuideData, normalizedStudyState, startStudySession]);
 
     const startWeakSession = useCallback(() => {
-        startStudySession(weakSections.length ? weakSections : normalizedGuideData?.sections ?? []);
+        startStudySession(
+            weakSections.length ? weakSections : normalizedGuideData?.sections ?? [],
+            { mode: 'cram' },
+        );
     }, [normalizedGuideData, startStudySession, weakSections]);
 
     const startQuizMode = useCallback(() => {
         sessionStartStateRef.current = normalizedStudyState;
+        sessionRequestMetaRef.current = { mode: 'quiz', source: 'guide_view' };
+        sessionCompletionStartedRef.current = false;
+        setSessionSummary(null);
         setSessionMode('quiz');
     }, [normalizedStudyState]);
 
-    const handleSectionComplete = useCallback((sectionId) => {
+    const handleSectionComplete = useCallback((sectionId, completionStats = {}) => {
+        const now = new Date().toISOString();
         updateStudyState((state) => ({
             ...state,
             section_states: {
                 ...state.section_states,
-                [sectionId]: {
-                    ...state.section_states[sectionId],
-                    completed: true,
-                },
+                [sectionId]: deriveAdaptiveSectionState(
+                    sectionId,
+                    state.section_states[sectionId],
+                    {
+                        completed: true,
+                        revealed: true,
+                        last_reviewed_at: now,
+                        quiz_correct: Math.max(0, Number(completionStats.quizCorrect) || 0),
+                        quiz_total: Math.max(0, Number(completionStats.quizTotal) || 0),
+                    },
+                ),
             },
+            last_reviewed_at: now,
         }));
         if (sessionIndex + 1 >= sessionSections.length) {
             setSessionMode('post-session');
         } else {
             handleSessionIndexChange(sessionIndex + 1);
         }
-    }, [handleSessionIndexChange, sessionIndex, sessionSections.length, updateStudyState]);
+    }, [deriveAdaptiveSectionState, handleSessionIndexChange, sessionIndex, sessionSections.length, updateStudyState]);
 
     const handleQuizComplete = useCallback(() => {
         setSessionMode('post-session');
@@ -1024,6 +1144,66 @@ export default function GuideView() {
         return `${weakSections.length} sections need review. Start with the weakest ones and keep the session tight.`;
     }, [weakSections]);
 
+    const openAskSheet = useCallback((seedQuestion = '') => {
+        setAskDraft(seedQuestion);
+        setAskResponse('');
+        setShowAskSheet(true);
+    }, []);
+
+    const handleAskSubmit = useCallback(async (questionOverride) => {
+        const question = String(questionOverride ?? askDraft).trim();
+        if (!question) return;
+
+        setAskLoading(true);
+        try {
+            const response = await api.assistStudyCoach({
+                guideId: id,
+                guideData: guideDataRef.current,
+                sectionId: displaySection?.id || null,
+                question,
+            });
+            setAskResponse(response?.answer || buildAssistFallback(question));
+        } catch {
+            setAskResponse(buildAssistFallback(question));
+        } finally {
+            setAskLoading(false);
+        }
+    }, [askDraft, buildAssistFallback, displaySection?.id, id]);
+
+    const syncSessionSummary = useCallback(async () => {
+        const fallbackSummary = buildFallbackSessionSummary();
+        const baseline = sessionStartStateRef.current;
+
+        if (!baseline) {
+            setSessionSummary(fallbackSummary);
+            return;
+        }
+
+        setSessionSummaryLoading(true);
+        try {
+            const response = await api.completeStudyCoachSession({
+                guideId: id,
+                guideData: guideDataRef.current,
+                studyStateBefore: baseline,
+                studyStateAfter: studyStateRef.current,
+                mode: sessionRequestMetaRef.current.mode,
+                source: sessionRequestMetaRef.current.source,
+                classId: guideRef.current?.class_id || null,
+            });
+            setSessionSummary(response || fallbackSummary);
+        } catch {
+            setSessionSummary(fallbackSummary);
+        } finally {
+            setSessionSummaryLoading(false);
+        }
+    }, [buildFallbackSessionSummary, id]);
+
+    useEffect(() => {
+        if (sessionMode !== 'post-session' || sessionCompletionStartedRef.current) return;
+        sessionCompletionStartedRef.current = true;
+        syncSessionSummary();
+    }, [sessionMode, syncSessionSummary]);
+
     const renderPostSession = () => {
         const delta = getSessionDelta(
             normalizedGuideData,
@@ -1031,6 +1211,13 @@ export default function GuideView() {
             normalizedStudyState
         );
         const stillWeak = getWeakSections(normalizedGuideData, normalizedStudyState);
+        const summary = sessionSummary || buildFallbackSessionSummary();
+        const nextReviewLabel = summary?.nextReviewAt
+            ? new Date(summary.nextReviewAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            : 'Ready now';
+        const highlightedWeakTopics = summary?.weakTopicsRemaining?.length
+            ? summary.weakTopicsRemaining
+            : stillWeak.slice(0, 3).map((section) => ({ id: section.id, title: section.title }));
 
         return (
             <div data-testid="post-session" className="flex flex-col gap-4">
@@ -1047,14 +1234,19 @@ export default function GuideView() {
                             <p className="mt-2 text-sm text-claude-secondary">
                                 {delta.sectionsReviewed} section{delta.sectionsReviewed !== 1 ? 's' : ''} reviewed
                             </p>
+                            {sessionSummaryLoading ? (
+                                <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                    Syncing session summary
+                                </p>
+                            ) : null}
                         </div>
 
                         {/* Stats row */}
                         <div className="grid w-full grid-cols-3 gap-3">
                             {[
-                                { label: 'Mastery', value: `${progress.completionPercent}%`, accent: true },
-                                { label: 'Still Weak', value: stillWeak.length },
-                                { label: 'This Session', value: delta.masteryDeltaPercent > 0 ? `+${delta.masteryDeltaPercent}%` : '—' },
+                                { label: 'XP Earned', value: `${summary?.xpEarned || 0} XP`, accent: true },
+                                { label: 'Review Due', value: nextReviewLabel },
+                                { label: 'Mastery', value: summary?.masteryDelta > 0 ? `+${summary.masteryDelta}%` : '—' },
                             ].map(({ label, value, accent }) => (
                                 <div key={label} className="guide-shell rounded-[1.3rem] py-3">
                                     <p className={`text-[1.3rem] font-bold ${accent ? 'text-[#86efac]' : 'text-claude-text'}`}>
@@ -1070,14 +1262,29 @@ export default function GuideView() {
                         {/* Primary CTA */}
                         <div className="guide-tone-success w-full rounded-[1.4rem] p-4">
                             <p className="font-semibold text-claude-text">
-                                {stillWeak.length > 0 ? 'Keep Going — Weak Sections Remain' : 'Study Again Tomorrow'}
+                                {highlightedWeakTopics.length > 0 ? 'Keep Going — Weak Sections Remain' : 'Study Again Tomorrow'}
                             </p>
                             <p className="mt-1 text-sm text-claude-secondary">
-                                {stillWeak.length > 0
-                                    ? `${stillWeak.length} section${stillWeak.length !== 1 ? 's' : ''} still need review`
+                                {highlightedWeakTopics.length > 0
+                                    ? `${highlightedWeakTopics.length} section${highlightedWeakTopics.length !== 1 ? 's' : ''} still need review`
                                     : 'Riven will remind you when sections are due'}
                             </p>
                         </div>
+
+                        {highlightedWeakTopics.length > 0 ? (
+                            <div className="guide-shell w-full rounded-[1.4rem] p-4 text-left">
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                    Target next
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {highlightedWeakTopics.map((topic) => (
+                                        <span key={topic.id || topic.title} className="guide-status-pill guide-status-pill--warning">
+                                            {topic.title}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -1293,7 +1500,7 @@ export default function GuideView() {
                         sectionState={activeSessionSectionState}
                         onReveal={() => handleSectionReveal(activeSessionSection.id)}
                         onConfidenceSelect={(confidence) => handleConfidenceSelect(activeSessionSection.id, confidence)}
-                        onComplete={() => handleSectionComplete(activeSessionSection.id)}
+                        onComplete={(completionStats) => handleSectionComplete(activeSessionSection.id, completionStats)}
                         sectionIndex={sessionIndex}
                         sectionCount={sessionSections.length}
                         canGoPrevious={canGoPrevious}
@@ -1301,6 +1508,7 @@ export default function GuideView() {
                         onPrevious={() => handleSessionIndexChange(sessionIndex - 1)}
                         onNext={() => handleSessionIndexChange(sessionIndex + 1)}
                         onEdit={() => setEditingSectionId(activeSessionSection.id)}
+                        onAsk={() => openAskSheet()}
                     />
                 </div>
             </div>
@@ -1590,13 +1798,13 @@ export default function GuideView() {
 
                         {displaySection?.key_terms?.length ? (
                             <div className="guide-tone-neutral mt-4 rounded-[1.35rem] p-3.5">
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                    Key terms
-                                </p>
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                        Key terms
+                                    </p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     {displaySection.key_terms.map((term) => (
-                                        <span key={term} className="guide-status-pill guide-status-pill--neutral">
-                                            {term}
+                                        <span key={getKeyTermLabel(term)} className="guide-status-pill guide-status-pill--neutral">
+                                            {getKeyTermLabel(term)}
                                         </span>
                                     ))}
                                 </div>
@@ -2053,6 +2261,132 @@ export default function GuideView() {
                 );
             })()}
 
+            {showAskSheet ? (
+                isMobileLayout ? (
+                    <MobileBottomSheet
+                        open
+                        title="Ask coach"
+                        subtitle={displaySection?.title || 'Current checkpoint'}
+                        onClose={() => setShowAskSheet(false)}
+                        testId="study-ask-sheet"
+                    >
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Explain ${displaySection?.title || 'this topic'} in simpler terms.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Explain simpler
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Give me one concrete example for ${displaySection?.title || 'this topic'}.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Show example
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Give me a mnemonic for ${displaySection?.title || 'this topic'}.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Mnemonic
+                                </button>
+                            </div>
+                            <label className="block">
+                                <span className="sr-only">Ask a follow-up</span>
+                                <textarea
+                                    aria-label="Ask a follow-up"
+                                    value={askDraft}
+                                    onChange={(event) => setAskDraft(event.target.value)}
+                                    placeholder="Ask a follow-up about this checkpoint."
+                                    className="min-h-[140px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => handleAskSubmit()}
+                                disabled={askLoading || !askDraft.trim()}
+                                className="guide-cta guide-cta--primary guide-focus-ring w-full disabled:opacity-50"
+                            >
+                                {askLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                                <span>Send question</span>
+                            </button>
+                            {askResponse ? (
+                                <div className="guide-tone-success rounded-[1.3rem] p-4">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                        Coach answer
+                                    </p>
+                                    <p className="mt-2 text-sm leading-6 text-claude-text">{askResponse}</p>
+                                </div>
+                            ) : null}
+                        </div>
+                    </MobileBottomSheet>
+                ) : (
+                    <DesktopSideSheet
+                        open
+                        title="Ask coach"
+                        subtitle={displaySection?.title || 'Current checkpoint'}
+                        onClose={() => setShowAskSheet(false)}
+                        testId="study-ask-sheet"
+                    >
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Explain ${displaySection?.title || 'this topic'} in simpler terms.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Explain simpler
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Give me one concrete example for ${displaySection?.title || 'this topic'}.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Show example
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAskSubmit(`Give me a mnemonic for ${displaySection?.title || 'this topic'}.`)}
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    Mnemonic
+                                </button>
+                            </div>
+                            <label className="block">
+                                <span className="sr-only">Ask a follow-up</span>
+                                <textarea
+                                    aria-label="Ask a follow-up"
+                                    value={askDraft}
+                                    onChange={(event) => setAskDraft(event.target.value)}
+                                    placeholder="Ask a follow-up about this checkpoint."
+                                    className="min-h-[180px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => handleAskSubmit()}
+                                disabled={askLoading || !askDraft.trim()}
+                                className="guide-cta guide-cta--primary guide-focus-ring w-full disabled:opacity-50"
+                            >
+                                {askLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                                <span>Send question</span>
+                            </button>
+                            {askResponse ? (
+                                <div className="guide-tone-success rounded-[1.3rem] p-4">
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                        Coach answer
+                                    </p>
+                                    <p className="mt-2 text-sm leading-6 text-claude-text">{askResponse}</p>
+                                </div>
+                            ) : null}
+                        </div>
+                    </DesktopSideSheet>
+                )
+            ) : null}
+
             {isMobileLayout ? (
                 <>
                     <MobileBottomSheet
@@ -2178,7 +2512,7 @@ export default function GuideView() {
                                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Key terms</p>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         {displaySection.key_terms.map((term) => (
-                                            <span key={term} className="guide-status-pill guide-status-pill--neutral">{term}</span>
+                                            <span key={getKeyTermLabel(term)} className="guide-status-pill guide-status-pill--neutral">{getKeyTermLabel(term)}</span>
                                         ))}
                                     </div>
                                 </div>

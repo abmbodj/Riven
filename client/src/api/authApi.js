@@ -2096,7 +2096,9 @@ export const updateStudyGuide = async (id, updates) => {
     const payload = {};
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.guide_data !== undefined) payload.guide_data = updates.guide_data;
     if (updates.study_state !== undefined) payload.study_state = updates.study_state;
+    if (updates.format_version !== undefined) payload.format_version = updates.format_version;
     if (updates.class_id !== undefined) payload.class_id = updates.class_id;
     const { data, error } = await supabase
         .from('study_guides')
@@ -2113,6 +2115,18 @@ export const deleteStudyGuide = async (id) => {
     if (error) _sbThrow(error);
     return { message: 'Study guide deleted' };
 };
+
+export const getStudyCoach = async () => authFetch('/study/coach');
+
+export const completeStudyCoachSession = async (payload) => authFetch('/study/session-complete', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+});
+
+export const assistStudyCoach = async (payload) => authFetch('/study/assist', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+});
 
 // --- Mock Exams (PostgREST) ---
 
@@ -4579,6 +4593,9 @@ export default {
     createAssignment,
     updateAssignment,
     deleteAssignment,
+    getStudyCoach,
+    completeStudyCoachSession,
+    assistStudyCoach,
     getDecks,
     getDeck,
     createDeck,

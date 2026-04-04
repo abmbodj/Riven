@@ -30,6 +30,7 @@ const registerHeartsRoutes = require('./routes/hearts');
 const registerWebhooksRoutes = require('./routes/webhooks');
 const registerReferralRoutes = require('./routes/referrals');
 const registerStripeRoutes = require('./routes/stripe');
+const registerStudyRoutes = require('./routes/study');
 
 let acceptSharedResourceCorePromise = null;
 const loadAcceptSharedResourceCore = async () => {
@@ -440,6 +441,7 @@ registerAIRoutes({ app, db, authMiddleware, rateLimit, ipKeyGenerator });
 
 registerHeartsRoutes({ app, db, authMiddleware });
 registerReferralRoutes({ app, db, authMiddleware });
+registerStudyRoutes({ app, db, authMiddleware });
 
 // ============ WEBHOOKS ============
 

@@ -165,4 +165,29 @@ describe('scheduleAssignmentNotifications', () => {
             ).toBe(false);
         }
     });
+
+    it('adds an adaptive cram reminder for exam items with weak-topic pressure inside 72 hours', async () => {
+        const dueDate = new Date(NOW.getTime() + 48 * 60 * 60 * 1000);
+
+        await scheduleAssignmentNotifications([
+            {
+                ...createAssignment({
+                    id: 21,
+                    title: 'Biology Midterm',
+                    due_date: dueDate.toISOString(),
+                }),
+                assignment_type: 'exam',
+                study_recommendation: {
+                    should_cram: true,
+                    weak_topic_count: 3,
+                },
+            },
+        ], true);
+
+        const notifications = getScheduledNotifications();
+        expect(notifications.some((notification) => notification.title === 'Cram Mode Recommended')).toBe(true);
+        expect(
+            notifications.some((notification) => notification.body.includes('3 weak topics'))
+        ).toBe(true);
+    });
 });

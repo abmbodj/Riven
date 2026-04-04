@@ -50,6 +50,24 @@ const EXAM_EXTRA_REMINDER = {
     iconColor: '#FF9500',
 };
 
+const ADAPTIVE_CRAM_REMINDER = {
+    leadTimeMs: 36 * HOUR_IN_MS,
+    title: 'Cram Mode Recommended',
+    body: (assignmentTitle, weakTopicCount) => {
+        const weakTopicLabel = weakTopicCount === 1 ? '1 weak topic' : `${weakTopicCount} weak topics`;
+        return `${assignmentTitle} is coming up. Focus on ${weakTopicLabel} now.`;
+    },
+    iconColor: '#F97316',
+};
+
+function shouldScheduleAdaptiveCramReminder(assignment, dueDate, now) {
+    const weakTopicCount = Number(assignment?.study_recommendation?.weak_topic_count || 0);
+    const shouldCram = Boolean(assignment?.study_recommendation?.should_cram);
+    const dueInMs = dueDate.getTime() - now.getTime();
+
+    return shouldCram && weakTopicCount > 0 && dueInMs <= (72 * HOUR_IN_MS);
+}
+
 function buildAssignmentReminderNotifications(assignment, dueDate, now, startingId) {
     const assignmentTitle = assignment.title || assignment.name || assignment.assignment_title || 'Untitled Assignment';
     let nextId = startingId;
@@ -62,7 +80,7 @@ function buildAssignmentReminderNotifications(assignment, dueDate, now, starting
         ? [EXAM_EXTRA_REMINDER, ...ASSIGNMENT_REMINDER_CONFIGS]
         : ASSIGNMENT_REMINDER_CONFIGS;
 
-    return configs.flatMap((reminder) => {
+    const scheduledNotifications = configs.flatMap((reminder) => {
         const scheduledAt = new Date(dueDate.getTime() - reminder.leadTimeMs);
         if (scheduledAt <= now) {
             return [];
@@ -77,6 +95,29 @@ function buildAssignmentReminderNotifications(assignment, dueDate, now, starting
             iconColor: reminder.iconColor,
         }];
     });
+
+    if (shouldScheduleAdaptiveCramReminder(assignment, dueDate, now)) {
+        const scheduledAt = new Date(Math.max(
+            now.getTime() + (15 * MINUTE_IN_MS),
+            dueDate.getTime() - ADAPTIVE_CRAM_REMINDER.leadTimeMs,
+        ));
+
+        if (scheduledAt < dueDate) {
+            scheduledNotifications.unshift({
+                id: nextId++,
+                title: ADAPTIVE_CRAM_REMINDER.title,
+                body: ADAPTIVE_CRAM_REMINDER.body(
+                    assignmentTitle,
+                    Number(assignment?.study_recommendation?.weak_topic_count || 0),
+                ),
+                schedule: { at: scheduledAt },
+                smallIcon: DEFAULT_SMALL_ICON,
+                iconColor: ADAPTIVE_CRAM_REMINDER.iconColor,
+            });
+        }
+    }
+
+    return scheduledNotifications;
 }
 
 export async function requestNotificationPermissions() {

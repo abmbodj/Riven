@@ -6,6 +6,7 @@ import {
     Brain,
     CheckCircle2,
     Eye,
+    MessageCircle,
     PenSquare,
     Sparkles,
     ThumbsDown,
@@ -40,6 +41,58 @@ function getInitialStep(sectionState) {
     return sectionState?.revealed ? 'answer' : 'recall';
 }
 
+function getKeyTermLabel(term) {
+    if (typeof term === 'string') return term;
+    if (!term || typeof term !== 'object') return '';
+    if (term.definition) return `${term.term}: ${term.definition}`;
+    return term.term || '';
+}
+
+function getCheckItems(section) {
+    if (Array.isArray(section?.checks) && section.checks.length > 0) return section.checks;
+    if (Array.isArray(section?.mini_quiz) && section.mini_quiz.length > 0) return section.mini_quiz;
+    return [];
+}
+
+function getDrillItems(section) {
+    const checks = getCheckItems(section).map((item) => ({
+        kind: 'check',
+        prompt: item.prompt,
+        answer: item.answer,
+    }));
+    const flashcards = Array.isArray(section?.flashcards)
+        ? section.flashcards.map((item) => ({
+            kind: 'flashcard',
+            prompt: item.front,
+            answer: item.back,
+        }))
+        : [];
+
+    return [...checks, ...flashcards].filter((item) => item.prompt);
+}
+
+function VisualAid({ visual }) {
+    if (!visual?.steps?.length) return null;
+
+    return (
+        <div className="guide-tone-neutral rounded-[1.3rem] p-3.5 sm:p-4">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                {visual.title || 'Visual'}
+            </p>
+            <div className={`mt-3 grid gap-2 ${visual.type === 'compare' ? 'sm:grid-cols-2' : ''}`}>
+                {visual.steps.map((step, index) => (
+                    <div key={`${visual.type}-${index}`} className="rounded-[1rem] border border-white/10 bg-black/10 px-3 py-2.5">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-claude-secondary">
+                            {visual.type === 'compare' ? `Side ${index + 1}` : `Step ${index + 1}`}
+                        </p>
+                        <p className="mt-1.5 text-[0.92rem] leading-[1.5] text-claude-text">{step}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function NavButton({ direction, disabled, onClick }) {
     const Icon = direction === 'previous' ? ArrowLeft : ArrowRight;
     const label = direction === 'previous' ? 'Previous' : 'Next';
@@ -72,14 +125,20 @@ function StudySectionBody({
     onPrevious,
     onNext,
     onEdit,
+    onAsk,
 }) {
     const [step, setStep] = useState(() => getInitialStep(sectionState));
     const [quizRevealed, setQuizRevealed] = useState(false);
+    const [quizIndex, setQuizIndex] = useState(0);
+    const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+    const [activeHelperKey, setActiveHelperKey] = useState(null);
     const [draftAnswer, setDraftAnswer] = useState('');
     const [showDraftAnswer, setShowDraftAnswer] = useState(false);
-    const hasQuiz = section.mini_quiz?.length > 0;
-    const quizItem = section.mini_quiz?.[0] ?? null;
+    const quizItems = useMemo(() => getDrillItems(section), [section]);
+    const hasQuiz = quizItems.length > 0;
+    const quizItem = quizItems[quizIndex] ?? null;
     const activeConfidence = sectionState?.confidence ?? null;
+    const activeHelperText = activeHelperKey ? section.ai_helpers?.[activeHelperKey] : '';
     const stepState = useMemo(() => ({
         recall: step === 'recall' ? 'active' : 'complete',
         reveal: step === 'answer' ? 'active' : (step === 'quiz' || sectionState?.completed ? 'complete' : 'idle'),
@@ -99,10 +158,40 @@ function StudySectionBody({
     const handleConfidence = (confidence) => {
         onConfidenceSelect(confidence);
         if (hasQuiz) {
+            setQuizIndex(0);
+            setQuizRevealed(false);
+            setQuizCorrectCount(0);
             setStep('quiz');
         } else {
-            onComplete();
+            onComplete({ quizCorrect: 0, quizTotal: 0 });
         }
+    };
+
+    const handleHelperClick = (helperKey) => {
+        const nextText = section?.ai_helpers?.[helperKey] || '';
+        if (nextText) {
+            setActiveHelperKey(helperKey);
+            return;
+        }
+
+        onAsk?.();
+    };
+
+    const handleQuizResult = (correct) => {
+        const updatedCorrectCount = quizCorrectCount + (correct ? 1 : 0);
+        const nextIndex = quizIndex + 1;
+
+        if (nextIndex >= quizItems.length) {
+            onComplete({
+                quizCorrect: updatedCorrectCount,
+                quizTotal: quizItems.length,
+            });
+            return;
+        }
+
+        setQuizCorrectCount(updatedCorrectCount);
+        setQuizIndex(nextIndex);
+        setQuizRevealed(false);
     };
 
     const renderRecall = () => (
@@ -190,6 +279,32 @@ function StudySectionBody({
                 </ul>
             </div>
 
+            {section.summary ? (
+                <div className="guide-tone-neutral rounded-[1.3rem] p-3.5 sm:p-4">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                        Summary
+                    </p>
+                    <p className="mt-2 text-[0.92rem] leading-[1.55] text-claude-text">{section.summary}</p>
+                </div>
+            ) : null}
+
+            {(section.key_terms ?? []).length > 0 ? (
+                <div className="guide-tone-neutral rounded-[1.3rem] p-3.5 sm:p-4">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                        Key terms
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {(section.key_terms ?? []).map((term) => (
+                            <span key={getKeyTermLabel(term)} className="guide-status-pill guide-status-pill--neutral">
+                                {getKeyTermLabel(term)}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
+            <VisualAid visual={section.visual} />
+
             {(section.common_traps ?? []).length > 0 && (
                 <div className="guide-tone-warning rounded-[1.3rem] px-3.5 py-3 sm:px-4">
                     <div className="flex items-start gap-2.5">
@@ -202,6 +317,57 @@ function StudySectionBody({
                     </div>
                 </div>
             )}
+
+            {(section.ai_helpers?.simpler || section.ai_helpers?.example || section.ai_helpers?.mnemonic || onAsk) ? (
+                <div className="guide-sheet rounded-[1.3rem] p-3.5 sm:p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            AI help
+                        </p>
+                        {onAsk ? (
+                            <button
+                                type="button"
+                                onClick={() => onAsk()}
+                                className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                            >
+                                <MessageCircle className="h-4 w-4" />
+                                <span>Ask</span>
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => handleHelperClick('simpler')}
+                            className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                        >
+                            <span>Explain simpler</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleHelperClick('example')}
+                            className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                        >
+                            <span>Show example</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleHelperClick('mnemonic')}
+                            className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                        >
+                            <span>Mnemonic</span>
+                        </button>
+                    </div>
+                    {activeHelperText ? (
+                        <div className="guide-tone-success mt-3 rounded-[1.15rem] p-3.5">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                {activeHelperKey === 'simpler' ? 'Explain simpler' : activeHelperKey === 'example' ? 'Show example' : 'Mnemonic'}
+                            </p>
+                            <p className="mt-2 text-[0.92rem] leading-[1.55] text-claude-text">{activeHelperText}</p>
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
 
             <div className="guide-sheet rounded-[1.3rem] p-3.5 sm:p-4">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
@@ -237,20 +403,25 @@ function StudySectionBody({
     );
 
     const renderQuiz = () => (
-        <div data-testid="study-section-quiz" className="flex flex-col gap-3">
+            <div data-testid="study-section-quiz" className="flex flex-col gap-3">
             <div className="guide-tone-warning rounded-[1.3rem] p-3.5 sm:p-4">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                    Checkpoint Quiz
+                    {quizItem?.kind === 'flashcard' ? 'Flashcard Drill' : 'Checkpoint Quiz'}
                 </p>
             </div>
 
             <div className="guide-sheet rounded-[1.3rem] p-3.5 sm:p-4">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                    Prompt
+                    {quizItem?.kind === 'flashcard' ? 'Front' : 'Prompt'}
                 </p>
                 <p className="mt-2 max-w-[40rem] text-[0.95rem] leading-[1.55] text-claude-text">
-                    {quizItem.prompt}
+                    {quizItem?.prompt}
                 </p>
+                {quizItems.length > 1 ? (
+                    <p className="mt-3 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                        {quizIndex + 1} / {quizItems.length}
+                    </p>
+                ) : null}
             </div>
 
             {!quizRevealed ? (
@@ -266,15 +437,15 @@ function StudySectionBody({
                 <>
                     <div className="guide-tone-success rounded-[1.3rem] p-3.5 sm:p-4">
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
-                            Answer
+                            {quizItem?.kind === 'flashcard' ? 'Back' : 'Answer'}
                         </p>
-                        <p className="mt-2 text-[0.92rem] leading-[1.55] text-claude-text">{quizItem.answer}</p>
+                        <p className="mt-2 text-[0.92rem] leading-[1.55] text-claude-text">{quizItem?.answer}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             type="button"
                             data-testid="quiz-thumbs-down"
-                            onClick={onComplete}
+                            onClick={() => handleQuizResult(false)}
                             className="guide-cta guide-cta--danger guide-focus-ring w-full"
                         >
                             <ThumbsDown className="h-4 w-4" />
@@ -283,7 +454,7 @@ function StudySectionBody({
                         <button
                             type="button"
                             data-testid="quiz-thumbs-up"
-                            onClick={onComplete}
+                            onClick={() => handleQuizResult(true)}
                             className="guide-cta guide-cta--secondary guide-focus-ring w-full"
                         >
                             <ThumbsUp className="h-4 w-4" />

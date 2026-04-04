@@ -206,9 +206,18 @@ export const api = {
     getStudyGuide: (id) => isLoggedIn()
         ? serverApi.getStudyGuide(id)
         : Promise.reject(new Error('Must be logged in to view study guides')),
+    getStudyCoach: () => isLoggedIn()
+        ? serverApi.getStudyCoach()
+        : Promise.resolve(null),
     updateStudyGuide: (id, updates) => isLoggedIn()
         ? serverApi.updateStudyGuide(id, updates)
         : Promise.reject(new Error('Must be logged in to update study guides')),
+    completeStudyCoachSession: (payload) => isLoggedIn()
+        ? serverApi.completeStudyCoachSession(payload)
+        : Promise.reject(new Error('Must be logged in to save study coach sessions')),
+    assistStudyCoach: (payload) => isLoggedIn()
+        ? serverApi.assistStudyCoach(payload)
+        : Promise.reject(new Error('Must be logged in to use study coach assist')),
     deleteStudyGuide: (id) => isLoggedIn()
         ? serverApi.deleteStudyGuide(id)
         : Promise.reject(new Error('Must be logged in to delete study guides')),

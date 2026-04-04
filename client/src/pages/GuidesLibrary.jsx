@@ -8,7 +8,13 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
-import { estimateSessionEffortMinutes, getGuideProgress, isActiveRecallGuide, normalizeGuideData } from '../utils/studyGuides';
+import {
+    estimateSessionEffortMinutes,
+    getGuideMasterySnapshot,
+    getGuideProgress,
+    isActiveRecallGuide,
+    normalizeGuideData,
+} from '../utils/studyGuides';
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -19,6 +25,9 @@ const GuideCard = memo(({ guide, classes, index }) => {
     const activeRecall = isActiveRecallGuide(guide);
     const normalizedGuideData = activeRecall ? normalizeGuideData(guide.guide_data) : null;
     const progress = getGuideProgress(guide.guide_data, guide.study_state);
+    const masterySnapshot = activeRecall
+        ? getGuideMasterySnapshot(guide.guide_data, guide.study_state)
+        : null;
     const lastReviewed = guide.study_state?.last_reviewed_at
         ? new Date(guide.study_state.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Not started';
@@ -29,6 +38,11 @@ const GuideCard = memo(({ guide, classes, index }) => {
     const sessionStarted = Boolean(guide.study_state?.last_reviewed_at) || progress.revealedCount > 0 || progress.completedCount > 0;
     const sessionCta = sessionStarted ? 'Resume Session' : 'Start Session';
     const nextStepMinutes = nextSection ? estimateSessionEffortMinutes([nextSection]) : 0;
+    const weakTopicCount = masterySnapshot?.masteryBands?.support?.length || 0;
+    const nextReviewLabel = masterySnapshot?.nextReviewAt
+        ? new Date(masterySnapshot.nextReviewAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : 'Ready now';
+    const adaptiveGuide = activeRecall && Number(guide.format_version) >= 3;
 
     return (
         <motion.div
@@ -76,6 +90,23 @@ const GuideCard = memo(({ guide, classes, index }) => {
 
                     {activeRecall ? (
                         <div className="mt-4 space-y-3">
+                            {adaptiveGuide ? (
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-3 py-3">
+                                        <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Mastery</p>
+                                        <p className="mt-1.5 text-lg font-semibold text-claude-text">{masterySnapshot?.averageMastery || 0}%</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-3 py-3">
+                                        <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Weak topics</p>
+                                        <p className="mt-1.5 text-lg font-semibold text-claude-text">{weakTopicCount}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-3 py-3">
+                                        <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Review due</p>
+                                        <p className="mt-1.5 text-lg font-semibold text-claude-text">{nextReviewLabel}</p>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">
                                     <span>{sessionStarted ? 'Resume coach session' : 'Best next move'}</span>
@@ -112,6 +143,9 @@ const GuideCard = memo(({ guide, classes, index }) => {
                             <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3 text-[11px] text-claude-secondary">
                                 <p>Next checkpoint: {nextSection?.title || 'Ready to begin'}</p>
                                 <p className="mt-1">Last reviewed: {lastReviewed}</p>
+                                {adaptiveGuide ? (
+                                    <p className="mt-1">Support queue: {weakTopicCount}</p>
+                                ) : null}
                             </div>
                             <div className="rounded-2xl border border-claude-accent/20 bg-claude-surface/70 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3 text-[11px] text-claude-secondary">

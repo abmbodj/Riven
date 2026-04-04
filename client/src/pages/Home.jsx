@@ -11,7 +11,8 @@ import {
     Leaf,
     MessageCircle,
     Play,
-    Sparkles
+    Sparkles,
+    Target,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
@@ -251,6 +252,124 @@ function ActivityStreakCard({ streak, weeklySummary, loading }) {
     );
 }
 
+function StudyCoachCard({ coach }) {
+    if (!coach) return null;
+
+    const recommendation = coach.recommendation || null;
+    const weakTopics = Array.isArray(coach.weakTopics) ? coach.weakTopics.slice(0, 4) : [];
+    const upcomingExam = coach.upcomingExam || null;
+    const stats = coach.stats || { xpTotal: 0, level: 1 };
+    const suggestedGuide = coach.suggestedGuide || null;
+
+    if (!recommendation && !upcomingExam && weakTopics.length === 0 && !suggestedGuide) {
+        return null;
+    }
+
+    return (
+        <section
+            data-testid="study-coach-card"
+            className="gsap-section glass-panel-premium rounded-[28px] p-5 sm:p-6"
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-accent">
+                        Coach Snapshot
+                    </p>
+                    <h2 className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
+                        {recommendation?.label || 'Keep momentum moving'}
+                    </h2>
+                    {recommendation?.guideTitle ? (
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            {recommendation.guideTitle}
+                        </p>
+                    ) : null}
+                </div>
+
+                <div className="guide-shell rounded-[1.15rem] px-3 py-2 text-right">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Progress</p>
+                    <p className="mt-1 font-mono text-base font-bold text-claude-text">{stats.xpTotal} XP</p>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Level {stats.level || 1}</p>
+                </div>
+            </div>
+
+            {recommendation?.detail ? (
+                <div className="mt-4 guide-tone-success rounded-[1.35rem] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-[#86efac]">
+                                Recommended Next
+                            </p>
+                            <p className="mt-1.5 text-sm leading-6 text-claude-text">{recommendation.detail}</p>
+                        </div>
+                        <Link
+                            to={recommendation.to || '/guides'}
+                            className="tap-action inline-flex items-center gap-2 rounded-full bg-[#22c55e] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-black transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#86efac]/60"
+                        >
+                            Start
+                            <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                    </div>
+                </div>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="guide-shell rounded-[1.35rem] p-4">
+                    <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-claude-accent" />
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Weak Topics
+                        </p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {weakTopics.length > 0 ? weakTopics.map((topic) => (
+                            <span key={topic.id || topic.title} className="guide-status-pill guide-status-pill--warning">
+                                {topic.title}
+                            </span>
+                        )) : (
+                            <span className="text-sm text-claude-secondary">Nothing urgent right now.</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    {upcomingExam ? (
+                        <div className="guide-tone-warning rounded-[1.35rem] p-4">
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                    Cram Window
+                                </p>
+                            </div>
+                            <p className="mt-2 text-sm font-medium text-claude-text">{upcomingExam.title}</p>
+                            <p className="mt-1 text-sm text-claude-secondary">{upcomingExam.countdownLabel}</p>
+                        </div>
+                    ) : null}
+
+                    {suggestedGuide ? (
+                        <Link
+                            to={suggestedGuide.to || '/guides'}
+                            className="tap-action block rounded-[1.35rem] border border-claude-accent/20 bg-claude-accent/5 p-4 transition-[transform,background-color,border-color] hover:-translate-y-0.5 hover:border-claude-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                        >
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                        One Tap Setup
+                                    </p>
+                                    <p className="mt-1.5 text-sm text-claude-text">{suggestedGuide.label}</p>
+                                    {suggestedGuide.className ? (
+                                        <p className="mt-1 text-sm text-claude-secondary">{suggestedGuide.className}</p>
+                                    ) : null}
+                                </div>
+                                <BookOpen className="h-4 w-4 text-claude-accent" />
+                            </div>
+                        </Link>
+                    ) : null}
+                </div>
+            </div>
+        </section>
+    );
+}
+
 export default function Home({ mode = 'landing' }) {
     const { isLoggedIn, loading } = useAuth();
 
@@ -282,6 +401,7 @@ function DashboardHome() {
     const [notes, setNotes] = useState([]);
     const [guides, setGuides] = useState([]);
     const [exams, setExams] = useState([]);
+    const [studyCoach, setStudyCoach] = useState(null);
     const [weeklySummary, setWeeklySummary] = useState(null);
     const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(true);
     const [pricingOpen, setPricingOpen] = useState(false);
@@ -375,12 +495,13 @@ function DashboardHome() {
     useEffect(() => {
         const loadDashboard = async () => {
             try {
-                const [assignData, decksData, classesData, notesData, guidesData, examsData] = await Promise.all([
+                const [assignData, decksData, classesData, notesData, guidesData, coachData, examsData] = await Promise.all([
                     api.getAssignments().catch(() => []),
                     api.getDecks().catch(() => []),
                     api.getClasses().catch(() => []),
                     api.getNotes().catch(() => []),
                     api.getStudyGuides().catch(() => []),
+                    api.getStudyCoach().catch(() => null),
                     api.getMockExams().catch(() => []),
                 ]);
                 setAssignments(assignData || []);
@@ -388,6 +509,7 @@ function DashboardHome() {
                 setClasses(classesData || []);
                 setNotes(notesData || []);
                 setGuides(guidesData || []);
+                setStudyCoach(coachData || null);
                 setExams(examsData || []);
 
                 // Schedule local notifications for assignments
@@ -870,6 +992,7 @@ function DashboardHome() {
             {/* ZONE B — Work Surface */}
             <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
                 <div className="order-1 space-y-6">
+                    <StudyCoachCard coach={studyCoach} />
                     <ActivityStreakCard
                         streak={streak}
                         weeklySummary={weeklySummary}

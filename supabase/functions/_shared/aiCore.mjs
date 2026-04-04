@@ -352,24 +352,49 @@ Output ONLY a valid JSON object. No markdown, backticks, or text outside the obj
 Required structure:
 {
   "overview": "1-3 sentence overview",
-  "sections": [
+  "topics": [
     {
-      "id": "optional-short-slug",
-      "title": "Section title",
-      "recall_prompt": "Prompt that forces the student to answer before revealing the guide",
-      "answer_points": ["3-5 exam-testable points — every point must be something that could appear on an exam, no definitional filler"],
-      "key_terms": ["important terms or formulas"],
-      "mini_quiz": [
-        { "prompt": "short checkpoint question", "answer": "short answer" }
-      ],
-      "common_traps": ["common misconception or mistake"]
+      "id": "optional-topic-slug",
+      "title": "Topic title",
+      "summary": "optional 1 sentence topic framing",
+      "subtopics": [
+        {
+          "id": "optional-subtopic-slug",
+          "title": "Subtopic title",
+          "summary": "1-2 sentence summary",
+          "recall_prompt": "Prompt that forces the student to answer before revealing the guide",
+          "answer_points": ["3-5 exam-testable points — every point must be something that could appear on an exam, no definitional filler"],
+          "key_terms": [
+            { "term": "important term", "definition": "short definition" }
+          ],
+          "checks": [
+            { "prompt": "short checkpoint question", "answer": "short answer" }
+          ],
+          "flashcards": [
+            { "front": "front of card", "back": "back of card" }
+          ],
+          "common_traps": ["common misconception or mistake"],
+          "visual": {
+            "type": "sequence",
+            "title": "optional visual title",
+            "steps": ["step 1", "step 2", "step 3"]
+          },
+          "ai_helpers": {
+            "simpler": "Explain this in simpler language.",
+            "example": "Give one concrete example.",
+            "mnemonic": "Short mnemonic seed."
+          }
+        }
+      ]
     }
   ]
 }
 Build an active-recall workbook, not passive notes.
-Create 4-8 sections when possible. Keep answer_points concrete and exam-useful. Max 5 answer_points per section.
-Each section must map to a DISTINCT testable concept — sections must not overlap in content.
-If a concept in a section is commonly confused with another concept, it MUST appear in common_traps. Do not leave common_traps empty for sections where confusion is likely.`;
+Create 3-6 topics when possible, each with 1-3 subtopics. Keep answer_points concrete and exam-useful. Max 5 answer_points per subtopic.
+Each subtopic must map to a DISTINCT testable concept — subtopics must not overlap in content.
+Every subtopic must include at least 1 check, 1 flashcard, and all 3 ai_helpers fields.
+Only use visual.type values of "sequence", "compare", or "process". If no visual is useful, still include a simple one with 2-4 steps.
+If a concept in a subtopic is commonly confused with another concept, it MUST appear in common_traps. Do not leave common_traps empty for subtopics where confusion is likely.`;
 
 export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
   const contents = [{ text: buildGuidePrompt(className) }];

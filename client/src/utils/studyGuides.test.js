@@ -3,10 +3,12 @@ import {
     getSessionSections,
     getSectionStatus,
     getWeakSections,
+    normalizeGuideData,
     normalizeGuideStudyState,
     updateSection,
     getRecommendedSession,
     getSessionDelta,
+    getGuideMasterySnapshot,
 } from './studyGuides.js';
 
 const makeGuideData = (overrides = []) => ({
@@ -55,6 +57,62 @@ const makeStudyState = (sectionOverrides = {}) => ({
 });
 
 describe('normalizeGuideStudyState', () => {
+    it('normalizes v3 topic/subtopic guides into flat checkpoint sections', () => {
+        const guideData = normalizeGuideData({
+            overview: 'Core biology review.',
+            topics: [
+                {
+                    id: 'topic-cells',
+                    title: 'Cells',
+                    subtopics: [
+                        {
+                            id: 'subtopic-membrane',
+                            title: 'Cell Membrane',
+                            summary: 'The membrane controls what enters and exits the cell.',
+                            recall_prompt: 'Explain the role of the cell membrane.',
+                            answer_points: ['It regulates transport.', 'It helps maintain homeostasis.'],
+                            key_terms: [
+                                { term: 'selective permeability', definition: 'Allows some substances through more easily than others.' },
+                            ],
+                            checks: [{ prompt: 'What property controls transport?', answer: 'Selective permeability' }],
+                            flashcards: [{ front: 'Cell membrane role', back: 'Regulates transport and homeostasis' }],
+                            common_traps: ['Do not confuse the membrane with the cell wall.'],
+                            visual: { type: 'compare', title: 'Membrane vs wall', items: ['membrane', 'wall'] },
+                            ai_helpers: {
+                                simpler: 'Think of it like a smart gate.',
+                                example: 'It lets oxygen pass into the cell.',
+                                mnemonic: 'Membrane means manage movement.',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(guideData.version).toBe(3);
+        expect(guideData.topics).toHaveLength(1);
+        expect(guideData.sections).toHaveLength(1);
+        expect(guideData.sections[0]).toEqual(expect.objectContaining({
+            id: 'subtopic-membrane',
+            topic_id: 'topic-cells',
+            topic_title: 'Cells',
+            title: 'Cell Membrane',
+            summary: 'The membrane controls what enters and exits the cell.',
+            recall_prompt: 'Explain the role of the cell membrane.',
+            answer_points: ['It regulates transport.', 'It helps maintain homeostasis.'],
+            key_terms: [
+                { term: 'selective permeability', definition: 'Allows some substances through more easily than others.' },
+            ],
+            mini_quiz: [{ prompt: 'What property controls transport?', answer: 'Selective permeability' }],
+            flashcards: [{ front: 'Cell membrane role', back: 'Regulates transport and homeostasis' }],
+            ai_helpers: expect.objectContaining({
+                simpler: 'Think of it like a smart gate.',
+                example: 'It lets oxygen pass into the cell.',
+                mnemonic: 'Membrane means manage movement.',
+            }),
+        }));
+    });
+
     it('includes last_reviewed_at: null in default section state', () => {
         const state = normalizeGuideStudyState(makeGuideData(), {});
         expect(state.section_states['sec-1'].last_reviewed_at).toBe(null);
@@ -215,5 +273,80 @@ describe('getSessionDelta', () => {
         const delta = getSessionDelta(guideData, state, state);
         expect(delta.masteryDeltaPercent).toBe(0);
         expect(delta.sectionsReviewed).toBe(0);
+    });
+});
+
+describe('getGuideMasterySnapshot', () => {
+    it('scores weak exam-linked topics ahead of generic incomplete coverage', () => {
+        const guideData = normalizeGuideData({
+            overview: 'History review.',
+            topics: [
+                {
+                    id: 'topic-war',
+                    title: 'World War I',
+                    subtopics: [
+                        {
+                            id: 'alliances',
+                            title: 'Alliance System',
+                            summary: 'The alliance system made escalation more likely.',
+                            recall_prompt: 'Explain how alliances escalated the war.',
+                            answer_points: ['They pulled more nations into the conflict.'],
+                            key_terms: [],
+                            checks: [],
+                            flashcards: [],
+                            common_traps: [],
+                        },
+                        {
+                            id: 'treaty',
+                            title: 'Treaty of Versailles',
+                            summary: 'The treaty reshaped Europe after the war.',
+                            recall_prompt: 'What changed after the treaty?',
+                            answer_points: ['It imposed reparations on Germany.'],
+                            key_terms: [],
+                            checks: [],
+                            flashcards: [],
+                            common_traps: [],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        const snapshot = getGuideMasterySnapshot(
+            guideData,
+            {
+                current_section_id: 'alliances',
+                section_states: {
+                    alliances: {
+                        revealed: true,
+                        confidence: 'need_work',
+                        completed: true,
+                        note: '',
+                        last_reviewed_at: '2026-04-01T10:00:00.000Z',
+                        quiz_correct: 0,
+                        quiz_total: 2,
+                    },
+                    treaty: {
+                        revealed: false,
+                        confidence: null,
+                        completed: false,
+                        note: '',
+                        last_reviewed_at: null,
+                        quiz_correct: 0,
+                        quiz_total: 0,
+                    },
+                },
+                last_reviewed_at: '2026-04-01T10:00:00.000Z',
+            },
+            {
+                linkedExamAt: '2026-04-05T12:00:00.000Z',
+                now: '2026-04-04T12:00:00.000Z',
+            },
+        );
+
+        expect(snapshot.masteryBands.support.map((item) => item.id)).toContain('alliances');
+        expect(snapshot.recommendedSections[0].id).toBe('alliances');
+        expect(snapshot.recommendedSections[0].priorityReason).toContain('exam');
+        expect(snapshot.weakCount).toBeGreaterThan(0);
     });
 });

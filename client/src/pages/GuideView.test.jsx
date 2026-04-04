@@ -26,6 +26,8 @@ vi.mock('../api', () => ({
     generateAiDeckStream: vi.fn(),
     generateAiExamStream: vi.fn(),
     generateAiGuideStream: vi.fn(),
+    completeStudyCoachSession: vi.fn(),
+    assistStudyCoach: vi.fn(),
     getFriends: vi.fn(),
     sendMessage: vi.fn(),
   },
@@ -61,7 +63,7 @@ vi.mock('../components/ui/PricingModal', () => ({
 }));
 
 vi.mock('../components/StudySection.jsx', () => ({
-  default: ({ section, sectionState, onReveal, onConfidenceSelect, onComplete }) => (
+  default: ({ section, sectionState, onReveal, onConfidenceSelect, onComplete, onAsk }) => (
     <div data-testid="study-section">
       <p data-testid="study-section-title">{section.title}</p>
       <p data-testid="study-section-prompt">{section.recall_prompt}</p>
@@ -75,7 +77,8 @@ vi.mock('../components/StudySection.jsx', () => ({
           <button type="button" onClick={() => onConfidenceSelect('struggled')}>Struggled</button>
         </div>
       )}
-      <button type="button" onClick={onComplete}>Complete section</button>
+      {onAsk ? <button type="button" onClick={onAsk}>Ask coach</button> : null}
+      <button type="button" onClick={() => onComplete?.({ quizCorrect: 1, quizTotal: 1 })}>Complete section</button>
     </div>
   ),
 }));
@@ -234,6 +237,16 @@ describe('GuideView', () => {
         study_state: updates.study_state ?? base.study_state,
         content: updates.content ?? base.content,
       };
+    });
+    api.completeStudyCoachSession.mockResolvedValue({
+      xpEarned: 120,
+      masteryDelta: 18,
+      weakTopicsRemaining: [{ id: 'treaty', title: 'Treaty of Versailles' }],
+      nextReviewAt: '2026-03-23T10:00:00.000Z',
+    });
+    api.assistStudyCoach.mockResolvedValue({
+      answer: 'Think of alliances like dominoes: one declaration pulled in the next country.',
+      fallbackUsed: false,
     });
   });
 
@@ -449,6 +462,66 @@ describe('GuideView', () => {
     fireEvent.click(screen.getByRole('button', { name: /more coach actions/i }));
     const moreSheet = await screen.findByTestId('mobile-more-sheet');
     expect(moreSheet).toBeInTheDocument();
+  });
+
+  it('opens the Ask sheet and requests contextual help for the active section', async () => {
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
+
+    const studyingScreen = await screen.findByTestId('session-studying');
+    fireEvent.click(within(studyingScreen).getByRole('button', { name: /ask coach/i }));
+
+    const askSheet = await screen.findByTestId('study-ask-sheet');
+    fireEvent.change(within(askSheet).getByLabelText(/ask a follow-up/i), {
+      target: { value: 'Why did alliances matter so much?' },
+    });
+    fireEvent.click(within(askSheet).getByRole('button', { name: /send question/i }));
+
+    await waitFor(() => {
+      expect(api.assistStudyCoach).toHaveBeenCalledWith(expect.objectContaining({
+        guideId: 'guide-7',
+        sectionId: 'alliances',
+        question: 'Why did alliances matter so much?',
+      }));
+    });
+
+    expect(await within(askSheet).findByText(/dominoes/i)).toBeInTheDocument();
+  });
+
+  it('posts adaptive session completion and shows the returned XP summary', async () => {
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
+
+    const studyingScreen = await screen.findByTestId('session-studying');
+    fireEvent.click(within(studyingScreen).getByRole('button', { name: /complete section/i }));
+    fireEvent.click(await within(await screen.findByTestId('session-studying')).findByRole('button', { name: /complete section/i }));
+
+    const postSession = await screen.findByTestId('post-session');
+    await waitFor(() => {
+      expect(api.completeStudyCoachSession).toHaveBeenCalledWith(expect.objectContaining({
+        guideId: 'guide-7',
+      }));
+    });
+
+    expect(within(postSession).getByText(/120 xp/i)).toBeInTheDocument();
+    expect(within(postSession).getByText(/\+18%/i)).toBeInTheDocument();
+    expect(within(postSession).getByText(/treaty of versailles/i)).toBeInTheDocument();
   });
 
   it('enters studying mode for a quiz-only section on mobile', async () => {

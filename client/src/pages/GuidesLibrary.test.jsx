@@ -138,6 +138,68 @@ describe('GuidesLibrary', () => {
     expect(screen.getByText(/next checkpoint: chemical bonding/i)).toBeInTheDocument();
   });
 
+  it('shows adaptive mastery and review timing metadata for v3 coach guides', async () => {
+    api.getStudyGuides.mockResolvedValue([
+      {
+        id: 'guide-v3',
+        title: 'Adaptive Biology Coach',
+        class_id: null,
+        updated_at: '2026-04-03T10:00:00.000Z',
+        format_version: 3,
+        guide_data: {
+          overview: 'Adaptive review.',
+          topics: [
+            {
+              id: 'cells',
+              title: 'Cells',
+              subtopics: [
+                {
+                  id: 'membrane',
+                  title: 'Cell Membrane',
+                  summary: 'Transport and homeostasis.',
+                  recall_prompt: 'Explain the cell membrane.',
+                  answer_points: ['It regulates transport.'],
+                  key_terms: [{ term: 'osmosis', definition: 'Water diffusion.' }],
+                  checks: [{ prompt: 'What moves through osmosis?', answer: 'Water' }],
+                  flashcards: [{ front: 'Osmosis', back: 'Water diffusion' }],
+                  common_traps: ['Do not confuse it with active transport.'],
+                  ai_helpers: { simpler: 'Smart gate.' },
+                },
+              ],
+            },
+          ],
+        },
+        study_state: {
+          current_section_id: 'membrane',
+          section_states: {
+            membrane: {
+              revealed: true,
+              confidence: 'need_work',
+              completed: true,
+              note: '',
+              last_reviewed_at: '2026-04-01T10:00:00.000Z',
+              quiz_correct: 0,
+              quiz_total: 1,
+            },
+          },
+          last_reviewed_at: '2026-04-01T10:00:00.000Z',
+        },
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Adaptive Biology Coach')).toBeInTheDocument();
+    expect(screen.getByText(/coach workbook/i)).toBeInTheDocument();
+    expect(screen.getByText(/weak topics/i)).toBeInTheDocument();
+    expect(screen.getByText(/mastery/i)).toBeInTheDocument();
+    expect(screen.getByText(/review due/i)).toBeInTheDocument();
+  });
+
   it('keeps legacy guides distinguishable in the library', async () => {
     api.getStudyGuides.mockResolvedValue([
       {

@@ -10,6 +10,7 @@ vi.mock('../api', () => ({
     getClasses: vi.fn(),
     getNotes: vi.fn(),
     getStudyGuides: vi.fn(),
+    getStudyCoach: vi.fn(),
     getMockExams: vi.fn(),
     getWeeklySummary: vi.fn(),
   },
@@ -122,6 +123,13 @@ describe('DashboardHome analytics repositioning', () => {
     api.getClasses.mockResolvedValue([]);
     api.getNotes.mockResolvedValue([]);
     api.getStudyGuides.mockResolvedValue([]);
+    api.getStudyCoach.mockResolvedValue({
+      recommendation: null,
+      weakTopics: [],
+      upcomingExam: null,
+      stats: { xpTotal: 0, level: 1 },
+      suggestedGuide: null,
+    });
     api.getMockExams.mockResolvedValue([]);
     api.getWeeklySummary.mockResolvedValue(weeklySummary);
   });
@@ -189,6 +197,40 @@ describe('DashboardHome analytics repositioning', () => {
     expect(within(screen.getByTestId('weekly-summary')).getByText('47')).toBeInTheDocument();
     expect(within(screen.getByTestId('weekly-summary')).getByText('Cards')).toBeInTheDocument();
     expect(api.getWeeklySummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the study coach module with cram urgency, xp, and one-tap guide suggestions', async () => {
+    api.getStudyCoach.mockResolvedValue({
+      recommendation: {
+        label: 'Review Weak Topics',
+        detail: '3 weak topics · ~12 min',
+        guideTitle: 'Biology Recall Workbook',
+      },
+      weakTopics: [
+        { id: 'osmosis', title: 'Osmosis' },
+        { id: 'diffusion', title: 'Diffusion' },
+        { id: 'transport', title: 'Active Transport' },
+      ],
+      upcomingExam: {
+        title: 'Biology Midterm',
+        dueAt: '2026-03-23T14:00:00.000Z',
+        countdownLabel: 'in 2 days',
+      },
+      stats: { xpTotal: 240, level: 4 },
+      suggestedGuide: {
+        className: 'Biology',
+        label: 'Generate study coach',
+      },
+    });
+
+    await renderDashboard();
+
+    const coachCard = screen.getByTestId('study-coach-card');
+    expect(within(coachCard).getByText(/study coach/i)).toBeInTheDocument();
+    expect(within(coachCard).getByText('Biology Midterm')).toBeInTheDocument();
+    expect(within(coachCard).getByText('Review Weak Topics')).toBeInTheDocument();
+    expect(within(coachCard).getByText(/240 xp/i)).toBeInTheDocument();
+    expect(within(coachCard).getByText(/generate study coach/i)).toBeInTheDocument();
   });
 
   it('expands the strict priority list inline and orders urgency correctly', async () => {
