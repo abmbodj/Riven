@@ -142,6 +142,8 @@ export default function Layout({ children }) {
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     const isLandingPage = location.pathname === '/';
     const isSettingsPage = location.pathname === '/settings';
+    const isGuidePage = /^\/guide\/[^/]+$/.test(location.pathname);
+    const isWideDesktopPage = isSettingsPage || isGuidePage;
     const pageOwnsTopSafeArea = isOnboardingPage || isLandingPage || isMessagesChat;
     const hideBottomNav = isStudyOrTest || isCreatePage || isEditProfilePage || isMessagesChat || isLegalPage || isOnboardingPage || hideNavFromContext || (!isLoggedIn && (isAccountPage || isLandingPage));
 
@@ -384,7 +386,7 @@ export default function Layout({ children }) {
                         }`}
                     >
                         {/* Center content on desktop with max-width (skip for fullscreen pages) */}
-                        <div className={isFullscreenPage ? '' : `lg:mx-auto ${isSettingsPage ? 'lg:max-w-none' : 'lg:max-w-5xl'}`}>
+                        <div className={isFullscreenPage ? '' : `lg:mx-auto ${isWideDesktopPage ? 'lg:max-w-none' : 'lg:max-w-5xl'}`}>
                             <div
                                 ref={pageContentRef}
                                 key={location.pathname}

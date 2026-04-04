@@ -100,7 +100,7 @@ function StudySectionBody({
     };
 
     const renderRecall = () => (
-        <div data-testid="study-section-recall" className="flex flex-col gap-5">
+        <div data-testid="study-section-recall" className="flex flex-col gap-4">
             <div className="guide-tone-neutral rounded-[1.6rem] p-4 sm:p-5">
                 <div className="flex items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-claude-accent">
@@ -110,10 +110,10 @@ function StudySectionBody({
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">
                             Recall First
                         </p>
-                        <h2 className="mt-2 font-display text-[1.7rem] font-bold italic leading-[1.02] text-claude-text">
+                        <h2 className="mt-2 font-display text-[1.6rem] font-bold italic leading-[1.02] text-claude-text xl:text-[1.7rem]">
                             {section.title}
                         </h2>
-                        <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                        <p className="mt-3 max-w-[38rem] text-[0.95rem] leading-[1.6] text-claude-secondary">
                             {section.recall_prompt}
                         </p>
                     </div>
@@ -127,15 +127,15 @@ function StudySectionBody({
                 <textarea
                     value={draftAnswer}
                     onChange={(event) => setDraftAnswer(event.target.value)}
-                    className="mt-3 min-h-[144px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
-                    rows={5}
+                    className="mt-3 min-h-[128px] w-full resize-none rounded-[1.3rem] border border-white/10 bg-black/10 px-4 py-4 text-[0.95rem] leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                    rows={4}
                     placeholder="Type what you remember. This stays on-device for your current session."
                     aria-label="Draft answer"
                 />
             </label>
 
             <div className="guide-tone-warning rounded-[1.5rem] p-4">
-                <p className="text-sm leading-6 text-claude-text">
+                <p className="text-[0.95rem] leading-[1.6] text-claude-text">
                     Can&apos;t recall everything? That&apos;s okay. Try your best, then reveal the answer and compare.
                 </p>
             </div>
@@ -152,14 +152,14 @@ function StudySectionBody({
     );
 
     const renderAnswer = () => (
-        <div data-testid="study-section-answer" className="flex flex-col gap-5">
+        <div data-testid="study-section-answer" className="flex flex-col gap-4">
             <div className="guide-tone-success rounded-[1.6rem] p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-claude-accent">
                             Reveal + Compare
                         </p>
-                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                        <p className="mt-2 text-[0.95rem] leading-[1.6] text-claude-secondary">
                             Scan the answer points, then rate how solid the recall felt.
                         </p>
                     </div>
@@ -175,11 +175,11 @@ function StudySectionBody({
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
                     Answer points
                 </p>
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-3 space-y-2.5">
                     {(section.answer_points ?? []).map((point, index) => (
                         <li key={`${section.id}-answer-${index}`} className="flex items-start gap-3">
                             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-claude-accent" aria-hidden="true" />
-                            <span className="text-sm leading-6 text-claude-text">{point}</span>
+                            <span className="max-w-[40rem] text-[0.95rem] leading-[1.6] text-claude-text">{point}</span>
                         </li>
                     ))}
                 </ul>
@@ -193,7 +193,7 @@ function StudySectionBody({
                             <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
                                 Common trap
                             </p>
-                            <div className="mt-3 space-y-2 text-sm leading-6 text-claude-text">
+                            <div className="mt-3 space-y-1.5 text-[0.95rem] leading-[1.6] text-claude-text">
                                 {(section.common_traps ?? []).map((trap, index) => (
                                     <p key={`${section.id}-trap-${index}`}>{trap}</p>
                                 ))}
@@ -209,7 +209,7 @@ function StudySectionBody({
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
                             Rate your recall
                         </p>
-                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                        <p className="mt-2 text-[0.95rem] leading-[1.6] text-claude-secondary">
                             Be honest. This is what powers weak-section review.
                         </p>
                     </div>
@@ -253,12 +253,12 @@ function StudySectionBody({
     );
 
     const renderQuiz = () => (
-        <div data-testid="study-section-quiz" className="flex flex-col gap-5">
+        <div data-testid="study-section-quiz" className="flex flex-col gap-4">
             <div className="guide-tone-warning rounded-[1.6rem] p-4 sm:p-5">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
                     Checkpoint Quiz
                 </p>
-                <p className="mt-3 text-sm leading-6 text-claude-secondary">
+                <p className="mt-3 text-[0.95rem] leading-[1.6] text-claude-secondary">
                     One more fast recall check before moving on.
                 </p>
             </div>
@@ -267,7 +267,7 @@ function StudySectionBody({
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
                     Prompt
                 </p>
-                <p className="mt-3 text-lg leading-8 text-claude-text">
+                <p className="mt-3 max-w-[40rem] text-[1.02rem] leading-7 text-claude-text">
                     {quizItem.prompt}
                 </p>
             </div>
@@ -287,7 +287,7 @@ function StudySectionBody({
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
                             Answer
                         </p>
-                        <p className="mt-3 text-base leading-7 text-claude-text">{quizItem.answer}</p>
+                        <p className="mt-3 text-[0.98rem] leading-[1.65] text-claude-text">{quizItem.answer}</p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <button
@@ -315,7 +315,7 @@ function StudySectionBody({
     );
 
     return (
-        <div data-testid="study-section" className="flex flex-col gap-5">
+        <div data-testid="study-section" className="flex flex-col gap-4">
             <div className="guide-shell rounded-[1.75rem] p-4 sm:p-5">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">

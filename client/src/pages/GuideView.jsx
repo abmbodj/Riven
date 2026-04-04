@@ -59,6 +59,17 @@ const formatLastReviewed = (value) => {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
+const getGuideSynopsis = (overview) => {
+    if (!overview?.trim()) return null;
+
+    const compactOverview = overview.trim().replace(/\s+/g, ' ');
+    const firstSentence = compactOverview.match(/.*?[.!?](?=\s|$)/)?.[0]?.trim();
+
+    if (firstSentence && firstSentence.length >= 56) return firstSentence;
+    if (compactOverview.length <= 180) return compactOverview;
+    return `${compactOverview.slice(0, 177).trimEnd()}...`;
+};
+
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)';
 
 const getMatches = (query) => {
@@ -241,6 +252,7 @@ export default function GuideView() {
     const [showMobileSections, setShowMobileSections] = useState(false);
     const [showMobileMoreDetails, setShowMobileMoreDetails] = useState(false);
     const [showMobileNoteEditor, setShowMobileNoteEditor] = useState(false);
+    const [showDesktopNoteEditor, setShowDesktopNoteEditor] = useState(false);
 
     const [editingSectionId, setEditingSectionId] = useState(null);
 
@@ -401,13 +413,19 @@ export default function GuideView() {
     const displaySectionMeta = displaySectionState
         ? getGuideStatusMeta(displaySectionState)
         : GUIDE_STATUS_META.unstudied;
+    const railOverview = useMemo(() => {
+        const overview = normalizedGuideData?.overview;
+        if (!overview) return null;
+        return sessionMode === 'entry' ? overview.trim() : getGuideSynopsis(overview);
+    }, [normalizedGuideData, sessionMode]);
     const hasDisplayDetails = Boolean(
         displaySection?.key_terms?.length
         || displaySection?.common_traps?.length
     );
-    const noteDisclosureSummary = displaySectionState?.note?.trim()
-        ? 'Your note is saved here.'
-        : 'Add a quick memory hook or reminder.';
+    const hasDisplayNote = Boolean(displaySectionState?.note?.trim());
+    const noteDisclosureSummary = hasDisplayNote
+        ? 'Saved to this checkpoint for the next pass.'
+        : 'Keep one short memory hook here when you need it.';
     const railSections = useMemo(() => {
         if (sessionMode === 'studying' && sessionSections.length > 0) {
             return sessionSections.map((sessionSection, index) => {
@@ -443,13 +461,17 @@ export default function GuideView() {
             setShowMobileSections(false);
             setShowMobileMoreDetails(false);
             setShowMobileNoteEditor(false);
+            return;
         }
+
+        setShowDesktopNoteEditor(false);
     }, [isMobileLayout]);
 
     useEffect(() => {
         setShowMobileSections(false);
         setShowMobileMoreDetails(false);
         setShowMobileNoteEditor(false);
+        setShowDesktopNoteEditor(false);
     }, [displaySection?.id]);
 
     const saveGuide = useCallback(async () => {
@@ -1053,7 +1075,7 @@ export default function GuideView() {
             <div data-testid="session-studying" className="flex flex-col gap-5">
                 <div
                     data-testid={isMobileLayout ? 'mobile-focus-shell' : 'desktop-focus-shell'}
-                    className="guide-stage rounded-[2rem] p-5 sm:p-6"
+                    className="guide-stage rounded-[2rem] p-4 sm:p-5 xl:p-6"
                 >
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                         <button
@@ -1094,7 +1116,7 @@ export default function GuideView() {
 
     const renderDashboard = () => (
         <div data-testid="session-dashboard" className="flex flex-col gap-5">
-            <div className="guide-stage rounded-[2rem] p-5 sm:p-6">
+            <div className="guide-stage rounded-[2rem] p-4 sm:p-5 xl:p-6">
                 <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
@@ -1124,7 +1146,7 @@ export default function GuideView() {
 
     const renderQuiz = () => (
         <div data-testid="session-quiz" className="flex flex-col gap-5">
-            <div className="guide-stage rounded-[2rem] p-5 sm:p-6">
+            <div className="guide-stage rounded-[2rem] p-4 sm:p-5 xl:p-6">
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
@@ -1150,144 +1172,163 @@ export default function GuideView() {
     const renderDesktopRail = () => (
         <aside
             data-testid="desktop-guide-rail"
-            className="guide-rail h-fit rounded-[2rem] p-5 sm:p-6 lg:sticky lg:top-[calc(var(--safe-area-top)+1.25rem)]"
+            className="guide-rail rounded-[2rem] p-4 sm:p-5 lg:sticky lg:top-[calc(var(--safe-area-top)+0.9rem)] lg:row-span-2 lg:max-h-[calc(100dvh-var(--safe-area-top)-2rem)] lg:overflow-hidden 2xl:row-span-1"
         >
-            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
-                Workbook
-            </p>
-            <h1 className="mt-3 font-display text-[2rem] font-bold italic leading-[0.95] text-claude-text">
-                {title}
-            </h1>
-            {normalizedGuideData?.overview ? (
-                <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                    {normalizedGuideData.overview}
-                </p>
-            ) : null}
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <SessionMetric label="Complete" value={`${progress.completionPercent}%`} accent />
-                <SessionMetric label="Weak Spots" value={weakSections.length} />
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={() => setSessionMode('entry')}
-                    className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'entry' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
-                >
-                    Overview
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setSessionMode('dashboard')}
-                    className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'dashboard' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
-                >
-                    Progress
-                </button>
-                {allQuizQuestions.length > 0 ? (
-                    <button
-                        type="button"
-                        onClick={startQuizMode}
-                        className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'quiz' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
-                    >
-                        Quiz
-                    </button>
-                ) : null}
-            </div>
-
-            <div className="mt-5 grid gap-3">
-                <button
-                    type="button"
-                    onClick={startFullSession}
-                    className="guide-cta guide-cta--primary guide-focus-ring w-full"
-                >
-                    <Play className="h-4 w-4" />
-                    <span>{sessionLabel}</span>
-                </button>
-                <button
-                    type="button"
-                    onClick={startWeakSession}
-                    className="guide-cta guide-cta--secondary guide-focus-ring w-full"
-                >
-                    <Sparkles className="h-4 w-4" />
-                    <span>Review Weak Sections</span>
-                </button>
-            </div>
-
-            <div className="mt-6">
-                <div className="flex items-center justify-between gap-3">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                        Checkpoints
+            <div className="flex h-full flex-col gap-4">
+                <div className="shrink-0">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
+                        Workbook
                     </p>
-                    <span className="guide-status-pill guide-status-pill--neutral">
-                        {railSections.length}
-                    </span>
+                    <h1 className="mt-3 font-display text-[1.85rem] font-bold italic leading-[0.96] text-claude-text xl:text-[2.05rem]">
+                        {title}
+                    </h1>
+                    {railOverview ? (
+                        <div className="mt-4">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                {sessionMode === 'entry' ? 'Workbook overview' : 'Session synopsis'}
+                            </p>
+                            <p
+                                data-testid="desktop-rail-overview"
+                                className={`mt-2 max-w-[28rem] text-[0.94rem] leading-[1.6] text-claude-secondary ${sessionMode === 'entry' ? '' : 'guide-clamp-4'}`}
+                            >
+                                {railOverview}
+                            </p>
+                        </div>
+                    ) : null}
                 </div>
-                <div className="mt-4 space-y-2.5">
-                    {railSections.map((item) => (
+
+                <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    <SessionMetric label="Complete" value={`${progress.completionPercent}%`} accent />
+                    <SessionMetric label="Weak Spots" value={weakSections.length} />
+                </div>
+
+                <div className="shrink-0 space-y-3">
+                    <div className="flex flex-wrap gap-2">
                         <button
-                            key={item.section.id}
                             type="button"
-                            onClick={() => (
-                                sessionMode === 'studying'
-                                    ? handleSessionIndexChange(item.index)
-                                    : handleSelectSection(item.section.id)
-                            )}
-                            className={`w-full rounded-[1.35rem] p-4 text-left transition-all duration-200 ${
-                                railActiveId === item.section.id
-                                    ? `${item.panel} shadow-[0_20px_50px_-34px_rgba(0,0,0,0.82)]`
-                                    : 'guide-tone-neutral hover:border-claude-accent/20'
-                            }`}
+                            onClick={() => setSessionMode('entry')}
+                            className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'entry' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
-                                        Section {item.index + 1}
-                                    </p>
-                                    <p className="mt-2 text-sm font-medium leading-snug text-claude-text">
-                                        {item.section.title}
-                                    </p>
-                                </div>
-                                <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
-                            </div>
+                            Overview
                         </button>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => setSessionMode('dashboard')}
+                            className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'dashboard' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
+                        >
+                            Progress
+                        </button>
+                        {allQuizQuestions.length > 0 ? (
+                            <button
+                                type="button"
+                                onClick={startQuizMode}
+                                className={`guide-chip guide-focus-ring min-h-[44px] rounded-[1.15rem] px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.16em] transition-all ${sessionMode === 'quiz' ? 'border-claude-accent/40 text-claude-accent' : 'text-claude-secondary'}`}
+                            >
+                                Quiz
+                            </button>
+                        ) : null}
+                    </div>
+
+                    <div className="grid gap-3">
+                        <button
+                            type="button"
+                            onClick={startFullSession}
+                            className="guide-cta guide-cta--primary guide-focus-ring w-full"
+                        >
+                            <Play className="h-4 w-4" />
+                            <span>{sessionLabel}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={startWeakSession}
+                            className="guide-cta guide-cta--secondary guide-focus-ring w-full"
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            <span>Review Weak Sections</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="min-h-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                            Checkpoints
+                        </p>
+                        <span className="guide-status-pill guide-status-pill--neutral">
+                            {railSections.length}
+                        </span>
+                    </div>
+                    <div className="mt-3 space-y-2 overflow-y-auto pr-1">
+                        {railSections.map((item) => (
+                            <button
+                                key={item.section.id}
+                                type="button"
+                                onClick={() => (
+                                    sessionMode === 'studying'
+                                        ? handleSessionIndexChange(item.index)
+                                        : handleSelectSection(item.section.id)
+                                )}
+                                className={`w-full rounded-[1.3rem] p-3.5 text-left transition-all duration-200 ${
+                                    railActiveId === item.section.id
+                                        ? `${item.panel} shadow-[0_20px_50px_-34px_rgba(0,0,0,0.82)]`
+                                        : 'guide-tone-neutral hover:border-claude-accent/20'
+                                }`}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
+                                            Section {item.index + 1}
+                                        </p>
+                                        <p className="mt-1.5 text-[0.95rem] font-medium leading-[1.4] text-claude-text">
+                                            {item.section.title}
+                                        </p>
+                                    </div>
+                                    <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
         </aside>
     );
 
     const renderDesktopContext = () => {
+        const contextShellClassName = 'guide-rail rounded-[2rem] p-4 sm:p-5 lg:col-start-2 lg:row-start-2 2xl:col-start-3 2xl:row-start-1 2xl:sticky 2xl:top-[calc(var(--safe-area-top)+0.9rem)] 2xl:max-h-[calc(100dvh-var(--safe-area-top)-2rem)] 2xl:overflow-hidden';
+        const contextBodyClassName = 'flex h-full flex-col gap-4 2xl:overflow-y-auto 2xl:pr-1';
+
         if (sessionMode === 'dashboard') {
             return (
-                <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                        Next move
-                    </p>
-                    <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
-                        Coach Notes
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                        {weakCoachMessage || 'You are in a strong spot. Use the dashboard to decide whether to tighten a section or run a quiz.'}
-                    </p>
-                    <div className="mt-5 grid gap-3">
-                        <button
-                            type="button"
-                            onClick={startWeakSession}
-                            className="guide-cta guide-cta--primary guide-focus-ring w-full"
-                        >
-                            <Sparkles className="h-4 w-4" />
-                            <span>Review Weak</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={startQuizMode}
-                            disabled={allQuizQuestions.length === 0}
-                            className="guide-cta guide-cta--secondary guide-focus-ring w-full disabled:opacity-40"
-                        >
-                            <ClipboardCheck className="h-4 w-4" />
-                            <span>Quiz Me</span>
-                        </button>
+                <aside data-testid="desktop-guide-context" className={contextShellClassName}>
+                    <div className={contextBodyClassName}>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Next move
+                        </p>
+                        <h2 className="font-display text-[1.65rem] font-bold italic leading-none text-claude-text">
+                            Coach Notes
+                        </h2>
+                        <p className="text-[0.95rem] leading-[1.6] text-claude-secondary">
+                            {weakCoachMessage || 'You are in a strong spot. Use the dashboard to decide whether to tighten a section or run a quiz.'}
+                        </p>
+                        <div className="grid gap-3">
+                            <button
+                                type="button"
+                                onClick={startWeakSession}
+                                className="guide-cta guide-cta--primary guide-focus-ring w-full"
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                <span>Review Weak</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startQuizMode}
+                                disabled={allQuizQuestions.length === 0}
+                                className="guide-cta guide-cta--secondary guide-focus-ring w-full disabled:opacity-40"
+                            >
+                                <ClipboardCheck className="h-4 w-4" />
+                                <span>Quiz Me</span>
+                            </button>
+                        </div>
                     </div>
                 </aside>
             );
@@ -1295,95 +1336,131 @@ export default function GuideView() {
 
         if (sessionMode === 'quiz') {
             return (
-                <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                        Quiz context
-                    </p>
-                    <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
-                        Speed over comfort
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                        Reveal only after you answer mentally. This mode is for pressure-testing retrieval, not rereading.
-                    </p>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <SessionMetric label="Prompts" value={allQuizQuestions.length} accent />
-                        <SessionMetric label="Weak Sections" value={weakSections.length} />
+                <aside data-testid="desktop-guide-context" className={contextShellClassName}>
+                    <div className={contextBodyClassName}>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Quiz context
+                        </p>
+                        <h2 className="font-display text-[1.65rem] font-bold italic leading-none text-claude-text">
+                            Speed over comfort
+                        </h2>
+                        <p className="text-[0.95rem] leading-[1.6] text-claude-secondary">
+                            Reveal only after you answer mentally. This mode is for pressure-testing retrieval, not rereading.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
+                            <SessionMetric label="Prompts" value={allQuizQuestions.length} accent />
+                            <SessionMetric label="Weak Sections" value={weakSections.length} />
+                        </div>
                     </div>
                 </aside>
             );
         }
 
         return (
-            <aside data-testid="desktop-guide-context" className="guide-rail rounded-[2rem] p-5 sm:p-6">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                            Context
-                        </p>
-                        <h2 className="mt-3 font-display text-[1.8rem] font-bold italic leading-none text-claude-text">
-                            {displaySection?.title || 'Session companion'}
-                        </h2>
-                    </div>
-                    {displaySection ? (
-                        <span className={`guide-status-pill ${displaySectionMeta.tone}`}>{displaySectionMeta.label}</span>
-                    ) : null}
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                    {displaySection?.recall_prompt || weakCoachMessage || sessionMessage}
-                </p>
-
-                {displaySection?.key_terms?.length ? (
-                    <div className="guide-tone-neutral mt-5 rounded-[1.5rem] p-4">
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                            Key terms
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {displaySection.key_terms.map((term) => (
-                                <span key={term} className="guide-status-pill guide-status-pill--neutral">
-                                    {term}
-                                </span>
-                            ))}
+            <aside data-testid="desktop-guide-context" className={contextShellClassName}>
+                <div className={contextBodyClassName}>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                                Context
+                            </p>
+                            <h2 className="mt-3 font-display text-[1.65rem] font-bold italic leading-[1.02] text-claude-text">
+                                {displaySection?.title || 'Session companion'}
+                            </h2>
                         </div>
-                    </div>
-                ) : null}
-
-                {displaySection?.common_traps?.length ? (
-                    <div className="guide-tone-warning mt-5 rounded-[1.5rem] p-4">
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
-                            Common traps
-                        </p>
-                        <div className="mt-3 space-y-2 text-sm leading-6 text-claude-text">
-                            {displaySection.common_traps.map((trap) => (
-                                <p key={trap}>{trap}</p>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
-
-                <div className="guide-shell mt-5 rounded-[1.5rem] p-4">
-                    <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                            Study note
-                        </p>
                         {displaySection ? (
-                            <button
-                                type="button"
-                                onClick={() => setEditingSectionId(displaySection.id)}
-                                className="guide-cta guide-cta--ghost guide-focus-ring px-3"
-                            >
-                                <Pencil className="h-4 w-4" />
-                                <span>Edit</span>
-                            </button>
+                            <span className={`guide-status-pill ${displaySectionMeta.tone}`}>{displaySectionMeta.label}</span>
                         ) : null}
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-claude-secondary">{noteDisclosureSummary}</p>
-                    <textarea
-                        value={displaySectionState?.note ?? ''}
-                        onChange={(event) => handleSectionNoteChange(displaySection?.id, event.target.value)}
-                        placeholder="Capture a memory hook, a tricky contrast, or the thing you keep missing."
-                        className="mt-4 min-h-[140px] w-full resize-none rounded-[1.2rem] border border-white/10 bg-black/10 px-4 py-4 text-sm leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
-                    />
+
+                    <p className="max-w-[30rem] text-[0.95rem] leading-[1.6] text-claude-secondary">
+                        {displaySection?.recall_prompt || weakCoachMessage || sessionMessage}
+                    </p>
+
+                    {displaySection?.key_terms?.length ? (
+                        <div className="guide-tone-neutral rounded-[1.35rem] p-3.5">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                Key terms
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {displaySection.key_terms.map((term) => (
+                                    <span key={term} className="guide-status-pill guide-status-pill--neutral">
+                                        {term}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {displaySection?.common_traps?.length ? (
+                        <div className="guide-tone-warning rounded-[1.35rem] p-3.5">
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
+                                Common traps
+                            </p>
+                            <div className="mt-3 space-y-1.5 text-[0.95rem] leading-[1.6] text-claude-text">
+                                {displaySection.common_traps.map((trap) => (
+                                    <p key={trap}>{trap}</p>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <div data-testid="desktop-note-module" className="guide-sheet rounded-[1.4rem] p-3.5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
+                                    Study note
+                                </p>
+                                <p className="mt-2 max-w-[28rem] text-sm leading-6 text-claude-secondary">
+                                    {noteDisclosureSummary}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDesktopNoteEditor((current) => !current)}
+                                    data-testid="desktop-note-toggle"
+                                    className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                >
+                                    <span>{showDesktopNoteEditor ? 'Done' : hasDisplayNote ? 'Edit note' : 'Add note'}</span>
+                                </button>
+                                {displaySection ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingSectionId(displaySection.id)}
+                                        className="guide-cta guide-cta--ghost guide-focus-ring px-3"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                        <span>Edit section</span>
+                                    </button>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        {showDesktopNoteEditor ? (
+                            <textarea
+                                data-testid="desktop-note-textarea"
+                                aria-label="Study note"
+                                value={displaySectionState?.note ?? ''}
+                                onChange={(event) => handleSectionNoteChange(displaySection?.id, event.target.value)}
+                                placeholder="Capture a contrast, mnemonic, or the one thing you keep missing."
+                                className="mt-4 min-h-[96px] w-full resize-none rounded-[1.15rem] border border-white/10 bg-black/10 px-4 py-3.5 text-[0.95rem] leading-6 text-claude-text placeholder:text-claude-secondary/65 focus:outline-none focus:ring-1 focus:ring-claude-accent"
+                            />
+                        ) : hasDisplayNote ? (
+                            <div className="guide-tone-neutral mt-4 rounded-[1.15rem] p-4">
+                                <p className="whitespace-pre-wrap text-[0.95rem] leading-6 text-claude-text">
+                                    {displaySectionState.note}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="guide-tone-neutral mt-4 rounded-[1.15rem] p-4">
+                                <p className="text-sm leading-6 text-claude-secondary">
+                                    Capture a contrast, mnemonic, or one thing you keep missing.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </aside>
         );
@@ -1669,8 +1746,8 @@ export default function GuideView() {
                     </div>
                 </div>
             ) : (
-                <div className="safe-area-top sticky top-0 z-30 px-4 py-3">
-                    <div className="guide-shell mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-[1.8rem] px-5 py-4">
+                <div className="safe-area-top sticky top-0 z-30 pb-3">
+                    <div data-testid="desktop-guide-toolbar" className="guide-shell flex w-full items-center justify-between gap-4 rounded-[1.7rem] px-4 py-3.5 sm:px-5">
                         <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
                             <span>Guides</span>
@@ -1696,7 +1773,7 @@ export default function GuideView() {
                 </div>
             )}
 
-            <div className={`mx-auto max-w-7xl px-4 ${isMobileLayout ? 'pt-4' : 'pt-6'}`}>
+            <div className={isMobileLayout ? 'px-4 pt-4' : 'pt-3'}>
                 {isMobileLayout ? (
                     <>
                         {sessionMode === 'entry' && renderSessionEntry()}
@@ -1705,17 +1782,19 @@ export default function GuideView() {
                         {sessionMode === 'dashboard' && renderDashboard()}
                     </>
                 ) : (
-                    <div data-testid="workbook-shell-grid" className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
+                    <div
+                        data-testid="workbook-shell-grid"
+                        data-desktop-layout="adaptive"
+                        className="grid gap-5 lg:grid-cols-[minmax(17rem,18.75rem)_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[minmax(17rem,18.75rem)_minmax(0,1.15fr)_minmax(18rem,20rem)] 2xl:items-start"
+                    >
                         {renderDesktopRail()}
-                        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_320px]">
-                            <div data-testid="desktop-guide-stage">
-                                {sessionMode === 'entry' && renderSessionEntry()}
-                                {sessionMode === 'studying' && renderStudying()}
-                                {sessionMode === 'quiz' && renderQuiz()}
-                                {sessionMode === 'dashboard' && renderDashboard()}
-                            </div>
-                            {renderDesktopContext()}
+                        <div data-testid="desktop-guide-stage" className="min-w-0 lg:col-start-2 lg:row-start-1">
+                            {sessionMode === 'entry' && renderSessionEntry()}
+                            {sessionMode === 'studying' && renderStudying()}
+                            {sessionMode === 'quiz' && renderQuiz()}
+                            {sessionMode === 'dashboard' && renderDashboard()}
                         </div>
+                        {renderDesktopContext()}
                     </div>
                 )}
             </div>

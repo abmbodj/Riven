@@ -93,10 +93,10 @@ describe('Layout primary navigation', () => {
     expect(await screen.findByPlaceholderText('Search current Riven...')).toBeInTheDocument();
   });
 
-  it('keeps the dashboard main content padded below the native safe area', () => {
+  it('lets the dashboard top bar own the native safe area spacing', () => {
     renderLayout('/dashboard');
 
-    expect(screen.getByRole('main')).toHaveClass('safe-area-top');
+    expect(screen.getByRole('main')).not.toHaveClass('safe-area-top');
   });
 
   it('lets landing screens own their top safe area spacing', () => {
@@ -118,8 +118,15 @@ describe('Layout primary navigation', () => {
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
   });
 
-  it('widens the desktop content shell on the settings route only', () => {
+  it('widens the desktop content shell on settings routes', () => {
     renderLayout('/settings');
+
+    expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-none');
+    expect(getMainContentWidthWrapper()).not.toHaveClass('lg:max-w-5xl');
+  });
+
+  it('widens the desktop content shell on guide routes', () => {
+    renderLayout('/guide/guide-7');
 
     expect(getMainContentWidthWrapper()).toHaveClass('lg:max-w-none');
     expect(getMainContentWidthWrapper()).not.toHaveClass('lg:max-w-5xl');

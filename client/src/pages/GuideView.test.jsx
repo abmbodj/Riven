@@ -244,14 +244,22 @@ describe('GuideView', () => {
     const entryScreen = await screen.findByTestId('session-entry');
     expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
     expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
-    expect(screen.getByTestId('workbook-shell-grid')).toBeInTheDocument();
-    expect(screen.getByTestId('desktop-guide-rail')).toBeInTheDocument();
-    expect(screen.getByTestId('desktop-guide-context')).toBeInTheDocument();
+    const workspaceGrid = screen.getByTestId('workbook-shell-grid');
+    const desktopRail = screen.getByTestId('desktop-guide-rail');
+    const desktopStage = screen.getByTestId('desktop-guide-stage');
+    const desktopContext = screen.getByTestId('desktop-guide-context');
+    expect(workspaceGrid).toBeInTheDocument();
+    expect(workspaceGrid).toHaveAttribute('data-desktop-layout', 'adaptive');
+    expect(desktopRail).toBeInTheDocument();
+    expect(desktopStage).toHaveClass('lg:col-start-2');
+    expect(desktopContext).toHaveClass('lg:row-start-2');
+    expect(desktopContext.className).toContain('2xl:col-start-3');
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
     expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
     expect(within(entryScreen).getByText(/session snapshot/i)).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
+    expect(within(desktopRail).getByRole('button', { name: /Alliance System/i })).toBeInTheDocument();
 
     // Navigate into full session (starts at first section = alliances, already revealed)
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
@@ -278,6 +286,33 @@ describe('GuideView', () => {
         }),
       }));
     });
+  });
+
+  it('uses a compact desktop studying rail and a collapsible note module', async () => {
+    api.getStudyGuide.mockResolvedValue(buildV2Guide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+
+    await screen.findByTestId('session-studying');
+
+    expect(screen.getByTestId('desktop-rail-overview')).toHaveClass('guide-clamp-4');
+
+    const noteModule = screen.getByTestId('desktop-note-module');
+    expect(within(noteModule).getByText(/keep one short memory hook here when you need it/i)).toBeInTheDocument();
+    expect(within(noteModule).queryByTestId('desktop-note-textarea')).not.toBeInTheDocument();
+
+    fireEvent.click(within(noteModule).getByTestId('desktop-note-toggle'));
+
+    expect(within(noteModule).getByTestId('desktop-note-textarea')).toBeInTheDocument();
   });
 
   it('renders the mobile workbook session entry and allows starting a quick session', async () => {
