@@ -45,7 +45,22 @@ function renderLayout(pathname = '/dashboard', { isLoggedIn = true } = {}) {
   return render(
     <MemoryRouter initialEntries={[pathname]}>
       <AuthContext.Provider value={{ isLoggedIn }}>
-        <UIContext.Provider value={{ hideBottomNav: false }}>
+        <UIContext.Provider value={{
+          hideBottomNav: false,
+          showBottomNav: vi.fn(),
+          hideNav: vi.fn(),
+          navCollapsed: false,
+          toggleNav: vi.fn(),
+          drawerOpen: false,
+          toggleDrawer: vi.fn(),
+          closeDrawer: vi.fn(),
+          notifPanelOpen: false,
+          toggleNotifPanel: vi.fn(),
+          closeNotifPanel: vi.fn(),
+          studyMode: null,
+          setStudyMode: vi.fn(),
+          clearStudyMode: vi.fn(),
+        }}>
           <Layout>
             <div>Page Body</div>
           </Layout>

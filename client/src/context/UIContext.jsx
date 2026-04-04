@@ -1,8 +1,6 @@
 import { createContext, useState, useCallback, useMemo } from 'react';
 export const UIContext = createContext(null);
 
-
-
 export function UIProvider({ children }) {
     const [hideBottomNav, setHideBottomNav] = useState(false);
     const [navCollapsed, setNavCollapsed] = useState(
@@ -10,6 +8,20 @@ export function UIProvider({ children }) {
     );
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+
+    // Study session state — set by GuideView, read by MobileBottomNav via Layout
+    const [studyMode, setStudyModeState] = useState(null);
+    // studyMode shape: {
+    //   currentIndex: number,
+    //   totalSections: number,
+    //   onSections: () => void,
+    //   onDetails: () => void,
+    //   onNote: () => void,
+    //   onPrev: () => void,
+    //   onNext: () => void,
+    //   canPrev: boolean,
+    //   canNext: boolean,
+    // } | null
 
     const showBottomNav = useCallback(() => setHideBottomNav(false), []);
     const hideNav = useCallback(() => setHideBottomNav(true), []);
@@ -27,16 +39,21 @@ export function UIProvider({ children }) {
     const toggleNotifPanel = useCallback(() => setNotifPanelOpen(p => !p), []);
     const closeNotifPanel = useCallback(() => setNotifPanelOpen(false), []);
 
+    const setStudyMode = useCallback((actions) => setStudyModeState(actions), []);
+    const clearStudyMode = useCallback(() => setStudyModeState(null), []);
+
     const value = useMemo(() => ({
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
+        studyMode, setStudyMode, clearStudyMode,
     }), [
         hideBottomNav, showBottomNav, hideNav,
         navCollapsed, toggleNav,
         drawerOpen, toggleDrawer, closeDrawer,
         notifPanelOpen, toggleNotifPanel, closeNotifPanel,
+        studyMode, setStudyMode, clearStudyMode,
     ]);
 
     return (
