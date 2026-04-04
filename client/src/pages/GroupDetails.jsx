@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Play, Folder, FileText, Upload, Zap, Activity, X, ChevronLeft, Users, Settings, Trash2, Shield, LogOut, Copy, CheckCircle2, Layers, MoreVertical, ShieldAlert } from 'lucide-react';
+import { UIContext } from '../context/UIContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '../hooks/useToast';
 import { api } from '../api';
@@ -21,6 +22,7 @@ export default function GroupDetails() {
     const haptics = useHaptics();
     const toast = useToast();
     const { user } = useAuth();
+    const { setContextToolbar, clearContextToolbar } = useContext(UIContext) || {};
     const [group, setGroup] = useState(null);
     const [members, setMembers] = useState([]);
     const [sharedDecks, setSharedDecks] = useState([]);
@@ -502,8 +504,35 @@ export default function GroupDetails() {
         }
     };
 
-    // Assuming 'user' is available from a context or prop
-    // For example: const { user } = useAuth();
+    // Push group actions into bottom nav context toolbar (mobile)
+    useEffect(() => {
+        if (!setContextToolbar) return;
+        setContextToolbar([
+            {
+                id: 'upload',
+                label: 'Upload File',
+                icon: Upload,
+                onClick: () => setShowUploadModal(true),
+                disabled: false,
+                active: false,
+                loading: false,
+            },
+            {
+                id: 'cram',
+                label: 'Start Cram',
+                icon: Zap,
+                onClick: () => setShowShareDeckModal(true),
+                disabled: false,
+                active: false,
+                loading: false,
+            },
+        ]);
+    }, [setContextToolbar]);
+
+    useEffect(() => {
+        return () => clearContextToolbar?.();
+    }, [clearContextToolbar]);
+
     if (user?.is_banned) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center sm:max-w-md sm:mx-auto">
@@ -951,16 +980,6 @@ export default function GroupDetails() {
                     </div>
                 </div>
 
-                <div className="gsap-mobile-item fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-0 right-0 p-4 bg-claude-bg/70 backdrop-blur-3xl z-30 border-t border-claude-border/50">
-                    <div className="flex gap-3">
-                        <button onClick={() => setShowUploadModal(true)} className="flex-1 py-4 rounded-2xl border border-claude-border/50 bg-claude-surface/40 backdrop-blur-xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm text-claude-text gsap-hover-card">
-                            <Upload className="w-5 h-5" /> Upload File
-                        </button>
-                        <button onClick={() => setShowShareDeckModal(true)} className="flex-1 py-4 rounded-2xl bg-claude-accent text-claude-text font-bold text-sm flex items-center justify-center gap-2 shadow-sm gsap-hover-card">
-                            <Zap className="w-5 h-5 fill-current" /> Start Cram
-                        </button>
-                    </div>
-                </div>
             </div>
 
             {/* --- MODALS --- */}
