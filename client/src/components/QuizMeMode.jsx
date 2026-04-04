@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Brain, CircleAlert, Eye, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Brain, CircleAlert, Eye, ThumbsDown, ThumbsUp } from 'lucide-react';
 
 export default function QuizMeMode({ questions, onComplete }) {
     const [index, setIndex] = useState(0);
@@ -70,7 +70,7 @@ export default function QuizMeMode({ questions, onComplete }) {
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
                         Prompt
                     </p>
-                    <p className="mt-3 text-lg leading-8 text-claude-text">
+                    <p className="mt-3 text-xl leading-9 text-claude-text">
                         {question.prompt}
                     </p>
                 </div>
@@ -123,15 +123,6 @@ export default function QuizMeMode({ questions, onComplete }) {
                 </>
             )}
 
-            <div className="guide-tone-neutral rounded-[1.5rem] p-4 text-sm leading-6 text-claude-secondary">
-                <div className="flex items-center gap-2 text-claude-accent">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em]">Quiz rhythm</span>
-                </div>
-                <p className="mt-2">
-                    One prompt at a time, no filler. This mode is built for pressure-testing recall speed before an exam.
-                </p>
-            </div>
         </div>
     );
 }

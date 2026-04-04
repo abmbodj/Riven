@@ -187,9 +187,11 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
                                             <Icon className="h-3.5 w-3.5" />
                                             {config.label}
                                         </span>
-                                        <span className="guide-status-pill guide-status-pill--neutral">
-                                            {section.mini_quiz?.length ? `${section.mini_quiz.length} quiz` : 'No quiz'}
-                                        </span>
+                                        {(section.mini_quiz?.length ?? 0) > 0 && (
+                                            <span className="guide-status-pill guide-status-pill--neutral">
+                                                {section.mini_quiz.length} quiz
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="mt-4 font-display text-[1.4rem] font-bold italic leading-none text-claude-text">
                                         {section.title}

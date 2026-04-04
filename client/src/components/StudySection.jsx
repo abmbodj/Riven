@@ -132,13 +132,10 @@ function StudySectionBody({
                     placeholder="Type what you remember. This stays on-device for your current session."
                     aria-label="Draft answer"
                 />
-            </label>
-
-            <div className="guide-tone-warning rounded-[1.5rem] p-4">
-                <p className="text-[0.95rem] leading-[1.6] text-claude-text">
-                    Can&apos;t recall everything? That&apos;s okay. Try your best, then reveal the answer and compare.
+                <p className="mt-2 text-xs leading-5 text-claude-secondary/70">
+                    Try your best — revealing never hurts. It powers weak-section review.
                 </p>
-            </div>
+            </label>
 
             <button
                 type="button"
@@ -225,7 +222,7 @@ function StudySectionBody({
                                 type="button"
                                 data-testid={`confidence-${value}`}
                                 onClick={() => handleConfidence(value)}
-                                className={`guide-focus-ring rounded-[1.3rem] border p-4 text-left transition-all duration-200 active:scale-[0.98] ${
+                                className={`guide-focus-ring cursor-pointer rounded-[1.3rem] border p-4 text-left transition-all duration-200 active:scale-[0.98] ${
                                     isActive
                                         ? `${config.button} shadow-[0_18px_44px_-28px_rgba(0,0,0,0.7)]`
                                         : 'guide-tone-neutral hover:border-claude-accent/30 hover:text-claude-text'
@@ -342,7 +339,7 @@ function StudySectionBody({
                         ) : null}
                     </div>
 
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
                         <div
                             className="h-full rounded-full bg-claude-accent transition-all duration-300"
                             style={{ width: `${((sectionIndex + 1) / Math.max(sectionCount, 1)) * 100}%` }}
