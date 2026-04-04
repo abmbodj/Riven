@@ -602,7 +602,9 @@ export default function Garden({
             );
         }
 
-        q('.garden-sway').forEach((element) => {
+        const swayEls = q('.garden-sway');
+        const swayTargets = lightVisualBudget ? swayEls.filter((_, i) => i % 2 === 0) : swayEls;
+        swayTargets.forEach((element) => {
             gsap.to(element, {
                 rotate: Number(element.dataset.rotate ?? 0.6),
                 duration: Number(element.dataset.duration ?? 10),
@@ -613,7 +615,9 @@ export default function Garden({
             });
         });
 
-        q('.garden-drift').forEach((element, index) => {
+        const driftEls = q('.garden-drift');
+        const driftTargets = lightVisualBudget ? driftEls.filter((_, i) => i % 2 === 0) : driftEls;
+        driftTargets.forEach((element, index) => {
             gsap.to(element, {
                 x: Number(element.dataset.x ?? 0),
                 y: Number(element.dataset.y ?? -4),
@@ -739,7 +743,7 @@ export default function Garden({
     return (
         <div
             ref={container}
-            style={{ filter: statusFilter, transition: 'filter 0.9s ease, opacity 0.9s ease' }}
+            style={{ filter: statusFilter, transition: 'filter 0.9s ease, opacity 0.9s ease', contain: 'layout style paint' }}
             className="flex flex-col items-center"
         >
             <svg
@@ -804,10 +808,10 @@ export default function Garden({
                         <stop offset="100%" stopColor={palette.light} stopOpacity="0" />
                     </radialGradient>
                     <filter id={ids.blur}>
-                        <feGaussianBlur stdDeviation="12" />
+                        <feGaussianBlur stdDeviation={lightVisualBudget ? '4' : '12'} />
                     </filter>
                     <filter id={ids.glow} x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="4.5" result="blurred" />
+                        <feGaussianBlur stdDeviation={lightVisualBudget ? '2' : '4.5'} result="blurred" />
                         <feMerge>
                             <feMergeNode in="blurred" />
                             <feMergeNode in="SourceGraphic" />

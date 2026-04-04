@@ -1920,3 +1920,19 @@ body.rc-billing-active .fixed.inset-0.z-\[999\] {
   pointer-events: none;
   will-change: transform, opacity;
 }
+
+/* GPU-composited animation layers for garden / SVG scenes */
+.garden-sway,
+.garden-drift,
+.garden-breath,
+.garden-twinkle,
+.garden-ripple,
+.garden-orbit {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* Isolate heavy SVG scenes from main layout recalc */
+svg[role="img"] {
+  contain: layout style paint;
+}

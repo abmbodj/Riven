@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import gsap from 'gsap';
+import { useMobileVisualBudget } from '../hooks/useMobileVisualBudget';
 
 const FLOATING_MOTES = Array.from({ length: 7 }, (_, index) => {
     const step = index + 1;
@@ -17,15 +18,18 @@ const FLOATING_MOTES = Array.from({ length: 7 }, (_, index) => {
 });
 
 export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
-    const leafColor = 'var(--botanical-forest)'; // #7a9e72 
+    const leafColor = 'var(--botanical-forest)'; // #7a9e72
     const accentColor = 'var(--accent-color)';    // #deb96a
     const glowRef = useRef(null);
     const bloomRef = useRef(null);
+    const lightBudget = useMobileVisualBudget();
+
+    const activeMotes = lightBudget ? FLOATING_MOTES.slice(0, 3) : FLOATING_MOTES;
 
     // GSAP breathing animations
     useEffect(() => {
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        if (motionQuery.matches) return;
+        if (motionQuery.matches || lightBudget) return;
 
         const ctx = gsap.context(() => {
             // Inner glow breathing
@@ -116,7 +120,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
                         cy="105"
                         r="4.5"
                         fill={accentColor}
-                        filter="url(#bloom-glow)"
+                        filter={lightBudget ? undefined : "url(#bloom-glow)"}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.6, 1, 0.6] }}
                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
@@ -230,20 +234,20 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
                             d="M 100 100 C 95 70 98 40 100 15 C 102 40 105 70 100 100"
                             fill={accentColor}
                             fillOpacity="0.7"
-                            filter="url(#bloom-glow)"
+                            filter={lightBudget ? undefined : "url(#bloom-glow)"}
                         />
                     </motion.g>
                 </motion.g>
 
                 {/* Orbiting energy motes floating upwards */}
-                {FLOATING_MOTES.map((mote) => (
+                {activeMotes.map((mote) => (
                     <motion.circle
                         key={mote.id}
                         cx="100"
                         cy="120"
                         r={mote.radius}
                         fill={accentColor}
-                        filter="url(#bloom-glow)"
+                        filter={lightBudget ? undefined : "url(#bloom-glow)"}
                         initial={{ opacity: 0, y: 0, x: 0 }}
                         animate={{
                             opacity: [0, 0.9, 0],
@@ -260,43 +264,47 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
                     />
                 ))}
 
-                {/* Ethereal Sacred Geometry Rings */}
-                <motion.circle
-                    cx="100"
-                    cy="95"
-                    r="70"
-                    fill="none"
-                    stroke={accentColor}
-                    strokeWidth="0.5"
-                    strokeOpacity="0.4"
-                    strokeDasharray="1 12"
-                    initial={{ rotateZ: -30, opacity: 0, scale: 0.9 }}
-                    animate={{ rotateZ: 330, opacity: [0, 0.6, 0.2, 0.6, 0], scale: 1 }}
-                    transition={{
-                        rotateZ: { duration: 90, repeat: Infinity, ease: "linear" },
-                        opacity: { duration: 18, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.5, 0.8, 1], delay: 1.5 },
-                        scale: { duration: 4, ease: "easeOut" }
-                    }}
-                    style={{ transformOrigin: '100px 95px' }}
-                />
-                <motion.circle
-                    cx="100"
-                    cy="95"
-                    r="55"
-                    fill="none"
-                    stroke={leafColor}
-                    strokeWidth="0.5"
-                    strokeOpacity="0.5"
-                    strokeDasharray="2 18"
-                    initial={{ rotateZ: 40, opacity: 0, scale: 0.8 }}
-                    animate={{ rotateZ: -320, opacity: [0, 0.5, 0.8, 0.5, 0], scale: 1 }}
-                    transition={{
-                        rotateZ: { duration: 60, repeat: Infinity, ease: "linear" },
-                        opacity: { duration: 12, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.5, 0.8, 1], delay: 2 },
-                        scale: { duration: 4, ease: "easeOut" }
-                    }}
-                    style={{ transformOrigin: '100px 95px' }}
-                />
+                {/* Ethereal Sacred Geometry Rings — skip on mobile */}
+                {!lightBudget && (
+                    <>
+                        <motion.circle
+                            cx="100"
+                            cy="95"
+                            r="70"
+                            fill="none"
+                            stroke={accentColor}
+                            strokeWidth="0.5"
+                            strokeOpacity="0.4"
+                            strokeDasharray="1 12"
+                            initial={{ rotateZ: -30, opacity: 0, scale: 0.9 }}
+                            animate={{ rotateZ: 330, opacity: [0, 0.6, 0.2, 0.6, 0], scale: 1 }}
+                            transition={{
+                                rotateZ: { duration: 90, repeat: Infinity, ease: "linear" },
+                                opacity: { duration: 18, repeat: Infinity, ease: "easeInOut", times: [0, 0.3, 0.5, 0.8, 1], delay: 1.5 },
+                                scale: { duration: 4, ease: "easeOut" }
+                            }}
+                            style={{ transformOrigin: '100px 95px' }}
+                        />
+                        <motion.circle
+                            cx="100"
+                            cy="95"
+                            r="55"
+                            fill="none"
+                            stroke={leafColor}
+                            strokeWidth="0.5"
+                            strokeOpacity="0.5"
+                            strokeDasharray="2 18"
+                            initial={{ rotateZ: 40, opacity: 0, scale: 0.8 }}
+                            animate={{ rotateZ: -320, opacity: [0, 0.5, 0.8, 0.5, 0], scale: 1 }}
+                            transition={{
+                                rotateZ: { duration: 60, repeat: Infinity, ease: "linear" },
+                                opacity: { duration: 12, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.5, 0.8, 1], delay: 2 },
+                                scale: { duration: 4, ease: "easeOut" }
+                            }}
+                            style={{ transformOrigin: '100px 95px' }}
+                        />
+                    </>
+                )}
             </svg>
         </div>
     );

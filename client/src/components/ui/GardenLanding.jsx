@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '../../hooks/useGSAP';
+import { useMobileVisualBudget } from '../../hooks/useMobileVisualBudget';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -24,9 +25,10 @@ const generateFireflies = () => {
 const initialFireflies = generateFireflies();
 
 export default function GardenLanding() {
+    const lightBudget = useMobileVisualBudget();
+
     const { container } = useGSAP(({ container: scope }) => {
-        // 1. Ambient Tree Swaying
-        // Target groups of trees and apply different, out-of-phase organic sways
+        // 1. Ambient Tree Swaying — always animate oaks, skip others on mobile
         gsap.to('.tree-oak', {
             rotation: 'random(-2, 2)',
             transformOrigin: 'bottom center',
@@ -37,45 +39,50 @@ export default function GardenLanding() {
             stagger: { amount: 4, from: 'random' }
         });
 
-        gsap.to('.tree-willow', {
-            rotation: 'random(-1.5, 1.5)',
-            transformOrigin: 'bottom center',
-            duration: 'random(5, 8)',
-            ease: 'sine.inOut',
-            yoyo: true,
-            repeat: -1,
-            stagger: { amount: 3, from: 'random' }
-        });
+        if (!lightBudget) {
+            gsap.to('.tree-willow', {
+                rotation: 'random(-1.5, 1.5)',
+                transformOrigin: 'bottom center',
+                duration: 'random(5, 8)',
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                stagger: { amount: 3, from: 'random' }
+            });
 
-        gsap.to('.tree-cypress', {
-            rotation: 'random(-3, 3)',
-            transformOrigin: 'bottom center',
-            duration: 'random(4, 7)',
-            ease: 'sine.inOut',
-            yoyo: true,
-            repeat: -1,
-            stagger: { amount: 2, from: 'random' }
-        });
+            gsap.to('.tree-cypress', {
+                rotation: 'random(-3, 3)',
+                transformOrigin: 'bottom center',
+                duration: 'random(4, 7)',
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                stagger: { amount: 2, from: 'random' }
+            });
+        }
 
-        // 2. Mist Parallax (Infinite translation)
-        gsap.to('.mist-layer-1', {
-            x: -1440,
-            duration: 120,
-            ease: 'none',
-            repeat: -1
-        });
+        // 2. Mist Parallax — skip on mobile
+        if (!lightBudget) {
+            gsap.to('.mist-layer-1', {
+                x: -1440,
+                duration: 120,
+                ease: 'none',
+                repeat: -1
+            });
 
-        gsap.to('.mist-layer-2', {
-            x: 1440,
-            duration: 90,
-            ease: 'none',
-            repeat: -1
-        });
+            gsap.to('.mist-layer-2', {
+                x: 1440,
+                duration: 90,
+                ease: 'none',
+                repeat: -1
+            });
+        }
 
         // 3. Firefly Animations (Particle System)
         const fireflies = gsap.utils.toArray('.fireflyGroup');
         fireflies.forEach((group, i) => {
             const firefly = initialFireflies[i];
+            if (!firefly) return;
 
             // Random floating motion
             gsap.to(group, {
@@ -100,32 +107,26 @@ export default function GardenLanding() {
         });
 
         // 4. Scroll Parallax Effect
-        // Move the distinct layers at different speeds to create depth as user scrolls down
         const scrollTl = gsap.timeline({
             scrollTrigger: {
                 trigger: scope,
                 start: 'top top',
                 end: 'bottom top',
-                scrub: 1, // Smooth scrubbing
+                scrub: 1,
             }
         });
 
-        // Sun/Sky glow subtly shifts
         scrollTl.to('.sky-gradient', { attr: { cy: "30%" }, duration: 1 }, 0);
 
-        // Back mist and hills move slowest
         scrollTl.to('.hills-back', { y: 150, duration: 1 }, 0)
             .to('.mist-group-1', { y: 100, duration: 1 }, 0);
 
-        // Mid hills move a bit faster
         scrollTl.to('.hills-mid', { y: 50, duration: 1 }, 0)
             .to('.mist-group-2', { y: 30, duration: 1 }, 0);
 
-        // Front hills move fastest, coming "up" slightly to frame the next section
-        // (No y shift so they stay anchored, or slight negative y to parallax over mid)
         scrollTl.to('.hills-front', { y: -20, duration: 1 }, 0);
 
-    }, []);
+    }, [lightBudget]);
 
     return (
         <div ref={container} className="relative w-full min-h-screen bg-[#0d141e] text-[#fcfaf2] font-serif overflow-x-hidden selection:bg-[#deb96a]/30 selection:text-[#fcfaf2]">
@@ -177,7 +178,7 @@ export default function GardenLanding() {
                             </radialGradient>
 
                             <filter id="glow">
-                                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                <feGaussianBlur stdDeviation={lightBudget ? '0' : '3'} result="coloredBlur" />
                                 <feMerge>
                                     <feMergeNode in="coloredBlur" />
                                     <feMergeNode in="SourceGraphic" />
@@ -251,8 +252,8 @@ export default function GardenLanding() {
                         {/* Sky */}
                         <rect width="100%" height="100%" fill="url(#skyGlow)" />
 
-                        {/* Drifting Fireflies */}
-                        {initialFireflies.map((firefly) => (
+                        {/* Drifting Fireflies — reduced on mobile */}
+                        {(lightBudget ? initialFireflies.slice(0, 12) : initialFireflies).map((firefly) => (
                             <g key={`firefly-${firefly.id}`} className="fireflyGroup" transform={`translate(${firefly.startX}, ${firefly.startY})`}>
                                 <circle
                                     cx="0"
@@ -260,7 +261,7 @@ export default function GardenLanding() {
                                     r={firefly.r}
                                     fill="#deb96a"
                                     opacity="0"
-                                    filter="url(#glow)"
+                                    filter={lightBudget ? undefined : "url(#glow)"}
                                 />
                             </g>
                         ))}
