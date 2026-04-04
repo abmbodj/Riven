@@ -78,6 +78,7 @@ export default function Layout({ children }) {
         hideBottomNav: hideNavFromContext,
         navCollapsed,
         toggleNav,
+        studyMode,
     } = useContext(UIContext) || {};
     const { isLoggedIn } = useContext(AuthContext) || {};
     useNotificationSync();
@@ -401,6 +402,7 @@ export default function Layout({ children }) {
                         <MobileBottomNav
                             primaryNavItems={primaryNavItems}
                             onFabPress={() => setCreateSheetOpen(true)}
+                            studyMode={studyMode}
                         />
                     )}
 
