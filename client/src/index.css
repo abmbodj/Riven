@@ -987,8 +987,19 @@
   }
 
   @media (max-width: 639px) {
-    .guide-step-track {
-      grid-template-columns: 1fr;
+    .guide-step-pill {
+      min-height: 44px;
+      padding: 0.5rem 0.65rem;
+      gap: 0.4rem;
+    }
+
+    .guide-step-pill__title {
+      display: none;
+    }
+
+    .guide-step-pill__icon {
+      height: 1.5rem;
+      width: 1.5rem;
     }
   }
 

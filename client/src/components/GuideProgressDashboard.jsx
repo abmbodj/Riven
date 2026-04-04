@@ -112,136 +112,52 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
     if (!normalizedGuideData || !normalizedStudyState || !progress) return null;
 
     return (
-        <div data-testid="guide-progress-dashboard" className="flex flex-col gap-5">
-            <div className="guide-hero rounded-[1.9rem] p-5 sm:p-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div data-testid="guide-progress-dashboard" className="flex flex-col gap-3">
+            <div className="guide-hero rounded-[1.6rem] p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
                     <div>
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
-                            Progress dashboard
+                            Mastery snapshot
                         </p>
-                        <h2 className="mt-3 font-display text-[2rem] font-bold italic leading-none text-claude-text">
-                            Mastery Snapshot
-                        </h2>
-                        <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
-                            See where recall is strong, where it&apos;s fading, and what deserves the next quick session.
+                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
+                            Where recall is strong, where it&apos;s fading.
                         </p>
                     </div>
-                    <span className="guide-status-pill guide-status-pill--neutral self-start lg:self-auto">
+                    <span className="guide-status-pill guide-status-pill--neutral shrink-0">
                         <Target className="h-3.5 w-3.5" />
-                        {progress.completedCount}/{progress.totalSections} complete
+                        {progress.completedCount}/{progress.totalSections}
                     </span>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <DashboardMetric
-                        eyebrow="Overall"
-                        value={`${progress.completionPercent}%`}
-                        caption="Sections completed or checked off."
-                        accent
-                    />
-                    <DashboardMetric
-                        eyebrow="Review now"
-                        value={(statusCounts.review_now || 0) + (statusCounts.unstudied || 0)}
-                        caption="Weak or untouched checkpoints."
-                    />
-                    <DashboardMetric
-                        eyebrow="Solid"
-                        value={statusCounts.good || 0}
-                        caption="Recent sections that feel exam-ready."
-                    />
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="guide-metric rounded-[1.2rem] p-3 shadow-[0_24px_60px_-34px_rgba(0,0,0,0.85)]">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Overall</p>
+                        <p className="mt-1.5 font-display text-[1.5rem] font-bold italic leading-none text-claude-accent">{progress.completionPercent}%</p>
+                    </div>
+                    <div className="guide-metric rounded-[1.2rem] p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Review</p>
+                        <p className="mt-1.5 font-display text-[1.5rem] font-bold italic leading-none text-claude-text">{(statusCounts.review_now || 0) + (statusCounts.unstudied || 0)}</p>
+                    </div>
+                    <div className="guide-metric rounded-[1.2rem] p-3">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">Solid</p>
+                        <p className="mt-1.5 font-display text-[1.5rem] font-bold italic leading-none text-claude-text">{statusCounts.good || 0}</p>
+                    </div>
                 </div>
-            </div>
 
-            <div className="guide-shell rounded-[1.75rem] p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                            Status legend
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
-                            Your next session should usually start with Review Now, then Coming Up.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(STATUS_CONFIG).map(([status, config]) => {
-                            const Icon = config.icon;
-                            return (
-                                <span key={status} className={`guide-status-pill ${config.tone}`}>
-                                    <Icon className="h-3.5 w-3.5" />
-                                    {config.label}
-                                </span>
-                            );
-                        })}
-                    </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                    {Object.entries(STATUS_CONFIG).map(([status, config]) => {
+                        const Icon = config.icon;
+                        return (
+                            <span key={status} className={`guide-status-pill ${config.tone}`}>
+                                <Icon className="h-3.5 w-3.5" />
+                                {config.label}
+                            </span>
+                        );
+                    })}
                 </div>
             </div>
 
             {weakSections.length > 0 ? (
-                <div className="guide-tone-warning rounded-[1.55rem] p-4 sm:p-5">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
-                        Urgent next
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-claude-text">
-                        Review {weakSections.slice(0, 2).map((section) => section.title).join(' and ')}
-                        {weakSections.length > 2 ? `, plus ${weakSections.length - 2} more checkpoint${weakSections.length - 2 === 1 ? '' : 's'}.` : ' next.'}
-                    </p>
-                </div>
-            ) : null}
-
-            <div className="flex flex-col gap-3">
-                {sections.map(({ section, sectionState, status }) => {
-                    const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.unstudied;
-                    const Icon = config.icon;
-                    const reviewedLabel = sectionState?.last_reviewed_at
-                        ? new Date(sectionState.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-                        : 'Not yet reviewed';
-
-                    return (
-                        <article
-                            key={section.id}
-                            className={`rounded-[1.55rem] p-4 sm:p-5 ${config.panel}`}
-                        >
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className={`guide-status-pill ${config.tone}`}>
-                                            <Icon className="h-3.5 w-3.5" />
-                                            {config.label}
-                                        </span>
-                                        {(section.mini_quiz?.length ?? 0) > 0 && (
-                                            <span className="guide-status-pill guide-status-pill--neutral">
-                                                {section.mini_quiz.length} quiz
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="mt-4 font-display text-[1.4rem] font-bold italic leading-none text-claude-text">
-                                        {section.title}
-                                    </p>
-                                    <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                                        {section.recall_prompt}
-                                    </p>
-                                    <p className="mt-3 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                        Last reviewed: {reviewedLabel}
-                                    </p>
-                                </div>
-                                {onEditSection ? (
-                                    <button
-                                        type="button"
-                                        data-testid={`dashboard-edit-${section.id}`}
-                                        onClick={() => onEditSection(section.id)}
-                                        className="guide-cta guide-cta--ghost guide-focus-ring sm:w-auto"
-                                    >
-                                        <PenSquare className="h-4 w-4" />
-                                        <span>Edit</span>
-                                    </button>
-                                ) : null}
-                            </div>
-                        </article>
-                    );
-                })}
-            </div>
-
-            {weakSections.length > 0 && (
                 <button
                     type="button"
                     data-testid="review-weak-cta"
@@ -249,9 +165,55 @@ export default function GuideProgressDashboard({ guideData, studyState, onStartW
                     className="guide-cta guide-cta--primary guide-focus-ring w-full"
                 >
                     <AlertTriangle className="h-4 w-4" />
-                    <span>Review Weak Sections Now ({weakSections.length})</span>
+                    <span>Review {weakSections.length} Weak Section{weakSections.length !== 1 ? 's' : ''}</span>
                 </button>
-            )}
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+                {sections.map(({ section, sectionState, status }) => {
+                    const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.unstudied;
+                    const Icon = config.icon;
+                    const reviewedLabel = sectionState?.last_reviewed_at
+                        ? new Date(sectionState.last_reviewed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                        : null;
+
+                    return (
+                        <article
+                            key={section.id}
+                            className={`rounded-[1.3rem] px-3.5 py-3 ${config.panel}`}
+                        >
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`guide-status-pill ${config.tone}`}>
+                                            <Icon className="h-3.5 w-3.5" />
+                                            {config.label}
+                                        </span>
+                                        {reviewedLabel && (
+                                            <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                                {reviewedLabel}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="mt-2 text-[0.95rem] font-medium leading-tight text-claude-text">
+                                        {section.title}
+                                    </p>
+                                </div>
+                                {onEditSection ? (
+                                    <button
+                                        type="button"
+                                        data-testid={`dashboard-edit-${section.id}`}
+                                        onClick={() => onEditSection(section.id)}
+                                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-2.5"
+                                    >
+                                        <PenSquare className="h-3.5 w-3.5" />
+                                    </button>
+                                ) : null}
+                            </div>
+                        </article>
+                    );
+                })}
+            </div>
         </div>
     );
 }

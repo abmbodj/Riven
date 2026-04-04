@@ -34,11 +34,10 @@ describe('GuideProgressDashboard', () => {
     it('shows Review Now label and counts unstudied sections into the review-now metric', () => {
         render(<GuideProgressDashboard guideData={guideData} studyState={studyState} onStartWeakSession={vi.fn()} />);
         expect(screen.getAllByText(/review now/i).length).toBeGreaterThan(0);
-        expect(screen.getByText(/urgent next/i)).toBeTruthy();
-        const reviewNowMetricLabel = screen.getByText(/^review now$/i, { selector: 'p' });
-        const reviewNowCard = reviewNowMetricLabel.closest('article');
-        expect(reviewNowCard).toBeTruthy();
-        expect(within(reviewNowCard).getByText('2')).toBeTruthy();
+        const reviewMetricLabel = screen.getByText(/^review$/i, { selector: 'p' });
+        const reviewMetricCard = reviewMetricLabel.closest('div');
+        expect(reviewMetricCard).toBeTruthy();
+        expect(within(reviewMetricCard).getByText('2')).toBeTruthy();
     });
 
     it('shows Not Studied label with the danger-pill styling for an unstudied section', () => {

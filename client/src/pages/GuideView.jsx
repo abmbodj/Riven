@@ -1103,39 +1103,31 @@ export default function GuideView() {
     };
 
     const renderSessionEntry = () => (
-        <div data-testid="session-entry" className="flex flex-col gap-4">
-            <div data-testid="entry-hero-card" className="guide-hero rounded-[2rem] p-5 sm:p-6">
-                <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div data-testid="session-entry" className="flex flex-col gap-3">
+            <div data-testid="entry-hero-card" className="guide-hero rounded-[2rem] p-4 sm:p-5">
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
                                 Study coach
                             </p>
-                            <p className="mt-3 inline-flex max-w-full items-center gap-2 text-sm text-claude-secondary">
+                            <p className="mt-2 inline-flex max-w-full items-center gap-2 text-sm text-claude-secondary">
                                 <BookOpen className="h-4 w-4 shrink-0 text-claude-accent" />
                                 <span className="truncate">{title}</span>
                             </p>
-                            <h1 className="mt-3 font-display text-[2.15rem] font-bold italic leading-[0.94] text-claude-text sm:text-[2.7rem]">
-                                Here&apos;s the next best move.
-                            </h1>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-claude-secondary line-clamp-2">
                                 {recommendedReason}
                             </p>
                         </div>
-                        <div className="grid gap-3 sm:min-w-[12rem] sm:max-w-[14rem]">
-                            <div className="guide-sheet rounded-[1.3rem] p-4">
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                                    Progress
-                                </p>
-                                <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
-                                    {progress.completedCount}/{progress.totalSections}
-                                </p>
-                                <p className="mt-2 text-xs leading-5 text-claude-secondary">
-                                    {normalizedStudyState.last_reviewed_at
-                                        ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)}`
-                                        : 'Not started yet'}
-                                </p>
-                            </div>
+                        <div className="shrink-0 text-right">
+                            <p className="font-display text-[1.5rem] font-bold italic leading-none text-claude-text">
+                                {progress.completedCount}/{progress.totalSections}
+                            </p>
+                            <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                                {normalizedStudyState.last_reviewed_at
+                                    ? formatLastReviewed(normalizedStudyState.last_reviewed_at)
+                                    : 'Not started'}
+                            </p>
                         </div>
                     </div>
 
@@ -1186,128 +1178,89 @@ export default function GuideView() {
                             else if (recommendedSession.type === 'continue') startStudySession(recommendedSession.sections);
                             else startFullSession();
                         }}
-                        className="guide-tone-success guide-focus-ring rounded-[1.6rem] p-5 text-left transition-transform duration-200 hover:-translate-y-0.5"
+                        className="guide-tone-success guide-focus-ring rounded-[1.4rem] p-4 text-left transition-transform duration-200 hover:-translate-y-0.5"
                     >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                            <div className="min-w-0 flex-1">
-                                <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-[#86efac]">
-                                    Recommended next move
-                                </p>
-                                <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
-                                    {recommendedHeadline}
-                                </p>
-                                <p className="mt-3 text-sm text-claude-secondary">
-                                    {recommendedSession.detail}
-                                </p>
-                            </div>
-                            <div className="grid gap-2 sm:min-w-[12rem]">
-                                <span className="guide-status-pill guide-status-pill--neutral">
-                                    <Clock3 className="h-3.5 w-3.5" />
-                                    {recommendedEstimateMinutes > 0 ? `~${recommendedEstimateMinutes} min` : 'Ready now'}
-                                </span>
-                                <span className="guide-status-pill guide-status-pill--neutral">
-                                    <BookOpen className="h-3.5 w-3.5" />
-                                    {joinSectionTitles(recommendedSession.sections)}
-                                </span>
-                                <span className="guide-status-pill guide-status-pill--neutral">
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    {formatCountLabel(recommendedSession.sections.length, 'checkpoint')}
-                                </span>
-                            </div>
+                        <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-[#86efac]">
+                            Recommended
+                        </p>
+                        <p className="mt-1.5 font-display text-[1.4rem] font-bold italic leading-none text-claude-text">
+                            {recommendedHeadline}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className="guide-status-pill guide-status-pill--neutral">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                {recommendedEstimateMinutes > 0 ? `~${recommendedEstimateMinutes} min` : 'Ready now'}
+                            </span>
+                            <span className="guide-status-pill guide-status-pill--neutral">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {formatCountLabel(recommendedSession.sections.length, 'checkpoint')}
+                            </span>
                         </div>
-                        <div className="mt-5 flex items-center justify-center gap-2 rounded-[1rem] bg-[#22c55e] py-3 text-black">
+                        <div className="mt-3 flex items-center justify-center gap-2 rounded-[1rem] bg-[#22c55e] py-2.5 text-black">
                             <span className="text-[13px] font-bold">{recommendedPrimaryLabel}</span>
                             <ArrowRight className="h-4 w-4" />
                         </div>
                     </button>
 
-                    <div className="guide-shell rounded-[1.55rem] p-4 sm:p-5">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                    Quick session
-                                </p>
-                                <p className="mt-2 text-sm leading-6 text-claude-secondary">
-                                    Want the lowest-friction option? Pick a time budget and let Riven choose the checkpoints.
-                                </p>
-                            </div>
-                        </div>
-                        <div data-testid="checkpoint-chip-row" className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="guide-shell rounded-[1.4rem] p-3 sm:p-4">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
+                            Quick session
+                        </p>
+                        <div data-testid="checkpoint-chip-row" className="mt-2.5 grid grid-cols-3 gap-2">
                             {quickSessionChoices.map((option) => (
                                 <button
                                     key={option.durationMinutes}
                                     type="button"
                                     onClick={() => startQuickSession(option.durationMinutes)}
-                                    className="guide-chip guide-focus-ring min-h-[92px] rounded-[1.25rem] px-4 py-4 text-left transition-transform duration-200 hover:-translate-y-0.5"
+                                    className="guide-chip guide-focus-ring rounded-[1.1rem] px-3 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5"
                                 >
                                     <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
                                         {option.durationMinutes} min
                                     </p>
-                                    <p className="mt-2 text-sm font-medium text-claude-text">
+                                    <p className="mt-1.5 text-xs font-medium text-claude-text">
                                         {formatCountLabel(option.checkpointCount, 'checkpoint')}
-                                    </p>
-                                    <p className="mt-1 text-xs leading-5 text-claude-secondary">
-                                        Start with {option.targetLabel} · ~{option.estimateMinutes} min
                                     </p>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className={`grid gap-3 ${allQuizQuestions.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                    <div className={`grid gap-2 ${allQuizQuestions.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                         <button
                             type="button"
                             onClick={startFullSession}
-                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                            className="guide-shell guide-focus-ring rounded-[1.2rem] p-3 text-left hover:-translate-y-0.5 transition-transform duration-200"
                         >
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Full session</p>
-                            <p className="mt-2 text-sm font-medium text-claude-text">{sessionLabel}</p>
-                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
-                                All {formatCountLabel(sections.length, 'checkpoint')}
-                            </p>
+                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Full</p>
+                            <p className="mt-1.5 text-xs font-medium text-claude-text">{sessionLabel}</p>
                         </button>
 
                         {allQuizQuestions.length > 0 ? (
                             <button
                                 type="button"
                                 onClick={startQuizMode}
-                                className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                                className="guide-shell guide-focus-ring rounded-[1.2rem] p-3 text-left hover:-translate-y-0.5 transition-transform duration-200"
                             >
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quiz me</p>
-                                <p className="mt-2 text-sm font-medium text-claude-text">Pressure-test recall</p>
-                                <p className="mt-1 text-xs leading-5 text-claude-secondary">
-                                    {formatCountLabel(allQuizQuestions.length, 'prompt')}
-                                </p>
+                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quiz</p>
+                                <p className="mt-1.5 text-xs font-medium text-claude-text">{formatCountLabel(allQuizQuestions.length, 'prompt')}</p>
                             </button>
                         ) : null}
 
                         <button
                             type="button"
                             onClick={() => setSessionMode('dashboard')}
-                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                            className="guide-shell guide-focus-ring rounded-[1.2rem] p-3 text-left hover:-translate-y-0.5 transition-transform duration-200"
                         >
                             <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Progress</p>
-                            <p className="mt-2 text-sm font-medium text-claude-text">See urgency first</p>
-                            <p className="mt-1 text-xs leading-5 text-claude-secondary">
-                                {progress.completionPercent}% complete
-                            </p>
+                            <p className="mt-1.5 text-xs font-medium text-claude-text">{progress.completionPercent}%</p>
                         </button>
                     </div>
 
-                    <div className={`rounded-[1.45rem] px-4 py-4 ${weakSections.length > 0 ? 'guide-tone-warning' : 'guide-tone-neutral'}`}>
-                        <div className="flex items-start gap-3">
-                            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/10">
-                                {weakSections.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                            </span>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-current">
-                                    Coach note
-                                </p>
-                                <p className="mt-2 text-sm leading-6 text-claude-text">
-                                    {coachPanelMessage}
-                                </p>
-                            </div>
-                        </div>
+                    <div className={`flex items-start gap-2.5 rounded-[1.2rem] px-3 py-3 ${weakSections.length > 0 ? 'guide-tone-warning' : 'guide-tone-neutral'}`}>
+                        {weakSections.length > 0 ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />}
+                        <p className="text-sm leading-6 text-claude-text">
+                            {coachPanelMessage}
+                        </p>
                     </div>
                 </div>
             </div>

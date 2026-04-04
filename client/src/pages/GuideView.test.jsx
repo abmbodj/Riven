@@ -259,9 +259,7 @@ describe('GuideView', () => {
     expect(screen.getByTestId('guide-screen').className).toContain('safe-area-bottom');
     expect(within(entryScreen).getByText('Study coach')).toBeInTheDocument();
     expect(within(entryScreen).getByText('World War I Workbook')).toBeInTheDocument();
-    expect(within(entryScreen).getByText(/here's the next best move/i)).toBeInTheDocument();
     expect(within(entryScreen).getByTestId('recommended-cta')).toBeInTheDocument();
-    expect(within(entryScreen).getByText(/recommended next move/i)).toBeInTheDocument();
     const workspaceGrid = screen.getByTestId('workbook-shell-grid');
     const desktopRail = screen.getByTestId('desktop-guide-rail');
     const desktopStage = screen.getByTestId('desktop-guide-stage');
@@ -277,11 +275,11 @@ describe('GuideView', () => {
 
     expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /5 min/i })).toBeInTheDocument();
-    expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
-    expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /full/i })).toBeInTheDocument();
+    expect(within(entryScreen).getByRole('button', { name: /quiz/i })).toBeInTheDocument();
 
     // Navigate into full session (starts at first section = alliances, already revealed)
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
 
     const studyingScreen = await screen.findByTestId('session-studying');
     expect(screen.queryByTestId('session-entry')).not.toBeInTheDocument();
@@ -319,7 +317,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
 
     await screen.findByTestId('session-studying');
 
@@ -439,7 +437,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
 
     const studyingScreen = await screen.findByTestId('session-studying');
     expect(screen.getByTestId('mobile-focus-shell')).toBeInTheDocument();
@@ -477,7 +475,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
-    fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /full/i }));
 
     const studyingScreen = await screen.findByTestId('session-studying');
     expect(screen.getByTestId('mobile-focus-shell')).toBeInTheDocument();
