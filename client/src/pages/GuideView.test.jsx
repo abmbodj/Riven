@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GuideView from './GuideView.jsx';
+import { UIContext } from '../context/UIContext.jsx';
 
 
 const legacyGuideContent = {
@@ -602,6 +603,59 @@ describe('GuideView', () => {
     const { getByTestId } = renderGuide();
     await screen.findByTestId('session-entry');
     expect(getByTestId('recommended-cta')).toBeInTheDocument();
+  });
+
+  it('calls setStudyMode on UIContext when a study session starts', async () => {
+    const mockSetStudyMode = vi.fn();
+    const mockClearStudyMode = vi.fn();
+
+    api.getStudyGuide.mockResolvedValue(buildV2Guide());
+
+    const uiContextValue = {
+      hideBottomNav: false,
+      showBottomNav: vi.fn(),
+      hideNav: vi.fn(),
+      navCollapsed: false,
+      toggleNav: vi.fn(),
+      drawerOpen: false,
+      toggleDrawer: vi.fn(),
+      closeDrawer: vi.fn(),
+      notifPanelOpen: false,
+      toggleNotifPanel: vi.fn(),
+      closeNotifPanel: vi.fn(),
+      studyMode: null,
+      setStudyMode: mockSetStudyMode,
+      clearStudyMode: mockClearStudyMode,
+    };
+
+    render(
+      <UIContext.Provider value={uiContextValue}>
+        <MemoryRouter initialEntries={['/guide/guide-7']}>
+          <Routes>
+            <Route path="/guide/:id" element={<GuideView />} />
+          </Routes>
+        </MemoryRouter>
+      </UIContext.Provider>
+    );
+
+    // Wait for the entry screen and click the recommended CTA to start a session
+    await screen.findByTestId('session-entry');
+    fireEvent.click(screen.getByTestId('recommended-cta'));
+
+    // Wait for session-studying to appear (confirms sessionMode === 'studying')
+    await screen.findByTestId('session-studying');
+
+    await waitFor(() => {
+      expect(mockSetStudyMode).toHaveBeenCalledWith(expect.objectContaining({
+        currentIndex: expect.any(Number),
+        totalSections: expect.any(Number),
+        onSections: expect.any(Function),
+        onDetails: expect.any(Function),
+        onNote: expect.any(Function),
+        canPrev: expect.any(Boolean),
+        canNext: expect.any(Boolean),
+      }));
+    });
   });
 
   it('flushes pending autosave before sharing a legacy guide', async () => {
