@@ -255,11 +255,13 @@ describe('GuideView', () => {
     expect(desktopContext).toHaveClass('lg:row-start-2');
     expect(desktopContext.className).toContain('2xl:col-start-3');
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
+    expect(within(desktopRail).getByRole('button', { name: /Alliance System/i })).toBeInTheDocument();
+
+    // Expand other options to access full session / quiz me / quick session chips
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
-    expect(within(entryScreen).getByText(/session snapshot/i)).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /full session/i })).toBeInTheDocument();
     expect(within(entryScreen).getByRole('button', { name: /quiz me/i })).toBeInTheDocument();
-    expect(within(desktopRail).getByRole('button', { name: /Alliance System/i })).toBeInTheDocument();
 
     // Navigate into full session (starts at first section = alliances, already revealed)
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
@@ -300,6 +302,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     await screen.findByTestId('session-studying');
@@ -329,10 +332,12 @@ describe('GuideView', () => {
 
     const entryScreen = await screen.findByTestId('session-entry');
     expect(within(entryScreen).getByRole('heading', { name: 'World War I Workbook' })).toBeInTheDocument();
-    expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
-    expect(within(entryScreen).getByText(/session snapshot/i)).toBeInTheDocument();
     expect(screen.queryByTestId('mobile-focus-shell')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-bottom-bar')).not.toBeInTheDocument();
+
+    // Expand other options to reveal quick session chips
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
+    expect(screen.getByTestId('checkpoint-chip-row')).toBeInTheDocument();
 
     // Start a quick 5-min session
     fireEvent.click(within(entryScreen).getByRole('button', { name: /5 min/i }));
@@ -419,6 +424,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     await screen.findByTestId('mobile-bottom-bar');
@@ -464,6 +470,7 @@ describe('GuideView', () => {
     );
 
     const entryScreen = await screen.findByTestId('session-entry');
+    fireEvent.click(within(entryScreen).getByRole('button', { name: /other options/i }));
     fireEvent.click(within(entryScreen).getByRole('button', { name: /full session/i }));
 
     await screen.findByTestId('mobile-bottom-bar');

@@ -21,6 +21,7 @@ import {
     STUDY_GUIDE_FORMAT_VERSION,
     getGuideProgress,
     getGuideStudySourceText,
+    getRecommendedSession,
     getSessionSections,
     getSectionStatus,
     getWeakSections,
@@ -261,6 +262,10 @@ export default function GuideView() {
     const [sessionMode, setSessionMode] = useState('entry');
     const [sessionSections, setSessionSections] = useState([]);
     const [sessionIndex, setSessionIndex] = useState(0);
+    const [showOnboardingHint, setShowOnboardingHint] = useState(
+        () => !localStorage.getItem('riven_guide_onboarded')
+    );
+    const [showOtherOptions, setShowOtherOptions] = useState(false);
 
     const toastRef = useRef(toast);
     const saveTimerRef = useRef(null);
@@ -392,6 +397,10 @@ export default function GuideView() {
     const weakSections = useMemo(
         () => getWeakSections(normalizedGuideData, normalizedStudyState),
         [normalizedGuideData, normalizedStudyState],
+    );
+    const recommendedSession = useMemo(
+        () => getRecommendedSession(normalizedGuideData, normalizedStudyState),
+        [normalizedGuideData, normalizedStudyState]
     );
     const sectionSummaries = useMemo(() => (
         sections.map((section, index) => {
@@ -912,9 +921,9 @@ export default function GuideView() {
     }, [weakSections]);
 
     const renderSessionEntry = () => (
-        <div data-testid="session-entry" className="flex flex-col gap-5">
+        <div data-testid="session-entry" className="flex flex-col gap-4">
             <div data-testid="entry-hero-card" className="guide-hero rounded-[2rem] p-5 sm:p-6">
-                <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
@@ -923,147 +932,142 @@ export default function GuideView() {
                             <h1 className="mt-3 font-display text-[2.2rem] font-bold italic leading-[0.94] text-claude-text sm:text-[2.8rem]">
                                 {title}
                             </h1>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
-                                {sessionMessage}
+                            <p className="mt-2 text-sm text-claude-secondary">
+                                {normalizedStudyState.last_reviewed_at
+                                    ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)} · ${progress.completionPercent}% complete`
+                                    : 'Not started yet'}
                             </p>
                         </div>
-                        <span className="guide-status-pill guide-status-pill--neutral self-start sm:self-auto">
-                            {normalizedStudyState.last_reviewed_at ? `Last studied ${formatLastReviewed(normalizedStudyState.last_reviewed_at)}` : 'Not started'}
-                        </span>
                     </div>
 
-                    {weakCoachMessage ? (
-                        <div className="guide-tone-warning rounded-[1.6rem] p-4 sm:p-5">
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                Study Coach
-                            </p>
-                            <p className="mt-3 text-sm leading-6 text-claude-text">{weakCoachMessage}</p>
-                        </div>
-                    ) : null}
-
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <SessionMetric label="Complete" value={`${progress.completionPercent}%`} accent />
-                        <SessionMetric label="Weak Spots" value={weakSections.length} />
-                        <SessionMetric label="Quiz Prompts" value={allQuizQuestions.length} />
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-3">
-                <button
-                    type="button"
-                    onClick={startFullSession}
-                    className="guide-shell guide-focus-ring rounded-[1.7rem] p-5 text-left transition-transform duration-200 hover:-translate-y-1"
-                >
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                Full Session
-                            </p>
-                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
-                                {sessionLabel}
-                            </p>
-                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                                All {sections.length} checkpoints with answer reveals, confidence rating, and progress tracking.
-                            </p>
-                        </div>
-                        <div className="guide-status-pill guide-status-pill--neutral">
-                            <Play className="h-3.5 w-3.5" />
-                            ~{Math.max(sections.length * 3, 1)} min
-                        </div>
-                    </div>
-                </button>
-
-                <div className="guide-shell rounded-[1.7rem] p-5">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                Quick Session
-                            </p>
-                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
-                                Time-box the review
-                            </p>
-                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                                Pick a time and Riven will queue the most important sections first.
-                            </p>
-                        </div>
-                        <div className="guide-status-pill guide-status-pill--warning">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Adaptive
-                        </div>
-                    </div>
-                    <div data-testid="checkpoint-chip-row" className="mt-5 grid grid-cols-3 gap-2">
-                        {[5, 10, 20].map((minutes) => (
-                            <button
-                                key={minutes}
-                                type="button"
-                                onClick={() => startQuickSession(minutes)}
-                                className="guide-chip guide-focus-ring min-h-[48px] rounded-[1.2rem] px-3 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-text transition-all hover:border-claude-accent/35 hover:text-claude-accent"
+                    {/* First-run hint card — only shown once */}
+                    <AnimatePresence>
+                        {showOnboardingHint && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                className="overflow-hidden"
                             >
-                                {minutes} min
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                                <div className="flex items-start gap-3 rounded-[1.4rem] border border-[rgba(147,197,253,0.18)] bg-[#1a1f2e] p-4">
+                                    <span className="text-base mt-0.5">💡</span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-[#93c5fd]">
+                                            How this works
+                                        </p>
+                                        <p className="mt-1.5 text-sm leading-6 text-claude-secondary">
+                                            Recall each topic from memory, then reveal the answer and rate your confidence. Riven tracks what to review next.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        aria-label="Dismiss hint"
+                                        onClick={() => {
+                                            setShowOnboardingHint(false);
+                                            localStorage.setItem('riven_guide_onboarded', 'true');
+                                        }}
+                                        className="shrink-0 text-[#93c5fd]/40 hover:text-[#93c5fd]/70 transition-colors text-sm"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                <button
-                    type="button"
-                    onClick={allQuizQuestions.length > 0 ? startQuizMode : () => setSessionMode('dashboard')}
-                    className="guide-shell guide-focus-ring rounded-[1.7rem] p-5 text-left transition-transform duration-200 hover:-translate-y-1"
-                >
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">
-                                {allQuizQuestions.length > 0 ? 'Quiz Me' : 'Progress'}
-                            </p>
-                            <p className="mt-3 font-display text-[1.75rem] font-bold italic leading-none text-claude-text">
-                                {allQuizQuestions.length > 0 ? 'Rapid recall' : 'Review dashboard'}
-                            </p>
-                            <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                                {allQuizQuestions.length > 0
-                                    ? `${allQuizQuestions.length} prompts with no filler. Great for exam-speed recall.`
-                                    : 'Open the progress dashboard to see what needs attention next.'}
-                            </p>
-                        </div>
-                        <div className="guide-status-pill guide-status-pill--neutral">
-                            {allQuizQuestions.length > 0 ? `${allQuizQuestions.length} prompts` : `${weakSections.length} weak`}
-                        </div>
-                    </div>
-                </button>
-            </div>
-
-            <div className="guide-shell rounded-[1.75rem] p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                            Session snapshot
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-claude-secondary">
-                            A quick map of the sections most likely to matter next.
-                        </p>
-                    </div>
+                    {/* Recommended CTA */}
                     <button
                         type="button"
-                        onClick={() => setSessionMode('dashboard')}
-                        className="guide-cta guide-cta--ghost guide-focus-ring shrink-0"
+                        data-testid="recommended-cta"
+                        onClick={() => {
+                            if (recommendedSession.type === 'weak') startWeakSession();
+                            else if (recommendedSession.type === 'continue') startStudySession(recommendedSession.sections);
+                            else startFullSession();
+                        }}
+                        className="guide-tone-success guide-focus-ring rounded-[1.6rem] p-5 text-left transition-transform duration-200 hover:-translate-y-0.5"
                     >
-                        <span>View progress</span>
-                    </button>
-                </div>
-                <div className="mt-5 space-y-3">
-                    {sectionSummaries.slice(0, 4).map((item) => (
-                        <div key={item.section.id} className={`rounded-[1.4rem] p-4 ${item.panel}`}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-claude-secondary">
-                                        Section {item.index + 1}
-                                    </p>
-                                    <p className="mt-2 text-sm font-medium text-claude-text">{item.section.title}</p>
-                                </div>
-                                <span className={`guide-status-pill ${item.tone}`}>{item.label}</span>
-                            </div>
+                        <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-[#86efac]">
+                            Recommended for you
+                        </p>
+                        <p className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
+                            {recommendedSession.label}
+                        </p>
+                        <p className="mt-2 text-sm text-claude-secondary">{recommendedSession.detail}</p>
+                        <div className="mt-4 flex items-center justify-center rounded-[1rem] bg-[#22c55e] py-3">
+                            <span className="text-[13px] font-bold text-black">Start Session →</span>
                         </div>
-                    ))}
+                    </button>
+
+                    {/* Other options expander */}
+                    <button
+                        type="button"
+                        onClick={() => setShowOtherOptions((v) => !v)}
+                        className="text-center text-[12px] text-claude-secondary/60 hover:text-claude-secondary transition-colors"
+                    >
+                        {showOtherOptions ? 'Hide options ↑' : 'Other options: Full session · Quiz me · Custom ›'}
+                    </button>
+
+                    <AnimatePresence>
+                        {showOtherOptions && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="flex flex-col gap-3 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={startFullSession}
+                                        className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                                    >
+                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Full Session</p>
+                                        <p className="mt-1 text-sm text-claude-secondary">{sessionLabel} · All sections</p>
+                                    </button>
+
+                                    <div className="guide-shell rounded-[1.4rem] p-4">
+                                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quick Session</p>
+                                        <div data-testid="checkpoint-chip-row" className="mt-3 flex gap-2">
+                                            {[5, 10, 20].map((mins) => (
+                                                <button
+                                                    key={mins}
+                                                    type="button"
+                                                    onClick={() => startQuickSession(mins)}
+                                                    className="guide-cta guide-cta--secondary guide-focus-ring flex-1"
+                                                >
+                                                    {mins} min
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {allQuizQuestions.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={startQuizMode}
+                                            className="guide-shell guide-focus-ring rounded-[1.4rem] p-4 text-left hover:-translate-y-0.5 transition-transform duration-200"
+                                        >
+                                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Quiz Me</p>
+                                            <p className="mt-1 text-sm text-claude-secondary">Rapid-fire · {allQuizQuestions.length} prompts</p>
+                                        </button>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Compact weak-section pills (max 2) */}
+                    {weakSections.length > 0 && (
+                        <div className="flex gap-2">
+                            {weakSections.slice(0, 2).map((s) => (
+                                <div key={s.id} className="guide-tone-danger flex-1 rounded-[0.9rem] px-3 py-2 text-[11px] font-medium text-[#fca5a5]">
+                                    🔴 {s.title}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
