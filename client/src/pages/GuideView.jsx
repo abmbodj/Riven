@@ -1002,6 +1002,7 @@ export default function GuideView() {
                     {/* Other options expander */}
                     <button
                         type="button"
+                        aria-expanded={showOtherOptions}
                         onClick={() => setShowOtherOptions((v) => !v)}
                         className="text-center text-[12px] text-claude-secondary/60 hover:text-claude-secondary transition-colors"
                     >

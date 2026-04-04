@@ -203,8 +203,20 @@ const mockMatchMedia = (matches = false) => {
 };
 
 describe('GuideView', () => {
+  const renderGuide = () => {
+    api.getStudyGuide.mockResolvedValue(buildV2Guide());
+    return render(
+      <MemoryRouter initialEntries={['/guide/guide-7']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockMatchMedia(false);
     api.updateStudyGuide.mockImplementation(async (id, updates) => {
       const base = api.getStudyGuide.mock.results[0]?.value
@@ -573,6 +585,29 @@ describe('GuideView', () => {
     expect(screen.getByRole('button', { name: /rebuild workbook/i })).toBeInTheDocument();
     expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
+  });
+
+  it('shows the first-run hint card when localStorage key is absent', async () => {
+    // The mock renders with no localStorage key set by default
+    const { getByText } = renderGuide();
+    await screen.findByTestId('session-entry');
+    expect(getByText('How this works')).toBeInTheDocument();
+  });
+
+  it('dismisses the hint card when the dismiss button is clicked', async () => {
+    const { getByLabelText, queryByText } = renderGuide();
+    await screen.findByTestId('session-entry');
+    fireEvent.click(getByLabelText('Dismiss hint'));
+    await waitFor(() => {
+      expect(queryByText('How this works')).not.toBeInTheDocument();
+    });
+    expect(localStorage.getItem('riven_guide_onboarded')).toBe('true');
+  });
+
+  it('shows the recommended-cta button on the entry screen', async () => {
+    const { getByTestId } = renderGuide();
+    await screen.findByTestId('session-entry');
+    expect(getByTestId('recommended-cta')).toBeInTheDocument();
   });
 
   it('flushes pending autosave before sharing a legacy guide', async () => {
