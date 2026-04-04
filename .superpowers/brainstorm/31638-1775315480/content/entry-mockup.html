@@ -1,0 +1,126 @@
+<h2>Entry Screen — Before vs After</h2>
+<p class="subtitle">Left: current. Right: simplified with smart default + first-run hint. Same Riven aesthetic.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Current — Decision Wall</div>
+    <div class="mockup-body" style="font-family:system-ui;font-size:13px;padding:16px;display:flex;flex-direction:column;gap:10px;background:#0f0f0f;color:#e8e8e8;border-radius:12px;">
+      <div style="font-size:17px;font-weight:700;">Cell Biology Midterm</div>
+      <div style="font-size:11px;color:#888;">Last studied 2 days ago</div>
+
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px;">
+        <div style="font-size:10px;color:#f59e0b;font-weight:600;letter-spacing:.05em;">⚠️ STUDY COACH</div>
+        <div style="font-size:12px;color:#ccc;margin-top:4px;">Weak on: Protein Synthesis & Respiration</div>
+        <div style="font-size:11px;color:#888;margin-top:6px;">60% Complete · 3 Weak · 2 Quizzes</div>
+      </div>
+
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px;">
+        <div style="font-size:11px;font-weight:600;color:#ccc;">FULL SESSION</div>
+        <div style="font-size:11px;color:#888;">All sections · ~35 min</div>
+      </div>
+
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px;">
+        <div style="font-size:11px;font-weight:600;color:#ccc;">QUICK SESSION</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <span style="background:#2a2a2a;border-radius:6px;padding:4px 8px;font-size:11px;color:#ccc;">5 min</span>
+          <span style="background:#2a2a2a;border-radius:6px;padding:4px 8px;font-size:11px;color:#ccc;">10 min</span>
+          <span style="background:#2a2a2a;border-radius:6px;padding:4px 8px;font-size:11px;color:#ccc;">20 min</span>
+        </div>
+      </div>
+
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px;">
+        <div style="font-size:11px;font-weight:600;color:#ccc;">QUIZ ME</div>
+        <div style="font-size:11px;color:#888;">Rapid-fire · 2 prompts</div>
+      </div>
+
+      <div style="font-size:11px;color:#888;font-weight:600;margin-top:4px;">SECTION SNAPSHOT</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="background:#2a1a1a;border-radius:8px;padding:8px;font-size:11px;color:#fca5a5;">🔴 Protein Synthesis</div>
+        <div style="background:#2a1a1a;border-radius:8px;padding:8px;font-size:11px;color:#fca5a5;">🔴 Respiration</div>
+        <div style="background:#2a1a0a;border-radius:8px;padding:8px;font-size:11px;color:#fde68a;">🟡 Cell Division</div>
+        <div style="background:#0a1a0a;border-radius:8px;padding:8px;font-size:11px;color:#86efac;">🟢 Cell Structure</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Simplified — Smart Default</div>
+    <div class="mockup-body" style="font-family:system-ui;font-size:13px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#0f0f0f;color:#e8e8e8;border-radius:12px;">
+
+      <!-- First-run hint (only shows once) -->
+      <div style="background:#1a1f2e;border:1px solid #2a3a5a;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+        <span style="font-size:16px;">💡</span>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:#93c5fd;">How it works</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">Recall each section from memory → reveal the answer → rate your confidence. Riven tracks what to review next.</div>
+          <div style="text-align:right;margin-top:6px;"><span style="font-size:10px;color:#4a6fa5;cursor:pointer;">Got it ✕</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:18px;font-weight:700;">Cell Biology Midterm</div>
+        <div style="font-size:12px;color:#888;margin-top:2px;">Last studied 2 days ago · 60% complete</div>
+      </div>
+
+      <!-- Smart recommended CTA -->
+      <div style="background:linear-gradient(135deg,#1a2a1a,#1a3020);border:1px solid #2a4a2a;border-radius:14px;padding:14px;">
+        <div style="font-size:10px;color:#86efac;font-weight:600;letter-spacing:.08em;">RECOMMENDED</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px;">Review Weak Sections</div>
+        <div style="font-size:12px;color:#aaa;margin-top:2px;">2 sections · ~10 min · Protein Synthesis + Respiration</div>
+        <button style="margin-top:10px;width:100%;background:#22c55e;color:#000;font-weight:700;font-size:13px;padding:10px;border-radius:10px;border:none;cursor:pointer;">Start Session →</button>
+      </div>
+
+      <!-- Secondary options — collapsed -->
+      <div style="text-align:center;">
+        <span style="font-size:12px;color:#4a6fa5;cursor:pointer;">Other options: Full session · Quiz me · Custom time ›</span>
+      </div>
+
+      <!-- Compact weakness strip -->
+      <div style="display:flex;gap:6px;">
+        <div style="flex:1;background:#2a1a1a;border-radius:8px;padding:8px;font-size:11px;color:#fca5a5;">🔴 Protein Synthesis</div>
+        <div style="flex:1;background:#2a1a1a;border-radius:8px;padding:8px;font-size:11px;color:#fca5a5;">🔴 Respiration</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <h3>Mobile Bottom Bar — Before vs After</h3>
+  <p class="subtitle">Replaces mystery icon buttons with labeled tabs</p>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Current — Hidden Icons</div>
+      <div class="mockup-body" style="background:#1a1a1a;border-radius:10px;padding:12px;display:flex;justify-content:space-around;align-items:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#333;border-radius:6px;"></div>
+          <span style="font-size:9px;color:#666;">≡</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#333;border-radius:6px;"></div>
+          <span style="font-size:9px;color:#666;">⚙️</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#333;border-radius:6px;"></div>
+          <span style="font-size:9px;color:#666;">📝</span>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">Simplified — Labeled Tabs</div>
+      <div class="mockup-body" style="background:#1a1a1a;border-radius:10px;padding:12px;display:flex;justify-content:space-around;align-items:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#22c55e22;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">≡</div>
+          <span style="font-size:10px;color:#86efac;font-weight:600;">Sections</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#333;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">💡</div>
+          <span style="font-size:10px;color:#888;">Details</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="width:24px;height:24px;background:#333;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">📝</div>
+          <span style="font-size:10px;color:#888;">Note</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,101 @@
+<h2>Study Dock — Context-Aware Options</h2>
+<p class="subtitle">All use the existing floating pill dock. The dock swaps its content when you're in a study session, then restores to default when you leave. Which tab layout feels right?</p>
+
+<div class="options">
+  <div class="option" data-choice="dock-a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Study Tabs Replace Default Tabs</h3>
+      <p>While studying, the top row of the dock becomes <strong>Sections · Details · Note</strong> and the icon row becomes the section nav (Prev / current count / Next). Leaving the guide restores Rooms / Inspiration / Profiles. Clean, no extra UI.</p>
+
+      <!-- Dock mockup -->
+      <div style="margin-top:12px;display:flex;justify-content:center;">
+        <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:10px 14px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+          <!-- Tab row -->
+          <div style="display:flex;gap:4px;margin-bottom:8px;">
+            <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:14px;padding:6px 0;text-align:center;font-size:12px;font-weight:600;color:#fff;">Sections</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Details</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Note</div>
+          </div>
+          <!-- Icon row -->
+          <div style="display:flex;justify-content:space-around;align-items:center;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;opacity:0.4;">
+              <div style="font-size:18px;">←</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Prev</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;">3 / 6</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Section</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div style="font-size:18px;">→</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Next</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:11px;color:#4a6fa5;">← Animates in on session start · Animates out on exit</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="dock-b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Study Mode Pill Slides Up</h3>
+      <p>The existing dock stays at the bottom. When a study session starts, the dock smoothly morphs — the pill expands and its content crossfades from the default nav to the study controls. One dock, two states, fluid spring animation between them.</p>
+
+      <!-- Dock mockup -->
+      <div style="margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:.05em;">DEFAULT STATE</div>
+        <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:10px 14px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+          <div style="display:flex;gap:4px;margin-bottom:8px;">
+            <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:14px;padding:6px 0;text-align:center;font-size:12px;font-weight:600;color:#fff;">Rooms</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Inspiration</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Profiles</div>
+          </div>
+          <div style="display:flex;justify-content:space-around;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div style="font-size:18px;">🌐</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Explore</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div style="font-size:18px;">✨</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Assistant</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <div style="font-size:18px;">⚙️</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Configs</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:20px;color:rgba(255,255,255,0.2);">↓ spring morph</div>
+
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:.05em;">STUDY STATE</div>
+        <div style="background:rgba(20,40,20,0.7);backdrop-filter:blur(20px);border:1px solid rgba(100,200,100,0.2);border-radius:24px;padding:10px 14px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+          <div style="display:flex;gap:4px;margin-bottom:8px;">
+            <div style="flex:1;background:rgba(34,197,94,0.2);border-radius:14px;padding:6px 0;text-align:center;font-size:12px;font-weight:600;color:#86efac;">Sections</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Details</div>
+            <div style="flex:1;border-radius:14px;padding:6px 0;text-align:center;font-size:12px;color:rgba(255,255,255,0.4);">Note</div>
+          </div>
+          <div style="display:flex;justify-content:space-around;align-items:center;">
+            <div style="font-size:16px;color:rgba(255,255,255,0.4);">←</div>
+            <div style="font-size:13px;font-weight:700;color:#86efac;">3 / 6</div>
+            <div style="font-size:16px;color:#fff;">→</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:11px;color:#4a6fa5;">Pill color shifts to study green · Tab labels crossfade</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;">
+  <p class="label">Animation approach (both options)</p>
+  <ul style="font-size:12px;color:rgba(255,255,255,0.6);margin:8px 0 0;padding-left:16px;line-height:1.8;">
+    <li>Spring physics via <strong>motion/react</strong> (matches existing Riven sheets)</li>
+    <li>Tab labels fade out → new labels fade in with <code>AnimatePresence</code></li>
+    <li>Pill border color transitions from neutral → study green on session start</li>
+    <li>Restores to default with reverse animation on exit</li>
+  </ul>
+</div>
