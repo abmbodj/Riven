@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MobileBottomNav from './MobileBottomNav.jsx';
 
 vi.mock('../routes/config.jsx', () => ({
@@ -70,6 +70,8 @@ describe('MobileBottomNav study mode', () => {
         canNext: true,
     };
 
+    beforeEach(() => vi.clearAllMocks());
+
     function renderStudyNav(studyMode = mockStudyMode) {
         return render(
             <MemoryRouter>
@@ -115,6 +117,11 @@ describe('MobileBottomNav study mode', () => {
     it('disables prev button when canPrev is false', () => {
         renderStudyNav({ ...mockStudyMode, canPrev: false });
         expect(screen.getByLabelText('Previous section')).toBeDisabled();
+    });
+
+    it('disables next button when canNext is false', () => {
+        renderStudyNav({ ...mockStudyMode, canNext: false });
+        expect(screen.getByLabelText('Next section')).toBeDisabled();
     });
 
     it('does not render study tabs when studyMode is null', () => {
