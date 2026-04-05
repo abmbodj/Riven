@@ -140,18 +140,20 @@ export const serializeSharedPayload = ({
 };
 
 export const buildShareMessageContent = (kind, title) => {
+    const normalizedKind = normalizeText(kind) || 'item';
     const normalizedTitle = normalizeText(title) || 'Untitled';
-    return `Shared a ${kind}: ${normalizedTitle}`;
+    const article = /^[aeiou]/i.test(normalizedKind) ? 'an' : 'a';
+    return `Shared ${article} ${normalizedKind}: ${normalizedTitle}`;
 };
 
 export const getSharedResourceLabel = (kind) => {
     if (!isSharedResourceKind(kind)) return 'item';
+    if (kind === 'study guide' || kind === 'guide') return 'exam coach';
     return kind;
 };
 
 export const getSharedResourcePluralLabel = (kind) => {
-    if (kind === 'study guide') return 'study guides';
-    if (kind === 'guide') return 'guides';
+    if (kind === 'study guide' || kind === 'guide') return 'exam coaches';
     if (kind === 'note') return 'notes';
     if (kind === 'deck') return 'decks';
     return 'items';
@@ -168,14 +170,14 @@ export const getSharedResourceRoute = (kind, resourceId) => {
 export const getSharedResourceVerb = (kind) => {
     if (kind === 'deck') return 'deck';
     if (kind === 'note') return 'note';
-    if (kind === 'guide') return 'guide';
+    if (kind === 'guide') return 'exam coach';
     return 'item';
 };
 
 export const getSharedResourceCta = (kind) => {
     if (kind === 'deck') return 'Add to Collection';
     if (kind === 'note') return 'Add to Notes';
-    if (kind === 'guide') return 'Add to Guides';
+    if (kind === 'guide') return 'Add to Exam Coach';
     return 'Add';
 };
 
@@ -187,7 +189,7 @@ export const getSharedResourceOpenLabel = (kind, accepted = false) => {
         return accepted ? 'Open Imported Note' : 'Open Note';
     }
     if (kind === 'guide') {
-        return accepted ? 'Open Imported Guide' : 'Open Guide';
+        return accepted ? 'Open Imported Coach' : 'Open Coach';
     }
     return 'Open';
 };

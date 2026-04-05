@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 const CONFIG = {
     exam: { title: 'Generating Exam...', subtitle: 'Creating a mock exam from your content...' },
     flashcards: { title: 'Generating Deck...', subtitle: 'Creating flashcards from your content...' },
-    guide: { title: 'Generating Workbook...', subtitle: 'Creating an active-recall workbook from your content...' },
+    guide: { title: 'Building Exam Coach...', subtitle: 'Creating a focused coach topic map from your content...' },
 };
 
 export default function GeneratingOverlay({ type }) {

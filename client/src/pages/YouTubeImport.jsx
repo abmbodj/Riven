@@ -28,8 +28,8 @@ const CONTENT_TYPES = [
     },
     {
         id: 'guide',
-        label: 'Study Guide',
-        description: 'Active-recall workbook',
+        label: 'Exam Coach',
+        description: 'Coach topic map',
         icon: BookOpen,
         color: '#f59e0b',
         jobKind: 'youtube_guide',
@@ -55,7 +55,7 @@ const SOURCE_PHASE_LABELS = {
 
 const DERIVED_PHASE_LABELS = {
     accepted: 'Queued behind source analysis',
-    drafting: 'Generating study artifact',
+    drafting: 'Generating coach artifact',
     saving: 'Saving generated result',
     done: 'Ready to open',
     error: 'Generation failed',

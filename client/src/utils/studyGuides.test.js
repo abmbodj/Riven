@@ -126,6 +126,40 @@ describe('normalizeGuideStudyState', () => {
         });
         expect(state.section_states['sec-1'].last_reviewed_at).toBe(ts);
     });
+
+    it('preserves coach setup metadata on normalized guide data', () => {
+        const guideData = normalizeGuideData({
+            overview: 'Review the likely exam areas.',
+            meta: {
+                creation_mode: 'setup',
+                exam_label: 'Biology Midterm',
+                exam_date: '2026-05-14',
+                user_topics: ['Cells', 'Mitosis'],
+                user_weak_topics: ['Mitosis'],
+                preferred_tone: 'calm review',
+            },
+            sections: [
+                {
+                    id: 'cells',
+                    title: 'Cells',
+                    recall_prompt: 'Explain cells.',
+                    answer_points: ['Cells are the basic unit of life.'],
+                    key_terms: ['cell'],
+                    mini_quiz: [],
+                    common_traps: [],
+                },
+            ],
+        });
+
+        expect(guideData.meta).toEqual({
+            creation_mode: 'setup',
+            exam_label: 'Biology Midterm',
+            exam_date: '2026-05-14',
+            user_topics: ['Cells', 'Mitosis'],
+            user_weak_topics: ['Mitosis'],
+            preferred_tone: 'calm review',
+        });
+    });
 });
 
 describe('getSectionStatus', () => {

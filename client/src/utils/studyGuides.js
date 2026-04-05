@@ -34,6 +34,29 @@ const normalizeStringArray = (value) => (
         : []
 );
 
+const normalizeGuideMeta = (value) => {
+    const raw = value && typeof value === 'object' ? value : {};
+    const creationMode = normalizeOptionalText(raw.creation_mode ?? raw.creationMode);
+    const examLabel = normalizeOptionalText(raw.exam_label ?? raw.examLabel);
+    const examDate = normalizeOptionalText(raw.exam_date ?? raw.examDate);
+    const userTopics = normalizeStringArray(raw.user_topics ?? raw.userTopics);
+    const weakTopics = normalizeStringArray(raw.user_weak_topics ?? raw.userWeakTopics ?? raw.weakTopics);
+    const preferredTone = normalizeOptionalText(raw.preferred_tone ?? raw.preferredTone);
+
+    const normalized = {};
+
+    if (creationMode && ['setup', 'source', 'hybrid'].includes(creationMode)) {
+        normalized.creation_mode = creationMode;
+    }
+    if (examLabel) normalized.exam_label = examLabel;
+    if (examDate) normalized.exam_date = examDate;
+    if (userTopics.length > 0) normalized.user_topics = userTopics;
+    if (weakTopics.length > 0) normalized.user_weak_topics = weakTopics;
+    if (preferredTone) normalized.preferred_tone = preferredTone;
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 const slugify = (value, fallback) => {
     const normalized = normalizeText(value, fallback)
         .toLowerCase()
@@ -238,6 +261,7 @@ export const normalizeGuideData = (guideData) => {
         guideData.overview,
         'Review each section actively before revealing the answers.',
     );
+    const meta = normalizeGuideMeta(guideData.meta);
 
     if (Array.isArray(guideData.topics) && guideData.topics.length > 0) {
         const topicUsedIds = new Set();
@@ -284,6 +308,7 @@ export const normalizeGuideData = (guideData) => {
             overview,
             topics,
             sections,
+            ...(meta ? { meta } : {}),
         };
     }
 
@@ -299,6 +324,7 @@ export const normalizeGuideData = (guideData) => {
         overview,
         topics: buildV2Topics(sections),
         sections,
+        ...(meta ? { meta } : {}),
     };
 };
 

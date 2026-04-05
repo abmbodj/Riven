@@ -23,8 +23,8 @@ const MODULES = [
         color: '#22c55e',
     },
     {
-        title: 'Study Guides',
-        description: 'Active-recall workbooks from your notes',
+        title: 'Exam Coach',
+        description: 'Diagnostic-first coaching from notes, files, or setup answers',
         icon: BookOpen,
         to: '/guides',
         color: '#f59e0b',
@@ -172,7 +172,7 @@ export default function StudyDashboard() {
                         {[
                             { label: 'Decks', count: stats.decks },
                             { label: 'Notes', count: stats.notes },
-                            { label: 'Guides', count: stats.guides },
+                            { label: 'Coaches', count: stats.guides },
                             { label: 'Exams', count: stats.exams },
                         ].map(({ label, count }) => (
                             <div key={label} className="flex items-center gap-1.5">

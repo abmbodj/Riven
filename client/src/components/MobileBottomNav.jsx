@@ -117,15 +117,15 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                                     {/* Study tabs row */}
                                     <div className="flex gap-2 mb-2">
                                         {[
-                                            { label: 'Sections', handler: studyMode.onSections },
-                                            { label: 'Details', handler: studyMode.onDetails },
-                                            { label: 'Note', handler: studyMode.onNote },
+                                            { label: 'Map', handler: studyMode.onMap },
+                                            { label: 'Stuck?', handler: studyMode.onStuck },
+                                            { label: 'Edit', handler: studyMode.onEdit },
                                         ].map(({ label, handler }) => (
                                             <button
                                                 key={label}
                                                 type="button"
                                                 onClick={handler}
-                                                className="flex-1 rounded-[0.85rem] py-1.5 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-[#86efac]/60 transition-colors tap-action first:bg-[rgba(34,197,94,0.15)] first:text-[#86efac]"
+                                                className="flex min-h-[46px] flex-1 items-center justify-center rounded-[0.95rem] px-2 py-2 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-[#86efac]/75 transition-colors tap-action first:bg-[rgba(34,197,94,0.15)] first:text-[#86efac]"
                                             >
                                                 {label}
                                             </button>
@@ -138,9 +138,10 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                                             aria-label="Previous section"
                                             disabled={!studyMode.canPrev}
                                             onClick={studyMode.onPrev}
-                                            className="tap-action flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-30"
+                                            className="tap-action flex min-h-[46px] min-w-[88px] items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-mono font-semibold uppercase tracking-[0.1em] text-[#86efac]/75 disabled:opacity-30"
                                         >
                                             <ChevronLeft className="h-5 w-5 text-[#86efac]/70" />
+                                            <span>Back</span>
                                         </button>
                                         <span className="text-[12px] font-bold text-[#86efac]">
                                             {studyMode.currentIndex + 1} / {studyMode.totalSections}
@@ -150,8 +151,9 @@ export default function MobileBottomNav({ primaryNavItems, onFabPress, studyMode
                                             aria-label="Next section"
                                             disabled={!studyMode.canNext}
                                             onClick={studyMode.onNext}
-                                            className="tap-action flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-30"
+                                            className="tap-action flex min-h-[46px] min-w-[88px] items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-mono font-semibold uppercase tracking-[0.1em] text-[#86efac] disabled:opacity-30"
                                         >
+                                            <span>Next</span>
                                             <ChevronRight className="h-5 w-5 text-[#86efac]" />
                                         </button>
                                     </div>

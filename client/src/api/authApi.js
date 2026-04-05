@@ -1745,8 +1745,8 @@ export const generateAiDeck = (notes, file, deckName, classId, className) =>
 export const generateAiClass = (notes, file) =>
     edgeFunctionFetch('generate-class', { body: { notes, file } });
 
-export const generateAiGuide = (notes, file, title, noteId, classId, className, replaceGuideId = null) =>
-    edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId } });
+export const generateAiGuide = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null) =>
+    edgeFunctionFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig } });
 
 export const generateAiExam = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
     edgeFunctionFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });
@@ -1860,8 +1860,8 @@ const edgeFunctionStreamFetch = async (functionName, { body, allowBridgeRetry = 
 export const generateAiDeckStream = (notes, file, deckName, classId, className) =>
     edgeFunctionStreamFetch('generate-deck', { body: { notes, file, deckName, classId, className } });
 
-export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null) =>
-    edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId } });
+export const generateAiGuideStream = (notes, file, title, noteId, classId, className, replaceGuideId = null, coachConfig = null) =>
+    edgeFunctionStreamFetch('generate-guide', { body: { notes, file, title, noteId, classId, className, replaceGuideId, coachConfig } });
 
 export const generateAiExamStream = (notes, file, title, sourceType, sourceId, classId, className, { examMode, weakTopics } = {}) =>
     edgeFunctionStreamFetch('generate-exam', { body: { notes, file, title, sourceType, sourceId, classId, className, examMode, weakTopics } });

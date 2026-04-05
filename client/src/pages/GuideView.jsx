@@ -439,7 +439,21 @@ export default function GuideView() {
     const sessionMessage = sessionStarted
         ? `Pick up with ${nextSection?.title || 'your next checkpoint'} and keep the review moving.`
         : `Start with ${nextSection?.title || 'Section 1'} and work through one checkpoint at a time.`;
-    const workbookActionLabel = legacyGuide ? 'Convert to workbook' : 'Rebuild workbook';
+    const workbookActionLabel = legacyGuide ? 'Convert to coach' : 'Refresh coach';
+    const collectionLabel = 'Coaches';
+    const displayResourceLabel = legacyGuide ? 'Legacy Guide' : 'Exam Coach';
+    const displayResourceLabelLower = legacyGuide ? 'legacy guide' : 'exam coach';
+    const emptyResourceMessage = legacyGuide ? 'Guide is empty' : 'Exam coach is empty';
+    const deleteResourceTitle = legacyGuide ? 'Delete this legacy guide?' : 'Delete this coach?';
+    const deleteResourceMessage = legacyGuide
+        ? 'This legacy guide will be permanently deleted.'
+        : 'This exam coach will be permanently deleted.';
+    const defaultSaveTitle = legacyGuide ? 'Untitled Guide' : 'Untitled Exam Coach';
+    const placeholderTitle = legacyGuide ? 'Untitled Legacy Guide' : 'Untitled Exam Coach';
+    const deletedResourceMessage = legacyGuide ? 'Legacy guide deleted' : 'Exam coach deleted';
+    const shareSuccessMessage = legacyGuide ? 'Legacy guide shared successfully!' : 'Exam coach shared successfully!';
+    const shareErrorMessage = legacyGuide ? 'Failed to share legacy guide' : 'Failed to share exam coach';
+    const generatedTitleSeed = titleRef.current || (legacyGuide ? 'Guide' : 'Exam Coach');
     const mobileProgressLabel = `${progress.completedCount}/${progress.totalSections} complete`;
     const weakSections = useMemo(
         () => getWeakSections(normalizedGuideData, normalizedStudyState),
@@ -655,7 +669,7 @@ export default function GuideView() {
         setSaving(true);
         try {
             const payload = {
-                title: titleRef.current || 'Untitled Guide',
+                title: titleRef.current || defaultSaveTitle,
             };
             const currentFormatVersion = Number(formatVersionRef.current) || 1;
             const normalizedCurrentGuideData = normalizeGuideData(guideDataRef.current);
@@ -692,7 +706,7 @@ export default function GuideView() {
         } finally {
             setSaving(false);
         }
-    }, [id, toast]);
+    }, [defaultSaveTitle, id, toast]);
 
     const commitSave = useCallback(() => {
         saveTimerRef.current = null;
@@ -839,20 +853,20 @@ export default function GuideView() {
 
             await api.sendMessage(
                 friendId,
-                buildShareMessageContent('guide', titleRef.current || 'Untitled Guide'),
+                buildShareMessageContent(displayResourceLabelLower, titleRef.current || placeholderTitle),
                 'guide',
                 serializeSharedPayload({
                     kind: 'guide',
                     sourceId: id,
-                    title: titleRef.current || 'Untitled Guide',
+                    title: titleRef.current || defaultSaveTitle,
                     previewText: buildSharedPreviewText(contentSnapshot),
                 })
             );
 
-            toast.success('Guide shared successfully!');
+            toast.success(shareSuccessMessage);
             setShowShareModal(false);
         } catch (err) {
-            toast.error(err?.message || 'Failed to share guide');
+            toast.error(err?.message || shareErrorMessage);
         } finally {
             setSharingTo(null);
         }
@@ -866,7 +880,7 @@ export default function GuideView() {
         });
 
         if (!text.trim()) {
-            toast.error('Guide is empty');
+            toast.error(emptyResourceMessage);
             return;
         }
 
@@ -875,7 +889,7 @@ export default function GuideView() {
             const stream = await api.generateAiDeckStream(
                 text,
                 null,
-                `${titleRef.current || 'Guide'} - AI`,
+                `${generatedTitleSeed} - AI`,
                 guideRef.current?.class_id,
                 null,
             );
@@ -908,7 +922,7 @@ export default function GuideView() {
         });
 
         if (!text.trim()) {
-            toast.error('Guide is empty');
+            toast.error(emptyResourceMessage);
             return;
         }
 
@@ -917,7 +931,7 @@ export default function GuideView() {
             const stream = await api.generateAiExamStream(
                 text,
                 null,
-                `${titleRef.current || 'Guide'} Exam`,
+                `${generatedTitleSeed} Exam`,
                 'guide',
                 id,
                 guideRef.current?.class_id,
@@ -952,7 +966,7 @@ export default function GuideView() {
         });
 
         if (!text.trim()) {
-            toast.error('Guide is empty');
+            toast.error(emptyResourceMessage);
             return;
         }
 
@@ -963,7 +977,7 @@ export default function GuideView() {
             const stream = await api.generateAiGuideStream(
                 text,
                 null,
-                `${titleRef.current || 'Guide'} Recall Workbook`,
+                titleRef.current ? `${titleRef.current} Exam Coach` : 'Untitled Exam Coach',
                 guideRef.current?.note_id || null,
                 guideRef.current?.class_id || null,
                 null,
@@ -982,14 +996,14 @@ export default function GuideView() {
                     } else {
                         navigate(`/guide/${event.data.guide_id}`);
                     }
-                    toast.success('Recall workbook generated!');
+                    toast.success('Exam coach ready!');
                     return;
                 }
             }
         } catch (err) {
             setTransitioningWorkbook(false);
             if (err.status === 429) setShowPricingModal(true);
-            else toast.error(err.message || 'Failed to generate workbook');
+            else toast.error(err.message || 'Failed to refresh coach');
         } finally {
             setGenerating(null);
         }
@@ -998,7 +1012,7 @@ export default function GuideView() {
     const handleDelete = async () => {
         try {
             await api.deleteStudyGuide(id);
-            toast.success('Guide deleted');
+            toast.success(deletedResourceMessage);
             navigate('/guides');
         } catch (err) {
             toast.error(err?.message || 'Failed to delete');
@@ -1040,9 +1054,15 @@ export default function GuideView() {
             setStudyMode({
                 currentIndex: sessionIndex,
                 totalSections: sessionSections.length,
-                onSections: () => setShowMobileSections(true),
-                onDetails: () => setShowMobileMoreDetails(true),
-                onNote: () => setShowMobileNoteEditor(true),
+                onMap: () => setShowMobileSections(true),
+                onStuck: () => setShowAskSheet(true),
+                onEdit: () => {
+                    if (displaySection?.id) {
+                        setEditingSectionId(displaySection.id);
+                    } else {
+                        setShowMobileMoreDetails(true);
+                    }
+                },
                 onPrev: canGoPrevious ? () => handleSessionIndexChange(sessionIndex - 1) : undefined,
                 onNext: canGoNext ? () => handleSessionIndexChange(sessionIndex + 1) : undefined,
                 canPrev: canGoPrevious,
@@ -1054,7 +1074,7 @@ export default function GuideView() {
         }
     }, [
         sessionMode, sessionIndex, sessionSections.length,
-        canGoPrevious, canGoNext, hasDisplayDetails,
+        canGoPrevious, canGoNext, hasDisplayDetails, displaySection,
         setStudyMode, clearStudyMode,
         handleSessionIndexChange,
     ]);
@@ -1295,7 +1315,7 @@ export default function GuideView() {
                         onClick={() => setSessionMode('entry')}
                         className="guide-cta guide-cta--secondary guide-focus-ring w-full"
                     >
-                        Back to Guide
+                        Back to Coach
                     </button>
                     <button
                         type="button"
@@ -1896,10 +1916,10 @@ export default function GuideView() {
                         <Loader2 className="h-6 w-6 animate-spin" />
                         Building
                     </div>
-                    <p className="mt-6 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Workbook Upgrade</p>
-                    <h1 className="mt-3 font-display text-3xl font-bold italic text-claude-text">Converting guide into a workbook</h1>
+                    <p className="mt-6 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Coach Upgrade</p>
+                    <h1 className="mt-3 font-display text-3xl font-bold italic text-claude-text">Converting guide into Exam Coach</h1>
                     <p className="mt-4 max-w-xl text-sm leading-relaxed text-claude-secondary">
-                        Rebuilding this guide into a checkpoint-by-checkpoint study session with reveal-first answers,
+                        Rebuilding this guide into a checkpoint-by-checkpoint coaching session with reveal-first answers,
                         confidence tracking, and resume progress.
                     </p>
                 </div>
@@ -1921,8 +1941,8 @@ export default function GuideView() {
                 <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
                 <ConfirmModal
                     isOpen={deleteConfirm}
-                    title="Delete this guide?"
-                    message="This study guide will be permanently deleted."
+                    title={deleteResourceTitle}
+                    message={deleteResourceMessage}
                     onConfirm={handleDelete}
                     onCancel={() => setDeleteConfirm(false)}
                 />
@@ -1931,7 +1951,7 @@ export default function GuideView() {
                     <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
                         <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span>Guides</span>
+                            <span>{collectionLabel}</span>
                         </button>
 
                         <div className="flex items-center gap-3">
@@ -1956,17 +1976,17 @@ export default function GuideView() {
                             <AlertTriangle className="h-4 w-4" />
                             Repair Required
                         </div>
-                        <p className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Workbook Needs Rebuilding</p>
+                        <p className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-claude-accent">Exam Coach Needs Refresh</p>
                         <input
                             type="text"
                             value={title}
                             onChange={handleTitleChange}
-                            placeholder="Untitled Guide"
+                            placeholder={placeholderTitle}
                             className="mt-3 w-full bg-transparent text-3xl font-display font-bold italic tracking-tight leading-tight text-claude-text outline-none placeholder:text-claude-secondary/30 sm:text-4xl"
                         />
                         <p className="mt-4 text-sm sm:text-base leading-relaxed text-claude-secondary">
-                            This guide is marked as a workbook, but its study sections are missing. Rebuild it to restore
-                            the guided review session, checkpoints, and confidence tracking.
+                            This guide is marked as an Exam Coach, but its study sections are missing. Refresh it to restore
+                            the guided coaching session, checkpoints, and confidence tracking.
                         </p>
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                             <button
@@ -1976,14 +1996,14 @@ export default function GuideView() {
                                 className="guide-cta guide-cta--primary guide-focus-ring w-full disabled:opacity-50 sm:w-auto"
                             >
                                 {generating === 'guide' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                                {generating === 'guide' ? 'Rebuilding workbook' : 'Rebuild workbook'}
+                                {generating === 'guide' ? 'Refreshing coach' : 'Refresh coach'}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate('/guides')}
                                 className="guide-cta guide-cta--secondary guide-focus-ring w-full sm:w-auto"
                             >
-                                Back to guides
+                                Back to coaches
                             </button>
                         </div>
                     </div>
@@ -1998,8 +2018,8 @@ export default function GuideView() {
                 <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
                 <ConfirmModal
                     isOpen={deleteConfirm}
-                    title="Delete this guide?"
-                    message="This study guide will be permanently deleted."
+                    title={deleteResourceTitle}
+                    message={deleteResourceMessage}
                     onConfirm={handleDelete}
                     onCancel={() => setDeleteConfirm(false)}
                 />
@@ -2010,15 +2030,15 @@ export default function GuideView() {
                     loading={loadingFriends}
                     sendingTo={sharingTo}
                     onSend={handleSendGuideToFriend}
-                    resourceLabel="Guide"
-                    resourceTitle={title || 'Untitled Guide'}
+                    resourceLabel={displayResourceLabel}
+                    resourceTitle={title || placeholderTitle}
                 />
 
                 <div className="safe-area-top sticky top-0 z-30 border-b border-claude-border/10 bg-claude-bg/80 px-4 pt-3 pb-2 backdrop-blur-md">
                     <div className="mx-auto mb-2 flex max-w-4xl items-center justify-between gap-3">
                         <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span>Guides</span>
+                            <span>{collectionLabel}</span>
                         </button>
 
                         <div className="flex items-center gap-3">
@@ -2030,7 +2050,7 @@ export default function GuideView() {
                                 ) : null}
                                 <span>{saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}</span>
                             </div>
-                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share guide">
+                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share legacy guide">
                                 <Share2 className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteConfirm(true)} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
@@ -2046,7 +2066,7 @@ export default function GuideView() {
                             className="guide-cta guide-cta--secondary guide-focus-ring shrink-0 disabled:opacity-50"
                         >
                             {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                            <span>{generating === 'guide' ? 'Building workbook' : workbookActionLabel}</span>
+                            <span>{generating === 'guide' ? 'Building coach' : workbookActionLabel}</span>
                         </button>
 
                         <button
@@ -2071,9 +2091,9 @@ export default function GuideView() {
 
                 <div className="mx-auto max-w-4xl px-4 pt-6">
                     <div className="guide-hero mb-5 rounded-[2rem] p-5 sm:p-6">
-                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent mb-2">Classic Guide</p>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent mb-2">Legacy Guide</p>
                         <p className="text-sm leading-6 text-claude-secondary">
-                            This guide is still a document. Convert it into an active-recall workbook to get one-section-at-a-time
+                            This guide is still a document. Convert it into Exam Coach to get one-checkpoint-at-a-time
                             review, checkpoint reveals, confidence tracking, and resume progress.
                         </p>
                         <button
@@ -2083,7 +2103,7 @@ export default function GuideView() {
                             className="guide-cta guide-cta--primary guide-focus-ring mt-4 w-full disabled:opacity-50 sm:w-auto"
                         >
                             {generating === 'guide' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                            {generating === 'guide' ? 'Building workbook' : 'Convert guide to workbook'}
+                            {generating === 'guide' ? 'Building coach' : 'Convert guide to coach'}
                         </button>
                     </div>
 
@@ -2092,7 +2112,7 @@ export default function GuideView() {
                             type="text"
                             value={title}
                             onChange={handleTitleChange}
-                            placeholder="Untitled Guide"
+                            placeholder={placeholderTitle}
                             className="mb-4 w-full bg-transparent text-3xl font-display font-bold italic tracking-tight leading-tight text-claude-text outline-none placeholder:text-claude-secondary/30 sm:text-4xl"
                         />
 
@@ -2100,7 +2120,7 @@ export default function GuideView() {
                             content={content}
                             onUpdate={handleLegacyContentUpdate}
                             editable={true}
-                            placeholder="Your study guide content..."
+                            placeholder="Your legacy guide content..."
                         />
                     </div>
                 </div>
@@ -2116,8 +2136,8 @@ export default function GuideView() {
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
                 isOpen={deleteConfirm}
-                title="Delete this guide?"
-                message="This study guide will be permanently deleted."
+                title={deleteResourceTitle}
+                message={deleteResourceMessage}
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteConfirm(false)}
             />
@@ -2128,8 +2148,8 @@ export default function GuideView() {
                 loading={loadingFriends}
                 sendingTo={sharingTo}
                 onSend={handleSendGuideToFriend}
-                resourceLabel="Guide"
-                resourceTitle={title || 'Untitled Guide'}
+                resourceLabel={displayResourceLabel}
+                resourceTitle={title || placeholderTitle}
             />
 
             {isMobileLayout ? (
@@ -2140,14 +2160,14 @@ export default function GuideView() {
                                 type="button"
                                 onClick={() => navigate('/guides')}
                                 className="guide-cta guide-cta--ghost guide-focus-ring shrink-0 px-3"
-                                aria-label="Back to guides"
+                                aria-label="Back to coaches"
                             >
                                 <ChevronLeft className="h-5 w-5" />
                             </button>
 
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Workbook</p>
-                                <p className="truncate text-sm font-medium text-claude-text">{displaySection?.title || title || 'Recall workbook'}</p>
+                                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">Exam Coach</p>
+                                <p className="truncate text-sm font-medium text-claude-text">{displaySection?.title || title || 'Exam coach'}</p>
                                 <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
                                     {mobileProgressLabel}
                                     {displaySection ? ` • Section ${displaySectionPosition}/${Math.max(displaySectionCount, 1)}` : ''}
@@ -2170,7 +2190,7 @@ export default function GuideView() {
                     <div data-testid="desktop-guide-toolbar" className="guide-shell flex w-full items-center justify-between gap-4 rounded-[1.7rem] px-4 py-3.5 sm:px-5">
                         <button onClick={() => navigate('/guides')} className="guide-cta guide-cta--ghost guide-focus-ring px-3">
                             <ChevronLeft className="w-5 h-5" />
-                            <span>Guides</span>
+                            <span>{collectionLabel}</span>
                         </button>
 
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -2182,7 +2202,7 @@ export default function GuideView() {
                                 ) : null}
                                 <span>{saving ? 'Saving' : saved ? 'Saved' : 'Unsaved'}</span>
                             </div>
-                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share guide">
+                            <button onClick={handleShareGuide} className="guide-cta guide-cta--ghost guide-focus-ring px-3" aria-label="Share coach">
                                 <Share2 className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteConfirm(true)} className="guide-cta guide-cta--ghost guide-focus-ring px-3">

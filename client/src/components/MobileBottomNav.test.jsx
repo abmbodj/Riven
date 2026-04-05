@@ -61,9 +61,9 @@ describe('MobileBottomNav study mode', () => {
     const mockStudyMode = {
         currentIndex: 1,
         totalSections: 5,
-        onSections: vi.fn(),
-        onDetails: vi.fn(),
-        onNote: vi.fn(),
+        onMap: vi.fn(),
+        onStuck: vi.fn(),
+        onEdit: vi.fn(),
         onPrev: vi.fn(),
         onNext: vi.fn(),
         canPrev: true,
@@ -86,9 +86,9 @@ describe('MobileBottomNav study mode', () => {
 
     it('renders study tabs when studyMode is provided', () => {
         renderStudyNav();
-        expect(screen.getByText('Sections')).toBeInTheDocument();
-        expect(screen.getByText('Details')).toBeInTheDocument();
-        expect(screen.getByText('Note')).toBeInTheDocument();
+        expect(screen.getByText('Map')).toBeInTheDocument();
+        expect(screen.getByText('Stuck?')).toBeInTheDocument();
+        expect(screen.getByText('Edit')).toBeInTheDocument();
     });
 
     it('shows section count in study mode', () => {
@@ -96,10 +96,16 @@ describe('MobileBottomNav study mode', () => {
         expect(screen.getByText('2 / 5')).toBeInTheDocument();
     });
 
-    it('calls onSections when Sections tab is tapped', () => {
+    it('calls onMap when Map tab is tapped', () => {
         renderStudyNav();
-        fireEvent.click(screen.getByText('Sections'));
-        expect(mockStudyMode.onSections).toHaveBeenCalled();
+        fireEvent.click(screen.getByText('Map'));
+        expect(mockStudyMode.onMap).toHaveBeenCalled();
+    });
+
+    it('calls onStuck when Stuck? tab is tapped', () => {
+        renderStudyNav();
+        fireEvent.click(screen.getByText('Stuck?'));
+        expect(mockStudyMode.onStuck).toHaveBeenCalled();
     });
 
     it('calls onPrev when prev button is tapped', () => {
@@ -134,6 +140,6 @@ describe('MobileBottomNav study mode', () => {
                 />
             </MemoryRouter>
         );
-        expect(screen.queryByText('Sections')).not.toBeInTheDocument();
+        expect(screen.queryByText('Map')).not.toBeInTheDocument();
     });
 });

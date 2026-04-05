@@ -396,8 +396,80 @@ Every subtopic must include at least 1 check, 1 flashcard, and all 3 ai_helpers 
 Only use visual.type values of "sequence", "compare", or "process". If no visual is useful, still include a simple one with 2-4 steps.
 If a concept in a subtopic is commonly confused with another concept, it MUST appear in common_traps. Do not leave common_traps empty for subtopics where confusion is likely.`;
 
-export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className }) => {
-  const contents = [{ text: buildGuidePrompt(className) }];
+export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  const examLabel = typeof raw.examLabel === 'string' ? raw.examLabel.trim() : '';
+  const examDate = typeof raw.examDate === 'string' ? raw.examDate.trim() : '';
+  const userTopics = Array.isArray(raw.userTopics)
+    ? raw.userTopics.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean).slice(0, 12)
+    : [];
+  const weakTopics = Array.isArray(raw.weakTopics)
+    ? raw.weakTopics.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean).slice(0, 12)
+    : [];
+  const preferredTone = typeof raw.preferredTone === 'string' ? raw.preferredTone.trim() : '';
+  const requestedMode = typeof raw.creationMode === 'string' ? raw.creationMode.trim() : '';
+
+  const hasSetup = Boolean(examLabel || examDate || userTopics.length || weakTopics.length || preferredTone);
+  if (!hasSetup) return null;
+
+  const inferredCreationMode = ['setup', 'source', 'hybrid'].includes(requestedMode)
+    ? requestedMode
+    : hasSourceMaterial
+      ? 'hybrid'
+      : 'setup';
+
+  return {
+    creation_mode: inferredCreationMode,
+    ...(examLabel ? { exam_label: examLabel } : {}),
+    ...(examDate ? { exam_date: examDate } : {}),
+    ...(userTopics.length ? { user_topics: userTopics } : {}),
+    ...(weakTopics.length ? { user_weak_topics: weakTopics } : {}),
+    ...(preferredTone ? { preferred_tone: preferredTone } : {}),
+  };
+};
+
+const buildCoachSetupText = (coachMeta) => {
+  if (!coachMeta) return '';
+
+  const lines = ['Student Setup:'];
+
+  if (coachMeta.exam_label) lines.push(`- Exam or goal: ${coachMeta.exam_label}`);
+  if (coachMeta.exam_date) lines.push(`- Date: ${coachMeta.exam_date}`);
+  if (coachMeta.user_topics?.length) lines.push(`- Topics to cover: ${coachMeta.user_topics.join(', ')}`);
+  if (coachMeta.user_weak_topics?.length) lines.push(`- Weakest topics: ${coachMeta.user_weak_topics.join(', ')}`);
+  if (coachMeta.preferred_tone) lines.push(`- Preferred coaching tone: ${coachMeta.preferred_tone}`);
+  if (coachMeta.creation_mode) lines.push(`- Creation mode: ${coachMeta.creation_mode}`);
+
+  return lines.join('\n');
+};
+
+export const mergeGuidePayloadMeta = (guidePayload, coachMeta) => {
+  const rawPayload = guidePayload && typeof guidePayload === 'object' ? guidePayload : {};
+  if (!coachMeta) return rawPayload;
+
+  return {
+    ...rawPayload,
+    meta: {
+      ...(rawPayload.meta && typeof rawPayload.meta === 'object' ? rawPayload.meta : {}),
+      ...coachMeta,
+    },
+  };
+};
+
+export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile, file, className, coachConfig }) => {
+  const hasSourceMaterial = hasProcessedNotes || keepFile;
+  const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
+  const setupText = buildCoachSetupText(coachMeta);
+  const contents = [{
+    text: `${buildGuidePrompt(className)}
+
+If Student Setup is provided, preserve it in a top-level "meta" object and let it shape topic prioritization, tone, and sequencing.
+If no source material is provided, create a first-pass exam coach topic map from Student Setup alone.`,
+  }];
+
+  if (setupText) {
+    contents.push({ text: `\n\n${setupText}` });
+  }
 
   if (hasProcessedNotes) {
     contents.push({ text: `\n\nSource Material:\n${processedNotes}` });
@@ -423,6 +495,7 @@ export const generateStudyGuideFromAi = async ({
   noteId,
   classId,
   className,
+  coachConfig,
   aiLimitsContext,
   apiKey,
   parseDocx,
@@ -439,8 +512,10 @@ export const generateStudyGuideFromAi = async ({
     parseDocx,
     onParseError,
   });
+  const hasSourceMaterial = hasProcessedNotes || keepFile;
+  const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
 
-  if (!hasProcessedNotes && !keepFile) {
+  if (!hasSourceMaterial && !coachMeta) {
     throw createHttpError('Notes or a file are required to generate a study guide.', 400);
   }
 
@@ -454,12 +529,22 @@ export const generateStudyGuideFromAi = async ({
 
   const rawResponse = await generateContent({
     model: 'llama-3.3-70b-versatile',
-    contents: buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file, className }),
+    contents: buildGuideContents({
+      processedNotes,
+      hasProcessedNotes,
+      keepFile,
+      file,
+      className,
+      coachConfig,
+    }),
   });
 
-  const guidePayload = parseAiJsonResponse(
+  const guidePayload = mergeGuidePayloadMeta(
+    parseAiJsonResponse(
     rawResponse,
     'AI generated invalid study guide format. Please try again.',
+    ),
+    coachMeta,
   );
 
   const guideData = normalizeStudyGuideData(guidePayload);

@@ -555,7 +555,7 @@ describe('GuideView', () => {
     expect(within(studyingScreen).getByTestId('study-section')).toBeInTheDocument();
   });
 
-  it('keeps classic guides editable and exposes a convert-to-workbook CTA', async () => {
+  it('keeps legacy guides editable and exposes a convert-to-coach CTA', async () => {
     api.getStudyGuide.mockResolvedValue(legacyGuide);
 
     render(
@@ -567,12 +567,12 @@ describe('GuideView', () => {
     );
 
     expect(await screen.findByDisplayValue('World War I Guide')).toBeInTheDocument();
-    expect(screen.getByText(/classic guide/i)).toBeInTheDocument();
-    expect(screen.getByTestId('guide-editor')).toHaveTextContent('Your study guide content...');
-    expect(screen.getByRole('button', { name: /convert to workbook/i })).toBeInTheDocument();
+    expect(screen.getByText('Legacy Guide')).toBeInTheDocument();
+    expect(screen.getByTestId('guide-editor')).toHaveTextContent('Your legacy guide content...');
+    expect(screen.getByRole('button', { name: /convert to coach/i })).toBeInTheDocument();
   });
 
-  it('rebuilds a legacy guide in place and swaps into workbook mode', async () => {
+  it('rebuilds a legacy guide in place and swaps into coach mode', async () => {
     let releaseDone;
     const doneSignal = new Promise((resolve) => {
       releaseDone = resolve;
@@ -590,13 +590,13 @@ describe('GuideView', () => {
           last_reviewed_at: '2026-03-20T14:00:00.000Z',
         }),
         id: 'guide-9',
-        title: 'World War I Recall Workbook',
+        title: 'World War I Exam Coach',
       });
 
     api.generateAiGuideStream.mockResolvedValue({
       chunks: async function* chunks() {
         await doneSignal;
-        yield { type: 'done', data: { guide_id: 'guide-9', title: 'World War I Recall Workbook' } };
+        yield { type: 'done', data: { guide_id: 'guide-9', title: 'World War I Exam Coach' } };
       },
     });
 
@@ -610,32 +610,32 @@ describe('GuideView', () => {
 
     expect(await screen.findByDisplayValue('World War I Guide')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /convert to workbook/i }));
+    fireEvent.click(screen.getByRole('button', { name: /convert to coach/i }));
 
     await waitFor(() => {
       expect(api.generateAiGuideStream).toHaveBeenCalledWith(
         'Treaty of Versailles summary',
         null,
-        'World War I Guide Recall Workbook',
+        'World War I Guide Exam Coach',
         null,
         'class-9',
         null,
         'guide-9',
       );
     });
-    expect(await screen.findByText(/converting guide into a workbook/i)).toBeInTheDocument();
-    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/converting guide into exam coach/i)).toBeInTheDocument();
+    expect(screen.queryByText(/legacy guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
 
     releaseDone();
 
     const rebuiltEntry = await screen.findByTestId('session-entry');
-    expect(within(rebuiltEntry).getByText('World War I Recall Workbook')).toBeInTheDocument();
-    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(within(rebuiltEntry).getByText('World War I Exam Coach')).toBeInTheDocument();
+    expect(screen.queryByText(/legacy guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });
 
-  it('shows an explicit workbook repair state instead of falling back to the legacy editor', async () => {
+  it('shows an explicit coach repair state instead of falling back to the legacy editor', async () => {
     api.getStudyGuide.mockResolvedValue(brokenWorkbook);
 
     render(
@@ -647,9 +647,9 @@ describe('GuideView', () => {
     );
 
     expect(await screen.findByDisplayValue('Broken Workbook')).toBeInTheDocument();
-    expect(screen.getByText(/workbook needs rebuilding/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /rebuild workbook/i })).toBeInTheDocument();
-    expect(screen.queryByText(/classic guide/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/exam coach needs refresh/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /refresh coach/i })).toBeInTheDocument();
+    expect(screen.queryByText(/legacy guide/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('guide-editor')).not.toBeInTheDocument();
   });
 
@@ -720,9 +720,9 @@ describe('GuideView', () => {
       expect(mockSetStudyMode).toHaveBeenCalledWith(expect.objectContaining({
         currentIndex: expect.any(Number),
         totalSections: expect.any(Number),
-        onSections: expect.any(Function),
-        onDetails: expect.any(Function),
-        onNote: expect.any(Function),
+        onMap: expect.any(Function),
+        onStuck: expect.any(Function),
+        onEdit: expect.any(Function),
         canPrev: expect.any(Boolean),
         canNext: expect.any(Boolean),
       }));
@@ -749,9 +749,9 @@ describe('GuideView', () => {
     fireEvent.click(screen.getByRole('button', { name: /update guide content/i }));
 
     const stickyHeader = container.querySelector('div.sticky.top-0');
-    fireEvent.click(within(stickyHeader).getByRole('button', { name: /share guide/i }));
+    fireEvent.click(within(stickyHeader).getByRole('button', { name: /share legacy guide/i }));
 
-    expect(await screen.findByText('Share Guide')).toBeInTheDocument();
+    expect(await screen.findByText('Share Legacy Guide')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^send$/i }));
 
     await waitFor(() => {
@@ -761,7 +761,7 @@ describe('GuideView', () => {
       });
       expect(api.sendMessage).toHaveBeenCalledWith(
         12,
-        'Shared a guide: World War I Guide',
+        'Shared a legacy guide: World War I Guide',
         'guide',
         expect.objectContaining({
           kind: 'guide',

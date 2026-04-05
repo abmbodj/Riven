@@ -98,8 +98,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                 {/* Central Bloom Group - breathing */}
                 <motion.g
-                    originX="0.5"
-                    originY="0.75"
+                    style={{ transformOrigin: '50% 75%' }}
                     animate={{ scale: [0.98, 1.02, 0.98] }}
                     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
                 >
@@ -128,8 +127,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                     {/* Left Blooming Leaf - Sweeping Upward */}
                     <motion.g
-                        originX="0.5"
-                        originY="0.65"
+                        style={{ transformOrigin: '50% 65%' }}
                         initial={{ scale: 0.2, rotate: -60, opacity: 0 }}
                         animate={{ scale: 1, rotate: 0, opacity: 1 }}
                         transition={{ delay: 0.6, duration: 4, type: "spring", stiffness: 15, damping: 10 }}
@@ -157,8 +155,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                     {/* Right Blooming Leaf - Sweeping Upward */}
                     <motion.g
-                        originX="0.5"
-                        originY="0.65"
+                        style={{ transformOrigin: '50% 65%' }}
                         initial={{ scale: 0.2, rotate: 60, opacity: 0 }}
                         animate={{ scale: 1, rotate: 0, opacity: 1 }}
                         transition={{ delay: 0.9, duration: 4, type: "spring", stiffness: 15, damping: 10 }}
@@ -186,8 +183,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                     {/* Outer Left Leaf (lower) */}
                     <motion.g
-                        originX="0.5"
-                        originY="0.65"
+                        style={{ transformOrigin: '50% 65%' }}
                         initial={{ scale: 0, rotate: -40, opacity: 0 }}
                         animate={{ scale: 1, rotate: 0, opacity: 1 }}
                         transition={{ delay: 1.4, duration: 3.5, type: "spring", stiffness: 12, damping: 8 }}
@@ -205,8 +201,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                     {/* Outer Right Leaf (lower) */}
                     <motion.g
-                        originX="0.5"
-                        originY="0.65"
+                        style={{ transformOrigin: '50% 65%' }}
                         initial={{ scale: 0, rotate: 40, opacity: 0 }}
                         animate={{ scale: 1, rotate: 0, opacity: 1 }}
                         transition={{ delay: 1.7, duration: 3.5, type: "spring", stiffness: 12, damping: 8 }}
@@ -224,8 +219,7 @@ export default function OnboardingArt({ className = "w-full max-w-[280px]" }) {
 
                     {/* Central Sprout / Pistil */}
                     <motion.g
-                        originX="0.5"
-                        originY="0.8"
+                        style={{ transformOrigin: '50% 80%' }}
                         initial={{ scaleY: 0, opacity: 0 }}
                         animate={{ scaleY: 1, opacity: 1 }}
                         transition={{ delay: 2.8, duration: 3, type: "spring", stiffness: 25 }}

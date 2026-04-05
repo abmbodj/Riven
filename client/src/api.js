@@ -124,9 +124,9 @@ export const api = {
     generateAiClass: (notes, file) => isLoggedIn()
         ? serverApi.generateAiClass(notes, file)
         : Promise.reject(new Error('Must be logged in to generate AI class')),
-    generateAiGuide: (notes, file, title, noteId, classId, className, replaceGuideId) => isLoggedIn()
-        ? serverApi.generateAiGuide(notes, file, title, noteId, classId, className, replaceGuideId)
-        : Promise.reject(new Error('Must be logged in to generate AI study guide')),
+    generateAiGuide: (notes, file, title, noteId, classId, className, replaceGuideId, coachConfig) => isLoggedIn()
+        ? serverApi.generateAiGuide(notes, file, title, noteId, classId, className, replaceGuideId, coachConfig)
+        : Promise.reject(new Error('Must be logged in to generate Exam Coach')),
     generateAiExam: (notes, file, title, sourceType, sourceId, classId, className, opts) => isLoggedIn()
         ? serverApi.generateAiExam(notes, file, title, sourceType, sourceId, classId, className, opts)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
@@ -141,9 +141,9 @@ export const api = {
     generateAiDeckStream: (notes, file, deckName, classId, className) => isLoggedIn()
         ? serverApi.generateAiDeckStream(notes, file, deckName, classId, className)
         : Promise.reject(new Error('Must be logged in to generate AI flashcards')),
-    generateAiGuideStream: (notes, file, title, noteId, classId, className, replaceGuideId) => isLoggedIn()
-        ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId, className, replaceGuideId)
-        : Promise.reject(new Error('Must be logged in to generate AI study guide')),
+    generateAiGuideStream: (notes, file, title, noteId, classId, className, replaceGuideId, coachConfig) => isLoggedIn()
+        ? serverApi.generateAiGuideStream(notes, file, title, noteId, classId, className, replaceGuideId, coachConfig)
+        : Promise.reject(new Error('Must be logged in to generate Exam Coach')),
     generateAiExamStream: (notes, file, title, sourceType, sourceId, classId, className, opts) => isLoggedIn()
         ? serverApi.generateAiExamStream(notes, file, title, sourceType, sourceId, classId, className, opts)
         : Promise.reject(new Error('Must be logged in to generate AI exam')),
@@ -205,13 +205,13 @@ export const api = {
         : Promise.resolve([]),
     getStudyGuide: (id) => isLoggedIn()
         ? serverApi.getStudyGuide(id)
-        : Promise.reject(new Error('Must be logged in to view study guides')),
+        : Promise.reject(new Error('Must be logged in to view Exam Coach')),
     getStudyCoach: () => isLoggedIn()
         ? serverApi.getStudyCoach()
         : Promise.resolve(null),
     updateStudyGuide: (id, updates) => isLoggedIn()
         ? serverApi.updateStudyGuide(id, updates)
-        : Promise.reject(new Error('Must be logged in to update study guides')),
+        : Promise.reject(new Error('Must be logged in to update Exam Coach')),
     completeStudyCoachSession: (payload) => isLoggedIn()
         ? serverApi.completeStudyCoachSession(payload)
         : Promise.reject(new Error('Must be logged in to save study coach sessions')),
@@ -220,7 +220,7 @@ export const api = {
         : Promise.reject(new Error('Must be logged in to use study coach assist')),
     deleteStudyGuide: (id) => isLoggedIn()
         ? serverApi.deleteStudyGuide(id)
-        : Promise.reject(new Error('Must be logged in to delete study guides')),
+        : Promise.reject(new Error('Must be logged in to delete Exam Coach')),
 
     // ============ MOCK EXAMS ============
     getMockExams: (classId) => isLoggedIn()

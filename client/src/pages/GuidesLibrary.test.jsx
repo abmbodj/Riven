@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GuidesLibrary from './GuidesLibrary.jsx';
@@ -88,7 +88,7 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByText('Biology Recall Workbook')).toBeInTheDocument();
     expect(screen.getByText('1/2 complete')).toBeInTheDocument();
-    expect(screen.getByText('Coach workbook')).toBeInTheDocument();
+    expect(screen.getByText('Exam coach')).toBeInTheDocument();
     expect(screen.getByText(/resume coach session/i)).toBeInTheDocument();
     expect(screen.getByText('2 checkpoints')).toBeInTheDocument();
     expect(screen.getByText(/next checkpoint: mitosis/i)).toBeInTheDocument();
@@ -194,7 +194,7 @@ describe('GuidesLibrary', () => {
     );
 
     expect(await screen.findByText('Adaptive Biology Coach')).toBeInTheDocument();
-    expect(screen.getByText(/coach workbook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/exam coach/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/weak topics/i)).toBeInTheDocument();
     expect(screen.getByText(/mastery/i)).toBeInTheDocument();
     expect(screen.getByText(/review due/i)).toBeInTheDocument();
@@ -220,8 +220,55 @@ describe('GuidesLibrary', () => {
 
     expect(await screen.findByText('Legacy History Guide')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText('Classic guide')).toBeInTheDocument();
-      expect(screen.getByText('Convert to workbook')).toBeInTheDocument();
+      expect(screen.getByText('Legacy guide')).toBeInTheDocument();
+      expect(screen.getByText('Convert to coach')).toBeInTheDocument();
+    });
+  });
+
+  it('can create an exam coach from setup answers without separate source material', async () => {
+    api.getStudyGuides.mockResolvedValue([]);
+    api.generateAiGuide.mockResolvedValue({ guide_id: 'guide-setup' });
+
+    render(
+      <MemoryRouter>
+        <GuidesLibrary />
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/no exam coaches yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /create exam coach/i }));
+
+    expect(await screen.findByText(/create exam coach/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/what are you studying for/i), {
+      target: { value: 'Biology Midterm' },
+    });
+    fireEvent.change(screen.getByLabelText(/what topics should we cover/i), {
+      target: { value: 'Cells, Mitosis' },
+    });
+    fireEvent.change(screen.getByLabelText(/which topics feel weakest right now/i), {
+      target: { value: 'Mitosis' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /focused/i }));
+    fireEvent.click(screen.getByRole('button', { name: /build exam coach/i }));
+
+    await waitFor(() => {
+      expect(api.generateAiGuide).toHaveBeenCalledWith(
+        null,
+        null,
+        'Biology Midterm Coach',
+        null,
+        null,
+        null,
+        null,
+        expect.objectContaining({
+          creationMode: 'setup',
+          examLabel: 'Biology Midterm',
+          userTopics: ['Cells', 'Mitosis'],
+          weakTopics: ['Mitosis'],
+          preferredTone: 'focused',
+        }),
+      );
     });
   });
 });

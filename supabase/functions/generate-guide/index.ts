@@ -7,6 +7,8 @@ import {
   generateStudyGuideFromAi,
   prepareAiSource,
   buildGuideContents,
+  normalizeCoachConfig,
+  mergeGuidePayloadMeta,
   ensureApiKey,
   parseAiJsonResponse,
   createHttpError,
@@ -113,8 +115,10 @@ serve(async (request) => {
       });
 
       const { processedNotes, hasProcessedNotes, keepFile } = sourceResult;
+      const hasSourceMaterial = hasProcessedNotes || keepFile;
+      const coachMeta = normalizeCoachConfig(body.coachConfig, { hasSourceMaterial });
 
-      if (!hasProcessedNotes && !keepFile) {
+      if (!hasSourceMaterial && !coachMeta) {
         throw createHttpError('Notes or a file are required to generate a study guide.', 400);
       }
 
@@ -126,7 +130,14 @@ serve(async (request) => {
         );
       }
 
-      const contents = buildGuideContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
+      const contents = buildGuideContents({
+        processedNotes,
+        hasProcessedNotes,
+        keepFile,
+        file: body.file,
+        className: body.className,
+        coachConfig: body.coachConfig,
+      });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
 
@@ -153,9 +164,12 @@ serve(async (request) => {
             }
           }
 
-          const guidePayload = parseAiJsonResponse(
-            fullText,
-            'AI generated invalid study guide format. Please try again.',
+          const guidePayload = mergeGuidePayloadMeta(
+            parseAiJsonResponse(
+              fullText,
+              'AI generated invalid study guide format. Please try again.',
+            ),
+            coachMeta,
           );
 
           const guideData = normalizeStudyGuideData(guidePayload);
@@ -231,6 +245,7 @@ serve(async (request) => {
       noteId: body.noteId,
       classId: body.classId,
       className: body.className,
+      coachConfig: body.coachConfig,
       aiLimitsContext,
       apiKey,
       parseDocx: async (buffer: Buffer) => {

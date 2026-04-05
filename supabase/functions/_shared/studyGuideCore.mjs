@@ -21,6 +21,29 @@ const normalizeStringArray = (value, maxItems = 8) => {
     .slice(0, maxItems);
 };
 
+const normalizeGuideMeta = (value) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  const creationMode = normalizeOptionalText(raw.creation_mode ?? raw.creationMode);
+  const examLabel = normalizeOptionalText(raw.exam_label ?? raw.examLabel);
+  const examDate = normalizeOptionalText(raw.exam_date ?? raw.examDate);
+  const userTopics = normalizeStringArray(raw.user_topics ?? raw.userTopics, 12);
+  const weakTopics = normalizeStringArray(raw.user_weak_topics ?? raw.userWeakTopics ?? raw.weakTopics, 12);
+  const preferredTone = normalizeOptionalText(raw.preferred_tone ?? raw.preferredTone);
+
+  const normalized = {};
+
+  if (creationMode && ['setup', 'source', 'hybrid'].includes(creationMode)) {
+    normalized.creation_mode = creationMode;
+  }
+  if (examLabel) normalized.exam_label = examLabel;
+  if (examDate) normalized.exam_date = examDate;
+  if (userTopics.length > 0) normalized.user_topics = userTopics;
+  if (weakTopics.length > 0) normalized.user_weak_topics = weakTopics;
+  if (preferredTone) normalized.preferred_tone = preferredTone;
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 const slugify = (value, fallback) => {
   const normalized = normalizeText(value, fallback)
     .toLowerCase()
@@ -218,6 +241,7 @@ export const normalizeStudyGuideData = (value) => {
     raw.overview ?? raw.summary,
     'Review each section actively before revealing the answers.',
   );
+  const meta = normalizeGuideMeta(raw.meta);
 
   if (Array.isArray(raw.topics) && raw.topics.length > 0) {
     const topicIds = new Set();
@@ -251,7 +275,12 @@ export const normalizeStudyGuideData = (value) => {
     }).filter(Boolean);
 
     return topics.length > 0
-      ? { version: 3, overview, topics }
+      ? {
+        version: 3,
+        overview,
+        topics,
+        ...(meta ? { meta } : {}),
+      }
       : null;
   }
 
@@ -277,6 +306,7 @@ export const normalizeStudyGuideData = (value) => {
         subtopics: sections,
       },
     ],
+    ...(meta ? { meta } : {}),
   };
 };
 
@@ -396,7 +426,7 @@ export const buildStudyGuideSummaryDoc = (guideData) => {
   }
 
   const content = [
-    headingNode(1, 'Active Recall Workbook'),
+    headingNode(1, 'Exam Coach'),
     paragraphNode([textNode(normalized.overview)]),
   ];
 

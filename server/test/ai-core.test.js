@@ -184,31 +184,113 @@ describe('aiCore', () => {
     expect(createdGuides).toEqual([expect.objectContaining({
       userId: 9,
       title: 'Bio Recall Workbook',
-      formatVersion: 2,
+      formatVersion: 3,
       noteId: 'note-1',
       classId: 'class-1',
       guideData: expect.objectContaining({
         overview: 'Use each section as a recall drill.',
-        sections: [expect.objectContaining({
-          id: 'glycolysis',
-          title: 'Glycolysis',
+        topics: [expect.objectContaining({
+          subtopics: [expect.objectContaining({
+            id: 'glycolysis',
+            title: 'Glycolysis',
+          })],
         })],
       }),
-      studyState: {
+      studyState: expect.objectContaining({
         current_section_id: 'glycolysis',
         section_states: {
-          glycolysis: {
+          glycolysis: expect.objectContaining({
             revealed: false,
             confidence: null,
             completed: false,
             note: '',
-          },
+          }),
         },
         last_reviewed_at: null,
-      },
+      }),
       content: expect.objectContaining({
         type: 'doc',
         content: expect.any(Array),
+      }),
+    })]);
+  });
+
+  it('can generate an exam coach from setup answers without separate source material', async () => {
+    const createdGuides = [];
+
+    const result = await generateStudyGuideFromAi({
+      notes: '',
+      file: null,
+      title: 'Biology Midterm Coach',
+      noteId: null,
+      classId: null,
+      className: null,
+      coachConfig: {
+        creationMode: 'setup',
+        examLabel: 'Biology Midterm',
+        examDate: '2026-05-14',
+        userTopics: ['Cells', 'Mitosis'],
+        weakTopics: ['Mitosis'],
+        preferredTone: 'calm review',
+      },
+      aiLimitsContext: { characterLimit: 15000 },
+      apiKey: 'groq-key',
+      parseDocx: async () => '',
+      generateContent: async ({ contents }) => {
+        expect(contents).toEqual(expect.arrayContaining([
+          expect.objectContaining({ text: expect.stringContaining('Student Setup:') }),
+          expect.objectContaining({ text: expect.stringContaining('Biology Midterm') }),
+        ]));
+
+        return JSON.stringify({
+          overview: 'Start with the weakest topics first.',
+          meta: {
+            creation_mode: 'setup',
+            exam_label: 'Biology Midterm',
+            exam_date: '2026-05-14',
+            user_topics: ['Cells', 'Mitosis'],
+            user_weak_topics: ['Mitosis'],
+            preferred_tone: 'calm review',
+          },
+          topics: [
+            {
+              title: 'Cells',
+              subtopics: [
+                {
+                  title: 'Mitosis',
+                  recall_prompt: 'Explain mitosis from memory.',
+                  answer_points: ['It produces two daughter cells.'],
+                  key_terms: ['mitosis'],
+                  checks: [{ prompt: 'What does mitosis create?', answer: 'Two daughter cells' }],
+                  flashcards: [{ front: 'Mitosis', back: 'Cell division' }],
+                  common_traps: ['Do not confuse mitosis with meiosis.'],
+                  visual: { type: 'sequence', title: 'Mitosis flow', steps: ['Prophase', 'Metaphase'] },
+                  ai_helpers: { simpler: 'Copying cells', example: 'Skin repair', mnemonic: 'PMAT' },
+                },
+              ],
+            },
+          ],
+        });
+      },
+      createGuide: async (payload) => {
+        createdGuides.push(payload);
+        return { id: 'guide-setup-1' };
+      },
+      deleteGuide: async () => {},
+      userId: 9,
+    });
+
+    expect(result).toEqual({
+      message: 'Study guide generated successfully',
+      guide_id: 'guide-setup-1',
+      title: 'Biology Midterm Coach',
+    });
+    expect(createdGuides).toEqual([expect.objectContaining({
+      guideData: expect.objectContaining({
+        meta: expect.objectContaining({
+          exam_label: 'Biology Midterm',
+          preferred_tone: 'calm review',
+        }),
       }),
     })]);
   });

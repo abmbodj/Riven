@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import OnboardingArt from '../components/OnboardingArt.jsx';
 import {
     estimateSessionEffortMinutes,
     getGuideMasterySnapshot,
@@ -18,6 +19,18 @@ import {
 
 const ACCEPTED_FILES = '.pdf,.docx,.doc,.txt,image/*';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const COACH_TONES = ['calm review', 'focused', 'challenge'];
+
+const parseListInput = (value) => (
+    String(value || '')
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+);
+
+const getGuideDisplayLabel = (guide) => (
+    isActiveRecallGuide(guide) ? 'exam coach' : 'legacy guide'
+);
 
 const GuideCard = memo(({ guide, classes, index }) => {
     const navigate = useNavigate();
@@ -66,7 +79,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                 <div className="relative z-10">
                     <div className="flex items-center justify-between gap-3 mb-4 opacity-70">
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
-                            {activeRecall ? 'Coach workbook' : 'Classic guide'}
+                            {activeRecall ? 'Exam coach' : 'Legacy guide'}
                         </span>
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">
                             {updatedAt}
@@ -164,10 +177,10 @@ const GuideCard = memo(({ guide, classes, index }) => {
                         <div className="mt-4 space-y-3 text-[11px] text-claude-secondary">
                             <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3">
                                 <p>Classic editable guide</p>
-                                <p className="mt-1">Convert it into a coach-style workbook from inside the guide.</p>
+                                <p className="mt-1">Convert it into the coach experience from inside the guide.</p>
                             </div>
                             <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
-                                <span>Convert to workbook</span>
+                                <span>Convert to coach</span>
                                 <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
                                     <ArrowRight className="w-3.5 h-3.5" />
                                     Open
@@ -200,10 +213,16 @@ export default function GuidesLibrary() {
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
 
     // Generate form
-    const [genSource, setGenSource] = useState('note'); // 'note' | 'file'
+    const [genSource, setGenSource] = useState('none'); // 'none' | 'note' | 'file'
     const [selectedNotes, setSelectedNotes] = useState([]);
     const [genFile, setGenFile] = useState(null);
     const [genTitle, setGenTitle] = useState('');
+    const [genExamLabel, setGenExamLabel] = useState('');
+    const [genExamDate, setGenExamDate] = useState('');
+    const [genTopics, setGenTopics] = useState('');
+    const [genWeakTopics, setGenWeakTopics] = useState('');
+    const [genTone, setGenTone] = useState('calm review');
+    const [showSetupQuestions, setShowSetupQuestions] = useState(true);
 
     const loadData = useCallback(async () => {
         try {
@@ -264,6 +283,15 @@ export default function GuidesLibrary() {
         let file = null;
         let noteId = null;
         let classId = null;
+        const examLabel = genExamLabel.trim();
+        const title = genTitle.trim() || (examLabel ? `${examLabel} Coach` : 'Exam Coach');
+        const userTopics = parseListInput(genTopics);
+        const weakTopics = parseListInput(genWeakTopics);
+
+        if (!examLabel) {
+            toast.error('Tell us what you are studying for first');
+            return;
+        }
 
         if (genSource === 'note' && selectedNotes.length > 0) {
             const selected = selectedNotes.map(id => notes.find(n => n.id === id)).filter(Boolean);
@@ -278,26 +306,40 @@ export default function GuidesLibrary() {
             classId = selected[0].class_id;
         } else if (genSource === 'file' && genFile) {
             file = genFile;
-        } else {
+        } else if (genSource === 'note' || genSource === 'file') {
             toast.error(genSource === 'note' ? 'Select at least one note' : 'Upload a file');
             return;
         }
+
+        const hasSource = Boolean(noteText.trim() || file);
+        const hasSetupDetails = Boolean(examLabel || genExamDate || userTopics.length || weakTopics.length || genTone);
+        const coachConfig = {
+            creationMode: hasSource && hasSetupDetails ? 'hybrid' : hasSource ? 'source' : 'setup',
+            examLabel,
+            ...(genExamDate ? { examDate: genExamDate } : {}),
+            ...(userTopics.length ? { userTopics } : {}),
+            ...(weakTopics.length ? { weakTopics } : {}),
+            ...(genTone ? { preferredTone: genTone } : {}),
+        };
 
         setGenerating(true);
         try {
             const result = await api.generateAiGuide(
                 noteText || null,
                 file,
-                genTitle || 'AI Recall Workbook',
+                title,
                 noteId,
-                classId
+                classId,
+                null,
+                null,
+                coachConfig,
             );
-            toast.success('Recall workbook generated!');
+            toast.success('Exam coach generated!');
             setShowGenerateModal(false);
             navigate(`/guide/${result.guide_id}`);
         } catch (err) {
             if (err.status === 429) { setShowGenerateModal(false); setShowPricingModal(true); }
-            else toast.error(err.message || 'Failed to generate guide');
+            else toast.error(err.message || 'Failed to generate exam coach');
         } finally {
             setGenerating(false);
         }
@@ -306,7 +348,7 @@ export default function GuidesLibrary() {
     const handleDelete = async () => {
         try {
             await api.deleteStudyGuide(deleteConfirm.item.id);
-            toast.success('Guide deleted');
+            toast.success(`${getGuideDisplayLabel(deleteConfirm.item)} deleted`);
             loadData();
         } catch (err) {
             toast.error(err?.message || 'Failed to delete');
@@ -327,7 +369,7 @@ export default function GuidesLibrary() {
     if (error) return (
         <div className="text-center py-10">
             <div className="bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 p-6">
-                <p className="font-medium mb-4">Couldn't load study guides</p>
+                <p className="font-medium mb-4">Couldn't load Exam Coach</p>
                 <button onClick={loadData} className="claude-button-primary bg-red-500 text-white">Try Again</button>
             </div>
         </div>
@@ -338,8 +380,8 @@ export default function GuidesLibrary() {
             <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} />
             <ConfirmModal
                 isOpen={deleteConfirm.show}
-                title="Delete guide?"
-                message="This study guide will be permanently deleted."
+                title={`Delete ${getGuideDisplayLabel(deleteConfirm.item || {})}?`}
+                message={`This ${getGuideDisplayLabel(deleteConfirm.item || {})} will be permanently deleted.`}
                 onConfirm={() => { handleDelete(); setDeleteConfirm({ show: false, item: null }); }}
                 onCancel={() => setDeleteConfirm({ show: false, item: null })}
             />
@@ -355,30 +397,145 @@ export default function GuidesLibrary() {
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[80dvh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Generate Recall Workbook</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Create Exam Coach</h3>
                                 <button onClick={() => setShowGenerateModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Title</label>
+                                    <div className="mb-4 rounded-[2rem] border border-claude-border/70 bg-claude-surface/70 p-4 sm:p-5">
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Diagnostic then coach</p>
+                                                <p className="mt-2 text-sm leading-6 text-claude-text">
+                                                    Start with the exam, weak spots, and preferred tone. Notes or a file can sharpen the first topic map, but they are optional.
+                                                </p>
+                                            </div>
+                                            <OnboardingArt className="w-full max-w-[160px] sm:max-w-[150px]" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="coach-exam-label" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">
+                                        What are you studying for
+                                    </label>
                                     <input
+                                        id="coach-exam-label"
+                                        type="text"
+                                        value={genExamLabel}
+                                        onChange={e => setGenExamLabel(e.target.value)}
+                                        placeholder="AP Biology midterm, Organic Chemistry quiz, Civics final..."
+                                        className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                    />
+                                </div>
+
+                                <div className="rounded-[2rem] border border-claude-border/70 bg-claude-bg/55 p-4 sm:p-5">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">4-question setup</p>
+                                            <p className="mt-1 text-sm text-claude-secondary">Skip it in one tap if you just want the defaults.</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSetupQuestions((value) => !value)}
+                                            className="rounded-full border border-claude-border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary transition-colors hover:border-claude-accent/40 hover:text-claude-accent"
+                                        >
+                                            {showSetupQuestions ? 'Skip for now' : 'Show setup'}
+                                        </button>
+                                    </div>
+
+                                    {showSetupQuestions ? (
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label htmlFor="coach-exam-date" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
+                                                    What test or goal is this for, and when is it
+                                                </label>
+                                                <input
+                                                    id="coach-exam-date"
+                                                    type="date"
+                                                    value={genExamDate}
+                                                    onChange={(event) => setGenExamDate(event.target.value)}
+                                                    className="w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label htmlFor="coach-topics" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
+                                                    What topics should we cover
+                                                </label>
+                                                <textarea
+                                                    id="coach-topics"
+                                                    value={genTopics}
+                                                    onChange={(event) => setGenTopics(event.target.value)}
+                                                    placeholder="Cells, mitosis, membrane transport"
+                                                    className="min-h-[110px] w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label htmlFor="coach-weak-topics" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
+                                                    Which topics feel weakest right now
+                                                </label>
+                                                <textarea
+                                                    id="coach-weak-topics"
+                                                    value={genWeakTopics}
+                                                    onChange={(event) => setGenWeakTopics(event.target.value)}
+                                                    placeholder="Mitosis, meiosis"
+                                                    className="min-h-[96px] w-full glass-panel border border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none resize-none"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <span className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
+                                                    What coaching tone do you want
+                                                </span>
+                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                    {COACH_TONES.map((tone) => (
+                                                        <button
+                                                            key={tone}
+                                                            type="button"
+                                                            onClick={() => setGenTone(tone)}
+                                                            className={`min-h-[48px] rounded-2xl border px-4 py-3 text-sm font-mono font-bold capitalize transition-all ${
+                                                                genTone === tone
+                                                                    ? 'border-claude-accent bg-claude-accent/10 text-claude-accent'
+                                                                    : 'border-claude-border bg-claude-surface/50 text-claude-secondary'
+                                                            }`}
+                                                        >
+                                                            {tone}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="coach-title" className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">
+                                        Coach title
+                                    </label>
+                                    <input
+                                        id="coach-title"
                                         type="text"
                                         value={genTitle}
                                         onChange={e => setGenTitle(e.target.value)}
-                                        placeholder="New Recall Workbook"
+                                        placeholder={genExamLabel ? `${genExamLabel} Coach` : 'Final Exam Coach'}
                                         className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Source</label>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setGenSource('note')} className={`flex-1 p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'note' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
-                                            From Note
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Optional source material</label>
+                                    <div className="grid gap-2 sm:grid-cols-3">
+                                        <button type="button" onClick={() => setGenSource('none')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'none' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
+                                            No source yet
                                         </button>
-                                        <button onClick={() => setGenSource('file')} className={`flex-1 p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'file' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
-                                            Upload File
+                                        <button type="button" onClick={() => setGenSource('note')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'note' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
+                                            Add notes
+                                        </button>
+                                        <button type="button" onClick={() => setGenSource('file')} className={`p-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider border transition-all ${genSource === 'file' ? 'bg-claude-accent/20 border-claude-accent text-claude-accent' : 'glass-panel border-claude-border text-claude-secondary'}`}>
+                                            Upload file
                                         </button>
                                     </div>
                                 </div>
@@ -432,7 +589,7 @@ export default function GuidesLibrary() {
                                     className="claude-button-primary w-full py-5 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                    {generating ? 'Generating...' : 'Generate Workbook'}
+                                    {generating ? 'Building...' : 'Build Exam Coach'}
                                 </button>
                             </div>
                         </motion.div>
@@ -450,16 +607,28 @@ export default function GuidesLibrary() {
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
                         <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">AI</span>
                     </div>
-                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Study Guides</h1>
-                    <p className="mt-2 text-sm text-claude-secondary">Coach-style recall workbooks built from your notes and readings.</p>
+                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Exam Coach</h1>
+                    <p className="mt-2 text-sm text-claude-secondary">Diagnostic-first coaching that turns setup answers, notes, or files into a focused topic map.</p>
                 </div>
                 <button
-                    onClick={() => { setShowGenerateModal(true); setGenSource('note'); setSelectedNotes([]); setGenFile(null); setGenTitle(''); }}
+                    onClick={() => {
+                        setShowGenerateModal(true);
+                        setGenSource('none');
+                        setSelectedNotes([]);
+                        setGenFile(null);
+                        setGenTitle('');
+                        setGenExamLabel('');
+                        setGenExamDate('');
+                        setGenTopics('');
+                        setGenWeakTopics('');
+                        setGenTone('calm review');
+                        setShowSetupQuestions(true);
+                    }}
                     className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
-                    aria-label="Create workbook"
+                    aria-label="Create exam coach"
                 >
                     <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
-                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New workbook</span>
+                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New coach</span>
                 </button>
             </div>
 
@@ -467,9 +636,11 @@ export default function GuidesLibrary() {
             <div className="px-1">
                 {guides.length === 0 ? (
                     <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
-                        <BookOpen className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
-                        <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Recall Workbooks Yet</h3>
-                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first coach workbook from notes or a file.</p>
+                        <div className="mx-auto mb-3 max-w-[180px]">
+                            <OnboardingArt className="w-full max-w-[180px]" />
+                        </div>
+                        <h3 className="font-serif italic text-xl text-claude-text opacity-70">No Exam Coaches Yet</h3>
+                        <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Start with what you are studying for, then add notes or a file only if you want extra context.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">
