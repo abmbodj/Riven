@@ -10,6 +10,7 @@ vi.mock('../api', () => ({
     updateStudyGuide: vi.fn(),
     deleteStudyGuide: vi.fn(),
     completeStudyCoachSession: vi.fn(),
+    assistStudyCoach: vi.fn(),
   },
 }));
 
@@ -192,6 +193,11 @@ describe('GuideView', () => {
       masteryDelta: 18,
       weakTopicsRemaining: [],
       nextReviewAt: '2026-04-06T12:00:00.000Z',
+      sessionOutcome: 'complete',
+    });
+    api.assistStudyCoach.mockResolvedValue({
+      answer: 'River: focus on the outcome, not the stage names.',
+      fallbackUsed: true,
     });
   });
 
@@ -209,12 +215,14 @@ describe('GuideView', () => {
     const intro = await screen.findByTestId('river-session-intro');
     expect(within(intro).getByText('River Session')).toBeInTheDocument();
     expect(within(intro).getByText('Cell Division Tutor Session')).toBeInTheDocument();
-    expect(within(intro).getByText(/River/i)).toBeInTheDocument();
+    expect(within(intro).getByText(/coach, not corner you/i)).toBeInTheDocument();
+    expect(within(intro).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'idle');
     expect(within(intro).getByRole('button', { name: /start session/i })).toBeInTheDocument();
 
     fireEvent.click(within(intro).getByRole('button', { name: /start session/i }));
 
     const card = await screen.findByTestId('river-session-card');
+    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'focus');
     expect(within(card).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
 
     fireEvent.change(within(card).getByLabelText(/your answer/i), {
@@ -223,14 +231,18 @@ describe('GuideView', () => {
     fireEvent.click(within(card).getByRole('button', { name: /submit answer/i }));
 
     expect(await within(card).findByText(/Clean answer/i)).toBeInTheDocument();
-    expect(within(card).getByText(/sparkle_mastery/i)).toBeInTheDocument();
+    expect(within(card).getByText(/^mastery$/i)).toBeInTheDocument();
+    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'mastery');
 
     fireEvent.click(within(card).getByRole('button', { name: /continue/i }));
 
     const finish = await screen.findByTestId('river-session-complete');
     expect(within(finish).getByText(/Session complete/i)).toBeInTheDocument();
+    expect(within(finish).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'celebrate');
     expect(api.completeStudyCoachSession).toHaveBeenCalledWith(expect.objectContaining({
       guideId: 'guide-river-1',
+      sessionOutcome: 'complete',
+      exitReason: 'finished',
       studyStateAfter: expect.objectContaining({
         completed_at: expect.any(String),
       }),
@@ -248,6 +260,181 @@ describe('GuideView', () => {
         }),
       }));
     });
+  });
+
+  it('lets the learner continue anyway after a wrong answer without being trapped', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.change(within(card).getByLabelText(/your answer/i), {
+      target: { value: 'It makes four daughter cells.' },
+    });
+    fireEvent.click(within(card).getByRole('button', { name: /submit answer/i }));
+
+    expect(await within(card).findByText(/That describes meiosis, not mitosis/i)).toBeInTheDocument();
+    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'misconception');
+    expect(within(card).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
+  });
+
+  it('lets the learner reveal the answer and keep moving', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.click(within(card).getByRole('button', { name: /show answer/i }));
+
+    expect(await within(card).findByText(/Two genetically identical daughter cells/i)).toBeInTheDocument();
+    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'hint');
+
+    await waitFor(() => {
+      expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
+        study_state: expect.objectContaining({
+          card_states: expect.objectContaining({
+            'card-1': expect.objectContaining({
+              revealed_answer: true,
+              last_outcome: 'revealed',
+            }),
+          }),
+        }),
+      }));
+    });
+  });
+
+  it('lets the learner skip a card for now', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.click(within(card).getByRole('button', { name: /skip for now/i }));
+
+    await waitFor(() => {
+      expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
+        study_state: expect.objectContaining({
+          card_states: expect.objectContaining({
+            'card-1': expect.objectContaining({
+              skipped: true,
+              last_outcome: 'skipped',
+            }),
+          }),
+        }),
+      }));
+    });
+  });
+
+  it('can ask River for help without handing over control of the session', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.click(within(card).getByRole('button', { name: /ask river/i }));
+
+    await waitFor(() => {
+      expect(within(card).getAllByText(/focus on the outcome/i).length).toBeGreaterThan(0);
+    });
+    expect(api.assistStudyCoach).toHaveBeenCalledWith(expect.objectContaining({
+      guideId: 'guide-river-1',
+    }));
+    expect(within(card).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
+  });
+
+  it('shows a partial wrap-up when the learner saves and leaves early', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+    api.completeStudyCoachSession.mockResolvedValue({
+      xpEarned: 10,
+      masteryDelta: 2,
+      weakTopicsRemaining: [{ id: 'concept-mitosis', title: 'Mitosis' }],
+      nextReviewAt: '2026-04-06T12:00:00.000Z',
+      sessionOutcome: 'stopped_early',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.click(within(card).getByRole('button', { name: /save and leave/i }));
+
+    const finish = await screen.findByTestId('river-session-complete');
+    expect(within(finish).getByRole('heading', { name: /session saved/i })).toBeInTheDocument();
+    expect(api.completeStudyCoachSession).toHaveBeenCalledWith(expect.objectContaining({
+      guideId: 'guide-river-1',
+      sessionOutcome: 'stopped_early',
+      exitReason: 'user_left',
+    }));
+  });
+
+  it('can resume the current card after an early save', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+    api.completeStudyCoachSession.mockResolvedValue({
+      xpEarned: 10,
+      masteryDelta: 2,
+      weakTopicsRemaining: [{ id: 'concept-mitosis', title: 'Mitosis' }],
+      nextReviewAt: '2026-04-06T12:00:00.000Z',
+      sessionOutcome: 'stopped_early',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+
+    const card = await screen.findByTestId('river-session-card');
+    fireEvent.click(within(card).getByRole('button', { name: /save and leave/i }));
+
+    const finish = await screen.findByTestId('river-session-complete');
+    fireEvent.click(within(finish).getByRole('button', { name: /resume session/i }));
+
+    const resumedCard = await screen.findByTestId('river-session-card');
+    expect(within(resumedCard).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
+    expect(within(resumedCard).getByRole('button', { name: /save and leave/i })).toBeInTheDocument();
   });
 
   it('shows the unsupported hard-cutover state for pre-v4 guides', async () => {

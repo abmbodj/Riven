@@ -117,14 +117,22 @@ const calculateSessionXp = ({
     afterSnapshot,
     delta,
     mode,
+    sessionOutcome = 'complete',
 }) => {
     const recoveredWeakTopics = Math.max(
         0,
         (beforeSnapshot?.masteryBands?.support?.length || 0) - (afterSnapshot?.masteryBands?.support?.length || 0),
     );
     const masteryGain = Math.max(0, (afterSnapshot?.averageMastery || 0) - (beforeSnapshot?.averageMastery || 0));
+    const evidenceOfLearning = delta.sectionsReviewed > 0
+        || delta.masteryDeltaPercent > 0
+        || recoveredWeakTopics > 0;
 
-    return (
+    if (!evidenceOfLearning) {
+        return 0;
+    }
+
+    const baseXp = (
         delta.sectionsReviewed * 20
         + Math.max(0, delta.masteryDeltaPercent) * 2
         + recoveredWeakTopics * 18
@@ -132,6 +140,67 @@ const calculateSessionXp = ({
         + (afterSnapshot?.weakCount === 0 ? 8 : 0)
         + Math.round(masteryGain / 5)
     );
+
+    if (sessionOutcome === 'stopped_early') {
+        return Math.max(0, Math.round(baseXp * 0.6));
+    }
+
+    return baseXp;
+};
+
+const hasCardInteractionChange = (beforeCard = {}, afterCard = {}) => (
+    toNumber(afterCard?.attempts, 0) !== toNumber(beforeCard?.attempts, 0)
+    || toNumber(afterCard?.hints_used ?? afterCard?.hintsUsed, 0) !== toNumber(beforeCard?.hints_used ?? beforeCard?.hintsUsed, 0)
+    || toNumber(afterCard?.assist_count ?? afterCard?.assistCount, 0) !== toNumber(beforeCard?.assist_count ?? beforeCard?.assistCount, 0)
+    || String(afterCard?.status || '') !== String(beforeCard?.status || '')
+    || String(afterCard?.last_outcome ?? afterCard?.lastOutcome ?? '') !== String(beforeCard?.last_outcome ?? beforeCard?.lastOutcome ?? '')
+    || Boolean(afterCard?.completed) !== Boolean(beforeCard?.completed)
+    || Boolean(afterCard?.revealed_answer ?? afterCard?.revealedAnswer) !== Boolean(beforeCard?.revealed_answer ?? beforeCard?.revealedAnswer)
+    || Boolean(afterCard?.skipped) !== Boolean(beforeCard?.skipped)
+);
+
+const getTouchedConceptIds = (guideData, beforeState, afterState) => {
+    const concepts = guideData?.knowledge_map?.concepts || [];
+    const cards = guideData?.cards || [];
+
+    return concepts
+        .filter((concept) => {
+            const beforeConcept = beforeState?.concept_mastery?.[concept.id] || {};
+            const afterConcept = afterState?.concept_mastery?.[concept.id] || {};
+            const conceptChanged = toNumber(afterConcept?.score, 0) !== toNumber(beforeConcept?.score, 0)
+                || toNumber(afterConcept?.attempts, 0) !== toNumber(beforeConcept?.attempts, 0)
+                || toNumber(afterConcept?.correct_attempts ?? afterConcept?.correctAttempts, 0) !== toNumber(beforeConcept?.correct_attempts ?? beforeConcept?.correctAttempts, 0)
+                || String(afterConcept?.status || '') !== String(beforeConcept?.status || '')
+                || String(afterConcept?.last_outcome ?? afterConcept?.lastOutcome ?? '') !== String(beforeConcept?.last_outcome ?? beforeConcept?.lastOutcome ?? '');
+
+            if (conceptChanged) return true;
+
+            return cards
+                .filter((card) => card.concept_id === concept.id)
+                .some((card) => hasCardInteractionChange(
+                    beforeState?.card_states?.[card.id],
+                    afterState?.card_states?.[card.id],
+                ));
+        })
+        .map((concept) => concept.id);
+};
+
+const getReviewedConceptIds = (guideData, beforeState, afterState) => {
+    const concepts = guideData?.knowledge_map?.concepts || [];
+
+    return concepts
+        .filter((concept) => {
+            const beforeConcept = beforeState?.concept_mastery?.[concept.id] || {};
+            const afterConcept = afterState?.concept_mastery?.[concept.id] || {};
+
+            return toNumber(afterConcept?.score, 0) > toNumber(beforeConcept?.score, 0)
+                || toNumber(afterConcept?.correct_attempts ?? afterConcept?.correctAttempts, 0) > toNumber(beforeConcept?.correct_attempts ?? beforeConcept?.correctAttempts, 0)
+                || (
+                    String(beforeConcept?.last_outcome ?? beforeConcept?.lastOutcome ?? '') !== 'correct'
+                    && String(afterConcept?.last_outcome ?? afterConcept?.lastOutcome ?? '') === 'correct'
+                );
+        })
+        .map((concept) => concept.id);
 };
 
 module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
@@ -314,7 +383,17 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
     });
 
     app.post('/api/study/session-complete', authMiddleware, async (req, res) => {
-        const { guideId, guideData, studyStateBefore, studyStateAfter, mode = 'guided', source = 'guide_view', classId = null } = req.body || {};
+        const {
+            guideId,
+            guideData,
+            studyStateBefore,
+            studyStateAfter,
+            mode = 'guided',
+            source = 'guide_view',
+            classId = null,
+            sessionOutcome = 'complete',
+            exitReason = 'finished',
+        } = req.body || {};
         if (!guideId) {
             return res.status(400).json({ error: 'guideId is required' });
         }
@@ -348,15 +427,18 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
             const beforeSnapshot = getGuideMasterySnapshot(normalizedGuideData, normalizedBefore);
             const afterSnapshot = getGuideMasterySnapshot(normalizedGuideData, normalizedAfter);
             const delta = getSessionDelta(normalizedGuideData, normalizedBefore, normalizedAfter);
+            const touchedConceptIds = getTouchedConceptIds(normalizedGuideData, normalizedBefore, normalizedAfter);
+            const reviewedConceptIds = getReviewedConceptIds(normalizedGuideData, normalizedBefore, normalizedAfter);
             const xpEarned = calculateSessionXp({
                 beforeSnapshot,
                 afterSnapshot,
                 delta,
                 mode,
+                sessionOutcome,
             });
 
             const nowIso = new Date().toISOString();
-            const reviewedSections = afterSnapshot.recommendedSections.map((section) => section.id);
+            const reviewedSections = touchedConceptIds;
             const studyClient = await db.pool.connect();
 
             try {
@@ -388,14 +470,19 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                             before: delta.weakCountBefore,
                             after: delta.weakCountAfter,
                             reviewedSections,
+                            creditedSections: reviewedConceptIds,
+                            sessionOutcome,
+                            exitReason,
                         }),
                         mode,
                         nowIso,
                     ],
                 );
 
-                const progressRows = afterSnapshot.recommendedSections.map((section) => {
-                    const sectionState = normalizedAfter.section_states[section.id] || {};
+                const progressRows = afterSnapshot.recommendedSections
+                    .filter((section) => reviewedSections.includes(section.id))
+                    .map((section) => {
+                    const sectionState = normalizedAfter.concept_mastery?.[section.id] || {};
                     return studyClient.query(
                         `INSERT INTO study_topic_progress
                             (user_id, guide_id, class_id, topic_id, subtopic_id, mastery_score, confidence_bucket, attempts, correct_attempts, current_difficulty, weak_streak, last_reviewed_at, next_review_at)
@@ -422,10 +509,10 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                             section.id,
                             section.masteryScore,
                             section.status,
-                            toNumber(sectionState.quiz_correct, 0),
+                            toNumber(sectionState.correct_attempts ?? sectionState.correctAttempts, 0),
                             section.masteryBand,
                             section.masteryScore < 40 ? 1 : 0,
-                            sectionState.last_reviewed_at || nowIso,
+                            normalizedAfter.last_reviewed_at || nowIso,
                             section.nextReviewAt || nowIso,
                         ],
                     );
@@ -512,6 +599,8 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                     xpEarned,
                     masteryDelta: delta.masteryDeltaPercent,
                     reviewedSections,
+                    sessionOutcome,
+                    exitReason,
                     weakTopicsRemaining: afterSnapshot.masteryBands.support.slice(0, 3).map((section) => ({
                         id: section.id,
                         title: section.title,
@@ -537,7 +626,7 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
     });
 
     app.post('/api/study/assist', authMiddleware, async (req, res) => {
-        const { guideId = null, guideData = null, sectionId = null, question = '' } = req.body || {};
+        const { guideId = null, guideData = null, sectionId = null, cardId = null, question = '' } = req.body || {};
         if (!String(question || '').trim()) {
             return res.status(400).json({ error: 'question is required' });
         }
@@ -561,24 +650,27 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                 return res.status(400).json({ error: 'guide data is required' });
             }
 
-            const activeSection = normalizedGuideData.sections.find((section) => section.id === sectionId)
-                || normalizedGuideData.sections[0]
+            const activeCard = normalizedGuideData.cards.find((card) => card.id === cardId)
+                || normalizedGuideData.cards.find((card) => card.concept_id === sectionId)
+                || normalizedGuideData.cards[0]
                 || null;
+            const activeConcept = normalizedGuideData.knowledge_map.concepts.find((concept) => (
+                concept.id === sectionId || concept.id === activeCard?.concept_id
+            )) || normalizedGuideData.knowledge_map.concepts[0] || null;
 
             const helperParts = [
-                activeSection?.summary,
-                activeSection?.ai_helpers?.simpler ? `Simpler: ${activeSection.ai_helpers.simpler}` : null,
-                activeSection?.ai_helpers?.example ? `Example: ${activeSection.ai_helpers.example}` : null,
-                activeSection?.ai_helpers?.mnemonic ? `Mnemonic: ${activeSection.ai_helpers.mnemonic}` : null,
-                Array.isArray(activeSection?.answer_points) && activeSection.answer_points.length > 0
-                    ? `Key points: ${activeSection.answer_points.slice(0, 3).join(' ')}`
+                activeConcept?.summary,
+                activeCard?.hints?.[0]?.text ? `Hint: ${activeCard.hints[0].text}` : null,
+                activeCard?.feedback?.incorrect?.[0] ? `Reset: ${activeCard.feedback.incorrect[0]}` : null,
+                Array.isArray(activeCard?.required_idea_tags) && activeCard.required_idea_tags.length > 0
+                    ? `Focus on: ${activeCard.required_idea_tags.slice(0, 2).map((tag) => tag.replace(/-/g, ' ')).join(', ')}`
                     : null,
             ].filter(Boolean);
 
             res.json({
                 answer: helperParts.length > 0
-                    ? `${activeSection?.title || 'This section'}: ${helperParts.join(' ')}`
-                    : normalizedGuideData.overview,
+                    ? `${activeConcept?.title || 'This concept'}: ${helperParts.join(' ')}`
+                    : normalizedGuideData.session_meta.student_goal,
                 fallbackUsed: true,
             });
         } catch (error) {

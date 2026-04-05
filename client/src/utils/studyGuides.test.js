@@ -297,11 +297,58 @@ describe('normalizeGuideStudyState', () => {
             hints_used: 0,
             status: 'unseen',
             completed: false,
+            assist_count: 0,
+            last_assist_at: null,
+            revealed_answer: false,
+            skipped: false,
         }));
         expect(state.concept_mastery['concept-mitosis']).toEqual(expect.objectContaining({
             score: 0,
             status: 'unseen',
             attempts: 0,
+        }));
+    });
+
+    it('preserves tutor runtime flags when present', () => {
+        const state = normalizeGuideStudyState(makeGuideData(), {
+            current_card_id: 'card-diagnose-mitosis',
+            card_states: {
+                'card-diagnose-mitosis': {
+                    attempts: 2,
+                    hints_used: 1,
+                    status: 'needs_review',
+                    last_outcome: 'revealed',
+                    completed: false,
+                    assist_count: 1,
+                    last_assist_at: '2026-04-05T11:30:00.000Z',
+                    revealed_answer: true,
+                    skipped: false,
+                },
+                'card-recovery-mitosis': {
+                    attempts: 0,
+                    hints_used: 0,
+                    status: 'skipped',
+                    last_outcome: 'skipped',
+                    completed: false,
+                    assist_count: 0,
+                    last_assist_at: null,
+                    revealed_answer: false,
+                    skipped: true,
+                },
+            },
+        });
+
+        expect(state.card_states['card-diagnose-mitosis']).toEqual(expect.objectContaining({
+            last_outcome: 'revealed',
+            assist_count: 1,
+            last_assist_at: '2026-04-05T11:30:00.000Z',
+            revealed_answer: true,
+            skipped: false,
+        }));
+        expect(state.card_states['card-recovery-mitosis']).toEqual(expect.objectContaining({
+            status: 'skipped',
+            last_outcome: 'skipped',
+            skipped: true,
         }));
     });
 });
@@ -376,5 +423,55 @@ describe('mastery helpers', () => {
         expect(delta.masteryDeltaPercent).toBeGreaterThan(0);
         expect(delta.reviewedSections).toBe(2);
         expect(delta.weakCountAfter).toBeLessThan(delta.weakCountBefore);
+    });
+
+    it('does not award reviewed sections for revealed or skipped cards without demonstrated mastery gain', () => {
+        const before = makeStudyState();
+        const after = makeStudyState({
+            card_states: {
+                'card-diagnose-mitosis': {
+                    attempts: 0,
+                    hints_used: 0,
+                    status: 'needs_review',
+                    last_outcome: 'revealed',
+                    completed: false,
+                    assist_count: 1,
+                    last_assist_at: '2026-04-05T11:20:00.000Z',
+                    revealed_answer: true,
+                    skipped: false,
+                },
+                'card-recovery-mitosis': {
+                    attempts: 0,
+                    hints_used: 0,
+                    status: 'skipped',
+                    last_outcome: 'skipped',
+                    completed: false,
+                    assist_count: 0,
+                    last_assist_at: null,
+                    revealed_answer: false,
+                    skipped: true,
+                },
+                'card-apply-cytokinesis': {
+                    attempts: 0,
+                    hints_used: 0,
+                    status: 'unseen',
+                    last_outcome: null,
+                    completed: false,
+                    assist_count: 0,
+                    last_assist_at: null,
+                    revealed_answer: false,
+                    skipped: false,
+                },
+            },
+            concept_mastery: {
+                'concept-mitosis': { score: 32, status: 'struggling', attempts: 1, correct_attempts: 0, last_outcome: 'incorrect' },
+                'concept-cytokinesis': { score: 58, status: 'developing', attempts: 1, correct_attempts: 1, last_outcome: 'partial' },
+            },
+        });
+
+        const delta = getSessionDelta(makeGuideData(), before, after);
+
+        expect(delta.reviewedSections).toBe(0);
+        expect(delta.masteryDeltaPercent).toBe(0);
     });
 });

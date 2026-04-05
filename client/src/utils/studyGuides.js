@@ -1,4 +1,4 @@
-import { extractTextFromDoc } from './sharedResources';
+import { extractTextFromDoc } from './sharedResources.js';
 
 export const STUDY_GUIDE_FORMAT_VERSION = 4;
 export const ACTIVE_RECALL_STUDY_GUIDE_MIN_VERSION = 4;
@@ -422,6 +422,10 @@ const buildDefaultCardState = () => ({
     status: 'unseen',
     last_outcome: null,
     completed: false,
+    assist_count: 0,
+    last_assist_at: null,
+    revealed_answer: false,
+    skipped: false,
 });
 
 const buildDefaultConceptState = () => ({
@@ -433,12 +437,12 @@ const buildDefaultConceptState = () => ({
 });
 
 const normalizeCardStatus = (value) => {
-    const allowed = new Set(['unseen', 'active', 'retry', 'needs_review', 'mastered', 'completed']);
+    const allowed = new Set(['unseen', 'active', 'retry', 'needs_review', 'mastered', 'completed', 'skipped']);
     return allowed.has(value) ? value : 'unseen';
 };
 
 const normalizeOutcome = (value) => {
-    const allowed = new Set(['correct', 'partial', 'incorrect', 'misconception', 'empty', null]);
+    const allowed = new Set(['correct', 'partial', 'incorrect', 'misconception', 'empty', 'revealed', 'skipped', null]);
     return allowed.has(value) ? value : null;
 };
 
@@ -483,13 +487,18 @@ export const normalizeGuideStudyState = (guideData, studyState) => {
     const cardStates = Object.fromEntries(
         normalizedGuideData.cards.map((card) => {
             const incoming = raw.card_states?.[card.id] ?? raw.section_states?.[card.id] ?? {};
+            const skipped = Boolean(incoming.skipped);
             return [card.id, {
                 ...buildDefaultCardState(),
                 attempts: clampNumber(incoming.attempts, { min: 0, max: 99, fallback: 0 }),
                 hints_used: clampNumber(incoming.hints_used ?? incoming.hintsUsed, { min: 0, max: 99, fallback: 0 }),
-                status: normalizeCardStatus(incoming.status),
+                status: skipped ? 'skipped' : normalizeCardStatus(incoming.status),
                 last_outcome: normalizeOutcome(incoming.last_outcome ?? incoming.lastOutcome),
                 completed: Boolean(incoming.completed),
+                assist_count: clampNumber(incoming.assist_count ?? incoming.assistCount, { min: 0, max: 99, fallback: 0 }),
+                last_assist_at: normalizeOptionalText(incoming.last_assist_at ?? incoming.lastAssistAt),
+                revealed_answer: Boolean(incoming.revealed_answer ?? incoming.revealedAnswer),
+                skipped,
             }];
         }),
     );
