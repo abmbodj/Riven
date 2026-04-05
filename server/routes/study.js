@@ -219,7 +219,7 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
 
             const recommendationCandidates = guides
                 .map((guide) => {
-                    if (Number(guide.format_version) < 2) return null;
+                    if (Number(guide.format_version) < 4) return null;
                     const normalizedGuideData = normalizeGuideData(guide.guide_data);
                     if (!normalizedGuideData) return null;
 
@@ -248,10 +248,10 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                         : false;
 
                     const label = linkedExamSoon
-                        ? 'Cram Weak Topics'
+                        ? 'Cram Weak Concepts'
                         : masterySnapshot.weakCount > 0
-                            ? 'Review Weak Topics'
-                            : 'Continue Session';
+                            ? 'Review Weak Concepts'
+                            : 'Continue River Session';
 
                     return {
                         guide,
@@ -271,7 +271,7 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                     guideId: topCandidate.guide.id,
                     guideTitle: topCandidate.guide.title,
                     label: topCandidate.label,
-                    detail: `${topCandidate.masterySnapshot.weakCount || topCandidate.recommendedSections.length} weak topics · ~${estimateSessionEffortMinutes(topCandidate.recommendedSections)} min`,
+                    detail: `${topCandidate.masterySnapshot.weakCount || topCandidate.recommendedSections.length} concepts to review · ~${estimateSessionEffortMinutes(topCandidate.recommendedSections)} min`,
                     to: `/guide/${topCandidate.guide.id}`,
                     mode: topCandidate.label.toLowerCase().includes('cram') ? 'cram' : 'guided',
                 }
@@ -290,7 +290,7 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
                 && !guides.some((guide) => guide.class_id && String(guide.class_id) === String(upcomingExam.classId))
                 ? {
                     className: classNameById.get(String(upcomingExam.classId)) || 'Upcoming class',
-                    label: 'Generate study coach',
+                    label: 'Generate tutor session',
                     to: '/guides',
                 }
                 : null;
@@ -309,7 +309,7 @@ module.exports = function registerStudyRoutes({ app, db, authMiddleware }) {
             });
         } catch (error) {
             console.error('GET /api/study/coach error:', error);
-            res.status(500).json({ error: 'Failed to load study coach' });
+            res.status(500).json({ error: 'Failed to load tutor session recommendations' });
         }
     });
 

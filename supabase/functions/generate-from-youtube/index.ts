@@ -196,17 +196,17 @@ serve(async (request) => {
           } else if (type === 'guide') {
             const guidePayload = parseAiJsonResponse(
               fullText,
-              'AI generated invalid study guide format. Please try again.',
+              'AI generated invalid tutor session format. Please try again.',
             );
             const guideData = normalizeStudyGuideData(guidePayload);
             if (!guideData) {
-              throw createHttpError('AI failed to generate a valid study guide.', 500);
+              throw createHttpError('AI failed to generate a valid tutor session.', 500);
             }
 
             const guideContent = buildStudyGuideSummaryDoc(guideData);
             const studyState = createDefaultStudyGuideState(guideData);
 
-            const finalTitle = title || 'YouTube Study Guide';
+            const finalTitle = title || 'YouTube Tutor Session';
             const { data: guide, error: guideErr } = await admin
               .from('study_guides')
               .insert({
@@ -359,17 +359,17 @@ serve(async (request) => {
       const rawResponse = await generateContent(buildYoutubeGuideContents(preparedSource.sourceText, className));
       const guidePayload = parseAiJsonResponse(
         rawResponse,
-        'AI generated invalid study guide format. Please try again.',
+        'AI generated invalid tutor session format. Please try again.',
       );
       const guideData = normalizeStudyGuideData(guidePayload);
       if (!guideData) {
-        throw createHttpError('AI failed to generate a valid study guide.', 500);
+        throw createHttpError('AI failed to generate a valid tutor session.', 500);
       }
 
       const guideContent = buildStudyGuideSummaryDoc(guideData);
       const studyState = createDefaultStudyGuideState(guideData);
 
-      const finalTitle = title || 'YouTube Study Guide';
+      const finalTitle = title || 'YouTube Tutor Session';
       const { data: guide, error: guideErr } = await admin
         .from('study_guides')
         .insert({
@@ -387,7 +387,7 @@ serve(async (request) => {
       if (guideErr) throw guideErr;
 
       result = {
-        message: 'Study guide generated successfully',
+        message: 'Tutor session generated successfully',
         guide_id: guide.id,
         title: finalTitle,
       };

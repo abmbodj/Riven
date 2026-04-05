@@ -388,7 +388,7 @@ export default function ExamsLibrary() {
                         <div className="text-center py-16 glass-panel border-dashed border-2 border-claude-border rounded-3xl">
                             <ClipboardCheck className="w-12 h-12 text-claude-accent opacity-20 mx-auto mb-4" />
                             <h3 className="font-serif italic text-xl text-claude-text opacity-40">No Mock Exams</h3>
-                            <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first exam from notes or an Exam Coach.</p>
+                            <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Generate your first exam from notes or a Tutor Session.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 pb-20">

@@ -343,58 +343,143 @@ export const generateDeckFromAi = async ({
 // Study Guide generation
 // ─────────────────────────────────────────────────────
 
-const buildGuidePrompt = (className) => `You are an expert tutor creating an active-recall study workbook${className ? ` for ${className}` : ''}.
-${className ? `Tailor section granularity, terminology, and common traps specifically to ${className}.` : ''}
+const buildGuidePrompt = (className) => `You are an expert tutor creating a River-led AI tutor session${className ? ` for ${className}` : ''}.
+${className ? `Tailor concept selection, terminology, examples, and misconceptions specifically to ${className}.` : ''}
 
 ${buildSubjectContext(className)}
 
 Output ONLY a valid JSON object. No markdown, backticks, or text outside the object.
 Required structure:
 {
-  "overview": "1-3 sentence overview",
-  "topics": [
-    {
-      "id": "optional-topic-slug",
-      "title": "Topic title",
-      "summary": "optional 1 sentence topic framing",
-      "subtopics": [
-        {
-          "id": "optional-subtopic-slug",
-          "title": "Subtopic title",
-          "summary": "1-2 sentence summary",
-          "recall_prompt": "Prompt that forces the student to answer before revealing the guide",
-          "answer_points": ["3-5 exam-testable points — every point must be something that could appear on an exam, no definitional filler"],
-          "key_terms": [
-            { "term": "important term", "definition": "short definition" }
-          ],
-          "checks": [
-            { "prompt": "short checkpoint question", "answer": "short answer" }
-          ],
-          "flashcards": [
-            { "front": "front of card", "back": "back of card" }
-          ],
-          "common_traps": ["common misconception or mistake"],
-          "visual": {
-            "type": "sequence",
-            "title": "optional visual title",
-            "steps": ["step 1", "step 2", "step 3"]
-          },
-          "ai_helpers": {
-            "simpler": "Explain this in simpler language.",
-            "example": "Give one concrete example.",
-            "mnemonic": "Short mnemonic seed."
-          }
-        }
-      ]
+  "session_meta": {
+    "subject": "subject name",
+    "student_goal": "what the student must master",
+    "student_level": "beginner|intermediate|advanced",
+    "exam_context": {
+      "label": "exam or quiz name",
+      "date": "YYYY-MM-DD or empty string"
+    },
+    "source_mode": "setup|source|hybrid",
+    "estimated_minutes": 18,
+    "preferred_tutor_tone": "calm, precise, encouraging"
+  },
+  "river": {
+    "name": "River",
+    "species": "grey cat",
+    "style": "premium svg mascot",
+    "tone": "calm, intelligent, reassuring",
+    "default_expression": "blink_soft",
+    "default_animation": "tail_sway_idle",
+    "cue_map": {
+      "idle": { "expression": "blink_soft", "animation": "tail_sway_idle" },
+      "focus": { "expression": "focus_lean_in", "animation": "ear_tilt_curious" },
+      "recover": { "expression": "soft_concern_mistake", "animation": "paw_point_hint" },
+      "mastery": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
+    },
+    "dialogue_variants": {
+      "opening": ["short opening line"],
+      "encouragement": ["short encouragement line"],
+      "recovery": ["short recovery line"],
+      "mastery": ["short mastery line"]
     }
-  ]
+  },
+  "knowledge_map": {
+    "concepts": [
+      {
+        "id": "concept-slug",
+        "title": "concept title",
+        "summary": "1 sentence summary",
+        "depends_on": ["optional-prereq-concept-id"],
+        "weak_points": ["likely weak point"],
+        "misconception_tags": ["misconception-id"]
+      }
+    ]
+  },
+  "cards": [
+    {
+      "id": "card-slug",
+      "concept_id": "concept-slug",
+      "phase": "diagnostic|recovery|apply|reinforce|mastery",
+      "difficulty": "low|support|medium|high",
+      "card_type": "short_answer",
+      "prompt": "single clear prompt",
+      "target_answer": "concise model answer",
+      "required_idea_tags": ["core-idea-tag"],
+      "optional_idea_tags": ["optional-idea-tag"],
+      "misconception_tags": ["misconception-id"],
+      "hints": [
+        {
+          "level": 1,
+          "text": "guiding hint that narrows thinking without revealing immediately",
+          "cue": { "expression": "ear_tilt_curious", "animation": "paw_point_hint" }
+        }
+      ],
+      "feedback": {
+        "correct": ["feedback for correct answer"],
+        "partial": ["feedback for partial answer"],
+        "incorrect": ["feedback for incorrect answer"],
+        "empty": ["feedback for empty answer"],
+        "misconception": [
+          {
+            "misconception_id": "misconception-id",
+            "responses": ["specific correction for that misconception"]
+          }
+        ]
+      },
+      "river": {
+        "intro": "line before answer",
+        "success": "line after success",
+        "struggle": "line when the student struggles"
+      },
+      "transitions": {
+        "on_correct": "next-card-id or null",
+        "on_partial": "retry",
+        "on_incorrect": "hint",
+        "on_struggle": "recovery-card-id or retry"
+      },
+      "mastery_weight": 1
+    }
+  ],
+  "evaluation_rules": {
+    "score_bands": {
+      "correct": 0.85,
+      "partial": 0.4
+    },
+    "empty_patterns": ["idk", "i do not know", "blank"],
+    "tag_synonyms": {
+      "core-idea-tag": ["synonym phrase"]
+    },
+    "misconception_rules": [
+      {
+        "id": "misconception-id",
+        "concept_id": "concept-slug",
+        "trigger_phrases": ["wrong-answer phrase"],
+        "correction": "brief correction"
+      }
+    ]
+  },
+  "adaptation_rules": {
+    "max_attempts_before_recovery": 2,
+    "max_hints_per_card": 2,
+    "performance_bands": {
+      "struggling": { "mastery_below": 45, "river_expression": "soft_concern_mistake", "river_animation": "paw_point_hint" },
+      "steady": { "mastery_below": 80, "river_expression": "focus_lean_in", "river_animation": "ear_tilt_curious" },
+      "mastery": { "mastery_below": 101, "river_expression": "whisker_pride", "river_animation": "sparkle_mastery" }
+    }
+  },
+  "completion": {
+    "title": "Session complete",
+    "mastery_message": "what the student now understands",
+    "confidence_close": "confidence-building close",
+    "next_review_message": "when and how to review next",
+    "river_cue": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
+  }
 }
-Build an active-recall workbook, not passive notes.
-Create 3-6 topics when possible, each with 1-3 subtopics. Keep answer_points concrete and exam-useful. Max 5 answer_points per subtopic.
-Each subtopic must map to a DISTINCT testable concept — subtopics must not overlap in content.
-Every subtopic must include at least 1 check, 1 flashcard, and all 3 ai_helpers fields.
-Only use visual.type values of "sequence", "compare", or "process". If no visual is useful, still include a simple one with 2-4 steps.
-If a concept in a subtopic is commonly confused with another concept, it MUST appear in common_traps. Do not leave common_traps empty for subtopics where confusion is likely.`;
+Build a tutor session, not a study guide, notes page, or passive summary.
+Use active recall first. Ask before telling whenever possible.
+Create a 3-8 card, one-card-at-a-time training flow with a low-pressure diagnostic start, early success, rising challenge, at least one recovery path, and a mastery finish.
+Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, and feedback variants.
+Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
 
 export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {
   const raw = value && typeof value === 'object' ? value : {};
@@ -447,11 +532,31 @@ export const mergeGuidePayloadMeta = (guidePayload, coachMeta) => {
   const rawPayload = guidePayload && typeof guidePayload === 'object' ? guidePayload : {};
   if (!coachMeta) return rawPayload;
 
+  const existingSessionMeta = rawPayload.session_meta && typeof rawPayload.session_meta === 'object'
+    ? rawPayload.session_meta
+    : {};
+  const existingExamContext = existingSessionMeta.exam_context && typeof existingSessionMeta.exam_context === 'object'
+    ? existingSessionMeta.exam_context
+    : {};
+
   return {
     ...rawPayload,
-    meta: {
-      ...(rawPayload.meta && typeof rawPayload.meta === 'object' ? rawPayload.meta : {}),
-      ...coachMeta,
+    session_meta: {
+      ...existingSessionMeta,
+      student_goal: existingSessionMeta.student_goal || coachMeta.exam_label || '',
+      source_mode: existingSessionMeta.source_mode || coachMeta.creation_mode || '',
+      preferred_tutor_tone: existingSessionMeta.preferred_tutor_tone || coachMeta.preferred_tone || '',
+      focus_topics: Array.isArray(existingSessionMeta.focus_topics) && existingSessionMeta.focus_topics.length > 0
+        ? existingSessionMeta.focus_topics
+        : (coachMeta.user_topics || []),
+      weak_topics: Array.isArray(existingSessionMeta.weak_topics) && existingSessionMeta.weak_topics.length > 0
+        ? existingSessionMeta.weak_topics
+        : (coachMeta.user_weak_topics || []),
+      exam_context: {
+        ...existingExamContext,
+        label: existingExamContext.label || coachMeta.exam_label || '',
+        date: existingExamContext.date || coachMeta.exam_date || '',
+      },
     },
   };
 };
@@ -463,8 +568,8 @@ export const buildGuideContents = ({ processedNotes, hasProcessedNotes, keepFile
   const contents = [{
     text: `${buildGuidePrompt(className)}
 
-If Student Setup is provided, preserve it in a top-level "meta" object and let it shape topic prioritization, tone, and sequencing.
-If no source material is provided, create a first-pass exam coach topic map from Student Setup alone.`,
+If Student Setup is provided, preserve it in "session_meta" and let it shape prioritization, weak-point selection, tone, and pacing.
+If no source material is provided, create a first-pass River tutor session from Student Setup alone.`,
   }];
 
   if (setupText) {
@@ -516,7 +621,7 @@ export const generateStudyGuideFromAi = async ({
   const coachMeta = normalizeCoachConfig(coachConfig, { hasSourceMaterial });
 
   if (!hasSourceMaterial && !coachMeta) {
-    throw createHttpError('Notes or a file are required to generate a study guide.', 400);
+    throw createHttpError('Notes, a file, or setup details are required to generate a tutor session.', 400);
   }
 
   const characterLimit = aiLimitsContext?.characterLimit || 15000;
@@ -542,20 +647,20 @@ export const generateStudyGuideFromAi = async ({
   const guidePayload = mergeGuidePayloadMeta(
     parseAiJsonResponse(
     rawResponse,
-    'AI generated invalid study guide format. Please try again.',
+    'AI generated invalid tutor session format. Please try again.',
     ),
     coachMeta,
   );
 
   const guideData = normalizeStudyGuideData(guidePayload);
   if (!guideData) {
-    throw createHttpError('AI failed to generate a valid study guide.', 500);
+    throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
 
   const guideContent = buildStudyGuideSummaryDoc(guideData);
   const studyState = createDefaultStudyGuideState(guideData);
 
-  const finalTitle = title || 'AI Study Guide';
+  const finalTitle = title || 'AI Tutor Session';
   let createdGuide = null;
 
   try {
@@ -581,7 +686,7 @@ export const generateStudyGuideFromAi = async ({
   }
 
   return {
-    message: 'Study guide generated successfully',
+    message: 'Tutor session generated successfully',
     guide_id: createdGuide.id,
     title: finalTitle,
   };

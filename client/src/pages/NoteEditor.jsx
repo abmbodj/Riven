@@ -784,13 +784,13 @@ export default function NoteEditor() {
         }
 
         setGenerating('guide');
-        setGeneratingStatus('Drafting exam coach');
+        setGeneratingStatus('Drafting tutor session');
         try {
             const selectedClassName = classes.find((c) => c.id === classId)?.name || null;
             const stream = await api.generateAiGuideStream(
                 text,
                 null,
-                `${titleRef.current || 'Note'} Exam Coach`,
+                `${titleRef.current || 'Note'} Tutor Session`,
                 noteId,
                 classId,
                 selectedClassName,
@@ -809,14 +809,14 @@ export default function NoteEditor() {
                     error.canWatchAd = event.data.canWatchAd;
                     throw error;
                 } else if (event.type === 'done') {
-                    toast.success('Exam coach generated!');
+                    toast.success('Tutor session generated!');
                     navigate(`/guide/${event.data.guide_id}`);
                     return;
                 }
             }
         } catch (err) {
             if (err.status === 429) setShowPricingModal(true);
-            else toast.error(err.message || 'Failed to generate exam coach');
+            else toast.error(err.message || 'Failed to generate tutor session');
         } finally {
             setGenerating(null);
             setGeneratingStatus('');
@@ -929,7 +929,7 @@ export default function NoteEditor() {
             },
             {
                 id: 'guide',
-                label: generating === 'guide' && generatingStatus ? generatingStatus : 'Exam Coach',
+                label: generating === 'guide' && generatingStatus ? generatingStatus : 'Tutor Session',
                 icon: generating === 'guide' ? Loader2 : BookOpen,
                 onClick: () => handleGenerateGuideRef.current(),
                 disabled: genOff,
@@ -1078,7 +1078,7 @@ export default function NoteEditor() {
                             className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider glass-panel border border-claude-border text-claude-secondary hover:text-claude-accent hover:border-claude-accent/30 transition-all tap-action shrink-0 disabled:opacity-50"
                         >
                             {generating === 'guide' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
-                            <span>{generating === 'guide' && generatingStatus ? generatingStatus : 'Exam Coach'}</span>
+                            <span>{generating === 'guide' && generatingStatus ? generatingStatus : 'Tutor Session'}</span>
                         </button>
 
                         <button

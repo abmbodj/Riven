@@ -135,13 +135,13 @@ describe('aiCore', () => {
     });
   });
 
-  it('generates active-recall guides with structured guide data and default study state', async () => {
+  it('generates River tutor sessions with structured v4 guide data and tutor runtime state', async () => {
     const createdGuides = [];
 
     const result = await generateStudyGuideFromAi({
       notes: 'Explain glycolysis and ATP yield.',
       file: null,
-      title: 'Bio Recall Workbook',
+      title: 'Bio River Session',
       noteId: 'note-1',
       classId: 'class-1',
       className: 'Biology 101',
@@ -151,21 +151,129 @@ describe('aiCore', () => {
       generateContent: async ({ model, contents }) => {
         expect(model).toBe('llama-3.3-70b-versatile');
         expect(contents).toEqual(expect.arrayContaining([
-          expect.objectContaining({ text: expect.stringContaining('active-recall study workbook') }),
+          expect.objectContaining({ text: expect.stringContaining('River-led AI tutor session') }),
         ]));
 
         return JSON.stringify({
-          overview: 'Use each section as a recall drill.',
-          sections: [
+          session_meta: {
+            subject: 'Biology',
+            student_goal: 'Understand glycolysis and ATP yield.',
+            student_level: 'intermediate',
+            exam_context: {
+              label: 'Biology 101 assessment',
+              date: '2026-05-14',
+            },
+            source_mode: 'source',
+            estimated_minutes: 16,
+            preferred_tutor_tone: 'calm review',
+          },
+          river: {
+            name: 'River',
+            species: 'grey cat',
+            style: 'premium svg mascot',
+            tone: 'calm, precise, encouraging',
+            default_expression: 'blink_soft',
+            default_animation: 'tail_sway_idle',
+            cue_map: {
+              idle: { expression: 'blink_soft', animation: 'tail_sway_idle' },
+              focus: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
+            },
+            dialogue_variants: {
+              opening: ['We will train this actively.'],
+              encouragement: ['Stay with the structure.'],
+              recovery: ['Take the smaller step first.'],
+              mastery: ['That answer is stable.'],
+            },
+          },
+          knowledge_map: {
+            concepts: [
+              {
+                id: 'concept-glycolysis',
+                title: 'Glycolysis',
+                summary: 'Glycolysis happens in the cytoplasm and yields net ATP.',
+                depends_on: [],
+                weak_points: ['location', 'net-yield'],
+                misconception_tags: ['gross-vs-net'],
+              },
+            ],
+          },
+          cards: [
             {
-              title: 'Glycolysis',
-              recall_prompt: 'Walk through glycolysis from memory.',
-              answer_points: ['Occurs in the cytoplasm.', 'Produces a net gain of 2 ATP.'],
-              key_terms: ['glucose', 'pyruvate'],
-              mini_quiz: [{ prompt: 'Net ATP?', answer: '2 ATP' }],
-              common_traps: ['Do not confuse gross ATP with net ATP.'],
+              id: 'card-glycolysis-1',
+              concept_id: 'concept-glycolysis',
+              phase: 'diagnostic',
+              difficulty: 'low',
+              card_type: 'short_answer',
+              prompt: 'Where does glycolysis occur, and what is the net ATP gain?',
+              target_answer: 'It occurs in the cytoplasm and yields net 2 ATP.',
+              required_idea_tags: ['cytoplasm', 'net-2-atp'],
+              optional_idea_tags: ['glucose-breakdown'],
+              misconception_tags: ['gross-vs-net'],
+              hints: [
+                {
+                  level: 1,
+                  text: 'Separate the location from the ATP outcome.',
+                  cue: { expression: 'ear_tilt_curious', animation: 'paw_point_hint' },
+                },
+              ],
+              feedback: {
+                correct: ['Clean answer.'],
+                partial: ['You have one part. Add the missing piece.'],
+                incorrect: ['Reset around location and net yield.'],
+                empty: ['Start with where the process happens.'],
+                misconception: [
+                  {
+                    misconception_id: 'gross-vs-net',
+                    responses: ['Careful: gross ATP and net ATP are not the same.'],
+                  },
+                ],
+              },
+              river: {
+                intro: 'Try it before I help.',
+                success: 'That lands exactly where it should.',
+                struggle: 'Let me narrow the frame.',
+              },
+              transitions: {
+                on_correct: null,
+                on_partial: 'retry',
+                on_incorrect: 'hint',
+                on_struggle: 'retry',
+              },
+              mastery_weight: 1,
             },
           ],
+          evaluation_rules: {
+            score_bands: { correct: 0.85, partial: 0.4 },
+            empty_patterns: ['idk'],
+            tag_synonyms: {
+              cytoplasm: ['cytoplasm'],
+              'net-2-atp': ['net 2 atp', '2 atp'],
+              'glucose-breakdown': ['glucose breakdown'],
+            },
+            misconception_rules: [
+              {
+                id: 'gross-vs-net',
+                concept_id: 'concept-glycolysis',
+                trigger_phrases: ['4 atp gross'],
+                correction: 'Careful: gross ATP and net ATP are different values.',
+              },
+            ],
+          },
+          adaptation_rules: {
+            max_attempts_before_recovery: 2,
+            max_hints_per_card: 2,
+            performance_bands: {
+              struggling: { mastery_below: 45, river_expression: 'soft_concern_mistake', river_animation: 'paw_point_hint' },
+              mastery: { mastery_below: 101, river_expression: 'whisker_pride', river_animation: 'sparkle_mastery' },
+            },
+          },
+          completion: {
+            title: 'Session complete',
+            mastery_message: 'You converted recall into structure.',
+            confidence_close: 'One more clean retrieval will lock it in.',
+            next_review_message: 'Return tomorrow for reinforcement.',
+            river_cue: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+          },
         });
       },
       createGuide: async (payload) => {
@@ -177,33 +285,42 @@ describe('aiCore', () => {
     });
 
     expect(result).toEqual({
-      message: 'Study guide generated successfully',
+      message: 'Tutor session generated successfully',
       guide_id: 'guide-55',
-      title: 'Bio Recall Workbook',
+      title: 'Bio River Session',
     });
     expect(createdGuides).toEqual([expect.objectContaining({
       userId: 9,
-      title: 'Bio Recall Workbook',
-      formatVersion: 3,
+      title: 'Bio River Session',
+      formatVersion: 4,
       noteId: 'note-1',
       classId: 'class-1',
       guideData: expect.objectContaining({
-        overview: 'Use each section as a recall drill.',
-        topics: [expect.objectContaining({
-          subtopics: [expect.objectContaining({
-            id: 'glycolysis',
-            title: 'Glycolysis',
-          })],
+        session_meta: expect.objectContaining({
+          subject: 'Biology',
+          preferred_tutor_tone: 'calm review',
+        }),
+        river: expect.objectContaining({
+          name: 'River',
+        }),
+        cards: [expect.objectContaining({
+          id: 'card-glycolysis-1',
+          concept_id: 'concept-glycolysis',
         })],
       }),
       studyState: expect.objectContaining({
-        current_section_id: 'glycolysis',
-        section_states: {
-          glycolysis: expect.objectContaining({
-            revealed: false,
-            confidence: null,
+        current_card_id: 'card-glycolysis-1',
+        card_states: {
+          'card-glycolysis-1': expect.objectContaining({
+            attempts: 0,
+            hints_used: 0,
             completed: false,
-            note: '',
+          }),
+        },
+        concept_mastery: {
+          'concept-glycolysis': expect.objectContaining({
+            score: 0,
+            status: 'unseen',
           }),
         },
         last_reviewed_at: null,
@@ -215,13 +332,13 @@ describe('aiCore', () => {
     })]);
   });
 
-  it('can generate an exam coach from setup answers without separate source material', async () => {
+  it('can generate a River tutor session from setup answers without separate source material', async () => {
     const createdGuides = [];
 
     const result = await generateStudyGuideFromAi({
       notes: '',
       file: null,
-      title: 'Biology Midterm Coach',
+      title: 'Biology Midterm River Session',
       noteId: null,
       classId: null,
       className: null,
@@ -243,33 +360,113 @@ describe('aiCore', () => {
         ]));
 
         return JSON.stringify({
-          overview: 'Start with the weakest topics first.',
-          meta: {
-            creation_mode: 'setup',
-            exam_label: 'Biology Midterm',
-            exam_date: '2026-05-14',
-            user_topics: ['Cells', 'Mitosis'],
-            user_weak_topics: ['Mitosis'],
-            preferred_tone: 'calm review',
+          session_meta: {
+            subject: 'Biology',
+            student_goal: 'Prepare for Biology Midterm',
+            student_level: 'intermediate',
+            exam_context: {
+              label: 'Biology Midterm',
+              date: '2026-05-14',
+            },
+            source_mode: 'setup',
+            estimated_minutes: 14,
+            preferred_tutor_tone: 'calm review',
           },
-          topics: [
+          river: {
+            name: 'River',
+            species: 'grey cat',
+            style: 'premium svg mascot',
+            tone: 'calm, precise, encouraging',
+            default_expression: 'blink_soft',
+            default_animation: 'tail_sway_idle',
+            cue_map: {
+              idle: { expression: 'blink_soft', animation: 'tail_sway_idle' },
+            },
+            dialogue_variants: {
+              opening: ['We will train the weak spots first.'],
+              encouragement: ['Stay with the structure.'],
+              recovery: ['We can narrow the target.'],
+              mastery: ['That answer is stable.'],
+            },
+          },
+          knowledge_map: {
+            concepts: [
+              {
+                id: 'concept-mitosis',
+                title: 'Mitosis',
+                summary: 'Mitosis produces two daughter cells.',
+                depends_on: [],
+                weak_points: ['outcome'],
+                misconception_tags: ['meiosis-mixup'],
+              },
+            ],
+          },
+          cards: [
             {
-              title: 'Cells',
-              subtopics: [
-                {
-                  title: 'Mitosis',
-                  recall_prompt: 'Explain mitosis from memory.',
-                  answer_points: ['It produces two daughter cells.'],
-                  key_terms: ['mitosis'],
-                  checks: [{ prompt: 'What does mitosis create?', answer: 'Two daughter cells' }],
-                  flashcards: [{ front: 'Mitosis', back: 'Cell division' }],
-                  common_traps: ['Do not confuse mitosis with meiosis.'],
-                  visual: { type: 'sequence', title: 'Mitosis flow', steps: ['Prophase', 'Metaphase'] },
-                  ai_helpers: { simpler: 'Copying cells', example: 'Skin repair', mnemonic: 'PMAT' },
-                },
+              id: 'card-mitosis-1',
+              concept_id: 'concept-mitosis',
+              phase: 'diagnostic',
+              difficulty: 'low',
+              card_type: 'short_answer',
+              prompt: 'What does mitosis create?',
+              target_answer: 'Two daughter cells.',
+              required_idea_tags: ['two-daughter-cells'],
+              optional_idea_tags: [],
+              misconception_tags: ['meiosis-mixup'],
+              hints: [
+                { level: 1, text: 'Focus on the final number of cells.', cue: { expression: 'ear_tilt_curious', animation: 'paw_point_hint' } },
               ],
+              feedback: {
+                correct: ['Good.'],
+                partial: ['Add the final number.'],
+                incorrect: ['Reset around the outcome.'],
+                empty: ['Start with the number of cells.'],
+                misconception: [{ misconception_id: 'meiosis-mixup', responses: ['That describes meiosis, not mitosis.'] }],
+              },
+              river: {
+                intro: 'Try it before I help.',
+                success: 'That lands exactly where it should.',
+                struggle: 'Let me narrow the frame.',
+              },
+              transitions: {
+                on_correct: null,
+                on_partial: 'retry',
+                on_incorrect: 'hint',
+                on_struggle: 'retry',
+              },
+              mastery_weight: 1,
             },
           ],
+          evaluation_rules: {
+            score_bands: { correct: 0.85, partial: 0.4 },
+            empty_patterns: ['idk'],
+            tag_synonyms: {
+              'two-daughter-cells': ['two daughter cells', '2 daughter cells'],
+            },
+            misconception_rules: [
+              {
+                id: 'meiosis-mixup',
+                concept_id: 'concept-mitosis',
+                trigger_phrases: ['four cells'],
+                correction: 'That describes meiosis, not mitosis.',
+              },
+            ],
+          },
+          adaptation_rules: {
+            max_attempts_before_recovery: 2,
+            max_hints_per_card: 2,
+            performance_bands: {
+              struggling: { mastery_below: 45, river_expression: 'soft_concern_mistake', river_animation: 'paw_point_hint' },
+              mastery: { mastery_below: 101, river_expression: 'whisker_pride', river_animation: 'sparkle_mastery' },
+            },
+          },
+          completion: {
+            title: 'Session complete',
+            mastery_message: 'You converted recall into structure.',
+            confidence_close: 'One more clean retrieval will lock it in.',
+            next_review_message: 'Return tomorrow for reinforcement.',
+            river_cue: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+          },
         });
       },
       createGuide: async (payload) => {
@@ -281,15 +478,17 @@ describe('aiCore', () => {
     });
 
     expect(result).toEqual({
-      message: 'Study guide generated successfully',
+      message: 'Tutor session generated successfully',
       guide_id: 'guide-setup-1',
-      title: 'Biology Midterm Coach',
+      title: 'Biology Midterm River Session',
     });
     expect(createdGuides).toEqual([expect.objectContaining({
       guideData: expect.objectContaining({
-        meta: expect.objectContaining({
-          exam_label: 'Biology Midterm',
-          preferred_tone: 'calm review',
+        session_meta: expect.objectContaining({
+          exam_context: expect.objectContaining({
+            label: 'Biology Midterm',
+          }),
+          preferred_tutor_tone: 'calm review',
         }),
       }),
     })]);

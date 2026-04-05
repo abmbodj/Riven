@@ -28,8 +28,8 @@ const CONTENT_TYPES = [
     },
     {
         id: 'guide',
-        label: 'Exam Coach',
-        description: 'Coach topic map',
+        label: 'Tutor Session',
+        description: 'River-led active recall session',
         icon: BookOpen,
         color: '#f59e0b',
         jobKind: 'youtube_guide',
@@ -55,7 +55,7 @@ const SOURCE_PHASE_LABELS = {
 
 const DERIVED_PHASE_LABELS = {
     accepted: 'Queued behind source analysis',
-    drafting: 'Generating coach artifact',
+    drafting: 'Generating tutor session',
     saving: 'Saving generated result',
     done: 'Ready to open',
     error: 'Generation failed',

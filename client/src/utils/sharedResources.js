@@ -148,12 +148,12 @@ export const buildShareMessageContent = (kind, title) => {
 
 export const getSharedResourceLabel = (kind) => {
     if (!isSharedResourceKind(kind)) return 'item';
-    if (kind === 'study guide' || kind === 'guide') return 'exam coach';
+    if (kind === 'study guide' || kind === 'guide') return 'tutor session';
     return kind;
 };
 
 export const getSharedResourcePluralLabel = (kind) => {
-    if (kind === 'study guide' || kind === 'guide') return 'exam coaches';
+    if (kind === 'study guide' || kind === 'guide') return 'tutor sessions';
     if (kind === 'note') return 'notes';
     if (kind === 'deck') return 'decks';
     return 'items';
@@ -170,14 +170,14 @@ export const getSharedResourceRoute = (kind, resourceId) => {
 export const getSharedResourceVerb = (kind) => {
     if (kind === 'deck') return 'deck';
     if (kind === 'note') return 'note';
-    if (kind === 'guide') return 'exam coach';
+    if (kind === 'guide') return 'tutor session';
     return 'item';
 };
 
 export const getSharedResourceCta = (kind) => {
     if (kind === 'deck') return 'Add to Collection';
     if (kind === 'note') return 'Add to Notes';
-    if (kind === 'guide') return 'Add to Exam Coach';
+    if (kind === 'guide') return 'Add to Tutor Sessions';
     return 'Add';
 };
 

@@ -273,7 +273,7 @@ function StudyCoachCard({ coach }) {
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-claude-accent">
-                        Coach Snapshot
+                        River Snapshot
                     </p>
                     <h2 className="mt-2 font-display text-[1.6rem] font-bold italic leading-none text-claude-text">
                         {recommendation?.label || 'Keep momentum moving'}
@@ -317,7 +317,7 @@ function StudyCoachCard({ coach }) {
                     <div className="flex items-center gap-2">
                         <Target className="h-4 w-4 text-claude-accent" />
                         <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary">
-                            Weak Topics
+                            Weak Concepts
                         </p>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1018,7 +1018,7 @@ function DashboardHome() {
                                 const associatedClass = classesById.get(item.class_id);
                                 const isFlashcard = item._type === 'flashcard';
                                 const TypeIcon = isFlashcard ? Layers : item._type === 'note' ? BookOpen : item._type === 'guide' ? Sparkles : CheckCircle2;
-                                const typeLabel = isFlashcard ? `${item.cardCount || 0} Cards` : item._type === 'note' ? 'Note' : item._type === 'guide' ? 'Exam Coach' : 'Mock Exam';
+                                const typeLabel = isFlashcard ? `${item.cardCount || 0} Cards` : item._type === 'note' ? 'Note' : item._type === 'guide' ? 'Tutor Session' : 'Mock Exam';
                                 const HoverIcon = isFlashcard ? Play : ArrowRight;
 
                                 return (

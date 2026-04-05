@@ -119,7 +119,7 @@ serve(async (request) => {
       const coachMeta = normalizeCoachConfig(body.coachConfig, { hasSourceMaterial });
 
       if (!hasSourceMaterial && !coachMeta) {
-        throw createHttpError('Notes or a file are required to generate a study guide.', 400);
+        throw createHttpError('Notes, a file, or setup details are required to generate a tutor session.', 400);
       }
 
       const characterLimit = aiLimitsContext?.characterLimit || 15000;
@@ -167,20 +167,20 @@ serve(async (request) => {
           const guidePayload = mergeGuidePayloadMeta(
             parseAiJsonResponse(
               fullText,
-              'AI generated invalid study guide format. Please try again.',
+              'AI generated invalid tutor session format. Please try again.',
             ),
             coachMeta,
           );
 
           const guideData = normalizeStudyGuideData(guidePayload);
           if (!guideData) {
-            throw createHttpError('AI failed to generate a valid study guide.', 500);
+            throw createHttpError('AI failed to generate a valid tutor session.', 500);
           }
 
           const guideContent = buildStudyGuideSummaryDoc(guideData);
           const studyState = createDefaultStudyGuideState(guideData);
 
-          const finalTitle = body.title || 'AI Study Guide';
+          const finalTitle = body.title || 'AI Tutor Session';
           const guide = await persistGeneratedStudyGuide({
             admin,
             userId: authUser.id,

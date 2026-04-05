@@ -1,386 +1,380 @@
 import { describe, expect, it } from 'vitest';
 import {
-    getSessionSections,
-    getSectionStatus,
-    getWeakSections,
+    evaluateTutorCardResponse,
+    getGuideMasterySnapshot,
+    getSessionDelta,
+    isActiveRecallGuide,
     normalizeGuideData,
     normalizeGuideStudyState,
-    updateSection,
-    getRecommendedSession,
-    getSessionDelta,
-    getGuideMasterySnapshot,
 } from './studyGuides.js';
 
-const makeGuideData = (overrides = []) => ({
-    overview: 'Review before revealing.',
-    sections: [
+const makeGuideData = () => ({
+    session_meta: {
+        subject: 'Biology',
+        student_goal: 'Master cell division',
+        student_level: 'intermediate',
+        exam_context: {
+            label: 'Biology Midterm',
+            date: '2026-05-14',
+        },
+        source_mode: 'hybrid',
+        estimated_minutes: 18,
+        preferred_tutor_tone: 'calm review',
+    },
+    river: {
+        name: 'River',
+        species: 'grey cat',
+        style: 'premium svg mascot',
+        tone: 'calm, precise, encouraging',
+        default_expression: 'blink_soft',
+        default_animation: 'tail_sway_idle',
+        cue_map: {
+            idle: { expression: 'blink_soft', animation: 'tail_sway_idle' },
+            focus: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
+            recover: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
+            mastery: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+        },
+        dialogue_variants: {
+            opening: ['We will build this one step at a time.'],
+            encouragement: ['Stay with the structure, not the panic.'],
+            recovery: ['Take a smaller step first.'],
+            mastery: ['That is solid. Keep the same standard on the next one.'],
+        },
+    },
+    knowledge_map: {
+        concepts: [
+            {
+                id: 'concept-mitosis',
+                title: 'Mitosis',
+                summary: 'Mitosis produces two genetically identical daughter cells.',
+                depends_on: [],
+                weak_points: ['stage-order', 'purpose'],
+                misconception_tags: ['meiosis-mixup'],
+            },
+            {
+                id: 'concept-cytokinesis',
+                title: 'Cytokinesis',
+                summary: 'Cytokinesis splits the cytoplasm after mitosis.',
+                depends_on: ['concept-mitosis'],
+                weak_points: ['timing'],
+                misconception_tags: [],
+            },
+        ],
+    },
+    cards: [
         {
-            id: 'sec-1',
-            title: 'Cell Structure',
-            recall_prompt: 'Describe cell structure.',
-            answer_points: ['Has a nucleus', 'Has a membrane'],
-            key_terms: ['nucleus'],
-            mini_quiz: [{ prompt: 'What contains DNA?', answer: 'Nucleus' }],
-            common_traps: [],
+            id: 'card-diagnose-mitosis',
+            concept_id: 'concept-mitosis',
+            phase: 'diagnostic',
+            difficulty: 'low',
+            card_type: 'short_answer',
+            prompt: 'What is the main outcome of mitosis?',
+            target_answer: 'Two genetically identical daughter cells.',
+            required_idea_tags: ['two-daughter-cells', 'identical-genetic-material'],
+            optional_idea_tags: ['growth-repair'],
+            misconception_tags: ['meiosis-mixup'],
+            hints: [
+                { level: 1, text: 'Think about how many cells you end with.', cue: { expression: 'ear_tilt_curious', animation: 'paw_point_hint' } },
+                { level: 2, text: 'The daughter cells keep the same DNA content.', cue: { expression: 'focus_lean_in', animation: 'paw_point_hint' } },
+            ],
+            feedback: {
+                correct: ['Clean answer. You kept the essential outcome intact.'],
+                partial: ['You have part of it. Tighten the final outcome.'],
+                incorrect: ['Not quite. Reset around the final result of the process.'],
+                empty: ['Start with the number of cells produced.'],
+                misconception: [
+                    {
+                        misconception_id: 'meiosis-mixup',
+                        responses: ['You are mixing mitosis with meiosis. Mitosis does not produce four unique cells.'],
+                    },
+                ],
+            },
+            river: {
+                intro: 'Try it before I help.',
+                success: 'That lands exactly where it should.',
+                struggle: 'Let me narrow the frame.',
+            },
+            transitions: {
+                on_correct: 'card-apply-cytokinesis',
+                on_partial: 'retry',
+                on_incorrect: 'hint',
+                on_struggle: 'card-recovery-mitosis',
+            },
+            mastery_weight: 1,
         },
         {
-            id: 'sec-2',
-            title: 'Mitosis',
-            recall_prompt: 'Explain mitosis.',
-            answer_points: ['4 phases', 'Produces 2 daughter cells'],
-            key_terms: ['mitosis'],
-            mini_quiz: [],
-            common_traps: ['Confusing mitosis with meiosis'],
+            id: 'card-recovery-mitosis',
+            concept_id: 'concept-mitosis',
+            phase: 'recovery',
+            difficulty: 'support',
+            card_type: 'short_answer',
+            prompt: 'Fill the frame: mitosis ends with ____ daughter cells that are ____.',
+            target_answer: 'Two daughter cells that are genetically identical.',
+            required_idea_tags: ['two-daughter-cells', 'identical-genetic-material'],
+            optional_idea_tags: [],
+            misconception_tags: [],
+            hints: [
+                { level: 1, text: 'One number, one relationship.', cue: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' } },
+            ],
+            feedback: {
+                correct: ['Good. That is the exact frame to keep in memory.'],
+                partial: ['You are close. Lock both blanks precisely.'],
+                incorrect: ['Strip it back to the two blanks.'],
+                empty: ['Start with the number.'],
+                misconception: [],
+            },
+            river: {
+                intro: 'Smaller target. Same idea.',
+                success: 'Better. Now take that back to the main card.',
+                struggle: 'Use the hint and rebuild it carefully.',
+            },
+            transitions: {
+                on_correct: 'card-apply-cytokinesis',
+                on_partial: 'retry',
+                on_incorrect: 'hint',
+                on_struggle: 'retry',
+            },
+            mastery_weight: 1,
         },
         {
-            id: 'sec-3',
-            title: 'Protein Synthesis',
-            recall_prompt: 'Explain protein synthesis.',
-            answer_points: ['Transcription', 'Translation'],
-            key_terms: [],
-            mini_quiz: [{ prompt: 'Where does translation occur?', answer: 'Ribosomes' }],
-            common_traps: [],
+            id: 'card-apply-cytokinesis',
+            concept_id: 'concept-cytokinesis',
+            phase: 'apply',
+            difficulty: 'medium',
+            card_type: 'short_answer',
+            prompt: 'What does cytokinesis split, and when does it happen relative to mitosis?',
+            target_answer: 'It splits the cytoplasm after mitosis.',
+            required_idea_tags: ['splits-cytoplasm', 'after-mitosis'],
+            optional_idea_tags: ['cell-separation'],
+            misconception_tags: [],
+            hints: [
+                { level: 1, text: 'Mitosis handles the nucleus. What is left to divide?', cue: { expression: 'focus_lean_in', animation: 'paw_point_hint' } },
+            ],
+            feedback: {
+                correct: ['Exactly. You separated the nucleus stage from the cell split.'],
+                partial: ['One part is there. Add what gets split or when it happens.'],
+                incorrect: ['Anchor on the difference between nuclear division and cytoplasmic division.'],
+                empty: ['Name what gets divided after mitosis finishes.'],
+                misconception: [],
+            },
+            river: {
+                intro: 'Now apply the sequence.',
+                success: 'That is clear and exam-ready.',
+                struggle: 'Separate the jobs of the two processes.',
+            },
+            transitions: {
+                on_correct: null,
+                on_partial: 'retry',
+                on_incorrect: 'hint',
+                on_struggle: 'retry',
+            },
+            mastery_weight: 1,
         },
-        ...overrides,
     ],
+    evaluation_rules: {
+        score_bands: {
+            correct: 0.85,
+            partial: 0.4,
+        },
+        empty_patterns: ['idk', 'i do not know', 'blank'],
+        tag_synonyms: {
+            'two-daughter-cells': ['two daughter cells', '2 daughter cells', 'two cells'],
+            'identical-genetic-material': ['identical genetic material', 'same dna', 'genetically identical'],
+            'growth-repair': ['growth', 'repair'],
+            'splits-cytoplasm': ['splits the cytoplasm', 'divides the cytoplasm', 'cytoplasm splits'],
+            'after-mitosis': ['after mitosis', 'at the end of mitosis', 'following mitosis'],
+            'cell-separation': ['separates the cells', 'cell separation'],
+        },
+        misconception_rules: [
+            {
+                id: 'meiosis-mixup',
+                concept_id: 'concept-mitosis',
+                trigger_phrases: ['four cells', 'four daughter cells', 'genetically different', 'half the chromosomes'],
+                correction: 'That describes meiosis, not mitosis.',
+            },
+        ],
+    },
+    adaptation_rules: {
+        max_attempts_before_recovery: 2,
+        max_hints_per_card: 2,
+        performance_bands: {
+            struggling: { mastery_below: 45, river_expression: 'soft_concern_mistake', river_animation: 'paw_point_hint' },
+            steady: { mastery_below: 80, river_expression: 'focus_lean_in', river_animation: 'ear_tilt_curious' },
+            mastery: { mastery_below: 101, river_expression: 'whisker_pride', river_animation: 'sparkle_mastery' },
+        },
+    },
+    completion: {
+        title: 'Session complete',
+        mastery_message: 'You converted recall into stable structure.',
+        confidence_close: 'You do not need to reread this pass. You need one more clean retrieval later.',
+        next_review_message: 'Return tomorrow for a short reinforcement pass.',
+        river_cue: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+    },
 });
 
-const makeStudyState = (sectionOverrides = {}) => ({
-    current_section_id: 'sec-1',
-    section_states: {
-        'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-        'sec-2': { revealed: true, confidence: 'need_work', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-        'sec-3': { revealed: false, confidence: null, completed: false, note: '', last_reviewed_at: null },
-        ...sectionOverrides,
+const makeStudyState = (overrides = {}) => ({
+    current_card_id: 'card-diagnose-mitosis',
+    session_phase: 'diagnostic',
+    card_states: {
+        'card-diagnose-mitosis': {
+            attempts: 0,
+            hints_used: 0,
+            status: 'active',
+            last_outcome: null,
+            completed: false,
+        },
+        'card-recovery-mitosis': {
+            attempts: 0,
+            hints_used: 0,
+            status: 'unseen',
+            last_outcome: null,
+            completed: false,
+        },
+        'card-apply-cytokinesis': {
+            attempts: 0,
+            hints_used: 0,
+            status: 'unseen',
+            last_outcome: null,
+            completed: false,
+        },
     },
-    last_reviewed_at: new Date().toISOString(),
+    concept_mastery: {
+        'concept-mitosis': { score: 32, status: 'struggling', attempts: 1, correct_attempts: 0, last_outcome: 'incorrect' },
+        'concept-cytokinesis': { score: 58, status: 'developing', attempts: 1, correct_attempts: 1, last_outcome: 'partial' },
+    },
+    last_interaction_at: '2026-04-05T10:00:00.000Z',
+    completed_at: null,
+    last_reviewed_at: '2026-04-05T10:00:00.000Z',
+    ...overrides,
+});
+
+describe('normalizeGuideData', () => {
+    it('normalizes the River tutor-session v4 contract', () => {
+        const guideData = normalizeGuideData(makeGuideData());
+
+        expect(guideData.version).toBe(4);
+        expect(guideData.session_meta.subject).toBe('Biology');
+        expect(guideData.river.name).toBe('River');
+        expect(guideData.cards).toHaveLength(3);
+        expect(guideData.sections.map((section) => section.id)).toEqual(['concept-mitosis', 'concept-cytokinesis']);
+    });
+
+    it('fails fast on old exam-coach guide data', () => {
+        expect(normalizeGuideData({
+            overview: 'Old guide',
+            sections: [
+                {
+                    id: 'sec-1',
+                    title: 'Old section',
+                    recall_prompt: 'Old prompt',
+                    answer_points: ['Old answer'],
+                },
+            ],
+        })).toBe(null);
+    });
+
+    it('marks only v4 tutor-session guides as active', () => {
+        expect(isActiveRecallGuide({
+            format_version: 4,
+            guide_data: makeGuideData(),
+        })).toBe(true);
+
+        expect(isActiveRecallGuide({
+            format_version: 3,
+            guide_data: makeGuideData(),
+        })).toBe(false);
+    });
 });
 
 describe('normalizeGuideStudyState', () => {
-    it('normalizes v3 topic/subtopic guides into flat checkpoint sections', () => {
-        const guideData = normalizeGuideData({
-            overview: 'Core biology review.',
-            topics: [
-                {
-                    id: 'topic-cells',
-                    title: 'Cells',
-                    subtopics: [
-                        {
-                            id: 'subtopic-membrane',
-                            title: 'Cell Membrane',
-                            summary: 'The membrane controls what enters and exits the cell.',
-                            recall_prompt: 'Explain the role of the cell membrane.',
-                            answer_points: ['It regulates transport.', 'It helps maintain homeostasis.'],
-                            key_terms: [
-                                { term: 'selective permeability', definition: 'Allows some substances through more easily than others.' },
-                            ],
-                            checks: [{ prompt: 'What property controls transport?', answer: 'Selective permeability' }],
-                            flashcards: [{ front: 'Cell membrane role', back: 'Regulates transport and homeostasis' }],
-                            common_traps: ['Do not confuse the membrane with the cell wall.'],
-                            visual: { type: 'compare', title: 'Membrane vs wall', items: ['membrane', 'wall'] },
-                            ai_helpers: {
-                                simpler: 'Think of it like a smart gate.',
-                                example: 'It lets oxygen pass into the cell.',
-                                mnemonic: 'Membrane means manage movement.',
-                            },
-                        },
-                    ],
-                },
-            ],
-        });
+    it('creates tutor runtime defaults for every card and concept', () => {
+        const state = normalizeGuideStudyState(makeGuideData(), {});
 
-        expect(guideData.version).toBe(3);
-        expect(guideData.topics).toHaveLength(1);
-        expect(guideData.sections).toHaveLength(1);
-        expect(guideData.sections[0]).toEqual(expect.objectContaining({
-            id: 'subtopic-membrane',
-            topic_id: 'topic-cells',
-            topic_title: 'Cells',
-            title: 'Cell Membrane',
-            summary: 'The membrane controls what enters and exits the cell.',
-            recall_prompt: 'Explain the role of the cell membrane.',
-            answer_points: ['It regulates transport.', 'It helps maintain homeostasis.'],
-            key_terms: [
-                { term: 'selective permeability', definition: 'Allows some substances through more easily than others.' },
-            ],
-            mini_quiz: [{ prompt: 'What property controls transport?', answer: 'Selective permeability' }],
-            flashcards: [{ front: 'Cell membrane role', back: 'Regulates transport and homeostasis' }],
-            ai_helpers: expect.objectContaining({
-                simpler: 'Think of it like a smart gate.',
-                example: 'It lets oxygen pass into the cell.',
-                mnemonic: 'Membrane means manage movement.',
-            }),
+        expect(state.current_card_id).toBe('card-diagnose-mitosis');
+        expect(state.session_phase).toBe('diagnostic');
+        expect(state.card_states['card-diagnose-mitosis']).toEqual(expect.objectContaining({
+            attempts: 0,
+            hints_used: 0,
+            status: 'unseen',
+            completed: false,
+        }));
+        expect(state.concept_mastery['concept-mitosis']).toEqual(expect.objectContaining({
+            score: 0,
+            status: 'unseen',
+            attempts: 0,
         }));
     });
+});
 
-    it('includes last_reviewed_at: null in default section state', () => {
-        const state = normalizeGuideStudyState(makeGuideData(), {});
-        expect(state.section_states['sec-1'].last_reviewed_at).toBe(null);
+describe('evaluateTutorCardResponse', () => {
+    const guideData = normalizeGuideData(makeGuideData());
+    const card = guideData.cards[0];
+
+    it('detects correct answers using tag synonyms', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'Mitosis makes two cells with the same DNA.');
+        expect(result.outcome).toBe('correct');
+        expect(result.matchedTags).toEqual(expect.arrayContaining(['two-daughter-cells', 'identical-genetic-material']));
+        expect(result.feedback).toBeTruthy();
     });
 
-    it('preserves last_reviewed_at when present', () => {
-        const ts = '2026-03-01T10:00:00.000Z';
-        const state = normalizeGuideStudyState(makeGuideData(), {
-            section_states: { 'sec-1': { last_reviewed_at: ts } },
-            last_reviewed_at: null,
+    it('returns partial when only some required ideas are present', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'It makes two daughter cells.');
+        expect(result.outcome).toBe('partial');
+        expect(result.missingTags).toContain('identical-genetic-material');
+    });
+
+    it('routes misconception-shaped answers separately', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'It makes four daughter cells with half the chromosomes.');
+        expect(result.outcome).toBe('misconception');
+        expect(result.misconceptionId).toBe('meiosis-mixup');
+    });
+
+    it('treats blank-style answers as empty', () => {
+        const result = evaluateTutorCardResponse(guideData, card, 'idk');
+        expect(result.outcome).toBe('empty');
+    });
+});
+
+describe('mastery helpers', () => {
+    it('prioritizes struggling concepts in the mastery snapshot', () => {
+        const snapshot = getGuideMasterySnapshot(makeGuideData(), makeStudyState(), {
+            now: '2026-04-05T12:00:00.000Z',
         });
-        expect(state.section_states['sec-1'].last_reviewed_at).toBe(ts);
+
+        expect(snapshot.averageMastery).toBeGreaterThanOrEqual(0);
+        expect(snapshot.recommendedSections[0].id).toBe('concept-mitosis');
+        expect(snapshot.masteryBands.struggling.map((item) => item.id)).toContain('concept-mitosis');
     });
 
-    it('preserves coach setup metadata on normalized guide data', () => {
-        const guideData = normalizeGuideData({
-            overview: 'Review the likely exam areas.',
-            meta: {
-                creation_mode: 'setup',
-                exam_label: 'Biology Midterm',
-                exam_date: '2026-05-14',
-                user_topics: ['Cells', 'Mitosis'],
-                user_weak_topics: ['Mitosis'],
-                preferred_tone: 'calm review',
+    it('reports mastery improvement and reviewed concept count between sessions', () => {
+        const before = makeStudyState({
+            concept_mastery: {
+                'concept-mitosis': { score: 22, status: 'struggling', attempts: 1, correct_attempts: 0, last_outcome: 'incorrect' },
+                'concept-cytokinesis': { score: 40, status: 'developing', attempts: 1, correct_attempts: 0, last_outcome: 'partial' },
             },
-            sections: [
-                {
-                    id: 'cells',
-                    title: 'Cells',
-                    recall_prompt: 'Explain cells.',
-                    answer_points: ['Cells are the basic unit of life.'],
-                    key_terms: ['cell'],
-                    mini_quiz: [],
-                    common_traps: [],
-                },
-            ],
+            card_states: {
+                'card-diagnose-mitosis': { attempts: 1, hints_used: 1, status: 'needs_review', last_outcome: 'incorrect', completed: false },
+                'card-recovery-mitosis': { attempts: 0, hints_used: 0, status: 'unseen', last_outcome: null, completed: false },
+                'card-apply-cytokinesis': { attempts: 1, hints_used: 0, status: 'active', last_outcome: 'partial', completed: false },
+            },
+        });
+        const after = makeStudyState({
+            concept_mastery: {
+                'concept-mitosis': { score: 84, status: 'mastered', attempts: 3, correct_attempts: 2, last_outcome: 'correct' },
+                'concept-cytokinesis': { score: 78, status: 'secure', attempts: 2, correct_attempts: 1, last_outcome: 'correct' },
+            },
+            card_states: {
+                'card-diagnose-mitosis': { attempts: 2, hints_used: 1, status: 'mastered', last_outcome: 'correct', completed: true },
+                'card-recovery-mitosis': { attempts: 1, hints_used: 0, status: 'mastered', last_outcome: 'correct', completed: true },
+                'card-apply-cytokinesis': { attempts: 2, hints_used: 0, status: 'mastered', last_outcome: 'correct', completed: true },
+            },
+            completed_at: '2026-04-05T12:00:00.000Z',
         });
 
-        expect(guideData.meta).toEqual({
-            creation_mode: 'setup',
-            exam_label: 'Biology Midterm',
-            exam_date: '2026-05-14',
-            user_topics: ['Cells', 'Mitosis'],
-            user_weak_topics: ['Mitosis'],
-            preferred_tone: 'calm review',
-        });
-    });
-});
+        const delta = getSessionDelta(makeGuideData(), before, after);
 
-describe('getSectionStatus', () => {
-    it('returns review_now for null confidence (unstudied)', () => {
-        expect(getSectionStatus({ confidence: null }, null)).toBe('review_now');
-    });
-
-    it('returns review_now for need_work', () => {
-        expect(getSectionStatus({ confidence: 'need_work' }, new Date().toISOString())).toBe('review_now');
-    });
-
-    it('returns coming_up for okay', () => {
-        expect(getSectionStatus({ confidence: 'okay' }, new Date().toISOString())).toBe('coming_up');
-    });
-
-    it('returns good for know_it reviewed within 3 days', () => {
-        expect(getSectionStatus({ confidence: 'know_it' }, new Date().toISOString())).toBe('good');
-    });
-
-    it('returns review_soon for know_it reviewed more than 3 days ago', () => {
-        const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
-        expect(getSectionStatus({ confidence: 'know_it' }, fourDaysAgo)).toBe('review_soon');
-    });
-
-    it('returns review_soon for know_it with no last_reviewed_at', () => {
-        expect(getSectionStatus({ confidence: 'know_it' }, null)).toBe('review_soon');
-    });
-});
-
-describe('getWeakSections', () => {
-    it('returns sections with review_now or coming_up status', () => {
-        const guideData = makeGuideData();
-        const studyState = makeStudyState();
-        const weak = getWeakSections(guideData, studyState);
-        const weakIds = weak.map((s) => s.id);
-        expect(weakIds).toContain('sec-2'); // need_work
-        expect(weakIds).toContain('sec-3'); // unstudied
-        expect(weakIds).not.toContain('sec-1'); // know_it + recent
-    });
-
-    it('returns empty array when guideData is null', () => {
-        expect(getWeakSections(null, {})).toEqual([]);
-    });
-});
-
-describe('getSessionSections', () => {
-    it('fills time budget with highest-priority sections first', () => {
-        const guideData = makeGuideData();
-        const studyState = makeStudyState();
-        // 5 min: sec-2 (need_work, no quiz = 3min) + sec-3 (unstudied, has quiz = 4min) → only sec-2 fits
-        const sections5 = getSessionSections(guideData, studyState, 5);
-        expect(sections5.map((s) => s.id)).toEqual(['sec-2']);
-
-        // 10 min: sec-2 (3min) + sec-3 (4min) = 7min → both fit
-        const sections10 = getSessionSections(guideData, studyState, 10);
-        expect(sections10.map((s) => s.id)).toContain('sec-2');
-        expect(sections10.map((s) => s.id)).toContain('sec-3');
-    });
-
-    it('returns empty array for null guideData', () => {
-        expect(getSessionSections(null, {}, 10)).toEqual([]);
-    });
-});
-
-describe('updateSection', () => {
-    it('updates a section by id', () => {
-        const guideData = makeGuideData();
-        const updated = updateSection(guideData, 'sec-1', { title: 'Updated Title' });
-        expect(updated.sections.find((s) => s.id === 'sec-1').title).toBe('Updated Title');
-    });
-
-    it('leaves other sections unchanged', () => {
-        const guideData = makeGuideData();
-        const updated = updateSection(guideData, 'sec-1', { title: 'X' });
-        expect(updated.sections.find((s) => s.id === 'sec-2').title).toBe('Mitosis');
-    });
-
-    it('returns guideData unchanged when id not found', () => {
-        const guideData = makeGuideData();
-        const updated = updateSection(guideData, 'nonexistent', { title: 'X' });
-        expect(updated.sections).toHaveLength(3);
-    });
-});
-
-// --- getRecommendedSession ---
-
-describe('getRecommendedSession', () => {
-    it('returns type "weak" when weak sections exist', () => {
-        const guideData = makeGuideData();
-        // sec-2 has need_work → weak
-        const studyState = makeStudyState();
-        const result = getRecommendedSession(guideData, studyState);
-        expect(result.type).toBe('weak');
-        expect(result.sections.length).toBeGreaterThan(0);
-    });
-
-    it('returns type "continue" when no weak sections but guide incomplete', () => {
-        const guideData = makeGuideData();
-        const studyState = makeStudyState({
-            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-3': { revealed: true, confidence: 'know_it', completed: false, note: '', last_reviewed_at: new Date().toISOString() },
-        });
-        const result = getRecommendedSession(guideData, studyState);
-        expect(result.type).toBe('continue');
-        expect(result.sections.length).toBeGreaterThan(0);
-    });
-
-    it('returns type "full" when guide is 100% complete', () => {
-        const guideData = makeGuideData();
-        const studyState = makeStudyState({
-            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-3': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-        });
-        const result = getRecommendedSession(guideData, studyState);
-        expect(result.type).toBe('full');
-    });
-});
-
-// --- getSessionDelta ---
-
-describe('getSessionDelta', () => {
-    it('returns mastery delta and weak count delta between two states', () => {
-        const guideData = makeGuideData();
-        const stateBefore = makeStudyState({
-            'sec-1': { revealed: true, confidence: 'need_work', completed: false, note: '', last_reviewed_at: null },
-            'sec-2': { revealed: true, confidence: 'need_work', completed: false, note: '', last_reviewed_at: null },
-            'sec-3': { revealed: false, confidence: null, completed: false, note: '', last_reviewed_at: null },
-        });
-        const stateAfter = makeStudyState({
-            'sec-1': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-2': { revealed: true, confidence: 'know_it', completed: true, note: '', last_reviewed_at: new Date().toISOString() },
-            'sec-3': { revealed: false, confidence: null, completed: false, note: '', last_reviewed_at: null },
-        });
-        const delta = getSessionDelta(guideData, stateBefore, stateAfter);
         expect(delta.masteryDeltaPercent).toBeGreaterThan(0);
+        expect(delta.reviewedSections).toBe(2);
         expect(delta.weakCountAfter).toBeLessThan(delta.weakCountBefore);
-        expect(delta.sectionsReviewed).toBe(2);
-    });
-
-    it('returns zeroes when nothing changed', () => {
-        const guideData = makeGuideData();
-        const state = makeStudyState();
-        const delta = getSessionDelta(guideData, state, state);
-        expect(delta.masteryDeltaPercent).toBe(0);
-        expect(delta.sectionsReviewed).toBe(0);
-    });
-});
-
-describe('getGuideMasterySnapshot', () => {
-    it('scores weak exam-linked topics ahead of generic incomplete coverage', () => {
-        const guideData = normalizeGuideData({
-            overview: 'History review.',
-            topics: [
-                {
-                    id: 'topic-war',
-                    title: 'World War I',
-                    subtopics: [
-                        {
-                            id: 'alliances',
-                            title: 'Alliance System',
-                            summary: 'The alliance system made escalation more likely.',
-                            recall_prompt: 'Explain how alliances escalated the war.',
-                            answer_points: ['They pulled more nations into the conflict.'],
-                            key_terms: [],
-                            checks: [],
-                            flashcards: [],
-                            common_traps: [],
-                        },
-                        {
-                            id: 'treaty',
-                            title: 'Treaty of Versailles',
-                            summary: 'The treaty reshaped Europe after the war.',
-                            recall_prompt: 'What changed after the treaty?',
-                            answer_points: ['It imposed reparations on Germany.'],
-                            key_terms: [],
-                            checks: [],
-                            flashcards: [],
-                            common_traps: [],
-                        },
-                    ],
-                },
-            ],
-        });
-
-        const snapshot = getGuideMasterySnapshot(
-            guideData,
-            {
-                current_section_id: 'alliances',
-                section_states: {
-                    alliances: {
-                        revealed: true,
-                        confidence: 'need_work',
-                        completed: true,
-                        note: '',
-                        last_reviewed_at: '2026-04-01T10:00:00.000Z',
-                        quiz_correct: 0,
-                        quiz_total: 2,
-                    },
-                    treaty: {
-                        revealed: false,
-                        confidence: null,
-                        completed: false,
-                        note: '',
-                        last_reviewed_at: null,
-                        quiz_correct: 0,
-                        quiz_total: 0,
-                    },
-                },
-                last_reviewed_at: '2026-04-01T10:00:00.000Z',
-            },
-            {
-                linkedExamAt: '2026-04-05T12:00:00.000Z',
-                now: '2026-04-04T12:00:00.000Z',
-            },
-        );
-
-        expect(snapshot.masteryBands.support.map((item) => item.id)).toContain('alliances');
-        expect(snapshot.recommendedSections[0].id).toBe('alliances');
-        expect(snapshot.recommendedSections[0].priorityReason).toContain('exam');
-        expect(snapshot.weakCount).toBeGreaterThan(0);
     });
 });

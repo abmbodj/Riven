@@ -23,8 +23,8 @@ const MODULES = [
         color: '#22c55e',
     },
     {
-        title: 'Exam Coach',
-        description: 'Diagnostic-first coaching from notes, files, or setup answers',
+        title: 'Tutor Sessions',
+        description: 'River-led active recall from notes, files, or setup answers',
         icon: BookOpen,
         to: '/guides',
         color: '#f59e0b',

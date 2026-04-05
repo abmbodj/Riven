@@ -937,18 +937,18 @@ const processYoutubeDerivedJob = async ({
     await reporter.markStreaming(
       'drafting',
       Math.min(76, 28 + Math.min(guideChunkCount, 6) * 8),
-      'Generating study guide',
+      'Generating tutor session',
       { preview_text: fullGuideText.slice(-240) },
     );
   }
 
   const guidePayload = parseAiJsonResponse(
     fullGuideText,
-    'AI generated invalid study guide format. Please try again.',
+    'AI generated invalid tutor session format. Please try again.',
   );
   const guideData = normalizeStudyGuideData(guidePayload);
   if (!guideData) {
-    throw createHttpError('AI failed to generate a valid study guide.', 500);
+    throw createHttpError('AI failed to generate a valid tutor session.', 500);
   }
 
   const guideContent = buildStudyGuideSummaryDoc(guideData);
@@ -957,7 +957,7 @@ const processYoutubeDerivedJob = async ({
   const guideId = await createGuide({
     admin,
     userId: job.user_id,
-    title: effectiveTitle || 'YouTube Study Guide',
+    title: effectiveTitle || 'YouTube Tutor Session',
     classId,
     formatVersion: STUDY_GUIDE_FORMAT_VERSION,
     guideData,
@@ -966,7 +966,7 @@ const processYoutubeDerivedJob = async ({
   });
 
   await reporter.complete({
-    message: 'Study guide generated successfully',
+    message: 'Tutor session generated successfully',
     targetType: 'guide',
     targetId: guideId,
     resultPatch: {

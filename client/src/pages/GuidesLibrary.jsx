@@ -29,7 +29,7 @@ const parseListInput = (value) => (
 );
 
 const getGuideDisplayLabel = (guide) => (
-    isActiveRecallGuide(guide) ? 'exam coach' : 'legacy guide'
+    isActiveRecallGuide(guide) ? 'tutor session' : 'unsupported guide'
 );
 
 const GuideCard = memo(({ guide, classes, index }) => {
@@ -51,11 +51,11 @@ const GuideCard = memo(({ guide, classes, index }) => {
     const sessionStarted = Boolean(guide.study_state?.last_reviewed_at) || progress.revealedCount > 0 || progress.completedCount > 0;
     const sessionCta = sessionStarted ? 'Resume Session' : 'Start Session';
     const nextStepMinutes = nextSection ? estimateSessionEffortMinutes([nextSection]) : 0;
-    const weakTopicCount = masterySnapshot?.masteryBands?.support?.length || 0;
+    const weakConceptCount = masterySnapshot?.masteryBands?.support?.length || 0;
     const nextReviewLabel = masterySnapshot?.nextReviewAt
         ? new Date(masterySnapshot.nextReviewAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Ready now';
-    const adaptiveGuide = activeRecall && Number(guide.format_version) >= 3;
+    const adaptiveGuide = activeRecall && Number(guide.format_version) >= 4;
 
     return (
         <motion.div
@@ -79,7 +79,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                 <div className="relative z-10">
                     <div className="flex items-center justify-between gap-3 mb-4 opacity-70">
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.18em] text-claude-secondary">
-                            {activeRecall ? 'Exam coach' : 'Legacy guide'}
+                            {activeRecall ? 'Tutor session' : 'Unsupported guide'}
                         </span>
                         <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-claude-secondary italic">
                             {updatedAt}
@@ -110,8 +110,8 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                         <p className="mt-1.5 text-lg font-semibold text-claude-text">{masterySnapshot?.averageMastery || 0}%</p>
                                     </div>
                                     <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-3 py-3">
-                                        <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Weak topics</p>
-                                        <p className="mt-1.5 text-lg font-semibold text-claude-text">{weakTopicCount}</p>
+                                        <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Weak concepts</p>
+                                        <p className="mt-1.5 text-lg font-semibold text-claude-text">{weakConceptCount}</p>
                                     </div>
                                     <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-3 py-3">
                                         <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Review due</p>
@@ -122,7 +122,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
 
                             <div className="rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-claude-accent">
-                                    <span>{sessionStarted ? 'Resume coach session' : 'Best next move'}</span>
+                                    <span>{sessionStarted ? 'Resume River Session' : 'Best next move'}</span>
                                     {nextStepMinutes > 0 ? (
                                         <span className="inline-flex items-center gap-1 text-claude-secondary">
                                             <Clock3 className="w-3.5 h-3.5" />
@@ -136,7 +136,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                 <p className="mt-1 text-[11px] leading-5 text-claude-secondary">
                                     {sessionStarted
                                         ? `Pick up where you left off and keep the recall rhythm going.`
-                                        : 'Open with one checkpoint, reveal the answer, then rate confidence honestly.'}
+                                        : 'River opens with one low-pressure prompt and adapts from your answer.'}
                                 </p>
                             </div>
 
@@ -145,7 +145,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                     <Target className="w-3.5 h-3.5 text-claude-accent" />
                                     {progress.completedCount}/{progress.totalSections} complete
                                 </span>
-                                <span>{progress.totalSections} checkpoints</span>
+                                <span>{progress.totalSections} concepts</span>
                             </div>
                             <div className="h-2 rounded-full bg-claude-border/30 overflow-hidden">
                                 <div
@@ -157,7 +157,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                 <p>Next checkpoint: {nextSection?.title || 'Ready to begin'}</p>
                                 <p className="mt-1">Last reviewed: {lastReviewed}</p>
                                 {adaptiveGuide ? (
-                                    <p className="mt-1">Support queue: {weakTopicCount}</p>
+                                    <p className="mt-1">Support queue: {weakConceptCount}</p>
                                 ) : null}
                             </div>
                             <div className="rounded-2xl border border-claude-accent/20 bg-claude-surface/70 px-4 py-3">
@@ -169,7 +169,7 @@ const GuideCard = memo(({ guide, classes, index }) => {
                                     </span>
                                 </div>
                                 <div className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl border border-claude-accent/25 bg-claude-surface/70 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                    Open coach view
+                                    Open session
                                 </div>
                             </div>
                         </div>
@@ -177,10 +177,10 @@ const GuideCard = memo(({ guide, classes, index }) => {
                         <div className="mt-4 space-y-3 text-[11px] text-claude-secondary">
                             <div className="rounded-2xl border border-claude-border/60 bg-claude-bg/60 px-3 py-3">
                                 <p>Classic editable guide</p>
-                                <p className="mt-1">Convert it into the coach experience from inside the guide.</p>
+                                <p className="mt-1">This guide is unsupported after the River Session cutover.</p>
                             </div>
                             <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-claude-accent/20 bg-claude-accent/5 px-4 py-3">
-                                <span>Convert to coach</span>
+                                <span>Unsupported</span>
                                 <span className="inline-flex items-center gap-1.5 text-claude-accent font-mono uppercase tracking-[0.16em]">
                                     <ArrowRight className="w-3.5 h-3.5" />
                                     Open
@@ -231,7 +231,7 @@ export default function GuidesLibrary() {
                 api.getNotes().catch(() => []),
                 api.getClasses().catch(() => []),
             ]);
-            setGuides(guidesData);
+            setGuides((guidesData || []).filter((guide) => isActiveRecallGuide(guide)));
             setNotes(notesData);
             setClasses(classesData);
             setError(null);
@@ -284,7 +284,7 @@ export default function GuidesLibrary() {
         let noteId = null;
         let classId = null;
         const examLabel = genExamLabel.trim();
-        const title = genTitle.trim() || (examLabel ? `${examLabel} Coach` : 'Exam Coach');
+        const title = genTitle.trim() || (examLabel ? `${examLabel} Tutor Session` : 'Tutor Session');
         const userTopics = parseListInput(genTopics);
         const weakTopics = parseListInput(genWeakTopics);
 
@@ -334,12 +334,12 @@ export default function GuidesLibrary() {
                 null,
                 coachConfig,
             );
-            toast.success('Exam coach generated!');
+            toast.success('Tutor session generated!');
             setShowGenerateModal(false);
             navigate(`/guide/${result.guide_id}`);
         } catch (err) {
             if (err.status === 429) { setShowGenerateModal(false); setShowPricingModal(true); }
-            else toast.error(err.message || 'Failed to generate exam coach');
+            else toast.error(err.message || 'Failed to generate tutor session');
         } finally {
             setGenerating(false);
         }
@@ -369,7 +369,7 @@ export default function GuidesLibrary() {
     if (error) return (
         <div className="text-center py-10">
             <div className="bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 p-6">
-                <p className="font-medium mb-4">Couldn't load Exam Coach</p>
+                <p className="font-medium mb-4">Couldn't load Tutor Sessions</p>
                 <button onClick={loadData} className="claude-button-primary bg-red-500 text-white">Try Again</button>
             </div>
         </div>
@@ -397,7 +397,7 @@ export default function GuidesLibrary() {
                             className="relative bg-claude-bg w-full p-8 rounded-t-[3rem] border-t border-claude-border pb-safe max-h-[80dvh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Create Exam Coach</h3>
+                                <h3 className="text-2xl font-serif italic font-bold text-claude-text">Create Tutor Session</h3>
                                 <button onClick={() => setShowGenerateModal(false)} className="p-2 text-claude-secondary"><X className="w-6 h-6" /></button>
                             </div>
 
@@ -406,7 +406,7 @@ export default function GuidesLibrary() {
                                     <div className="mb-4 rounded-[2rem] border border-claude-border/70 bg-claude-surface/70 p-4 sm:p-5">
                                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">Diagnostic then coach</p>
+                                                <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent">River-led active recall</p>
                                                 <p className="mt-2 text-sm leading-6 text-claude-text">
                                                     Start with the exam, weak spots, and preferred tone. Notes or a file can sharpen the first topic map, but they are optional.
                                                 </p>
@@ -488,7 +488,7 @@ export default function GuidesLibrary() {
 
                                             <div>
                                                 <span className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-2">
-                                                    What coaching tone do you want
+                                                    What tutor tone do you want
                                                 </span>
                                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                                     {COACH_TONES.map((tone) => (
@@ -520,7 +520,7 @@ export default function GuidesLibrary() {
                                         type="text"
                                         value={genTitle}
                                         onChange={e => setGenTitle(e.target.value)}
-                                        placeholder={genExamLabel ? `${genExamLabel} Coach` : 'Final Exam Coach'}
+                                        placeholder={genExamLabel ? `${genExamLabel} Tutor Session` : 'Final Tutor Session'}
                                         className="w-full glass-panel border-2 border-claude-border rounded-2xl p-4 font-mono text-botanical-parchment focus:border-claude-accent outline-none"
                                     />
                                 </div>
@@ -589,7 +589,7 @@ export default function GuidesLibrary() {
                                     className="claude-button-primary w-full py-5 text-lg flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                    {generating ? 'Building...' : 'Build Exam Coach'}
+                                    {generating ? 'Building...' : 'Build Tutor Session'}
                                 </button>
                             </div>
                         </motion.div>
@@ -607,8 +607,8 @@ export default function GuidesLibrary() {
                     <div className="flex items-center gap-2 mb-1.5 translate-y-[-2px]">
                         <span className="px-1.5 py-0.5 bg-[#f59e0b] text-botanical-ink text-[7px] sm:text-[8px] font-mono font-bold uppercase tracking-[0.3em] rounded-sm shadow-sm">AI</span>
                     </div>
-                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Exam Coach</h1>
-                    <p className="mt-2 text-sm text-claude-secondary">Diagnostic-first coaching that turns setup answers, notes, or files into a focused topic map.</p>
+                    <h1 className="text-4xl sm:text-6xl font-serif font-bold italic text-claude-text tracking-tighter leading-none">Tutor Sessions</h1>
+                    <p className="mt-2 text-sm text-claude-secondary">River-led active recall that turns setup answers, notes, or files into a one-card training flow.</p>
                 </div>
                 <button
                     onClick={() => {
@@ -625,10 +625,10 @@ export default function GuidesLibrary() {
                         setShowSetupQuestions(true);
                     }}
                     className="min-h-[3.25rem] rounded-xl sm:rounded-2xl bg-claude-accent border border-claude-border/20 shadow-botanical-glow text-white hover:brightness-110 transition-[transform,opacity,color,background-color,border-color,box-shadow] tap-action flex items-center justify-center gap-2 px-3 sm:px-4 hover:-translate-y-1 hover:shadow-lg active:scale-95"
-                    aria-label="Create exam coach"
+                    aria-label="Create tutor session"
                 >
                     <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
-                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New coach</span>
+                    <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-[0.18em]">New session</span>
                 </button>
             </div>
 
@@ -639,7 +639,7 @@ export default function GuidesLibrary() {
                         <div className="mx-auto mb-3 max-w-[180px]">
                             <OnboardingArt className="w-full max-w-[180px]" />
                         </div>
-                        <h3 className="font-serif italic text-xl text-claude-text opacity-70">No Exam Coaches Yet</h3>
+                        <h3 className="font-serif italic text-xl text-claude-text opacity-70">No Tutor Sessions Yet</h3>
                         <p className="text-[color-mix(in_srgb,var(--secondary-text-color)_60%,transparent)] text-[10px] font-mono uppercase tracking-widest mt-2 px-8">Start with what you are studying for, then add notes or a file only if you want extra context.</p>
                     </div>
                 ) : (
