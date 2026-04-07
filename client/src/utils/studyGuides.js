@@ -6,6 +6,22 @@ export const STUDY_GUIDE_CONFIDENCE_OPTIONS = [];
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_ESTIMATED_MINUTES = 12;
+const RIVER_ROLE_FALLBACK = 'friendly garden lecture frog';
+const RIVER_CUE_FALLBACKS = Object.freeze({
+    idle: Object.freeze({ expression: 'blink_soft', animation: 'pond_breath_idle' }),
+    focus: Object.freeze({ expression: 'steady_gaze', animation: 'crouch_listen_focus' }),
+    recover: Object.freeze({ expression: 'gentle_reassure', animation: 'forelimb_offer_hint' }),
+    mastery: Object.freeze({ expression: 'calm_pride', animation: 'reed_glow_mastery' }),
+    teach: Object.freeze({ expression: 'steady_gaze', animation: 'hat_nod_teach' }),
+    point: Object.freeze({ expression: 'steady_gaze', animation: 'forelimb_point_stage' }),
+    encourage: Object.freeze({ expression: 'blink_soft', animation: 'soft_rise_glow' }),
+    thinking: Object.freeze({ expression: 'reflective_blink', animation: 'still_ponder_breath' }),
+    'gentle-correct': Object.freeze({ expression: 'gentle_reassure', animation: 'forelimb_offer_hint' }),
+});
+const RIVER_HINT_CUE_FALLBACK = Object.freeze({
+    expression: 'reflective_blink',
+    animation: 'forelimb_offer_hint',
+});
 
 const normalizeText = (value, fallback = '') => {
     if (typeof value !== 'string') return fallback;
@@ -86,36 +102,33 @@ const normalizeSessionMeta = (value) => {
             raw.preferred_tutor_tone ?? raw.preferredTutorTone,
             'calm, precise, encouraging',
         ),
-        river_role: normalizeText(raw.river_role ?? raw.riverRole, 'friendly lecture cat'),
+        river_role: normalizeText(raw.river_role ?? raw.riverRole, RIVER_ROLE_FALLBACK),
         focus_topics: normalizeStringArray(raw.focus_topics ?? raw.focusTopics),
         weak_topics: normalizeStringArray(raw.weak_topics ?? raw.weakTopics),
     };
 };
 
-const normalizeCue = (value, fallback = {}) => {
+const normalizeCue = (value, fallback = RIVER_CUE_FALLBACKS.idle) => {
     const raw = value && typeof value === 'object' ? value : {};
     return {
-        expression: normalizeText(raw.expression, normalizeText(fallback.expression, 'blink_soft')),
-        animation: normalizeText(raw.animation, normalizeText(fallback.animation, 'tail_sway_idle')),
+        expression: normalizeText(raw.expression, normalizeText(fallback.expression, RIVER_CUE_FALLBACKS.idle.expression)),
+        animation: normalizeText(raw.animation, normalizeText(fallback.animation, RIVER_CUE_FALLBACKS.idle.animation)),
     };
 };
 
 const normalizeCueMap = (value) => {
     const raw = value && typeof value === 'object' ? value : {};
     return {
-        idle: normalizeCue(raw.idle, { expression: 'blink_soft', animation: 'tail_sway_idle' }),
-        focus: normalizeCue(raw.focus, { expression: 'focus_lean_in', animation: 'ear_tilt_curious' }),
-        recover: normalizeCue(raw.recover, { expression: 'soft_concern_mistake', animation: 'paw_point_hint' }),
-        mastery: normalizeCue(raw.mastery, { expression: 'whisker_pride', animation: 'sparkle_mastery' }),
-        teach: normalizeCue(raw.teach, { expression: 'focus_lean_in', animation: 'beanie_bob_teach' }),
-        point: normalizeCue(raw.point, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
-        encourage: normalizeCue(raw.encourage, { expression: 'blink_soft', animation: 'soft_nod_glow' }),
-        thinking: normalizeCue(raw.thinking, { expression: 'ear_tilt_curious', animation: 'tail_think_loop' }),
-        'gentle-correct': normalizeCue(raw['gentle-correct'] ?? raw.gentle_correct ?? raw.gentleCorrect, {
-            expression: 'soft_concern_mistake',
-            animation: 'paw_point_hint',
-        }),
-        celebrate: normalizeCue(raw.celebrate, { expression: 'whisker_pride', animation: 'sparkle_mastery' }),
+        idle: normalizeCue(raw.idle, RIVER_CUE_FALLBACKS.idle),
+        focus: normalizeCue(raw.focus, RIVER_CUE_FALLBACKS.focus),
+        recover: normalizeCue(raw.recover, RIVER_CUE_FALLBACKS.recover),
+        mastery: normalizeCue(raw.mastery, RIVER_CUE_FALLBACKS.mastery),
+        teach: normalizeCue(raw.teach, RIVER_CUE_FALLBACKS.teach),
+        point: normalizeCue(raw.point, RIVER_CUE_FALLBACKS.point),
+        encourage: normalizeCue(raw.encourage, RIVER_CUE_FALLBACKS.encourage),
+        thinking: normalizeCue(raw.thinking, RIVER_CUE_FALLBACKS.thinking),
+        'gentle-correct': normalizeCue(raw['gentle-correct'] ?? raw.gentle_correct ?? raw.gentleCorrect, RIVER_CUE_FALLBACKS['gentle-correct']),
+        celebrate: normalizeCue(raw.celebrate, RIVER_CUE_FALLBACKS.mastery),
     };
 };
 
@@ -133,11 +146,11 @@ const normalizeRiver = (value) => {
     const raw = value && typeof value === 'object' ? value : {};
     return {
         name: normalizeText(raw.name, 'River'),
-        species: normalizeText(raw.species, 'grey cat'),
-        style: normalizeText(raw.style, 'storybook lecture mascot'),
+        species: normalizeText(raw.species, 'pond frog'),
+        style: normalizeText(raw.style, 'garden guide mascot'),
         tone: normalizeText(raw.tone, 'friendly, witty, encouraging teacher'),
-        default_expression: normalizeText(raw.default_expression, 'blink_soft'),
-        default_animation: normalizeText(raw.default_animation, 'tail_sway_idle'),
+        default_expression: normalizeText(raw.default_expression, RIVER_CUE_FALLBACKS.idle.expression),
+        default_animation: normalizeText(raw.default_animation, RIVER_CUE_FALLBACKS.idle.animation),
         cue_map: normalizeCueMap(raw.cue_map ?? raw.cueMap),
         dialogue_variants: normalizeDialogueVariants(raw.dialogue_variants ?? raw.dialogueVariants),
     };
@@ -194,7 +207,7 @@ const normalizeCardHint = (value, index) => {
     return {
         level: clampNumber(value.level, { min: 1, max: 5, fallback: index + 1 }),
         text: normalizeText(value.text, `Hint ${index + 1}`),
-        cue: normalizeCue(value.cue, { expression: 'ear_tilt_curious', animation: 'paw_point_hint' }),
+        cue: normalizeCue(value.cue, RIVER_HINT_CUE_FALLBACK),
     };
 };
 
@@ -326,7 +339,7 @@ const normalizeAssistOptions = (value, teaching) => {
                 label,
                 text,
                 pose: normalizeText(item.pose, 'teach'),
-                cue: normalizeCue(item.cue, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
+                cue: normalizeCue(item.cue, RIVER_CUE_FALLBACKS.point),
             };
         })
         .filter(Boolean);
@@ -335,7 +348,7 @@ const normalizeAssistOptions = (value, teaching) => {
         item.id,
         {
             ...item,
-            cue: normalizeCue(null, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
+            cue: normalizeCue(null, RIVER_CUE_FALLBACKS.point),
         },
     ]));
 
@@ -354,10 +367,7 @@ const normalizePresentation = (value, card) => {
     return {
         pose: normalizeText(raw.pose, getDefaultPoseForPhase(card.phase)),
         emphasis_target: normalizeText(raw.emphasis_target ?? raw.emphasisTarget, card.target_answer),
-        reaction_cue: normalizeCue(raw.reaction_cue ?? raw.reactionCue, {
-            expression: 'focus_lean_in',
-            animation: 'ear_tilt_curious',
-        }),
+        reaction_cue: normalizeCue(raw.reaction_cue ?? raw.reactionCue, RIVER_CUE_FALLBACKS.focus),
     };
 };
 
@@ -476,18 +486,18 @@ const normalizePerformanceBand = (key, value, fallback) => {
         river_expression: normalizeText(
             raw.river_expression ?? raw.riverExpression,
             key === 'struggling'
-                ? 'soft_concern_mistake'
+                ? RIVER_CUE_FALLBACKS.recover.expression
                 : key === 'mastery'
-                    ? 'whisker_pride'
-                    : 'focus_lean_in',
+                    ? RIVER_CUE_FALLBACKS.mastery.expression
+                    : RIVER_CUE_FALLBACKS.focus.expression,
         ),
         river_animation: normalizeText(
             raw.river_animation ?? raw.riverAnimation,
             key === 'struggling'
-                ? 'paw_point_hint'
+                ? RIVER_CUE_FALLBACKS.recover.animation
                 : key === 'mastery'
-                    ? 'sparkle_mastery'
-                    : 'ear_tilt_curious',
+                    ? RIVER_CUE_FALLBACKS.mastery.animation
+                    : RIVER_CUE_FALLBACKS.focus.animation,
         ),
     };
 };
@@ -520,10 +530,7 @@ const normalizeCompletion = (value) => {
         mastery_message: normalizeText(raw.mastery_message ?? raw.masteryMessage, ''),
         confidence_close: normalizeText(raw.confidence_close ?? raw.confidenceClose, ''),
         next_review_message: normalizeText(raw.next_review_message ?? raw.nextReviewMessage, ''),
-        river_cue: normalizeCue(raw.river_cue ?? raw.riverCue, {
-            expression: 'whisker_pride',
-            animation: 'sparkle_mastery',
-        }),
+        river_cue: normalizeCue(raw.river_cue ?? raw.riverCue, RIVER_CUE_FALLBACKS.mastery),
     };
 };
 
@@ -742,7 +749,7 @@ export const evaluateTutorCardResponse = (guideData, cardLike, answer) => {
             missingTags: [],
             misconceptionId: null,
             feedback: '',
-            cue: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
+            cue: { ...RIVER_CUE_FALLBACKS.recover },
         };
     }
 

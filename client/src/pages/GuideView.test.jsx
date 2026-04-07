@@ -47,7 +47,7 @@ const makeGuide = (overrides = {}) => ({
       estimated_minutes: 16,
       preferred_tutor_tone: 'calm review',
       lecture_style: 'storybook seminar',
-      river_role: 'witty lecture cat',
+      river_role: 'witty garden lecture frog',
     },
     lecture: {
       opening: 'Welcome to today’s River lecture on how cell division actually works.',
@@ -59,16 +59,16 @@ const makeGuide = (overrides = {}) => ({
     },
     river: {
       name: 'River',
-      species: 'grey cat',
-      style: 'premium svg mascot',
+      species: 'pond frog',
+      style: 'garden guide mascot',
       tone: 'calm, precise, encouraging',
       default_expression: 'blink_soft',
-      default_animation: 'tail_sway_idle',
+      default_animation: 'pond_breath_idle',
       cue_map: {
-        idle: { expression: 'blink_soft', animation: 'tail_sway_idle' },
-        focus: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
-        recover: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
-        mastery: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+        idle: { expression: 'blink_soft', animation: 'pond_breath_idle' },
+        focus: { expression: 'steady_gaze', animation: 'crouch_listen_focus' },
+        recover: { expression: 'gentle_reassure', animation: 'forelimb_offer_hint' },
+        mastery: { expression: 'calm_pride', animation: 'reed_glow_mastery' },
       },
       dialogue_variants: {
         opening: ['We will train this, not skim it.'],
@@ -102,7 +102,7 @@ const makeGuide = (overrides = {}) => ({
         optional_idea_tags: [],
         misconception_tags: ['meiosis-mixup'],
         hints: [
-          { level: 1, text: 'Think about how many cells you end with.', cue: { expression: 'ear_tilt_curious', animation: 'paw_point_hint' } },
+          { level: 1, text: 'Think about how many cells you end with.', cue: { expression: 'reflective_blink', animation: 'forelimb_offer_hint' } },
         ],
         feedback: {
           correct: ['Clean answer.'],
@@ -155,7 +155,7 @@ const makeGuide = (overrides = {}) => ({
         presentation: {
           pose: 'teach',
           emphasis_target: 'Two genetically identical daughter cells',
-          reaction_cue: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
+          reaction_cue: { expression: 'steady_gaze', animation: 'crouch_listen_focus' },
         },
         transitions: {
           on_correct: null,
@@ -188,8 +188,8 @@ const makeGuide = (overrides = {}) => ({
       max_attempts_before_recovery: 2,
       max_hints_per_card: 2,
       performance_bands: {
-        struggling: { mastery_below: 45, river_expression: 'soft_concern_mistake', river_animation: 'paw_point_hint' },
-        mastery: { mastery_below: 101, river_expression: 'whisker_pride', river_animation: 'sparkle_mastery' },
+        struggling: { mastery_below: 45, river_expression: 'gentle_reassure', river_animation: 'forelimb_offer_hint' },
+        mastery: { mastery_below: 101, river_expression: 'calm_pride', river_animation: 'reed_glow_mastery' },
       },
     },
     completion: {
@@ -197,7 +197,7 @@ const makeGuide = (overrides = {}) => ({
       mastery_message: 'You converted recall into structure.',
       confidence_close: 'One more clean retrieval tomorrow will lock it in.',
       next_review_message: 'Return tomorrow for a short reinforcement pass.',
-      river_cue: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+      river_cue: { expression: 'calm_pride', animation: 'reed_glow_mastery' },
     },
   },
   study_state: {

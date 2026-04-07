@@ -23,16 +23,16 @@ const makeGuideData = () => ({
     },
     river: {
         name: 'River',
-        species: 'grey cat',
-        style: 'premium svg mascot',
+        species: 'pond frog',
+        style: 'garden guide mascot',
         tone: 'calm, precise, encouraging',
         default_expression: 'blink_soft',
-        default_animation: 'tail_sway_idle',
+        default_animation: 'pond_breath_idle',
         cue_map: {
-            idle: { expression: 'blink_soft', animation: 'tail_sway_idle' },
-            focus: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
-            recover: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
-            mastery: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+            idle: { expression: 'blink_soft', animation: 'pond_breath_idle' },
+            focus: { expression: 'steady_gaze', animation: 'crouch_listen_focus' },
+            recover: { expression: 'gentle_reassure', animation: 'forelimb_offer_hint' },
+            mastery: { expression: 'calm_pride', animation: 'reed_glow_mastery' },
         },
         dialogue_variants: {
             opening: ['We will build this one step at a time.'],
@@ -74,8 +74,8 @@ const makeGuideData = () => ({
             optional_idea_tags: ['growth-repair'],
             misconception_tags: ['meiosis-mixup'],
             hints: [
-                { level: 1, text: 'Think about how many cells you end with.', cue: { expression: 'ear_tilt_curious', animation: 'paw_point_hint' } },
-                { level: 2, text: 'The daughter cells keep the same DNA content.', cue: { expression: 'focus_lean_in', animation: 'paw_point_hint' } },
+                { level: 1, text: 'Think about how many cells you end with.', cue: { expression: 'reflective_blink', animation: 'forelimb_offer_hint' } },
+                { level: 2, text: 'The daughter cells keep the same DNA content.', cue: { expression: 'steady_gaze', animation: 'forelimb_offer_hint' } },
             ],
             feedback: {
                 correct: ['Clean answer. You kept the essential outcome intact.'],
@@ -114,7 +114,7 @@ const makeGuideData = () => ({
             optional_idea_tags: [],
             misconception_tags: [],
             hints: [
-                { level: 1, text: 'One number, one relationship.', cue: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' } },
+                { level: 1, text: 'One number, one relationship.', cue: { expression: 'gentle_reassure', animation: 'forelimb_offer_hint' } },
             ],
             feedback: {
                 correct: ['Good. That is the exact frame to keep in memory.'],
@@ -148,7 +148,7 @@ const makeGuideData = () => ({
             optional_idea_tags: ['cell-separation'],
             misconception_tags: [],
             hints: [
-                { level: 1, text: 'Mitosis handles the nucleus. What is left to divide?', cue: { expression: 'focus_lean_in', animation: 'paw_point_hint' } },
+                { level: 1, text: 'Mitosis handles the nucleus. What is left to divide?', cue: { expression: 'steady_gaze', animation: 'forelimb_offer_hint' } },
             ],
             feedback: {
                 correct: ['Exactly. You separated the nucleus stage from the cell split.'],
@@ -198,9 +198,9 @@ const makeGuideData = () => ({
         max_attempts_before_recovery: 2,
         max_hints_per_card: 2,
         performance_bands: {
-            struggling: { mastery_below: 45, river_expression: 'soft_concern_mistake', river_animation: 'paw_point_hint' },
-            steady: { mastery_below: 80, river_expression: 'focus_lean_in', river_animation: 'ear_tilt_curious' },
-            mastery: { mastery_below: 101, river_expression: 'whisker_pride', river_animation: 'sparkle_mastery' },
+            struggling: { mastery_below: 45, river_expression: 'gentle_reassure', river_animation: 'forelimb_offer_hint' },
+            steady: { mastery_below: 80, river_expression: 'steady_gaze', river_animation: 'crouch_listen_focus' },
+            mastery: { mastery_below: 101, river_expression: 'calm_pride', river_animation: 'reed_glow_mastery' },
         },
     },
     completion: {
@@ -208,7 +208,7 @@ const makeGuideData = () => ({
         mastery_message: 'You converted recall into stable structure.',
         confidence_close: 'You do not need to reread this pass. You need one more clean retrieval later.',
         next_review_message: 'Return tomorrow for a short reinforcement pass.',
-        river_cue: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+        river_cue: { expression: 'calm_pride', animation: 'reed_glow_mastery' },
     },
 });
 
@@ -286,6 +286,36 @@ describe('normalizeGuideData', () => {
             partial_advances: true,
         }));
         expect(guideData.sections.map((section) => section.id)).toEqual(['concept-mitosis', 'concept-cytokinesis']);
+    });
+
+    it('uses frog-aligned fallback semantics when River metadata is omitted', () => {
+        const rawGuide = makeGuideData();
+        delete rawGuide.session_meta.river_role;
+        rawGuide.river = { name: 'River' };
+        rawGuide.cards = rawGuide.cards.map((card) => ({
+            ...card,
+            hints: card.hints.map(({ level, text }) => ({ level, text })),
+        }));
+        rawGuide.adaptation_rules = {};
+        rawGuide.completion = {};
+
+        const guideData = normalizeGuideData(rawGuide);
+
+        expect(guideData.session_meta.river_role).toBe('friendly garden lecture frog');
+        expect(guideData.river.species).toBe('pond frog');
+        expect(guideData.river.default_animation).toBe('pond_breath_idle');
+        expect(guideData.river.cue_map.focus).toEqual({
+            expression: 'steady_gaze',
+            animation: 'crouch_listen_focus',
+        });
+        expect(guideData.cards[0].hints[0].cue).toEqual({
+            expression: 'reflective_blink',
+            animation: 'forelimb_offer_hint',
+        });
+        expect(guideData.completion.river_cue).toEqual({
+            expression: 'calm_pride',
+            animation: 'reed_glow_mastery',
+        });
     });
 
     it('fails fast on old exam-coach guide data', () => {

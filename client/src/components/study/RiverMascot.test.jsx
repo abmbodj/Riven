@@ -34,20 +34,24 @@ describe('RiverMascot', () => {
         mockMatchMedia();
     });
 
-    it('renders the cat-defining features while keeping the beanie signature', () => {
+    it('renders the frog-defining features while keeping the subtle hat signature', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
 
         const mascot = screen.getByTestId('river-mascot');
         expect(mascot).toHaveAttribute('data-river-state', 'idle');
         expect(mascot).toHaveAttribute('role', 'img');
         expect(screen.getByText('Ready for the lesson.')).toBeInTheDocument();
-        expect(container.querySelector('[data-river-feature="ear-left"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="ear-right"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="muzzle"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="tail"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="beanie"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="paw-left"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="paw-right"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="eye-left"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="eye-right"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="mouth"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="belly"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="forelimb-left"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="forelimb-right"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="hindleg-left"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="hindleg-right"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="hat"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="ear-left"]')).toBeNull();
+        expect(container.querySelector('[data-river-feature="tail"]')).toBeNull();
     });
 
     it('preserves legacy state aliases and explicit tutor-session states', () => {
@@ -63,31 +67,29 @@ describe('RiverMascot', () => {
         expect(screen.getByText('You nailed it.')).toBeInTheDocument();
     });
 
-    it('renders the beanie in front of the head with a visible front band', () => {
+    it('renders the hat in front of the head with a visible front band', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const head = container.querySelector('[data-river-feature="head"]');
-        const beanie = container.querySelector('[data-river-feature="beanie"]');
-        const beanieBand = container.querySelector('[data-river-feature="beanie-band"]');
+        const hat = container.querySelector('[data-river-feature="hat"]');
+        const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
         expect(head).toBeTruthy();
-        expect(beanie).toBeTruthy();
-        expect(beanieBand).toBeTruthy();
-        expect(head.compareDocumentPosition(beanie) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(head.compareDocumentPosition(beanieBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(hat).toBeTruthy();
+        expect(hatBand).toBeTruthy();
+        expect(head.compareDocumentPosition(hat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(head.compareDocumentPosition(hatBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('gives the beanie full-cap coverage across River’s upper head', () => {
+    it('keeps the knit hat compact and centered over River’s crown', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
-        const beanie = container.querySelector('[data-river-feature="beanie"]');
-        const beanieBand = container.querySelector('[data-river-feature="beanie-band"]');
+        const hat = container.querySelector('[data-river-feature="hat"]');
+        const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
-        expect(beanie.getAttribute('d')).toContain('113 100');
-        expect(beanie.getAttribute('d')).toContain('207 100');
-        expect(beanieBand.getAttribute('d')).toContain('111 96');
-        expect(beanieBand.getAttribute('d')).toContain('209 96');
+        expect(hat.getAttribute('d')).toContain('132 91');
+        expect(hatBand.getAttribute('d')).toContain('130 95');
     });
 
-    it('tracks the pointer subtly on desktop and returns to center on leave', async () => {
+    it('keeps the pupils static when the pointer moves on desktop', async () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const mascot = screen.getByTestId('river-mascot');
         const leftPupil = container.querySelector('[data-river-feature="pupil-left"]');
@@ -110,12 +112,6 @@ describe('RiverMascot', () => {
         const initialCy = leftPupil.getAttribute('cy');
 
         fireEvent.pointerMove(mascot, { clientX: 260, clientY: 110, pointerType: 'mouse' });
-
-        await waitFor(() => {
-            expect(leftPupil.getAttribute('cx')).not.toBe(initialCx);
-            expect(leftPupil.getAttribute('cy')).not.toBe(initialCy);
-        });
-
         fireEvent.pointerLeave(mascot, { pointerType: 'mouse' });
 
         await waitFor(() => {
