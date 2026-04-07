@@ -38,9 +38,14 @@ describe('RiverMascot', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
 
         const mascot = screen.getByTestId('river-mascot');
+        const speechBubble = container.querySelector('[data-river-feature="speech-bubble"]');
+        const speechTail = container.querySelector('[data-river-feature="speech-tail"]');
         expect(mascot).toHaveAttribute('data-river-state', 'idle');
         expect(mascot).toHaveAttribute('role', 'img');
         expect(screen.getByText('Ready for the lesson.')).toBeInTheDocument();
+        expect(speechBubble).toBeTruthy();
+        expect(speechTail).toBeTruthy();
+        expect(speechBubble).toHaveTextContent('Ready for the lesson.');
         expect(container.querySelector('[data-river-feature="eye-left"]')).toBeTruthy();
         expect(container.querySelector('[data-river-feature="eye-right"]')).toBeTruthy();
         expect(container.querySelector('[data-river-feature="mouth"]')).toBeTruthy();
@@ -80,13 +85,21 @@ describe('RiverMascot', () => {
         expect(head.compareDocumentPosition(hatBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('keeps the knit hat compact and centered over River’s crown', () => {
+    it('uses wider, higher-set frog features while keeping the knit hat compact', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
+        const leftEye = container.querySelector('[data-river-feature="eye-left"]');
+        const rightEye = container.querySelector('[data-river-feature="eye-right"]');
+        const mouth = container.querySelector('[data-river-feature="mouth"]');
         const hat = container.querySelector('[data-river-feature="hat"]');
         const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
-        expect(hat.getAttribute('d')).toContain('132 91');
-        expect(hatBand.getAttribute('d')).toContain('130 95');
+        expect(leftEye).toHaveAttribute('cx', '124');
+        expect(leftEye).toHaveAttribute('cy', '94');
+        expect(rightEye).toHaveAttribute('cx', '196');
+        expect(rightEye).toHaveAttribute('cy', '94');
+        expect(mouth.getAttribute('d')).toContain('M118 163');
+        expect(hat.getAttribute('d')).toContain('M121 94');
+        expect(hatBand.getAttribute('d')).toContain('M121 98');
     });
 
     it('keeps the pupils static when the pointer moves on desktop', async () => {
