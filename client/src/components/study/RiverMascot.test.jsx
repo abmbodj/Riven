@@ -76,6 +76,15 @@ describe('RiverMascot', () => {
         expect(head.compareDocumentPosition(beanieBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('curves the knit beanie tightly around River’s crown', () => {
+        const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
+        const beanie = container.querySelector('[data-river-feature="beanie"]');
+        const beanieBand = container.querySelector('[data-river-feature="beanie-band"]');
+
+        expect(beanie.getAttribute('d')).toContain('160 64');
+        expect(beanieBand.getAttribute('d')).toContain('160 89');
+    });
+
     it('tracks the pointer subtly on desktop and returns to center on leave', async () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const mascot = screen.getByTestId('river-mascot');

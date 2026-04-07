@@ -524,42 +524,42 @@ export default function RiverMascot({
 
                                 <path
                                     data-river-feature="head"
-                                    d="M103 171 C90 159 82 138 84 114 C86 82 116 56 160 56 C204 56 234 82 236 114 C238 138 230 159 217 171 C220 187 211 204 196 214 C186 221 173 225 160 226 C147 225 134 221 124 214 C109 204 100 187 103 171 Z"
+                                    d="M104 171 C91 159 84 138 86 116 C88 88 118 61 160 61 C202 61 232 88 234 116 C236 139 229 159 216 171 C219 187 210 203 196 213 C185 220 173 224 160 225 C147 224 135 220 124 213 C110 203 101 187 104 171 Z"
                                     fill={`url(#${ids.headFur})`}
                                     stroke="#353c53"
                                     strokeWidth="4"
                                 />
 
-                                <path d="M146 84 C149 92 150 100 147 109" stroke="#666e85" strokeWidth="5.8" strokeLinecap="round" opacity="0.78" />
-                                <path d="M160 76 C163 88 163 100 160 113" stroke="#626b82" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
-                                <path d="M174 84 C171 92 170 100 173 109" stroke="#666e85" strokeWidth="5.8" strokeLinecap="round" opacity="0.78" />
+                                <path d="M147 90 C149 97 150 103 148 111" stroke="#666e85" strokeWidth="5.4" strokeLinecap="round" opacity="0.78" />
+                                <path d="M160 82 C162 92 162 102 160 114" stroke="#626b82" strokeWidth="6.6" strokeLinecap="round" opacity="0.9" />
+                                <path d="M173 90 C171 97 170 103 172 111" stroke="#666e85" strokeWidth="5.4" strokeLinecap="round" opacity="0.78" />
 
                                 <motion.g
                                     animate={{ y: pose.beanieY, rotate: pose.beanieRotate }}
                                     transition={{ duration: 0.4, ease: ENTER_EASE }}
-                                    style={{ transformOrigin: '160px 74px' }}
+                                    style={{ transformOrigin: '160px 79px' }}
                                 >
                                     <path
                                         data-river-feature="beanie"
-                                        d="M118 90 C126 68 141 55 160 55 C179 55 194 68 202 90 C190 84 176 81 160 81 C144 81 130 84 118 90 Z"
+                                        d="M124 98 C131 77 145 64 160 64 C175 64 189 77 196 98 C185 92 173 89 160 89 C147 89 135 92 124 98 Z"
                                         fill={`url(#${ids.beanie})`}
                                         stroke="#214126"
                                         strokeWidth="4"
                                     />
                                     <path
                                         data-river-feature="beanie-band"
-                                        d="M114 89 C128 84 144 82 160 82 C176 82 192 84 206 89 L203 103 C190 99 175 97 160 97 C145 97 130 99 117 103 Z"
+                                        d="M121 96 C133 91 146 89 160 89 C174 89 187 91 199 96 L197 109 C186 105 173 103 160 103 C147 103 134 105 123 109 Z"
                                         fill="#9ccb8f"
                                         stroke="#214126"
                                         strokeWidth="2.6"
                                         strokeLinejoin="round"
                                     />
-                                    <path d="M132 87 L134 100" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M147 84 L148 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M160 83 L160 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M173 84 L172 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M188 87 L186 100" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
-                                    <circle cx="160" cy="49" r="7.5" fill="#94c487" stroke="#214126" strokeWidth="4" />
+                                    <path d="M134 94 L136 106" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M147 91 L148 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M160 90 L160 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M173 91 L172 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M186 94 L184 106" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <circle cx="160" cy="58" r="7.2" fill="#94c487" stroke="#214126" strokeWidth="4" />
                                 </motion.g>
 
                                 <motion.g
