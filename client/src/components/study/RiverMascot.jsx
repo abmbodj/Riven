@@ -390,7 +390,7 @@ export default function RiverMascot({
                                 <stop offset="0%" stopColor="#f1ece7" />
                                 <stop offset="100%" stopColor="#d0c7c2" />
                             </linearGradient>
-                            <linearGradient id={ids.beanie} x1="114" y1="42" x2="211" y2="103" gradientUnits="userSpaceOnUse">
+                            <linearGradient id={ids.beanie} x1="107" y1="44" x2="216" y2="113" gradientUnits="userSpaceOnUse">
                                 <stop offset="0%" stopColor="#88bf75" />
                                 <stop offset="100%" stopColor="#274631" />
                             </linearGradient>
@@ -524,42 +524,42 @@ export default function RiverMascot({
 
                                 <path
                                     data-river-feature="head"
-                                    d="M104 171 C91 159 84 138 86 116 C88 88 118 61 160 61 C202 61 232 88 234 116 C236 139 229 159 216 171 C219 187 210 203 196 213 C185 220 173 224 160 225 C147 224 135 220 124 213 C110 203 101 187 104 171 Z"
+                                    d="M108 171 C95 160 88 140 90 118 C92 91 120 67 160 66 C200 67 228 91 230 118 C232 140 225 160 212 171 C215 186 207 201 194 211 C184 218 172 222 160 223 C148 222 136 218 126 211 C113 201 105 186 108 171 Z"
                                     fill={`url(#${ids.headFur})`}
                                     stroke="#353c53"
                                     strokeWidth="4"
                                 />
 
-                                <path d="M147 90 C149 97 150 103 148 111" stroke="#666e85" strokeWidth="5.4" strokeLinecap="round" opacity="0.78" />
-                                <path d="M160 82 C162 92 162 102 160 114" stroke="#626b82" strokeWidth="6.6" strokeLinecap="round" opacity="0.9" />
-                                <path d="M173 90 C171 97 170 103 172 111" stroke="#666e85" strokeWidth="5.4" strokeLinecap="round" opacity="0.78" />
+                                <path d="M149 100 C151 106 151 112 149 120" stroke="#666e85" strokeWidth="5.2" strokeLinecap="round" opacity="0.76" />
+                                <path d="M160 93 C162 102 162 111 160 122" stroke="#626b82" strokeWidth="6.2" strokeLinecap="round" opacity="0.88" />
+                                <path d="M171 100 C169 106 169 112 171 120" stroke="#666e85" strokeWidth="5.2" strokeLinecap="round" opacity="0.76" />
 
                                 <motion.g
                                     animate={{ y: pose.beanieY, rotate: pose.beanieRotate }}
                                     transition={{ duration: 0.4, ease: ENTER_EASE }}
-                                    style={{ transformOrigin: '160px 79px' }}
+                                    style={{ transformOrigin: '160px 82px' }}
                                 >
                                     <path
                                         data-river-feature="beanie"
-                                        d="M124 98 C131 77 145 64 160 64 C175 64 189 77 196 98 C185 92 173 89 160 89 C147 89 135 92 124 98 Z"
+                                        d="M113 100 C120 78 134 63 160 60 C186 63 200 78 207 100 C194 91 178 87 160 87 C142 87 126 91 113 100 Z"
                                         fill={`url(#${ids.beanie})`}
                                         stroke="#214126"
                                         strokeWidth="4"
                                     />
                                     <path
                                         data-river-feature="beanie-band"
-                                        d="M121 96 C133 91 146 89 160 89 C174 89 187 91 199 96 L197 109 C186 105 173 103 160 103 C147 103 134 105 123 109 Z"
+                                        d="M111 96 C125 89 142 86 160 86 C178 86 195 89 209 96 L207 113 C193 108 177 106 160 106 C143 106 127 108 113 113 Z"
                                         fill="#9ccb8f"
                                         stroke="#214126"
                                         strokeWidth="2.6"
                                         strokeLinejoin="round"
                                     />
-                                    <path d="M134 94 L136 106" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M147 91 L148 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M160 90 L160 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M173 91 L172 105" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M186 94 L184 106" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
-                                    <circle cx="160" cy="58" r="7.2" fill="#94c487" stroke="#214126" strokeWidth="4" />
+                                    <path d="M126 93 L128 109" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M143 89 L144 107" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M160 88 L160 107" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M177 89 L176 107" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M194 93 L192 109" stroke="#6f9f65" strokeWidth="2.1" strokeLinecap="round" opacity="0.76" />
+                                    <circle cx="160" cy="55" r="7.6" fill="#94c487" stroke="#214126" strokeWidth="4" />
                                 </motion.g>
 
                                 <motion.g
