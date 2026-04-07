@@ -63,6 +63,19 @@ describe('RiverMascot', () => {
         expect(screen.getByText('You nailed it.')).toBeInTheDocument();
     });
 
+    it('renders the beanie in front of the head with a visible front band', () => {
+        const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
+        const head = container.querySelector('[data-river-feature="head"]');
+        const beanie = container.querySelector('[data-river-feature="beanie"]');
+        const beanieBand = container.querySelector('[data-river-feature="beanie-band"]');
+
+        expect(head).toBeTruthy();
+        expect(beanie).toBeTruthy();
+        expect(beanieBand).toBeTruthy();
+        expect(head.compareDocumentPosition(beanie) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(head.compareDocumentPosition(beanieBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('tracks the pointer subtly on desktop and returns to center on leave', async () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const mascot = screen.getByTestId('river-mascot');

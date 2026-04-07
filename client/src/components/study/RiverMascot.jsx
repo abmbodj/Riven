@@ -488,29 +488,6 @@ export default function RiverMascot({
                                 style={{ transformOrigin: '160px 136px' }}
                             >
                                 <motion.g
-                                    animate={{ y: pose.beanieY, rotate: pose.beanieRotate }}
-                                    transition={{ duration: 0.4, ease: ENTER_EASE }}
-                                    style={{ transformOrigin: '160px 68px' }}
-                                >
-                                    <path
-                                        data-river-feature="beanie"
-                                        d="M110 86 C118 55 138 38 160 38 C182 38 202 55 210 86 C194 78 178 74 160 74 C142 74 126 78 110 86 Z"
-                                        fill={`url(#${ids.beanie})`}
-                                        stroke="#214126"
-                                        strokeWidth="4"
-                                    />
-                                    <path
-                                        d="M106 87 C122 80 141 76 160 76 C179 76 198 80 214 87 L210 98 C195 92 178 89 160 89 C142 89 125 92 110 98 Z"
-                                        fill="#9ccb8f"
-                                    />
-                                    <path d="M130 83 L133 96" stroke="#6f9f65" strokeWidth="2.4" strokeLinecap="round" opacity="0.78" />
-                                    <path d="M147 79 L149 93" stroke="#6f9f65" strokeWidth="2.4" strokeLinecap="round" opacity="0.78" />
-                                    <path d="M164 79 L164 94" stroke="#6f9f65" strokeWidth="2.4" strokeLinecap="round" opacity="0.78" />
-                                    <path d="M181 80 L179 95" stroke="#6f9f65" strokeWidth="2.4" strokeLinecap="round" opacity="0.78" />
-                                    <circle cx="160" cy="43" r="8" fill="#94c487" stroke="#214126" strokeWidth="4" />
-                                </motion.g>
-
-                                <motion.g
                                     animate={leftEarAnimation}
                                     transition={{ duration: 3.4, repeat: Infinity, ease: ENTER_EASE }}
                                     style={{ transformOrigin: '104px 90px' }}
@@ -546,15 +523,44 @@ export default function RiverMascot({
                                 </motion.g>
 
                                 <path
-                                    d="M102 171 C89 159 81 138 82 112 C84 76 115 48 160 48 C205 48 236 76 238 112 C239 137 231 158 218 171 C221 187 212 204 196 214 C186 221 173 225 160 226 C147 225 134 221 124 214 C108 204 99 187 102 171 Z"
+                                    data-river-feature="head"
+                                    d="M103 171 C90 159 82 138 84 114 C86 82 116 56 160 56 C204 56 234 82 236 114 C238 138 230 159 217 171 C220 187 211 204 196 214 C186 221 173 225 160 226 C147 225 134 221 124 214 C109 204 100 187 103 171 Z"
                                     fill={`url(#${ids.headFur})`}
                                     stroke="#353c53"
                                     strokeWidth="4"
                                 />
 
-                                <path d="M145 70 C149 81 150 93 146 105" stroke="#666e85" strokeWidth="6.4" strokeLinecap="round" opacity="0.78" />
-                                <path d="M160 61 C164 77 164 94 160 111" stroke="#626b82" strokeWidth="7.6" strokeLinecap="round" opacity="0.9" />
-                                <path d="M175 70 C171 81 170 93 174 105" stroke="#666e85" strokeWidth="6.4" strokeLinecap="round" opacity="0.78" />
+                                <path d="M146 84 C149 92 150 100 147 109" stroke="#666e85" strokeWidth="5.8" strokeLinecap="round" opacity="0.78" />
+                                <path d="M160 76 C163 88 163 100 160 113" stroke="#626b82" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
+                                <path d="M174 84 C171 92 170 100 173 109" stroke="#666e85" strokeWidth="5.8" strokeLinecap="round" opacity="0.78" />
+
+                                <motion.g
+                                    animate={{ y: pose.beanieY, rotate: pose.beanieRotate }}
+                                    transition={{ duration: 0.4, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '160px 74px' }}
+                                >
+                                    <path
+                                        data-river-feature="beanie"
+                                        d="M118 90 C126 68 141 55 160 55 C179 55 194 68 202 90 C190 84 176 81 160 81 C144 81 130 84 118 90 Z"
+                                        fill={`url(#${ids.beanie})`}
+                                        stroke="#214126"
+                                        strokeWidth="4"
+                                    />
+                                    <path
+                                        data-river-feature="beanie-band"
+                                        d="M114 89 C128 84 144 82 160 82 C176 82 192 84 206 89 L203 103 C190 99 175 97 160 97 C145 97 130 99 117 103 Z"
+                                        fill="#9ccb8f"
+                                        stroke="#214126"
+                                        strokeWidth="2.6"
+                                        strokeLinejoin="round"
+                                    />
+                                    <path d="M132 87 L134 100" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M147 84 L148 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M160 83 L160 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M173 84 L172 98" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M188 87 L186 100" stroke="#6f9f65" strokeWidth="2.2" strokeLinecap="round" opacity="0.76" />
+                                    <circle cx="160" cy="49" r="7.5" fill="#94c487" stroke="#214126" strokeWidth="4" />
+                                </motion.g>
 
                                 <motion.g
                                     animate={{ y: pose.browY, rotate: pose.browLeftRotate }}
