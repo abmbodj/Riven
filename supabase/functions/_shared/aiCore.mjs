@@ -361,20 +361,33 @@ Required structure:
     },
     "source_mode": "setup|source|hybrid",
     "estimated_minutes": 18,
-    "preferred_tutor_tone": "calm, precise, encouraging"
+    "lecture_style": "storybook seminar",
+    "preferred_tutor_tone": "calm, precise, encouraging",
+    "river_role": "friendly lecture cat"
+  },
+  "lecture": {
+    "opening": "short opening that frames the lesson like a lecture",
+    "agenda": ["short agenda beat", "another agenda beat"],
+    "closing": "short confidence-building closing line"
   },
   "river": {
     "name": "River",
     "species": "grey cat",
-    "style": "premium svg mascot",
-    "tone": "calm, intelligent, reassuring",
+    "style": "storybook lecture mascot",
+    "tone": "friendly, witty, encouraging teacher",
     "default_expression": "blink_soft",
     "default_animation": "tail_sway_idle",
     "cue_map": {
       "idle": { "expression": "blink_soft", "animation": "tail_sway_idle" },
       "focus": { "expression": "focus_lean_in", "animation": "ear_tilt_curious" },
       "recover": { "expression": "soft_concern_mistake", "animation": "paw_point_hint" },
-      "mastery": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
+      "mastery": { "expression": "whisker_pride", "animation": "sparkle_mastery" },
+      "teach": { "expression": "focus_lean_in", "animation": "beanie_bob_teach" },
+      "point": { "expression": "focus_lean_in", "animation": "paw_point_stage" },
+      "encourage": { "expression": "blink_soft", "animation": "soft_nod_glow" },
+      "thinking": { "expression": "ear_tilt_curious", "animation": "tail_think_loop" },
+      "gentle-correct": { "expression": "soft_concern_mistake", "animation": "paw_point_hint" },
+      "celebrate": { "expression": "whisker_pride", "animation": "sparkle_mastery" }
     },
     "dialogue_variants": {
       "opening": ["short opening line"],
@@ -431,6 +444,43 @@ Required structure:
         "success": "line after success",
         "struggle": "line when the student struggles"
       },
+      "teaching": {
+        "explain": "short lecture explanation before the recall check",
+        "example": "concrete contextual example",
+        "steps": ["step 1", "step 2", "step 3"],
+        "why_it_matters": "why this concept matters in the bigger picture"
+      },
+      "assist_options": [
+        {
+          "id": "explain-simply",
+          "label": "Explain simply",
+          "text": "simpler explanation",
+          "pose": "encourage"
+        },
+        {
+          "id": "show-example",
+          "label": "Show another example",
+          "text": "another example",
+          "pose": "point"
+        },
+        {
+          "id": "break-it-down",
+          "label": "Break it down",
+          "text": "step-by-step explanation",
+          "pose": "teach"
+        },
+        {
+          "id": "why-it-matters",
+          "label": "Why this matters",
+          "text": "importance framing",
+          "pose": "thinking"
+        }
+      ],
+      "presentation": {
+        "pose": "teach|point|encourage|thinking|gentle-correct|celebrate",
+        "emphasis_target": "core phrase River should spotlight",
+        "reaction_cue": { "expression": "focus_lean_in", "animation": "ear_tilt_curious" }
+      },
       "transitions": {
         "on_correct": "next-card-id or null",
         "on_partial": "retry",
@@ -445,6 +495,8 @@ Required structure:
       "correct": 0.85,
       "partial": 0.4
     },
+    "pass_threshold": 0.5,
+    "partial_advances": true,
     "empty_patterns": ["idk", "i do not know", "blank"],
     "tag_synonyms": {
       "core-idea-tag": ["synonym phrase"]
@@ -477,8 +529,12 @@ Required structure:
 }
 Build a tutor session, not a study guide, notes page, or passive summary.
 Use active recall first. Ask before telling whenever possible.
+Structure the experience like a lecture: intro -> teach -> check understanding -> feedback -> complete.
 Create a 3-8 card, one-card-at-a-time training flow with a low-pressure diagnostic start, early success, rising challenge, at least one recovery path, and a mastery finish.
-Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, and feedback variants.
+Every card must support deterministic grading through required_idea_tags, optional_idea_tags, hints, misconceptions, teaching content, assist_options, presentation cues, and feedback variants.
+River must stay central, warm, slightly playful, and distinct. Use the green knit beanie as a signature trait.
+Assist options must feel instant and pre-authored, never like open-ended tutor chat.
+Partial answers should usually count as good enough progress when the learner shows real understanding; reserve hard stops for clear misconceptions.
 Keep prompts concise. Keep target answers concise. Keep River premium, calm, clear, and emotionally supportive.`;
 
 export const normalizeCoachConfig = (value, { hasSourceMaterial = false } = {}) => {

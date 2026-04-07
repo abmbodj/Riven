@@ -2,102 +2,156 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { useMobileVisualBudget } from '../../hooks/useMobileVisualBudget';
 
-const RIVER_STATES = {
+const ENTER_EASE = [0.22, 1, 0.36, 1];
+const EXIT_EASE = [0.7, 0, 0.84, 0];
+const STATE_ALIASES = {
+    focus: 'thinking',
+    recover: 'encourage',
+    misconception: 'gentle-correct',
+    hint: 'point',
+    mastery: 'encourage',
+};
+
+const POSES = {
     idle: {
         label: 'Settled and ready',
+        accent: '#98c487',
+        headY: 0,
+        headRotate: -2,
         earLeft: -6,
-        earRight: 6,
-        browLeft: 0,
-        browRight: 0,
-        eyeScale: 1,
-        whisker: 0,
-        tail: -8,
-        mouth: 'M86 122 Q100 132 114 122',
-        accent: '#9dc08b',
+        earRight: 8,
+        eyeScaleY: 1,
+        browY: 0,
+        mouth: 'M113 170 Q140 183 166 170',
+        pawLeftX: 0,
+        pawLeftY: 0,
+        pawLeftRotate: 4,
+        pawRightX: 0,
+        pawRightY: 0,
+        pawRightRotate: -6,
+        tailRotate: -10,
+        beanieRotate: -3,
+        bubbleTone: 'rgba(152,196,135,0.16)',
     },
-    focus: {
-        label: 'Focused',
+    teach: {
+        label: 'Teaching',
+        accent: '#7fbf8d',
+        headY: -2,
+        headRotate: -5,
         earLeft: -10,
         earRight: 10,
-        browLeft: -4,
-        browRight: -4,
-        eyeScale: 0.72,
-        whisker: -3,
-        tail: -4,
-        mouth: 'M88 121 Q100 126 112 121',
-        accent: '#b6d8a3',
+        eyeScaleY: 0.94,
+        browY: -3,
+        mouth: 'M112 170 Q140 186 168 170',
+        pawLeftX: -4,
+        pawLeftY: 4,
+        pawLeftRotate: 8,
+        pawRightX: 8,
+        pawRightY: -12,
+        pawRightRotate: -24,
+        tailRotate: -2,
+        beanieRotate: -6,
+        bubbleTone: 'rgba(127,191,141,0.18)',
+    },
+    point: {
+        label: 'Pointing something out',
+        accent: '#d2c06f',
+        headY: -1,
+        headRotate: 3,
+        earLeft: -4,
+        earRight: 14,
+        eyeScaleY: 0.9,
+        browY: -4,
+        mouth: 'M112 170 Q139 181 166 168',
+        pawLeftX: -2,
+        pawLeftY: 6,
+        pawLeftRotate: 10,
+        pawRightX: 20,
+        pawRightY: -18,
+        pawRightRotate: -42,
+        tailRotate: 10,
+        beanieRotate: 0,
+        bubbleTone: 'rgba(210,192,111,0.18)',
     },
     encourage: {
         label: 'Encouraging',
-        earLeft: -4,
+        accent: '#e4be80',
+        headY: -1,
+        headRotate: -3,
+        earLeft: -3,
         earRight: 4,
-        browLeft: -2,
-        browRight: -2,
-        eyeScale: 0.85,
-        whisker: 2,
-        tail: 6,
-        mouth: 'M86 120 Q100 134 114 120',
-        accent: '#d8c27a',
+        eyeScaleY: 0.86,
+        browY: -2,
+        mouth: 'M109 168 Q140 190 171 168',
+        pawLeftX: -8,
+        pawLeftY: 2,
+        pawLeftRotate: 2,
+        pawRightX: 8,
+        pawRightY: -4,
+        pawRightRotate: -8,
+        tailRotate: 14,
+        beanieRotate: -4,
+        bubbleTone: 'rgba(228,190,128,0.18)',
     },
-    recover: {
-        label: 'Gentle recovery',
-        earLeft: -16,
-        earRight: 12,
-        browLeft: 6,
-        browRight: 4,
-        eyeScale: 0.64,
-        whisker: -6,
-        tail: -12,
-        mouth: 'M88 126 Q100 116 112 126',
-        accent: '#d9aa72',
-    },
-    misconception: {
-        label: 'Correcting a misconception',
-        earLeft: -18,
-        earRight: 14,
-        browLeft: 10,
-        browRight: 8,
-        eyeScale: 0.58,
-        whisker: -8,
-        tail: -16,
-        mouth: 'M88 128 Q100 114 112 128',
-        accent: '#e7a77d',
-    },
-    hint: {
-        label: 'Offering a hint',
+    thinking: {
+        label: 'Thinking it through',
+        accent: '#97b7d8',
+        headY: -4,
+        headRotate: 6,
         earLeft: -12,
-        earRight: 14,
-        browLeft: 2,
-        browRight: -4,
-        eyeScale: 0.8,
-        whisker: 6,
-        tail: 8,
-        mouth: 'M88 121 Q100 129 112 121',
-        accent: '#c8b07b',
-    },
-    mastery: {
-        label: 'Mastery',
-        earLeft: -2,
         earRight: 2,
-        browLeft: -8,
-        browRight: -8,
-        eyeScale: 0.92,
-        whisker: 8,
-        tail: 14,
-        mouth: 'M84 118 Q100 138 116 118',
-        accent: '#b8d89d',
+        eyeScaleY: 0.76,
+        browY: -6,
+        mouth: 'M118 173 Q140 163 162 173',
+        pawLeftX: -2,
+        pawLeftY: 8,
+        pawLeftRotate: 12,
+        pawRightX: 10,
+        pawRightY: -6,
+        pawRightRotate: -12,
+        tailRotate: -8,
+        beanieRotate: 5,
+        bubbleTone: 'rgba(151,183,216,0.18)',
+    },
+    'gentle-correct': {
+        label: 'Gently correcting',
+        accent: '#e79a7c',
+        headY: 0,
+        headRotate: 4,
+        earLeft: -16,
+        earRight: 10,
+        eyeScaleY: 0.72,
+        browY: 4,
+        mouth: 'M115 176 Q140 162 165 176',
+        pawLeftX: 0,
+        pawLeftY: 2,
+        pawLeftRotate: 10,
+        pawRightX: 14,
+        pawRightY: -16,
+        pawRightRotate: -34,
+        tailRotate: -16,
+        beanieRotate: 2,
+        bubbleTone: 'rgba(231,154,124,0.18)',
     },
     celebrate: {
         label: 'Celebrating',
-        earLeft: -1,
-        earRight: 1,
-        browLeft: -10,
-        browRight: -10,
-        eyeScale: 0.35,
-        whisker: 10,
-        tail: 18,
-        mouth: 'M82 116 Q100 141 118 116',
-        accent: '#d9c47f',
+        accent: '#f0d37e',
+        headY: -8,
+        headRotate: -1,
+        earLeft: 2,
+        earRight: -1,
+        eyeScaleY: 0.3,
+        browY: -9,
+        mouth: 'M106 166 Q140 198 174 166',
+        pawLeftX: -14,
+        pawLeftY: -20,
+        pawLeftRotate: -36,
+        pawRightX: 18,
+        pawRightY: -24,
+        pawRightRotate: -58,
+        tailRotate: 20,
+        beanieRotate: -8,
+        bubbleTone: 'rgba(240,211,126,0.2)',
     },
 };
 
@@ -108,6 +162,14 @@ const getMotionPreference = () => {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
 
+const getPose = (state) => {
+    const normalizedState = STATE_ALIASES[state] || state;
+    return {
+        normalizedState,
+        pose: POSES[normalizedState] || POSES.idle,
+    };
+};
+
 export default function RiverMascot({
     state = 'idle',
     caption = '',
@@ -115,177 +177,236 @@ export default function RiverMascot({
 }) {
     const mobileBudget = useMobileVisualBudget();
     const reduceMotion = mobileBudget || getMotionPreference();
-    const pose = RIVER_STATES[state] || RIVER_STATES.idle;
-    const loopTransition = reduceMotion ? { duration: 0 } : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' };
+    const { normalizedState, pose } = getPose(state);
+    const breathing = reduceMotion
+        ? { y: 0, scale: 1 }
+        : { y: [0, -4, 0], scale: [1, 1.01, 1] };
+    const blinking = reduceMotion
+        ? { scaleY: pose.eyeScaleY }
+        : { scaleY: [pose.eyeScaleY, pose.eyeScaleY, 0.18, pose.eyeScaleY] };
+    const floatTransition = reduceMotion
+        ? { duration: 0 }
+        : { duration: 4.8, repeat: Infinity, ease: ENTER_EASE };
 
     return (
         <div
-            className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 bg-[radial-gradient(circle_at_top,_rgba(244,231,197,0.16),_rgba(16,20,18,0.94)_70%)] p-4 sm:p-5 ${className}`}
+            className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 bg-[radial-gradient(circle_at_top,_rgba(241,223,182,0.18),_rgba(13,15,14,0.97)_66%)] p-4 sm:p-5 ${className}`}
             data-testid="river-mascot"
-            data-river-state={state}
+            data-river-state={normalizedState}
             aria-label={`River is ${pose.label.toLowerCase()}`}
         >
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(191,168,113,0.12),transparent_38%,rgba(122,158,114,0.16))]" />
-            <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr] sm:items-center">
-                <div className="relative mx-auto w-full max-w-[240px]">
+            <div className="pointer-events-none absolute inset-0 opacity-80 [background:linear-gradient(180deg,rgba(250,232,193,0.14),transparent_18%),linear-gradient(180deg,transparent_72%,rgba(32,40,34,0.84)_100%)]" />
+            <div className="pointer-events-none absolute inset-x-8 bottom-6 h-20 rounded-full bg-[radial-gradient(circle,_rgba(0,0,0,0.42),transparent_72%)] blur-2xl" />
+
+            <div className="relative flex flex-col gap-4">
+                <div className="relative mx-auto w-full max-w-[290px]">
                     <motion.div
-                        className="absolute inset-x-[18%] top-[14%] h-[52%] rounded-full blur-3xl"
-                        style={{ background: `radial-gradient(circle, ${pose.accent}55 0%, rgba(122,158,114,0.06) 62%, transparent 100%)` }}
-                        animate={reduceMotion ? { opacity: 0.45, scale: 1 } : { opacity: [0.34, 0.52, 0.34], scale: [0.96, 1.04, 0.96] }}
-                        transition={loopTransition}
+                        className="absolute inset-x-[16%] top-[8%] h-[58%] rounded-full blur-3xl"
+                        style={{ background: `radial-gradient(circle, ${pose.accent}44 0%, rgba(255,255,255,0.06) 42%, transparent 74%)` }}
+                        animate={reduceMotion ? { opacity: 0.5, scale: 1 } : { opacity: [0.36, 0.62, 0.36], scale: [0.96, 1.04, 0.96] }}
+                        transition={{ duration: 2.8, repeat: Infinity, ease: ENTER_EASE }}
                     />
 
-                    <svg
-                        viewBox="0 0 220 220"
-                        className="relative z-10 w-full"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
+                    <svg viewBox="0 0 280 300" className="relative z-10 w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
-                            <linearGradient id="river-fur" x1="54" y1="44" x2="176" y2="182" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stopColor="#cfd2d4" />
-                                <stop offset="46%" stopColor="#8e9497" />
-                                <stop offset="100%" stopColor="#596062" />
+                            <linearGradient id="river-body-fur" x1="88" y1="90" x2="194" y2="250" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stopColor="#d7dadd" />
+                                <stop offset="56%" stopColor="#8b9499" />
+                                <stop offset="100%" stopColor="#525b60" />
                             </linearGradient>
-                            <linearGradient id="river-fur-shadow" x1="86" y1="64" x2="146" y2="188" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stopColor="#565d61" />
-                                <stop offset="100%" stopColor="#1d2325" />
+                            <linearGradient id="river-head-fur" x1="90" y1="66" x2="190" y2="170" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stopColor="#eef1f3" />
+                                <stop offset="52%" stopColor="#a0a7ac" />
+                                <stop offset="100%" stopColor="#626a6f" />
                             </linearGradient>
-                            <linearGradient id="river-ear" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stopColor="#e2cccb" />
-                                <stop offset="100%" stopColor="#8f6f70" />
+                            <linearGradient id="river-chest" x1="122" y1="160" x2="164" y2="242" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stopColor="#f3ede6" />
+                                <stop offset="100%" stopColor="#c7beb6" />
                             </linearGradient>
-                            <linearGradient id="river-chest" x1="90" y1="132" x2="126" y2="188" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stopColor="#eee7de" />
-                                <stop offset="100%" stopColor="#b9b0a8" />
+                            <linearGradient id="river-beanie" x1="94" y1="54" x2="186" y2="92" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stopColor="#6aa06a" />
+                                <stop offset="100%" stopColor="#315237" />
                             </linearGradient>
-                            <filter id="river-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feMerge>
-                                    <feMergeNode in="blur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
+                            <radialGradient id="river-stage" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(138 194) rotate(90) scale(72 90)">
+                                <stop offset="0%" stopColor="rgba(241,223,182,0.2)" />
+                                <stop offset="100%" stopColor="rgba(13,15,14,0)" />
+                            </radialGradient>
                         </defs>
 
+                        <ellipse cx="140" cy="206" rx="96" ry="76" fill="url(#river-stage)" />
+
                         <motion.g
-                            animate={reduceMotion ? { y: 0, scaleY: 1 } : { y: [0, -2.5, 0], scaleY: [1, 1.012, 1] }}
-                            transition={loopTransition}
-                            style={{ transformOrigin: '110px 140px' }}
+                            animate={breathing}
+                            transition={floatTransition}
+                            style={{ transformOrigin: '140px 196px' }}
                         >
                             <motion.path
-                                d="M160 166 C186 142 193 102 177 77 C166 61 150 58 144 73 C136 92 144 121 154 142 C145 138 132 136 122 143"
+                                d="M206 224 C236 198 244 147 220 114 C211 101 193 104 187 120 C179 143 188 176 196 195 C185 191 170 190 158 198"
                                 fill="none"
-                                stroke="url(#river-fur-shadow)"
-                                strokeWidth="14"
+                                stroke="#4a5357"
+                                strokeWidth="16"
                                 strokeLinecap="round"
-                                animate={{ rotate: pose.tail }}
-                                transition={{ type: 'spring', stiffness: 180, damping: 18 }}
-                                style={{ transformOrigin: '152px 152px' }}
+                                animate={{ rotate: pose.tailRotate }}
+                                transition={{ duration: 0.4, ease: ENTER_EASE }}
+                                style={{ transformOrigin: '198px 208px' }}
                             />
+
                             <path
-                                d="M66 165 C56 140 58 108 70 86 C80 67 95 56 110 56 C126 56 142 67 151 86 C163 109 164 141 154 165 C145 186 128 197 110 197 C92 197 75 186 66 165 Z"
-                                fill="url(#river-fur)"
-                                stroke="#31383c"
-                                strokeWidth="3.5"
+                                d="M84 224 C72 198 74 160 88 134 C102 108 119 96 140 96 C161 96 178 108 192 134 C206 161 208 198 196 224 C184 250 164 264 140 264 C116 264 96 250 84 224 Z"
+                                fill="url(#river-body-fur)"
+                                stroke="#303739"
+                                strokeWidth="4"
                             />
+                            <ellipse cx="140" cy="203" rx="41" ry="56" fill="url(#river-chest)" opacity="0.96" />
+
                             <motion.g
-                                animate={{ rotate: pose.earLeft }}
-                                transition={{ type: 'spring', stiffness: 200, damping: 16 }}
-                                style={{ transformOrigin: '74px 66px' }}
+                                animate={{ x: pose.pawLeftX, y: pose.pawLeftY, rotate: pose.pawLeftRotate }}
+                                transition={{ duration: 0.35, ease: ENTER_EASE }}
+                                style={{ transformOrigin: '104px 232px' }}
                             >
-                                <path d="M72 77 L62 40 L92 63 Z" fill="#737a7d" stroke="#31383c" strokeWidth="3.5" />
-                                <path d="M72 70 L67 48 L84 63 Z" fill="url(#river-ear)" opacity="0.88" />
+                                <ellipse cx="104" cy="232" rx="22" ry="14" fill="#545c60" />
                             </motion.g>
                             <motion.g
-                                animate={{ rotate: pose.earRight }}
-                                transition={{ type: 'spring', stiffness: 200, damping: 16 }}
-                                style={{ transformOrigin: '146px 66px' }}
+                                animate={{ x: pose.pawRightX, y: pose.pawRightY, rotate: pose.pawRightRotate }}
+                                transition={{ duration: 0.35, ease: ENTER_EASE }}
+                                style={{ transformOrigin: '178px 228px' }}
                             >
-                                <path d="M148 77 L128 63 L158 40 Z" fill="#737a7d" stroke="#31383c" strokeWidth="3.5" />
-                                <path d="M148 70 L136 63 L153 48 Z" fill="url(#river-ear)" opacity="0.88" />
+                                <ellipse cx="178" cy="228" rx="22" ry="14" fill="#545c60" />
                             </motion.g>
 
-                            <ellipse cx="110" cy="126" rx="35" ry="44" fill="url(#river-chest)" opacity="0.92" />
-                            <ellipse cx="110" cy="97" rx="40" ry="35" fill="url(#river-fur)" stroke="#31383c" strokeWidth="3.5" />
-                            <path d="M96 112 Q110 122 124 112" stroke="#31383c" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
+                            <motion.g
+                                animate={{ y: pose.headY, rotate: pose.headRotate }}
+                                transition={{ duration: 0.4, ease: ENTER_EASE }}
+                                style={{ transformOrigin: '140px 126px' }}
+                            >
+                                <motion.g
+                                    animate={{ rotate: pose.earLeft }}
+                                    transition={{ duration: 0.32, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '100px 94px' }}
+                                >
+                                    <path d="M96 114 L82 64 L122 90 Z" fill="#7d868a" stroke="#303739" strokeWidth="4" />
+                                    <path d="M96 103 L90 76 L112 92 Z" fill="#dcb8b3" opacity="0.9" />
+                                </motion.g>
+                                <motion.g
+                                    animate={{ rotate: pose.earRight }}
+                                    transition={{ duration: 0.32, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '180px 94px' }}
+                                >
+                                    <path d="M184 114 L158 90 L198 64 Z" fill="#7d868a" stroke="#303739" strokeWidth="4" />
+                                    <path d="M182 102 L168 91 L190 76 Z" fill="#dcb8b3" opacity="0.9" />
+                                </motion.g>
 
-                            <motion.path
-                                d="M78 90 Q88 84 96 88"
-                                stroke="#2e3235"
-                                strokeWidth="3.5"
-                                strokeLinecap="round"
-                                animate={{ y: pose.browLeft }}
-                                transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-                            />
-                            <motion.path
-                                d="M124 88 Q132 84 142 90"
-                                stroke="#2e3235"
-                                strokeWidth="3.5"
-                                strokeLinecap="round"
-                                animate={{ y: pose.browRight }}
-                                transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-                            />
+                                <motion.g
+                                    animate={{ rotate: pose.beanieRotate }}
+                                    transition={{ duration: 0.4, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '140px 80px' }}
+                                >
+                                    <path
+                                        d="M98 96 C102 64 124 46 144 46 C167 46 188 63 190 95 C172 84 153 80 140 80 C126 80 113 84 98 96 Z"
+                                        fill="url(#river-beanie)"
+                                        stroke="#1d3020"
+                                        strokeWidth="4"
+                                    />
+                                    <path d="M92 96 C112 84 129 80 140 80 C152 80 171 84 192 96 L186 108 C170 98 154 95 140 95 C126 95 111 98 98 108 Z" fill="#84b57e" />
+                                    <circle cx="140" cy="44" r="14" fill="#7aae73" stroke="#1d3020" strokeWidth="4" />
+                                </motion.g>
 
-                            <motion.g style={{ transformOrigin: '86px 98px' }} animate={{ scaleY: pose.eyeScale }} transition={{ type: 'spring', stiffness: 220, damping: 18 }}>
-                                <ellipse cx="86" cy="98" rx="8" ry="10" fill="#f6f0df" />
-                                <ellipse cx="86" cy="99" rx="4.2" ry="6.2" fill="#334032" />
-                                <ellipse cx="86" cy="98" rx="1.5" ry="1.5" fill="#fffef8" />
+                                <path
+                                    d="M88 148 C88 116 110 90 140 90 C170 90 192 116 192 148 C192 180 169 202 140 202 C111 202 88 180 88 148 Z"
+                                    fill="url(#river-head-fur)"
+                                    stroke="#303739"
+                                    strokeWidth="4"
+                                />
+
+                                <motion.path
+                                    d="M107 128 Q120 121 131 126"
+                                    stroke="#2a3133"
+                                    strokeWidth="4"
+                                    strokeLinecap="round"
+                                    animate={{ y: pose.browY }}
+                                    transition={{ duration: 0.3, ease: ENTER_EASE }}
+                                />
+                                <motion.path
+                                    d="M149 126 Q160 121 173 128"
+                                    stroke="#2a3133"
+                                    strokeWidth="4"
+                                    strokeLinecap="round"
+                                    animate={{ y: pose.browY }}
+                                    transition={{ duration: 0.3, ease: ENTER_EASE }}
+                                />
+
+                                <motion.g
+                                    animate={blinking}
+                                    transition={{ duration: 3.6, repeat: Infinity, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '117px 145px' }}
+                                >
+                                    <ellipse cx="117" cy="145" rx="11" ry="13" fill="#fbf6e9" />
+                                    <ellipse cx="117" cy="146" rx="5" ry="7" fill="#2c3a2d" />
+                                    <circle cx="119" cy="143" r="1.8" fill="#fffef9" />
+                                </motion.g>
+                                <motion.g
+                                    animate={blinking}
+                                    transition={{ duration: 3.6, repeat: Infinity, ease: ENTER_EASE, delay: reduceMotion ? 0 : 0.12 }}
+                                    style={{ transformOrigin: '163px 145px' }}
+                                >
+                                    <ellipse cx="163" cy="145" rx="11" ry="13" fill="#fbf6e9" />
+                                    <ellipse cx="163" cy="146" rx="5" ry="7" fill="#2c3a2d" />
+                                    <circle cx="165" cy="143" r="1.8" fill="#fffef9" />
+                                </motion.g>
+
+                                <path d="M132 157 Q140 164 148 157" fill="#efcdc3" stroke="#303739" strokeWidth="3" strokeLinejoin="round" />
+                                <path d="M140 160 L140 170" stroke="#303739" strokeWidth="3" strokeLinecap="round" />
+                                <motion.path
+                                    d={pose.mouth}
+                                    stroke="#303739"
+                                    strokeWidth="4"
+                                    strokeLinecap="round"
+                                    fill="none"
+                                    transition={{ duration: 0.3, ease: ENTER_EASE }}
+                                />
+
+                                <g opacity="0.88">
+                                    <path d="M72 154 C90 149 102 149 122 154" stroke="#ddd8cf" strokeWidth="3" strokeLinecap="round" />
+                                    <path d="M74 166 C91 166 102 167 122 170" stroke="#ddd8cf" strokeWidth="3" strokeLinecap="round" />
+                                    <path d="M208 154 C190 149 178 149 158 154" stroke="#ddd8cf" strokeWidth="3" strokeLinecap="round" />
+                                    <path d="M206 166 C189 166 178 167 158 170" stroke="#ddd8cf" strokeWidth="3" strokeLinecap="round" />
+                                </g>
                             </motion.g>
-                            <motion.g style={{ transformOrigin: '134px 98px' }} animate={{ scaleY: pose.eyeScale }} transition={{ type: 'spring', stiffness: 220, damping: 18 }}>
-                                <ellipse cx="134" cy="98" rx="8" ry="10" fill="#f6f0df" />
-                                <ellipse cx="134" cy="99" rx="4.2" ry="6.2" fill="#334032" />
-                                <ellipse cx="134" cy="98" rx="1.5" ry="1.5" fill="#fffef8" />
-                            </motion.g>
 
-                            <path d="M101 108 Q110 116 119 108" fill="#f0d9d5" stroke="#31383c" strokeWidth="2.5" strokeLinejoin="round" />
-                            <path d="M110 109 L110 120" stroke="#31383c" strokeWidth="2.5" strokeLinecap="round" />
-                            <motion.path
-                                d={pose.mouth}
-                                stroke="#31383c"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                fill="none"
-                                transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-                            />
-
-                            <motion.g animate={{ x: pose.whisker }} transition={{ type: 'spring', stiffness: 170, damping: 18 }}>
-                                <path d="M51 110 C66 106 79 106 91 110" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                                <path d="M54 118 C68 118 79 118 92 122" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                                <path d="M57 126 C71 130 80 129 91 132" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                            </motion.g>
-                            <motion.g animate={{ x: -pose.whisker }} transition={{ type: 'spring', stiffness: 170, damping: 18 }}>
-                                <path d="M169 110 C154 106 141 106 129 110" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                                <path d="M166 118 C152 118 141 118 128 122" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                                <path d="M163 126 C149 130 140 129 129 132" stroke="#d7d2c9" strokeWidth="2.5" strokeLinecap="round" />
-                            </motion.g>
-
-                            <path d="M76 174 C80 157 90 151 99 160" stroke="#43494c" strokeWidth="9" strokeLinecap="round" />
-                            <path d="M144 174 C140 157 130 151 121 160" stroke="#43494c" strokeWidth="9" strokeLinecap="round" />
+                            {normalizedState === 'celebrate' ? (
+                                <motion.g
+                                    animate={reduceMotion ? { opacity: 0.8 } : { opacity: [0.36, 0.9, 0.36], scale: [0.96, 1.04, 0.96] }}
+                                    transition={{ duration: 1.8, repeat: Infinity, ease: ENTER_EASE }}
+                                >
+                                    <circle cx="66" cy="74" r="5" fill="#f0d37e" />
+                                    <circle cx="214" cy="86" r="4" fill="#9fd8a6" />
+                                    <circle cx="226" cy="142" r="3.5" fill="#f6e8b2" />
+                                </motion.g>
+                            ) : null}
                         </motion.g>
-
-                        {(state === 'mastery' || state === 'celebrate') ? (
-                            <motion.g
-                                filter="url(#river-soft-glow)"
-                                animate={reduceMotion ? { opacity: 0.8 } : { opacity: [0.35, 1, 0.35], scale: [0.95, 1.05, 0.95] }}
-                                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                            >
-                                <circle cx="54" cy="54" r="3" fill={pose.accent} />
-                                <circle cx="163" cy="46" r="4" fill="#f2e5b8" />
-                                <circle cx="180" cy="82" r="2.5" fill={pose.accent} />
-                            </motion.g>
-                        ) : null}
                     </svg>
                 </div>
 
-                <div className="relative rounded-[1.6rem] border border-white/8 bg-[rgba(13,16,15,0.72)] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
-                        River
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-claude-text">
-                        {caption || 'We can take this one step at a time.'}
-                    </p>
-                </div>
+                <motion.div
+                    className="relative rounded-[1.6rem] border border-white/10 bg-[rgba(12,14,13,0.76)] px-4 py-4 shadow-[0_24px_70px_rgba(0,0,0,0.28)]"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.28, ease: ENTER_EASE }}
+                    exit={{ opacity: 0, y: -6, transition: { duration: 0.18, ease: EXIT_EASE } }}
+                >
+                    <div
+                        className="absolute inset-x-3 inset-y-3 rounded-[1.2rem] blur-2xl"
+                        style={{ background: pose.bubbleTone, opacity: reduceMotion ? 0.7 : 1 }}
+                    />
+                    <div className="relative">
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-claude-accent">
+                            River
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-claude-text">
+                            {caption || 'We can take this one step at a time.'}
+                        </p>
+                    </div>
+                </motion.div>
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api } from '../api';
@@ -11,6 +12,7 @@ import {
     normalizeGuideStudyState,
 } from '../utils/studyGuides.js';
 
+const PANEL_EASE = [0.22, 1, 0.36, 1];
 const EMPTY_STATE = {
     current_card_id: null,
     session_phase: null,
@@ -33,7 +35,7 @@ const getConceptStatus = (score) => {
 
 const getScoreDelta = (outcome, weight = 1) => {
     if (outcome === 'correct') return 32 * weight;
-    if (outcome === 'partial') return 14 * weight;
+    if (outcome === 'partial') return 18 * weight;
     if (outcome === 'misconception') return -10;
     if (outcome === 'incorrect') return -6;
     if (outcome === 'empty') return -4;
@@ -50,63 +52,6 @@ const getNextCardId = (guideData, currentCardId, transitionCardId, cardStates) =
     ))?.id || null;
 };
 
-const getFallbackCaption = (kind) => {
-    if (kind === 'intro') return 'We can take this one card at a time. You stay in control of the pace.';
-    if (kind === 'focus') return 'Answer from memory first. If you want help, I can step in without taking over.';
-    if (kind === 'encourage') return 'You have part of it. Want to tighten it or keep moving for now?';
-    if (kind === 'recover') return 'No trap here. We can retry, reveal the answer, or leave it for later.';
-    if (kind === 'misconception') return 'That is a common mix-up. We can correct it gently and keep going.';
-    if (kind === 'hint') return 'Want the answer, a hint, or a clean reset? Your call.';
-    if (kind === 'mastery') return 'That answer is solid. Keep the same standard on the next one.';
-    if (kind === 'celebrate') return 'You made real progress. We can stop here or come back stronger later.';
-    return 'We can take this one step at a time.';
-};
-
-const getRiverReaction = (outcome) => {
-    if (outcome === 'correct') return 'mastery';
-    if (outcome === 'partial') return 'encourage';
-    if (outcome === 'misconception') return 'misconception';
-    if (outcome === 'incorrect') return 'recover';
-    if (outcome === 'empty') return 'hint';
-    if (outcome === 'revealed') return 'hint';
-    if (outcome === 'skipped') return 'encourage';
-    return 'focus';
-};
-
-const getIntroCaption = (guideData) => (
-    guideData?.river?.dialogue_variants?.opening?.[0]
-    || getFallbackCaption('intro')
-);
-
-const getFocusCaption = (currentCard) => (
-    currentCard?.river?.intro
-    || getFallbackCaption('focus')
-);
-
-const getResultCaption = ({ outcome, currentCard, feedback }) => {
-    if (outcome === 'correct') {
-        return currentCard?.river?.success
-            || feedback
-            || getFallbackCaption('mastery');
-    }
-
-    if (outcome === 'partial') {
-        return feedback || getFallbackCaption('encourage');
-    }
-
-    if (outcome === 'revealed') {
-        return 'The clean answer is here when you want it. You can retry or move on without pressure.';
-    }
-
-    if (outcome === 'skipped') {
-        return 'We can leave that one marked for later and keep the momentum up.';
-    }
-
-    return currentCard?.river?.struggle
-        || feedback
-        || getFallbackCaption(outcome === 'misconception' ? 'misconception' : 'recover');
-};
-
 const buildDefaultCardState = (cardState = {}) => ({
     attempts: cardState.attempts || 0,
     hints_used: cardState.hints_used || 0,
@@ -119,6 +64,54 @@ const buildDefaultCardState = (cardState = {}) => ({
     skipped: Boolean(cardState.skipped),
 });
 
+const getIntroCaption = (guideData) => (
+    guideData?.lecture?.opening
+    || guideData?.river?.dialogue_variants?.opening?.[0]
+    || 'River is ready to teach this lesson one clean idea at a time.'
+);
+
+const getTeachCaption = (currentCard) => (
+    currentCard?.teaching?.explain
+    || currentCard?.river?.intro
+    || 'River is setting the frame before the recall check.'
+);
+
+const getCheckCaption = (currentCard) => (
+    currentCard?.presentation?.emphasis_target
+    ? `Hold onto this anchor: ${currentCard.presentation.emphasis_target}`
+    : 'Answer from memory first, then let River tighten the frame.'
+);
+
+const getFeedbackState = (outcome) => {
+    if (outcome === 'correct' || outcome === 'partial') return 'encourage';
+    if (outcome === 'revealed') return 'point';
+    return 'gentle-correct';
+};
+
+const getFeedbackCaption = (currentCard, result) => {
+    if (!result) return getTeachCaption(currentCard);
+    if (result.outcome === 'correct') {
+        return currentCard?.river?.success || result.feedback;
+    }
+    if (result.outcome === 'partial') {
+        return result.feedback;
+    }
+    if (result.outcome === 'revealed') {
+        return 'River has revealed the clean answer. Take it in, then decide whether to retry or move on.';
+    }
+    return currentCard?.river?.struggle || result.feedback;
+};
+
+const getCompleteCaption = (guideData, completionPayload) => {
+    if (completionPayload?.sessionOutcome === 'stopped_early') {
+        return 'Your place is saved. River can pick this lecture back up exactly where you stopped.';
+    }
+
+    return guideData?.lecture?.closing
+        || guideData?.completion?.confidence_close
+        || 'That was a clean pass. Come back tomorrow and retrieve it again.';
+};
+
 export default function GuideView() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -130,15 +123,14 @@ export default function GuideView() {
     const [guideData, setGuideData] = useState(null);
     const [studyState, setStudyState] = useState(EMPTY_STATE);
     const [formatVersion, setFormatVersion] = useState(0);
-    const [sessionScreen, setSessionScreen] = useState('intro');
+    const [sessionStage, setSessionStage] = useState('intro');
     const [answer, setAnswer] = useState('');
     const [result, setResult] = useState(null);
-    const [assistResponse, setAssistResponse] = useState(null);
     const [completionPayload, setCompletionPayload] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [assisting, setAssisting] = useState(false);
     const [riverState, setRiverState] = useState('idle');
-    const [riverCaption, setRiverCaption] = useState(getFallbackCaption('intro'));
+    const [riverCaption, setRiverCaption] = useState('River is ready to teach.');
+    const [activeAssistOption, setActiveAssistOption] = useState(null);
 
     const sessionStartStateRef = useRef(null);
     const finalizingRef = useRef(false);
@@ -161,13 +153,13 @@ export default function GuideView() {
             setGuideData(normalizedGuideData);
             setStudyState(normalizedStudyState);
             setFormatVersion(nextFormatVersion);
-            setSessionScreen(normalizedStudyState.completed_at ? 'complete' : 'intro');
+            setSessionStage(normalizedStudyState.completed_at ? 'complete' : 'intro');
             setAnswer('');
             setResult(null);
-            setAssistResponse(null);
             setCompletionPayload(null);
+            setActiveAssistOption(null);
             setRiverState(normalizedStudyState.completed_at ? 'celebrate' : 'idle');
-            setRiverCaption(normalizedGuideData ? getIntroCaption(normalizedGuideData) : getFallbackCaption('intro'));
+            setRiverCaption(normalizedGuideData ? getIntroCaption(normalizedGuideData) : 'River is ready to teach.');
             sessionStartStateRef.current = normalizedStudyState;
             finalizingRef.current = false;
         } catch (error) {
@@ -192,31 +184,6 @@ export default function GuideView() {
     const currentConcept = currentCard
         ? guideData?.knowledge_map?.concepts.find((concept) => concept.id === currentCard.concept_id) || null
         : null;
-
-    useEffect(() => {
-        if (!guideData) return;
-
-        if (sessionScreen === 'intro') {
-            setRiverState('idle');
-            setRiverCaption(getIntroCaption(guideData));
-            return;
-        }
-
-        if (sessionScreen === 'complete') {
-            setRiverState('celebrate');
-            if (completionPayload?.sessionOutcome === 'stopped_early') {
-                setRiverCaption('Session saved. You can come back exactly where you left off.');
-            } else {
-                setRiverCaption(guideData?.completion?.confidence_close || getFallbackCaption('celebrate'));
-            }
-            return;
-        }
-
-        if (sessionScreen === 'card' && currentCard && !result && !assistResponse) {
-            setRiverState('focus');
-            setRiverCaption(getFocusCaption(currentCard));
-        }
-    }, [assistResponse, completionPayload, currentCard, guideData, result, sessionScreen]);
 
     const persistStudyState = useCallback(async (nextState) => {
         const updatedGuide = await api.updateStudyGuide(id, { study_state: nextState });
@@ -260,22 +227,22 @@ export default function GuideView() {
                 sessionOutcome,
                 exitReason,
             });
-            setAssistResponse(null);
             setResult(null);
+            setActiveAssistOption(null);
             setRiverState('celebrate');
-            setRiverCaption(
-                sessionOutcome === 'stopped_early'
-                    ? 'Session saved. You can come back exactly where you left off.'
-                    : (guideData?.completion?.confidence_close || getFallbackCaption('celebrate')),
-            );
-            setSessionScreen('complete');
+            setRiverCaption(getCompleteCaption(guideData, {
+                ...payload,
+                sessionOutcome,
+                exitReason,
+            }));
+            setSessionStage('complete');
         } catch (error) {
             toastRef.current.error('Failed to complete tutor session');
             finalizingRef.current = false;
         }
     }, [guide?.class_id, guideData, id, studyState]);
 
-    const moveToNextCard = useCallback(async (baseState) => {
+    const moveToNextCard = useCallback(async (baseState, { allowIncompleteFinish = true } = {}) => {
         if (!guideData || !currentCard) return;
 
         const nextCardId = getNextCardId(
@@ -288,8 +255,8 @@ export default function GuideView() {
         if (!nextCardId) {
             await finalizeSession({
                 nextState: baseState,
-                sessionOutcome: 'stopped_early',
-                exitReason: 'skipped_remaining',
+                sessionOutcome: allowIncompleteFinish ? 'stopped_early' : 'complete',
+                exitReason: allowIncompleteFinish ? 'skipped_remaining' : 'finished',
             });
             return;
         }
@@ -304,19 +271,33 @@ export default function GuideView() {
         const persistedState = await persistStudyState(nextState);
         setAnswer('');
         setResult(null);
-        setAssistResponse(null);
-        setRiverState('focus');
-        setRiverCaption(getFocusCaption(nextCard));
+        setActiveAssistOption(null);
+        setRiverState(nextCard?.presentation?.pose || 'teach');
+        setRiverCaption(getTeachCaption(nextCard));
+        setSessionStage('teach');
         return persistedState;
     }, [currentCard, finalizeSession, guideData, persistStudyState]);
 
     const handleStart = () => {
-        setSessionScreen('card');
-        setResult(null);
-        setAssistResponse(null);
         setAnswer('');
-        setRiverState('focus');
-        setRiverCaption(getFocusCaption(currentCard));
+        setResult(null);
+        setActiveAssistOption(null);
+        setSessionStage('teach');
+        setRiverState(currentCard?.presentation?.pose || 'teach');
+        setRiverCaption(getTeachCaption(currentCard));
+    };
+
+    const handleSelectAssist = (option) => {
+        setActiveAssistOption(option);
+        setRiverState(option.pose || 'point');
+        setRiverCaption(option.text);
+    };
+
+    const handleBeginCheck = () => {
+        setActiveAssistOption(null);
+        setSessionStage('check');
+        setRiverState('thinking');
+        setRiverCaption(getCheckCaption(currentCard));
     };
 
     const handleSubmit = async () => {
@@ -345,7 +326,7 @@ export default function GuideView() {
                 score: nextScore,
                 status: getConceptStatus(nextScore),
                 attempts: (conceptState.attempts || 0) + 1,
-                correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.outcome === 'correct' ? 1 : 0),
+                correct_attempts: (conceptState.correct_attempts || 0) + (evaluation.shouldAdvance ? 1 : 0),
                 last_outcome: evaluation.outcome,
             };
             const nextCardState = {
@@ -353,11 +334,13 @@ export default function GuideView() {
                 attempts: (cardState.attempts || 0) + 1,
                 status: evaluation.outcome === 'correct'
                     ? 'mastered'
-                    : evaluation.outcome === 'partial'
+                    : evaluation.shouldAdvance
                         ? 'needs_review'
-                        : 'retry',
+                        : evaluation.outcome === 'misconception'
+                            ? 'retry'
+                            : 'needs_review',
                 last_outcome: evaluation.outcome,
-                completed: evaluation.outcome === 'correct',
+                completed: Boolean(evaluation.shouldAdvance),
                 skipped: false,
             };
 
@@ -365,7 +348,7 @@ export default function GuideView() {
                 ...studyState.card_states,
                 [currentCard.id]: nextCardState,
             };
-            const transitionCardId = evaluation.outcome === 'correct'
+            const transitionCardId = evaluation.shouldAdvance
                 ? getNextCardId(
                     guideData,
                     currentCard.id,
@@ -373,7 +356,7 @@ export default function GuideView() {
                     provisionalCardStates,
                 )
                 : null;
-            const sessionComplete = evaluation.outcome === 'correct' && !transitionCardId;
+            const sessionComplete = evaluation.shouldAdvance && !transitionCardId;
 
             const nextState = normalizeGuideStudyState(guideData, {
                 ...studyState,
@@ -388,68 +371,22 @@ export default function GuideView() {
             });
 
             const persistedState = await persistStudyState(nextState);
-            setAssistResponse(null);
-            setResult({
-                type: 'evaluation',
+            const nextResult = {
                 ...evaluation,
-                hintText: evaluation.outcome === 'correct'
-                    ? null
-                    : currentCard.hints?.[(nextCardState.hints_used || 0)]?.text || currentCard.hints?.[0]?.text || null,
+                feedback: evaluation.feedback,
                 persistedState,
                 sessionComplete,
                 nextCardId: transitionCardId,
-            });
-            setRiverState(getRiverReaction(evaluation.outcome));
-            setRiverCaption(getResultCaption({
-                outcome: evaluation.outcome,
-                currentCard,
-                feedback: evaluation.feedback,
-            }));
+                modelAnswer: currentCard.target_answer,
+            };
+            setResult(nextResult);
+            setSessionStage('feedback');
+            setRiverState(getFeedbackState(evaluation.outcome));
+            setRiverCaption(getFeedbackCaption(currentCard, nextResult));
         } catch (error) {
             toastRef.current.error('Failed to update tutor session');
         } finally {
             setSubmitting(false);
-        }
-    };
-
-    const handleAskRiver = async () => {
-        if (!guideData || !currentCard || assisting || submitting) return;
-
-        setAssisting(true);
-        try {
-            const nowIso = new Date().toISOString();
-            const nextState = normalizeGuideStudyState(guideData, {
-                ...studyState,
-                card_states: {
-                    ...studyState.card_states,
-                    [currentCard.id]: {
-                        ...buildDefaultCardState(currentCardState),
-                        assist_count: (currentCardState?.assist_count || 0) + 1,
-                        last_assist_at: nowIso,
-                    },
-                },
-                last_interaction_at: nowIso,
-            });
-
-            const persistedState = await persistStudyState(nextState);
-            const response = await api.assistStudyCoach({
-                guideId: id,
-                guideData,
-                cardId: currentCard.id,
-                sectionId: currentConcept?.id || currentCard.concept_id,
-                question: answer.trim() || currentCard.prompt,
-            });
-
-            setAssistResponse({
-                ...response,
-                persistedState,
-            });
-            setRiverState('hint');
-            setRiverCaption(response?.answer || getFallbackCaption('hint'));
-        } catch (error) {
-            toastRef.current.error('River could not help just now');
-        } finally {
-            setAssisting(false);
         }
     };
 
@@ -476,20 +413,19 @@ export default function GuideView() {
             });
 
             const persistedState = await persistStudyState(nextState);
-            setAssistResponse(null);
-            setResult({
-                type: 'reveal',
+            const nextResult = {
                 outcome: 'revealed',
+                shouldAdvance: false,
                 feedback: currentCard.target_answer,
                 persistedState,
                 sessionComplete: false,
                 nextCardId: null,
-            });
-            setRiverState('hint');
-            setRiverCaption(getResultCaption({
-                outcome: 'revealed',
-                currentCard,
-            }));
+                modelAnswer: currentCard.target_answer,
+            };
+            setResult(nextResult);
+            setSessionStage('feedback');
+            setRiverState('point');
+            setRiverCaption(getFeedbackCaption(currentCard, nextResult));
         } catch (error) {
             toastRef.current.error('Failed to reveal the answer');
         }
@@ -536,12 +472,10 @@ export default function GuideView() {
             await persistStudyState(nextState);
             setAnswer('');
             setResult(null);
-            setAssistResponse(null);
+            setActiveAssistOption(null);
             setRiverState('encourage');
-            setRiverCaption(getResultCaption({
-                outcome: 'skipped',
-                currentCard,
-            }));
+            setRiverCaption('River has marked this for later so you can keep your momentum.');
+            setSessionStage('teach');
         } catch (error) {
             toastRef.current.error('Failed to skip this card');
         }
@@ -549,9 +483,10 @@ export default function GuideView() {
 
     const handleTryAgain = () => {
         setResult(null);
-        setAssistResponse(null);
-        setRiverState('focus');
-        setRiverCaption(getFocusCaption(currentCard));
+        setActiveAssistOption(null);
+        setSessionStage('check');
+        setRiverState('thinking');
+        setRiverCaption(getCheckCaption(currentCard));
     };
 
     const handleAdvance = async () => {
@@ -566,27 +501,9 @@ export default function GuideView() {
             return;
         }
 
-        if (result.nextCardId) {
-            const nextCard = guideData.cards.find((card) => card.id === result.nextCardId) || null;
-            const nextState = normalizeGuideStudyState(guideData, {
-                ...(result.persistedState || studyState),
-                current_card_id: result.nextCardId,
-                session_phase: nextCard?.phase || studyState.session_phase,
-            });
-            await persistStudyState(nextState);
-            setAnswer('');
-            setResult(null);
-            setAssistResponse(null);
-            setRiverState('focus');
-            setRiverCaption(getFocusCaption(nextCard));
-            return;
-        }
-
-        await moveToNextCard(result.persistedState || studyState);
-    };
-
-    const handleContinueAnyway = async () => {
-        await moveToNextCard((result?.persistedState || assistResponse?.persistedState || studyState));
+        await moveToNextCard(result.persistedState || studyState, {
+            allowIncompleteFinish: !result.shouldAdvance,
+        });
     };
 
     const handleSaveAndLeave = async () => {
@@ -601,10 +518,10 @@ export default function GuideView() {
         finalizingRef.current = false;
         setCompletionPayload(null);
         setResult(null);
-        setAssistResponse(null);
-        setSessionScreen('card');
-        setRiverState('focus');
-        setRiverCaption(getFocusCaption(currentCard));
+        setActiveAssistOption(null);
+        setSessionStage('teach');
+        setRiverState(currentCard?.presentation?.pose || 'teach');
+        setRiverCaption(getTeachCaption(currentCard));
     };
 
     if (loading) {
@@ -645,12 +562,13 @@ export default function GuideView() {
     }
 
     const title = guide?.title || 'Tutor Session';
-    const actionPanelVisible = Boolean(result || assistResponse);
     const completionIsPartial = completionPayload?.sessionOutcome === 'stopped_early';
+    const assistOptions = currentCard?.assist_options || [];
+    const stepCount = currentCard?.teaching?.steps?.length || 0;
 
     return (
         <div className="min-h-screen bg-claude-bg text-claude-text px-4 py-6 sm:px-6 sm:py-10">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
                 <button
                     type="button"
                     onClick={() => navigate('/guides')}
@@ -660,68 +578,168 @@ export default function GuideView() {
                     Back to Tutor Sessions
                 </button>
 
-                {sessionScreen === 'intro' ? (
-                    <section
+                {sessionStage === 'intro' ? (
+                    <motion.section
                         data-testid="river-session-intro"
-                        className="mt-8 rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.42, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
                             <div>
-                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">River Session</p>
-                                <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold">{title}</h1>
-                                <p className="mt-4 text-sm leading-6 text-claude-secondary">
-                                    River is here to coach, not corner you. Answer from memory, ask for help when you want it, and leave anytime without losing your place.
+                                <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-claude-accent">Today's lecture</p>
+                                <h1 className="mt-3 text-4xl sm:text-5xl font-serif italic font-bold tracking-tight">{title}</h1>
+                                <p className="mt-4 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                    {guideData.lecture.opening}
                                 </p>
-                                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                                    <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
+                                <div className="mt-6 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
                                         <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Subject</p>
                                         <p className="mt-2 text-lg font-semibold">{guideData.session_meta.subject}</p>
                                     </div>
-                                    <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
+                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
                                         <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Goal</p>
                                         <p className="mt-2 text-sm leading-6">{guideData.session_meta.student_goal}</p>
                                     </div>
-                                    <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Cards</p>
-                                        <p className="mt-2 text-lg font-semibold">{guideData.cards.length}</p>
+                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Style</p>
+                                        <p className="mt-2 text-sm leading-6 capitalize">{guideData.session_meta.lecture_style}</p>
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={handleStart}
-                                    className="mt-6 inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
-                                >
-                                    Start Session
-                                </button>
+                                {guideData.lecture.agenda.length > 0 ? (
+                                    <div className="mt-6 rounded-[1.6rem] border border-white/8 bg-[rgba(255,255,255,0.02)] p-4">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Agenda</p>
+                                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                            {guideData.lecture.agenda.map((item, index) => (
+                                                <div key={`${item}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
+                                                    <span className="mr-2 text-claude-accent">{index + 1}.</span>
+                                                    {item}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleStart}
+                                        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                    >
+                                        Start with River
+                                    </button>
+                                </div>
                             </div>
 
-                            <RiverMascot
-                                state={riverState}
-                                caption={riverCaption}
-                            />
+                            <RiverMascot state={riverState} caption={riverCaption} />
                         </div>
-                    </section>
+                    </motion.section>
                 ) : null}
 
-                {sessionScreen === 'card' && currentCard ? (
-                    <section
-                        data-testid="river-session-card"
-                        className="mt-8 rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                {sessionStage === 'teach' && currentCard ? (
+                    <motion.section
+                        data-testid="river-session-teach"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.32, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                            <div>
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                            River • {currentCard.phase}
-                                        </p>
-                                        <h1 className="mt-3 text-2xl sm:text-3xl font-serif italic font-bold">{currentCard.prompt}</h1>
+                        <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)] xl:items-start">
+                            <RiverMascot state={riverState} caption={riverCaption} />
+
+                            <div className="space-y-4">
+                                <div className="rounded-[1.8rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-5">
+                                    <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
+                                        {guideData.session_meta.river_role}
+                                    </p>
+                                    <h1 className="mt-3 text-3xl font-serif italic font-bold">{currentConcept?.title || currentCard.prompt}</h1>
+                                    <p className="mt-4 text-sm leading-7 text-claude-secondary">
+                                        {currentCard.teaching.explain}
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                                    <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Breakdown</p>
+                                        <div className="mt-3 space-y-2.5">
+                                            {currentCard.teaching.steps.map((step, index) => (
+                                                <div key={`${step}-${index}`} className="rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3 text-sm leading-6 text-claude-text">
+                                                    <span className="mr-2 text-claude-accent">{index + 1}.</span>
+                                                    {step}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-3 text-right">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Concept</p>
-                                        <p className="mt-1 text-sm font-medium">{currentConcept?.title || 'Current concept'}</p>
+
+                                    <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Why it matters</p>
+                                        <p className="mt-3 text-sm leading-6 text-claude-secondary">{currentCard.teaching.why_it_matters}</p>
+                                        <div className="mt-4 rounded-[1rem] border border-white/6 bg-black/10 px-3 py-3">
+                                            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Anchor example</p>
+                                            <p className="mt-2 text-sm leading-6 text-claude-text">{currentCard.teaching.example}</p>
+                                        </div>
                                     </div>
                                 </div>
+
+                                <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River can reshape the explanation</p>
+                                    <div className="mt-3 flex flex-wrap gap-2.5">
+                                        {assistOptions.map((option) => (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => handleSelectAssist(option)}
+                                                className="inline-flex min-h-[40px] items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-claude-text transition-colors hover:border-claude-accent/40 hover:bg-claude-accent/10"
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {activeAssistOption ? (
+                                        <div className="mt-4 rounded-[1.2rem] border border-claude-accent/20 bg-claude-accent/8 px-4 py-4 text-sm leading-6 text-claude-text">
+                                            {activeAssistOption.text}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleBeginCheck}
+                                        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                    >
+                                        I'm ready to answer
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveAndLeave}
+                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text"
+                                    >
+                                        Save and leave
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.section>
+                ) : null}
+
+                {sessionStage === 'check' && currentCard ? (
+                    <motion.section
+                        data-testid="river-session-check"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.28, ease: PANEL_EASE }}
+                    >
+                        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+                            <RiverMascot state={riverState} caption={riverCaption} />
+
+                            <div>
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">Check understanding</p>
+                                <h1 className="mt-3 text-3xl font-serif italic font-bold">{currentCard.prompt}</h1>
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                    River wants your own wording first. Precision matters, but you do not need a perfect script.
+                                </p>
 
                                 <label htmlFor="river-answer" className="mt-6 block text-[11px] font-mono uppercase tracking-[0.18em] text-claude-secondary">
                                     Your answer
@@ -731,32 +749,24 @@ export default function GuideView() {
                                     aria-label="Your answer"
                                     value={answer}
                                     onChange={(event) => setAnswer(event.target.value)}
-                                    disabled={submitting || actionPanelVisible}
-                                    className="mt-3 min-h-[140px] w-full rounded-2xl border border-claude-border bg-claude-bg px-4 py-4 text-sm leading-6 outline-none transition-colors focus:border-claude-accent disabled:opacity-80"
+                                    disabled={submitting}
+                                    className="mt-3 min-h-[170px] w-full rounded-[1.6rem] border border-claude-border bg-claude-bg/70 px-4 py-4 text-sm leading-6 outline-none transition-colors focus:border-claude-accent"
                                     placeholder="Answer from memory first."
                                 />
 
-                                <div className="mt-4 flex flex-wrap items-center gap-3">
+                                <div className="mt-5 flex flex-wrap gap-3">
                                     <button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={submitting || assisting}
+                                        disabled={submitting}
                                         className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
                                     >
                                         {submitting ? 'Checking...' : 'Submit Answer'}
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={handleAskRiver}
-                                        disabled={submitting || assisting}
-                                        className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-accent/30 bg-claude-accent/8 px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:bg-claude-accent/14 disabled:opacity-60"
-                                    >
-                                        {assisting ? 'Asking River...' : 'Ask River'}
-                                    </button>
-                                    <button
-                                        type="button"
                                         onClick={handleShowAnswer}
-                                        disabled={submitting || assisting}
+                                        disabled={submitting}
                                         className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
                                     >
                                         Show Answer
@@ -764,7 +774,7 @@ export default function GuideView() {
                                     <button
                                         type="button"
                                         onClick={handleSkipForNow}
-                                        disabled={submitting || assisting}
+                                        disabled={submitting}
                                         className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-text transition-colors hover:border-claude-accent/35 hover:bg-claude-bg/60 disabled:opacity-60"
                                     >
                                         Skip for now
@@ -772,35 +782,62 @@ export default function GuideView() {
                                     <button
                                         type="button"
                                         onClick={handleSaveAndLeave}
-                                        disabled={submitting || assisting}
+                                        disabled={submitting}
                                         className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-claude-border px-4 py-2 text-sm font-medium text-claude-secondary transition-colors hover:text-claude-text disabled:opacity-60"
                                     >
                                         Save and leave
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </motion.section>
+                ) : null}
 
-                                {(result || assistResponse) ? (
-                                    <div className="mt-6 rounded-2xl border border-claude-border/80 bg-claude-bg/70 px-4 py-4">
-                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River feedback</p>
-                                        {result ? (
-                                            <>
-                                                <p className="mt-2 text-sm leading-6">{result.feedback}</p>
-                                                {result.hintText ? (
-                                                    <p className="mt-3 text-sm leading-6 text-claude-secondary">Hint: {result.hintText}</p>
-                                                ) : null}
-                                                <p className="mt-3 text-[11px] font-mono uppercase tracking-[0.16em] text-claude-accent">
-                                                    {riverState}
-                                                </p>
-                                            </>
-                                        ) : null}
-                                        {assistResponse ? (
-                                            <p className="mt-2 text-sm leading-6">{assistResponse.answer}</p>
-                                        ) : null}
+                {sessionStage === 'feedback' && currentCard && result ? (
+                    <motion.section
+                        data-testid="river-session-feedback"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.28, ease: PANEL_EASE }}
+                    >
+                        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+                            <RiverMascot state={riverState} caption={riverCaption} />
+
+                            <div className="space-y-4">
+                                <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-5">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">River's feedback</p>
+                                    <p className="mt-3 text-base leading-7 text-claude-text">{result.feedback}</p>
+                                </div>
+
+                                <div className="rounded-[1.6rem] border border-claude-accent/18 bg-claude-accent/8 p-5">
+                                    <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Model answer</p>
+                                    <p className="mt-3 text-base leading-7 text-claude-text">{result.modelAnswer}</p>
+                                </div>
+
+                                {result.missingTags?.length ? (
+                                    <div className="rounded-[1.4rem] border border-white/8 bg-black/15 p-4">
+                                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Still missing</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {result.missingTags.map((tag) => (
+                                                <span key={tag} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-claude-secondary">
+                                                    {tag.replace(/-/g, ' ')}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 ) : null}
 
-                                <div className="mt-6 flex flex-wrap items-center gap-3">
-                                    {actionPanelVisible ? (
+                                <div className="flex flex-wrap gap-3">
+                                    {result.shouldAdvance ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleAdvance}
+                                            className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-claude-accent px-5 py-3 text-sm font-semibold text-black transition-opacity hover:opacity-90"
+                                        >
+                                            Keep going
+                                        </button>
+                                    ) : (
                                         <>
                                             <button
                                                 type="button"
@@ -811,61 +848,54 @@ export default function GuideView() {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={result?.outcome === 'correct' ? handleAdvance : handleContinueAnyway}
+                                                onClick={handleAdvance}
                                                 className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-claude-accent px-4 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90"
                                             >
-                                                {result?.outcome === 'correct' ? 'Continue' : 'Continue anyway'}
+                                                Continue anyway
                                             </button>
                                         </>
-                                    ) : null}
-                                    <p className="text-sm text-claude-secondary">
-                                        Attempts: {currentCardState?.attempts || 0}
-                                    </p>
+                                    )}
                                 </div>
                             </div>
-
-                            <RiverMascot
-                                state={riverState}
-                                caption={riverCaption}
-                            />
                         </div>
-                    </section>
+                    </motion.section>
                 ) : null}
 
-                {sessionScreen === 'complete' ? (
-                    <section
+                {sessionStage === 'complete' ? (
+                    <motion.section
                         data-testid="river-session-complete"
-                        className="mt-8 rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        className="mt-8 overflow-hidden rounded-[2rem] border border-claude-border bg-claude-surface p-6 sm:p-8"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.34, ease: PANEL_EASE }}
                     >
-                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
                             <div>
                                 <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-claude-accent">
-                                    {completionIsPartial ? 'Session saved' : (guideData.completion?.river_cue?.animation || 'sparkle_mastery')}
+                                    {completionIsPartial ? 'Session saved' : 'Session complete'}
                                 </p>
                                 <h1 className="mt-3 text-3xl sm:text-4xl font-serif italic font-bold">
                                     {completionIsPartial ? 'Session saved' : (guideData.completion?.title || 'Session complete')}
                                 </h1>
-                                <p className="mt-4 text-sm leading-6 text-claude-secondary">
+                                <p className="mt-4 max-w-2xl text-sm leading-6 text-claude-secondary">
                                     {completionIsPartial
-                                        ? 'You are leaving with your place preserved. River will bring you back to the current card when you resume.'
+                                        ? 'River has preserved this lecture exactly where you left it.'
                                         : (guideData.completion?.mastery_message || 'You converted recall into structure.')}
                                 </p>
-                                <p className="mt-3 text-sm leading-6 text-claude-secondary">
-                                    {completionIsPartial
-                                        ? 'You can resume now, or come back later without losing your progress.'
-                                        : (guideData.completion?.confidence_close || 'You are ready for the next retrieval pass.')}
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-claude-secondary">
+                                    {getCompleteCaption(guideData, completionPayload)}
                                 </p>
                                 {completionPayload ? (
                                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                                        <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
+                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
                                             <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">XP</p>
                                             <p className="mt-2 text-lg font-semibold">{completionPayload.xpEarned || 0}</p>
                                         </div>
-                                        <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
+                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
                                             <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Mastery</p>
                                             <p className="mt-2 text-lg font-semibold">{completionPayload.masteryDelta || 0}%</p>
                                         </div>
-                                        <div className="rounded-2xl border border-claude-border/70 bg-claude-bg/60 px-4 py-4">
+                                        <div className="rounded-[1.4rem] border border-white/8 bg-black/20 p-4">
                                             <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-claude-secondary">Next review</p>
                                             <p className="mt-2 text-sm font-medium">
                                                 {completionPayload.nextReviewAt
@@ -895,12 +925,9 @@ export default function GuideView() {
                                 </div>
                             </div>
 
-                            <RiverMascot
-                                state={riverState}
-                                caption={riverCaption}
-                            />
+                            <RiverMascot state={riverState} caption={riverCaption} />
                         </div>
-                    </section>
+                    </motion.section>
                 ) : null}
             </div>
         </div>

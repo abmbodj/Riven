@@ -46,6 +46,16 @@ const makeGuide = (overrides = {}) => ({
       source_mode: 'hybrid',
       estimated_minutes: 16,
       preferred_tutor_tone: 'calm review',
+      lecture_style: 'storybook seminar',
+      river_role: 'witty lecture cat',
+    },
+    lecture: {
+      opening: 'Welcome to today’s River lecture on how cell division actually works.',
+      agenda: [
+        'Lock the outcome of mitosis.',
+        'Separate mitosis from meiosis.',
+      ],
+      closing: 'You do not need perfection here. You need a clean mental frame you can retrieve again.',
     },
     river: {
       name: 'River',
@@ -106,6 +116,47 @@ const makeGuide = (overrides = {}) => ({
           success: 'That lands exactly where it should.',
           struggle: 'Let me narrow the frame.',
         },
+        teaching: {
+          explain: 'Mitosis is the division step that preserves the original genetic blueprint while making two new cells.',
+          example: 'If your skin needs repair, mitosis helps create replacement cells with the same DNA instructions.',
+          steps: [
+            'Start with one parent cell.',
+            'Copy the DNA so the information is ready to share.',
+            'Separate the copies so each new cell gets the same set.',
+          ],
+          why_it_matters: 'This is the foundation for growth, repair, and keeping body tissues genetically consistent.',
+        },
+        assist_options: [
+          {
+            id: 'explain-simply',
+            label: 'Explain simply',
+            text: 'In simple terms: mitosis makes two matching replacement cells.',
+            pose: 'encourage',
+          },
+          {
+            id: 'show-example',
+            label: 'Show another example',
+            text: 'A healing cut uses mitosis to make more skin cells with the same DNA as the original ones.',
+            pose: 'point',
+          },
+          {
+            id: 'break-it-down',
+            label: 'Break it down',
+            text: 'One cell copies its DNA, lines it up, and splits into two equal genetic matches.',
+            pose: 'teach',
+          },
+          {
+            id: 'why-it-matters',
+            label: 'Why this matters',
+            text: 'If you confuse mitosis, you will also confuse how the body grows and repairs itself.',
+            pose: 'thinking',
+          },
+        ],
+        presentation: {
+          pose: 'teach',
+          emphasis_target: 'Two genetically identical daughter cells',
+          reaction_cue: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
+        },
         transitions: {
           on_correct: null,
           on_partial: 'retry',
@@ -117,6 +168,8 @@ const makeGuide = (overrides = {}) => ({
     ],
     evaluation_rules: {
       score_bands: { correct: 0.85, partial: 0.4 },
+      pass_threshold: 0.5,
+      partial_advances: true,
       empty_patterns: ['idk'],
       tag_synonyms: {
         'two-daughter-cells': ['two daughter cells', '2 daughter cells'],
@@ -201,7 +254,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('renders the River tutor intro and progresses through a one-card session', async () => {
+  it('renders the River lecture flow and completes on a good-enough answer', async () => {
     api.getStudyGuide.mockResolvedValue(makeGuide());
 
     render(
@@ -213,31 +266,43 @@ describe('GuideView', () => {
     );
 
     const intro = await screen.findByTestId('river-session-intro');
-    expect(within(intro).getByText('River Session')).toBeInTheDocument();
+    expect(within(intro).getByText(/today's lecture/i)).toBeInTheDocument();
     expect(within(intro).getByText('Cell Division Tutor Session')).toBeInTheDocument();
-    expect(within(intro).getByText(/coach, not corner you/i)).toBeInTheDocument();
+    expect(within(intro).getAllByText(/Welcome to today’s River lecture/i).length).toBeGreaterThan(0);
     expect(within(intro).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'idle');
-    expect(within(intro).getByRole('button', { name: /start session/i })).toBeInTheDocument();
+    expect(within(intro).getByRole('button', { name: /start with river/i })).toBeInTheDocument();
 
-    fireEvent.click(within(intro).getByRole('button', { name: /start session/i }));
+    fireEvent.click(within(intro).getByRole('button', { name: /start with river/i }));
 
-    const card = await screen.findByTestId('river-session-card');
-    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'focus');
-    expect(within(card).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
+    const teach = await screen.findByTestId('river-session-teach');
+    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'teach');
+    expect(within(teach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
+    expect(within(teach).getByRole('button', { name: /Explain simply/i })).toBeInTheDocument();
+    expect(within(teach).getByRole('button', { name: /Show another example/i })).toBeInTheDocument();
+    expect(within(teach).getByRole('button', { name: /Break it down/i })).toBeInTheDocument();
+    expect(within(teach).getByRole('button', { name: /Why this matters/i })).toBeInTheDocument();
 
-    fireEvent.change(within(card).getByLabelText(/your answer/i), {
-      target: { value: 'Mitosis makes two daughter cells with the same DNA.' },
+    fireEvent.click(within(teach).getByRole('button', { name: /i'm ready to answer/i }));
+
+    const check = await screen.findByTestId('river-session-check');
+    expect(within(check).queryByRole('button', { name: /ask river/i })).not.toBeInTheDocument();
+    expect(within(check).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'thinking');
+    expect(within(check).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
+
+    fireEvent.change(within(check).getByLabelText(/your answer/i), {
+      target: { value: 'Mitosis makes two daughter cells.' },
     });
-    fireEvent.click(within(card).getByRole('button', { name: /submit answer/i }));
+    fireEvent.click(within(check).getByRole('button', { name: /submit answer/i }));
 
-    expect(await within(card).findByText(/Clean answer/i)).toBeInTheDocument();
-    expect(within(card).getByText(/^mastery$/i)).toBeInTheDocument();
-    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'mastery');
+    const feedback = await screen.findByTestId('river-session-feedback');
+    expect(within(feedback).getAllByText(/got the backbone/i).length).toBeGreaterThan(0);
+    expect(within(feedback).getByText(/Two genetically identical daughter cells/i)).toBeInTheDocument();
+    expect(within(feedback).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'encourage');
 
-    fireEvent.click(within(card).getByRole('button', { name: /continue/i }));
+    fireEvent.click(within(feedback).getByRole('button', { name: /keep going/i }));
 
     const finish = await screen.findByTestId('river-session-complete');
-    expect(within(finish).getByText(/Session complete/i)).toBeInTheDocument();
+    expect(within(finish).getByRole('heading', { name: /Session complete/i })).toBeInTheDocument();
     expect(within(finish).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'celebrate');
     expect(api.completeStudyCoachSession).toHaveBeenCalledWith(expect.objectContaining({
       guideId: 'guide-river-1',
@@ -254,7 +319,7 @@ describe('GuideView', () => {
           card_states: expect.objectContaining({
             'card-1': expect.objectContaining({
               completed: true,
-              last_outcome: 'correct',
+              last_outcome: 'partial',
             }),
           }),
         }),
@@ -262,7 +327,7 @@ describe('GuideView', () => {
     });
   });
 
-  it('lets the learner continue anyway after a wrong answer without being trapped', async () => {
+  it('reveals smart teaching chips without calling live assist', async () => {
     api.getStudyGuide.mockResolvedValue(makeGuide());
 
     render(
@@ -273,105 +338,44 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.change(within(card).getByLabelText(/your answer/i), {
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /Break it down/i }));
+
+    await waitFor(() => {
+      expect(within(teach).getAllByText(/One cell copies its DNA/i).length).toBeGreaterThan(0);
+    });
+    expect(api.assistStudyCoach).not.toHaveBeenCalled();
+    expect(within(teach).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'teach');
+  });
+
+  it('uses gentle correction for misconception answers and still lets the learner continue', async () => {
+    api.getStudyGuide.mockResolvedValue(makeGuide());
+
+    render(
+      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
+        <Routes>
+          <Route path="/guide/:id" element={<GuideView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
+
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /i'm ready to answer/i }));
+
+    const check = await screen.findByTestId('river-session-check');
+    fireEvent.change(within(check).getByLabelText(/your answer/i), {
       target: { value: 'It makes four daughter cells.' },
     });
-    fireEvent.click(within(card).getByRole('button', { name: /submit answer/i }));
+    fireEvent.click(within(check).getByRole('button', { name: /submit answer/i }));
 
-    expect(await within(card).findByText(/That describes meiosis, not mitosis/i)).toBeInTheDocument();
-    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'misconception');
-    expect(within(card).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
-  });
-
-  it('lets the learner reveal the answer and keep moving', async () => {
-    api.getStudyGuide.mockResolvedValue(makeGuide());
-
-    render(
-      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
-        <Routes>
-          <Route path="/guide/:id" element={<GuideView />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
-
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.click(within(card).getByRole('button', { name: /show answer/i }));
-
-    expect(await within(card).findByText(/Two genetically identical daughter cells/i)).toBeInTheDocument();
-    expect(within(card).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'hint');
-
-    await waitFor(() => {
-      expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
-        study_state: expect.objectContaining({
-          card_states: expect.objectContaining({
-            'card-1': expect.objectContaining({
-              revealed_answer: true,
-              last_outcome: 'revealed',
-            }),
-          }),
-        }),
-      }));
-    });
-  });
-
-  it('lets the learner skip a card for now', async () => {
-    api.getStudyGuide.mockResolvedValue(makeGuide());
-
-    render(
-      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
-        <Routes>
-          <Route path="/guide/:id" element={<GuideView />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
-
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.click(within(card).getByRole('button', { name: /skip for now/i }));
-
-    await waitFor(() => {
-      expect(api.updateStudyGuide).toHaveBeenCalledWith('guide-river-1', expect.objectContaining({
-        study_state: expect.objectContaining({
-          card_states: expect.objectContaining({
-            'card-1': expect.objectContaining({
-              skipped: true,
-              last_outcome: 'skipped',
-            }),
-          }),
-        }),
-      }));
-    });
-  });
-
-  it('can ask River for help without handing over control of the session', async () => {
-    api.getStudyGuide.mockResolvedValue(makeGuide());
-
-    render(
-      <MemoryRouter initialEntries={['/guide/guide-river-1']}>
-        <Routes>
-          <Route path="/guide/:id" element={<GuideView />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
-
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.click(within(card).getByRole('button', { name: /ask river/i }));
-
-    await waitFor(() => {
-      expect(within(card).getAllByText(/focus on the outcome/i).length).toBeGreaterThan(0);
-    });
-    expect(api.assistStudyCoach).toHaveBeenCalledWith(expect.objectContaining({
-      guideId: 'guide-river-1',
-    }));
-    expect(within(card).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
+    const feedback = await screen.findByTestId('river-session-feedback');
+    expect(within(feedback).getByText(/That describes meiosis, not mitosis/i)).toBeInTheDocument();
+    expect(within(feedback).getByTestId('river-mascot')).toHaveAttribute('data-river-state', 'gentle-correct');
+    expect(within(feedback).getByRole('button', { name: /continue anyway/i })).toBeInTheDocument();
   });
 
   it('shows a partial wrap-up when the learner saves and leaves early', async () => {
@@ -392,10 +396,10 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.click(within(card).getByRole('button', { name: /save and leave/i }));
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /save and leave/i }));
 
     const finish = await screen.findByTestId('river-session-complete');
     expect(within(finish).getByRole('heading', { name: /session saved/i })).toBeInTheDocument();
@@ -424,17 +428,17 @@ describe('GuideView', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /start session/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /start with river/i }));
 
-    const card = await screen.findByTestId('river-session-card');
-    fireEvent.click(within(card).getByRole('button', { name: /save and leave/i }));
+    const teach = await screen.findByTestId('river-session-teach');
+    fireEvent.click(within(teach).getByRole('button', { name: /save and leave/i }));
 
     const finish = await screen.findByTestId('river-session-complete');
     fireEvent.click(within(finish).getByRole('button', { name: /resume session/i }));
 
-    const resumedCard = await screen.findByTestId('river-session-card');
-    expect(within(resumedCard).getByText(/What is the main outcome of mitosis/i)).toBeInTheDocument();
-    expect(within(resumedCard).getByRole('button', { name: /save and leave/i })).toBeInTheDocument();
+    const resumedTeach = await screen.findByTestId('river-session-teach');
+    expect(within(resumedTeach).getAllByText(/Mitosis is the division step/i).length).toBeGreaterThan(0);
+    expect(within(resumedTeach).getByRole('button', { name: /save and leave/i })).toBeInTheDocument();
   });
 
   it('shows the unsupported hard-cutover state for pre-v4 guides', async () => {

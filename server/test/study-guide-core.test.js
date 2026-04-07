@@ -19,6 +19,16 @@ const makeGuideData = () => ({
     source_mode: 'hybrid',
     estimated_minutes: 18,
     preferred_tutor_tone: 'calm review',
+    lecture_style: 'storybook seminar',
+    river_role: 'witty lecture cat',
+  },
+  lecture: {
+    opening: 'Welcome to today’s River lecture on how cell division actually works.',
+    agenda: [
+      'Lock the outcome of mitosis.',
+      'Separate mitosis from meiosis.',
+    ],
+    closing: 'You do not need perfection here. You need a clean mental frame you can retrieve again.',
   },
   river: {
     name: 'River',
@@ -32,6 +42,12 @@ const makeGuideData = () => ({
       focus: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
       recover: { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
       mastery: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
+      teach: { expression: 'focus_lean_in', animation: 'beanie_bob_teach' },
+      point: { expression: 'focus_lean_in', animation: 'paw_point_stage' },
+      encourage: { expression: 'blink_soft', animation: 'soft_nod_glow' },
+      thinking: { expression: 'ear_tilt_curious', animation: 'tail_think_loop' },
+      'gentle-correct': { expression: 'soft_concern_mistake', animation: 'paw_point_hint' },
+      celebrate: { expression: 'whisker_pride', animation: 'sparkle_mastery' },
     },
     dialogue_variants: {
       opening: ['We will build this one step at a time.'],
@@ -96,6 +112,47 @@ const makeGuideData = () => ({
         success: 'That lands exactly where it should.',
         struggle: 'Let me narrow the frame.',
       },
+      teaching: {
+        explain: 'Mitosis is the division step that preserves the original genetic blueprint while making two new cells.',
+        example: 'If your skin needs repair, mitosis helps create replacement cells with the same DNA instructions.',
+        steps: [
+          'Start with one parent cell.',
+          'Copy the DNA so the information is ready to share.',
+          'Separate the copies so each new cell gets the same set.',
+        ],
+        why_it_matters: 'This is the foundation for growth, repair, and keeping body tissues genetically consistent.',
+      },
+      assist_options: [
+        {
+          id: 'explain-simply',
+          label: 'Explain simply',
+          text: 'In simple terms: mitosis makes two matching replacement cells.',
+          pose: 'encourage',
+        },
+        {
+          id: 'show-example',
+          label: 'Show another example',
+          text: 'A healing cut uses mitosis to make more skin cells with the same DNA as the original ones.',
+          pose: 'point',
+        },
+        {
+          id: 'break-it-down',
+          label: 'Break it down',
+          text: 'One cell copies its DNA, lines it up, and splits into two equal genetic matches.',
+          pose: 'teach',
+        },
+        {
+          id: 'why-it-matters',
+          label: 'Why this matters',
+          text: 'If you confuse mitosis, you will also confuse how the body grows and repairs itself.',
+          pose: 'thinking',
+        },
+      ],
+      presentation: {
+        pose: 'teach',
+        emphasis_target: 'Two genetically identical daughter cells',
+        reaction_cue: { expression: 'focus_lean_in', animation: 'ear_tilt_curious' },
+      },
       transitions: {
         on_correct: 'card-apply-cytokinesis',
         on_partial: 'retry',
@@ -139,6 +196,8 @@ const makeGuideData = () => ({
   ],
   evaluation_rules: {
     score_bands: { correct: 0.85, partial: 0.4 },
+    pass_threshold: 0.5,
+    partial_advances: true,
     empty_patterns: ['idk'],
     tag_synonyms: {
       'two-daughter-cells': ['two daughter cells', '2 daughter cells'],
@@ -182,6 +241,12 @@ describe('studyGuideCore', () => {
       session_meta: expect.objectContaining({
         subject: 'Biology',
         student_goal: 'Master cell division',
+        lecture_style: 'storybook seminar',
+        river_role: 'witty lecture cat',
+      }),
+      lecture: expect.objectContaining({
+        opening: 'Welcome to today’s River lecture on how cell division actually works.',
+        agenda: expect.arrayContaining(['Lock the outcome of mitosis.']),
       }),
       river: expect.objectContaining({
         name: 'River',
@@ -190,6 +255,28 @@ describe('studyGuideCore', () => {
         expect.objectContaining({ id: 'concept-mitosis', title: 'Mitosis' }),
         expect.objectContaining({ id: 'concept-cytokinesis', title: 'Cytokinesis' }),
       ],
+    }));
+    expect(guideData.cards[0]).toEqual(expect.objectContaining({
+      teaching: expect.objectContaining({
+        explain: expect.any(String),
+        example: expect.any(String),
+        steps: expect.any(Array),
+        why_it_matters: expect.any(String),
+      }),
+      assist_options: expect.arrayContaining([
+        expect.objectContaining({ id: 'explain-simply' }),
+        expect.objectContaining({ id: 'show-example' }),
+        expect.objectContaining({ id: 'break-it-down' }),
+        expect.objectContaining({ id: 'why-it-matters' }),
+      ]),
+      presentation: expect.objectContaining({
+        pose: 'teach',
+        emphasis_target: 'Two genetically identical daughter cells',
+      }),
+    }));
+    expect(guideData.evaluation_rules).toEqual(expect.objectContaining({
+      pass_threshold: 0.5,
+      partial_advances: true,
     }));
 
     expect(createDefaultStudyGuideState(guideData)).toEqual({

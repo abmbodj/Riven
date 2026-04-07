@@ -25,6 +25,10 @@ const normalizeStringArray = (value, maxItems = 12) => (
     : []
 );
 
+const normalizeBoolean = (value, fallback = false) => (
+  typeof value === 'boolean' ? value : fallback
+);
+
 const clampNumber = (value, { min = 0, max = 100, fallback = 0 } = {}) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -77,10 +81,12 @@ const normalizeSessionMeta = (value) => {
       ? sourceMode
       : DEFAULT_SOURCE_MODE,
     estimated_minutes: estimatedMinutes,
+    lecture_style: normalizeText(raw.lecture_style ?? raw.lectureStyle, 'storybook seminar'),
     preferred_tutor_tone: normalizeText(
       raw.preferred_tutor_tone ?? raw.preferredTutorTone,
       'calm, precise, encouraging',
     ),
+    river_role: normalizeText(raw.river_role ?? raw.riverRole, 'friendly lecture cat'),
     focus_topics: normalizeStringArray(raw.focus_topics ?? raw.focusTopics),
     weak_topics: normalizeStringArray(raw.weak_topics ?? raw.weakTopics),
   };
@@ -101,6 +107,15 @@ const normalizeCueMap = (value) => {
     focus: normalizeCue(raw.focus, { expression: 'focus_lean_in', animation: 'ear_tilt_curious' }),
     recover: normalizeCue(raw.recover, { expression: 'soft_concern_mistake', animation: 'paw_point_hint' }),
     mastery: normalizeCue(raw.mastery, { expression: 'whisker_pride', animation: 'sparkle_mastery' }),
+    teach: normalizeCue(raw.teach, { expression: 'focus_lean_in', animation: 'beanie_bob_teach' }),
+    point: normalizeCue(raw.point, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
+    encourage: normalizeCue(raw.encourage, { expression: 'blink_soft', animation: 'soft_nod_glow' }),
+    thinking: normalizeCue(raw.thinking, { expression: 'ear_tilt_curious', animation: 'tail_think_loop' }),
+    'gentle-correct': normalizeCue(raw['gentle-correct'] ?? raw.gentle_correct ?? raw.gentleCorrect, {
+      expression: 'soft_concern_mistake',
+      animation: 'paw_point_hint',
+    }),
+    celebrate: normalizeCue(raw.celebrate, { expression: 'whisker_pride', animation: 'sparkle_mastery' }),
   };
 };
 
@@ -119,12 +134,31 @@ const normalizeRiver = (value) => {
   return {
     name: normalizeText(raw.name, DEFAULT_RIVER_NAME),
     species: normalizeText(raw.species, 'grey cat'),
-    style: normalizeText(raw.style, 'premium svg mascot'),
-    tone: normalizeText(raw.tone, 'calm, intelligent, reassuring'),
+    style: normalizeText(raw.style, 'storybook lecture mascot'),
+    tone: normalizeText(raw.tone, 'friendly, witty, encouraging teacher'),
     default_expression: normalizeText(raw.default_expression, 'blink_soft'),
     default_animation: normalizeText(raw.default_animation, 'tail_sway_idle'),
     cue_map: normalizeCueMap(raw.cue_map ?? raw.cueMap),
     dialogue_variants: normalizeDialogueVariants(raw.dialogue_variants ?? raw.dialogueVariants),
+  };
+};
+
+const normalizeLecture = (value, sessionMeta, concepts = [], river = { name: DEFAULT_RIVER_NAME }) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  const agenda = normalizeStringArray(raw.agenda, 6);
+
+  return {
+    opening: normalizeText(
+      raw.opening,
+      `${river.name} is ready to guide this lesson on ${sessionMeta.subject}.`,
+    ),
+    agenda: agenda.length > 0
+      ? agenda
+      : concepts.slice(0, 4).map((concept) => concept.title),
+    closing: normalizeText(
+      raw.closing,
+      'Take the next answer from memory, not from recognition.',
+    ),
   };
 };
 
@@ -164,7 +198,7 @@ const normalizeCardHint = (value, index) => {
   return {
     level: clampNumber(value.level, { min: 1, max: 5, fallback: index + 1 }),
     text: normalizeText(value.text, `Hint ${index + 1}`),
-    cue: normalizeCue(value.cue, { expression: 'paw_point_hint', animation: 'ear_tilt_curious' }),
+    cue: normalizeCue(value.cue, { expression: 'ear_tilt_curious', animation: 'paw_point_hint' }),
   };
 };
 
@@ -209,6 +243,13 @@ const normalizeCardTransitions = (value) => {
   };
 };
 
+const getDefaultPoseForPhase = (phase) => {
+  if (phase === 'apply' || phase === 'reinforce') return 'point';
+  if (phase === 'recovery') return 'encourage';
+  if (phase === 'mastery') return 'celebrate';
+  return 'teach';
+};
+
 const normalizeCardRiver = (value) => {
   const raw = value && typeof value === 'object' ? value : {};
   return {
@@ -218,18 +259,134 @@ const normalizeCardRiver = (value) => {
   };
 };
 
-const normalizeCard = (value, index, usedIds, conceptIds) => {
+const normalizeTeaching = (value, card, concept) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  const steps = normalizeStringArray(raw.steps, 6);
+  const fallbackExplain = concept?.summary || card.target_answer || card.prompt;
+  const fallbackExample = concept?.weak_points?.[0]
+    ? `${concept.title} shows up when you need to reason about ${concept.weak_points[0].replace(/-/g, ' ')}.`
+    : `Use ${concept?.title || 'this concept'} in context: ${card.target_answer}`;
+  const fallbackSteps = [
+    concept?.summary,
+    card.target_answer,
+    card.hints?.[0]?.text,
+  ].map((item) => normalizeOptionalText(item)).filter(Boolean);
+
+  return {
+    explain: normalizeText(raw.explain, fallbackExplain),
+    example: normalizeText(raw.example, fallbackExample),
+    steps: steps.length > 0 ? steps : fallbackSteps.slice(0, 3),
+    why_it_matters: normalizeText(
+      raw.why_it_matters ?? raw.whyItMatters,
+      concept?.weak_points?.[0]
+        ? `This matters because students often miss ${concept.weak_points[0].replace(/-/g, ' ')} when the pressure rises.`
+        : `This matters because ${concept?.title || 'this idea'} supports later questions and examples.`,
+    ),
+  };
+};
+
+const normalizeAssistOptionId = (value, label, index) => {
+  const normalized = normalizeText(value || label, `assist-${index + 1}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (normalized.includes('explain')) return 'explain-simply';
+  if (normalized.includes('example')) return 'show-example';
+  if (normalized.includes('break')) return 'break-it-down';
+  if (normalized.includes('why')) return 'why-it-matters';
+  return normalized || `assist-${index + 1}`;
+};
+
+const buildDefaultAssistOptions = (teaching) => ([
+  {
+    id: 'explain-simply',
+    label: 'Explain simply',
+    text: teaching.explain,
+    pose: 'encourage',
+  },
+  {
+    id: 'show-example',
+    label: 'Show another example',
+    text: teaching.example,
+    pose: 'point',
+  },
+  {
+    id: 'break-it-down',
+    label: 'Break it down',
+    text: teaching.steps.join(' '),
+    pose: 'point',
+  },
+  {
+    id: 'why-it-matters',
+    label: 'Why this matters',
+    text: teaching.why_it_matters,
+    pose: 'thinking',
+  },
+]);
+
+const normalizeAssistOptions = (value, teaching) => {
+  const raw = Array.isArray(value) ? value : [];
+  const provided = raw
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const label = normalizeText(item.label, '');
+      const text = normalizeText(item.text ?? item.response, '');
+      if (!label || !text) return null;
+
+      return {
+        id: normalizeAssistOptionId(item.id, label, index),
+        label,
+        text,
+        pose: normalizeText(item.pose, 'teach'),
+        cue: normalizeCue(item.cue, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
+      };
+    })
+    .filter(Boolean);
+
+  const merged = new Map(buildDefaultAssistOptions(teaching).map((item) => [
+    item.id,
+    {
+      ...item,
+      cue: normalizeCue(null, { expression: 'focus_lean_in', animation: 'paw_point_stage' }),
+    },
+  ]));
+
+  provided.forEach((item) => {
+    merged.set(item.id, {
+      ...(merged.get(item.id) || {}),
+      ...item,
+    });
+  });
+
+  return Array.from(merged.values()).slice(0, 4);
+};
+
+const normalizePresentation = (value, card) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  return {
+    pose: normalizeText(raw.pose, getDefaultPoseForPhase(card.phase)),
+    emphasis_target: normalizeText(raw.emphasis_target ?? raw.emphasisTarget, card.target_answer),
+    reaction_cue: normalizeCue(raw.reaction_cue ?? raw.reactionCue, {
+      expression: 'focus_lean_in',
+      animation: 'ear_tilt_curious',
+    }),
+  };
+};
+
+const normalizeCard = (value, index, usedIds, conceptMap) => {
   if (!value || typeof value !== 'object') return null;
 
   const prompt = normalizeText(value.prompt, '');
   const targetAnswer = normalizeText(value.target_answer ?? value.targetAnswer, '');
   const conceptId = normalizeOptionalText(value.concept_id ?? value.conceptId);
 
-  if (!prompt || !targetAnswer || !conceptId || !conceptIds.has(conceptId)) {
+  if (!prompt || !targetAnswer || !conceptId || !conceptMap.has(conceptId)) {
     return null;
   }
 
-  return {
+  const concept = conceptMap.get(conceptId);
+  const baseCard = {
     id: ensureUniqueId(value.id ?? prompt, usedIds, `card-${index + 1}`),
     concept_id: conceptId,
     phase: normalizeText(value.phase, 'diagnostic'),
@@ -256,6 +413,15 @@ const normalizeCard = (value, index, usedIds, conceptIds) => {
       value.mastery_weight ?? value.masteryWeight,
       { min: 1, max: 5, fallback: 1 },
     ),
+  };
+
+  const teaching = normalizeTeaching(value.teaching, baseCard, concept);
+
+  return {
+    ...baseCard,
+    teaching,
+    assist_options: normalizeAssistOptions(value.assist_options ?? value.assistOptions, teaching),
+    presentation: normalizePresentation(value.presentation, baseCard),
   };
 };
 
@@ -298,6 +464,14 @@ const normalizeEvaluationRules = (value) => {
       correct: clampNumber(scoreBands.correct, { min: 0, max: 1, fallback: 0.85 }),
       partial: clampNumber(scoreBands.partial, { min: 0, max: 1, fallback: 0.4 }),
     },
+    pass_threshold: clampNumber(
+      raw.pass_threshold ?? raw.passThreshold,
+      { min: 0, max: 1, fallback: 0.5 },
+    ),
+    partial_advances: normalizeBoolean(
+      raw.partial_advances ?? raw.partialAdvances,
+      true,
+    ),
     empty_patterns: normalizeStringArray(raw.empty_patterns ?? raw.emptyPatterns, 12),
     tag_synonyms: normalizeTagSynonyms(raw.tag_synonyms ?? raw.tagSynonyms),
     misconception_rules: Array.isArray(raw.misconception_rules ?? raw.misconceptionRules)
@@ -402,7 +576,11 @@ const deriveSections = (concepts, cards) => (
       flashcards,
       common_traps: concept.misconception_tags,
       visual: null,
-      ai_helpers: { simpler: '', example: '', mnemonic: '' },
+      ai_helpers: {
+        simpler: conceptCards[0]?.assist_options?.find((option) => option.id === 'explain-simply')?.text || '',
+        example: conceptCards[0]?.assist_options?.find((option) => option.id === 'show-example')?.text || '',
+        mnemonic: conceptCards[0]?.assist_options?.find((option) => option.id === 'why-it-matters')?.text || '',
+      },
       card_ids: conceptCards.map((card) => card.id),
     };
   })
@@ -427,28 +605,31 @@ export const normalizeStudyGuideData = (value) => {
   const knowledgeMap = normalizeKnowledgeMap(raw.knowledge_map ?? raw.knowledgeMap);
   if (!knowledgeMap || knowledgeMap.concepts.length === 0) return null;
 
-  const conceptIds = new Set(knowledgeMap.concepts.map((concept) => concept.id));
+  const conceptMap = new Map(knowledgeMap.concepts.map((concept) => [concept.id, concept]));
   const usedCardIds = new Set();
   const cards = Array.isArray(raw.cards)
     ? raw.cards
-      .map((card, index) => normalizeCard(card, index, usedCardIds, conceptIds))
+      .map((card, index) => normalizeCard(card, index, usedCardIds, conceptMap))
       .filter(Boolean)
     : [];
 
   if (cards.length === 0) return null;
 
-  const sections = deriveSections(knowledgeMap.concepts, cards);
+  const sessionMeta = normalizeSessionMeta(raw.session_meta ?? raw.sessionMeta);
+  const river = normalizeRiver(raw.river);
+  const completion = normalizeCompletion(raw.completion);
 
   return {
     version: 4,
-    session_meta: normalizeSessionMeta(raw.session_meta ?? raw.sessionMeta),
-    river: normalizeRiver(raw.river),
+    session_meta: sessionMeta,
+    lecture: normalizeLecture(raw.lecture, sessionMeta, knowledgeMap.concepts, river),
+    river,
     knowledge_map: knowledgeMap,
     cards,
     evaluation_rules: normalizeEvaluationRules(raw.evaluation_rules ?? raw.evaluationRules),
     adaptation_rules: normalizeAdaptationRules(raw.adaptation_rules ?? raw.adaptationRules),
-    completion: normalizeCompletion(raw.completion),
-    sections,
+    completion,
+    sections: deriveSections(knowledgeMap.concepts, cards),
   };
 };
 

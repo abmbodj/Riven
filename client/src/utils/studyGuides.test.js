@@ -254,8 +254,37 @@ describe('normalizeGuideData', () => {
 
         expect(guideData.version).toBe(4);
         expect(guideData.session_meta.subject).toBe('Biology');
+        expect(guideData.session_meta.lecture_style).toBeTruthy();
+        expect(guideData.session_meta.river_role).toBeTruthy();
         expect(guideData.river.name).toBe('River');
+        expect(guideData.lecture).toEqual(expect.objectContaining({
+            opening: expect.any(String),
+            agenda: expect.any(Array),
+            closing: expect.any(String),
+        }));
         expect(guideData.cards).toHaveLength(3);
+        expect(guideData.cards[0]).toEqual(expect.objectContaining({
+            teaching: expect.objectContaining({
+                explain: expect.any(String),
+                example: expect.any(String),
+                steps: expect.any(Array),
+                why_it_matters: expect.any(String),
+            }),
+            assist_options: expect.arrayContaining([
+                expect.objectContaining({ id: 'explain-simply' }),
+                expect.objectContaining({ id: 'show-example' }),
+                expect.objectContaining({ id: 'break-it-down' }),
+                expect.objectContaining({ id: 'why-it-matters' }),
+            ]),
+            presentation: expect.objectContaining({
+                pose: expect.any(String),
+                emphasis_target: expect.any(String),
+            }),
+        }));
+        expect(guideData.evaluation_rules).toEqual(expect.objectContaining({
+            pass_threshold: 0.5,
+            partial_advances: true,
+        }));
         expect(guideData.sections.map((section) => section.id)).toEqual(['concept-mitosis', 'concept-cytokinesis']);
     });
 
@@ -367,6 +396,7 @@ describe('evaluateTutorCardResponse', () => {
     it('returns partial when only some required ideas are present', () => {
         const result = evaluateTutorCardResponse(guideData, card, 'It makes two daughter cells.');
         expect(result.outcome).toBe('partial');
+        expect(result.shouldAdvance).toBe(true);
         expect(result.missingTags).toContain('identical-genetic-material');
     });
 
