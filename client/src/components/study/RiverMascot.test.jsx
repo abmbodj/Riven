@@ -85,7 +85,7 @@ describe('RiverMascot', () => {
         expect(head.compareDocumentPosition(hatBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('uses wider, higher-set frog features while keeping the knit hat compact', () => {
+    it('uses lower embedded eyes with clear hat-band separation', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const leftEye = container.querySelector('[data-river-feature="eye-left"]');
         const rightEye = container.querySelector('[data-river-feature="eye-right"]');
@@ -93,13 +93,13 @@ describe('RiverMascot', () => {
         const hat = container.querySelector('[data-river-feature="hat"]');
         const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
-        expect(leftEye).toHaveAttribute('cx', '124');
-        expect(leftEye).toHaveAttribute('cy', '94');
-        expect(rightEye).toHaveAttribute('cx', '196');
-        expect(rightEye).toHaveAttribute('cy', '94');
+        expect(leftEye).toHaveAttribute('cx', '126');
+        expect(leftEye).toHaveAttribute('cy', '104');
+        expect(rightEye).toHaveAttribute('cx', '194');
+        expect(rightEye).toHaveAttribute('cy', '104');
         expect(mouth.getAttribute('d')).toContain('M118 163');
-        expect(hat.getAttribute('d')).toContain('M121 94');
-        expect(hatBand.getAttribute('d')).toContain('M121 98');
+        expect(hat.getAttribute('d')).toContain('M124 86');
+        expect(hatBand.getAttribute('d')).toContain('M124 91');
     });
 
     it('keeps the pupils static when the pointer moves on desktop', async () => {

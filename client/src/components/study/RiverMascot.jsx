@@ -223,33 +223,33 @@ function FrogEye({
             style={{ transformOrigin: `${cx}px ${cy}px` }}
         >
             <path
-                d={`M${cx - 17} ${cy - 9} Q${cx} ${cy - 23} ${cx + 17} ${cy - 9}`}
+                d={`M${cx - 14} ${cy - 7} Q${cx} ${cy - 18} ${cx + 14} ${cy - 7}`}
                 stroke="#273629"
-                strokeWidth="3.6"
+                strokeWidth="3.1"
                 strokeLinecap="round"
-                opacity="0.72"
+                opacity="0.54"
             />
             <ellipse
                 data-river-feature={featureName}
                 cx={cx}
                 cy={cy}
-                rx="16.5"
-                ry="18.5"
+                rx="14.8"
+                ry="16.4"
                 fill="#f8f6ea"
                 stroke="#273629"
-                strokeWidth="3.8"
+                strokeWidth="3.5"
             />
             <path
-                d={`M${cx - 14} ${cy - 4} Q${cx} ${cy - 10} ${cx + 14} ${cy - 4}`}
+                d={`M${cx - 12} ${cy - 3} Q${cx} ${cy - 8} ${cx + 12} ${cy - 3}`}
                 stroke="#d9d7c2"
-                strokeWidth="3"
+                strokeWidth="2.6"
                 strokeLinecap="round"
-                opacity="0.82"
+                opacity="0.72"
             />
-            <ellipse cx={cx} cy={cy + 1} rx="8.8" ry="10.4" fill="#4e653b" />
-            <circle data-river-feature={pupilFeature} cx={pupilCx} cy={pupilCy} r="5.8" fill="#101611" />
-            <circle cx={cx - 4.2} cy={cy - 4.8} r="2.8" fill="#ffffff" opacity="0.96" />
-            <circle cx={cx + 2.2} cy={cy - 0.2} r="1.5" fill="#ffffff" opacity="0.88" />
+            <ellipse cx={cx} cy={cy + 1} rx="7.9" ry="9.1" fill="#4e653b" />
+            <circle data-river-feature={pupilFeature} cx={pupilCx} cy={pupilCy} r="5.1" fill="#101611" />
+            <circle cx={cx - 3.7} cy={cy - 4.1} r="2.4" fill="#ffffff" opacity="0.96" />
+            <circle cx={cx + 2} cy={cy + 0.1} r="1.3" fill="#ffffff" opacity="0.88" />
         </motion.g>
     );
 }
@@ -330,15 +330,15 @@ export default function RiverMascot({
                     ) : null}
 
                     <div className="relative w-full">
-                    <motion.div
-                        className="absolute inset-x-[14%] top-[11%] h-[56%] rounded-full blur-3xl"
-                        style={{ background: `radial-gradient(circle, ${pose.accent}3e 0%, rgba(255,255,255,0.06) 44%, transparent 76%)` }}
-                        animate={reduceMotion ? { opacity: 0.42, scale: 1 } : { opacity: [0.28, 0.5, 0.28], scale: [0.98, 1.03, 0.98] }}
-                        transition={{ duration: 3.1, repeat: Infinity, ease: ENTER_EASE }}
-                    />
+                        <motion.div
+                            className="absolute inset-x-[14%] top-[11%] h-[56%] rounded-full blur-3xl"
+                            style={{ background: `radial-gradient(circle, ${pose.accent}3e 0%, rgba(255,255,255,0.06) 44%, transparent 76%)` }}
+                            animate={reduceMotion ? { opacity: 0.42, scale: 1 } : { opacity: [0.28, 0.5, 0.28], scale: [0.98, 1.03, 0.98] }}
+                            transition={{ duration: 3.1, repeat: Infinity, ease: ENTER_EASE }}
+                        />
 
-                    <svg viewBox="0 0 320 332" className="relative z-10 w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
+                        <svg viewBox="0 0 320 332" className="relative z-10 w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
                             <linearGradient id={ids.body} x1="108" y1="154" x2="208" y2="278" gradientUnits="userSpaceOnUse">
                                 <stop offset="0%" stopColor="#8daa72" />
                                 <stop offset="54%" stopColor="#6c8a54" />
@@ -365,15 +365,15 @@ export default function RiverMascot({
                                 <stop offset="0%" stopColor="rgba(178,202,127,0.18)" />
                                 <stop offset="100%" stopColor="rgba(13,15,14,0)" />
                             </radialGradient>
-                        </defs>
+                            </defs>
 
-                        <ellipse cx="160" cy="262" rx="116" ry="54" fill={`url(#${ids.stage})`} />
+                            <ellipse cx="160" cy="262" rx="116" ry="54" fill={`url(#${ids.stage})`} />
 
-                        <motion.g
-                            animate={bodyAnimation}
-                            transition={floatTransition}
-                            style={{ transformOrigin: '160px 216px' }}
-                        >
+                            <motion.g
+                                animate={bodyAnimation}
+                                transition={floatTransition}
+                                style={{ transformOrigin: '160px 216px' }}
+                            >
                             <motion.g
                                 animate={hindlegLeftAnimation}
                                 transition={{ duration: 3.6, repeat: Infinity, ease: ENTER_EASE }}
@@ -473,19 +473,19 @@ export default function RiverMascot({
                                 />
                             </motion.g>
 
-                            <motion.g
-                                animate={{ y: pose.headY, rotate: pose.headRotate }}
-                                transition={{ duration: 0.4, ease: ENTER_EASE }}
-                                style={{ transformOrigin: '160px 142px' }}
-                            >
+                                <motion.g
+                                    animate={{ y: pose.headY, rotate: pose.headRotate }}
+                                    transition={{ duration: 0.4, ease: ENTER_EASE }}
+                                    style={{ transformOrigin: '160px 144px' }}
+                                >
                                 <path
                                     data-river-feature="head"
-                                    d="M82 168 C73 155 73 136 83 120 C90 109 100 101 112 96 C114 77 128 61 145 61 C152 61 157 64 160 68 C163 64 168 61 175 61 C192 61 206 77 208 96 C220 101 230 109 237 120 C247 136 247 155 238 168 C229 181 216 191 201 199 C188 205 174 209 160 210 C146 209 132 205 119 199 C104 191 91 181 82 168 Z"
+                                    d="M84 170 C76 158 75 141 83 126 C89 115 98 106 111 98 C116 76 131 62 146 62 C153 62 158 66 160 71 C162 66 167 62 174 62 C189 62 204 76 209 98 C222 106 231 115 237 126 C245 141 244 158 236 170 C228 182 216 191 201 199 C188 205 174 209 160 210 C146 209 132 205 119 199 C104 191 92 182 84 170 Z"
                                     fill={`url(#${ids.head})`}
                                     stroke="#273629"
                                     strokeWidth="4"
                                 />
-                                <path d="M103 143 C122 151 141 155 160 155 C179 155 198 151 217 143" stroke="#5c7648" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
+                                <path d="M106 147 C124 154 142 158 160 158 C178 158 196 154 214 147" stroke="#5c7648" strokeWidth="3" strokeLinecap="round" opacity="0.28" />
 
                                 <motion.g
                                     animate={{ y: pose.hatY, rotate: pose.hatRotate }}
@@ -494,30 +494,30 @@ export default function RiverMascot({
                                 >
                                     <path
                                         data-river-feature="hat"
-                                        d="M121 94 C129 83 144 77 160 77 C176 77 191 83 199 94 C188 91 174 89 160 89 C146 89 132 91 121 94 Z"
+                                        d="M124 86 C132 76 145 71 160 71 C175 71 188 76 196 86 C185 84 173 83 160 83 C147 83 135 84 124 86 Z"
                                         fill={`url(#${ids.hat})`}
                                         stroke="#223a22"
                                         strokeWidth="4"
                                     />
                                     <path
                                         data-river-feature="hat-band"
-                                        d="M121 98 C132 93 146 91 160 91 C174 91 188 93 199 98 L197 107 C186 104 173 102 160 102 C147 102 134 104 123 107 Z"
+                                        d="M124 91 C134 87 147 85 160 85 C173 85 186 87 196 91 L194 100 C184 98 172 97 160 97 C148 97 136 98 126 100 Z"
                                         fill="#99c27a"
                                         stroke="#223a22"
                                         strokeWidth="2.6"
                                         strokeLinejoin="round"
                                     />
-                                    <path d="M136 95 L137 106" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M148 93 L148 105" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M160 92 L160 105" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M172 93 L172 105" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M184 95 L183 106" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <circle cx="160" cy="75" r="4.8" fill="#95bc74" stroke="#223a22" strokeWidth="3" />
+                                    <path d="M138 89 L138 100" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M149 87 L149 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M160 87 L160 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M171 87 L171 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
+                                    <path d="M182 89 L182 100" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
+                                    <circle cx="160" cy="74" r="4.6" fill="#95bc74" stroke="#223a22" strokeWidth="3" />
                                 </motion.g>
 
                                 <FrogEye
-                                    cx={124}
-                                    cy={94}
+                                    cx={126}
+                                    cy={104}
                                     pose={pose}
                                     reduceMotion={reduceMotion}
                                     delay={0}
@@ -525,8 +525,8 @@ export default function RiverMascot({
                                     pupilFeature="pupil-left"
                                 />
                                 <FrogEye
-                                    cx={196}
-                                    cy={94}
+                                    cx={194}
+                                    cy={104}
                                     pose={pose}
                                     reduceMotion={reduceMotion}
                                     delay={0.18}
@@ -545,9 +545,9 @@ export default function RiverMascot({
                                     fill="none"
                                 />
                                 <path d="M136 170 C145 174 153 176 160 176 C167 176 175 174 184 170" stroke="#566d44" strokeWidth="2.5" strokeLinecap="round" opacity="0.34" />
+                                </motion.g>
                             </motion.g>
-                        </motion.g>
-                    </svg>
+                        </svg>
                     </div>
                 </div>
             </div>
