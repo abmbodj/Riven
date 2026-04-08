@@ -110,26 +110,28 @@ const generateNotesForSection = async ({
   className: string | null;
   modelMap: ReturnType<typeof getAiModelMap>;
 }): Promise<unknown> => {
-  const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className);
-  const rawText = await generateWithFallback({
-    ai,
-    primaryModel: modelMap.draft,
-    fallbackModel: modelMap.final,
-    messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
-    jsonMode: true,
-    maxTokens: 3072,
-  });
+  const placeholder = {
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: '[This section could not be processed]' }],
+    }],
+  };
 
   try {
+    const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className);
+    const rawText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.draft,
+      fallbackModel: modelMap.final,
+      messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
+      jsonMode: true,
+      maxTokens: 3072,
+    });
     return parseAiJsonResponse(rawText, 'Invalid section notes format');
-  } catch {
-    return {
-      type: 'doc',
-      content: [{
-        type: 'paragraph',
-        content: [{ type: 'text', text: '[This section could not be processed]' }],
-      }],
-    };
+  } catch (err) {
+    console.warn(`[audio-sections] Section ${section.index} failed:`, err instanceof Error ? err.message : err);
+    return placeholder;
   }
 };
 
