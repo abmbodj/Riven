@@ -12,6 +12,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['logo.png', 'mask-icon.svg'],
       manifest: {

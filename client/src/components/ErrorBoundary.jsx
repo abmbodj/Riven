@@ -2,6 +2,7 @@ import React from 'react';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import { captureException } from '../sentry.js';
+import { attemptDeployUpdateRecovery } from '../utils/deployUpdateRecovery.js';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -14,6 +15,10 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
+        if (attemptDeployUpdateRecovery(error)) {
+            return;
+        }
+
         if (typeof window !== 'undefined') {
             window.__RIVEN_LAST_APP_ERROR = {
                 message: error?.message || 'Unknown error',

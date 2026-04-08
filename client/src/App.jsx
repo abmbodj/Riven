@@ -6,6 +6,7 @@ import { AppProviders } from './AppProviders.jsx';
 import { RootLayout } from './components/layout/RootLayout.jsx';
 import NativeDeepLinkBridge from './components/NativeDeepLinkBridge.jsx';
 import PushNotificationBridge from './components/PushNotificationBridge.jsx';
+import WebAppUpdateManager from './components/WebAppUpdateManager.jsx';
 import { routesConfig } from './routes/config.jsx';
 import { PageLoader } from './components/ui/PageLoader.jsx';
 import { PosthogPageviewTracker } from './analytics/PosthogPageviewTracker.jsx';
@@ -15,18 +16,20 @@ const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
 function App() {
   return (
     <AppProviders>
-      <AppRouter>
-        <NativeDeepLinkBridge />
-        <PushNotificationBridge />
-        <PosthogPageviewTracker />
-        <RootLayout>
-          <ErrorBoundary>
-            <Suspense fallback={<PageLoader />}>
-              <AppRoutes />
-            </Suspense>
-          </ErrorBoundary>
-        </RootLayout>
-      </AppRouter>
+      <WebAppUpdateManager>
+        <AppRouter>
+          <NativeDeepLinkBridge />
+          <PushNotificationBridge />
+          <PosthogPageviewTracker />
+          <RootLayout>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes />
+              </Suspense>
+            </ErrorBoundary>
+          </RootLayout>
+        </AppRouter>
+      </WebAppUpdateManager>
     </AppProviders>
   );
 }

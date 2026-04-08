@@ -11,11 +11,13 @@ import Users from 'lucide-react/dist/esm/icons/users';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import OnboardingArt from './OnboardingArt';
 import { motion, AnimatePresence } from 'motion/react';
 import { prefetchRoute } from '../routes/config.jsx';
 import { UIContext } from '../context/UIContext';
 import { AuthContext } from '../context/AuthContext';
+import { useAppUpdate } from '../context/AppUpdateContext.jsx';
 import gsap from 'gsap';
 import { EASE, DURATION } from '../utils/animations';
 import GlobalCommandPalette from './GlobalCommandPalette.jsx';
@@ -82,6 +84,12 @@ export default function Layout({ children }) {
         contextToolbar,
     } = useContext(UIContext) || {};
     const { isLoggedIn } = useContext(AuthContext) || {};
+    const {
+        isUpdateAvailable,
+        isRefreshingUpdate,
+        dismissUpdate,
+        refreshToLatestVersion,
+    } = useAppUpdate();
     useNotificationSync();
     const primaryNavItems = getPrimaryNavItems(isLoggedIn);
 
@@ -352,6 +360,50 @@ export default function Layout({ children }) {
                         ${showDesktopSidebar ? `${contentOffset} motion-safe:transition-[margin] motion-safe:duration-[250ms] motion-safe:ease-out` : ''}
                     `}
                 >
+                    <AnimatePresence>
+                        {isUpdateAvailable && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                role="status"
+                                aria-live="polite"
+                                className="sticky top-0 z-40 border-b border-claude-accent/30 bg-claude-surface/95 px-4 py-3 backdrop-blur safe-area-top overflow-hidden"
+                            >
+                                <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-claude-accent">
+                                            New version available
+                                        </p>
+                                        <p className="mt-1 text-sm text-claude-text">
+                                            Refresh to load the latest production changes without waiting for a crash.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 self-start md:self-auto">
+                                        <button
+                                            type="button"
+                                            onClick={dismissUpdate}
+                                            className="rounded-xl border border-claude-border/50 px-3 py-2 text-xs font-mono uppercase tracking-[0.16em] text-claude-secondary transition-colors hover:border-claude-border hover:text-claude-text"
+                                        >
+                                            Later
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                void refreshToLatestVersion();
+                                            }}
+                                            disabled={isRefreshingUpdate}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-claude-accent px-4 py-2 text-xs font-mono uppercase tracking-[0.16em] text-[#10271b] transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                            <RefreshCw className={`h-4 w-4 ${isRefreshingUpdate ? 'animate-spin' : ''}`} />
+                                            Refresh now
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     {/* Offline banner */}
                     <AnimatePresence>
                         {isOffline && (

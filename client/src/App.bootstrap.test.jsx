@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
@@ -20,10 +20,16 @@ const {
     restoreSessionUserMock,
     getThemesMock,
     useGSAPMock,
+    updateServiceWorkerMock,
+    pwaState,
 } = vi.hoisted(() => ({
     restoreSessionUserMock: vi.fn(),
     getThemesMock: vi.fn(),
     useGSAPMock: vi.fn(),
+    updateServiceWorkerMock: vi.fn().mockResolvedValue(undefined),
+    pwaState: {
+        needRefresh: false,
+    },
 }));
 
 const activeTheme = {
@@ -77,6 +83,14 @@ vi.mock('./hooks/useGSAP', () => ({
     useGSAP: (...args) => useGSAPMock(...args),
 }));
 
+vi.mock('./lib/pwaRegister.js', () => ({
+    useRegisterSW: () => ({
+        needRefresh: [pwaState.needRefresh, vi.fn()],
+        offlineReady: [false, vi.fn()],
+        updateServiceWorker: updateServiceWorkerMock,
+    }),
+}));
+
 function renderAppAt(pathname) {
     window.history.pushState({}, '', pathname);
     return render(
@@ -92,6 +106,9 @@ describe('App bootstrap smoke tests', () => {
         restoreSessionUserMock.mockResolvedValue(null);
         getThemesMock.mockResolvedValue([activeTheme]);
         useGSAPMock.mockImplementation(() => ({ container: { current: null } }));
+        updateServiceWorkerMock.mockResolvedValue(undefined);
+        pwaState.needRefresh = false;
+        window.scrollTo = vi.fn();
         delete window.__RIVEN_LAST_APP_ERROR;
     });
 
@@ -124,5 +141,27 @@ describe('App bootstrap smoke tests', () => {
 
         expect(container.querySelectorAll('.p-mote').length).toBeGreaterThan(0);
         expect(window.__RIVEN_LAST_APP_ERROR).toBeUndefined();
+    });
+
+    it('does not show the update banner when no new web build is waiting', async () => {
+        renderAppAt('/');
+
+        await screen.findByText('Cultivated by Riven');
+
+        expect(screen.queryByText('Refresh now')).not.toBeInTheDocument();
+    });
+
+    it('shows the update banner and refreshes the service worker when a new web build is ready', async () => {
+        pwaState.needRefresh = true;
+        renderAppAt('/');
+
+        await screen.findByText('Cultivated by Riven');
+
+        const refreshButton = await screen.findByRole('button', { name: 'Refresh now' });
+        fireEvent.click(refreshButton);
+
+        await waitFor(() => {
+            expect(updateServiceWorkerMock).toHaveBeenCalledTimes(1);
+        });
     });
 });
