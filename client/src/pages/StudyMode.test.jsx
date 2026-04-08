@@ -200,4 +200,44 @@ describe('StudyMode', () => {
     expect(screen.getByRole('button', { name: /spaced repetition on/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /start fresh/i }).length).toBeGreaterThan(0);
   });
+
+  it('saves only active study time after resuming a session later', async () => {
+    vi.setSystemTime(new Date('2026-03-10T10:00:00.000Z'));
+
+    window.localStorage.setItem('riven-study-session:42', JSON.stringify({
+      currentIndex: 1,
+      isShuffled: true,
+      spacedRepetitionMode: true,
+      cardsStudied: 3,
+      cardsCorrect: 2,
+      activeDurationSeconds: 120,
+      startedAt: new Date('2026-03-10T09:00:00.000Z').getTime(),
+      cardOrder: ['2', '1'],
+    }));
+
+    const view = render(
+      <MemoryRouter initialEntries={['/study/42']}>
+        <Routes>
+          <Route path="/study/:id" element={<StudyMode />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(30000);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      view.unmount();
+      await Promise.resolve();
+    });
+
+    expect(api.saveStudySession).toHaveBeenCalledWith('42', 3, 2, 150, 'study');
+  });
 });

@@ -1,6 +1,12 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Clock3, Target, TrendingUp } from 'lucide-react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
+import { CalendarDays, Clock3, Target, TrendingUp } from 'lucide-react';
 import { animateCounter, EASE } from '../../utils/animations';
+
+const CHART_WIDTH = 320;
+const CHART_HEIGHT = 92;
+const CHART_PADDING_X = 10;
+const CHART_PADDING_TOP = 10;
+const CHART_PADDING_BOTTOM = 14;
 
 function formatMinutes(totalMinutes) {
     if (totalMinutes >= 60) {
@@ -14,16 +20,68 @@ function formatAccuracy(accuracy) {
     return `${Math.round(accuracy * 100)}%`;
 }
 
-function getMetricAriaLabel(metric, summary) {
-    if (metric.id === 'cards') {
-        return `${summary.cards_studied} cards studied this week`;
+function getMetricAriaLabel(metric, summary, dueThisWeekCount) {
+    if (metric.id === 'dueThisWeek') {
+        return `${dueThisWeekCount} assignments due this week`;
     }
     if (metric.id === 'accuracy') {
         return summary.accuracy == null
             ? 'No study accuracy yet this week'
             : `${Math.round(summary.accuracy * 100)} percent accuracy this week`;
     }
-    return `${formatMinutes(summary.total_minutes)} studied this week`;
+    return `${formatMinutes(summary.total_minutes)} study time this week`;
+}
+
+function getMetricDisplayValue(metricId, summary, dueThisWeekCount) {
+    if (metricId === 'dueThisWeek') {
+        return dueThisWeekCount;
+    }
+    if (metricId === 'accuracy') {
+        return formatAccuracy(summary.accuracy);
+    }
+    return formatMinutes(summary.total_minutes);
+}
+
+function buildChartModel(dailyBreakdown = []) {
+    const baselineY = CHART_HEIGHT - CHART_PADDING_BOTTOM;
+    const usableHeight = baselineY - CHART_PADDING_TOP;
+    const innerWidth = CHART_WIDTH - CHART_PADDING_X * 2;
+    const peakCards = Math.max(...dailyBreakdown.map((day) => day.cards || 0), 0);
+    const flatlineY = CHART_PADDING_TOP + usableHeight * 0.62;
+
+    const points = dailyBreakdown.map((day, index) => {
+        const x = dailyBreakdown.length <= 1
+            ? CHART_WIDTH / 2
+            : CHART_PADDING_X + (innerWidth / (dailyBreakdown.length - 1)) * index;
+        const y = peakCards > 0
+            ? baselineY - ((day.cards || 0) / peakCards) * usableHeight
+            : flatlineY;
+
+        return {
+            ...day,
+            x,
+            y,
+        };
+    });
+
+    const linePath = points
+        .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+        .join(' ');
+
+    const lastPoint = points[points.length - 1];
+    const firstPoint = points[0];
+
+    const areaPath = points.length > 0
+        ? `${linePath} L ${lastPoint.x} ${baselineY} L ${firstPoint.x} ${baselineY} Z`
+        : '';
+
+    return {
+        points,
+        linePath,
+        areaPath,
+        baselineY,
+        peakCards,
+    };
 }
 
 function WeeklySummarySkeleton() {
@@ -65,19 +123,27 @@ function WeeklySummarySkeleton() {
     );
 }
 
-export default function WeeklySummary({ summary, loading, reducedMotion = false, lowVisualBudget = false }) {
+export default function WeeklySummary({
+    summary,
+    loading,
+    dueThisWeekCount = 0,
+    reducedMotion = false,
+    lowVisualBudget = false,
+}) {
     const metricRefs = useRef({});
-    const barsRef = useRef(null);
+    const gradientBaseId = useId().replace(/:/g, '');
+    const areaGradientId = `${gradientBaseId}-area`;
+    const strokeGradientId = `${gradientBaseId}-stroke`;
 
     const metrics = useMemo(() => {
         if (!summary) return [];
 
         return [
             {
-                id: 'cards',
-                label: 'Cards',
-                icon: TrendingUp,
-                value: summary.cards_studied,
+                id: 'dueThisWeek',
+                label: 'Due This Week',
+                icon: CalendarDays,
+                value: dueThisWeekCount,
                 accent: 'text-claude-accent',
                 formatter: (value) => Math.round(value),
             },
@@ -91,38 +157,19 @@ export default function WeeklySummary({ summary, loading, reducedMotion = false,
             },
             {
                 id: 'time',
-                label: 'Studied',
+                label: 'Study Time',
                 icon: Clock3,
                 value: summary.total_minutes,
                 accent: 'text-claude-text',
                 formatter: (value) => formatMinutes(value),
             },
         ];
-    }, [summary]);
+    }, [summary, dueThisWeekCount]);
 
-    useEffect(() => {
-        if (!summary || loading || reducedMotion || lowVisualBudget) return undefined;
-
-        const bars = Array.from(barsRef.current?.querySelectorAll('[data-bar-fill]') || []);
-        if (!bars.length) return undefined;
-
-        bars.forEach((bar) => {
-            bar.style.transform = 'scaleY(0)';
-        });
-
-        const frame = window.requestAnimationFrame(() => {
-            bars.forEach((bar) => {
-                bar.style.transform = 'scaleY(1)';
-            });
-        });
-
-        return () => {
-            window.cancelAnimationFrame(frame);
-            bars.forEach((bar) => {
-                bar.style.transform = '';
-            });
-        };
-    }, [summary, loading, reducedMotion, lowVisualBudget]);
+    const chartModel = useMemo(
+        () => buildChartModel(summary?.daily_breakdown || []),
+        [summary],
+    );
 
     useEffect(() => {
         if (!summary || loading) return undefined;
@@ -160,8 +207,6 @@ export default function WeeklySummary({ summary, loading, reducedMotion = false,
     if (loading || !summary) {
         return <WeeklySummarySkeleton />;
     }
-
-    const maxCards = Math.max(...summary.daily_breakdown.map((day) => day.cards), 0);
 
     return (
         <section
@@ -204,48 +249,100 @@ export default function WeeklySummary({ summary, loading, reducedMotion = false,
                                 className={`mt-3 font-display text-2xl font-bold leading-none ${metric.accent}`}
                                 aria-hidden="true"
                             >
-                                {metric.id === 'cards'
-                                    ? summary.cards_studied
-                                    : metric.id === 'accuracy'
-                                        ? formatAccuracy(summary.accuracy)
-                                        : formatMinutes(summary.total_minutes)}
+                                {getMetricDisplayValue(metric.id, summary, dueThisWeekCount)}
                             </p>
-                            <span className="sr-only">{getMetricAriaLabel(metric, summary)}</span>
+                            <span className="sr-only">{getMetricAriaLabel(metric, summary, dueThisWeekCount)}</span>
                         </article>
                     );
                 })}
             </div>
 
-            <div
-                className="mt-5 rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-3 py-3"
-                role="list"
-                aria-label="Daily study volume this week"
-                ref={barsRef}
-            >
-                <div className="flex h-[64px] items-end gap-2">
-                    {summary.daily_breakdown.map((day, index) => {
-                        const targetHeight = maxCards > 0 ? `${Math.max((day.cards / maxCards) * 100, day.cards > 0 ? 16 : 8)}%` : '8%';
-                        return (
-                            <div key={day.date} className="flex flex-1 flex-col items-center gap-2" role="listitem">
-                                <div
-                                    data-bar-fill="true"
-                                    className={`w-full rounded-t-sm ${day.is_today ? 'bg-claude-accent' : 'bg-claude-accent/60'}`}
-                                    style={{
-                                        height: targetHeight,
-                                        transformOrigin: 'bottom',
-                                        transform: reducedMotion || lowVisualBudget ? 'none' : 'scaleY(1)',
-                                        transition: reducedMotion || lowVisualBudget
-                                            ? 'none'
-                                            : `transform 400ms ${index * 50}ms cubic-bezier(0.22,1,0.36,1)`,
-                                    }}
-                                    aria-label={`${day.day}: ${day.cards} cards studied`}
-                                />
-                                <span className={`text-[9px] font-mono font-bold uppercase tracking-[0.16em] ${day.is_today ? 'text-claude-accent' : 'text-claude-secondary/70'}`}>
-                                    {day.day.slice(0, 1)}
-                                </span>
-                            </div>
-                        );
-                    })}
+            <div className="mt-5 rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-4 py-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-claude-secondary">
+                        Study Activity
+                    </p>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary/75">
+                        {chartModel.peakCards > 0
+                            ? `${summary.cards_studied} cards reviewed`
+                            : 'Ready for your next session'}
+                    </p>
+                </div>
+
+                <svg
+                    viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+                    className="h-[92px] w-full overflow-visible"
+                    aria-label="Study activity this week"
+                    data-testid="weekly-summary-line-chart"
+                >
+                    <defs>
+                        <linearGradient id={areaGradientId} x1="0%" x2="0%" y1="0%" y2="100%">
+                            <stop offset="0%" stopColor="rgba(222, 185, 106, 0.28)" />
+                            <stop offset="100%" stopColor="rgba(222, 185, 106, 0.02)" />
+                        </linearGradient>
+                        <linearGradient id={strokeGradientId} x1="0%" x2="100%" y1="0%" y2="0%">
+                            <stop offset="0%" stopColor="rgba(222, 185, 106, 0.55)" />
+                            <stop offset="100%" stopColor="rgba(222, 185, 106, 1)" />
+                        </linearGradient>
+                    </defs>
+
+                    <path
+                        d={`M ${CHART_PADDING_X} ${chartModel.baselineY} L ${CHART_WIDTH - CHART_PADDING_X} ${chartModel.baselineY}`}
+                        fill="none"
+                        stroke="rgba(229, 219, 197, 0.4)"
+                        strokeDasharray="3 4"
+                    />
+
+                    {chartModel.areaPath ? (
+                        <path
+                            d={chartModel.areaPath}
+                            fill={`url(#${areaGradientId})`}
+                            opacity={chartModel.peakCards > 0 ? 1 : 0.85}
+                        />
+                    ) : null}
+
+                    {chartModel.linePath ? (
+                        <path
+                            d={chartModel.linePath}
+                            fill="none"
+                            stroke={`url(#${strokeGradientId})`}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3"
+                        />
+                    ) : null}
+
+                    {chartModel.points.map((point) => (
+                        <circle
+                            key={point.date}
+                            cx={point.x}
+                            cy={point.y}
+                            r={point.is_today ? 4.5 : 3.5}
+                            fill={point.is_today ? 'rgba(222, 185, 106, 1)' : 'rgba(250, 244, 230, 1)'}
+                            stroke={point.is_today ? 'rgba(255, 248, 234, 0.9)' : 'rgba(222, 185, 106, 0.7)'}
+                            strokeWidth={point.is_today ? 2 : 1.5}
+                            data-testid="weekly-summary-line-point"
+                        />
+                    ))}
+                </svg>
+
+                <div className="mt-2 grid grid-cols-7 gap-2" aria-hidden="true">
+                    {chartModel.points.map((point) => (
+                        <span
+                            key={point.date}
+                            className={`text-center text-[9px] font-mono font-bold uppercase tracking-[0.16em] ${point.is_today ? 'text-claude-accent' : 'text-claude-secondary/70'}`}
+                        >
+                            {point.day.slice(0, 1)}
+                        </span>
+                    ))}
+                </div>
+
+                <div className="sr-only" role="list" aria-label="Daily study activity this week">
+                    {chartModel.points.map((point) => (
+                        <span key={point.date} role="listitem">
+                            {point.day}: {point.cards} cards studied
+                        </span>
+                    ))}
                 </div>
             </div>
         </section>

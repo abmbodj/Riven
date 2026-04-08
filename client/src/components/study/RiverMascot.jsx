@@ -34,8 +34,6 @@ const POSES = {
         hindlegLeftRotate: -7,
         hindlegRightRotate: 7,
         hindlegDrift: 2,
-        hatRotate: -2,
-        hatY: 0,
     },
     teach: {
         label: 'Teaching',
@@ -58,8 +56,6 @@ const POSES = {
         hindlegLeftRotate: -8,
         hindlegRightRotate: 6,
         hindlegDrift: 1.5,
-        hatRotate: -4,
-        hatY: -1,
     },
     point: {
         label: 'Pointing something out',
@@ -82,8 +78,6 @@ const POSES = {
         hindlegLeftRotate: -6,
         hindlegRightRotate: 9,
         hindlegDrift: 2,
-        hatRotate: 0,
-        hatY: 0,
     },
     encourage: {
         label: 'Encouraging',
@@ -106,8 +100,6 @@ const POSES = {
         hindlegLeftRotate: -5,
         hindlegRightRotate: 5,
         hindlegDrift: 2,
-        hatRotate: -2,
-        hatY: -1,
     },
     thinking: {
         label: 'Thinking it through',
@@ -130,8 +122,6 @@ const POSES = {
         hindlegLeftRotate: -10,
         hindlegRightRotate: 4,
         hindlegDrift: 1.2,
-        hatRotate: 3,
-        hatY: 0,
     },
     'gentle-correct': {
         label: 'Gently correcting',
@@ -154,8 +144,6 @@ const POSES = {
         hindlegLeftRotate: -8,
         hindlegRightRotate: 7,
         hindlegDrift: 1.5,
-        hatRotate: 2,
-        hatY: 0,
     },
     celebrate: {
         label: 'Celebrating',
@@ -178,8 +166,6 @@ const POSES = {
         hindlegLeftRotate: -5,
         hindlegRightRotate: 5,
         hindlegDrift: 3,
-        hatRotate: -6,
-        hatY: -2,
     },
 };
 
@@ -268,7 +254,6 @@ export default function RiverMascot({
         belly: `${assetPrefix}-river-belly`,
         head: `${assetPrefix}-river-head`,
         limb: `${assetPrefix}-river-limb`,
-        hat: `${assetPrefix}-river-hat`,
         stage: `${assetPrefix}-river-stage`,
     };
 
@@ -356,10 +341,6 @@ export default function RiverMascot({
                             <linearGradient id={ids.limb} x1="78" y1="160" x2="232" y2="274" gradientUnits="userSpaceOnUse">
                                 <stop offset="0%" stopColor="#78975d" />
                                 <stop offset="100%" stopColor="#4f6540" />
-                            </linearGradient>
-                            <linearGradient id={ids.hat} x1="123" y1="78" x2="198" y2="107" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stopColor="#7ca766" />
-                                <stop offset="100%" stopColor="#2d452b" />
                             </linearGradient>
                             <radialGradient id={ids.stage} cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(160 262) rotate(90) scale(54 116)">
                                 <stop offset="0%" stopColor="rgba(178,202,127,0.18)" />
@@ -480,40 +461,12 @@ export default function RiverMascot({
                                 >
                                 <path
                                     data-river-feature="head"
-                                    d="M84 170 C76 158 75 141 83 126 C89 115 98 106 111 98 C116 76 131 62 146 62 C153 62 158 66 160 71 C162 66 167 62 174 62 C189 62 204 76 209 98 C222 106 231 115 237 126 C245 141 244 158 236 170 C228 182 216 191 201 199 C188 205 174 209 160 210 C146 209 132 205 119 199 C104 191 92 182 84 170 Z"
+                                    d="M84 172 C76 160 75 144 83 130 C90 118 99 109 112 101 C119 78 134 66 148 66 C154 66 158 69 160 73 C162 69 166 66 172 66 C186 66 201 78 208 101 C221 109 230 118 237 130 C245 144 244 160 236 172 C228 183 216 192 201 200 C188 206 174 210 160 211 C146 210 132 206 119 200 C104 192 92 183 84 172 Z"
                                     fill={`url(#${ids.head})`}
                                     stroke="#273629"
                                     strokeWidth="4"
                                 />
-                                <path d="M106 147 C124 154 142 158 160 158 C178 158 196 154 214 147" stroke="#5c7648" strokeWidth="3" strokeLinecap="round" opacity="0.28" />
-
-                                <motion.g
-                                    animate={{ y: pose.hatY, rotate: pose.hatRotate }}
-                                    transition={{ duration: 0.4, ease: ENTER_EASE }}
-                                    style={{ transformOrigin: '160px 88px' }}
-                                >
-                                    <path
-                                        data-river-feature="hat"
-                                        d="M124 86 C132 76 145 71 160 71 C175 71 188 76 196 86 C185 84 173 83 160 83 C147 83 135 84 124 86 Z"
-                                        fill={`url(#${ids.hat})`}
-                                        stroke="#223a22"
-                                        strokeWidth="4"
-                                    />
-                                    <path
-                                        data-river-feature="hat-band"
-                                        d="M124 91 C134 87 147 85 160 85 C173 85 186 87 196 91 L194 100 C184 98 172 97 160 97 C148 97 136 98 126 100 Z"
-                                        fill="#99c27a"
-                                        stroke="#223a22"
-                                        strokeWidth="2.6"
-                                        strokeLinejoin="round"
-                                    />
-                                    <path d="M138 89 L138 100" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M149 87 L149 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M160 87 L160 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M171 87 L171 99" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <path d="M182 89 L182 100" stroke="#678c57" strokeWidth="2" strokeLinecap="round" opacity="0.76" />
-                                    <circle cx="160" cy="74" r="4.6" fill="#95bc74" stroke="#223a22" strokeWidth="3" />
-                                </motion.g>
+                                <path d="M108 150 C125 156 142 160 160 160 C178 160 195 156 212 150" stroke="#5c7648" strokeWidth="3" strokeLinecap="round" opacity="0.28" />
 
                                 <FrogEye
                                     cx={126}

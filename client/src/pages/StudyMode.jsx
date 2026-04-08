@@ -30,6 +30,19 @@ function buildShuffledCards(cards, orderedCardIds = []) {
     return [...orderedCards, ...remainingCards];
 }
 
+function getCurrentSessionDurationSeconds(activeDurationSeconds = 0, segmentStartedAt = null, now = Date.now()) {
+    const savedSeconds = Number(activeDurationSeconds) || 0;
+    const liveSeconds = segmentStartedAt
+        ? Math.max(0, Math.round((now - segmentStartedAt) / 1000))
+        : 0;
+
+    return savedSeconds + liveSeconds;
+}
+
+function getElapsedMinutes(activeDurationSeconds = 0, segmentStartedAt = null, now = Date.now()) {
+    return Math.max(1, Math.round(getCurrentSessionDurationSeconds(activeDurationSeconds, segmentStartedAt, now) / 60));
+}
+
 export default function StudyMode() {
     const { id } = useParams();
     const [deck, setDeck] = useState(null);
@@ -41,8 +54,8 @@ export default function StudyMode() {
     const [spacedRepetitionMode, setSpacedRepetitionMode] = useState(false);
     const [cardsCorrect, setCardsCorrect] = useState(0);
     const [cardsStudied, setCardsStudied] = useState(0);
-    const startTime = useRef(null);
-    const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0 });
+    const activeSegmentStartedAtRef = useRef(null);
+    const sessionDataRef = useRef({ cardsStudied: 0, cardsCorrect: 0, activeDurationSeconds: 0 });
     const { incrementStreak } = useStreakContext();
     const haptics = useHaptics();
     const [heartsStatus, setHeartsStatus] = useState(null);
@@ -51,7 +64,7 @@ export default function StudyMode() {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [requeuedCards, setRequeuedCards] = useState([]);
     const [requeueCount, setRequeueCount] = useState(0);
-    const [sessionStartedAt, setSessionStartedAt] = useState(0);
+    const [activeDurationSeconds, setActiveDurationSeconds] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(1);
     const [resumeAvailable, setResumeAvailable] = useState(false);
     const [didResumeSession, setDidResumeSession] = useState(false);
@@ -93,21 +106,21 @@ export default function StudyMode() {
 
 
     useEffect(() => {
-        if (!sessionStartedAt) return;
+        if (loading) return undefined;
 
         const syncElapsedMinutes = () => {
-            setElapsedMinutes(Math.max(1, Math.round((Date.now() - sessionStartedAt) / 60000)));
+            setElapsedMinutes(getElapsedMinutes(activeDurationSeconds, activeSegmentStartedAtRef.current));
         };
 
         syncElapsedMinutes();
         const intervalId = window.setInterval(syncElapsedMinutes, 30000);
         return () => window.clearInterval(intervalId);
-    }, [sessionStartedAt]);
+    }, [activeDurationSeconds, loading]);
 
     // Keep ref in sync with state for cleanup
     useEffect(() => {
-        sessionDataRef.current = { cardsStudied, cardsCorrect };
-    }, [cardsStudied, cardsCorrect]);
+        sessionDataRef.current = { cardsStudied, cardsCorrect, activeDurationSeconds };
+    }, [activeDurationSeconds, cardsStudied, cardsCorrect]);
 
     useEffect(() => {
         // Hearts are non-critical — fetch in parallel without blocking card render
@@ -127,8 +140,9 @@ export default function StudyMode() {
             let nextSpacedMode = false;
             let nextCardsStudied = 0;
             let nextCardsCorrect = 0;
-            let nextStartedAt = Date.now();
+            let nextActiveDurationSeconds = 0;
             let hasResumedSession = false;
+            const now = Date.now();
 
             if (typeof window !== 'undefined') {
                 const rawSnapshot = window.localStorage.getItem(getSessionStorageKey(id));
@@ -141,7 +155,7 @@ export default function StudyMode() {
                         nextSpacedMode = Boolean(snapshot.spacedRepetitionMode);
                         nextCardsStudied = snapshot.cardsStudied || 0;
                         nextCardsCorrect = snapshot.cardsCorrect || 0;
-                        nextStartedAt = snapshot.startedAt || Date.now();
+                        nextActiveDurationSeconds = Number(snapshot.activeDurationSeconds || 0);
                         hasResumedSession = Boolean(snapshot.cardsStudied || snapshot.currentIndex || snapshot.isShuffled || snapshot.spacedRepetitionMode);
                     } catch {
                         window.localStorage.removeItem(getSessionStorageKey(id));
@@ -161,8 +175,9 @@ export default function StudyMode() {
             setIsTransitioning(false);
             setResumeAvailable(hasResumedSession);
             setDidResumeSession(hasResumedSession);
-            setSessionStartedAt(nextStartedAt);
-            startTime.current = nextStartedAt;
+            setActiveDurationSeconds(nextActiveDurationSeconds);
+            activeSegmentStartedAtRef.current = now;
+            setElapsedMinutes(getElapsedMinutes(nextActiveDurationSeconds, now, now));
             setLoading(false);
         }).catch(() => {
             setLoading(false);
@@ -172,25 +187,31 @@ export default function StudyMode() {
     useEffect(() => {
         if (loading || !id || cards.length === 0 || isSessionComplete || typeof window === 'undefined') return;
 
+        const persistedActiveDurationSeconds = getCurrentSessionDurationSeconds(
+            activeDurationSeconds,
+            activeSegmentStartedAtRef.current,
+        );
+
         window.localStorage.setItem(getSessionStorageKey(id), JSON.stringify({
             currentIndex,
             isShuffled,
             spacedRepetitionMode,
             cardsStudied,
             cardsCorrect,
-            startedAt: startTime.current || sessionStartedAt,
+            activeDurationSeconds: persistedActiveDurationSeconds,
             cardOrder: cards.map((card) => String(card.id)),
         }));
     }, [
+        activeDurationSeconds,
         cards,
         cardsCorrect,
         cardsStudied,
         currentIndex,
+        elapsedMinutes,
         id,
         isSessionComplete,
         isShuffled,
         loading,
-        sessionStartedAt,
         spacedRepetitionMode,
     ]);
 
@@ -198,9 +219,12 @@ export default function StudyMode() {
     useEffect(() => {
         const currentId = id;
         return () => {
-            const { cardsStudied, cardsCorrect } = sessionDataRef.current;
+            const { cardsStudied, cardsCorrect, activeDurationSeconds } = sessionDataRef.current;
             if (cardsStudied > 0) {
-                const duration = Math.round((Date.now() - startTime.current) / 1000);
+                const duration = getCurrentSessionDurationSeconds(
+                    activeDurationSeconds,
+                    activeSegmentStartedAtRef.current,
+                );
                 api.saveStudySession(currentId, cardsStudied, cardsCorrect, duration, 'study').catch(() => { });
                 // Increment streak when completing a study session
                 incrementStreak();
@@ -405,8 +429,9 @@ export default function StudyMode() {
         setSpacedRepetitionMode(false);
         setCardsStudied(0);
         setCardsCorrect(0);
-        setSessionStartedAt(now);
-        startTime.current = now;
+        setActiveDurationSeconds(0);
+        activeSegmentStartedAtRef.current = now;
+        setElapsedMinutes(1);
     };
 
     const handleFreshStart = () => {
@@ -424,8 +449,9 @@ export default function StudyMode() {
         setCardsStudied(0);
         setCardsCorrect(0);
         setDidResumeSession(false);
-        setSessionStartedAt(now);
-        startTime.current = now;
+        setActiveDurationSeconds(0);
+        activeSegmentStartedAtRef.current = now;
+        setElapsedMinutes(1);
     };
 
     const currentModeLabel = spacedRepetitionMode ? 'Recall grading' : 'Free review';

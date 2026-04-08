@@ -1,0 +1,597 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 960" width="540" height="960" role="img" aria-label="River the frog resting on a lily pad in a twilight forest pond">
+<defs>
+
+<!-- ───────────────────────────────────────
+     ANIMATIONS
+─────────────────────────────────────── -->
+<style>
+  @keyframes river-float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-7px); }
+  }
+  @keyframes river-blink {
+    0%, 85%, 91%, 100% { transform: scaleY(1); }
+    88%                { transform: scaleY(0.12); }
+  }
+  @keyframes water-shimmer {
+    0%, 100% { opacity: 0.05; }
+    50%       { opacity: 0.11; }
+  }
+  @keyframes canopy-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.65; }
+  }
+  @keyframes dragonfly-drift {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50%       { transform: translateY(-3px) rotate(1.5deg); }
+  }
+  @keyframes ripple-out {
+    0%   { r: 62; opacity: 0.10; }
+    100% { r: 145; opacity: 0; }
+  }
+
+  .river-scene { animation: river-float 4.8s cubic-bezier(0.22,1,0.36,1) infinite; transform-box: fill-box; transform-origin: center bottom; }
+  .river-eye   { transform-box: fill-box; transform-origin: center center; animation: river-blink 4.1s cubic-bezier(0.22,1,0.36,1) infinite; }
+  .river-eye-r { animation-delay: 0.18s; }
+  .water-sh    { animation: water-shimmer 4.2s ease-in-out infinite; }
+  .water-sh-2  { animation: water-shimmer 5.0s ease-in-out infinite 1.4s; }
+  .water-sh-3  { animation: water-shimmer 3.8s ease-in-out infinite 2.6s; }
+  .canopy-gl   { animation: canopy-pulse 7s ease-in-out infinite; }
+  .dragonfly-g { animation: dragonfly-drift 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center center; }
+  .ripple-anim { animation: ripple-out 4s ease-out infinite; }
+  .ripple-anim-2 { animation: ripple-out 4s ease-out infinite 1.4s; }
+  .ripple-anim-3 { animation: ripple-out 4s ease-out infinite 2.7s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .river-scene, .river-eye, .water-sh, .water-sh-2, .water-sh-3,
+    .canopy-gl, .dragonfly-g, .ripple-anim, .ripple-anim-2, .ripple-anim-3 {
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ───────────────────────────────────────
+     GRADIENTS — ENVIRONMENT
+─────────────────────────────────────── -->
+
+<!-- Sky: deep indigo-teal twilight -->
+<linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#060d16"/>
+  <stop offset="38%"  stop-color="#0c1820"/>
+  <stop offset="100%" stop-color="#162a31"/>
+</linearGradient>
+
+<!-- Canopy moonlight glow — subtle gold warmth filtering through top -->
+<radialGradient id="canopy-glow" cx="0.5" cy="0" r="0.56" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#deb96a" stop-opacity="0.07"/>
+  <stop offset="60%"  stop-color="#deb96a" stop-opacity="0.025"/>
+  <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
+</radialGradient>
+
+<!-- Far treeline dark fill -->
+<linearGradient id="far-tree-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#07101a"/>
+  <stop offset="100%" stop-color="#0c1c26"/>
+</linearGradient>
+
+<!-- Mid treeline (flanks) -->
+<linearGradient id="mid-tree-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#08121c"/>
+  <stop offset="100%" stop-color="#0f1e2a"/>
+</linearGradient>
+
+<!-- Water base -->
+<linearGradient id="water-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#0c1c28"/>
+  <stop offset="55%"  stop-color="#162a35"/>
+  <stop offset="100%" stop-color="#1c3440"/>
+</linearGradient>
+
+<!-- Warm underglow from water — bioluminescent / moonlit -->
+<radialGradient id="water-glow" cx="0.5" cy="0.35" r="0.6" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#deb96a" stop-opacity="0.18"/>
+  <stop offset="40%"  stop-color="#deb96a" stop-opacity="0.07"/>
+  <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
+</radialGradient>
+
+<!-- Tree reflection columns -->
+<linearGradient id="refl-l" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#0a1820" stop-opacity="0.32"/>
+  <stop offset="100%" stop-color="#0a1820" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="refl-c" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#0e2030" stop-opacity="0.20"/>
+  <stop offset="100%" stop-color="#0e2030" stop-opacity="0"/>
+</linearGradient>
+
+<!-- Vignette -->
+<radialGradient id="vignette" cx="0.5" cy="0.5" r="0.72" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="transparent"/>
+  <stop offset="100%" stop-color="#050c12" stop-opacity="0.62"/>
+</radialGradient>
+
+<!-- ───────────────────────────────────────
+     GRADIENTS — LILY PADS
+─────────────────────────────────────── -->
+
+<linearGradient id="lily-grad" x1="0.5" y1="0" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#4e6e32"/>
+  <stop offset="55%"  stop-color="#314c1e"/>
+  <stop offset="100%" stop-color="#1e3014"/>
+</linearGradient>
+<radialGradient id="lily-hi" cx="0.38" cy="0.28" r="0.58" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#6a8c3e" stop-opacity="0.65"/>
+  <stop offset="100%" stop-color="#314c1e" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="pad-glow" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+  <stop offset="0%"   stop-color="#deb96a" stop-opacity="0.16"/>
+  <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
+</radialGradient>
+
+<!-- ───────────────────────────────────────
+     GRADIENTS — RIVER (exact from source)
+─────────────────────────────────────── -->
+
+<linearGradient id="sc-body" x1="108" y1="154" x2="208" y2="278" gradientUnits="userSpaceOnUse">
+  <stop offset="0%"   stop-color="#8daa72"/>
+  <stop offset="54%"  stop-color="#6c8a54"/>
+  <stop offset="100%" stop-color="#4d663e"/>
+</linearGradient>
+<linearGradient id="sc-belly" x1="140" y1="182" x2="180" y2="264" gradientUnits="userSpaceOnUse">
+  <stop offset="0%"   stop-color="#efe6c8"/>
+  <stop offset="100%" stop-color="#dcc8a2"/>
+</linearGradient>
+<linearGradient id="sc-head" x1="92" y1="66" x2="228" y2="206" gradientUnits="userSpaceOnUse">
+  <stop offset="0%"   stop-color="#98b77a"/>
+  <stop offset="62%"  stop-color="#6e8f53"/>
+  <stop offset="100%" stop-color="#4a623b"/>
+</linearGradient>
+<linearGradient id="sc-limb" x1="78" y1="160" x2="232" y2="274" gradientUnits="userSpaceOnUse">
+  <stop offset="0%"   stop-color="#78975d"/>
+  <stop offset="100%" stop-color="#4f6540"/>
+</linearGradient>
+<radialGradient id="sc-stage" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(160 262) rotate(90) scale(54 116)">
+  <stop offset="0%"   stop-color="rgba(178,202,127,0.18)"/>
+  <stop offset="100%" stop-color="rgba(13,15,14,0)"/>
+</radialGradient>
+
+<!-- ───────────────────────────────────────
+     FILTERS
+─────────────────────────────────────── -->
+<filter id="blur-refl" x="-30%" y="0" width="160%" height="100%">
+  <feGaussianBlur stdDeviation="4"/>
+</filter>
+<filter id="blur-glow" x="-20%" y="-20%" width="140%" height="140%">
+  <feGaussianBlur stdDeviation="8"/>
+</filter>
+<filter id="blur-pad-glow" x="-30%" y="-60%" width="160%" height="220%">
+  <feGaussianBlur stdDeviation="12"/>
+</filter>
+
+</defs>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 1 — SKY                               -->
+<!-- ═══════════════════════════════════════════ -->
+<rect width="540" height="960" fill="url(#sky-grad)"/>
+
+<!-- Sparse twilight stars -->
+<circle cx="82"  cy="38"  r="0.9" fill="#c8d8e0" opacity="0.55"/>
+<circle cx="154" cy="22"  r="0.7" fill="#c8d8e0" opacity="0.48"/>
+<circle cx="210" cy="52"  r="0.5" fill="#deb96a" opacity="0.40"/>
+<circle cx="298" cy="18"  r="0.8" fill="#c8d8e0" opacity="0.52"/>
+<circle cx="366" cy="44"  r="0.6" fill="#c8d8e0" opacity="0.45"/>
+<circle cx="438" cy="30"  r="0.9" fill="#c8d8e0" opacity="0.50"/>
+<circle cx="488" cy="58"  r="0.5" fill="#deb96a" opacity="0.38"/>
+<circle cx="34"  cy="68"  r="0.6" fill="#c8d8e0" opacity="0.35"/>
+<circle cx="518" cy="72"  r="0.7" fill="#c8d8e0" opacity="0.38"/>
+
+<!-- Canopy moonlight — warm gold filtering from above -->
+<ellipse class="canopy-gl" cx="270" cy="0" rx="300" ry="230" fill="url(#canopy-glow)"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 2 — FAR TREELINE SILHOUETTE           -->
+<!-- ═══════════════════════════════════════════ -->
+<!--
+  Organic tree-crown silhouette. Q-curves create rounded deciduous crowns;
+  L-to-sharp-points suggest pine spires. The line rises and falls like a
+  real forest canopy, with the center opening slightly (pond clearing).
+-->
+<path fill="url(#far-tree-grad)" d="
+  M 0,400
+  L 0,185
+  Q 10,165 22,158
+  L 30,138
+  Q 40,155 52,152
+  Q 64,118 76,112
+  L 83,96
+  Q 92,118 104,122
+  Q 117,92 130,88
+  L 138,72
+  Q 147,94 158,98
+  Q 170,76 180,72
+  L 188,58
+  Q 197,80 208,88
+  Q 221,66 234,62
+  L 242,48
+  Q 252,74 264,80
+  Q 276,60 290,58
+  L 298,44
+  Q 308,68 320,74
+  Q 332,56 346,60
+  L 354,46
+  Q 363,68 375,72
+  Q 388,54 402,58
+  L 410,44
+  Q 419,66 430,72
+  Q 443,54 456,58
+  L 464,44
+  Q 473,64 484,72
+  Q 498,56 512,62
+  L 520,50
+  Q 530,68 540,82
+  L 540,400
+  Z
+"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 3 — MID TREELINE FLANKS               -->
+<!-- Trees frame the left and right edges,        -->
+<!-- creating depth and framing the pond opening. -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Left flank trees -->
+<path fill="url(#mid-tree-grad)" d="
+  M 0,400
+  L 0,270
+  C 8,248 18,226 30,218
+  C 36,213 40,216 44,206
+  C 48,196 50,182 57,178
+  C 62,175 67,181 70,192
+  C 73,202 72,218 80,210
+  C 88,202 90,184 100,182
+  C 108,180 112,192 112,205
+  C 112,212 110,220 117,214
+  C 123,208 126,193 138,192
+  C 147,191 150,204 148,218
+  C 147,224 144,230 152,224
+  L 168,400
+  Z
+"/>
+
+<!-- Right flank trees -->
+<path fill="url(#mid-tree-grad)" d="
+  M 540,400
+  L 540,270
+  C 532,248 522,226 510,218
+  C 504,213 500,216 496,206
+  C 492,196 490,182 483,178
+  C 478,175 473,181 470,192
+  C 467,202 468,218 460,210
+  C 452,202 450,184 440,182
+  C 432,180 428,192 428,205
+  C 428,212 430,220 423,214
+  C 417,208 414,193 402,192
+  C 393,191 390,204 392,218
+  C 393,224 396,230 388,224
+  L 372,400
+  Z
+"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 4 — WATER SURFACE                     -->
+<!-- ═══════════════════════════════════════════ -->
+<rect x="0" y="378" width="540" height="582" fill="url(#water-grad)"/>
+
+<!-- Horizon softening — blends treeline into water -->
+<rect x="0" y="360" width="540" height="45" fill="url(#mid-tree-grad)" opacity="0.55"/>
+
+<!-- Tree reflection columns (blurred, semi-transparent) -->
+<rect x="0"   y="378" width="72"  height="380" fill="url(#refl-l)" filter="url(#blur-refl)"/>
+<rect x="68"  y="378" width="50"  height="280" fill="url(#refl-c)" filter="url(#blur-refl)"/>
+<rect x="155" y="378" width="35"  height="220" fill="url(#refl-c)" filter="url(#blur-refl)" opacity="0.55"/>
+<rect x="350" y="378" width="35"  height="220" fill="url(#refl-c)" filter="url(#blur-refl)" opacity="0.55"/>
+<rect x="422" y="378" width="50"  height="280" fill="url(#refl-c)" filter="url(#blur-refl)"/>
+<rect x="468" y="378" width="72"  height="380" fill="url(#refl-l)" filter="url(#blur-refl)"/>
+
+<!-- Warm water underglow — twilight bioluminescent bloom -->
+<ellipse cx="270" cy="700" rx="300" ry="340" fill="url(#water-glow)" filter="url(#blur-glow)"/>
+
+<!-- Water surface shimmer highlights (animated) -->
+<ellipse class="water-sh"   cx="270" cy="490" rx="130" ry="6"  fill="#deb96a" opacity="0.07"/>
+<ellipse class="water-sh-2" cx="215" cy="530" rx="72"  ry="4"  fill="#deb96a" opacity="0.055"/>
+<ellipse class="water-sh-3" cx="318" cy="512" rx="55"  ry="3"  fill="#deb96a" opacity="0.045"/>
+<ellipse class="water-sh"   cx="180" cy="565" rx="45"  ry="2.5" fill="#deb96a" opacity="0.04" style="animation-delay:2s"/>
+<ellipse class="water-sh-2" cx="350" cy="552" rx="40"  ry="2"  fill="#deb96a" opacity="0.04" style="animation-delay:0.7s"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 5 — REEDS & FERNS                     -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- LEFT REEDS — tapered vertical strokes -->
+<g fill="#111c16" opacity="0.90">
+  <!-- Reed 1 (outermost, slight lean) -->
+  <path d="M 14,960 C 16,780 11,580 8,365 C 7,356 6,350 5,341 C 4,348 4,358 5,365 C 0,580 -3,780 -2,960 Z"/>
+  <!-- Reed 2 -->
+  <path d="M 38,960 C 41,800 36,610 33,395 C 31,386 30,380 29,371 C 28,378 28,388 29,395 C 24,610 21,800 22,960 Z"/>
+  <!-- Reed 3 — tallest, reaches into sky -->
+  <path d="M 62,960 C 65,775 60,565 57,340 C 55,330 53,323 52,313 C 51,321 51,331 52,340 C 47,565 44,775 44,960 Z"/>
+  <!-- Reed 4 -->
+  <path d="M 84,960 C 87,815 83,640 80,430 C 79,421 78,415 77,406 C 76,413 76,423 77,430 C 72,640 69,815 70,960 Z"/>
+  <!-- Reed 5 (shorter accent) -->
+  <path d="M 104,960 C 106,840 103,680 101,490 C 100,482 99,477 98,469 C 97,476 97,484 98,490 C 95,680 93,840 93,960 Z"/>
+  <!-- Horizontal leaf crossing — reed 3 -->
+  <path d="M 50,428 C 28,416 12,420 4,432 C 11,435 28,431 50,440 Z"/>
+  <path d="M 56,365 C 80,352 96,357 104,370 C 97,373 80,368 57,378 Z"/>
+  <!-- Reed tips (small seed heads) -->
+  <ellipse cx="8"   cy="340" rx="4"  ry="10" opacity="0.7"/>
+  <ellipse cx="31"  cy="370" rx="3.5" ry="9" opacity="0.7"/>
+  <ellipse cx="54"  cy="312" rx="4"  ry="11" opacity="0.7"/>
+  <ellipse cx="78"  cy="405" rx="3"  ry="8"  opacity="0.7"/>
+  <ellipse cx="99"  cy="468" rx="3"  ry="7"  opacity="0.65"/>
+</g>
+
+<!-- LEFT FERNS — curved frond shapes -->
+<g fill="#0d1810" opacity="0.86">
+  <path d="M 0,620 C 22,594 52,580 70,588 C 58,600 34,608 8,618 Z"/>
+  <path d="M 0,598 C 24,570 58,554 76,563 C 64,575 38,582 6,594 Z"/>
+  <path d="M 0,645 C 18,624 44,615 58,622 C 48,632 28,638 4,642 Z"/>
+  <path d="M 0,668 C 16,650 38,643 50,650 C 41,659 24,663 2,666 Z"/>
+  <path d="M 0,700 C 12,684 30,678 40,684 C 33,693 18,696 4,697 Z"/>
+  <!-- Deeper fern fronds -->
+  <path d="M 5,564 C 28,536 62,520 82,530 C 68,542 42,550 12,562 Z"/>
+  <path d="M 0,546 C 20,520 52,504 72,514 C 58,526 32,532 4,544 Z"/>
+</g>
+
+<!-- RIGHT REEDS -->
+<g fill="#111c16" opacity="0.90">
+  <path d="M 526,960 C 524,780 529,580 532,365 C 533,356 534,350 535,341 C 536,348 536,358 535,365 C 540,580 543,780 542,960 Z"/>
+  <path d="M 502,960 C 499,800 504,610 507,395 C 509,386 510,380 511,371 C 512,378 512,388 511,395 C 516,610 519,800 518,960 Z"/>
+  <path d="M 478,960 C 475,775 480,565 483,340 C 485,330 487,323 488,313 C 489,321 489,331 488,340 C 493,565 496,775 496,960 Z"/>
+  <path d="M 456,960 C 453,815 457,640 460,430 C 461,421 462,415 463,406 C 464,413 464,423 463,430 C 468,640 471,815 470,960 Z"/>
+  <path d="M 436,960 C 434,840 437,680 439,490 C 440,482 441,477 442,469 C 443,476 443,484 442,490 C 445,680 447,840 447,960 Z"/>
+  <!-- Leaf crossings -->
+  <path d="M 490,428 C 512,416 528,420 536,432 C 529,435 512,431 490,440 Z"/>
+  <path d="M 484,365 C 460,352 444,357 436,370 C 443,373 460,368 483,378 Z"/>
+  <!-- Seed heads -->
+  <ellipse cx="532" cy="340" rx="4"   ry="10" opacity="0.7"/>
+  <ellipse cx="509" cy="370" rx="3.5" ry="9"  opacity="0.7"/>
+  <ellipse cx="486" cy="312" rx="4"   ry="11" opacity="0.7"/>
+  <ellipse cx="462" cy="405" rx="3"   ry="8"  opacity="0.7"/>
+  <ellipse cx="441" cy="468" rx="3"   ry="7"  opacity="0.65"/>
+</g>
+
+<!-- RIGHT FERNS -->
+<g fill="#0d1810" opacity="0.86">
+  <path d="M 540,620 C 518,594 488,580 470,588 C 482,600 506,608 532,618 Z"/>
+  <path d="M 540,598 C 516,570 482,554 464,563 C 476,575 502,582 534,594 Z"/>
+  <path d="M 540,645 C 522,624 496,615 482,622 C 492,632 512,638 536,642 Z"/>
+  <path d="M 540,668 C 524,650 502,643 490,650 C 499,659 516,663 538,666 Z"/>
+  <path d="M 540,700 C 528,684 510,678 500,684 C 507,693 522,696 536,697 Z"/>
+  <path d="M 535,564 C 512,536 478,520 458,530 C 472,542 498,550 528,562 Z"/>
+  <path d="M 540,546 C 520,520 488,504 468,514 C 482,526 508,532 536,544 Z"/>
+</g>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 6 — RIPPLE RINGS                      -->
+<!-- Concentric rings centered on River's pad.   -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Static base rings -->
+<ellipse cx="270" cy="738" rx="68"  ry="11" fill="none" stroke="#deb96a" stroke-width="0.8" opacity="0.07"/>
+<ellipse cx="270" cy="738" rx="96"  ry="16" fill="none" stroke="#deb96a" stroke-width="0.6" opacity="0.05"/>
+<ellipse cx="270" cy="738" rx="128" ry="21" fill="none" stroke="#deb96a" stroke-width="0.5" opacity="0.035"/>
+
+<!-- Animated expanding ripples (ellipse r is the horizontal radius; ry follows proportionally) -->
+<!-- Note: animating 'r' on an ellipse uses cx attribute trick — we use circle-like illusion via transform -->
+<ellipse class="ripple-anim"   cx="270" cy="738" rx="62"  ry="10" fill="none" stroke="#deb96a" stroke-width="1" opacity="0.10"/>
+<ellipse class="ripple-anim-2" cx="270" cy="738" rx="62"  ry="10" fill="none" stroke="#deb96a" stroke-width="0.8" opacity="0.08"/>
+<ellipse class="ripple-anim-3" cx="270" cy="738" rx="62"  ry="10" fill="none" stroke="#deb96a" stroke-width="0.7" opacity="0.07"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 7 — SECONDARY LILY PADS               -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Small pad — left-background, angled away -->
+<g transform="translate(144,700) rotate(-22)">
+  <ellipse cx="0" cy="0" rx="54" ry="21" fill="url(#lily-grad)"/>
+  <ellipse cx="0" cy="0" rx="54" ry="21" fill="url(#lily-hi)"/>
+  <!-- V-notch -->
+  <path d="M 0,-21 L -9,-5 L 0,2 L 9,-5 Z" fill="url(#water-grad)"/>
+  <!-- Veins -->
+  <line x1="0" y1="-21" x2="0" y2="21" stroke="#1a2e10" stroke-width="0.7" opacity="0.45"/>
+  <line x1="-54" y1="0" x2="54" y2="0" stroke="#1a2e10" stroke-width="0.5" opacity="0.38"/>
+  <line x1="-40" y1="-16" x2="40" y2="16" stroke="#1a2e10" stroke-width="0.4" opacity="0.30"/>
+  <line x1="-40" y1="16" x2="40" y2="-16" stroke="#1a2e10" stroke-width="0.4" opacity="0.30"/>
+  <ellipse cx="0" cy="-2" rx="52" ry="19" fill="none" stroke="#deb96a" stroke-width="0.5" opacity="0.07"/>
+</g>
+
+<!-- Dragonfly's pad — right, slightly rotated -->
+<g transform="translate(375,706) rotate(14)">
+  <ellipse cx="0" cy="0" rx="46" ry="18" fill="url(#lily-grad)"/>
+  <ellipse cx="0" cy="0" rx="46" ry="18" fill="url(#lily-hi)"/>
+  <!-- V-notch -->
+  <path d="M 0,-18 L -7,-4 L 0,2 L 7,-4 Z" fill="url(#water-grad)"/>
+  <!-- Veins -->
+  <line x1="0" y1="-18" x2="0" y2="18" stroke="#1a2e10" stroke-width="0.7" opacity="0.45"/>
+  <line x1="-46" y1="0" x2="46" y2="0" stroke="#1a2e10" stroke-width="0.5" opacity="0.38"/>
+  <line x1="-34" y1="-14" x2="34" y2="14" stroke="#1a2e10" stroke-width="0.4" opacity="0.30"/>
+  <line x1="-34" y1="14" x2="34" y2="-14" stroke="#1a2e10" stroke-width="0.4" opacity="0.30"/>
+  <ellipse cx="0" cy="-1" rx="44" ry="16" fill="none" stroke="#deb96a" stroke-width="0.5" opacity="0.07"/>
+</g>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 8 — DRAGONFLY                         -->
+<!-- Small, secondary — rewards attention.        -->
+<!-- ═══════════════════════════════════════════ -->
+<g class="dragonfly-g">
+  <!-- Upper wings — four-wing insect, semi-transparent -->
+  <ellipse cx="362" cy="672" rx="19" ry="7"
+    fill="#8fa6a8" fill-opacity="0.20"
+    stroke="#8fa6a8" stroke-width="0.4" stroke-opacity="0.38"
+    transform="rotate(-18 362 672)"/>
+  <ellipse cx="387" cy="672" rx="19" ry="7"
+    fill="#8fa6a8" fill-opacity="0.20"
+    stroke="#8fa6a8" stroke-width="0.4" stroke-opacity="0.38"
+    transform="rotate(18 387 672)"/>
+  <!-- Lower wings -->
+  <ellipse cx="363" cy="680" rx="15" ry="5"
+    fill="#8fa6a8" fill-opacity="0.15"
+    stroke="#8fa6a8" stroke-width="0.35" stroke-opacity="0.30"
+    transform="rotate(-8 363 680)"/>
+  <ellipse cx="386" cy="680" rx="15" ry="5"
+    fill="#8fa6a8" fill-opacity="0.15"
+    stroke="#8fa6a8" stroke-width="0.35" stroke-opacity="0.30"
+    transform="rotate(8 386 680)"/>
+  <!-- Thorax -->
+  <ellipse cx="374" cy="671" rx="5" ry="4" fill="#3a5228" stroke="#273629" stroke-width="0.6"/>
+  <!-- Abdomen — elongated tail segment -->
+  <path d="M 374,675 C 375,680 376,686 377,692 C 378,696 376,700 374,700 C 372,700 370,696 371,692 C 372,686 373,680 374,675 Z"
+    fill="#4a6635" stroke="#273629" stroke-width="0.7"/>
+  <!-- Head/eyes -->
+  <ellipse cx="374" cy="668" rx="4.5" ry="4" fill="#364e26"/>
+  <circle cx="371.5" cy="667" r="1.4" fill="#162a31"/>
+  <circle cx="376.5" cy="667" r="1.4" fill="#162a31"/>
+  <!-- Wing vein hints -->
+  <line x1="374" y1="671" x2="344" y2="666" stroke="#8fa6a8" stroke-width="0.35" opacity="0.25"/>
+  <line x1="374" y1="671" x2="404" y2="666" stroke="#8fa6a8" stroke-width="0.35" opacity="0.25"/>
+</g>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 9 — MAIN LILY PAD + WARM GLOW         -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Under-pad glow (filtered, warm) -->
+<ellipse cx="270" cy="748" rx="148" ry="36" fill="url(#pad-glow)" filter="url(#blur-pad-glow)"/>
+
+<!-- Main lily pad — River's perch, centered x=270 y=728 -->
+<g transform="translate(270, 728)">
+  <ellipse cx="0" cy="0" rx="122" ry="48" fill="url(#lily-grad)"/>
+  <ellipse cx="0" cy="0" rx="122" ry="48" fill="url(#lily-hi)"/>
+  <!-- V-notch cutout -->
+  <path d="M 0,-48 L -15,-10 L 0,4 L 15,-10 Z" fill="url(#water-grad)"/>
+  <!-- Radiating veins -->
+  <line x1="0"   y1="-48" x2="0"   y2="48"  stroke="#18280e" stroke-width="1.0" opacity="0.50"/>
+  <line x1="-122" y1="0" x2="122" y2="0"    stroke="#18280e" stroke-width="0.7" opacity="0.40"/>
+  <line x1="-90" y1="-34" x2="90" y2="34"  stroke="#18280e" stroke-width="0.6" opacity="0.34"/>
+  <line x1="-90" y1="34"  x2="90" y2="-34" stroke="#18280e" stroke-width="0.6" opacity="0.34"/>
+  <line x1="-52" y1="-44" x2="52" y2="44"  stroke="#18280e" stroke-width="0.5" opacity="0.26"/>
+  <line x1="-52" y1="44"  x2="52" y2="-44" stroke="#18280e" stroke-width="0.5" opacity="0.26"/>
+  <line x1="-122" y1="-16" x2="122" y2="-16" stroke="#18280e" stroke-width="0.4" opacity="0.20"/>
+  <line x1="-122" y1="16"  x2="122" y2="16"  stroke="#18280e" stroke-width="0.4" opacity="0.18"/>
+  <!-- Rim catchlight — warm gold edge -->
+  <ellipse cx="0" cy="-5" rx="120" ry="45" fill="none" stroke="#deb96a" stroke-width="0.8" opacity="0.10"/>
+</g>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LAYER 10 — RIVER                            -->
+<!--                                              -->
+<!-- Geometry extracted verbatim from             -->
+<!-- RiverMascot.jsx — idle pose applied.         -->
+<!-- Scale 0.5: center x=270, feet at y≈720.      -->
+<!-- transform = translate(190, 582) scale(0.5)   -->
+<!-- ═══════════════════════════════════════════ -->
+<g class="river-scene" transform="translate(190, 582) scale(0.5)">
+
+  <!-- Stage ambient shadow -->
+  <ellipse cx="160" cy="262" rx="116" ry="54" fill="url(#sc-stage)"/>
+
+  <!-- ── HIND LEG LEFT (idle rotate -7°) ── -->
+  <g style="transform-origin:113px 210px; transform:rotate(-7deg)">
+    <path d="M120 247 C98 235 82 216 79 194 C76 173 85 154 102 146 C118 139 131 149 135 168 C139 186 133 210 120 247 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M75 264 C88 258 103 252 118 247 C118 255 121 262 127 268 C113 274 98 277 84 276 C77 273 74 269 75 264 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M86 262 L75 270"  stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M98 257 L92 275"  stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M111 252 L110 274" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- ── HIND LEG RIGHT (idle rotate +7°) ── -->
+  <g style="transform-origin:207px 210px; transform:rotate(7deg)">
+    <path d="M200 247 C222 235 238 216 241 194 C244 173 235 154 218 146 C202 139 189 149 185 168 C181 186 187 210 200 247 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M245 264 C232 258 217 252 202 247 C202 255 199 262 193 268 C207 274 222 277 236 276 C243 273 246 269 245 264 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M234 262 L245 270" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M222 257 L228 275" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M209 252 L210 274" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- ── BODY ── -->
+  <path d="M118 258 C104 245 101 228 105 205 C110 178 127 158 160 153 C193 158 210 178 215 205 C219 228 216 245 202 258 C191 269 177 276 160 279 C143 276 129 269 118 258 Z"
+    fill="url(#sc-body)" stroke="#273629" stroke-width="4"/>
+  <path d="M130 196 C136 184 146 178 160 178 C174 178 184 184 190 196"
+    stroke="#587147" stroke-width="3" stroke-linecap="round" opacity="0.36"/>
+
+  <!-- ── BELLY ── -->
+  <path d="M140 186 C137 197 138 228 144 250 C150 258 155 262 160 263 C165 262 170 258 176 250 C182 228 183 197 180 186 C176 177 144 177 140 186 Z"
+    fill="url(#sc-belly)" opacity="0.98"/>
+  <path d="M147 188 C152 184 156 182 160 182 C164 182 168 184 173 188"
+    stroke="#f6ecd0" stroke-width="3" stroke-linecap="round" opacity="0.54"/>
+
+  <!-- ── FORELIMB LEFT (idle rotate -4°) ── -->
+  <g style="transform-origin:146px 220px; transform:rotate(-4deg)">
+    <path d="M141 182 C133 196 131 214 132 237 C133 250 141 259 149 259 C154 259 157 255 157 247 C157 226 157 206 155 190 C153 183 145 177 141 182 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M131 248 C137 244 142 244 146 249 C149 244 154 244 157 249 C160 245 165 247 168 252 C160 260 151 262 141 261 C136 258 133 254 131 248 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+  </g>
+
+  <!-- ── FORELIMB RIGHT (idle rotate +4°) ── -->
+  <g style="transform-origin:174px 220px; transform:rotate(4deg)">
+    <path d="M179 182 C187 196 189 214 188 237 C187 250 179 259 171 259 C166 259 163 255 163 247 C163 226 163 206 165 190 C167 183 175 177 179 182 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+    <path d="M189 248 C183 244 178 244 174 249 C171 244 166 244 163 249 C160 245 155 247 152 252 C160 260 169 262 179 261 C184 258 187 254 189 248 Z"
+      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
+  </g>
+
+  <!-- ── HEAD (idle headRotate -1°) ── -->
+  <g style="transform-origin:160px 144px; transform:rotate(-1deg)">
+    <path d="M84 172 C76 160 75 144 83 130 C90 118 99 109 112 101 C119 78 134 66 148 66 C154 66 158 69 160 73 C162 69 166 66 172 66 C186 66 201 78 208 101 C221 109 230 118 237 130 C245 144 244 160 236 172 C228 183 216 192 201 200 C188 206 174 210 160 211 C146 210 132 206 119 200 C104 192 92 183 84 172 Z"
+      fill="url(#sc-head)" stroke="#273629" stroke-width="4"/>
+    <path d="M108 150 C125 156 142 160 160 160 C178 160 195 156 212 150"
+      stroke="#5c7648" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
+
+    <!-- Eye left -->
+    <g class="river-eye">
+      <path d="M112 97 Q126 86 140 97" stroke="#273629" stroke-width="3.1" stroke-linecap="round" opacity="0.54"/>
+      <ellipse cx="126" cy="104" rx="14.8" ry="16.4" fill="#f8f6ea" stroke="#273629" stroke-width="3.5"/>
+      <path d="M114 101 Q126 96 138 101" stroke="#d9d7c2" stroke-width="2.6" stroke-linecap="round" opacity="0.72"/>
+      <ellipse cx="126" cy="105" rx="7.9" ry="9.1" fill="#4e653b"/>
+      <circle  cx="126" cy="105" r="5.1"  fill="#101611"/>
+      <circle  cx="122.3" cy="99.9" r="2.4" fill="#ffffff" opacity="0.96"/>
+      <circle  cx="128"   cy="104"  r="1.3" fill="#ffffff" opacity="0.88"/>
+    </g>
+
+    <!-- Eye right -->
+    <g class="river-eye river-eye-r">
+      <path d="M180 97 Q194 86 208 97" stroke="#273629" stroke-width="3.1" stroke-linecap="round" opacity="0.54"/>
+      <ellipse cx="194" cy="104" rx="14.8" ry="16.4" fill="#f8f6ea" stroke="#273629" stroke-width="3.5"/>
+      <path d="M182 101 Q194 96 206 101" stroke="#d9d7c2" stroke-width="2.6" stroke-linecap="round" opacity="0.72"/>
+      <ellipse cx="194" cy="105" rx="7.9" ry="9.1" fill="#4e653b"/>
+      <circle  cx="194" cy="105" r="5.1"  fill="#101611"/>
+      <circle  cx="190.3" cy="99.9" r="2.4" fill="#ffffff" opacity="0.96"/>
+      <circle  cx="196"   cy="104"  r="1.3" fill="#ffffff" opacity="0.88"/>
+    </g>
+
+    <!-- Nostrils -->
+    <ellipse cx="150" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(-24 150 151)"/>
+    <ellipse cx="170" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(24 170 151)"/>
+
+    <!-- Mouth — idle: M118 163 Q160 176 202 163 -->
+    <path d="M118 163 Q160 176 202 163" stroke="#202b22" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <path d="M136 170 C145 174 153 176 160 176 C167 176 175 174 184 170"
+      stroke="#566d44" stroke-width="2.5" stroke-linecap="round" opacity="0.34"/>
+  </g>
+
+</g>
+<!-- end River -->
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- FINISHING — VIGNETTE OVERLAY                -->
+<!-- Darkens the edges, adds depth and focus     -->
+<!-- ═══════════════════════════════════════════ -->
+<rect width="540" height="960" fill="url(#vignette)"/>
+
+</svg>

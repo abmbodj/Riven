@@ -119,6 +119,22 @@ function getAssignmentDayDiff(dueValue, now = new Date()) {
     return Math.round((dueDay - nowDay) / 86400000);
 }
 
+function isDueInCurrentLocalWeek(dueValue, now = new Date()) {
+    if (!dueValue) return false;
+
+    const dueDate = new Date(dueValue);
+    if (Number.isNaN(dueDate.getTime())) return false;
+
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+    return dueDay >= weekStart && dueDay < weekEnd;
+}
+
 function SectionHeading({ icon, title, to, action = 'View All', tone = 'default' }) {
     const titleColor = tone === 'danger'
         ? 'text-red-400/80'
@@ -673,6 +689,14 @@ function DashboardHome() {
                 return new Date(left.dueDate) - new Date(right.dueDate);
             });
     }, [assignments, classesById]);
+    const dueThisWeekCount = useMemo(() => {
+        const now = new Date();
+
+        return assignments.filter((assignment) => {
+            if (assignment.status === 'Done' || assignment.status === 'Archived') return false;
+            return isDueInCurrentLocalWeek(assignment.due_date, now);
+        }).length;
+    }, [assignments]);
     const focusDeck = recentDecks[0] ?? null;
     const focusAssignment = pastDueAssignments[0] ?? upcomingAssignments[0] ?? null;
     const focusClass = focusAssignment ? classesById.get(focusAssignment.class_id) : (classes[0] ?? null);
@@ -1001,6 +1025,7 @@ function DashboardHome() {
                     <WeeklySummary
                         summary={weeklySummary}
                         loading={weeklySummaryLoading}
+                        dueThisWeekCount={dueThisWeekCount}
                         reducedMotion={reducedMotion}
                         lowVisualBudget={lightVisualBudget}
                     />

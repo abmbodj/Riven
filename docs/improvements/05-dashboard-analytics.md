@@ -1,6 +1,6 @@
 # Dashboard Analytics Repositioning
 
-> **Status:** Planned | **Priority:** High | **Effort:** M (3-5 days) | **Alpha-Critical:** No
+> **Status:** Done | **Priority:** High | **Effort:** M (3-5 days) | **Alpha-Critical:** No
 
 ## Summary
 

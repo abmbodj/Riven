@@ -194,8 +194,8 @@ describe('DashboardHome analytics repositioning', () => {
     expect(screen.getByText('Due tomorrow lab')).toBeInTheDocument();
     expect(screen.queryByText('Later this week')).not.toBeInTheDocument();
 
-    expect(within(screen.getByTestId('weekly-summary')).getByText('47')).toBeInTheDocument();
-    expect(within(screen.getByTestId('weekly-summary')).getByText('Cards')).toBeInTheDocument();
+    expect(within(screen.getByTestId('weekly-summary')).getByText('2')).toBeInTheDocument();
+    expect(within(screen.getByTestId('weekly-summary')).getByText('Due This Week')).toBeInTheDocument();
     expect(api.getWeeklySummary).toHaveBeenCalledTimes(1);
   });
 

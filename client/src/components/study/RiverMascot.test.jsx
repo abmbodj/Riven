@@ -34,7 +34,7 @@ describe('RiverMascot', () => {
         mockMatchMedia();
     });
 
-    it('renders the frog-defining features while keeping the subtle hat signature', () => {
+    it('renders the frog-defining features without the old hat silhouette', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
 
         const mascot = screen.getByTestId('river-mascot');
@@ -54,7 +54,8 @@ describe('RiverMascot', () => {
         expect(container.querySelector('[data-river-feature="forelimb-right"]')).toBeTruthy();
         expect(container.querySelector('[data-river-feature="hindleg-left"]')).toBeTruthy();
         expect(container.querySelector('[data-river-feature="hindleg-right"]')).toBeTruthy();
-        expect(container.querySelector('[data-river-feature="hat"]')).toBeTruthy();
+        expect(container.querySelector('[data-river-feature="hat"]')).toBeNull();
+        expect(container.querySelector('[data-river-feature="hat-band"]')).toBeNull();
         expect(container.querySelector('[data-river-feature="ear-left"]')).toBeNull();
         expect(container.querySelector('[data-river-feature="tail"]')).toBeNull();
     });
@@ -72,34 +73,28 @@ describe('RiverMascot', () => {
         expect(screen.getByText('You nailed it.')).toBeInTheDocument();
     });
 
-    it('renders the hat in front of the head with a visible front band', () => {
+    it('keeps the head clean by removing the old hat layers entirely', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const head = container.querySelector('[data-river-feature="head"]');
         const hat = container.querySelector('[data-river-feature="hat"]');
         const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
         expect(head).toBeTruthy();
-        expect(hat).toBeTruthy();
-        expect(hatBand).toBeTruthy();
-        expect(head.compareDocumentPosition(hat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(head.compareDocumentPosition(hatBand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(hat).toBeNull();
+        expect(hatBand).toBeNull();
     });
 
-    it('uses lower embedded eyes with clear hat-band separation', () => {
+    it('keeps the lower embedded eyes after removing the hat', () => {
         const { container } = render(<RiverMascot state="idle" caption="Ready for the lesson." />);
         const leftEye = container.querySelector('[data-river-feature="eye-left"]');
         const rightEye = container.querySelector('[data-river-feature="eye-right"]');
         const mouth = container.querySelector('[data-river-feature="mouth"]');
-        const hat = container.querySelector('[data-river-feature="hat"]');
-        const hatBand = container.querySelector('[data-river-feature="hat-band"]');
 
         expect(leftEye).toHaveAttribute('cx', '126');
         expect(leftEye).toHaveAttribute('cy', '104');
         expect(rightEye).toHaveAttribute('cx', '194');
         expect(rightEye).toHaveAttribute('cy', '104');
         expect(mouth.getAttribute('d')).toContain('M118 163');
-        expect(hat.getAttribute('d')).toContain('M124 86');
-        expect(hatBand.getAttribute('d')).toContain('M124 91');
     });
 
     it('keeps the pupils static when the pointer moves on desktop', async () => {
