@@ -2,6 +2,29 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export const CANVAS_AUTO_SYNC_ATTEMPT_COOLDOWN_MS = 60 * 60 * 1000;
 
+const toComparableText = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const toComparableDateValue = (value) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+};
+
+const sortClassesForMatching = (classes = []) => [...classes].sort((leftClass, rightClass) => {
+  const createdAtDiff = toComparableDateValue(leftClass?.created_at) - toComparableDateValue(rightClass?.created_at);
+  if (createdAtDiff !== 0) {
+    return createdAtDiff;
+  }
+
+  return String(leftClass?.id ?? '').localeCompare(String(rightClass?.id ?? ''));
+});
+
 const createHttpError = (message, status, extra = {}) => {
   const error = new Error(message);
   error.status = status;
@@ -149,6 +172,7 @@ const deriveCanvasAssignment = (event, now) => {
   return {
     uid,
     courseName,
+    canvasCourseId: courseName,
     title: assignmentTitle,
     description,
     dueDateIso: parsedDue.toISOString(),
@@ -156,37 +180,193 @@ const deriveCanvasAssignment = (event, now) => {
   };
 };
 
+/**
+ * @param {{
+ *   userId: number | string,
+ *   events: Record<string, unknown>,
+ *   existingClasses: Array<Record<string, unknown>>,
+ *   existingAssignments?: Array<{ canvas_assignment_id?: string | null, class_id?: number | string | null }>,
+ *   existingAssignmentIds?: string[],
+ *   createClass: (userId: number | string, courseName: string, canvasCourseId: string | null) => Promise<Record<string, unknown>>,
+ *   linkClassToCanvasCourse?: ((classId: number | string, canvasCourseId: string) => Promise<Record<string, unknown> | null>) | null,
+ *   createAssignment: (
+ *     userId: number | string,
+ *     classId: number | string,
+ *     assignment: any,
+ *   ) => Promise<unknown>,
+ *   now?: Date,
+ * }} params
+ */
 export const syncCanvasCalendar = async ({
   userId,
   events,
   existingClasses,
-  existingAssignmentIds,
+  existingAssignments = [],
+  existingAssignmentIds = [],
   createClass,
+  linkClassToCanvasCourse = null,
   createAssignment,
   now = new Date(),
 }) => {
   let syncedClassesCount = 0;
   let syncedAssignmentsCount = 0;
-  const classMap = new Map((existingClasses || []).map((klass) => [klass.name, klass.id]));
-  const assignmentIds = new Set(existingAssignmentIds || []);
+  const classById = new Map();
+  const classByCanvasCourseId = new Map();
+  const legacyClassByName = new Map();
 
-  for (const event of Object.values(events || {})) {
-    const assignment = deriveCanvasAssignment(event, now);
-    if (!assignment) {
+  const removeClassFromIndexes = (classId) => {
+    for (const [courseId, klass] of classByCanvasCourseId.entries()) {
+      if (String(klass?.id) === String(classId)) {
+        classByCanvasCourseId.delete(courseId);
+      }
+    }
+
+    for (const [className, klass] of legacyClassByName.entries()) {
+      if (String(klass?.id) === String(classId)) {
+        legacyClassByName.delete(className);
+      }
+    }
+  };
+
+  const cacheClass = (klass) => {
+    if (!klass?.id) {
+      return null;
+    }
+
+    const previous = classById.get(klass.id) || {};
+    const mergedClass = { ...previous, ...klass };
+    const normalizedCourseId = toComparableText(mergedClass.canvas_course_id);
+    const normalizedName = toComparableText(mergedClass.name);
+
+    removeClassFromIndexes(mergedClass.id);
+    classById.set(mergedClass.id, {
+      ...mergedClass,
+      canvas_course_id: normalizedCourseId,
+      name: normalizedName ?? mergedClass.name,
+    });
+
+    const cachedClass = classById.get(mergedClass.id);
+
+    if (normalizedCourseId) {
+      classByCanvasCourseId.set(normalizedCourseId, cachedClass);
+    } else if (normalizedName) {
+      legacyClassByName.set(normalizedName, cachedClass);
+    }
+
+    return cachedClass;
+  };
+
+  for (const klass of sortClassesForMatching(existingClasses || [])) {
+    cacheClass(klass);
+  }
+
+  const assignmentIds = new Set();
+  const assignmentClassByUid = new Map();
+
+  for (const assignment of existingAssignments || []) {
+    const assignmentUid = toComparableText(assignment?.canvas_assignment_id);
+    if (!assignmentUid) {
       continue;
     }
 
+    assignmentIds.add(assignmentUid);
+    if (assignment?.class_id) {
+      assignmentClassByUid.set(assignmentUid, assignment.class_id);
+    }
+  }
+
+  for (const assignmentUid of existingAssignmentIds || []) {
+    const normalizedAssignmentUid = toComparableText(assignmentUid);
+    if (normalizedAssignmentUid) {
+      assignmentIds.add(normalizedAssignmentUid);
+    }
+  }
+
+  const parsedAssignments = Object.values(events || [])
+    .map((event) => deriveCanvasAssignment(event, now))
+    .filter(Boolean);
+
+  const inferredClassByCanvasCourseId = new Map();
+  for (const assignment of parsedAssignments) {
+    const inferredClassId = assignmentClassByUid.get(assignment.uid);
+    const inferredClass = inferredClassId ? classById.get(inferredClassId) : null;
+    const canvasCourseId = toComparableText(assignment.canvasCourseId);
+    if (canvasCourseId && inferredClass && !inferredClassByCanvasCourseId.has(canvasCourseId)) {
+      inferredClassByCanvasCourseId.set(canvasCourseId, inferredClass);
+    }
+  }
+
+  const ensureCanvasCourseLink = async (klass, canvasCourseId) => {
+    const normalizedCourseId = toComparableText(canvasCourseId);
+    if (!klass || !normalizedCourseId) {
+      return cacheClass(klass);
+    }
+
+    const existingExactMatch = classByCanvasCourseId.get(normalizedCourseId);
+    if (existingExactMatch) {
+      return existingExactMatch;
+    }
+
+    if (toComparableText(klass.canvas_course_id) === normalizedCourseId) {
+      return cacheClass(klass);
+    }
+
+    if (!linkClassToCanvasCourse) {
+      return cacheClass({
+        ...klass,
+        canvas_course_id: normalizedCourseId,
+      });
+    }
+
+    const linkedClass = await linkClassToCanvasCourse(klass.id, normalizedCourseId);
+    return cacheClass(linkedClass || {
+      ...klass,
+      canvas_course_id: normalizedCourseId,
+    });
+  };
+
+  const resolveClassForAssignment = async (assignment) => {
+    const canvasCourseId = toComparableText(assignment.canvasCourseId);
+    const courseName = toComparableText(assignment.courseName);
+
+    const exactMatch = canvasCourseId ? classByCanvasCourseId.get(canvasCourseId) : null;
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const inferredMatch = canvasCourseId ? inferredClassByCanvasCourseId.get(canvasCourseId) : null;
+    if (inferredMatch) {
+      const linkedClass = await ensureCanvasCourseLink(inferredMatch, canvasCourseId);
+      if (canvasCourseId) {
+        inferredClassByCanvasCourseId.set(canvasCourseId, linkedClass);
+      }
+      return linkedClass;
+    }
+
+    const legacyMatch = courseName ? legacyClassByName.get(courseName) : null;
+    if (legacyMatch) {
+      return await ensureCanvasCourseLink(legacyMatch, canvasCourseId);
+    }
+
+    const createdClass = await createClass(userId, assignment.courseName, canvasCourseId);
+    const cachedCreatedClass = cacheClass({
+      name: assignment.courseName,
+      canvas_course_id: canvasCourseId,
+      ...createdClass,
+    });
+    if (createdClass?.created !== false) {
+      syncedClassesCount += 1;
+    }
+    return cachedCreatedClass;
+  };
+
+  for (const assignment of parsedAssignments) {
     if (assignmentIds.has(assignment.uid)) {
       continue;
     }
 
-    let classId = classMap.get(assignment.courseName);
-    if (!classId) {
-      const createdClass = await createClass(userId, assignment.courseName);
-      classId = createdClass.id;
-      classMap.set(assignment.courseName, classId);
-      syncedClassesCount += 1;
-    }
+    const resolvedClass = await resolveClassForAssignment(assignment);
+    const classId = resolvedClass?.id;
 
     const createAssignmentResult = await createAssignment(userId, classId, assignment);
     const inserted = createAssignmentResult === false

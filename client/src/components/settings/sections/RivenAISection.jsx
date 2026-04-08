@@ -1,11 +1,17 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { History, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import SectionHeader from '../SectionHeader';
 import SectionCard from '../SectionCard';
 import { AI_CAPABILITIES } from '../settingsConstants';
 
-export default function RivenAISection({ aiLimits }) {
+const statusToneClasses = {
+    success: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    progress: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    error: 'bg-red-500/10 text-red-600 border-red-500/20',
+};
+
+export default function RivenAISection({ aiLimits, history }) {
     const aiCharacterLimit = Number(aiLimits.characterLimit ?? 15000);
     const [minDeckSize = 5, maxDeckSize = 15] = Array.isArray(aiLimits.flashcardRange) ? aiLimits.flashcardRange : [5, 15];
     const aiUsagePercent = Math.max(0, Math.min(100, (aiLimits.remaining / Math.max(aiLimits.max || 1, 1)) * 100));
@@ -26,9 +32,10 @@ export default function RivenAISection({ aiLimits }) {
     const aiDeckSizeMeta = aiLimits.loading
         ? 'Fetching deck range'
         : 'Per flashcard request';
+    const historyItems = Array.isArray(history?.items) ? history.items : [];
 
     return (
-        <div>
+        <div className="space-y-4">
             <SectionHeader
                 eyebrow="Workspace"
                 title="Riven AI"
@@ -97,6 +104,70 @@ export default function RivenAISection({ aiLimits }) {
                             transition={{ duration: 1, ease: 'easeOut' }}
                             className={`h-full ${aiLimits.remaining > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-red-500'} rounded-full`}
                         />
+                    </div>
+                )}
+            </SectionCard>
+
+            <SectionCard tone="warning" className="flex flex-col space-y-4 p-5 sm:p-6 xl:p-5">
+                <div className="flex items-start gap-4 sm:items-center">
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
+                        <History className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-display text-lg font-semibold tracking-wide text-claude-text">
+                            Recent usage
+                        </h3>
+                        <p className="text-[11px] font-mono text-claude-secondary mt-0.5">
+                            Allowance-consuming generations appear here automatically.
+                        </p>
+                    </div>
+                </div>
+
+                {history?.error && (
+                    <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.04] px-4 py-3 text-[11px] font-mono uppercase tracking-[0.12em] text-red-600">
+                        Couldn&apos;t load AI history right now.
+                    </div>
+                )}
+
+                {history?.loading ? (
+                    <div className="rounded-[1.15rem] border border-claude-secondary/10 bg-claude-bg/45 p-4 text-[11px] font-mono uppercase tracking-[0.16em] text-claude-secondary">
+                        Loading recent usage
+                    </div>
+                ) : historyItems.length === 0 ? (
+                    <div className="rounded-[1.15rem] border border-claude-secondary/10 bg-claude-bg/45 p-4">
+                        <p className="text-sm font-medium text-claude-text">No AI activity yet</p>
+                        <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.12em] text-claude-secondary">
+                            Generate a deck, guide, exam, or import to start your history.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {historyItems.map((item) => (
+                            <div
+                                key={item.id}
+                                className="rounded-[1.15rem] border border-claude-secondary/10 bg-claude-bg/45 px-4 py-3"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-medium text-claude-text">{item.label}</p>
+                                            <span className={`text-[10px] font-mono uppercase tracking-[0.14em] px-2 py-1 rounded-full border ${statusToneClasses[item.tone] || statusToneClasses.progress}`}>
+                                                {item.statusLabel}
+                                            </span>
+                                        </div>
+                                        {item.subtitle && (
+                                            <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.12em] text-claude-secondary">
+                                                {item.subtitle}
+                                            </p>
+                                        )}
+                                        <p className="mt-2 text-sm text-claude-text/90">{item.summary}</p>
+                                    </div>
+                                    <p className="shrink-0 text-[10px] font-mono uppercase tracking-[0.12em] text-claude-secondary/80">
+                                        {item.timestampLabel}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </SectionCard>

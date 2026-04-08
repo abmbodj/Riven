@@ -5,11 +5,13 @@ import {
     ChevronLeft, Settings, Library, Calendar, CheckCircle2, Circle, Clock, Plus, X, Trash2, Layers, Sparkles, Loader2, Upload
 } from 'lucide-react';
 import { api } from '../api';
+import ClassTimeInput from '../components/schedule/ClassTimeInput';
 import { assignmentTitleSchema } from '../schemas/forms';
 import { useToast } from '../hooks/useToast';
 import PricingModal from '../components/ui/PricingModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
+import { DEFAULT_CLASS_END_TIME, DEFAULT_CLASS_START_TIME, isValidTimeRange } from '../utils/classTime';
 
 
 const STATUSES = ['Todo', 'Doing', 'Done', 'Archived'];
@@ -45,7 +47,7 @@ export default function ClassView() {
 
     // Modal state for Schedule
     const [showScheduleModal, setShowScheduleModal] = useState(false);
-    const [scheduleForm, setScheduleForm] = useState({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
+    const [scheduleForm, setScheduleForm] = useState({ day_of_week: 1, start_time: DEFAULT_CLASS_START_TIME, end_time: DEFAULT_CLASS_END_TIME });
 
     // AI Generation
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -195,11 +197,15 @@ export default function ClassView() {
 
     const handleSaveScheduleSlot = async (e) => {
         e.preventDefault();
+        if (!isValidTimeRange(scheduleForm.start_time, scheduleForm.end_time)) {
+            toast.error('End time must be later than start time.');
+            return;
+        }
         try {
             await api.createScheduleSlot(id, scheduleForm.day_of_week, scheduleForm.start_time, scheduleForm.end_time);
             toast.success('Time slot added');
             setShowScheduleModal(false);
-            setScheduleForm({ day_of_week: 1, start_time: '09:00', end_time: '10:00' });
+            setScheduleForm({ day_of_week: 1, start_time: DEFAULT_CLASS_START_TIME, end_time: DEFAULT_CLASS_END_TIME });
             loadData();
         } catch {
             toast.error('Failed to add time slot');
@@ -757,29 +763,28 @@ export default function ClassView() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">Start Time</label>
-                                        <div className="flex items-center glass-panel border-2 border-claude-border rounded-2xl px-4 py-4 w-full focus-within:border-claude-accent transition-colors">
-                                            <input
-                                                type="time"
-                                                value={scheduleForm.start_time}
-                                                onChange={e => setScheduleForm({ ...scheduleForm, start_time: e.target.value })}
-                                                className="w-full bg-transparent font-mono text-claude-text outline-none"
-                                                required
-                                            />
-                                        </div>
+                                        <ClassTimeInput
+                                            idPrefix="class-view-start-time"
+                                            label="Start"
+                                            value={scheduleForm.start_time}
+                                            onChange={(nextTime) => setScheduleForm({ ...scheduleForm, start_time: nextTime })}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary mb-3">End Time</label>
-                                        <div className="flex items-center glass-panel border-2 border-claude-border rounded-2xl px-4 py-4 w-full focus-within:border-claude-accent transition-colors">
-                                            <input
-                                                type="time"
-                                                value={scheduleForm.end_time}
-                                                onChange={e => setScheduleForm({ ...scheduleForm, end_time: e.target.value })}
-                                                className="w-full bg-transparent font-mono text-claude-text outline-none"
-                                                required
-                                            />
-                                        </div>
+                                        <ClassTimeInput
+                                            idPrefix="class-view-end-time"
+                                            label="End"
+                                            value={scheduleForm.end_time}
+                                            onChange={(nextTime) => setScheduleForm({ ...scheduleForm, end_time: nextTime })}
+                                        />
                                     </div>
                                 </div>
+                                {!isValidTimeRange(scheduleForm.start_time, scheduleForm.end_time) && (
+                                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-red-400">
+                                        End time must be later than start time.
+                                    </p>
+                                )}
                                 <button type="submit" className="claude-button-primary w-full py-5 text-lg mt-4">Save Time</button>
                             </div>
                         </Motion.form>

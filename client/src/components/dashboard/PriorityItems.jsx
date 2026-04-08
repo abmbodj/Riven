@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CalendarClock, CheckCircle2, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const COLLAPSED_COUNT = 5;
@@ -10,8 +10,9 @@ const TONE_CLASSES = {
     tomorrow: 'text-claude-secondary',
 };
 
-export default function PriorityItems({ items = [] }) {
+export default function PriorityItems({ items = [], onComplete, completingIds = [] }) {
     const [expanded, setExpanded] = useState(false);
+    const completingIdSet = useMemo(() => new Set(completingIds), [completingIds]);
 
     const visibleItems = useMemo(
         () => (expanded ? items : items.slice(0, COLLAPSED_COUNT)),
@@ -41,35 +42,59 @@ export default function PriorityItems({ items = [] }) {
             {items.length > 0 ? (
                 <>
                     <div className="space-y-2.5">
-                        {visibleItems.map((item) => (
-                            <Link
-                                key={item.id}
-                                to={item.to}
-                                className="tap-action group flex min-h-[72px] items-start gap-3 rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-4 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
-                            >
-                                <span
-                                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-                                    style={{ backgroundColor: item.classColor || 'var(--border-color)' }}
-                                    aria-hidden="true"
-                                />
-                                <div className="min-w-0 flex-1">
-                                    <p className="line-clamp-2 text-sm font-medium leading-snug text-claude-text">
-                                        {item.title}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        {item.className ? (
-                                            <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary/70">
-                                                {item.className}
-                                            </span>
-                                        ) : null}
-                                        <span className={`text-[10px] font-mono font-bold uppercase tracking-[0.18em] ${TONE_CLASSES[item.tone] || TONE_CLASSES.tomorrow}`}>
-                                            {item.urgencyLabel}
-                                        </span>
-                                    </div>
+                        {visibleItems.map((item) => {
+                            const isCompleting = completingIdSet.has(item.assignmentId);
+
+                            return (
+                                <div
+                                    key={item.id}
+                                    className="group flex min-h-[72px] items-stretch gap-2 rounded-2xl border border-claude-border/40 bg-claude-bg/20 px-3 py-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:-translate-y-0.5 hover:border-claude-accent/30"
+                                >
+                                    <Link
+                                        to={item.to}
+                                        className="tap-action flex min-w-0 flex-1 items-start gap-3 rounded-xl px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60"
+                                    >
+                                        <span
+                                            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                                            style={{ backgroundColor: item.classColor || 'var(--border-color)' }}
+                                            aria-hidden="true"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="line-clamp-2 text-sm font-medium leading-snug text-claude-text">
+                                                {item.title}
+                                            </p>
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                {item.className ? (
+                                                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-claude-secondary/70">
+                                                        {item.className}
+                                                    </span>
+                                                ) : null}
+                                                <span className={`text-[10px] font-mono font-bold uppercase tracking-[0.18em] ${TONE_CLASSES[item.tone] || TONE_CLASSES.tomorrow}`}>
+                                                    {item.urgencyLabel}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary/50 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-claude-accent" />
+                                    </Link>
+                                    {item.assignmentId && onComplete ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onComplete(item)}
+                                            disabled={isCompleting}
+                                            aria-label={isCompleting ? `Marking ${item.title} complete` : `Mark ${item.title} complete`}
+                                            className="tap-action inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 self-center rounded-xl border border-claude-accent/25 bg-claude-accent/10 px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-claude-accent transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:border-claude-accent/40 hover:bg-claude-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-claude-accent/60 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                            {isCompleting ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                            )}
+                                            <span>{isCompleting ? 'Saving' : 'Done'}</span>
+                                        </button>
+                                    ) : null}
                                 </div>
-                                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-claude-secondary/50 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-claude-accent" />
-                            </Link>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     {items.length > COLLAPSED_COUNT ? (

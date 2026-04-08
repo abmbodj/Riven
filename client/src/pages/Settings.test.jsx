@@ -31,6 +31,8 @@ vi.mock('../api', () => ({
   api: {
     getCanvasSettings: vi.fn(),
     getAILimits: vi.fn(),
+    listAiJobs: vi.fn(),
+    subscribeToAiJobsForUser: vi.fn(),
     connectCanvas: vi.fn(),
     disconnectCanvas: vi.fn(),
     setCanvasAutoSync: vi.fn(),
@@ -147,6 +149,8 @@ beforeEach(() => {
     characterLimit: 50000,
     flashcardRange: [5, 40],
   });
+  api.listAiJobs.mockResolvedValue([]);
+  api.subscribeToAiJobsForUser.mockReturnValue(() => {});
   api.getReferralInfo.mockResolvedValue({
     referralCode: 'RIVEN123',
     qualifiedCount: 0,
@@ -166,6 +170,7 @@ describe('Settings navigation', () => {
     await waitFor(() => {
       expect(api.getCanvasSettings).toHaveBeenCalled();
       expect(api.getAILimits).toHaveBeenCalled();
+      expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 });
       expect(mockGetPushPreferences).toHaveBeenCalled();
     });
 
@@ -201,6 +206,7 @@ describe('Settings LMS sync', () => {
     await waitFor(() => {
       expect(api.getCanvasSettings).toHaveBeenCalled();
       expect(api.getAILimits).toHaveBeenCalled();
+      expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 });
       expect(mockGetPushPreferences).toHaveBeenCalled();
     });
 
@@ -254,6 +260,64 @@ describe('Settings LMS sync', () => {
     await waitFor(() => {
       expect(screen.queryByRole('heading', { name: /shape what comes next/i })).not.toBeInTheDocument();
     });
+  });
+
+  it('renders recent AI usage and hides internal job rows', async () => {
+    api.listAiJobs.mockResolvedValue([
+      {
+        id: 'job-visible',
+        kind: 'deck_generation',
+        status: 'completed',
+        progress_message: 'Deck generated successfully',
+        input_payload: {
+          title_snapshot: 'Biology deck',
+          class_name: 'Biology 101',
+        },
+        result_payload: {
+          deck_id: 12,
+          card_count: 18,
+          title: 'Biology deck',
+        },
+        error_payload: {},
+        created_at: '2026-04-08T12:00:00.000Z',
+        updated_at: '2026-04-08T12:10:00.000Z',
+        completed_at: '2026-04-08T12:10:00.000Z',
+      },
+      {
+        id: 'job-hidden',
+        kind: 'youtube_source',
+        status: 'completed',
+        progress_message: 'Hidden internal job',
+        input_payload: {},
+        result_payload: {},
+        error_payload: {},
+        created_at: '2026-04-08T11:00:00.000Z',
+        updated_at: '2026-04-08T11:05:00.000Z',
+        completed_at: '2026-04-08T11:05:00.000Z',
+      },
+    ]);
+
+    renderSettings();
+    await waitFor(() => expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 }));
+
+    navigateToSection('Riven AI');
+
+    expect(await screen.findByRole('heading', { name: 'Riven AI' })).toBeInTheDocument();
+    expect(screen.getByText('Recent usage')).toBeInTheDocument();
+    expect(screen.getByText('Flashcard deck')).toBeInTheDocument();
+    expect(screen.getByText('18 cards created')).toBeInTheDocument();
+    expect(screen.queryByText('YouTube source')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty history state when no AI activity exists', async () => {
+    api.listAiJobs.mockResolvedValue([]);
+
+    renderSettings();
+    await waitFor(() => expect(api.listAiJobs).toHaveBeenCalledWith({ limit: 20 }));
+
+    navigateToSection('Riven AI');
+
+    expect(await screen.findByText('No AI activity yet')).toBeInTheDocument();
   });
 
   it('blocks empty feedback submissions in the composer modal', async () => {

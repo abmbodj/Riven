@@ -4,7 +4,7 @@
 -- 1. Create calendar_sources table first (needed for FK below)
 CREATE TABLE IF NOT EXISTS calendar_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     type TEXT NOT NULL CHECK (type IN ('google', 'ical', 'canvas')),
     label TEXT NOT NULL,
     color TEXT,
@@ -18,8 +18,8 @@ ALTER TABLE calendar_sources ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own calendar sources"
     ON calendar_sources
     FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING (public.get_app_user_id() = user_id)
+    WITH CHECK (public.get_app_user_id() = user_id);
 
 CREATE INDEX IF NOT EXISTS idx_calendar_sources_user_id ON calendar_sources(user_id);
 

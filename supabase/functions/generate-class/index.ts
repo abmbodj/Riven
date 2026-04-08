@@ -2,10 +2,11 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { Buffer } from 'node:buffer';
 import mammoth from 'npm:mammoth@1.11.0';
 
-import { consumeAiQuota, generateClassPreview } from '../_shared/aiCore.mjs';
+import { consumeAiQuota, generateClassPreview, prepareAiSource, createHttpError } from '../_shared/aiCore.mjs';
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { createAiHistoryReporter } from '../_shared/aiJobs.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -55,30 +56,69 @@ serve(async (request) => {
       },
     });
 
-    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
-
-    const result = await generateClassPreview({
+    const sourcePreview = await prepareAiSource({
       notes: body.notes,
       file: body.file,
-      apiKey,
       parseDocx: async (buffer: Buffer) => {
         const parsed = await mammoth.extractRawText({ buffer });
         return parsed.value;
       },
-      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-        const ai = createAiClient(apiKey);
-        return ai.generateContent({
-          model,
-          messages: contentsToMessages(contents),
-          responseFormat: 'json_object',
-        });
-      },
-      onParseError: (error: unknown) => {
-        console.error('Failed to parse document text:', error);
+      onParseError: (parseError: unknown) => {
+        console.error('Failed to parse document text:', parseError);
       },
     });
 
-    return jsonResponse(result, {}, request);
+    if (!sourcePreview.hasProcessedNotes && !sourcePreview.keepFile) {
+      throw createHttpError('A syllabus file or text notes are required.', 400);
+    }
+
+    const reporter = await createAiHistoryReporter({
+      admin,
+      userId: authUser.id,
+      kind: 'class_generation',
+      targetType: 'class_preview',
+      inputPayload: {},
+      initialMessage: 'Preparing class preview',
+    });
+    await reporter.markRunning('drafting', 35, 'Generating class preview');
+
+    const apiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+    try {
+      const result = await generateClassPreview({
+        notes: body.notes,
+        file: body.file,
+        apiKey,
+        parseDocx: async (buffer: Buffer) => {
+          const parsed = await mammoth.extractRawText({ buffer });
+          return parsed.value;
+        },
+        generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+          const ai = createAiClient(apiKey);
+          return ai.generateContent({
+            model,
+            messages: contentsToMessages(contents),
+            responseFormat: 'json_object',
+          });
+        },
+        onParseError: (error: unknown) => {
+          console.error('Failed to parse document text:', error);
+        },
+      });
+
+      await reporter.complete({
+        message: 'Class preview generated successfully',
+        resultPatch: {
+          class_name: result?.classData?.name || null,
+          assignment_count: Array.isArray(result?.classData?.assignments) ? result.classData.assignments.length : 0,
+        },
+      });
+
+      return jsonResponse(result, {}, request);
+    } catch (error: unknown) {
+      const requestError = normalizeRequestError(error);
+      await reporter.fail(requestError);
+      throw requestError;
+    }
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 

@@ -11,9 +11,11 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import ConfirmModal from '../components/ConfirmModal';
 import PricingModal from '../components/ui/PricingModal';
+import ClassTimeInput from '../components/schedule/ClassTimeInput';
 import useHaptics from '../hooks/useHaptics';
 import { canvasIcalUrlSchema, classNameSchema } from '../schemas/forms';
 import { scheduleAssignmentNotifications } from '../utils/notifications';
+import { buildDefaultClassTimeRow, isValidTimeRange } from '../utils/classTime';
 
 
 const CLASS_COLORS = [
@@ -104,7 +106,7 @@ export default function Classes() {
 
     // Form
     const [formData, setFormData] = useState({
-        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: []
+        name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: []
     });
 
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -155,6 +157,11 @@ export default function Classes() {
             return;
         }
         const validatedName = result.data;
+        const invalidTimeRows = formData.times.filter((slot) => slot.day !== '' && !isValidTimeRange(slot.start_time, slot.end_time));
+        if (invalidTimeRows.length > 0) {
+            toast.error('Each class time must end after it starts.');
+            return;
+        }
 
         try {
             let savedClassId;
@@ -198,7 +205,7 @@ export default function Classes() {
 
             setShowModal(false);
             setEditingClass(null);
-            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+            setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
             setAiFile(null);
             setAiFilePreview('');
             loadData();
@@ -257,7 +264,7 @@ export default function Classes() {
                     });
                 });
             } else {
-                newTimes.push({ day: '', start_time: '', end_time: '', id: null });
+                newTimes.push(buildDefaultClassTimeRow());
             }
 
             setFormData({
@@ -329,7 +336,7 @@ export default function Classes() {
     const handleCloseModal = () => {
         setShowModal(false);
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
         setAiFile(null);
         setAiFilePreview('');
         setCreationMethod('manual');
@@ -351,7 +358,7 @@ export default function Classes() {
 
     const openCreateModal = () => {
         setEditingClass(null);
-        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [{ day: '', start_time: '', end_time: '', id: null }], assignments: [] });
+        setFormData({ name: '', color: '#7a9e72', professor: '', room: '', zoom_link: '', times: [buildDefaultClassTimeRow()], assignments: [] });
         setAiFile(null);
         setAiFilePreview('');
         setCreationMethod('manual');
@@ -742,7 +749,7 @@ export default function Classes() {
                                                 <div className="col-span-2">
                                                     <div className="flex items-center justify-between mb-3">
                                                         <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-claude-secondary">Class Times</label>
-                                                        <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, { day: '', start_time: '', end_time: '', id: null }] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
+                                                        <button type="button" onClick={() => setFormData({ ...formData, times: [...formData.times, buildDefaultClassTimeRow()] })} className="text-claude-accent text-[10px] font-mono uppercase tracking-widest font-bold hover:underline tap-action">
                                                             + Add Time
                                                         </button>
                                                     </div>
@@ -770,35 +777,35 @@ export default function Classes() {
                                                                     </select>
                                                                 </div>
                                                                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-2/3">
-                                                                    <div className="flex items-center glass-panel rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                                        <input
-                                                                            type="time"
+                                                                    <div className="w-full">
+                                                                        <ClassTimeInput
+                                                                            idPrefix={`class-time-start-${idx}`}
+                                                                            label="Start"
                                                                             value={t.start_time}
-                                                                            onChange={e => {
+                                                                            onChange={(nextTime) => {
                                                                                 const newTimes = [...formData.times];
-                                                                                newTimes[idx].start_time = e.target.value;
+                                                                                newTimes[idx].start_time = nextTime;
                                                                                 setFormData({ ...formData, times: newTimes });
                                                                             }}
-                                                                            className="w-full bg-transparent font-mono text-xs text-claude-text outline-none"
                                                                         />
                                                                     </div>
-                                                                    <div className="flex items-center glass-panel rounded-xl px-3 py-2.5 w-full focus-within:border-claude-accent transition-colors">
-                                                                        <input
-                                                                            type="time"
+                                                                    <div className="w-full">
+                                                                        <ClassTimeInput
+                                                                            idPrefix={`class-time-end-${idx}`}
+                                                                            label="End"
                                                                             value={t.end_time}
-                                                                            onChange={e => {
+                                                                            onChange={(nextTime) => {
                                                                                 const newTimes = [...formData.times];
-                                                                                newTimes[idx].end_time = e.target.value;
+                                                                                newTimes[idx].end_time = nextTime;
                                                                                 setFormData({ ...formData, times: newTimes });
                                                                             }}
-                                                                            className="w-full bg-transparent font-mono text-xs text-claude-text outline-none"
                                                                         />
                                                                     </div>
                                                                     {formData.times.length > 1 && (
                                                                         <button type="button" onClick={() => {
                                                                             const newTimes = formData.times.filter((_, i) => i !== idx);
                                                                             setFormData({ ...formData, times: newTimes });
-                                                                        }} className="w-full sm:w-auto p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 flex justify-center items-center transition-colors">
+                                                                        }} className="w-full sm:w-auto p-2 sm:p-2.5 text-red-400 hover:bg-red-400/10 rounded-lg shrink-0 flex justify-center items-center transition-colors sm:self-end">
                                                                             <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                                                         </button>
                                                                     )}
@@ -806,6 +813,11 @@ export default function Classes() {
                                                             </div>
                                                         ))}
                                                     </div>
+                                                    {formData.times.some((slot) => slot.day !== '' && !isValidTimeRange(slot.start_time, slot.end_time)) && (
+                                                        <p className="mt-3 text-[10px] font-mono font-bold uppercase tracking-widest text-red-400">
+                                                            End time must be later than start time.
+                                                        </p>
+                                                    )}
                                                 </div>
 
                                             </div>

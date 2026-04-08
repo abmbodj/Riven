@@ -8,10 +8,19 @@ type CanvasAssignment = {
   dueDateIso: string | null;
   status: string;
   uid: string;
+  canvasCourseId: string | null;
 };
 
 type SupabaseAdminClient = {
   from: (table: string) => any;
+};
+
+type CanvasClassRow = {
+  id: number | string;
+  name: string;
+  created_at?: string | null;
+  canvas_course_id?: string | null;
+  created?: boolean;
 };
 
 const ical = nodeIcal as typeof nodeIcal & {
@@ -50,17 +59,32 @@ export const syncCanvasCalendarForUser = async ({
     throw feedError;
   }
 
+  const classSelect = 'id, name, created_at, canvas_course_id';
+  const fetchClassByCanvasCourseId = async (canvasCourseId: string): Promise<CanvasClassRow | null> => {
+    const { data, error } = await admin
+      .from('classes')
+      .select(classSelect)
+      .eq('user_id', userId)
+      .eq('canvas_course_id', canvasCourseId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  };
+
   const [
     { data: existingClasses, error: classesError },
     { data: existingAssignments, error: assignmentsError },
   ] = await Promise.all([
     admin
       .from('classes')
-      .select('id, name')
+      .select(classSelect)
       .eq('user_id', userId),
     admin
       .from('assignments')
-      .select('canvas_assignment_id')
+      .select('canvas_assignment_id, class_id')
       .eq('user_id', userId)
       .not('canvas_assignment_id', 'is', null),
   ]);
@@ -70,6 +94,7 @@ export const syncCanvasCalendarForUser = async ({
 
   const syncedAssignments = (existingAssignments || []) as Array<{
     canvas_assignment_id: string | null;
+    class_id: number | string | null;
   }>;
 
   return await syncCanvasCalendar({
@@ -77,23 +102,71 @@ export const syncCanvasCalendarForUser = async ({
     now,
     events: events || {},
     existingClasses: existingClasses || [],
-    existingAssignmentIds: syncedAssignments.map((assignment) => assignment.canvas_assignment_id),
-    createClass: async (typedUserId: number, courseName: string) => {
+    existingAssignments: syncedAssignments,
+    createClass: async (typedUserId: number | string, courseName: string, canvasCourseId: string | null) => {
       const { data, error } = await admin
         .from('classes')
         .insert({
           user_id: typedUserId,
           name: courseName,
           color: '#4f46e5',
+          canvas_course_id: canvasCourseId,
         })
-        .select('id')
+        .select(classSelect)
         .single();
 
+      if (!error) {
+        return {
+          ...data,
+          created: true,
+        };
+      }
+
+      if (typeof error === 'object' && error && 'code' in error && error.code === '23505' && canvasCourseId) {
+        const existingClass = await fetchClassByCanvasCourseId(canvasCourseId);
+        if (existingClass) {
+          return {
+            ...existingClass,
+            created: false,
+          };
+        }
+      }
+
+      throw error;
+    },
+    linkClassToCanvasCourse: async (classId: number | string, canvasCourseId: string) => {
+      const { data, error } = await admin
+        .from('classes')
+        .update({ canvas_course_id: canvasCourseId })
+        .eq('id', classId)
+        .is('canvas_course_id', null)
+        .select(classSelect)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+
+      if (typeof error === 'object' && error && 'code' in error && error.code === '23505') {
+        const existingClass = await fetchClassByCanvasCourseId(canvasCourseId);
+        if (existingClass) {
+          return existingClass;
+        }
+      }
+
       if (error) throw error;
-      return data;
+
+      const { data: existingClassById, error: existingClassByIdError } = await admin
+        .from('classes')
+        .select(classSelect)
+        .eq('id', classId)
+        .maybeSingle();
+
+      if (existingClassByIdError) throw existingClassByIdError;
+      return existingClassById || null;
     },
     createAssignment: async (
-      typedUserId: number,
+      typedUserId: number | string,
       classId: number | string,
       assignment: CanvasAssignment,
     ) => {

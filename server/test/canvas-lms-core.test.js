@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   applyCanvasSyncQuota,
@@ -120,6 +120,7 @@ describe('canvasLmsCore', () => {
         assignment: {
           uid: 'bio-1',
           courseName: 'Biology',
+          canvasCourseId: 'Biology',
           title: 'Lab Report',
           description: 'Submit PDF',
           dueDateIso: '2026-03-16T17:00:00.000Z',
@@ -132,6 +133,7 @@ describe('canvasLmsCore', () => {
         assignment: {
           uid: 'bio-2',
           courseName: 'Biology',
+          canvasCourseId: 'Biology',
           title: 'Old Quiz',
           description: 'Late',
           dueDateIso: '2026-03-01T17:00:00.000Z',
@@ -192,6 +194,12 @@ describe('canvasLmsCore', () => {
   });
 
   it('does not increment assignment totals when inserts are skipped by the unique Canvas index', async () => {
+    const linkClassToCanvasCourse = vi.fn(async (classId, canvasCourseId) => ({
+      id: classId,
+      name: 'Biology',
+      canvas_course_id: canvasCourseId,
+    }));
+
     const result = await syncCanvasCalendar({
       userId: 42,
       now: new Date('2026-03-14T12:00:00.000Z'),
@@ -209,6 +217,7 @@ describe('canvasLmsCore', () => {
       createClass: async () => {
         throw new Error('should not create class');
       },
+      linkClassToCanvasCourse,
       createAssignment: async () => ({ inserted: false }),
     });
 
@@ -217,5 +226,201 @@ describe('canvasLmsCore', () => {
       classesAdded: 0,
       assignmentsAdded: 0,
     });
+    expect(linkClassToCanvasCourse).toHaveBeenCalledWith('class-1', 'Biology');
+  });
+
+  it('reuses an existing renamed class when its Canvas course key already matches', async () => {
+    const createClass = vi.fn(async () => {
+      throw new Error('should not create class');
+    });
+    const linkClassToCanvasCourse = vi.fn(async () => {
+      throw new Error('should not relink class');
+    });
+    const createdAssignments = [];
+
+    const result = await syncCanvasCalendar({
+      userId: 42,
+      now: new Date('2026-03-14T12:00:00.000Z'),
+      events: {
+        a: {
+          type: 'VEVENT',
+          summary: 'Lab Report [Biology]',
+          description: 'Submit PDF',
+          uid: 'bio-new',
+          end: new Date('2026-03-16T17:00:00.000Z'),
+        },
+      },
+      existingClasses: [
+        {
+          id: 'class-1',
+          name: 'AP Biology',
+          canvas_course_id: 'Biology',
+          created_at: '2026-03-01T12:00:00.000Z',
+        },
+      ],
+      existingAssignments: [],
+      createClass,
+      linkClassToCanvasCourse,
+      createAssignment: async (userId, classId, assignment) => {
+        createdAssignments.push({ userId, classId, assignment });
+        return { inserted: true };
+      },
+    });
+
+    expect(result).toEqual({
+      message: 'Canvas sync complete!',
+      classesAdded: 0,
+      assignmentsAdded: 1,
+    });
+    expect(createClass).not.toHaveBeenCalled();
+    expect(linkClassToCanvasCourse).not.toHaveBeenCalled();
+    expect(createdAssignments).toEqual([
+      {
+        userId: 42,
+        classId: 'class-1',
+        assignment: {
+          uid: 'bio-new',
+          courseName: 'Biology',
+          canvasCourseId: 'Biology',
+          title: 'Lab Report',
+          description: 'Submit PDF',
+          dueDateIso: '2026-03-16T17:00:00.000Z',
+          status: 'Todo',
+        },
+      },
+    ]);
+  });
+
+  it('backfills the Canvas course key from existing synced assignments before importing new work', async () => {
+    const createClass = vi.fn(async () => {
+      throw new Error('should not create class');
+    });
+    const linkClassToCanvasCourse = vi.fn(async (classId, canvasCourseId) => ({
+      id: classId,
+      name: 'AP Biology',
+      canvas_course_id: canvasCourseId,
+      created_at: '2026-03-01T12:00:00.000Z',
+    }));
+    const createdAssignments = [];
+
+    const result = await syncCanvasCalendar({
+      userId: 42,
+      now: new Date('2026-03-14T12:00:00.000Z'),
+      events: {
+        a: {
+          type: 'VEVENT',
+          summary: 'Existing Quiz [Biology]',
+          description: 'Already synced',
+          uid: 'bio-existing',
+          end: new Date('2026-03-18T17:00:00.000Z'),
+        },
+        b: {
+          type: 'VEVENT',
+          summary: 'New Lab [Biology]',
+          description: 'Bring notebook',
+          uid: 'bio-new',
+          end: new Date('2026-03-20T17:00:00.000Z'),
+        },
+      },
+      existingClasses: [
+        {
+          id: 'class-legacy',
+          name: 'AP Biology',
+          canvas_course_id: null,
+          created_at: '2026-03-01T12:00:00.000Z',
+        },
+      ],
+      existingAssignments: [
+        {
+          canvas_assignment_id: 'bio-existing',
+          class_id: 'class-legacy',
+        },
+      ],
+      createClass,
+      linkClassToCanvasCourse,
+      createAssignment: async (userId, classId, assignment) => {
+        createdAssignments.push({ userId, classId, assignment });
+        return { inserted: true };
+      },
+    });
+
+    expect(result).toEqual({
+      message: 'Canvas sync complete!',
+      classesAdded: 0,
+      assignmentsAdded: 1,
+    });
+    expect(createClass).not.toHaveBeenCalled();
+    expect(linkClassToCanvasCourse).toHaveBeenCalledWith('class-legacy', 'Biology');
+    expect(createdAssignments).toEqual([
+      {
+        userId: 42,
+        classId: 'class-legacy',
+        assignment: {
+          uid: 'bio-new',
+          courseName: 'Biology',
+          canvasCourseId: 'Biology',
+          title: 'New Lab',
+          description: 'Bring notebook',
+          dueDateIso: '2026-03-20T17:00:00.000Z',
+          status: 'Todo',
+        },
+      },
+    ]);
+  });
+
+  it('reuses an existing class returned by createClass conflict resolution without incrementing class totals', async () => {
+    const createClass = vi.fn(async (_userId, courseName, canvasCourseId) => ({
+      id: 'class-existing',
+      name: `Renamed ${courseName}`,
+      canvas_course_id: canvasCourseId,
+      created: false,
+    }));
+    const createdAssignments = [];
+
+    const result = await syncCanvasCalendar({
+      userId: 42,
+      now: new Date('2026-03-14T12:00:00.000Z'),
+      events: {
+        a: {
+          type: 'VEVENT',
+          summary: 'Conflict-safe Import [Biology]',
+          description: 'Submit online',
+          uid: 'bio-conflict-safe',
+          end: new Date('2026-03-21T17:00:00.000Z'),
+        },
+      },
+      existingClasses: [],
+      existingAssignments: [],
+      createClass,
+      linkClassToCanvasCourse: async () => {
+        throw new Error('should not relink class');
+      },
+      createAssignment: async (userId, classId, assignment) => {
+        createdAssignments.push({ userId, classId, assignment });
+        return { inserted: true };
+      },
+    });
+
+    expect(result).toEqual({
+      message: 'Canvas sync complete!',
+      classesAdded: 0,
+      assignmentsAdded: 1,
+    });
+    expect(createClass).toHaveBeenCalledWith(42, 'Biology', 'Biology');
+    expect(createdAssignments).toEqual([
+      {
+        userId: 42,
+        classId: 'class-existing',
+        assignment: {
+          uid: 'bio-conflict-safe',
+          courseName: 'Biology',
+          canvasCourseId: 'Biology',
+          title: 'Conflict-safe Import',
+          description: 'Submit online',
+          dueDateIso: '2026-03-21T17:00:00.000Z',
+          status: 'Todo',
+        },
+      },
+    ]);
   });
 });

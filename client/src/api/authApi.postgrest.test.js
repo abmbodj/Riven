@@ -128,6 +128,28 @@ describe('authApi PostgREST inserts', () => {
     });
   });
 
+  it('marks new calendar feed sources as url imports', async () => {
+    const { insert } = createInsertChain({ id: 'source-1' });
+    supabase.from.mockReturnValue({ insert });
+
+    authApi.setToken('supabase-token');
+    await authApi.addCalendarSource({
+      label: 'Work',
+      url: 'https://calendar.example.com/feed.ics',
+      color: '#444444',
+    });
+
+    expect(insert).toHaveBeenCalledWith({
+      user_id: 42,
+      label: 'Work',
+      url: 'https://calendar.example.com/feed.ics',
+      color: '#444444',
+      type: 'ical',
+      import_mode: 'url',
+      file_name: null,
+    });
+  });
+
   it('returns default push preferences when no row exists yet', async () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const eq = vi.fn().mockReturnValue({ maybeSingle });

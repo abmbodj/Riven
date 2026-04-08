@@ -14,6 +14,7 @@ import {
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { createAiHistoryReporter } from '../_shared/aiJobs.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
@@ -121,6 +122,20 @@ serve(async (request) => {
         );
       }
 
+      const reporter = await createAiHistoryReporter({
+        admin,
+        userId: authUser.id,
+        kind: 'deck_generation',
+        targetType: 'deck',
+        inputPayload: {
+          title_snapshot: typeof body.deckName === 'string' && body.deckName.trim() ? body.deckName.trim() : 'AI Generated Deck',
+          class_id: body.classId || null,
+          class_name: typeof body.className === 'string' ? body.className : null,
+        },
+        initialMessage: 'Preparing flashcard generation',
+      });
+      await reporter.markStreaming('drafting', 30, 'Generating flashcards');
+
       const contents = buildDeckContents({ processedNotes, hasProcessedNotes, keepFile, file: body.file, className: body.className });
       const messages = contentsToMessages(contents);
       const { response, sendChunk, sendError, sendDone, close } = createSSEStream(request);
@@ -147,6 +162,8 @@ serve(async (request) => {
               sendChunk(text);
             }
           }
+
+          await reporter.markSaving('Saving generated deck');
 
           const flashcards = parseAiJsonResponse(
             fullText,
@@ -185,9 +202,20 @@ serve(async (request) => {
             throw cardErr;
           }
 
+          await reporter.complete({
+            message: 'Deck generated successfully',
+            targetType: 'deck',
+            targetId: deck.id,
+            resultPatch: {
+              deck_id: deck.id,
+              card_count: flashcards.length,
+              title: finalDeckName,
+            },
+          });
           sendDone({ deck_id: deck.id, card_count: flashcards.length });
         } catch (err: unknown) {
           const reqErr = normalizeRequestError(err);
+          await reporter.fail(reqErr);
           sendError(
             reqErr.message || 'An unexpected error occurred during AI generation.',
             typeof reqErr.status === 'number' ? reqErr.status : 500,
@@ -202,6 +230,18 @@ serve(async (request) => {
     }
 
     // ── BATCH PATH ──────────────────────────────────────
+    const sourcePreview = await prepareAiSource({
+      notes: body.notes,
+      file: body.file,
+      parseDocx: async (buffer: Buffer) => {
+        const parsed = await mammoth.extractRawText({ buffer });
+        return parsed.value;
+      },
+      onParseError: (error: unknown) => {
+        console.error('Failed to parse document text:', error);
+      },
+    });
+
     const { data: user, error } = await admin
       .from('users')
       .select('subscription_tier, ai_generations_count, last_ai_generation_reset, role, simulate_free_tier')
@@ -228,68 +268,111 @@ serve(async (request) => {
       },
     });
 
-    const result = await generateDeckFromAi({
+    if (!sourcePreview.hasProcessedNotes && !sourcePreview.keepFile) {
+      throw createHttpError('Notes or a file are required to generate flashcards.', 400);
+    }
+
+    const characterLimit = aiLimitsContext?.characterLimit || 15000;
+    if (sourcePreview.hasProcessedNotes && sourcePreview.processedNotes.length > characterLimit) {
+      throw createHttpError(
+        `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+        400,
+      );
+    }
+
+    const reporter = await createAiHistoryReporter({
+      admin,
       userId: authUser.id,
-      notes: body.notes,
-      file: body.file,
-      deckName: body.deckName,
-      classId: body.classId,
-      className: body.className,
-      aiLimitsContext,
-      apiKey,
-      parseDocx: async (buffer: Buffer) => {
-        const parsed = await mammoth.extractRawText({ buffer });
-        return parsed.value;
+      kind: 'deck_generation',
+      targetType: 'deck',
+      inputPayload: {
+        title_snapshot: typeof body.deckName === 'string' && body.deckName.trim() ? body.deckName.trim() : 'AI Generated Deck',
+        class_id: body.classId || null,
+        class_name: typeof body.className === 'string' ? body.className : null,
       },
-      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-        const ai = createAiClient(apiKey);
-        return ai.generateContent({
-          model,
-          messages: contentsToMessages(contents),
-        });
-      },
-      createDeck: async ({ userId, title, description, classId }: CreateDeckPayload) => {
-        const { data, error: createError } = await admin
-          .from('decks')
-          .insert({
-            user_id: userId,
-            title,
-            description,
-            class_id: classId,
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        return data;
-      },
-      insertCards: async (deckId: number, cards: GeneratedCard[]) => {
-        const { error: insertError } = await admin
-          .from('cards')
-          .insert(cards.map((card: GeneratedCard) => ({
-            deck_id: deckId,
-            front: card.front,
-            back: card.back,
-            position: card.position,
-          })));
-
-        if (insertError) throw insertError;
-      },
-      deleteDeck: async (deckId: number) => {
-        const { error: deleteError } = await admin
-          .from('decks')
-          .delete()
-          .eq('id', deckId)
-          .eq('user_id', authUser.id);
-
-        if (deleteError) throw deleteError;
-      },
-      onParseError: (error: unknown) => {
-        console.error('Failed to parse document text:', error);
-      },
+      initialMessage: 'Preparing flashcard generation',
     });
+    await reporter.markRunning('drafting', 35, 'Generating flashcards');
 
-    return jsonResponse(result, { status: 201 }, request);
+    try {
+      const result = await generateDeckFromAi({
+        userId: authUser.id,
+        notes: body.notes,
+        file: body.file,
+        deckName: body.deckName,
+        classId: body.classId,
+        className: body.className,
+        aiLimitsContext,
+        apiKey,
+        parseDocx: async (buffer: Buffer) => {
+          const parsed = await mammoth.extractRawText({ buffer });
+          return parsed.value;
+        },
+        generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+          const ai = createAiClient(apiKey);
+          return ai.generateContent({
+            model,
+            messages: contentsToMessages(contents),
+          });
+        },
+        createDeck: async ({ userId, title, description, classId }: CreateDeckPayload) => {
+          const { data, error: createError } = await admin
+            .from('decks')
+            .insert({
+              user_id: userId,
+              title,
+              description,
+              class_id: classId,
+            })
+            .select('id')
+            .single();
+
+          if (createError) throw createError;
+          return data;
+        },
+        insertCards: async (deckId: number, cards: GeneratedCard[]) => {
+          const { error: insertError } = await admin
+            .from('cards')
+            .insert(cards.map((card: GeneratedCard) => ({
+              deck_id: deckId,
+              front: card.front,
+              back: card.back,
+              position: card.position,
+            })));
+
+          if (insertError) throw insertError;
+        },
+        deleteDeck: async (deckId: number) => {
+          const { error: deleteError } = await admin
+            .from('decks')
+            .delete()
+            .eq('id', deckId)
+            .eq('user_id', authUser.id);
+
+          if (deleteError) throw deleteError;
+        },
+        onParseError: (error: unknown) => {
+          console.error('Failed to parse document text:', error);
+        },
+      });
+
+      await reporter.complete({
+        message: 'Deck generated successfully',
+        targetType: 'deck',
+        targetId: result.deck_id,
+        resultPatch: {
+          deck_id: result.deck_id,
+          card_count: result.card_count,
+          title: typeof body.deckName === 'string' && body.deckName.trim() ? body.deckName.trim() : 'AI Generated Deck',
+        },
+      });
+
+      return jsonResponse(result, { status: 201 }, request);
+    } catch (error: unknown) {
+      const requestError = normalizeRequestError(error);
+      await reporter.fail(requestError);
+      throw requestError;
+    }
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 

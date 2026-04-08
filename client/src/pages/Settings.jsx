@@ -26,6 +26,12 @@ import NotificationsSection from '../components/settings/sections/NotificationsS
 import SafetySection from '../components/settings/sections/SafetySection';
 import HelpPoliciesSection from '../components/settings/sections/HelpPoliciesSection';
 import DangerZoneSection from '../components/settings/sections/DangerZoneSection';
+import { formatAiHistoryItem, shouldShowAiHistoryJob } from '../components/settings/sections/rivenAiHistory';
+
+const mapAiHistoryItems = (jobs = []) => jobs
+    .filter(shouldShowAiHistoryJob)
+    .map(formatAiHistoryItem)
+    .filter(Boolean);
 
 export default function Settings() {
     const {
@@ -113,6 +119,11 @@ export default function Settings() {
         isPremium: false,
         loading: true,
     });
+    const [aiHistory, setAiHistory] = useState({
+        items: [],
+        loading: true,
+        error: false,
+    });
 
     // --- Notification state ---
     const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
@@ -158,6 +169,21 @@ export default function Settings() {
                 setAiLimits(prev => ({ ...prev, loading: false }));
             }
 
+            try {
+                const historyRows = await api.listAiJobs({ limit: 20 });
+                setAiHistory({
+                    items: mapAiHistoryItems(historyRows),
+                    loading: false,
+                    error: false,
+                });
+            } catch {
+                setAiHistory({
+                    items: [],
+                    loading: false,
+                    error: true,
+                });
+            }
+
             if (notificationsEnabled) {
                 const hasPermission = await checkNotificationPermissions();
                 if (!hasPermission) {
@@ -189,6 +215,30 @@ export default function Settings() {
 
         loadSettings();
     }, [getPushPreferences, notificationsEnabled, remotePushAvailable]);
+
+    useEffect(() => {
+        const unsubscribe = api.subscribeToAiJobsForUser({
+            onUpdate: () => {
+                api.listAiJobs({ limit: 20 })
+                    .then((rows) => {
+                        setAiHistory({
+                            items: mapAiHistoryItems(rows),
+                            loading: false,
+                            error: false,
+                        });
+                    })
+                    .catch(() => {
+                        setAiHistory((prev) => ({
+                            ...prev,
+                            loading: false,
+                            error: true,
+                        }));
+                    });
+            },
+        });
+
+        return unsubscribe;
+    }, []);
 
     // --- Canvas handlers ---
     const handleConnectCanvas = async () => {
@@ -515,7 +565,7 @@ export default function Settings() {
                     />
                 );
             case 'ai':
-                return <RivenAISection aiLimits={aiLimits} />;
+                return <RivenAISection aiLimits={aiLimits} history={aiHistory} />;
             case 'notifications':
                 return (
                     <NotificationsSection

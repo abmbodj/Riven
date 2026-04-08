@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api';
 import CalendarHeader from './CalendarHeader';
 import CalendarGrid from './CalendarGrid';
-import CalendarAgenda from './CalendarAgenda';
+import CalendarTimeline from './CalendarTimeline';
 import DaySheet from './DaySheet';
 import CalendarSources from './CalendarSources';
 import { useToast } from '../../hooks/useToast';
@@ -10,14 +10,11 @@ import { useToast } from '../../hooks/useToast';
 export default function InlineCalendar({ classes, scheduleSlots }) {
     const toast = useToast();
 
-    const [viewMonth, setViewMonth] = useState(() => {
-        const d = new Date();
-        return new Date(d.getFullYear(), d.getMonth(), 1);
-    });
+    const [anchorDate, setAnchorDate] = useState(() => new Date());
     const [selectedDay, setSelectedDay] = useState(null);
     const [view, setView] = useState('month');
     const [activeFilters, setActiveFilters] = useState([]);
-    const [showSchedule, setShowSchedule] = useState(true);
+    const [contentMode, setContentMode] = useState('both');
     const [assignments, setAssignments] = useState([]);
     const [loadingAssignments, setLoadingAssignments] = useState(true);
 
@@ -48,6 +45,38 @@ export default function InlineCalendar({ classes, scheduleSlots }) {
         return assignments.filter(a => activeFilters.includes(a.class_id));
     }, [assignments, activeFilters]);
 
+    const handleViewChange = useCallback((nextView) => {
+        setView(nextView);
+        if (nextView === 'week' || nextView === 'day') {
+            setAnchorDate(selectedDay ? new Date(selectedDay) : new Date(anchorDate));
+        }
+    }, [anchorDate, selectedDay]);
+
+    const handleNavigate = useCallback((direction) => {
+        setAnchorDate((current) => {
+            const next = new Date(current);
+            if (view === 'month') {
+                next.setMonth(current.getMonth() + direction, 1);
+            } else if (view === 'week') {
+                next.setDate(current.getDate() + (direction * 7));
+            } else {
+                next.setDate(current.getDate() + direction);
+            }
+            return next;
+        });
+    }, [view]);
+
+    const handleToday = useCallback(() => {
+        const now = new Date();
+        setAnchorDate(now);
+        setSelectedDay(now);
+    }, []);
+
+    const handleDaySelect = useCallback((date) => {
+        setSelectedDay(date);
+        setAnchorDate(date);
+    }, []);
+
     if (loadingAssignments) {
         return (
             <div className="animate-fade-in pb-12 space-y-4 mt-2">
@@ -64,36 +93,42 @@ export default function InlineCalendar({ classes, scheduleSlots }) {
     return (
         <div className="animate-fade-in pb-12">
             <CalendarHeader
-                viewMonth={viewMonth}
-                onPrevMonth={() => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-                onNextMonth={() => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-                onToday={() => { const n = new Date(); setViewMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}
+                anchorDate={anchorDate}
+                onPrev={() => handleNavigate(-1)}
+                onNext={() => handleNavigate(1)}
+                onToday={handleToday}
                 view={view}
-                onViewChange={setView}
+                onViewChange={handleViewChange}
+                contentMode={contentMode}
+                onContentModeChange={setContentMode}
                 classes={classes}
                 activeFilters={activeFilters}
                 onFilterToggle={handleFilterToggle}
-                showSchedule={showSchedule}
-                onScheduleToggle={() => setShowSchedule(s => !s)}
             />
 
             {view === 'month' && (
                 <CalendarGrid
-                    viewMonth={viewMonth}
+                    anchorDate={anchorDate}
                     assignments={filteredAssignments}
                     scheduleSlots={scheduleSlots}
                     classes={classes}
                     activeFilters={activeFilters}
-                    showSchedule={showSchedule}
+                    contentMode={contentMode}
                     selectedDay={selectedDay}
-                    onDaySelect={setSelectedDay}
+                    onDaySelect={handleDaySelect}
                 />
             )}
 
-            {view === 'agenda' && (
-                <CalendarAgenda
+            {(view === 'week' || view === 'day') && (
+                <CalendarTimeline
+                    anchorDate={anchorDate}
+                    view={view}
                     assignments={filteredAssignments}
+                    scheduleSlots={scheduleSlots}
                     classes={classes}
+                    activeFilters={activeFilters}
+                    contentMode={contentMode}
+                    onDaySelect={handleDaySelect}
                 />
             )}
 
@@ -105,6 +140,8 @@ export default function InlineCalendar({ classes, scheduleSlots }) {
                 assignments={assignments}
                 scheduleSlots={scheduleSlots}
                 classes={classes}
+                contentMode={contentMode}
+                activeFilters={activeFilters}
             />
         </div>
     );

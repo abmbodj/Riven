@@ -426,4 +426,10 @@ export const api = {
     syncCalendarSource: (id) => isLoggedIn()
         ? serverApi.syncCalendarSource(id)
         : Promise.reject(new Error('Must be logged in to sync calendar sources')),
+    importCalendarSourceFile: (data) => isLoggedIn()
+        ? serverApi.importCalendarSourceFile(data)
+        : Promise.reject(new Error('Must be logged in to import calendar files')),
+    replaceCalendarSourceFile: (data) => isLoggedIn()
+        ? serverApi.replaceCalendarSourceFile(data)
+        : Promise.reject(new Error('Must be logged in to replace calendar files')),
 };

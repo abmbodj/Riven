@@ -36,8 +36,10 @@ const springTransition = prefersReducedMotion
 
 const fadeTransition = prefersReducedMotion ? { duration: 0 } : { duration: 0.2 };
 
-export default function DaySheet({ selectedDay, onClose, assignments, scheduleSlots, classes }) {
+export default function DaySheet({ selectedDay, onClose, assignments, scheduleSlots, classes, contentMode = 'both', activeFilters = [] }) {
     const navigate = useNavigate();
+    const showAssignments = contentMode === 'assignments' || contentMode === 'both';
+    const showClasses = contentMode === 'classes' || contentMode === 'both';
 
     const classMap = useMemo(() => {
         const m = {};
@@ -50,18 +52,20 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
         return assignments
             .filter(a => {
                 if (!a.due_date) return false;
+                if (activeFilters.length > 0 && !activeFilters.includes(a.class_id)) return false;
                 const d = new Date(a.due_date);
                 return !Number.isNaN(d.getTime()) && isSameDay(d, selectedDay);
             })
             .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-    }, [selectedDay, assignments]);
+    }, [selectedDay, assignments, activeFilters]);
 
     const daySlots = useMemo(() => {
         if (!selectedDay) return [];
         return scheduleSlots
             .filter(s => s.day_of_week === selectedDay.getDay())
+            .filter(s => activeFilters.length === 0 || activeFilters.includes(s.class_id))
             .sort((a, b) => a.start_time.localeCompare(b.start_time));
-    }, [selectedDay, scheduleSlots]);
+    }, [selectedDay, scheduleSlots, activeFilters]);
 
     const now = new Date();
 
@@ -110,7 +114,7 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
                             </h2>
 
                             {/* Schedule slots */}
-                            {daySlots.length > 0 && (
+                            {showClasses && daySlots.length > 0 && (
                                 <section className="mb-5">
                                     <p className="font-mono text-[9px] uppercase tracking-[0.2em] font-bold text-claude-secondary mb-2">
                                         Schedule
@@ -157,67 +161,69 @@ export default function DaySheet({ selectedDay, onClose, assignments, scheduleSl
                             )}
 
                             {/* Assignments */}
-                            <section>
-                                <p className="font-mono text-[9px] uppercase tracking-[0.2em] font-bold text-claude-secondary mb-2">
-                                    Assignments
-                                </p>
-
-                                {dayAssignments.length === 0 ? (
-                                    <p className="font-serif italic text-claude-secondary opacity-60 text-sm py-4 text-center">
-                                        Nothing due — enjoy your day.
+                            {showAssignments && (
+                                <section>
+                                    <p className="font-mono text-[9px] uppercase tracking-[0.2em] font-bold text-claude-secondary mb-2">
+                                        Assignments
                                     </p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {dayAssignments.map(a => {
-                                            const cls = classMap[a.class_id];
-                                            const dueDate = new Date(a.due_date);
-                                            const isOverdue = dueDate < now;
-                                            const color = cls?.color || 'var(--accent-color)';
 
-                                            return (
-                                                <div
-                                                    key={a.id}
-                                                    className="flex items-start gap-3 p-3 rounded-2xl transition-colors duration-150"
-                                                    style={{ backgroundColor: color + '10' }}
-                                                >
-                                                    <span
-                                                        className="w-2 h-2 rounded-full shrink-0 mt-1"
-                                                        style={{ backgroundColor: color }}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className={`font-mono text-[11px] font-bold uppercase tracking-wide leading-snug ${isOverdue ? 'text-red-400' : 'text-claude-text'}`}>
-                                                            {a.title}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="font-mono text-[9px] text-claude-secondary">
-                                                                Due {formatDueTime(a.due_date)}
-                                                            </span>
-                                                            {isOverdue && (
-                                                                <span className="px-1.5 py-0.5 bg-red-500/15 text-red-400 font-mono text-[8px] uppercase tracking-widest font-bold rounded-full">
-                                                                    Overdue
+                                    {dayAssignments.length === 0 ? (
+                                        <p className="font-serif italic text-claude-secondary opacity-60 text-sm py-4 text-center">
+                                            Nothing due - enjoy your day.
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {dayAssignments.map(a => {
+                                                const cls = classMap[a.class_id];
+                                                const dueDate = new Date(a.due_date);
+                                                const isOverdue = dueDate < now;
+                                                const color = cls?.color || 'var(--accent-color)';
+
+                                                return (
+                                                    <div
+                                                        key={a.id}
+                                                        className="flex items-start gap-3 p-3 rounded-2xl transition-colors duration-150"
+                                                        style={{ backgroundColor: color + '10' }}
+                                                    >
+                                                        <span
+                                                            className="w-2 h-2 rounded-full shrink-0 mt-1"
+                                                            style={{ backgroundColor: color }}
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`font-mono text-[11px] font-bold uppercase tracking-wide leading-snug ${isOverdue ? 'text-red-400' : 'text-claude-text'}`}>
+                                                                {a.title}
+                                                            </p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="font-mono text-[9px] text-claude-secondary">
+                                                                    Due {formatDueTime(a.due_date)}
                                                                 </span>
-                                                            )}
-                                                            {a.assignment_type && a.assignment_type !== 'assignment' && (
-                                                                <span className="px-1.5 py-0.5 bg-claude-accent/15 text-claude-accent font-mono text-[8px] uppercase tracking-widest font-bold rounded-full">
-                                                                    {a.assignment_type}
-                                                                </span>
+                                                                {isOverdue && (
+                                                                    <span className="px-1.5 py-0.5 bg-red-500/15 text-red-400 font-mono text-[8px] uppercase tracking-widest font-bold rounded-full">
+                                                                        Overdue
+                                                                    </span>
+                                                                )}
+                                                                {a.assignment_type && a.assignment_type !== 'assignment' && (
+                                                                    <span className="px-1.5 py-0.5 bg-claude-accent/15 text-claude-accent font-mono text-[8px] uppercase tracking-widest font-bold rounded-full">
+                                                                        {a.assignment_type}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {cls && (
+                                                                <p className="font-mono text-[9px] uppercase tracking-wide mt-0.5 opacity-70"
+                                                                   style={{ color }}>
+                                                                    {cls.name}
+                                                                </p>
                                                             )}
                                                         </div>
-                                                        {cls && (
-                                                            <p className="font-mono text-[9px] uppercase tracking-wide mt-0.5 opacity-70"
-                                                               style={{ color }}>
-                                                                {cls.name}
-                                                            </p>
-                                                        )}
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </section>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
+                            )}
 
-                            {dayAssignments.length === 0 && daySlots.length === 0 && (
+                            {((!showAssignments || dayAssignments.length === 0) && (!showClasses || daySlots.length === 0)) && (
                                 <p className="font-serif italic text-claude-secondary opacity-40 text-sm text-center py-8">
                                     Free day — nothing scheduled.
                                 </p>

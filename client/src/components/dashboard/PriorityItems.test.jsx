@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import PriorityItems from './PriorityItems.jsx';
 
-function renderPriorityItems(items) {
+function renderPriorityItems(items, props = {}) {
   render(
     <MemoryRouter>
-      <PriorityItems items={items} />
+      <PriorityItems items={items} {...props} />
     </MemoryRouter>,
   );
 }
@@ -36,5 +36,27 @@ describe('PriorityItems', () => {
     renderPriorityItems([]);
 
     expect(screen.getByText(/nothing urgent right now/i)).toBeInTheDocument();
+  });
+
+  it('renders a completion control and calls through when clicked', () => {
+    const handleComplete = vi.fn();
+
+    renderPriorityItems([
+      { id: 1, assignmentId: 1, title: 'One', tone: 'overdue', urgencyLabel: 'Overdue 3d', className: 'Bio', classColor: '#7a9e72', to: '/class/1' },
+    ], { onComplete: handleComplete });
+
+    fireEvent.click(screen.getByRole('button', { name: /mark one complete/i }));
+
+    expect(handleComplete).toHaveBeenCalledWith(expect.objectContaining({ assignmentId: 1, title: 'One' }));
+    expect(screen.getByRole('link', { name: /one/i })).toBeInTheDocument();
+  });
+
+  it('shows a pending completion state when the item is saving', () => {
+    renderPriorityItems([
+      { id: 1, assignmentId: 1, title: 'One', tone: 'today', urgencyLabel: 'Due today', className: 'Bio', classColor: '#7a9e72', to: '/class/1' },
+    ], { onComplete: vi.fn(), completingIds: [1] });
+
+    expect(screen.getByRole('button', { name: /marking one complete/i })).toBeDisabled();
+    expect(screen.getByText(/saving/i)).toBeInTheDocument();
   });
 });

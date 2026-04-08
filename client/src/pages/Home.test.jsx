@@ -3,6 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Home from './Home.jsx';
 
+const toastApi = {
+  error: vi.fn(),
+  success: vi.fn(),
+  show: vi.fn(),
+};
+
 vi.mock('../api', () => ({
   api: {
     getAssignments: vi.fn(),
@@ -13,6 +19,7 @@ vi.mock('../api', () => ({
     getStudyCoach: vi.fn(),
     getMockExams: vi.fn(),
     getWeeklySummary: vi.fn(),
+    updateAssignment: vi.fn(),
   },
 }));
 
@@ -25,11 +32,7 @@ vi.mock('../hooks/useAuth', () => ({
 }));
 
 vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-    show: vi.fn(),
-  }),
+  useToast: () => toastApi,
 }));
 
 vi.mock('../hooks/useStreak', () => ({
@@ -64,6 +67,7 @@ vi.mock('../utils/notifications', () => ({
 }));
 
 const { api } = await import('../api');
+const { scheduleAssignmentNotifications } = await import('../utils/notifications');
 
 const FIXED_NOW = new Date('2026-03-21T12:00:00.000Z');
 
@@ -81,6 +85,8 @@ const weeklySummary = {
     { date: '2026-03-21', day: 'Sat', cards: 7, minutes: 27, studied: true, is_today: true },
   ],
 };
+
+let consoleErrorSpy;
 
 function mockReducedMotion() {
   Object.defineProperty(window, 'matchMedia', {
@@ -117,6 +123,7 @@ describe('DashboardHome analytics repositioning', () => {
     vi.setSystemTime(FIXED_NOW);
     vi.clearAllMocks();
     mockReducedMotion();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     api.getAssignments.mockResolvedValue([]);
     api.getDecks.mockResolvedValue([]);
@@ -132,9 +139,14 @@ describe('DashboardHome analytics repositioning', () => {
     });
     api.getMockExams.mockResolvedValue([]);
     api.getWeeklySummary.mockResolvedValue(weeklySummary);
+    api.updateAssignment.mockResolvedValue({});
+    toastApi.error.mockReset();
+    toastApi.success.mockReset();
+    toastApi.show.mockReset();
   });
 
   afterEach(() => {
+    consoleErrorSpy?.mockRestore();
     vi.useRealTimers();
   });
 
@@ -270,5 +282,53 @@ describe('DashboardHome analytics repositioning', () => {
     fireEvent.click(within(priorityItems).getByRole('button', { name: /show all \(6\)/i }));
     expect(within(priorityItems).getByText('Discussion prep')).toBeInTheDocument();
     expect(within(priorityItems).getByRole('button', { name: /show fewer/i })).toBeInTheDocument();
+  });
+
+  it('marks a priority assignment complete from the dashboard and refreshes derived state immediately', async () => {
+    api.getAssignments.mockResolvedValue([
+      { id: 1, title: 'Essay draft', class_id: 11, status: 'Todo', due_date: '2026-03-18T12:00:00.000Z' },
+      { id: 2, title: 'Quiz review', class_id: 11, status: 'Todo', due_date: '2026-03-21T09:00:00.000Z' },
+    ]);
+    api.getClasses.mockResolvedValue([
+      { id: 11, name: 'Biology', color: '#7a9e72' },
+    ]);
+
+    await renderDashboard();
+
+    const priorityItems = screen.getByTestId('priority-items');
+    await act(async () => {
+      fireEvent.click(within(priorityItems).getByRole('button', { name: /mark essay draft complete/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.updateAssignment).toHaveBeenCalledWith(1, { status: 'Done' });
+    expect(within(priorityItems).queryByText('Essay draft')).not.toBeInTheDocument();
+    expect(within(priorityItems).getByText('Quiz review')).toBeInTheDocument();
+    expect(screen.queryByText(/time to catch up/i)).not.toBeInTheDocument();
+    expect(toastApi.success).toHaveBeenCalledWith('Assignment completed');
+    expect(scheduleAssignmentNotifications).toHaveBeenCalled();
+  });
+
+  it('restores the priority item when completion fails', async () => {
+    api.getAssignments.mockResolvedValue([
+      { id: 1, title: 'Essay draft', class_id: 11, status: 'Todo', due_date: '2026-03-18T12:00:00.000Z' },
+    ]);
+    api.getClasses.mockResolvedValue([
+      { id: 11, name: 'Biology', color: '#7a9e72' },
+    ]);
+    api.updateAssignment.mockRejectedValueOnce(new Error('boom'));
+
+    await renderDashboard();
+
+    const priorityItems = screen.getByTestId('priority-items');
+    await act(async () => {
+      fireEvent.click(within(priorityItems).getByRole('button', { name: /mark essay draft complete/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(within(priorityItems).getByText('Essay draft')).toBeInTheDocument();
+    expect(toastApi.error).toHaveBeenCalledWith('Failed to mark assignment complete');
   });
 });

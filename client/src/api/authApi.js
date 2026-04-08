@@ -1678,7 +1678,7 @@ export const addCalendarSource = async ({ label, url, color, type = 'ical' }) =>
     const userId = await getAppUserId();
     const { data, error } = await supabase
         .from('calendar_sources')
-        .insert({ user_id: userId, label, url, color, type })
+        .insert({ user_id: userId, label, url, color, type, import_mode: 'url', file_name: null })
         .select()
         .single();
     if (error) _sbThrow(error);
@@ -1694,6 +1694,18 @@ export const syncCalendarSource = (sourceId) =>
     edgeFunctionFetch('calendar-source-sync', {
         method: 'POST',
         body: { sourceId },
+    });
+
+export const importCalendarSourceFile = ({ label, color, fileName, icsText }) =>
+    edgeFunctionFetch('calendar-source-file-import', {
+        method: 'POST',
+        body: { label, color, fileName, icsText },
+    });
+
+export const replaceCalendarSourceFile = ({ sourceId, color, fileName, icsText }) =>
+    edgeFunctionFetch('calendar-source-file-import', {
+        method: 'POST',
+        body: { sourceId, color, fileName, icsText, replaceExisting: true },
     });
 
 // --- LMS Integration (Canvas)
@@ -4715,6 +4727,8 @@ export default {
     addCalendarSource,
     deleteCalendarSource,
     syncCalendarSource,
+    importCalendarSourceFile,
+    replaceCalendarSourceFile,
 
     // Schedule
     getSchedule,

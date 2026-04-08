@@ -25,45 +25,52 @@ function isSameDay(a, b) {
 }
 
 export default function CalendarGrid({
-    viewMonth,
+    anchorDate,
     assignments,
     scheduleSlots,
     classes,
     activeFilters,
-    showSchedule,
+    contentMode,
     selectedDay,
     onDaySelect,
 }) {
     const today = new Date();
+    const viewMonth = useMemo(
+        () => new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1),
+        [anchorDate],
+    );
     const cells = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
+    const showAssignments = contentMode === 'assignments' || contentMode === 'both';
+    const showClasses = contentMode === 'classes' || contentMode === 'both';
 
     // Index assignments by date string for O(1) lookup
     const assignmentsByDay = useMemo(() => {
         const map = {};
+        if (!showAssignments) return map;
+
         for (const a of assignments) {
             if (!a.due_date) continue;
             const d = new Date(a.due_date);
             if (Number.isNaN(d.getTime())) continue;
-            // Apply class filters
-            if (activeFilters.length > 0 && !activeFilters.includes(a.class_id)) continue;
             const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
             if (!map[key]) map[key] = [];
             map[key].push(a);
         }
         return map;
-    }, [assignments, activeFilters]);
+    }, [assignments, showAssignments]);
 
     // Index schedule slots by day_of_week
     const scheduleByDow = useMemo(() => {
-        if (!showSchedule) return {};
+        if (!showClasses) return {};
         const map = {};
         for (const s of scheduleSlots) {
+            if (activeFilters.length > 0 && !activeFilters.includes(s.class_id)) continue;
             const dow = s.day_of_week;
             if (!map[dow]) map[dow] = [];
             map[dow].push(s);
         }
         return map;
-    }, [scheduleSlots, showSchedule]);
+    }, [scheduleSlots, showClasses, activeFilters]);
 
     const classColorMap = useMemo(() => {
         const m = {};
@@ -93,7 +100,7 @@ export default function CalendarGrid({
                     const isSelected = selectedDay && isSameDay(date, selectedDay);
                     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
                     const dayAssignments = assignmentsByDay[key] || [];
-                    const hasSchedule = showSchedule && (scheduleByDow[date.getDay()]?.length > 0);
+                    const scheduleCount = scheduleByDow[date.getDay()]?.length || 0;
 
                     const visibleDots = dayAssignments.slice(0, 4);
                     const overflow = dayAssignments.length - 4;
@@ -108,7 +115,7 @@ export default function CalendarGrid({
                             assignments={dayAssignments}
                             visibleDots={visibleDots}
                             overflow={overflow}
-                            hasSchedule={hasSchedule}
+                            scheduleCount={scheduleCount}
                             classColorMap={classColorMap}
                             onClick={() => onDaySelect(date)}
                         />
@@ -119,9 +126,13 @@ export default function CalendarGrid({
     );
 }
 
-function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, hasSchedule, classColorMap, onClick }) {
+function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots, overflow, scheduleCount, classColorMap, onClick }) {
     const dateNum = date.getDate();
-    const ariaLabel = `${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}${assignments.length > 0 ? `, ${assignments.length} assignment${assignments.length > 1 ? 's' : ''}` : ''}`;
+    const ariaLabel = [
+        date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+        assignments.length > 0 ? `${assignments.length} assignment${assignments.length > 1 ? 's' : ''}` : null,
+        scheduleCount > 0 ? `${scheduleCount} class session${scheduleCount > 1 ? 's' : ''}` : null,
+    ].filter(Boolean).join(', ');
 
     return (
         <button
@@ -154,8 +165,12 @@ function DayCell({ date, inMonth, isToday, isSelected, assignments, visibleDots,
             </span>
 
             {/* Schedule line indicators */}
-            {hasSchedule && (
-                <div className="w-4 h-0.5 rounded-full bg-claude-secondary/40 mt-0.5" />
+            {scheduleCount > 0 && (
+                <div className="flex flex-col gap-0.5 mt-0.5" aria-hidden="true">
+                    {Array.from({ length: Math.min(scheduleCount, 2) }).map((_, index) => (
+                        <div key={index} className="w-4 h-0.5 rounded-full bg-claude-secondary/40" />
+                    ))}
+                </div>
             )}
 
             {/* Assignment dots */}

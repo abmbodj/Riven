@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarGrid from '../components/calendar/CalendarGrid';
-import CalendarAgenda from '../components/calendar/CalendarAgenda';
+import CalendarTimeline from '../components/calendar/CalendarTimeline';
 import DaySheet from '../components/calendar/DaySheet';
 import CalendarSources from '../components/calendar/CalendarSources';
 
@@ -14,14 +14,11 @@ export default function Calendar() {
     const toast = useToast();
     const { isLoggedIn } = useAuth();
 
-    const [viewMonth, setViewMonth] = useState(() => {
-        const d = new Date();
-        return new Date(d.getFullYear(), d.getMonth(), 1);
-    });
+    const [anchorDate, setAnchorDate] = useState(() => new Date());
     const [selectedDay, setSelectedDay] = useState(null);
     const [view, setView] = useState('month');
     const [activeFilters, setActiveFilters] = useState([]);
-    const [showSchedule, setShowSchedule] = useState(true);
+    const [contentMode, setContentMode] = useState('both');
 
     const [assignments, setAssignments] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -55,17 +52,52 @@ export default function Calendar() {
         loadData();
     }, [loadData]);
 
-    const handlePrevMonth = useCallback(() => {
-        setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-    }, []);
+    const handlePrev = useCallback(() => {
+        setAnchorDate((current) => {
+            const next = new Date(current);
+            if (view === 'month') {
+                next.setMonth(current.getMonth() - 1, 1);
+            } else if (view === 'week') {
+                next.setDate(current.getDate() - 7);
+            } else {
+                next.setDate(current.getDate() - 1);
+            }
+            return next;
+        });
+    }, [view]);
 
-    const handleNextMonth = useCallback(() => {
-        setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-    }, []);
+    const handleNext = useCallback(() => {
+        setAnchorDate((current) => {
+            const next = new Date(current);
+            if (view === 'month') {
+                next.setMonth(current.getMonth() + 1, 1);
+            } else if (view === 'week') {
+                next.setDate(current.getDate() + 7);
+            } else {
+                next.setDate(current.getDate() + 1);
+            }
+            return next;
+        });
+    }, [view]);
 
     const handleToday = useCallback(() => {
         const now = new Date();
-        setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+        setAnchorDate(now);
+        setSelectedDay(now);
+    }, []);
+
+    const handleViewChange = useCallback((nextView) => {
+        setView(nextView);
+        if (nextView === 'week' || nextView === 'day') {
+            setAnchorDate((selectedDay && !Number.isNaN(selectedDay.getTime()))
+                ? new Date(selectedDay)
+                : new Date(anchorDate));
+        }
+    }, [anchorDate, selectedDay]);
+
+    const handleDaySelect = useCallback((date) => {
+        setSelectedDay(date);
+        setAnchorDate(date);
     }, []);
 
     const handleFilterToggle = useCallback((id) => {
@@ -109,36 +141,42 @@ export default function Calendar() {
                 </div>
 
                 <CalendarHeader
-                    viewMonth={viewMonth}
-                    onPrevMonth={handlePrevMonth}
-                    onNextMonth={handleNextMonth}
+                    anchorDate={anchorDate}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
                     onToday={handleToday}
                     view={view}
-                    onViewChange={setView}
+                    onViewChange={handleViewChange}
+                    contentMode={contentMode}
+                    onContentModeChange={setContentMode}
                     classes={classes}
                     activeFilters={activeFilters}
                     onFilterToggle={handleFilterToggle}
-                    showSchedule={showSchedule}
-                    onScheduleToggle={() => setShowSchedule(s => !s)}
                 />
 
                 {view === 'month' && (
                     <CalendarGrid
-                        viewMonth={viewMonth}
+                        anchorDate={anchorDate}
                         assignments={filteredAssignments}
                         scheduleSlots={scheduleSlots}
                         classes={classes}
                         activeFilters={activeFilters}
-                        showSchedule={showSchedule}
+                        contentMode={contentMode}
                         selectedDay={selectedDay}
-                        onDaySelect={setSelectedDay}
+                        onDaySelect={handleDaySelect}
                     />
                 )}
 
-                {view === 'agenda' && (
-                    <CalendarAgenda
+                {(view === 'week' || view === 'day') && (
+                    <CalendarTimeline
+                        anchorDate={anchorDate}
+                        view={view}
                         assignments={filteredAssignments}
+                        scheduleSlots={scheduleSlots}
                         classes={classes}
+                        activeFilters={activeFilters}
+                        contentMode={contentMode}
+                        onDaySelect={handleDaySelect}
                     />
                 )}
 
@@ -153,6 +191,8 @@ export default function Calendar() {
                 assignments={assignments}
                 scheduleSlots={scheduleSlots}
                 classes={classes}
+                contentMode={contentMode}
+                activeFilters={activeFilters}
             />
         </div>
     );

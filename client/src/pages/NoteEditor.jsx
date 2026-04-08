@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ChevronLeft, Check, Loader2, Layers, BookOpen, ClipboardCheck, Trash2, X, ChevronDown,
-    Mic, Sparkles, AlertCircle, Lock, Share2
+    Mic, Sparkles, AlertCircle, Share2
 } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -103,7 +103,9 @@ export default function NoteEditor() {
     const [enhanceError, setEnhanceError] = useState(null);
     const [audioPath, setAudioPath] = useState(null);
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
-    const [enhancementPreviewDoc, setEnhancementPreviewDoc] = useState(null);
+    const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
+    const [streamedEnhancementPulseKey, setStreamedEnhancementPulseKey] = useState(0);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
     const toastRef = useRef(toast);
     const navigateRef = useRef(navigate);
@@ -115,6 +117,10 @@ export default function NoteEditor() {
     const enhancementUnsubscribeRef = useRef(null);
     const enhancementPollTimerRef = useRef(null);
     const trackedEnhancementJobIdRef = useRef(null);
+    const originalContentRef = useRef(null);
+    const originalSavedRef = useRef(true);
+    const streamedEnhancementSignatureRef = useRef('');
+    const prefersReducedMotionRef = useRef(false);
     const handledJobStatesRef = useRef(new Set());
     const completionRefreshAttemptedRef = useRef(new Set());
     const enhancementMetricsRef = useRef({
@@ -127,6 +133,29 @@ export default function NoteEditor() {
     useEffect(() => {
         toastRef.current = toast;
     }, [toast]);
+
+    useEffect(() => {
+        prefersReducedMotionRef.current = prefersReducedMotion;
+    }, [prefersReducedMotion]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return undefined;
+        }
+
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+        syncPreference();
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', syncPreference);
+            return () => mediaQuery.removeEventListener('change', syncPreference);
+        }
+
+        mediaQuery.addListener(syncPreference);
+        return () => mediaQuery.removeListener(syncPreference);
+    }, []);
 
     const recorder = useRecordingSession({
         noteId,
@@ -158,6 +187,29 @@ export default function NoteEditor() {
     const extractText = useCallback((doc) => {
         return extractTextFromDoc(doc).replace(/\s+/g, ' ').trim();
     }, []);
+
+    const resetStreamedEnhancementDoc = useCallback(() => {
+        streamedEnhancementSignatureRef.current = '';
+        setStreamedEnhancementDoc(null);
+    }, []);
+
+    const syncStreamedEnhancementDoc = useCallback((nextDoc) => {
+        if (!nextDoc) {
+            resetStreamedEnhancementDoc();
+            return;
+        }
+
+        const nextSignature = JSON.stringify(nextDoc);
+
+        setStreamedEnhancementDoc(nextDoc);
+
+        if (streamedEnhancementSignatureRef.current !== nextSignature) {
+            streamedEnhancementSignatureRef.current = nextSignature;
+            if (!prefersReducedMotionRef.current) {
+                setStreamedEnhancementPulseKey((current) => current + 1);
+            }
+        }
+    }, [resetStreamedEnhancementDoc]);
 
     const hydrateEnhancedContentFromNote = useCallback(async (job, fallbackNoteId) => {
         const jobId = job?.id;
@@ -195,13 +247,21 @@ export default function NoteEditor() {
         });
     }, []);
 
+    const getTrackedAudioPath = useCallback(() => {
+        const localPath = typeof audioPath === 'string' ? audioPath.trim() : '';
+        if (localPath) return localPath;
+
+        const recorderPath = typeof recorder.audioPath === 'string' ? recorder.audioPath.trim() : '';
+        return recorderPath || null;
+    }, [audioPath, recorder.audioPath]);
+
     const handleEnhancementJobUpdate = useCallback(async (job) => {
         setActiveEnhancementJob(job || null);
         const previewDoc = getJobPreviewDoc(job);
-        setEnhancementPreviewDoc(previewDoc);
 
         if (!job) {
             setEnhancing(false);
+            resetStreamedEnhancementDoc();
             return;
         }
 
@@ -214,6 +274,9 @@ export default function NoteEditor() {
         }
 
         if (isEnhancementJobActive(job)) {
+            if (previewDoc) {
+                syncStreamedEnhancementDoc(previewDoc);
+            }
             setEnhancing(true);
             setShowEnhanceBanner(false);
             setEnhanceError(null);
@@ -244,11 +307,13 @@ export default function NoteEditor() {
                 setContent(finalDoc);
                 contentRef.current = finalDoc;
             }
+            originalContentRef.current = null;
+            originalSavedRef.current = true;
             setSaved(true);
             setEnhancing(false);
             setEnhanceError(null);
             setShowEnhanceBanner(false);
-            setEnhancementPreviewDoc(null);
+            resetStreamedEnhancementDoc();
             setActiveEnhancementJob(null);
             setAudioPath(null);
             recorder.setAudioPath(null);
@@ -264,8 +329,14 @@ export default function NoteEditor() {
             if (pathToClean) {
                 api.deleteNoteAudio(pathToClean).catch(() => {});
             }
+            const restoredContent = cloneRichTextDoc(originalContentRef.current || contentRef.current || {});
+            if (restoredContent) {
+                setContent(restoredContent);
+                contentRef.current = restoredContent;
+            }
+            setSaved(originalSavedRef.current);
             setEnhancing(false);
-            setEnhancementPreviewDoc(null);
+            resetStreamedEnhancementDoc();
             setActiveEnhancementJob(null);
             recorder.setProcessingState('error');
             stopEnhancementTracking();
@@ -276,15 +347,17 @@ export default function NoteEditor() {
                 || 'Enhancement failed',
             );
         }
-    }, [hydrateEnhancedContentFromNote, logEnhancementMetrics, noteId, recorder, stopEnhancementTracking, toast]);
-
-    const getTrackedAudioPath = useCallback(() => {
-        const localPath = typeof audioPath === 'string' ? audioPath.trim() : '';
-        if (localPath) return localPath;
-
-        const recorderPath = typeof recorder.audioPath === 'string' ? recorder.audioPath.trim() : '';
-        return recorderPath || null;
-    }, [audioPath, recorder.audioPath]);
+    }, [
+        getTrackedAudioPath,
+        hydrateEnhancedContentFromNote,
+        logEnhancementMetrics,
+        noteId,
+        recorder,
+        resetStreamedEnhancementDoc,
+        stopEnhancementTracking,
+        syncStreamedEnhancementDoc,
+        toast,
+    ]);
 
     const hasDiscardableAudio = useCallback(() => (
         Boolean(getTrackedAudioPath() || recorder.getBlob())
@@ -429,18 +502,25 @@ export default function NoteEditor() {
                 const latestJob = await api.getAiJob(trackedJobId);
                 // Recovery: if the job is stuck in saving but the note was already saved to DB,
                 // complete the UI. This handles edge function timeouts and dropped Realtime events.
-                if (latestJob?.status === 'saving' && latestJob?.result_payload?.final_doc) {
+                if (latestJob?.status === 'saving') {
                     try {
                         const savedNoteId = String(latestJob.result_payload.note_id || '');
                         if (savedNoteId) {
                             const savedNote = await api.getNote(savedNoteId);
-                            if (savedNote?.enhanced_content) {
+                            const persistedDoc = savedNote?.enhanced_content || savedNote?.content || null;
+
+                            if (savedNote?.enhanced_content && persistedDoc) {
                                 processTrackedEnhancementJob(trackedJobId, {
                                     ...latestJob,
                                     status: 'completed',
                                     phase: 'done',
                                     progress_percent: 100,
                                     progress_message: 'Notes enhanced successfully',
+                                    result_payload: {
+                                        ...(latestJob.result_payload || {}),
+                                        final_doc: persistedDoc,
+                                        note_id: savedNoteId,
+                                    },
                                 });
                                 return;
                             }
@@ -667,6 +747,9 @@ export default function NoteEditor() {
         const blob = recorder.getBlob();
         if (!blob || !noteId) return;
 
+        originalContentRef.current = cloneRichTextDoc(contentRef.current || {});
+        originalSavedRef.current = saved;
+        resetStreamedEnhancementDoc();
         setEnhancing(true);
         setEnhanceError(null);
         setShowEnhanceBanner(false);
@@ -686,7 +769,6 @@ export default function NoteEditor() {
             progress_message: ENHANCEMENT_PHASE_LABELS.uploading_audio,
             result_payload: {},
         });
-        setEnhancementPreviewDoc(null);
 
         try {
             const uploadResult = await api.uploadNoteAudio(noteId, blob);
@@ -719,7 +801,7 @@ export default function NoteEditor() {
         } catch (err) {
             stopEnhancementTracking();
             setActiveEnhancementJob(null);
-            setEnhancementPreviewDoc(null);
+            resetStreamedEnhancementDoc();
             setEnhancing(false);
             recorder.setProcessingState('error');
             if (err.status === 429) {
@@ -973,6 +1055,9 @@ export default function NoteEditor() {
     const micDisabled = isRecordingInAnotherNote || enhancing || enhancementLocked || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
     const generationDisabled = enhancementLocked || !!generating;
     const enhancementStatusText = getEnhancementStatusText(activeEnhancementJob);
+    const enhancementProgressPercent = activeEnhancementJob?.progress_percent ?? null;
+    const editorContent = streamedEnhancementDoc ?? content;
+    const showImportSweep = enhancementLocked && streamedEnhancementDoc && !prefersReducedMotion;
 
     const micLabel = isRecording
         ? `Stop recording (${formatRecordingDuration(recorder.duration)})`
@@ -1160,20 +1245,33 @@ export default function NoteEditor() {
                                 initial={{ opacity: 0, y: -8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
-                                className="mb-4 p-3 rounded-xl glass-panel border border-claude-accent/20 flex items-center justify-between gap-3"
+                                className="mb-4 rounded-2xl border border-claude-accent/15 bg-claude-surface/45 px-3 py-3"
                             >
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Loader2 className="w-4 h-4 text-claude-accent animate-spin shrink-0" />
+                                <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-mono text-claude-text truncate">{enhancementStatusText}</p>
-                                        <p className="text-[9px] font-mono uppercase tracking-widest text-claude-secondary">
-                                            {activeEnhancementJob.progress_percent != null ? `${activeEnhancementJob.progress_percent}% complete` : 'Preparing preview'}
+                                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">
+                                            Importing into note
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-claude-secondary truncate">
+                                            {enhancementStatusText}
                                         </p>
                                     </div>
+                                    <div className="inline-flex items-center gap-2 shrink-0">
+                                        <span className="text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary">
+                                            {enhancementProgressPercent != null ? `${enhancementProgressPercent}%` : 'Live'}
+                                        </span>
+                                        <Loader2 className="w-3.5 h-3.5 text-claude-accent animate-spin" />
+                                    </div>
                                 </div>
-                                <div className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest text-claude-secondary shrink-0">
-                                    <Lock className="w-3 h-3" />
-                                    Editor locked
+                                <div className="mt-2 h-px overflow-hidden rounded-full bg-claude-border/30">
+                                    <motion.div
+                                        className="h-full bg-claude-accent/70"
+                                        initial={false}
+                                        animate={{ width: `${Math.max(enhancementProgressPercent ?? 12, 12)}%` }}
+                                        transition={prefersReducedMotion
+                                            ? { duration: 0 }
+                                            : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                                    />
                                 </div>
                             </motion.div>
                         )}
@@ -1207,36 +1305,6 @@ export default function NoteEditor() {
                                     >
                                         <X className="w-3.5 h-3.5" />
                                     </button>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                        {enhancementPreviewDoc && enhancementLocked && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                className="mb-5 rounded-2xl border border-claude-accent/20 bg-claude-surface/60 overflow-hidden"
-                            >
-                                <div className="px-4 py-3 border-b border-claude-border/20 flex items-center justify-between gap-3">
-                                    <div>
-                                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-claude-accent">AI Enhancement Preview</p>
-                                        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-claude-secondary mt-1">
-                                            Sections appear as they are completed
-                                        </p>
-                                    </div>
-                                    <span className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary shrink-0">
-                                        {enhancementStatusText}
-                                    </span>
-                                </div>
-                                <div className="px-4 py-4">
-                                    <TiptapEditor
-                                        content={enhancementPreviewDoc}
-                                        editable={false}
-                                        placeholder=""
-                                    />
                                 </div>
                             </motion.div>
                         )}
@@ -1294,12 +1362,29 @@ export default function NoteEditor() {
                         className="w-full bg-transparent text-3xl sm:text-4xl font-serif font-bold italic text-claude-text placeholder:text-claude-secondary/30 outline-none mb-2 tracking-tight leading-tight disabled:opacity-60"
                     />
 
-                    <TiptapEditor
-                        content={content}
-                        onUpdate={handleContentUpdate}
-                        editable={!enhancementLocked}
-                        placeholder={enhancementLocked ? 'AI enhancement in progress...' : 'Start writing, or type / for commands...'}
-                    />
+                    <div className={`relative overflow-hidden rounded-[1.75rem] transition-all ${enhancementLocked ? 'border border-claude-accent/12 bg-claude-surface/20' : ''}`}>
+                        <AnimatePresence initial={false}>
+                            {showImportSweep && (
+                                <motion.div
+                                    key={streamedEnhancementPulseKey}
+                                    aria-hidden="true"
+                                    className="pointer-events-none absolute inset-y-0 -left-1/3 z-10 w-1/3 bg-gradient-to-r from-transparent via-claude-accent/12 to-transparent"
+                                    initial={{ x: '0%', opacity: 0 }}
+                                    animate={{ x: '420%', opacity: [0, 0.95, 0] }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                />
+                            )}
+                        </AnimatePresence>
+                        <div className="relative z-0">
+                            <TiptapEditor
+                                content={editorContent}
+                                onUpdate={handleContentUpdate}
+                                editable={!enhancementLocked}
+                                placeholder={enhancementLocked ? 'Importing enhanced notes...' : 'Start writing, or type / for commands...'}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 

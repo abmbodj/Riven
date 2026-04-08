@@ -1,6 +1,10 @@
 import { createHttpError, normalizeYoutubeUrl } from './aiCore.mjs';
 
 export const AI_JOB_KINDS = [
+  'deck_generation',
+  'class_generation',
+  'guide_generation',
+  'exam_generation',
   'note_enhancement',
   'youtube_source',
   'youtube_deck',
@@ -55,6 +59,10 @@ const toRecord = (value: unknown): JsonRecord => (
   value && typeof value === 'object' && !Array.isArray(value)
     ? value as JsonRecord
     : {}
+);
+
+const compactRecord = (value: unknown): JsonRecord => Object.fromEntries(
+  Object.entries(toRecord(value)).filter(([, entry]) => entry !== undefined),
 );
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -406,6 +414,48 @@ export const createJobReporter = (admin: any, initialRow: AiJobRow) => {
       });
     },
   };
+};
+
+export const createAiHistoryReporter = async ({
+  admin,
+  userId,
+  kind,
+  inputPayload,
+  sourceKey = null,
+  targetType = null,
+  targetId = null,
+  initialMessage = 'Accepted AI request',
+}: {
+  admin: any;
+  userId: number;
+  kind: typeof AI_JOB_KINDS[number];
+  inputPayload?: JsonRecord;
+  sourceKey?: string | null;
+  targetType?: string | null;
+  targetId?: string | number | null;
+  initialMessage?: string;
+}) => {
+  const { data, error } = await admin
+    .from('ai_jobs')
+    .insert({
+      user_id: userId,
+      kind,
+      status: 'queued',
+      phase: 'accepted',
+      progress_percent: 0,
+      progress_message: initialMessage,
+      input_payload: compactRecord(inputPayload),
+      result_payload: {},
+      error_payload: {},
+      source_key: sourceKey,
+      target_type: targetType,
+      target_id: targetId == null ? null : String(targetId),
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return createJobReporter(admin, data);
 };
 
 export const waitForJobCompletion = async ({

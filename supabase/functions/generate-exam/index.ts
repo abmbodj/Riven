@@ -16,6 +16,7 @@ import {
 import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
+import { createAiHistoryReporter } from '../_shared/aiJobs.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
 import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
@@ -130,6 +131,24 @@ serve(async (request) => {
         );
       }
 
+      const finalTitle = body.title || 'AI Mock Exam';
+      const reporter = await createAiHistoryReporter({
+        admin,
+        userId: authUser.id,
+        kind: 'exam_generation',
+        targetType: 'exam',
+        inputPayload: {
+          title_snapshot: finalTitle,
+          source_type: body.sourceType || 'notes',
+          source_id: body.sourceId || null,
+          class_id: body.classId || null,
+          class_name: typeof body.className === 'string' ? body.className : null,
+          exam_mode: examMode,
+        },
+        initialMessage: 'Preparing mock exam',
+      });
+      await reporter.markStreaming('drafting', 30, 'Generating mock exam');
+
       const masteryData = masteryResult.data;
 
       const contents = buildExamContents({
@@ -198,7 +217,6 @@ serve(async (request) => {
             throw createHttpError('AI generated questions in an invalid format. Please try again.', 500);
           }
 
-          const finalTitle = body.title || 'AI Mock Exam';
           const { data: exam, error: examErr } = await admin
             .from('mock_exams')
             .insert({
@@ -215,10 +233,22 @@ serve(async (request) => {
 
           if (examErr) throw examErr;
 
+          await reporter.complete({
+            message: 'Mock exam generated successfully',
+            targetType: 'exam',
+            targetId: exam.id,
+            resultPatch: {
+              exam_id: exam.id,
+              question_count: validQuestions.length,
+              title: finalTitle,
+              exam_mode: examMode,
+            },
+          });
           sendDone({ exam_id: exam.id, question_count: validQuestions.length });
         } catch (err: unknown) {
           const reqErr = normalizeRequestError(err);
           await reportEdgeException(reqErr, { request, functionName: 'generate-exam' });
+          await reporter.fail(reqErr);
           sendError(
             reqErr.message || 'An unexpected error occurred during AI generation.',
             typeof reqErr.status === 'number' ? reqErr.status : 500,
@@ -259,60 +289,121 @@ serve(async (request) => {
       },
     });
 
-    const result = await generateExamFromAi({
-      userId: authUser.id,
+    const sourcePreview = await prepareAiSource({
       notes: body.notes,
       file: body.file,
-      title: body.title,
-      sourceType: body.sourceType,
-      sourceId: body.sourceId,
-      classId: body.classId,
-      className: body.className,
-      aiLimitsContext,
-      apiKey,
       parseDocx: async (buffer: Buffer) => {
         const parsed = await mammoth.extractRawText({ buffer });
         return parsed.value;
-      },
-      generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
-        const ai = createAiClient(apiKey);
-        return ai.generateContent({
-          model,
-          messages: contentsToMessages(contents),
-        });
-      },
-      createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {
-        const { data, error: createError } = await admin
-          .from('mock_exams')
-          .insert({
-            user_id: userId,
-            title,
-            source_type: sourceType,
-            source_id: sourceId,
-            class_id: classId,
-            questions,
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        return data;
-      },
-      deleteExam: async (examId: string) => {
-        const { error: deleteError } = await admin
-          .from('mock_exams')
-          .delete()
-          .eq('id', examId)
-          .eq('user_id', authUser.id);
-
-        if (deleteError) throw deleteError;
       },
       onParseError: (error: unknown) => {
         console.error('Failed to parse document text:', error);
       },
     });
 
-    return jsonResponse(result, { status: 201 }, request);
+    if (!sourcePreview.hasProcessedNotes && !sourcePreview.keepFile) {
+      throw createHttpError('Notes or a file are required to generate an exam.', 400);
+    }
+
+    const characterLimit = aiLimitsContext?.characterLimit || 15000;
+    if (sourcePreview.hasProcessedNotes && sourcePreview.processedNotes.length > characterLimit) {
+      throw createHttpError(
+        `Notes are too long. Please limit to ~${Math.round(characterLimit / 5)} words.`,
+        400,
+      );
+    }
+
+    const examMode = body.examMode || 'standard';
+    const finalTitle = body.title || 'AI Mock Exam';
+    const reporter = await createAiHistoryReporter({
+      admin,
+      userId: authUser.id,
+      kind: 'exam_generation',
+      targetType: 'exam',
+      inputPayload: {
+        title_snapshot: finalTitle,
+        source_type: body.sourceType || 'notes',
+        source_id: body.sourceId || null,
+        class_id: body.classId || null,
+        class_name: typeof body.className === 'string' ? body.className : null,
+        exam_mode: examMode,
+      },
+      initialMessage: 'Preparing mock exam',
+    });
+    await reporter.markRunning('drafting', 35, 'Generating mock exam');
+
+    try {
+      const result = await generateExamFromAi({
+        userId: authUser.id,
+        notes: body.notes,
+        file: body.file,
+        title: body.title,
+        sourceType: body.sourceType,
+        sourceId: body.sourceId,
+        classId: body.classId,
+        className: body.className,
+        aiLimitsContext,
+        apiKey,
+        parseDocx: async (buffer: Buffer) => {
+          const parsed = await mammoth.extractRawText({ buffer });
+          return parsed.value;
+        },
+        generateContent: async ({ model, contents }: { model: string; contents: Array<Record<string, unknown>> }) => {
+          const ai = createAiClient(apiKey);
+          return ai.generateContent({
+            model,
+            messages: contentsToMessages(contents),
+          });
+        },
+        createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {
+          const { data, error: createError } = await admin
+            .from('mock_exams')
+            .insert({
+              user_id: userId,
+              title,
+              source_type: sourceType,
+              source_id: sourceId,
+              class_id: classId,
+              questions,
+            })
+            .select('id')
+            .single();
+
+          if (createError) throw createError;
+          return data;
+        },
+        deleteExam: async (examId: string) => {
+          const { error: deleteError } = await admin
+            .from('mock_exams')
+            .delete()
+            .eq('id', examId)
+            .eq('user_id', authUser.id);
+
+          if (deleteError) throw deleteError;
+        },
+        onParseError: (error: unknown) => {
+          console.error('Failed to parse document text:', error);
+        },
+      });
+
+      await reporter.complete({
+        message: 'Mock exam generated successfully',
+        targetType: 'exam',
+        targetId: result.exam_id,
+        resultPatch: {
+          exam_id: result.exam_id,
+          question_count: result.question_count,
+          title: finalTitle,
+          exam_mode: examMode,
+        },
+      });
+
+      return jsonResponse(result, { status: 201 }, request);
+    } catch (error: unknown) {
+      const requestError = normalizeRequestError(error);
+      await reporter.fail(requestError);
+      throw requestError;
+    }
   } catch (error: unknown) {
     const requestError = normalizeRequestError(error);
 

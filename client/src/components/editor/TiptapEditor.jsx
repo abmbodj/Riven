@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -114,14 +114,14 @@ export default function TiptapEditor({ content, onUpdate, editable = true, place
             const currentJson = JSON.stringify(editor.getJSON());
             const newJson = JSON.stringify(content);
             if (currentJson !== newJson) {
-                editor.commands.setContent(content);
+                editor.commands.setContent(content, { emitUpdate: false });
             }
         }
     }, [content, editor]);
 
     useEffect(() => {
         if (editor) {
-            editor.setEditable(editable);
+            editor.setEditable(editable, false);
         }
     }, [editable, editor]);
 

@@ -204,6 +204,18 @@ const buildEnhancementJob = (overrides = {}) => ({
   ...overrides,
 });
 
+const makeDoc = (text) => ({
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text },
+      ],
+    },
+  ],
+});
+
 describe('NoteEditor', () => {
   beforeEach(() => {
     subscriptionHandlers.clear();
@@ -401,33 +413,14 @@ describe('NoteEditor', () => {
   it('reconciles a saving enhancement job to completion when realtime misses the final update', async () => {
     vi.useFakeTimers();
 
-    const previewDoc = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Preview enhancement section' },
-          ],
-        },
-      ],
-    };
-    const finalDoc = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Enhanced notes from polling reconciliation.' },
-          ],
-        },
-      ],
-    };
+    const previewDoc = makeDoc('Preview enhancement section');
+    const finalDoc = makeDoc('Enhanced notes from polling reconciliation.');
 
     api.listAiJobs.mockResolvedValue([
       buildEnhancementJob({
         result_payload: {
           preview_doc: previewDoc,
+          note_id: 'note-42',
         },
       }),
     ]);
@@ -435,49 +428,45 @@ describe('NoteEditor', () => {
       .mockResolvedValueOnce(buildEnhancementJob({
         result_payload: {
           preview_doc: previewDoc,
+          note_id: 'note-42',
         },
       }))
       .mockResolvedValueOnce(buildEnhancementJob({
-        status: 'completed',
-        phase: 'done',
-        progress_percent: 100,
-        progress_message: 'Notes enhanced successfully',
         result_payload: {
-          final_doc: finalDoc,
+          preview_doc: previewDoc,
           note_id: 'note-42',
         },
       }));
+    api.getNote
+      .mockResolvedValueOnce(note)
+      .mockResolvedValueOnce({
+        ...note,
+        content: finalDoc,
+        enhanced_content: finalDoc,
+      });
 
     renderNoteEditor();
     await flushAsync(6);
 
     expect(screen.getByDisplayValue('Cell Respiration Notes')).toBeInTheDocument();
-    expect(screen.getByText('Editor locked')).toBeInTheDocument();
-    expect(screen.getByText('Preview enhancement section')).toBeInTheDocument();
+    expect(screen.getByText('Importing into note')).toBeInTheDocument();
+    expect(screen.queryByText('AI Enhancement Preview')).not.toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Preview enhancement section');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
     await flushAsync(4);
 
-    expect(screen.getByText('Enhanced notes from polling reconciliation.')).toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes from polling reconciliation.');
     expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
     expect(recorderMock.setProcessingState).toHaveBeenCalledWith('complete');
     expect(api.getAiJob).toHaveBeenCalledTimes(2);
+    expect(api.getNote).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes the persisted note once when a completed job is missing final_doc', async () => {
-    const refreshedDoc = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Enhanced notes loaded from the saved note row.' },
-          ],
-        },
-      ],
-    };
+    const refreshedDoc = makeDoc('Enhanced notes loaded from the saved note row.');
 
     api.getNote
       .mockResolvedValueOnce(note)
@@ -506,9 +495,97 @@ describe('NoteEditor', () => {
       expect(api.getNote).toHaveBeenCalledTimes(2);
     });
 
-    expect(screen.getByText('Enhanced notes loaded from the saved note row.')).toBeInTheDocument();
-    expect(screen.queryByText('Editor locked')).not.toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes loaded from the saved note row.');
+    expect(screen.queryByText('Importing into note')).not.toBeInTheDocument();
     expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+  });
+
+  it('shows active enhancement content in the main editor without rendering a separate preview card', async () => {
+    const previewDoc = makeDoc('Streaming note import content');
+
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        status: 'running',
+        phase: 'drafting',
+        progress_percent: 62,
+        progress_message: 'Drafting enhanced notes',
+        result_payload: {
+          preview_doc: previewDoc,
+          note_id: 'note-42',
+        },
+      }),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      status: 'running',
+      phase: 'drafting',
+      progress_percent: 62,
+      progress_message: 'Drafting enhanced notes',
+      result_payload: {
+        preview_doc: previewDoc,
+        note_id: 'note-42',
+      },
+    }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    expect(screen.getByText('Importing into note')).toBeInTheDocument();
+    expect(screen.queryByText('AI Enhancement Preview')).not.toBeInTheDocument();
+    expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Streaming note import content');
+  });
+
+  it('restores the original note content when an active enhancement job fails', async () => {
+    const previewDoc = makeDoc('Streaming note import content');
+
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        status: 'running',
+        phase: 'drafting',
+        progress_percent: 62,
+        progress_message: 'Drafting enhanced notes',
+        result_payload: {
+          preview_doc: previewDoc,
+          note_id: 'note-42',
+        },
+      }),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      status: 'running',
+      phase: 'drafting',
+      progress_percent: 62,
+      progress_message: 'Drafting enhanced notes',
+      result_payload: {
+        preview_doc: previewDoc,
+        note_id: 'note-42',
+      },
+    }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    expect(screen.getByTestId('note-editor-content-readonly')).toHaveTextContent('Streaming note import content');
+
+    await act(async () => {
+      subscriptionHandlers.get('job-1')?.onError?.(buildEnhancementJob({
+        status: 'failed',
+        phase: 'error',
+        progress_percent: 62,
+        progress_message: 'Enhancement failed',
+        result_payload: {
+          note_id: 'note-42',
+        },
+        error_payload: {
+          message: 'Enhancement failed',
+        },
+      }));
+      await Promise.resolve();
+    });
+    await flushAsync(4);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Mitochondria power ATP production.');
+      expect(screen.getByText('Enhancement failed')).toBeInTheDocument();
+    });
   });
 
   it('stops enhancement polling when the editor unmounts', async () => {

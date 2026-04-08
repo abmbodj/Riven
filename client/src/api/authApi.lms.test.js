@@ -170,4 +170,77 @@ describe('authApi Canvas LMS edge integration', () => {
       }),
     );
   });
+
+  it('imports uploaded calendar files through the dedicated edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      message: 'Calendar file imported.',
+      sourceId: 'source-1',
+      eventsAdded: 4,
+    }));
+
+    const result = await authApi.importCalendarSourceFile({
+      label: 'Spring Export',
+      color: '#7a9e72',
+      fileName: 'classes.ics',
+      icsText: 'BEGIN:VCALENDAR',
+    });
+
+    expect(result).toEqual({
+      message: 'Calendar file imported.',
+      sourceId: 'source-1',
+      eventsAdded: 4,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/calendar-source-file-import',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          label: 'Spring Export',
+          color: '#7a9e72',
+          fileName: 'classes.ics',
+          icsText: 'BEGIN:VCALENDAR',
+        }),
+      }),
+    );
+  });
+
+  it('replaces uploaded calendar files through the dedicated edge function', async () => {
+    const token = buildJwt({ aud: 'authenticated', sub: 'auth-user-id' });
+    authApi.setToken(token);
+    setSupabaseEdgeSession(token);
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(buildJsonResponse({
+      message: 'Calendar file replaced.',
+      sourceId: 'source-1',
+      eventsAdded: 6,
+    }));
+
+    const result = await authApi.replaceCalendarSourceFile({
+      sourceId: 'source-1',
+      color: '#7a9e72',
+      fileName: 'updated.ics',
+      icsText: 'BEGIN:VCALENDAR\nEND:VCALENDAR',
+    });
+
+    expect(result).toEqual({
+      message: 'Calendar file replaced.',
+      sourceId: 'source-1',
+      eventsAdded: 6,
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://supabase.test/functions/v1/calendar-source-file-import',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          sourceId: 'source-1',
+          color: '#7a9e72',
+          fileName: 'updated.ics',
+          icsText: 'BEGIN:VCALENDAR\nEND:VCALENDAR',
+          replaceExisting: true,
+        }),
+      }),
+    );
+  });
 });

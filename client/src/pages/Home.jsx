@@ -421,6 +421,7 @@ function DashboardHome() {
     const [weeklySummary, setWeeklySummary] = useState(null);
     const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(true);
     const [pricingOpen, setPricingOpen] = useState(false);
+    const [completingAssignmentIds, setCompletingAssignmentIds] = useState([]);
     const lightVisualBudget = useMobileVisualBudget();
     const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot, () => false);
     const timeZone = useMemo(
@@ -650,6 +651,43 @@ function DashboardHome() {
     }, [decks, notes, guides, exams]);
 
     const classesById = useMemo(() => new Map(classes.map((classItem) => [classItem.id, classItem])), [classes]);
+    const rescheduleDashboardAssignmentNotifications = (nextAssignments) => {
+        const saved = localStorage.getItem('notifications_enabled');
+        const notificationsEnabled = saved === null ? true : saved === 'true';
+        scheduleAssignmentNotifications(nextAssignments, notificationsEnabled);
+    };
+
+    const handleCompletePriorityItem = async (item) => {
+        const assignmentId = item?.assignmentId;
+
+        if (!assignmentId || completingAssignmentIds.includes(assignmentId)) {
+            return;
+        }
+
+        const previousAssignments = assignments;
+        const nextAssignments = previousAssignments.map((assignment) => (
+            assignment.id === assignmentId
+                ? { ...assignment, status: 'Done' }
+                : assignment
+        ));
+
+        setCompletingAssignmentIds((current) => [...current, assignmentId]);
+        setAssignments(nextAssignments);
+        rescheduleDashboardAssignmentNotifications(nextAssignments);
+
+        try {
+            await api.updateAssignment(assignmentId, { status: 'Done' });
+            toast.success('Assignment completed');
+        } catch (error) {
+            console.error('Priority completion error', error);
+            setAssignments(previousAssignments);
+            rescheduleDashboardAssignmentNotifications(previousAssignments);
+            toast.error('Failed to mark assignment complete');
+        } finally {
+            setCompletingAssignmentIds((current) => current.filter((id) => id !== assignmentId));
+        }
+    };
+
     const priorityItems = useMemo(() => {
         const now = new Date();
 
@@ -667,6 +705,7 @@ function DashboardHome() {
 
                 return {
                     id: assignment.id,
+                    assignmentId: assignment.id,
                     title: String(rawTitle).trim() || 'Untitled Assignment',
                     tone,
                     urgencyLabel: diffDays < 0
@@ -1032,7 +1071,11 @@ function DashboardHome() {
                 </div>
 
                 <div className="order-2 lg:row-span-2">
-                    <PriorityItems items={priorityItems} />
+                    <PriorityItems
+                        items={priorityItems}
+                        onComplete={handleCompletePriorityItem}
+                        completingIds={completingAssignmentIds}
+                    />
                 </div>
 
                 <div className="order-3">
