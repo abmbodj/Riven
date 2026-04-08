@@ -720,9 +720,10 @@ const processNoteEnhancementJob = async ({
     try {
       finalDoc = parseAiJsonResponse(mergeText, 'AI generated invalid merged notes format. Please try again.');
     } catch {
-      const allContent = completedSections.flatMap((doc: any) =>
-        Array.isArray(doc?.content) ? doc.content : [],
-      );
+      const allContent = completedSections.flatMap((doc: any) => {
+        if (!Array.isArray(doc?.content)) return [];
+        return (doc.content as any[]).filter((node: any) => node?.type !== 'doc');
+      });
       finalDoc = { type: 'doc', content: allContent };
     }
 
