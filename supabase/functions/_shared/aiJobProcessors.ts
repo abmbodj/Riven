@@ -73,6 +73,89 @@ ${userNotes || 'No student notes were provided.'}
 Current draft JSON:
 ${JSON.stringify(draftDoc)}`;
 
+const buildSectionNotePrompt = (
+  sectionIndex: number,
+  totalSections: number,
+  userNotes: string | null,
+  className?: string | null,
+) => `You are a lecture notes assistant. Given a transcript excerpt from a lecture, produce structured notes as a Tiptap JSON document for this section only.
+
+${buildSubjectContext(className ?? undefined)}
+
+This is section ${sectionIndex + 1} of ${totalSections} from a longer lecture.
+- Use H2 for the section's main topic, H3 for subtopics.
+- Bullet lists for concepts, ordered lists for sequential steps.
+- Bold key terms on first use.
+- Blockquotes for direct definitions.
+- Do NOT include "Key Concepts" or "Potential Exam Questions" — those go in the final merge.
+- Be concise. Do not pad with filler.
+
+${TIPTAP_FORMAT}
+
+Student notes (for context, if any):
+${userNotes || 'No student notes were provided.'}`;
+
+const generateNotesForSection = async ({
+  ai,
+  section,
+  totalSections,
+  userNotesSnapshot,
+  className,
+  modelMap,
+}: {
+  ai: AiClient;
+  section: AudioSection;
+  totalSections: number;
+  userNotesSnapshot: string | null;
+  className: string | null;
+  modelMap: ReturnType<typeof getAiModelMap>;
+}): Promise<unknown> => {
+  const prompt = buildSectionNotePrompt(section.index, totalSections, userNotesSnapshot, className);
+  const rawText = await generateWithFallback({
+    ai,
+    primaryModel: modelMap.draft,
+    fallbackModel: modelMap.final,
+    messages: [{ role: 'user', content: `${prompt}\n\nSection Transcript:\n${section.text}` }],
+    jsonMode: true,
+    maxTokens: 3072,
+  });
+
+  try {
+    return parseAiJsonResponse(rawText, 'Invalid section notes format');
+  } catch {
+    return {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: '[This section could not be processed]' }],
+      }],
+    };
+  }
+};
+
+const buildMergePrompt = (
+  userNotes: string | null,
+  className: string | null | undefined,
+  sectionDocs: unknown[],
+) => `You are a lecture notes assistant. You have notes for each section of a lecture. Merge them into one complete, polished Tiptap JSON document.
+
+${buildSubjectContext(className ?? undefined)}
+
+Requirements:
+- Preserve the structure and wording of each section's notes.
+- Remove any duplication introduced at section boundaries.
+- Add a final "Key Concepts" section summarizing the whole lecture.
+- Add a "Potential Exam Questions" section with 3–5 questions covering the full lecture.
+- Keep H1/H2/H3 hierarchy. Bold key terms. Blockquotes for definitions.
+
+${TIPTAP_FORMAT}
+
+Student notes (for context, if any):
+${userNotes || 'No student notes were provided.'}
+
+Section notes JSON array:
+${JSON.stringify(sectionDocs)}`;
+
 const buildYoutubeSourcePrompt = (className?: string | null) => `You are an expert academic note taker watching an educational YouTube video.
 Produce clean, complete notes as a Tiptap JSON document that can be reused to generate other study materials.
 
@@ -153,6 +236,60 @@ const getAudioMimeType = (audioPath: string) => {
     m4a: 'audio/m4a',
   };
   return mimeMap[ext] || 'audio/webm';
+};
+
+type AudioSegment = { id: number; start: number; end: number; text: string };
+type AudioSection = { index: number; text: string; startTime: number; endTime: number };
+
+const groupSegmentsIntoSections = (
+  segments: AudioSegment[],
+  targetDurationSecs = 300,
+): AudioSection[] => {
+  if (segments.length === 0) return [];
+
+  const sections: AudioSection[] = [];
+  let currentSegments: AudioSegment[] = [];
+  let sectionStart = segments[0].start;
+
+  for (const seg of segments) {
+    currentSegments.push(seg);
+    const elapsed = seg.end - sectionStart;
+    if (elapsed >= targetDurationSecs) {
+      sections.push({
+        index: sections.length,
+        text: currentSegments.map((s) => s.text).join(' '),
+        startTime: sectionStart,
+        endTime: seg.end,
+      });
+      currentSegments = [];
+      sectionStart = seg.end;
+    }
+  }
+
+  // Flush remaining segments
+  if (currentSegments.length > 0) {
+    sections.push({
+      index: sections.length,
+      text: currentSegments.map((s) => s.text).join(' '),
+      startTime: sectionStart,
+      endTime: currentSegments[currentSegments.length - 1].end,
+    });
+  }
+
+  return sections;
+};
+
+const processConcurrently = async <T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<void>,
+): Promise<void> => {
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    await Promise.allSettled(
+      batch.map((item, batchIndex) => fn(item, i + batchIndex)),
+    );
+  }
 };
 
 const transcribeAudio = async ({
