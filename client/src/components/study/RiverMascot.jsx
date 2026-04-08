@@ -276,14 +276,19 @@ export default function RiverMascot({
     return (
         <div
             className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 p-4 pt-5 sm:p-5 sm:pt-6 ${className}`}
-            style={{ backgroundImage: 'url(/river-background.svg)', backgroundSize: 'cover', backgroundPosition: 'center 78%' }}
             data-testid="river-mascot"
             data-river-state={normalizedState}
             role="img"
             aria-label={`River is ${pose.label.toLowerCase()}`}
         >
+            <img
+                src="/river-background.svg"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover object-bottom"
+                fetchPriority="high"
+            />
             <div className="pointer-events-none absolute inset-0 opacity-80 [background:linear-gradient(180deg,rgba(250,232,193,0.14),transparent_18%),linear-gradient(180deg,transparent_72%,rgba(32,40,34,0.84)_100%)]" />
-            <div className="pointer-events-none absolute inset-x-8 bottom-6 h-20 rounded-full bg-[radial-gradient(circle,_rgba(0,0,0,0.42),transparent_72%)] blur-2xl" />
+            <div className="pointer-events-none absolute inset-x-8 bottom-6 h-20 rounded-full bg-[radial-gradient(circle,_rgba(0,0,0,0.42),transparent_72%)]" />
 
             <div className="relative flex flex-col">
                 <div className="relative mx-auto flex w-full max-w-[320px] flex-col items-center">
@@ -501,6 +506,42 @@ export default function RiverMascot({
                                 <path d="M136 170 C145 174 153 176 160 176 C167 176 175 174 184 170" stroke="#566d44" strokeWidth="2.5" strokeLinecap="round" opacity="0.34" />
                                 </motion.g>
                             </motion.g>
+                        </svg>
+
+                        {/* Lily pad — anchored at River's feet, works with or without caption */}
+                        <svg
+                            viewBox="0 0 260 100"
+                            className="pointer-events-none absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-[81%] max-w-[260px]"
+                            aria-hidden="true"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <linearGradient id={`${ids.stage}-lp-grad`} x1="0.5" y1="0" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+                                    <stop offset="0%" stopColor="#4e6e32" />
+                                    <stop offset="55%" stopColor="#314c1e" />
+                                    <stop offset="100%" stopColor="#1e3014" />
+                                </linearGradient>
+                                <radialGradient id={`${ids.stage}-lp-hi`} cx="0.38" cy="0.28" r="0.58" gradientUnits="objectBoundingBox">
+                                    <stop offset="0%" stopColor="#6a8c3e" stopOpacity="0.65" />
+                                    <stop offset="100%" stopColor="#314c1e" stopOpacity="0" />
+                                </radialGradient>
+                                <radialGradient id={`${ids.stage}-lp-glow`} cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+                                    <stop offset="0%" stopColor="#deb96a" stopOpacity="0.18" />
+                                    <stop offset="100%" stopColor="#deb96a" stopOpacity="0" />
+                                </radialGradient>
+                            </defs>
+                            <ellipse cx="130" cy="62" rx="130" ry="38" fill={`url(#${ids.stage}-lp-glow)`} />
+                            <ellipse cx="130" cy="50" rx="122" ry="44" fill={`url(#${ids.stage}-lp-grad)`} />
+                            <ellipse cx="130" cy="50" rx="122" ry="44" fill={`url(#${ids.stage}-lp-hi)`} />
+                            <path d="M130 6 L116 36 L130 44 L144 36 Z" fill="#0c1c28" />
+                            <line x1="130" y1="6"   x2="130" y2="94"  stroke="#18280e" strokeWidth="1.0" opacity="0.50" />
+                            <line x1="8"   y1="50"  x2="252" y2="50"  stroke="#18280e" strokeWidth="0.7" opacity="0.40" />
+                            <line x1="40"  y1="12"  x2="220" y2="88"  stroke="#18280e" strokeWidth="0.6" opacity="0.34" />
+                            <line x1="40"  y1="88"  x2="220" y2="12"  stroke="#18280e" strokeWidth="0.6" opacity="0.34" />
+                            <line x1="78"  y1="8"   x2="182" y2="92"  stroke="#18280e" strokeWidth="0.5" opacity="0.26" />
+                            <line x1="78"  y1="92"  x2="182" y2="8"   stroke="#18280e" strokeWidth="0.5" opacity="0.26" />
+                            <ellipse cx="130" cy="46" rx="120" ry="41" fill="none" stroke="#deb96a" strokeWidth="0.8" opacity="0.10" />
                         </svg>
                     </div>
                 </div>
