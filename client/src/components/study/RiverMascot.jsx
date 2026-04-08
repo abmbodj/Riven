@@ -275,7 +275,8 @@ export default function RiverMascot({
 
     return (
         <div
-            className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 bg-[radial-gradient(circle_at_top,_rgba(241,223,182,0.18),_rgba(13,15,14,0.97)_68%)] p-4 pt-5 sm:p-5 sm:pt-6 ${className}`}
+            className={`relative overflow-hidden rounded-[2rem] border border-claude-border/80 p-4 pt-5 sm:p-5 sm:pt-6 ${className}`}
+            style={{ backgroundImage: 'url(/river-background.svg)', backgroundSize: 'cover', backgroundPosition: 'center 78%' }}
             data-testid="river-mascot"
             data-river-state={normalizedState}
             role="img"

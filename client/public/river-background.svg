@@ -30,9 +30,6 @@
     100% { r: 145; opacity: 0; }
   }
 
-  .river-scene { animation: river-float 4.8s cubic-bezier(0.22,1,0.36,1) infinite; transform-box: fill-box; transform-origin: center bottom; }
-  .river-eye   { transform-box: fill-box; transform-origin: center center; animation: river-blink 4.1s cubic-bezier(0.22,1,0.36,1) infinite; }
-  .river-eye-r { animation-delay: 0.18s; }
   .water-sh    { animation: water-shimmer 4.2s ease-in-out infinite; }
   .water-sh-2  { animation: water-shimmer 5.0s ease-in-out infinite 1.4s; }
   .water-sh-3  { animation: water-shimmer 3.8s ease-in-out infinite 2.6s; }
@@ -128,32 +125,6 @@
   <stop offset="100%" stop-color="#deb96a" stop-opacity="0"/>
 </radialGradient>
 
-<!-- ───────────────────────────────────────
-     GRADIENTS — RIVER (exact from source)
-─────────────────────────────────────── -->
-
-<linearGradient id="sc-body" x1="108" y1="154" x2="208" y2="278" gradientUnits="userSpaceOnUse">
-  <stop offset="0%"   stop-color="#8daa72"/>
-  <stop offset="54%"  stop-color="#6c8a54"/>
-  <stop offset="100%" stop-color="#4d663e"/>
-</linearGradient>
-<linearGradient id="sc-belly" x1="140" y1="182" x2="180" y2="264" gradientUnits="userSpaceOnUse">
-  <stop offset="0%"   stop-color="#efe6c8"/>
-  <stop offset="100%" stop-color="#dcc8a2"/>
-</linearGradient>
-<linearGradient id="sc-head" x1="92" y1="66" x2="228" y2="206" gradientUnits="userSpaceOnUse">
-  <stop offset="0%"   stop-color="#98b77a"/>
-  <stop offset="62%"  stop-color="#6e8f53"/>
-  <stop offset="100%" stop-color="#4a623b"/>
-</linearGradient>
-<linearGradient id="sc-limb" x1="78" y1="160" x2="232" y2="274" gradientUnits="userSpaceOnUse">
-  <stop offset="0%"   stop-color="#78975d"/>
-  <stop offset="100%" stop-color="#4f6540"/>
-</linearGradient>
-<radialGradient id="sc-stage" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(160 262) rotate(90) scale(54 116)">
-  <stop offset="0%"   stop-color="rgba(178,202,127,0.18)"/>
-  <stop offset="100%" stop-color="rgba(13,15,14,0)"/>
-</radialGradient>
 
 <!-- ───────────────────────────────────────
      FILTERS
@@ -483,110 +454,6 @@
   <ellipse cx="0" cy="-5" rx="120" ry="45" fill="none" stroke="#deb96a" stroke-width="0.8" opacity="0.10"/>
 </g>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- LAYER 10 — RIVER                            -->
-<!--                                              -->
-<!-- Geometry extracted verbatim from             -->
-<!-- RiverMascot.jsx — idle pose applied.         -->
-<!-- Scale 0.5: center x=270, feet at y≈720.      -->
-<!-- transform = translate(190, 582) scale(0.5)   -->
-<!-- ═══════════════════════════════════════════ -->
-<g class="river-scene" transform="translate(190, 582) scale(0.5)">
-
-  <!-- Stage ambient shadow -->
-  <ellipse cx="160" cy="262" rx="116" ry="54" fill="url(#sc-stage)"/>
-
-  <!-- ── HIND LEG LEFT (idle rotate -7°) ── -->
-  <g style="transform-origin:113px 210px; transform:rotate(-7deg)">
-    <path d="M120 247 C98 235 82 216 79 194 C76 173 85 154 102 146 C118 139 131 149 135 168 C139 186 133 210 120 247 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M75 264 C88 258 103 252 118 247 C118 255 121 262 127 268 C113 274 98 277 84 276 C77 273 74 269 75 264 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M86 262 L75 270"  stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-    <path d="M98 257 L92 275"  stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-    <path d="M111 252 L110 274" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-  </g>
-
-  <!-- ── HIND LEG RIGHT (idle rotate +7°) ── -->
-  <g style="transform-origin:207px 210px; transform:rotate(7deg)">
-    <path d="M200 247 C222 235 238 216 241 194 C244 173 235 154 218 146 C202 139 189 149 185 168 C181 186 187 210 200 247 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M245 264 C232 258 217 252 202 247 C202 255 199 262 193 268 C207 274 222 277 236 276 C243 273 246 269 245 264 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M234 262 L245 270" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-    <path d="M222 257 L228 275" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-    <path d="M209 252 L210 274" stroke="#273629" stroke-width="3.4" stroke-linecap="round"/>
-  </g>
-
-  <!-- ── BODY ── -->
-  <path d="M118 258 C104 245 101 228 105 205 C110 178 127 158 160 153 C193 158 210 178 215 205 C219 228 216 245 202 258 C191 269 177 276 160 279 C143 276 129 269 118 258 Z"
-    fill="url(#sc-body)" stroke="#273629" stroke-width="4"/>
-  <path d="M130 196 C136 184 146 178 160 178 C174 178 184 184 190 196"
-    stroke="#587147" stroke-width="3" stroke-linecap="round" opacity="0.36"/>
-
-  <!-- ── BELLY ── -->
-  <path d="M140 186 C137 197 138 228 144 250 C150 258 155 262 160 263 C165 262 170 258 176 250 C182 228 183 197 180 186 C176 177 144 177 140 186 Z"
-    fill="url(#sc-belly)" opacity="0.98"/>
-  <path d="M147 188 C152 184 156 182 160 182 C164 182 168 184 173 188"
-    stroke="#f6ecd0" stroke-width="3" stroke-linecap="round" opacity="0.54"/>
-
-  <!-- ── FORELIMB LEFT (idle rotate -4°) ── -->
-  <g style="transform-origin:146px 220px; transform:rotate(-4deg)">
-    <path d="M141 182 C133 196 131 214 132 237 C133 250 141 259 149 259 C154 259 157 255 157 247 C157 226 157 206 155 190 C153 183 145 177 141 182 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M131 248 C137 244 142 244 146 249 C149 244 154 244 157 249 C160 245 165 247 168 252 C160 260 151 262 141 261 C136 258 133 254 131 248 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-  </g>
-
-  <!-- ── FORELIMB RIGHT (idle rotate +4°) ── -->
-  <g style="transform-origin:174px 220px; transform:rotate(4deg)">
-    <path d="M179 182 C187 196 189 214 188 237 C187 250 179 259 171 259 C166 259 163 255 163 247 C163 226 163 206 165 190 C167 183 175 177 179 182 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-    <path d="M189 248 C183 244 178 244 174 249 C171 244 166 244 163 249 C160 245 155 247 152 252 C160 260 169 262 179 261 C184 258 187 254 189 248 Z"
-      fill="url(#sc-limb)" stroke="#273629" stroke-width="4"/>
-  </g>
-
-  <!-- ── HEAD (idle headRotate -1°) ── -->
-  <g style="transform-origin:160px 144px; transform:rotate(-1deg)">
-    <path d="M84 172 C76 160 75 144 83 130 C90 118 99 109 112 101 C119 78 134 66 148 66 C154 66 158 69 160 73 C162 69 166 66 172 66 C186 66 201 78 208 101 C221 109 230 118 237 130 C245 144 244 160 236 172 C228 183 216 192 201 200 C188 206 174 210 160 211 C146 210 132 206 119 200 C104 192 92 183 84 172 Z"
-      fill="url(#sc-head)" stroke="#273629" stroke-width="4"/>
-    <path d="M108 150 C125 156 142 160 160 160 C178 160 195 156 212 150"
-      stroke="#5c7648" stroke-width="3" stroke-linecap="round" opacity="0.28"/>
-
-    <!-- Eye left -->
-    <g class="river-eye">
-      <path d="M112 97 Q126 86 140 97" stroke="#273629" stroke-width="3.1" stroke-linecap="round" opacity="0.54"/>
-      <ellipse cx="126" cy="104" rx="14.8" ry="16.4" fill="#f8f6ea" stroke="#273629" stroke-width="3.5"/>
-      <path d="M114 101 Q126 96 138 101" stroke="#d9d7c2" stroke-width="2.6" stroke-linecap="round" opacity="0.72"/>
-      <ellipse cx="126" cy="105" rx="7.9" ry="9.1" fill="#4e653b"/>
-      <circle  cx="126" cy="105" r="5.1"  fill="#101611"/>
-      <circle  cx="122.3" cy="99.9" r="2.4" fill="#ffffff" opacity="0.96"/>
-      <circle  cx="128"   cy="104"  r="1.3" fill="#ffffff" opacity="0.88"/>
-    </g>
-
-    <!-- Eye right -->
-    <g class="river-eye river-eye-r">
-      <path d="M180 97 Q194 86 208 97" stroke="#273629" stroke-width="3.1" stroke-linecap="round" opacity="0.54"/>
-      <ellipse cx="194" cy="104" rx="14.8" ry="16.4" fill="#f8f6ea" stroke="#273629" stroke-width="3.5"/>
-      <path d="M182 101 Q194 96 206 101" stroke="#d9d7c2" stroke-width="2.6" stroke-linecap="round" opacity="0.72"/>
-      <ellipse cx="194" cy="105" rx="7.9" ry="9.1" fill="#4e653b"/>
-      <circle  cx="194" cy="105" r="5.1"  fill="#101611"/>
-      <circle  cx="190.3" cy="99.9" r="2.4" fill="#ffffff" opacity="0.96"/>
-      <circle  cx="196"   cy="104"  r="1.3" fill="#ffffff" opacity="0.88"/>
-    </g>
-
-    <!-- Nostrils -->
-    <ellipse cx="150" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(-24 150 151)"/>
-    <ellipse cx="170" cy="151" rx="2.4" ry="1.8" fill="#3d4e33" opacity="0.84" transform="rotate(24 170 151)"/>
-
-    <!-- Mouth — idle: M118 163 Q160 176 202 163 -->
-    <path d="M118 163 Q160 176 202 163" stroke="#202b22" stroke-width="4" stroke-linecap="round" fill="none"/>
-    <path d="M136 170 C145 174 153 176 160 176 C167 176 175 174 184 170"
-      stroke="#566d44" stroke-width="2.5" stroke-linecap="round" opacity="0.34"/>
-  </g>
-
-</g>
-<!-- end River -->
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- FINISHING — VIGNETTE OVERLAY                -->
