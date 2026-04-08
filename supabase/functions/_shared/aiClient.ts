@@ -70,6 +70,28 @@ export const createAiClient = (apiKey: string) => {
       });
       return transcription.text;
     },
+
+    async transcribeAudioWithSegments(audioBlob: Blob, filename: string): Promise<{
+      text: string;
+      segments: Array<{ id: number; start: number; end: number; text: string }>;
+    }> {
+      const file = new File([audioBlob], filename, { type: audioBlob.type });
+      const transcription = await groq.audio.transcriptions.create({
+        model: 'whisper-large-v3',
+        file,
+        response_format: 'verbose_json',
+        timestamp_granularities: ['segment'],
+      });
+      return {
+        text: transcription.text,
+        segments: (transcription.segments ?? []).map((s: any) => ({
+          id: s.id,
+          start: s.start,
+          end: s.end,
+          text: s.text,
+        })),
+      };
+    },
   };
 };
 
