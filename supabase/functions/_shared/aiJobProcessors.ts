@@ -294,31 +294,6 @@ const processConcurrently = async <T>(
   }
 };
 
-const transcribeAudio = async ({
-  ai,
-  audioPath,
-  admin,
-  reporter,
-}: {
-  ai: AiClient;
-  audioPath: string;
-  admin: any;
-  reporter: ReturnType<typeof createJobReporter>;
-}): Promise<string> => {
-  await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
-  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
-  if (storageError || !audioData) {
-    throw createHttpError('Failed to retrieve audio file.', 500);
-  }
-
-  await reporter.update('processing_media', 24, 'Transcribing audio');
-  const audioMimeType = getAudioMimeType(audioPath);
-  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: audioMimeType });
-  const filename = audioPath.split('/').pop() || 'audio.webm';
-
-  return ai.transcribeAudio(audioBlob, filename);
-};
-
 const streamDocPreview = async ({
   ai,
   model,
@@ -614,71 +589,154 @@ const processNoteEnhancementJob = async ({
 
   await reporter.markRunning('accepted', 5, 'Accepted note enhancement job');
 
-  const transcription = await transcribeAudio({ ai, audioPath, admin, reporter });
-
-  const draftMessages: AiMessage[] = [{
-    role: 'user',
-    content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
-  }];
-
-  const draftResult = await streamDocPreview({
-    ai,
-    model: modelMap.draft,
-    fallbackModel: modelMap.final,
-    messages: draftMessages,
-    reporter,
-    phase: 'drafting',
-    startPercent: 36,
-    endPercent: 68,
-    message: 'Drafting enhanced notes',
-  });
-
-  const draftDoc = draftResult.doc;
-  if (draftResult.firstPreviewAt != null) {
-    firstPreviewAt = draftResult.firstPreviewAt;
+  await reporter.update('fetching_audio', 12, 'Fetching lecture audio');
+  const { data: audioData, error: storageError } = await admin.storage.from('note-audio').download(audioPath);
+  if (storageError || !audioData) {
+    throw createHttpError('Failed to retrieve audio file.', 500);
   }
 
-  await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
-    preview_doc: draftDoc,
-    preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
-      ? (draftDoc as Record<string, unknown>).content
-      : [],
-    preview_text: extractTextFromTiptapDoc(draftDoc),
-  });
+  const audioBlob = new Blob([await audioData.arrayBuffer()], { type: getAudioMimeType(audioPath) });
+  const filename = audioPath.split('/').pop() || 'audio.webm';
 
-  const enrichText = await generateWithFallback({
-    ai,
-    primaryModel: modelMap.final,
-    fallbackModel: modelMap.final,
-    messages: [{
-      role: 'user',
-      content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
-    }],
-    jsonMode: true,
-  });
+  if (audioBlob.size > 25 * 1024 * 1024) {
+    throw createHttpError('Audio file exceeds the 25MB processing limit. Try a shorter recording.', 413);
+  }
+
+  await reporter.update('processing_media', 24, 'Transcribing audio');
+  const { text: transcription, segments } = await ai.transcribeAudioWithSegments(audioBlob, filename);
+
+  const sections = groupSegmentsIntoSections(segments);
 
   let finalDoc: unknown;
-  try {
-    finalDoc = parseAiJsonResponse(
-      enrichText,
-      'AI generated invalid enhanced notes format. Please try again.',
-    );
-  } catch {
-    finalDoc = draftDoc;
-  }
 
-  await reporter.markSaving('Saving enhanced notes', {
-    final_doc: finalDoc,
-    note_id: noteId,
-    metrics: {
-      server_total_ms: Date.now() - jobStartedAt,
-      first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
-      ai_model_stage: {
-        draft: modelMap.draft,
-        final: modelMap.final,
+  // ── SHORT RECORDING: single-section streaming path (unchanged) ──────────
+  if (sections.length <= 1) {
+    const draftMessages: AiMessage[] = [{
+      role: 'user',
+      content: `${buildNoteDraftPrompt(userNotesSnapshot, className)}\n\nLecture Audio Transcription:\n${transcription}`,
+    }];
+
+    const draftResult = await streamDocPreview({
+      ai,
+      model: modelMap.draft,
+      fallbackModel: modelMap.final,
+      messages: draftMessages,
+      reporter,
+      phase: 'drafting',
+      startPercent: 36,
+      endPercent: 68,
+      message: 'Drafting enhanced notes',
+    });
+
+    const draftDoc = draftResult.doc;
+    if (draftResult.firstPreviewAt != null) {
+      firstPreviewAt = draftResult.firstPreviewAt;
+    }
+
+    await reporter.update('enriching', 72, 'Enriching draft with examples and study aids', {
+      preview_doc: draftDoc,
+      preview_sections: Array.isArray((draftDoc as Record<string, unknown>).content)
+        ? (draftDoc as Record<string, unknown>).content
+        : [],
+      preview_text: extractTextFromTiptapDoc(draftDoc),
+    });
+
+    const enrichText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [{
+        role: 'user',
+        content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
+      }],
+      jsonMode: true,
+    });
+
+    try {
+      finalDoc = parseAiJsonResponse(enrichText, 'AI generated invalid enhanced notes format. Please try again.');
+    } catch {
+      finalDoc = draftDoc;
+    }
+
+    await reporter.markSaving('Saving enhanced notes', {
+      final_doc: finalDoc,
+      note_id: noteId,
+      metrics: {
+        server_total_ms: Date.now() - jobStartedAt,
+        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
       },
-    },
-  });
+    });
+
+  // ── LONG RECORDING: parallel section path ────────────────────────────────
+  } else {
+    const completedSections: unknown[] = new Array(sections.length).fill(null);
+    const CONCURRENCY = 4;
+
+    await reporter.update('drafting', 30, `Generating notes for ${sections.length} sections`);
+
+    await processConcurrently(sections, CONCURRENCY, async (section) => {
+      const sectionDoc = await generateNotesForSection({
+        ai,
+        section,
+        totalSections: sections.length,
+        userNotesSnapshot,
+        className,
+        modelMap,
+      });
+
+      completedSections[section.index] = sectionDoc;
+
+      const ready = completedSections.filter(Boolean);
+      if (firstPreviewAt == null) firstPreviewAt = Date.now();
+      const progressPercent = Math.round(30 + (ready.length / sections.length) * 42);
+
+      await reporter.markStreaming(
+        'drafting',
+        progressPercent,
+        `Section ${ready.length} of ${sections.length} complete`,
+        {
+          preview_sections: ready,
+          sections_complete: ready.length,
+          sections_total: sections.length,
+        },
+      );
+    });
+
+    await reporter.update('enriching', 75, 'Merging sections and adding study aids');
+
+    const mergeText = await generateWithFallback({
+      ai,
+      primaryModel: modelMap.final,
+      fallbackModel: modelMap.final,
+      messages: [{
+        role: 'user',
+        content: buildMergePrompt(userNotesSnapshot, className, completedSections),
+      }],
+      jsonMode: true,
+      maxTokens: 8192,
+    });
+
+    try {
+      finalDoc = parseAiJsonResponse(mergeText, 'AI generated invalid merged notes format. Please try again.');
+    } catch {
+      const allContent = completedSections.flatMap((doc: any) =>
+        Array.isArray(doc?.content) ? doc.content : [],
+      );
+      finalDoc = { type: 'doc', content: allContent };
+    }
+
+    await reporter.markSaving('Saving enhanced notes', {
+      final_doc: finalDoc,
+      note_id: noteId,
+      metrics: {
+        server_total_ms: Date.now() - jobStartedAt,
+        first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+        ai_model_stage: { draft: modelMap.draft, final: modelMap.final },
+        sections_count: sections.length,
+      },
+    });
+  }
 
   const { error: updateError } = await admin
     .from('notes')
