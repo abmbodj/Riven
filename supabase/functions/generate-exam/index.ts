@@ -17,6 +17,7 @@ import { createAiClient, contentsToMessages } from '../_shared/aiClient.ts';
 import { resolveSupabaseUser } from '../_shared/auth.ts';
 import { getCorsHeaders, jsonResponse, normalizeRequestError } from '../_shared/http.ts';
 import { checkRateLimit } from '../_shared/rateLimit.ts';
+import { reportEdgeException } from '../_shared/sentry.ts';
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { createSSEStream } from '../_shared/streaming.ts';
 
@@ -217,6 +218,7 @@ serve(async (request) => {
           sendDone({ exam_id: exam.id, question_count: validQuestions.length });
         } catch (err: unknown) {
           const reqErr = normalizeRequestError(err);
+          await reportEdgeException(reqErr, { request, functionName: 'generate-exam' });
           sendError(
             reqErr.message || 'An unexpected error occurred during AI generation.',
             typeof reqErr.status === 'number' ? reqErr.status : 500,
@@ -277,7 +279,6 @@ serve(async (request) => {
         return ai.generateContent({
           model,
           messages: contentsToMessages(contents),
-          jsonMode: true,
         });
       },
       createExam: async ({ userId, title, sourceType, sourceId, classId, questions }: CreateExamPayload) => {
@@ -316,6 +317,7 @@ serve(async (request) => {
     const requestError = normalizeRequestError(error);
 
     console.error('[generate-exam edge function] error', requestError);
+    await reportEdgeException(requestError, { request, functionName: 'generate-exam' });
     const status = typeof requestError.status === 'number' ? requestError.status : 500;
     const body: Record<string, unknown> = {
       error: typeof requestError.status === 'number'

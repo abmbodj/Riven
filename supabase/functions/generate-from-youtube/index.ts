@@ -300,11 +300,14 @@ serve(async (request) => {
     }
 
     // ── BATCH PATH ──────────────────────────────────────
-    const generateContent = async (contents: Array<Record<string, unknown>>) => {
+    const generateContent = async (
+      contents: Array<Record<string, unknown>>,
+      responseFormat?: 'json_object',
+    ) => {
       return ai.generateContent({
         model: 'llama-3.3-70b-versatile',
         messages: contentsToMessages(contents),
-        jsonMode: true,
+        responseFormat,
       });
     };
 
@@ -356,7 +359,10 @@ serve(async (request) => {
 
     // ── GUIDE ─────────────────────────────────────────
     else if (type === 'guide') {
-      const rawResponse = await generateContent(buildYoutubeGuideContents(preparedSource.sourceText, className));
+      const rawResponse = await generateContent(
+        buildYoutubeGuideContents(preparedSource.sourceText, className),
+        'json_object',
+      );
       const guidePayload = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid tutor session format. Please try again.',
@@ -435,7 +441,10 @@ serve(async (request) => {
 
     // ── NOTES ─────────────────────────────────────────
     else {
-      const rawResponse = await generateContent(buildYoutubeNotesContents(preparedSource.sourceText, className));
+      const rawResponse = await generateContent(
+        buildYoutubeNotesContents(preparedSource.sourceText, className),
+        'json_object',
+      );
       const noteContent = parseAiJsonResponse(
         rawResponse,
         'AI generated invalid notes format. Please try again.',

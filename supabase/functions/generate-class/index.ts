@@ -70,7 +70,7 @@ serve(async (request) => {
         return ai.generateContent({
           model,
           messages: contentsToMessages(contents),
-          jsonMode: true,
+          responseFormat: 'json_object',
         });
       },
       onParseError: (error: unknown) => {

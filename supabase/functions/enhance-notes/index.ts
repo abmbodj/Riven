@@ -215,7 +215,7 @@ serve(async (request) => {
     const rawText = await ai.generateContent({
       model: 'llama-3.3-70b-versatile',
       messages: aiMessages,
-      jsonMode: true,
+      responseFormat: 'json_object',
     });
 
     const enhancedContent = parseAiJsonResponse(

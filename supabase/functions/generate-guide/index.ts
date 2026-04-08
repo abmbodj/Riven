@@ -257,7 +257,7 @@ serve(async (request) => {
         return ai.generateContent({
           model,
           messages: contentsToMessages(contents),
-          jsonMode: true,
+          responseFormat: 'json_object',
         });
       },
       createGuide: async ({ userId, title, formatVersion, guideData, studyState, content, noteId, classId }: CreateGuidePayload) => {

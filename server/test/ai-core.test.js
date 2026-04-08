@@ -4,6 +4,7 @@ import {
   consumeAiQuota,
   generateClassPreview,
   generateDeckFromAi,
+  generateExamFromAi,
   generateStudyGuideFromAi,
   getAiLimitStatus,
 } from '../../supabase/functions/_shared/aiCore.mjs';
@@ -133,6 +134,68 @@ describe('aiCore', () => {
         assignments: [],
       },
     });
+  });
+
+  it('generates a mock exam from an array response', async () => {
+    const createdExams = [];
+
+    const result = await generateExamFromAi({
+      userId: 9,
+      notes: 'ATP stores energy for cells.',
+      file: null,
+      title: 'Biology Quiz',
+      sourceType: 'notes',
+      sourceId: 'note-1',
+      classId: 'class-1',
+      className: 'Biology 101',
+      aiLimitsContext: { characterLimit: 15000 },
+      apiKey: 'groq-key',
+      parseDocx: async () => '',
+      generateContent: async ({ model, contents }) => {
+        expect(model).toBe('llama-3.3-70b-versatile');
+        expect(contents).toEqual(expect.arrayContaining([
+          expect.objectContaining({ text: expect.stringContaining('Output ONLY a valid JSON array.') }),
+          expect.objectContaining({ text: expect.stringContaining('Source Material:') }),
+        ]));
+
+        return JSON.stringify([
+          {
+            type: 'mcq',
+            question: 'What molecule stores usable energy for the cell?',
+            topic: 'ATP',
+            difficulty: 'easy',
+            options: ['ATP', 'DNA', 'Water', 'Oxygen'],
+            correct_answer: 'ATP',
+            explanation: 'ATP is the primary energy currency of the cell.',
+          },
+        ]);
+      },
+      createExam: async (payload) => {
+        createdExams.push(payload);
+        return { id: 'exam-77' };
+      },
+      deleteExam: async () => {},
+      onParseError: () => {},
+    });
+
+    expect(result).toEqual({
+      message: 'Mock exam generated successfully',
+      exam_id: 'exam-77',
+      question_count: 1,
+    });
+    expect(createdExams).toEqual([expect.objectContaining({
+      userId: 9,
+      title: 'Biology Quiz',
+      sourceType: 'notes',
+      sourceId: 'note-1',
+      classId: 'class-1',
+      questions: [
+        expect.objectContaining({
+          question: 'What molecule stores usable energy for the cell?',
+          correct_answer: 'ATP',
+        }),
+      ],
+    })]);
   });
 
   it('generates River tutor sessions with structured v4 guide data and tutor runtime state', async () => {

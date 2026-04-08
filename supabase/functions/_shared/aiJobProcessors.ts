@@ -7,7 +7,7 @@ import {
   createHttpError,
   parseAiJsonResponse,
 } from './aiCore.mjs';
-import { createAiClient, contentsToMessages, type AiClient, type AiMessage } from './aiClient.ts';
+import { createAiClient, contentsToMessages, type AiClient, type AiMessage, type AiResponseFormat } from './aiClient.ts';
 import { fetchYoutubeTranscript } from './youtubeTranscript.ts';
 import { prepareYoutubeTranscriptSource } from './youtubeTranscriptPrep.ts';
 import {
@@ -121,21 +121,21 @@ const generateWithFallback = async ({
   primaryModel,
   fallbackModel,
   messages,
-  jsonMode = false,
+  responseFormat,
   maxTokens,
 }: {
   ai: AiClient;
   primaryModel: string;
   fallbackModel: string;
   messages: AiMessage[];
-  jsonMode?: boolean;
+  responseFormat?: AiResponseFormat;
   maxTokens?: number;
 }) => {
   try {
-    return await ai.generateContent({ model: primaryModel, messages, jsonMode, maxTokens });
+    return await ai.generateContent({ model: primaryModel, messages, responseFormat, maxTokens });
   } catch (error) {
     if (primaryModel !== fallbackModel && shouldFallbackToFinalModel(error)) {
-      return ai.generateContent({ model: fallbackModel, messages, jsonMode, maxTokens });
+      return ai.generateContent({ model: fallbackModel, messages, responseFormat, maxTokens });
     }
     throw error;
   }
@@ -515,7 +515,7 @@ const processNoteEnhancementJob = async ({
       role: 'user',
       content: `${buildNoteEnrichPrompt(userNotesSnapshot, className, draftDoc)}\n\nLecture Audio Transcription:\n${transcription}`,
     }],
-    jsonMode: true,
+    responseFormat: 'json_object',
   });
 
   let finalDoc: unknown;
@@ -911,6 +911,7 @@ const processYoutubeDerivedJob = async ({
     keepFile: false,
     file: null,
     className,
+    coachConfig: null,
   }));
 
   const streamResponse = await streamWithFallback({

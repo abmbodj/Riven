@@ -1,5 +1,7 @@
 import Groq from 'npm:groq-sdk@0.24.0';
 
+import { buildGroqGenerateContentParams, type AiResponseFormat } from './aiClientRequest.ts';
+
 export type AiMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -8,6 +10,8 @@ export type AiMessage = {
 export type AiStreamChunk = {
   text: string;
 };
+
+export type { AiResponseFormat };
 
 export const createAiClient = (apiKey: string) => {
   const groq = new Groq({ apiKey });
@@ -43,21 +47,21 @@ export const createAiClient = (apiKey: string) => {
       messages,
       maxTokens,
       temperature = 0,
-      jsonMode = false,
+      responseFormat,
     }: {
       model: string;
       messages: AiMessage[];
       maxTokens?: number;
       temperature?: number;
-      jsonMode?: boolean;
+      responseFormat?: AiResponseFormat;
     }): Promise<string> {
-      const response = await groq.chat.completions.create({
+      const response = await groq.chat.completions.create(buildGroqGenerateContentParams({
         model,
         messages,
-        max_tokens: maxTokens,
+        maxTokens,
         temperature,
-        ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
-      });
+        responseFormat,
+      }));
 
       return response.choices?.[0]?.message?.content ?? '';
     },

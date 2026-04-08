@@ -246,7 +246,6 @@ serve(async (request) => {
         return ai.generateContent({
           model,
           messages: contentsToMessages(contents),
-          jsonMode: true,
         });
       },
       createDeck: async ({ userId, title, description, classId }: CreateDeckPayload) => {

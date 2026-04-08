@@ -68,7 +68,7 @@ Example:
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       maxTokens: 512,
-      jsonMode: true,
+      responseFormat: 'json_object',
     });
 
     let result;
