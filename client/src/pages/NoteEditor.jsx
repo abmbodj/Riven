@@ -667,6 +667,12 @@ export default function NoteEditor() {
         const blob = recorder.getBlob();
         if (!blob || !noteId) return;
 
+        const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24MB — 1MB below Groq's 25MB limit
+        if (blob.size > MAX_AUDIO_BYTES) {
+            setEnhanceError('Recording is too large to process (max ~90 min at standard quality). Please try a shorter recording.');
+            return;
+        }
+
         setEnhancing(true);
         setEnhanceError(null);
         setShowEnhanceBanner(false);
