@@ -11,7 +11,7 @@ vi.mock('../editor/TiptapEditor', () => ({
   ),
 }));
 
-vi.mock('framer-motion', () => ({
+vi.mock('motion/react', () => ({
   motion: {
     div: ({ children, ...props }) => <div {...props}>{children}</div>,
   },

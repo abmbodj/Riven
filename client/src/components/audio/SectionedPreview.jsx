@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import TiptapEditor from '../editor/TiptapEditor';
 
 // Impeccable animation constants — ease-out only, no bounce
