@@ -404,7 +404,7 @@ export default function ExamsLibrary() {
                         </div>
                     )
                 ) : (
-                    <ExamAnalytics classId={null} />
+                    <ExamAnalytics />
                 )}
             </div>
         </div>

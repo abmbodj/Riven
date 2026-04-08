@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-    BarChart3, TrendingUp, AlertTriangle, Loader2, Trophy, Clock
+    TrendingUp, AlertTriangle, Loader2, Clock
 } from 'lucide-react';
 import { api } from '../api';
 
-export default function ExamAnalytics({ classId }) {
+export default function ExamAnalytics() {
     const [mastery, setMastery] = useState([]);
     const [attempts, setAttempts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,8 +14,8 @@ export default function ExamAnalytics({ classId }) {
         const load = async () => {
             try {
                 const [masteryData, attemptsData] = await Promise.all([
-                    api.getTopicMastery(classId).catch(() => []),
-                    api.getAllExamAttempts(classId).catch(() => []),
+                    api.getTopicMastery().catch(() => []),
+                    api.getAllExamAttempts().catch(() => []),
                 ]);
                 setMastery(masteryData);
                 setAttempts(attemptsData);
@@ -26,7 +26,7 @@ export default function ExamAnalytics({ classId }) {
             }
         };
         load();
-    }, [classId]);
+    }, []);
 
     if (loading) {
         return (
@@ -39,16 +39,12 @@ export default function ExamAnalytics({ classId }) {
     if (mastery.length === 0 && attempts.length === 0) {
         return (
             <div className="text-center py-12">
-                <BarChart3 className="w-10 h-10 text-claude-secondary/30 mx-auto mb-3" />
+                <TrendingUp className="w-10 h-10 text-claude-secondary/30 mx-auto mb-3" />
                 <p className="text-claude-secondary font-serif italic text-sm">No analytics yet.</p>
                 <p className="text-claude-secondary font-mono text-[10px] mt-1">Complete an exam to see your performance breakdown.</p>
             </div>
         );
     }
-
-    const overallMastery = mastery.length > 0
-        ? Math.round((mastery.reduce((sum, t) => sum + t.mastery_score, 0) / mastery.length) * 100)
-        : null;
 
     const weakTopics = mastery
         .filter(t => t.mastery_score < 0.5)
@@ -56,6 +52,13 @@ export default function ExamAnalytics({ classId }) {
         .slice(0, 5);
 
     const recentAttempts = attempts.slice(0, 8);
+
+    // Best and average score
+    const scores = attempts
+        .filter(a => a.total > 0)
+        .map(a => Math.round((a.score / a.total) * 100));
+    const bestScore = scores.length > 0 ? Math.max(...scores) : null;
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : null;
 
     const getMasteryColor = (score) => {
         if (score >= 0.8) return 'bg-green-500';
@@ -71,37 +74,29 @@ export default function ExamAnalytics({ classId }) {
 
     return (
         <div className="space-y-6">
-            {/* Overall Mastery */}
-            {overallMastery !== null && (
+            {/* Best + Average — two numbers, instant read */}
+            {bestScore !== null && (
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel-premium rounded-2xl p-5 border border-claude-border"
+                    className="grid grid-cols-2 gap-3"
                 >
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-claude-accent" />
-                            <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">Overall Mastery</span>
-                        </div>
-                        <span className={`text-2xl font-serif italic font-bold ${getMasteryTextColor(overallMastery / 100)}`}>
-                            {overallMastery}%
-                        </span>
+                    <div className="glass-panel rounded-2xl p-4 border border-claude-border text-center">
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mb-1">Best</p>
+                        <p className={`text-2xl font-serif italic font-bold ${bestScore >= 70 ? 'text-green-400' : bestScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {bestScore}%
+                        </p>
                     </div>
-                    <div className="w-full h-2.5 bg-claude-bg rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${overallMastery}%` }}
-                            transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                            className={`h-full rounded-full ${getMasteryColor(overallMastery / 100)}`}
-                        />
+                    <div className="glass-panel rounded-2xl p-4 border border-claude-border text-center">
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-claude-secondary mb-1">Average</p>
+                        <p className={`text-2xl font-serif italic font-bold ${avgScore >= 70 ? 'text-green-400' : avgScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {avgScore}%
+                        </p>
                     </div>
-                    <p className="text-[11px] font-mono text-claude-secondary mt-2">
-                        {mastery.length} topic{mastery.length !== 1 ? 's' : ''} tracked across {attempts.length} attempt{attempts.length !== 1 ? 's' : ''}
-                    </p>
                 </motion.div>
             )}
 
-            {/* Weak Topics Alert */}
+            {/* Weak Topics — highest signal */}
             {weakTopics.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -134,83 +129,58 @@ export default function ExamAnalytics({ classId }) {
                 </motion.div>
             )}
 
-            {/* All Topics */}
-            {mastery.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <div className="flex items-center gap-2 mb-3">
-                        <BarChart3 className="w-4 h-4 text-claude-secondary" />
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">All Topics</span>
-                    </div>
-                    <div className="space-y-2">
-                        {mastery.map((topic) => {
-                            const pct = Math.round(topic.mastery_score * 100);
-                            return (
-                                <div key={topic.id} className="flex items-center gap-3">
-                                    <span className="text-xs font-body text-claude-text truncate w-32 shrink-0">{topic.topic}</span>
-                                    <div className="flex-1 h-1.5 bg-claude-surface rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${getMasteryColor(topic.mastery_score)}`} style={{ width: `${pct}%` }} />
-                                    </div>
-                                    <span className={`font-mono text-[10px] font-bold w-10 text-right ${getMasteryTextColor(topic.mastery_score)}`}>
-                                        {pct}%
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </motion.div>
-            )}
+            {/* Score trend — only shown with 2+ attempts */}
+            <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+            >
+                <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-4 h-4 text-claude-secondary" />
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">Score Trend</span>
+                </div>
 
-            {/* Recent Attempts */}
-            {recentAttempts.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
-                    <div className="flex items-center gap-2 mb-3">
-                        <TrendingUp className="w-4 h-4 text-claude-secondary" />
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-claude-secondary font-bold">Recent Attempts</span>
+                {recentAttempts.length < 2 ? (
+                    <div className="glass-panel rounded-xl p-4 border border-claude-border text-center">
+                        <p className="text-[11px] font-mono text-claude-secondary">
+                            Complete more exams to see your score trend.
+                        </p>
                     </div>
-
-                    {/* Score trend line (SVG) */}
-                    {recentAttempts.length >= 2 && (
-                        <div className="glass-panel rounded-xl p-3 border border-claude-border mb-3">
-                            <svg viewBox={`0 0 ${Math.max(recentAttempts.length - 1, 1) * 40} 60`} className="w-full h-16" preserveAspectRatio="none">
-                                {/* Grid lines */}
-                                <line x1="0" y1="15" x2={`${(recentAttempts.length - 1) * 40}`} y2="15" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
-                                <line x1="0" y1="30" x2={`${(recentAttempts.length - 1) * 40}`} y2="30" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
-                                <line x1="0" y1="45" x2={`${(recentAttempts.length - 1) * 40}`} y2="45" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
-                                {/* Score line */}
-                                <polyline
-                                    fill="none"
-                                    stroke="var(--accent-color)"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    points={[...recentAttempts].reverse().map((a, i) => {
-                                        const pct = a.total > 0 ? a.score / a.total : 0;
-                                        const x = i * 40;
-                                        const y = 55 - (pct * 50);
-                                        return `${x},${y}`;
-                                    }).join(' ')}
-                                />
-                                {/* Score dots */}
-                                {[...recentAttempts].reverse().map((a, i) => {
+                ) : (
+                    <div className="glass-panel rounded-xl p-3 border border-claude-border mb-3">
+                        <svg
+                            viewBox={`0 0 ${Math.max(recentAttempts.length - 1, 1) * 40} 60`}
+                            className="w-full h-16"
+                            preserveAspectRatio="none"
+                        >
+                            <line x1="0" y1="15" x2={`${(recentAttempts.length - 1) * 40}`} y2="15" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
+                            <line x1="0" y1="30" x2={`${(recentAttempts.length - 1) * 40}`} y2="30" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
+                            <line x1="0" y1="45" x2={`${(recentAttempts.length - 1) * 40}`} y2="45" stroke="var(--border-color)" strokeWidth="0.5" opacity="0.3" />
+                            <polyline
+                                fill="none"
+                                stroke="var(--accent-color)"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                points={[...recentAttempts].reverse().map((a, i) => {
                                     const pct = a.total > 0 ? a.score / a.total : 0;
                                     const x = i * 40;
                                     const y = 55 - (pct * 50);
-                                    return (
-                                        <circle key={i} cx={x} cy={y} r="3" fill="var(--accent-color)" />
-                                    );
-                                })}
-                            </svg>
-                        </div>
-                    )}
+                                    return `${x},${y}`;
+                                }).join(' ')}
+                            />
+                            {[...recentAttempts].reverse().map((a, i) => {
+                                const pct = a.total > 0 ? a.score / a.total : 0;
+                                const x = i * 40;
+                                const y = 55 - (pct * 50);
+                                return <circle key={i} cx={x} cy={y} r="3" fill="var(--accent-color)" />;
+                            })}
+                        </svg>
+                    </div>
+                )}
 
+                {/* Recent attempts list */}
+                {recentAttempts.length > 0 && (
                     <div className="space-y-2">
                         {recentAttempts.map((attempt) => {
                             const pct = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
@@ -219,7 +189,7 @@ export default function ExamAnalytics({ classId }) {
                             return (
                                 <div key={attempt.id} className="flex items-center gap-3 glass-panel rounded-xl p-3 border border-claude-border">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${pct >= 70 ? 'bg-green-500/10' : pct >= 50 ? 'bg-yellow-500/10' : 'bg-red-500/10'}`}>
-                                        <span className={`text-sm font-serif italic font-bold ${pct >= 70 ? 'text-green-400' : pct >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                        <span className={`text-sm font-serif italic font-bold ${getMasteryTextColor(pct / 100)}`}>
                                             {pct}%
                                         </span>
                                     </div>
@@ -244,8 +214,8 @@ export default function ExamAnalytics({ classId }) {
                             );
                         })}
                     </div>
-                </motion.div>
-            )}
+                )}
+            </motion.div>
         </div>
     );
 }
