@@ -5,6 +5,12 @@ import {
     TrendingUp, UserCircle, ArrowUp
 } from 'lucide-react';
 
+const ACTIVITY_CHART_WIDTH = 640;
+const ACTIVITY_CHART_HEIGHT = 192;
+const ACTIVITY_CHART_PADDING_X = 12;
+const ACTIVITY_CHART_PADDING_TOP = 14;
+const ACTIVITY_CHART_PADDING_BOTTOM = 20;
+
 function SectionHeading({ icon: Icon, title }) {
     return (
         <div className="mb-4 flex items-center justify-between px-1">
@@ -38,10 +44,53 @@ function StatTile({ label, value, icon: Icon, trend }) {
     );
 }
 
+function buildActivityChartModel(data = []) {
+    const baselineY = ACTIVITY_CHART_HEIGHT - ACTIVITY_CHART_PADDING_BOTTOM;
+    const usableHeight = baselineY - ACTIVITY_CHART_PADDING_TOP;
+    const innerWidth = ACTIVITY_CHART_WIDTH - ACTIVITY_CHART_PADDING_X * 2;
+    const peakCount = Math.max(...data.map((entry) => Number(entry.count) || 0), 0);
+    const flatlineY = ACTIVITY_CHART_PADDING_TOP + usableHeight * 0.58;
+
+    const points = data.map((entry, index) => {
+        const count = Number(entry.count) || 0;
+        const x = data.length <= 1
+            ? ACTIVITY_CHART_WIDTH / 2
+            : ACTIVITY_CHART_PADDING_X + (innerWidth / (data.length - 1)) * index;
+        const y = peakCount > 0
+            ? baselineY - (count / peakCount) * usableHeight
+            : flatlineY;
+
+        return {
+            ...entry,
+            count,
+            x,
+            y,
+        };
+    });
+
+    const linePath = points
+        .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+        .join(' ');
+
+    const areaPath = points.length > 0
+        ? `${linePath} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`
+        : '';
+
+    return {
+        baselineY,
+        peakCount,
+        points,
+        linePath,
+        areaPath,
+    };
+}
+
 function ActivityChart({ data }) {
     if (!data || !data.length) return null;
 
-    const rawMax = Math.max(...data.map(d => d.count), 1);
+    const areaGradientId = 'admin-activity-area-gradient';
+    const strokeGradientId = 'admin-activity-stroke-gradient';
+    const chartModel = buildActivityChartModel(data);
 
     const labelIndices = new Set([0, data.length - 1]);
     const seg = Math.floor((data.length - 1) / 4);
@@ -50,32 +99,105 @@ function ActivityChart({ data }) {
 
     return (
         <div className="w-full h-full flex flex-col select-none">
-            <div className="relative flex-1 flex items-end gap-[2px] overflow-hidden">
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                    {[0, 1, 2, 3, 4].map(i => (
-                        <div key={i} className="w-full h-px bg-white/[0.06]" />
-                    ))}
-                </div>
+            <div className="relative flex-1 overflow-hidden">
+                <svg
+                    viewBox={`0 0 ${ACTIVITY_CHART_WIDTH} ${ACTIVITY_CHART_HEIGHT}`}
+                    className="h-full w-full overflow-visible"
+                    role="img"
+                    aria-label="30-day signup activity line chart"
+                    data-testid="admin-activity-line-chart"
+                >
+                    <defs>
+                        <linearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.28" />
+                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0.04" />
+                        </linearGradient>
+                        <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="rgba(222,185,106,0.75)" />
+                            <stop offset="45%" stopColor="var(--accent-color)" />
+                            <stop offset="100%" stopColor="rgba(222,185,106,0.82)" />
+                        </linearGradient>
+                    </defs>
 
-                {data.map((d, i) => {
-                    const pct = d.count > 0 ? (d.count / rawMax) * 100 : 0;
-                    return (
-                        <div key={i} className="relative flex-1 h-full flex items-end">
-                            <motion.div
-                                className="w-full rounded-t-[3px]"
-                                style={{
-                                    background: d.count > 0
-                                        ? 'linear-gradient(to bottom, var(--accent-color) 0%, rgba(222,185,106,0.25) 100%)'
-                                        : 'rgba(255,255,255,0.04)',
-                                    minHeight: '1px',
-                                }}
-                                initial={{ height: 0 }}
-                                animate={{ height: d.count > 0 ? `${pct}%` : '1px' }}
-                                transition={{ delay: i * 0.018, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                    {[0, 1, 2, 3, 4].map((index) => {
+                        const y = ACTIVITY_CHART_PADDING_TOP + (
+                            ((ACTIVITY_CHART_HEIGHT - ACTIVITY_CHART_PADDING_BOTTOM - ACTIVITY_CHART_PADDING_TOP) / 4) * index
+                        );
+                        return (
+                            <line
+                                key={index}
+                                x1={ACTIVITY_CHART_PADDING_X}
+                                y1={y}
+                                x2={ACTIVITY_CHART_WIDTH - ACTIVITY_CHART_PADDING_X}
+                                y2={y}
+                                stroke="rgba(255,255,255,0.06)"
+                                strokeWidth="1"
                             />
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+
+                    <line
+                        x1={ACTIVITY_CHART_PADDING_X}
+                        y1={chartModel.baselineY}
+                        x2={ACTIVITY_CHART_WIDTH - ACTIVITY_CHART_PADDING_X}
+                        y2={chartModel.baselineY}
+                        stroke="rgba(255,255,255,0.1)"
+                        strokeWidth="1"
+                    />
+
+                    {chartModel.areaPath ? (
+                        <motion.path
+                            d={chartModel.areaPath}
+                            fill={`url(#${areaGradientId})`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                        />
+                    ) : null}
+
+                    {chartModel.linePath ? (
+                        <>
+                            <motion.path
+                                d={chartModel.linePath}
+                                fill="none"
+                                stroke={`url(#${strokeGradientId})`}
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                initial={{ pathLength: 0, opacity: 0.45 }}
+                                animate={{ pathLength: 1, opacity: 1 }}
+                                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                            />
+                            <motion.path
+                                d={chartModel.linePath}
+                                fill="none"
+                                stroke="rgba(222,185,106,0.22)"
+                                strokeWidth="8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                initial={{ pathLength: 0, opacity: 0 }}
+                                animate={{ pathLength: 1, opacity: 1 }}
+                                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                            />
+                        </>
+                    ) : null}
+
+                    {chartModel.points.map((point, index) => (
+                        <motion.circle
+                            key={`${point.date}-${index}`}
+                            cx={point.x}
+                            cy={point.y}
+                            r={point.count > 0 ? 4.25 : 3.5}
+                            fill="var(--accent-color)"
+                            stroke="rgba(17, 17, 17, 0.78)"
+                            strokeWidth="1.5"
+                            data-testid="admin-activity-line-point"
+                            initial={{ opacity: 0, scale: 0.75 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.1 + index * 0.012, duration: 0.24 }}
+                        />
+                    ))}
+                </svg>
             </div>
 
             <div className="relative h-4 mt-2 shrink-0">
@@ -84,7 +206,7 @@ function ActivityChart({ data }) {
                     if (!d) return null;
                     const date = new Date(d.date + 'T00:00:00');
                     const label = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
-                    const leftPct = (idx / (data.length - 1)) * 100;
+                    const leftPct = data.length <= 1 ? 50 : (idx / (data.length - 1)) * 100;
                     const isFirst = idx === 0;
                     const isLast = idx === data.length - 1;
                     return (
