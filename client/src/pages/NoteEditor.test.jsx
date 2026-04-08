@@ -465,6 +465,138 @@ describe('NoteEditor', () => {
     expect(api.getNote).toHaveBeenCalledTimes(2);
   });
 
+  it('resolves a saving enhancement job immediately when note_persisted arrives', async () => {
+    vi.useFakeTimers();
+
+    const finalDoc = makeDoc('Enhanced notes resolved from the persisted checkpoint.');
+
+    api.getNote
+      .mockResolvedValueOnce(note)
+      .mockResolvedValueOnce({
+        ...note,
+        content: finalDoc,
+        enhanced_content: finalDoc,
+      });
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      result_payload: {
+        final_doc: finalDoc,
+        note_id: 'note-42',
+      },
+    }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    expect(screen.getByText('Importing into note')).toBeInTheDocument();
+
+    await act(async () => {
+      subscriptionHandlers.get('job-1')?.onUpdate?.(buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+          note_persisted: true,
+          persisted_at: '2026-04-08T21:09:00.000Z',
+        },
+      }));
+      await Promise.resolve();
+    });
+    await flushAsync(6);
+
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes resolved from the persisted checkpoint.');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(recorderMock.setProcessingState).toHaveBeenCalledWith('complete');
+    expect(api.getNote).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    await flushAsync(2);
+  });
+
+  it('locally resolves a saving enhancement job after the grace window even when note readback stays stale at first', async () => {
+    vi.useFakeTimers();
+
+    const finalDoc = makeDoc('Enhanced notes resolved after the saving grace window.');
+    const staleNote = {
+      ...note,
+      content: note.content,
+      enhanced_content: null,
+    };
+
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }),
+    ]);
+    api.getAiJob
+      .mockResolvedValueOnce(buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }))
+      .mockResolvedValueOnce(buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }))
+      .mockResolvedValueOnce(buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }));
+    api.getNote
+      .mockResolvedValueOnce(note)
+      .mockResolvedValueOnce(staleNote)
+      .mockResolvedValueOnce(staleNote)
+      .mockResolvedValueOnce({
+        ...note,
+        content: finalDoc,
+        enhanced_content: finalDoc,
+      });
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    expect(screen.getByText('Importing into note')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await flushAsync(4);
+
+    expect(screen.getByText('Importing into note')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await flushAsync(6);
+
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes resolved after the saving grace window.');
+    expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
+    expect(api.getAiJob).toHaveBeenCalledTimes(3);
+    expect(api.getNote).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    await flushAsync(2);
+
+  });
+
   it('refreshes the persisted note once when a completed job is missing final_doc', async () => {
     const refreshedDoc = makeDoc('Enhanced notes loaded from the saved note row.');
 
@@ -495,7 +627,9 @@ describe('NoteEditor', () => {
       expect(api.getNote).toHaveBeenCalledTimes(2);
     });
 
-    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes loaded from the saved note row.');
+    await waitFor(() => {
+      expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes loaded from the saved note row.');
+    });
     expect(screen.queryByText('Importing into note')).not.toBeInTheDocument();
     expect(toast.success).toHaveBeenCalledWith('Notes enhanced with AI');
   });
@@ -586,6 +720,72 @@ describe('NoteEditor', () => {
       expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Mitochondria power ATP production.');
       expect(screen.getByText('Enhancement failed')).toBeInTheDocument();
     });
+  });
+
+  it('ignores stale saving updates after a job was locally resolved', async () => {
+    vi.useFakeTimers();
+
+    const finalDoc = makeDoc('Enhanced notes that should stay visible.');
+
+    api.getNote
+      .mockResolvedValueOnce(note)
+      .mockResolvedValueOnce({
+        ...note,
+        content: finalDoc,
+        enhanced_content: finalDoc,
+      });
+    api.listAiJobs.mockResolvedValue([
+      buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }),
+    ]);
+    api.getAiJob.mockResolvedValueOnce(buildEnhancementJob({
+      result_payload: {
+        final_doc: finalDoc,
+        note_id: 'note-42',
+      },
+    }));
+
+    renderNoteEditor();
+    await flushAsync(6);
+
+    await act(async () => {
+      subscriptionHandlers.get('job-1')?.onUpdate?.(buildEnhancementJob({
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+          note_persisted: true,
+          persisted_at: '2026-04-08T21:09:00.000Z',
+        },
+      }));
+      await Promise.resolve();
+    });
+    await flushAsync(6);
+
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes that should stay visible.');
+
+    await act(async () => {
+      subscriptionHandlers.get('job-1')?.onUpdate?.(buildEnhancementJob({
+        progress_message: 'Saving enhanced notes',
+        result_payload: {
+          final_doc: finalDoc,
+          note_id: 'note-42',
+        },
+      }));
+      await Promise.resolve();
+    });
+    await flushAsync(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    await flushAsync(2);
+
+    expect(screen.getByTestId('note-editor-content')).toHaveTextContent('Enhanced notes that should stay visible.');
+    expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
   it('stops enhancement polling when the editor unmounts', async () => {

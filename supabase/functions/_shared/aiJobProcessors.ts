@@ -554,6 +554,23 @@ const processNoteEnhancementJob = async ({
 
   if (updateError) throw updateError;
 
+  const persistedAt = new Date().toISOString();
+
+  await reporter.markSaving('Saving enhanced notes', {
+    final_doc: finalDoc,
+    note_id: noteId,
+    note_persisted: true,
+    persisted_at: persistedAt,
+    metrics: {
+      server_total_ms: Date.now() - jobStartedAt,
+      first_preview_ms: firstPreviewAt == null ? null : firstPreviewAt - jobStartedAt,
+      ai_model_stage: {
+        draft: modelMap.draft,
+        final: modelMap.final,
+      },
+    },
+  });
+
   admin.storage.from('note-audio').remove([audioPath]).catch(() => {});
 
   await reporter.complete({
@@ -563,6 +580,8 @@ const processNoteEnhancementJob = async ({
     resultPatch: {
       final_doc: finalDoc,
       note_id: noteId,
+      note_persisted: true,
+      persisted_at: persistedAt,
     },
   });
 };

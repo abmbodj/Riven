@@ -27,6 +27,7 @@ import {
 const ACTIVE_AI_JOB_STATUSES = ['queued', 'running', 'streaming', 'saving'];
 const ENHANCEMENT_POLL_MS = 3000;
 const ENHANCEMENT_SAVING_POLL_MS = 1500;
+const ENHANCEMENT_LOCAL_COMPLETION_GRACE_POLLS = 2;
 
 const ENHANCEMENT_PHASE_LABELS = {
     accepted: 'Accepted AI job',
@@ -103,6 +104,7 @@ export default function NoteEditor() {
     const [enhanceError, setEnhanceError] = useState(null);
     const [audioPath, setAudioPath] = useState(null);
     const [activeEnhancementJob, setActiveEnhancementJob] = useState(null);
+    const [enhancementCompletionRail, setEnhancementCompletionRail] = useState(null);
     const [streamedEnhancementDoc, setStreamedEnhancementDoc] = useState(null);
     const [streamedEnhancementPulseKey, setStreamedEnhancementPulseKey] = useState(0);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -121,6 +123,11 @@ export default function NoteEditor() {
     const originalSavedRef = useRef(true);
     const streamedEnhancementSignatureRef = useRef('');
     const prefersReducedMotionRef = useRef(false);
+    const locallyResolvedEnhancementJobsRef = useRef(new Set());
+    const savingGraceStateRef = useRef(new Map());
+    const resolvedEnhancementRefreshAttemptedRef = useRef(new Set());
+    const completionRailTimerRef = useRef(null);
+    const enhancementContentAppliedRef = useRef(false);
     const handledJobStatesRef = useRef(new Set());
     const completionRefreshAttemptedRef = useRef(new Set());
     const enhancementMetricsRef = useRef({
@@ -178,10 +185,18 @@ export default function NoteEditor() {
         }
     }, []);
 
+    const clearEnhancementCompletionRailTimer = useCallback(() => {
+        if (completionRailTimerRef.current) {
+            window.clearTimeout(completionRailTimerRef.current);
+            completionRailTimerRef.current = null;
+        }
+    }, []);
+
     const stopEnhancementTracking = useCallback(() => {
         trackedEnhancementJobIdRef.current = null;
         clearEnhancementPoll();
         clearEnhancementSubscription();
+        savingGraceStateRef.current.clear();
     }, [clearEnhancementPoll, clearEnhancementSubscription]);
 
     const extractText = useCallback((doc) => {
@@ -211,6 +226,36 @@ export default function NoteEditor() {
         }
     }, [resetStreamedEnhancementDoc]);
 
+    const docsMatch = useCallback((leftDoc, rightDoc) => {
+        if (!leftDoc || !rightDoc) return false;
+
+        try {
+            return JSON.stringify(leftDoc) === JSON.stringify(rightDoc);
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const showEnhancementCompletionRail = useCallback((job) => {
+        if (!job?.id) return;
+
+        clearEnhancementCompletionRailTimer();
+        setEnhancementCompletionRail({
+            id: job.id,
+            progress_message: job.progress_message || 'Notes enhanced successfully',
+            progress_percent: 100,
+        });
+
+        completionRailTimerRef.current = window.setTimeout(() => {
+            completionRailTimerRef.current = null;
+            setEnhancementCompletionRail((current) => (current?.id === job.id ? null : current));
+        }, prefersReducedMotionRef.current ? 0 : 180);
+    }, [clearEnhancementCompletionRailTimer]);
+
+    useEffect(() => () => {
+        clearEnhancementCompletionRailTimer();
+    }, [clearEnhancementCompletionRailTimer]);
+
     const hydrateEnhancedContentFromNote = useCallback(async (job, fallbackNoteId) => {
         const jobId = job?.id;
         if (!jobId || completionRefreshAttemptedRef.current.has(jobId)) {
@@ -223,7 +268,7 @@ export default function NoteEditor() {
 
         try {
             const note = await api.getNote(persistedNoteId);
-            return note?.enhanced_content || note?.content || null;
+            return note?.enhanced_content || null;
         } catch (error) {
             console.warn('[NoteEditor] Failed to refresh enhanced note content', error?.message || error);
             return null;
@@ -255,7 +300,173 @@ export default function NoteEditor() {
         return recorderPath || null;
     }, [audioPath, recorder.audioPath]);
 
+    const refreshResolvedEnhancementNote = useCallback(async (job, fallbackNoteId) => {
+        const jobId = job?.id;
+        if (!jobId || resolvedEnhancementRefreshAttemptedRef.current.has(jobId)) {
+            return null;
+        }
+
+        resolvedEnhancementRefreshAttemptedRef.current.add(jobId);
+        const persistedNoteId = job?.result_payload?.note_id || fallbackNoteId;
+        if (!persistedNoteId) return null;
+
+        try {
+            return await api.getNote(persistedNoteId);
+        } catch (error) {
+            console.warn('[NoteEditor] Failed to refresh resolved enhanced note', error?.message || error);
+            return null;
+        }
+    }, []);
+
+    const resolveEnhancementLocally = useCallback((job, finalDoc, fallbackNoteId, options = {}) => {
+        const { backgroundRefresh = true } = options;
+        const jobId = job?.id;
+        if (!jobId || locallyResolvedEnhancementJobsRef.current.has(jobId)) {
+            return false;
+        }
+
+        const resolvedDoc = cloneRichTextDoc(finalDoc || getJobPreviewDoc(job) || {});
+        if (!resolvedDoc || typeof resolvedDoc !== 'object') {
+            return false;
+        }
+
+        locallyResolvedEnhancementJobsRef.current.add(jobId);
+        savingGraceStateRef.current.delete(jobId);
+        completionRefreshAttemptedRef.current.delete(jobId);
+
+        const completionJob = {
+            ...job,
+            status: 'completed',
+            phase: 'done',
+            progress_percent: 100,
+            progress_message: 'Notes enhanced successfully',
+            result_payload: {
+                ...(job?.result_payload || {}),
+                final_doc: resolvedDoc,
+                note_id: job?.result_payload?.note_id || fallbackNoteId || null,
+            },
+        };
+
+        enhancementContentAppliedRef.current = true;
+        setContent(resolvedDoc);
+        contentRef.current = resolvedDoc;
+        originalContentRef.current = null;
+        originalSavedRef.current = true;
+        setSaved(true);
+        setEnhancing(false);
+        setEnhanceError(null);
+        setShowEnhanceBanner(false);
+        resetStreamedEnhancementDoc();
+        setActiveEnhancementJob(null);
+        showEnhancementCompletionRail(completionJob);
+        setAudioPath(null);
+        recorder.setAudioPath(null);
+        recorder.setProcessingState('complete');
+        stopEnhancementTracking();
+        logEnhancementMetrics(completionJob);
+        toast.success('Notes enhanced with AI');
+
+        if (backgroundRefresh) {
+            void refreshResolvedEnhancementNote(completionJob, fallbackNoteId).then((persistedNote) => {
+                if (!persistedNote || !locallyResolvedEnhancementJobsRef.current.has(jobId)) {
+                    return;
+                }
+
+                const persistedDoc = persistedNote?.enhanced_content || persistedNote?.content || null;
+                if (!persistedNote?.enhanced_content && !docsMatch(persistedDoc, resolvedDoc)) {
+                    return;
+                }
+
+                const refreshedDoc = cloneRichTextDoc(persistedDoc);
+                if (!refreshedDoc || typeof refreshedDoc !== 'object') {
+                    return;
+                }
+
+                setContent(refreshedDoc);
+                contentRef.current = refreshedDoc;
+            });
+        }
+
+        return true;
+    }, [
+        logEnhancementMetrics,
+        recorder,
+        refreshResolvedEnhancementNote,
+        resetStreamedEnhancementDoc,
+        showEnhancementCompletionRail,
+        stopEnhancementTracking,
+        toast,
+        docsMatch,
+    ]);
+
+    const maybeResolveSavingEnhancementJob = useCallback(async (job, fallbackNoteId, options = {}) => {
+        const { countGracePoll = false, allowNoteRead = true } = options;
+        if (job?.status !== 'saving') {
+            if (job?.id) {
+                savingGraceStateRef.current.delete(job.id);
+            }
+            return false;
+        }
+
+        const payload = job?.result_payload || {};
+        const finalDoc = getJobFinalDoc(job);
+        const persistedNoteId = payload.note_id || fallbackNoteId;
+
+        if (payload.note_persisted && finalDoc) {
+            return resolveEnhancementLocally(job, finalDoc, fallbackNoteId);
+        }
+
+        if (persistedNoteId && allowNoteRead) {
+            try {
+                const savedNote = await api.getNote(persistedNoteId);
+                const persistedDoc = savedNote?.enhanced_content || savedNote?.content || null;
+
+                if (savedNote?.enhanced_content && persistedDoc) {
+                    return resolveEnhancementLocally(job, persistedDoc, persistedNoteId, {
+                        backgroundRefresh: false,
+                    });
+                }
+
+                if (finalDoc && persistedDoc && docsMatch(persistedDoc, finalDoc)) {
+                    return resolveEnhancementLocally(job, finalDoc, persistedNoteId, {
+                        backgroundRefresh: false,
+                    });
+                }
+            } catch {
+                // Fall through to grace-based local completion.
+            }
+        }
+
+        if (!countGracePoll || !finalDoc) {
+            if (job?.id && !finalDoc) {
+                savingGraceStateRef.current.delete(job.id);
+            }
+            return false;
+        }
+
+        const finalDocSignature = JSON.stringify(finalDoc);
+        const currentGraceState = savingGraceStateRef.current.get(job.id);
+        const nextPollCount = currentGraceState?.signature === finalDocSignature
+            ? currentGraceState.polls + 1
+            : 1;
+
+        savingGraceStateRef.current.set(job.id, {
+            signature: finalDocSignature,
+            polls: nextPollCount,
+        });
+
+        if (nextPollCount >= ENHANCEMENT_LOCAL_COMPLETION_GRACE_POLLS) {
+            return resolveEnhancementLocally(job, finalDoc, persistedNoteId);
+        }
+
+        return false;
+    }, [docsMatch, resolveEnhancementLocally]);
+
     const handleEnhancementJobUpdate = useCallback(async (job) => {
+        if (job?.id && locallyResolvedEnhancementJobsRef.current.has(job.id)) {
+            return;
+        }
+
         setActiveEnhancementJob(job || null);
         const previewDoc = getJobPreviewDoc(job);
 
@@ -274,6 +485,14 @@ export default function NoteEditor() {
         }
 
         if (isEnhancementJobActive(job)) {
+            if (job.status === 'saving') {
+                const resolvedWhileSaving = await maybeResolveSavingEnhancementJob(job, noteId, {
+                    allowNoteRead: Boolean(job?.result_payload?.note_persisted),
+                });
+                if (resolvedWhileSaving) {
+                    return;
+                }
+            }
             if (previewDoc) {
                 syncStreamedEnhancementDoc(previewDoc);
             }
@@ -304,6 +523,7 @@ export default function NoteEditor() {
             }
 
             if (finalDoc) {
+                enhancementContentAppliedRef.current = true;
                 setContent(finalDoc);
                 contentRef.current = finalDoc;
             }
@@ -331,6 +551,7 @@ export default function NoteEditor() {
             }
             const restoredContent = cloneRichTextDoc(originalContentRef.current || contentRef.current || {});
             if (restoredContent) {
+                enhancementContentAppliedRef.current = false;
                 setContent(restoredContent);
                 contentRef.current = restoredContent;
             }
@@ -351,6 +572,7 @@ export default function NoteEditor() {
         getTrackedAudioPath,
         hydrateEnhancedContentFromNote,
         logEnhancementMetrics,
+        maybeResolveSavingEnhancementJob,
         noteId,
         recorder,
         resetStreamedEnhancementDoc,
@@ -412,8 +634,11 @@ export default function NoteEditor() {
         if (!jobId) return;
 
         stopEnhancementTracking();
+        locallyResolvedEnhancementJobsRef.current.clear();
+        resolvedEnhancementRefreshAttemptedRef.current.delete(jobId);
         trackedEnhancementJobIdRef.current = jobId;
         completionRefreshAttemptedRef.current.delete(jobId);
+        savingGraceStateRef.current.delete(jobId);
 
         enhancementUnsubscribeRef.current = api.subscribeToAiJob(jobId, {
             onUpdate: (job) => processTrackedEnhancementJob(jobId, job),
@@ -456,13 +681,18 @@ export default function NoteEditor() {
                 if (!isNew) {
                     const note = await api.getNote(id);
                     const initialContent = note.enhanced_content || note.content || {};
+                    const preserveEnhancedContent = enhancementContentAppliedRef.current && contentRef.current;
 
                     setTitle(note.title || '');
-                    setContent(initialContent);
                     setClassId(note.class_id || null);
-                    setAudioPath(note.audio_url || null);
                     titleRef.current = note.title || '';
-                    contentRef.current = initialContent;
+                    if (!preserveEnhancedContent) {
+                        setContent(initialContent);
+                        contentRef.current = initialContent;
+                        setAudioPath(note.audio_url || null);
+                    } else if (!note.audio_url) {
+                        setAudioPath(null);
+                    }
                 }
             } catch {
                 toastRef.current.error('Failed to load note');
@@ -500,32 +730,13 @@ export default function NoteEditor() {
 
             try {
                 const latestJob = await api.getAiJob(trackedJobId);
-                // Recovery: if the job is stuck in saving but the note was already saved to DB,
-                // complete the UI. This handles edge function timeouts and dropped Realtime events.
                 if (latestJob?.status === 'saving') {
-                    try {
-                        const savedNoteId = String(latestJob.result_payload.note_id || '');
-                        if (savedNoteId) {
-                            const savedNote = await api.getNote(savedNoteId);
-                            const persistedDoc = savedNote?.enhanced_content || savedNote?.content || null;
-
-                            if (savedNote?.enhanced_content && persistedDoc) {
-                                processTrackedEnhancementJob(trackedJobId, {
-                                    ...latestJob,
-                                    status: 'completed',
-                                    phase: 'done',
-                                    progress_percent: 100,
-                                    progress_message: 'Notes enhanced successfully',
-                                    result_payload: {
-                                        ...(latestJob.result_payload || {}),
-                                        final_doc: persistedDoc,
-                                        note_id: savedNoteId,
-                                    },
-                                });
-                                return;
-                            }
-                        }
-                    } catch { /* fall through to normal processing */ }
+                    const resolvedWhileSaving = await maybeResolveSavingEnhancementJob(latestJob, noteId, {
+                        countGracePoll: true,
+                    });
+                    if (resolvedWhileSaving) {
+                        return;
+                    }
                 }
                 processTrackedEnhancementJob(trackedJobId, latestJob);
             } catch (error) {
@@ -536,7 +747,7 @@ export default function NoteEditor() {
         }, delay);
 
         return clearEnhancementPoll;
-    }, [activeEnhancementJob, clearEnhancementPoll, processTrackedEnhancementJob]);
+    }, [activeEnhancementJob, clearEnhancementPoll, maybeResolveSavingEnhancementJob, noteId, processTrackedEnhancementJob]);
 
     useEffect(() => {
         if (!noteId) return undefined;
@@ -747,6 +958,12 @@ export default function NoteEditor() {
         const blob = recorder.getBlob();
         if (!blob || !noteId) return;
 
+        locallyResolvedEnhancementJobsRef.current.clear();
+        resolvedEnhancementRefreshAttemptedRef.current.clear();
+        savingGraceStateRef.current.clear();
+        enhancementContentAppliedRef.current = false;
+        clearEnhancementCompletionRailTimer();
+        setEnhancementCompletionRail(null);
         originalContentRef.current = cloneRichTextDoc(contentRef.current || {});
         originalSavedRef.current = saved;
         resetStreamedEnhancementDoc();
@@ -1054,8 +1271,10 @@ export default function NoteEditor() {
     const enhancementLocked = isEnhancementJobActive(activeEnhancementJob);
     const micDisabled = isRecordingInAnotherNote || enhancing || enhancementLocked || !!generating || recorder.state === 'uploading' || recorder.state === 'processing';
     const generationDisabled = enhancementLocked || !!generating;
-    const enhancementStatusText = getEnhancementStatusText(activeEnhancementJob);
-    const enhancementProgressPercent = activeEnhancementJob?.progress_percent ?? null;
+    const visibleEnhancementRail = enhancementLocked ? activeEnhancementJob : enhancementCompletionRail;
+    const enhancementStatusText = visibleEnhancementRail?.progress_message || getEnhancementStatusText(visibleEnhancementRail);
+    const enhancementProgressPercent = visibleEnhancementRail?.progress_percent ?? null;
+    const enhancementRailIsCompleting = !enhancementLocked && Boolean(enhancementCompletionRail);
     const editorContent = streamedEnhancementDoc ?? content;
     const showImportSweep = enhancementLocked && streamedEnhancementDoc && !prefersReducedMotion;
 
@@ -1240,11 +1459,17 @@ export default function NoteEditor() {
                     </AnimatePresence>
 
                     <AnimatePresence>
-                        {enhancementLocked && activeEnhancementJob && (
+                        {visibleEnhancementRail && (
                             <motion.div
                                 initial={{ opacity: 0, y: -8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
+                                exit={prefersReducedMotion
+                                    ? { opacity: 0 }
+                                    : {
+                                        opacity: 0,
+                                        y: -6,
+                                        transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
+                                    }}
                                 className="mb-4 rounded-2xl border border-claude-accent/15 bg-claude-surface/45 px-3 py-3"
                             >
                                 <div className="flex items-start justify-between gap-3">
@@ -1260,7 +1485,11 @@ export default function NoteEditor() {
                                         <span className="text-[9px] font-mono uppercase tracking-[0.14em] text-claude-secondary">
                                             {enhancementProgressPercent != null ? `${enhancementProgressPercent}%` : 'Live'}
                                         </span>
-                                        <Loader2 className="w-3.5 h-3.5 text-claude-accent animate-spin" />
+                                        {enhancementRailIsCompleting ? (
+                                            <Check className="w-3.5 h-3.5 text-claude-accent" />
+                                        ) : (
+                                            <Loader2 className="w-3.5 h-3.5 text-claude-accent animate-spin" />
+                                        )}
                                     </div>
                                 </div>
                                 <div className="mt-2 h-px overflow-hidden rounded-full bg-claude-border/30">
